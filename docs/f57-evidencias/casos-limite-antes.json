@@ -1,0 +1,2678 @@
+[
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · nenhum",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · nenhum",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "dev · nenhum",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · nenhum",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · nenhum",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · nenhum",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · nenhum",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · nenhum",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · nenhum",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · um",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · um",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "dev · um",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · um",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · um",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · um",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · um",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · um",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · um",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · dois",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · dois",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "dev · dois",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · dois",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · dois",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · dois",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · dois",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · dois",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · dois",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "dev · so-desativada",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "dev · so-desativada",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "dev · so-desativada",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · so-desativada",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · so-desativada",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · so-desativada",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · so-desativada",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · so-desativada",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "dev · so-desativada",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · nenhum",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · nenhum",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "admin · nenhum",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · nenhum",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · nenhum",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · nenhum",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · nenhum",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · nenhum",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · nenhum",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · um",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · um",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "admin · um",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · um",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · um",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · um",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · um",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · um",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · um",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · dois",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · dois",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "admin · dois",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · dois",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · dois",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · dois",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · dois",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · dois",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · dois",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "admin · so-desativada",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "admin · so-desativada",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "admin · so-desativada",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · so-desativada",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · so-desativada",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · so-desativada",
+    "coluna": "outra-ativa",
+    "valor": "filial:3"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · so-desativada",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · so-desativada",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "admin · so-desativada",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · nenhum",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · nenhum",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "operador · nenhum",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · nenhum",
+    "coluna": "ausente",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · nenhum",
+    "coluna": "valido",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · nenhum",
+    "coluna": "outra-ativa",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · nenhum",
+    "coluna": "inexistente",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · nenhum",
+    "coluna": "desativada",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · nenhum",
+    "coluna": "lixo",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "ausente",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "lixo",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · um",
+    "coluna": "fora-da-faixa",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "ausente",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "lixo",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · um",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "operador · um",
+    "coluna": "sem parâmetro",
+    "valor": "bravo"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · um",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · um",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · um",
+    "coluna": "outra-ativa",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · um",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · um",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · um",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "ausente",
+    "valor": "ids:2,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "lixo",
+    "valor": "ids:2,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · dois",
+    "coluna": "fora-da-faixa",
+    "valor": "ids:2,4"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "ausente",
+    "valor": "slugs:bravo,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "lixo",
+    "valor": "slugs:bravo,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · dois",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "operador · dois",
+    "coluna": "sem parâmetro",
+    "valor": "bravo"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · dois",
+    "coluna": "ausente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · dois",
+    "coluna": "valido",
+    "valor": "filial:2"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · dois",
+    "coluna": "outra-ativa",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · dois",
+    "coluna": "inexistente",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · dois",
+    "coluna": "desativada",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · dois",
+    "coluna": "lixo",
+    "valor": "seletor"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "operador · so-desativada",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "operador · so-desativada",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "operador · so-desativada",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · so-desativada",
+    "coluna": "ausente",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · so-desativada",
+    "coluna": "valido",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · so-desativada",
+    "coluna": "outra-ativa",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · so-desativada",
+    "coluna": "inexistente",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · so-desativada",
+    "coluna": "desativada",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "operador · so-desativada",
+    "coluna": "lixo",
+    "valor": "aviso-sem-escrita"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · nenhum",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · nenhum",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "consulta · nenhum",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · nenhum",
+    "coluna": "ausente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · nenhum",
+    "coluna": "valido",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · nenhum",
+    "coluna": "outra-ativa",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · nenhum",
+    "coluna": "inexistente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · nenhum",
+    "coluna": "desativada",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · nenhum",
+    "coluna": "lixo",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · um",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · um",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "consulta · um",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · um",
+    "coluna": "ausente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · um",
+    "coluna": "valido",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · um",
+    "coluna": "outra-ativa",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · um",
+    "coluna": "inexistente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · um",
+    "coluna": "desativada",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · um",
+    "coluna": "lixo",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · dois",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · dois",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "consulta · dois",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · dois",
+    "coluna": "ausente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · dois",
+    "coluna": "valido",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · dois",
+    "coluna": "outra-ativa",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · dois",
+    "coluna": "inexistente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · dois",
+    "coluna": "desativada",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · dois",
+    "coluna": "lixo",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "valido",
+    "valor": "ids:2"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "dois",
+    "valor": "ids:1,4"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "inexistente",
+    "valor": "ids:77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "misto",
+    "valor": "ids:2,77"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "desativada",
+    "valor": "ids:5"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S1",
+    "linha": "consulta · so-desativada",
+    "coluna": "fora-da-faixa",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "ausente",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "todas",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "valido",
+    "valor": "slugs:bravo"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "dois",
+    "valor": "slugs:alfa,delta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "inexistente",
+    "valor": "slugs:fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "misto",
+    "valor": "slugs:bravo,fantasma"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "desativada",
+    "valor": "slugs:extinta"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "lixo",
+    "valor": "todas"
+  },
+  {
+    "superficie": "S2",
+    "linha": "consulta · so-desativada",
+    "coluna": "geral",
+    "valor": "slugs:geral"
+  },
+  {
+    "superficie": "S4",
+    "linha": "consulta · so-desativada",
+    "coluna": "sem parâmetro",
+    "valor": "geral"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · so-desativada",
+    "coluna": "ausente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · so-desativada",
+    "coluna": "valido",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · so-desativada",
+    "coluna": "outra-ativa",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · so-desativada",
+    "coluna": "inexistente",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · so-desativada",
+    "coluna": "desativada",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S5",
+    "linha": "consulta · so-desativada",
+    "coluna": "lixo",
+    "valor": "cargo-sem-escrita"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "ausente",
+    "valor": "sem-filtro"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "todas",
+    "valor": "sem-filtro"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "geral",
+    "valor": "is(filial_id, null)"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "geral+valido",
+    "valor": "or(filial_id.is.null,filial_id.in.(2))"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "valido",
+    "valor": "in(filial_id, [2])"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "desativada",
+    "valor": "in(filial_id, [5])"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "inexistente",
+    "valor": "vazio-sem-consulta"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "misto",
+    "valor": "in(filial_id, [2])"
+  },
+  {
+    "superficie": "S3",
+    "linha": "qualquer cargo e o visualizador",
+    "coluna": "lixo",
+    "valor": "sem-filtro"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "ausente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "todas",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "valido",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "dois",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "inexistente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "misto",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "desativada",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "lixo",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/ativos · /movimentacoes · /itens · /itens/historico",
+    "coluna": "fora-da-faixa",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "ausente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "todas",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "valido",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "dois",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "inexistente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "misto",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "desativada",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "lixo",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/pendencias",
+    "coluna": "geral",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "ausente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "todas",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "geral",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "geral+valido",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "valido",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "desativada",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "inexistente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "misto",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/gerados",
+    "coluna": "lixo",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/itens/conferencia",
+    "coluna": "ausente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/itens/conferencia",
+    "coluna": "valido",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/itens/conferencia",
+    "coluna": "outra-ativa",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/itens/conferencia",
+    "coluna": "inexistente",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/itens/conferencia",
+    "coluna": "desativada",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/itens/conferencia",
+    "coluna": "lixo",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/[filial]",
+    "coluna": "geral",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/[filial]",
+    "coluna": "valido",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/[filial]",
+    "coluna": "desativada",
+    "valor": "abre"
+  },
+  {
+    "superficie": "P",
+    "linha": "/relatorios/[filial]",
+    "coluna": "inexistente",
+    "valor": "404"
+  }
+]

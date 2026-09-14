@@ -1,0 +1,20 @@
+# F57 — linha de base (14/09/2026, branch f57-quatro-significados-de-filial, commit 6eab805 = main 711facd + a ordem)
+
+## npx tsc --noEmit
+tsc exit=0
+
+## npm run test (resumo)
+
+> estoque-ti-wap@1.61.0 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  192 passed (192)
+      Tests  5014 passed (5014)
+   Start at  14:04:11
+   Duration  239.90s (transform 40.36s, setup 0ms, import 1124.21s, tests 93.01s, environment 160ms)
+
+test exit=0
