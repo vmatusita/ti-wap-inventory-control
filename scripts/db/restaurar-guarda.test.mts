@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assertGuardsAndGetConfig } from '../env-guard'
 import {
+  MAIOR_VERSAO_CONHECIDA,
   ORDEM_DE_INSERCAO,
   REFS_DE_ENSAIO,
   REFS_DE_PRODUCAO_CONHECIDOS,
@@ -13,6 +14,8 @@ import {
   refDaUrl,
   sqlDaSequencia,
   sqlDeInsercao,
+  sqlDeReligarElos,
+  sqlDeReligarPonteiros,
   versaoDoBackup,
 } from './restaurar.mjs'
 
@@ -353,5 +356,127 @@ describe('10. o Postgres local sem ref é caso legítimo SÓ em restaurar.mjs �
     delete process.env.NEXT_PUBLIC_SUPABASE_URL
     delete process.env.SEED_PROJECT_REF
     esperarRecusa(() => assertGuardsAndGetConfig())
+  })
+})
+
+// =============================================================================
+// 11-13. A VERSÃO 2 (F56 · Frente F, 0140) — o backup do conserto da FK.
+// =============================================================================
+// `main()` não é exportada (a recusa de versão desconhecida e a leitura do
+// arquivo/bucket vivem ali), então o que se testa aqui — no molde do describe 6
+// ("o formato antigo não finge estar completo"), que já testa `versaoDoBackup`
+// isolada de `main()` — é a LÓGICA pura que `main()` usa para decidir, e a forma
+// do SQL que `montarTransacao` monta a partir das duas chaves novas.
+// =============================================================================
+
+describe('11. religar os dois elos de `lancamentos_item` (o UPDATE da versão 2)', () => {
+  it('um UPDATE só, com os dois elos — sem trigger, sem INSERT', () => {
+    const sql = sqlDeReligarElos([
+      { id: 'l1', movimentacao_id: 'm1', pendencia_item_id: null },
+      { id: 'l2', movimentacao_id: null, pendencia_item_id: 'p1' },
+    ])
+    expect(sql).toContain('update public.lancamentos_item as li')
+    expect(sql).toContain('set movimentacao_id   = v.movimentacao_id')
+    expect(sql).toContain('pendencia_item_id = v.pendencia_item_id')
+    expect(sql).toContain("('l1', 'm1', null)")
+    expect(sql).toContain("('l2', null, 'p1')")
+    expect(sql).toContain('where li.id = v.id')
+    // Nunca um INSERT: religar não é reinserir a linha (ela já existe).
+    expect(sql).not.toMatch(/insert into/i)
+  })
+
+  it('lista vazia ou ausente não gera UPDATE nenhum', () => {
+    expect(sqlDeReligarElos([])).toBeNull()
+    expect(sqlDeReligarElos(undefined)).toBeNull()
+  })
+})
+
+describe('12. religar `ativos.substitui_ativo_id` (o mesmo UPDATE serve o backup do RESET)', () => {
+  it('um UPDATE só, pelo id do ativo QUE APONTA', () => {
+    const sql = sqlDeReligarPonteiros([{ id: 'sub1', substitui_ativo_id: 'd1' }])
+    expect(sql).toContain('update public.ativos as a')
+    expect(sql).toContain('set substitui_ativo_id = v.substitui_ativo_id')
+    expect(sql).toContain("('sub1', 'd1')")
+    expect(sql).toContain('where a.id = v.id')
+  })
+
+  it('lista vazia ou ausente não gera UPDATE nenhum', () => {
+    expect(sqlDeReligarPonteiros([])).toBeNull()
+    expect(sqlDeReligarPonteiros(undefined)).toBeNull()
+  })
+
+  it('MONTA sozinho a partir de um backup versão 1 do RESET com `ponteiros_perdidos` — a lacuna pré-existente fechada "de graça"', () => {
+    // ⚠ POR PRESENÇA da chave, não por `versao`: o backup do reset é versão 1
+    // (a Decisão 4 da F54 só acrescentou `versao`/`contagens`, não bumpou para
+    // 2) e grava `ponteiros_perdidos` desde a F23 — bem antes desta fase.
+    const backupDoReset = {
+      versao: 1,
+      ativos: [{ id: 'a1' }],
+      ponteiros_perdidos: [{ id: 'sub1', substitui_ativo_id: 'a1' }],
+    }
+    const sql = montarTransacao(backupDoReset, 'reset/acervo/global/x.json')
+    expect(sql).toContain('update public.ativos as a')
+    expect(sql).toContain("('sub1', 'a1')")
+  })
+})
+
+describe('13. `montarTransacao` religa os dois elos SÓ quando o backup os traz', () => {
+  it('versão 2 completa: os dois UPDATEs entram DEPOIS das inserções e DENTRO da janela', () => {
+    const backup = {
+      versao: 2,
+      ativos: [{ id: 'a1' }],
+      movimentacoes: [{ id: 'm1', ordem: 1 }],
+      pendencias_item: [{ id: 'p1', ativo_id: 'a1', movimentacao_id: 'm1', item: 'x', filial_id: 1 }],
+      lancamentos_desvinculados: [{ id: 'l1', movimentacao_id: 'm1', pendencia_item_id: null }],
+      ponteiros_perdidos: [{ id: 'sub1', substitui_ativo_id: 'a1' }],
+    }
+    const sql = montarTransacao(backup, 'import/filial-1/x.json')
+
+    expect(sql).toContain('update public.lancamentos_item as li')
+    expect(sql).toContain('update public.ativos as a')
+
+    // DEPOIS das inserções (elas religam id que a inserção acabou de criar).
+    expect(sql.indexOf('insert into public.pendencias_item')).toBeLessThan(
+      sql.indexOf('update public.lancamentos_item as li'),
+    )
+    // DENTRO da janela: antes do 'off' que a fecha.
+    expect(sql.indexOf('update public.lancamentos_item as li')).toBeLessThan(
+      sql.lastIndexOf("set_config('estoque.dev_destrutivo','off',true)"),
+    )
+    expect(sql.indexOf('update public.ativos as a')).toBeLessThan(
+      sql.lastIndexOf("set_config('estoque.dev_destrutivo','off',true)"),
+    )
+  })
+
+  it('versão 1 (sem as chaves novas): nenhum dos dois UPDATEs aparece — compatível com o formato de sempre', () => {
+    const backup = { versao: 1, ativos: [{ id: 'a1' }], movimentacoes: [{ id: 'm1', ordem: 1 }] }
+    const sql = montarTransacao(backup, 'import/filial-1/x.json')
+    expect(sql).not.toContain('update public.lancamentos_item as li')
+    expect(sql).not.toContain('update public.ativos as a')
+  })
+})
+
+describe('14. `main()` recusa versão acima da que o restaurador conhece (critério 17)', () => {
+  // `main()` não é exportada — o que se testa é a MESMA comparação que ela faz
+  // (`versaoDoBackup(backup) > MAIOR_VERSAO_CONHECIDA`), com as duas peças
+  // exportadas e puras. `esperarRecusa`/mock de `process.exit` não se aplica
+  // aqui porque a chamada de `process.exit` mora dentro de `main()`, não numa
+  // função exportada — testar a PREDICADO é o que sobra sem reestruturar o
+  // script só para o teste (o script continua `.mjs` de linha de comando).
+  it('MAIOR_VERSAO_CONHECIDA é 2 — a versão que a 0140 introduziu', () => {
+    expect(MAIOR_VERSAO_CONHECIDA).toBe(2)
+  })
+
+  it('versão 1 e versão 2 NÃO disparam a recusa', () => {
+    expect(versaoDoBackup({ versao: 1 }) > MAIOR_VERSAO_CONHECIDA).toBe(false)
+    expect(versaoDoBackup({ versao: 2 }) > MAIOR_VERSAO_CONHECIDA).toBe(false)
+  })
+
+  it('versão 3 (desconhecida) DISPARA a recusa — a mesma comparação de `main()`', () => {
+    expect(versaoDoBackup({ versao: 3 }) > MAIOR_VERSAO_CONHECIDA).toBe(true)
+  })
+
+  it('backup sem `versao` (formato anterior ao campo, versaoDoBackup = 0) NÃO dispara — continua funcionando igual', () => {
+    expect(versaoDoBackup({ bloco: 'acervo' }) > MAIOR_VERSAO_CONHECIDA).toBe(false)
   })
 })

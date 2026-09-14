@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { Constants } from '@/lib/types/database'
-import { ESTADOS, SITUACAO_CANONICA, TIPO_CANONICO } from './deparas'
+import { categoriasNoSql, estadosNoSql, migracaoComAncora } from './leitor-seed-vocabulario'
 import type { CategoriaImport, EstadoAlvoImport, EstadoPlanilha } from './tipos'
 import type { ExcluirDaUniao } from '@/lib/tipos-estritos'
 
@@ -49,33 +49,42 @@ import type { ExcluirDaUniao } from '@/lib/tipos-estritos'
 // -----------------------------------------------------------------------------
 //
 // Não há como ler uma UNIÃO de tipos em runtime (tipo é apagado na compilação).
-// A prova em runtime usa, em vez disso, os `Record<>` EXAUSTIVOS que o próprio
-// TypeScript já obriga a cobrir a união inteira — se `TIPO_CANONICO` (um
-// `Record<CategoriaImport, string>`) esquecer uma chave, o `npm run build` já
-// reprova; então ler `Object.keys(TIPO_CANONICO)` em runtime É ler a união
-// `CategoriaImport` em runtime. Mesma lógica para `SITUACAO_CANONICA`
-// (`Record<EstadoAlvoImport, string>`) e para `EstadoAlvoImport`. Para
-// `EstadoPlanilha` (que INCLUI `descartado`, o único valor sem forma de
-// exibição — por isso não tem `Record<>` exaustivo próprio), a testemunha é
-// `ESTADOS`, o De→Para termo→estado de `deparas.ts`: ele é escrito à mão,
-// INDEPENDENTE de `SITUACAO_CANONICA` — comparar os dois evitaria a
-// tautologia de "provar A com A".
+//
+// F56 · Frente D (segunda metade) — a testemunha em runtime MUDOU: até aqui era
+// `TIPO_CANONICO`/`SITUACAO_CANONICA`/`ESTADOS`, os `Record<>`/objeto exaustivos
+// que `deparas.ts` hardcodava; essas constantes SAÍRAM (o vocabulário virou dado
+// no banco, migration 0139). A testemunha agora é o próprio SEED da 0139, lido do
+// SQL (`leitor-seed-vocabulario.ts`, o mesmo leitor de `vocabulario-sql.test.ts`)
+// — INDEPENDENTE do código TypeScript do import (não deriva de nada que este
+// arquivo testa), o que evita a tautologia "provar A com A" tão bem quanto a
+// testemunha antiga: `CategoriaImport` via os valores DISTINTOS de `categoria` no
+// seed de `import_termos_categoria`; `EstadoPlanilha` via os valores DISTINTOS de
+// `estado` no seed de `import_termos_estado` (17 termos → 8 estados, inclusive
+// `descartado`); `EstadoAlvoImport` = `EstadoPlanilha` menos `descartado`.
 
 const CATEGORIAS_DO_BANCO = new Set<string>(Constants.public.Enums.categoria_ativo)
 const ESTADOS_DO_BANCO = new Set<string>(Constants.public.Enums.status_ativo)
 
-/** `CategoriaImport` em runtime: as chaves do `Record<CategoriaImport, string>`. */
-const CATEGORIAS_DO_IMPORT = new Set(Object.keys(TIPO_CANONICO))
+const { sql: SQL_CATEGORIAS } = migracaoComAncora(
+  'insert into public.import_termos_categoria (termo, categoria, rotulo) values',
+)
+const { sql: SQL_ESTADOS } = migracaoComAncora(
+  'insert into public.import_termos_estado (termo, estado, rotulo) values',
+)
 
-/** `EstadoAlvoImport` em runtime: as chaves do `Record<EstadoAlvoImport, string>`. */
-const ESTADO_ALVO_DO_IMPORT = new Set(Object.keys(SITUACAO_CANONICA))
+/** `CategoriaImport` em runtime: os valores DISTINTOS de `categoria` no seed. */
+const CATEGORIAS_DO_IMPORT = new Set(categoriasNoSql(SQL_CATEGORIAS).map((c) => c.categoria))
 
-/** `EstadoPlanilha` em runtime: os VALORES do De→Para termo→estado — fonte
- *  independente de `SITUACAO_CANONICA` (não deriva dela). */
-const ESTADO_PLANILHA_DO_IMPORT = new Set(Object.values(ESTADOS))
+/** `EstadoPlanilha` em runtime: os valores DISTINTOS de `estado` no seed —
+ *  fonte independente de qualquer `Record<>` de rótulo. */
+const ESTADO_PLANILHA_DO_IMPORT = new Set(estadosNoSql(SQL_ESTADOS).map((e) => e.estado))
+
+/** `EstadoAlvoImport` em runtime: `EstadoPlanilha` (testemunha independente) menos
+ *  `descartado` — não deriva de nenhum `Record<>` de rótulo. */
+const ESTADO_ALVO_DO_IMPORT = new Set([...ESTADO_PLANILHA_DO_IMPORT].filter((e) => e !== 'descartado'))
 
 describe('as uniões do import vêm do banco (Constants), não de enum redeclarado (fato 16)', () => {
-  it('guarda do próprio teste: Constants tem os enums esperados, não vazios', () => {
+  it('guarda do próprio teste: Constants e o seed têm os valores esperados, não vazios', () => {
     expect(CATEGORIAS_DO_BANCO.size).toBeGreaterThan(0)
     expect(ESTADOS_DO_BANCO.size).toBeGreaterThan(0)
     expect(CATEGORIAS_DO_IMPORT.size).toBeGreaterThan(0)
@@ -83,17 +92,17 @@ describe('as uniões do import vêm do banco (Constants), não de enum redeclara
     expect(ESTADO_PLANILHA_DO_IMPORT.size).toBeGreaterThan(0)
   })
 
-  it('CategoriaImport (via TIPO_CANONICO) = categoria_ativo do banco MENOS "outro"', () => {
+  it('CategoriaImport (via o seed da 0139) = categoria_ativo do banco MENOS "outro"', () => {
     const esperado = new Set([...CATEGORIAS_DO_BANCO].filter((c) => c !== 'outro'))
     expect(CATEGORIAS_DO_IMPORT).toEqual(esperado)
   })
 
-  it('EstadoPlanilha (via ESTADOS, independente) = status_ativo do banco MENOS "devolvido_fornecedor"', () => {
+  it('EstadoPlanilha (via o seed da 0139, independente) = status_ativo do banco MENOS "devolvido_fornecedor"', () => {
     const esperado = new Set([...ESTADOS_DO_BANCO].filter((e) => e !== 'devolvido_fornecedor'))
     expect(ESTADO_PLANILHA_DO_IMPORT).toEqual(esperado)
   })
 
-  it('EstadoAlvoImport (via SITUACAO_CANONICA) = EstadoPlanilha (testemunha independente) MENOS "descartado"', () => {
+  it('EstadoAlvoImport = EstadoPlanilha (testemunha independente) MENOS "descartado"', () => {
     const esperado = new Set([...ESTADO_PLANILHA_DO_IMPORT].filter((e) => e !== 'descartado'))
     expect(ESTADO_ALVO_DO_IMPORT).toEqual(esperado)
   })

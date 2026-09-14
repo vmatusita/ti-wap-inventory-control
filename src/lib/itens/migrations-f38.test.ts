@@ -121,6 +121,19 @@ const DA_F38 = [
   // aditiva — as quatro tabelas nascem vazias e são semeadas pelo próprio INSERT
   // dela, nunca por um UPDATE em `ativos`/`movimentacoes`/`lancamentos_item`).
   '0139',
+  // F56 · Frente F (11/09/2026) — a `0140` recria as TRÊS funções da cadeia do
+  // import (`import_apagar_acervo_filial`, `import_revalidar_contagens`,
+  // `importar_ativos_substituir`) para tratar os cinco caminhos de FK do fato 27.
+  // Nenhuma das três está em INTOCAVEIS — não precisa de exceção nominal. Os
+  // quatro UPDATE/DELETE novos (dois UPDATE em `lancamentos_item`, um DELETE em
+  // `pendencias_item`, um UPDATE em `ativos`) moram DENTRO do corpo `$$ … $$` de
+  // `import_apagar_acervo_filial` — `semCorposDeFuncao` os remove antes da
+  // varredura de DELETE/UPDATE em massa, e a guarda é sobre o que o APPLY
+  // executa (um `create or replace function`), não sobre o que a função faz
+  // quando chamada depois. `import_apagar_acervo_filial` continua a única com
+  // `delete from public.ativos` — a trava da F51 (`import-uma-porta.test.ts`)
+  // é quem prova isso, não esta lista.
+  '0140',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

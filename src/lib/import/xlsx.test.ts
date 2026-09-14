@@ -8,6 +8,7 @@ import {
 } from './limites'
 import { validarArquivoImport, validarCsvImport } from './plano'
 import type { FilialSelecionada } from './tipos'
+import type { VocabularioImport } from './vocabulario'
 
 // Testes do leitor de .xlsx (OS-F7G). Dados 100% fictícios (WAP…/"Fulano") — CLAUDE.md.
 // As planilhas de fixture são construídas com o PRÓPRIO ExcelJS (write → buffer),
@@ -16,6 +17,33 @@ import type { FilialSelecionada } from './tipos'
 
 const FILIAL: FilialSelecionada = { id: 1, slug: 'matriz', nome: 'Matriz' }
 const HOJE = '2026-07-20'
+
+// F56 · Frente D — o vocabulário deixou de ser hardcoded; o motor recebe
+// `VocabularioImport` por parâmetro. Fixture mínima (só o que este arquivo usa).
+const VOCAB: VocabularioImport = {
+  filiais: [{ id: FILIAL.id, nome: FILIAL.nome, ativa: true }],
+  apelidos: [],
+  categorias: [
+    { termo: 'notebook', categoria: 'notebook', rotulo: 'Notebook' },
+    { termo: 'desktop', categoria: 'desktop', rotulo: 'Desktop' },
+    { termo: 'monitor', categoria: 'monitor', rotulo: 'Monitor' },
+    { termo: 'celular', categoria: 'celular', rotulo: 'Celular' },
+    { termo: 'tablet', categoria: 'tablet', rotulo: 'Tablet' },
+  ],
+  estados: [
+    { termo: 'saida', estado: 'em_uso', rotulo: 'Saída' },
+    { termo: 'remanejo', estado: 'em_uso', rotulo: null },
+    { termo: 'guardada', estado: 'em_estoque', rotulo: null },
+    { termo: 'estoque', estado: 'em_estoque', rotulo: 'Estoque' },
+    { termo: 'reservado', estado: 'reservado', rotulo: 'Reservado' },
+    { termo: 'emprestimo', estado: 'emprestado', rotulo: 'Empréstimo' },
+    { termo: 'validar', estado: 'em_triagem', rotulo: 'Validar' },
+    { termo: 'manutencao', estado: 'em_manutencao', rotulo: 'Manutenção' },
+    { termo: 'defasado', estado: 'defasado', rotulo: 'Defasado' },
+    { termo: 'descartado', estado: 'descartado', rotulo: null },
+  ],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
 
 // Cabeçalho REAL do layout Matriz (com `:` e acentos — prova a normalização do header).
 const HEADER_MATRIZ = [
@@ -110,8 +138,8 @@ describe('validarArquivoImport — paridade CSV × XLSX', () => {
     const csvTexto = [HEADER_MATRIZ.join(';'), ...linhasCsv].join('\r\n')
     const csvBuf = new TextEncoder().encode(csvTexto)
 
-    const doXlsx = await validarArquivoImport(xlsxBuf, FILIAL, HOJE)
-    const doCsv = validarCsvImport(csvBuf, FILIAL, HOJE)
+    const doXlsx = await validarArquivoImport(xlsxBuf, FILIAL, VOCAB, HOJE)
+    const doCsv = validarCsvImport(csvBuf, FILIAL, VOCAB, HOJE)
 
     expect(doXlsx.bloqueantes).toEqual([])
     expect(doXlsx.plano).not.toBeNull()
@@ -127,7 +155,7 @@ describe('validarArquivoImport — paridade CSV × XLSX', () => {
     expect(pareceXlsx(xlsxBuf)).toBe(true)
     expect(pareceXlsx(csvBuf)).toBe(false)
     // A entrada assíncrona resolve os dois sem lançar.
-    await expect(validarArquivoImport(csvBuf, FILIAL, HOJE)).resolves.toBeTruthy()
+    await expect(validarArquivoImport(csvBuf, FILIAL, VOCAB, HOJE)).resolves.toBeTruthy()
   })
 })
 
@@ -157,11 +185,11 @@ describe('lerXlsx × conferirTetos — tetos de tamanho (dívida técnica item T
   it('recusa planilha com mais linhas de dados que o teto, dizendo o número e o limite', async () => {
     // header (1) + (MAX_LINHAS_PLANILHA + 1) linhas de dados
     const buf = await planilhaComUltimaLinha(MAX_LINHAS_PLANILHA + 2)
-    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toBeInstanceOf(ErroArquivoImport)
-    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toThrow(
+    await expect(validarArquivoImport(buf, FILIAL, VOCAB, HOJE)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(validarArquivoImport(buf, FILIAL, VOCAB, HOJE)).rejects.toThrow(
       `${(MAX_LINHAS_PLANILHA + 1).toLocaleString('pt-BR')} linhas`,
     )
-    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toThrow(
+    await expect(validarArquivoImport(buf, FILIAL, VOCAB, HOJE)).rejects.toThrow(
       `o limite do import é ${MAX_LINHAS_PLANILHA.toLocaleString('pt-BR')}`,
     )
   })
@@ -174,14 +202,14 @@ describe('lerXlsx × conferirTetos — tetos de tamanho (dívida técnica item T
     expect(csv.linhas.at(-1)!.linha).toBe(MAX_LINHAS_PLANILHA + 1)
     expect(csv.linhas.at(-1)!.celulas[0]).toBe('WAP0001234')
     // e `validarArquivoImport` (que roda `conferirTetos`) aceita — não rejeita.
-    await expect(validarArquivoImport(buf, FILIAL, HOJE)).resolves.toBeTruthy()
+    await expect(validarArquivoImport(buf, FILIAL, VOCAB, HOJE)).resolves.toBeTruthy()
   })
 
   it('recusa planilha mais larga que o teto de colunas em vez de cortar à direita', async () => {
     const header = Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, (_, i) => `Col ${i + 1}`)
     const buf = await montarXlsx(header, [['x']])
-    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toBeInstanceOf(ErroArquivoImport)
-    await expect(validarArquivoImport(buf, FILIAL, HOJE)).rejects.toThrow('41 colunas')
+    await expect(validarArquivoImport(buf, FILIAL, VOCAB, HOJE)).rejects.toBeInstanceOf(ErroArquivoImport)
+    await expect(validarArquivoImport(buf, FILIAL, VOCAB, HOJE)).rejects.toThrow('41 colunas')
   })
 
   it('aceita a planilha EXATAMENTE no teto de colunas — lerXlsx não trunca', async () => {
@@ -209,7 +237,7 @@ describe('lerXlsx — Decisão 8 (F56 · Frente C): valor à direita do cabeçal
       ],
     ]
     const buf = await montarXlsx(HEADER_MATRIZ, linhasXlsxComSobra)
-    const v = await validarArquivoImport(buf, FILIAL, HOJE)
+    const v = await validarArquivoImport(buf, FILIAL, VOCAB, HOJE)
     expect(v.plano).toBeNull()
     expect(v.bloqueantes.some((e) => e.tipo === 'linha_desalinhada')).toBe(true)
   })

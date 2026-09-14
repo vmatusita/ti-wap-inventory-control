@@ -1,15 +1,18 @@
-// De→Para do import de startup (OS-F7 / W1). Funções PURAS extraídas e adaptadas
-// de `scripts/import/normalizar.ts` (motor da carga única F4) para código de
-// produção testável. Aplicam os vocabulários De→Para da spec §5 (ampliados
-// 15/07/2026) sobre os valores crus do CSV. Nada aqui toca banco/UI.
+// Funções PURAS do import de startup (OS-F7 / W1) que NÃO dependem de
+// vocabulário — normalização de texto, datas, service tag, patrimônio
+// "vazio-na-prática" e o extrator de patrimônio embutido no hostname. Extraídas
+// e adaptadas de `scripts/import/normalizar.ts` (motor da carga única F4) para
+// código de produção testável. Nada aqui toca banco/UI.
 //
-// TABELAS ESPELHADAS DE scripts/import/normalizar.ts (F4):
-//   - UNIDADES (De→Para de Site/Unidade → filial oficial)
-//   - CATEGORIAS (Tipo → categoria) — aqui devolve null p/ desconhecido (F7 §3
-//     bloqueia; a F4 devolvia 'outro')
-//   - ESTADOS + precedência Situação>Status
-//   - normalizarTexto / normalizarHeader / limparCampo / parseData /
-//     normalizarServiceTag / chaveServiceTag / extrairChamado
+// F56 · Frente D (segunda metade, Decisão 3 do PLAN-F56.md) — o vocabulário
+// De→Para (unidades, categoria, situação, prefixos de patrimônio) SAIU deste
+// arquivo: ele mora no banco (migration 0139) e vira dado (`VocabularioImport`,
+// `./vocabulario.ts`), passado ao motor por PARÂMETRO. O que fica aqui é o que
+// não depende de vocabulário nenhum: `normalizarTexto`/`normalizarHeader`,
+// `limparCampo`, `modeloSemMarca`, `patrimonioVazio`, `extrairPatrimonioDoHostname`
+// (recebe os prefixos por parâmetro — a REGRA de formato do hostname não é
+// vocabulário, só a LISTA de prefixos válidos é), as datas (`parseData`/
+// `resolverDataEntrega`/`hojeIso`), service tag e os campos auxiliares.
 // Os scripts da F4 permanecem intocados (ferramenta histórica do go-live).
 
 import {
@@ -18,7 +21,6 @@ import {
   PREFIXO_PATRIMONIO_FONTE,
 } from '@/lib/patrimonio'
 import { hojeISO } from '@/lib/format'
-import type { CategoriaImport, EstadoAlvoImport, EstadoPlanilha, FilialOficial } from './tipos'
 
 // ---------------------------------------------------------------------------
 // Texto
@@ -149,205 +151,45 @@ export function patrimonioVazio(raw: string | null | undefined): boolean {
   return FAMILIA_SEM_PATRIMONIO.test(norm) && canonicalizarPatrimonio(raw ?? '') === null
 }
 
-// Prefixos OFICIAIS de patrimônio da WAP (spec §5; confirmados pelo Johnny 20/07/2026).
-// SÓ estes valem no reconhecimento do HOSTNAME — é o que impede transformar nome de
-// máquina (`PC-01`, `NB-2`, `SALA-5`) em patrimônio: `PC`/`NB`/`SALA` não são prefixos de
-// patrimônio. Se a WAP passar a usar um prefixo novo, adicione-o aqui.
-export const PREFIXOS_PATRIMONIO = new Set(['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'])
-
 // F7F (decisão do Johnny, 17/07/2026 — REVOGA a não-inferência por hostname de 16/07) +
 // F7-pós (Johnny 20/07/2026): procura no HOSTNAME um patrimônio embutido — ex.:
 // `NB-WAP0001234` → `WAP0001234`, `NB-PRO3694` → `PRO0003694`. O token é PREFIXO (2–4
 // letras) + 1–7 DÍGITOS, delimitado e NÃO seguido de dígito (8+ dígitos = ambíguo →
-// ignora). Duas travas contra falso positivo: (1) o prefixo tem de estar em
-// PREFIXOS_PATRIMONIO (senão `PC-01`/`SALA-5` virariam patrimônio); (2) o token passa por
-// `canonicalizarPatrimonio`, que completa os zeros (`PRO3694`→`PRO0003694`) — o juiz final
-// do valor (contrato §1.5), que NÃO muda. `matchAll` (flag `g`) pula tokens de prefixo
-// DESCONHECIDO e acha o 1º com prefixo de patrimônio (ex.: `PC01-WAP0001234` → `WAP0001234`).
-// Antes exigia EXATAMENTE 7 dígitos e QUALQUER prefixo; a mudança é aceitar <7 dígitos e
-// travar por prefixo conhecido. Fica em deparas.ts (folha client-safe) p/ o motor
+// ignora). Duas travas contra falso positivo: (1) o prefixo tem de estar entre os
+// `prefixos` recebidos por parâmetro (senão `PC-01`/`SALA-5` virariam patrimônio); (2) o
+// token passa por `canonicalizarPatrimonio`, que completa os zeros (`PRO3694`→
+// `PRO0003694`) — o juiz final do valor (contrato §1.5), que NÃO muda. `matchAll` (flag
+// `g`) pula tokens de prefixo DESCONHECIDO e acha o 1º com prefixo de patrimônio (ex.:
+// `PC01-WAP0001234` → `WAP0001234`). Fica em deparas.ts (folha client-safe) p/ o motor
 // (plano.ts) E a UI usarem a MESMA régua — sem duplicar o extrator.
 //
 // F56 · Frente B (Decisão 5) — deriva do MESMO prefixo de `@/lib/patrimonio`
 // (`PREFIXO_PATRIMONIO_FONTE`), mas com a quantificação `{1,DIGITOS_PATRIMONIO}`
 // EXPLÍCITA aqui, e não `{DIGITOS_PATRIMONIO}` fixo. É a divergência deliberada
-// do comentário acima ("aceitar <7 dígitos e travar por prefixo conhecido") — o
+// documentada acima ("aceitar <7 dígitos e travar por prefixo conhecido") — o
 // hostname pode embutir um patrimônio com MENOS de 7 dígitos
 // (`PRO3694`→`PRO0003694`), diferente da canônica e da faixa, que exigem os 7.
+//
+// F56 · Frente D (segunda metade) — `prefixos` chega por PARÂMETRO
+// (`VocabularioImport.prefixosPatrimonio`, `./vocabulario.ts`): a LISTA de
+// prefixos válidos é vocabulário administrado (migration 0139); a REGRA de
+// formato (2–4 letras + dígitos) não é — fica aqui, ao lado da regex que a usa.
 const PATRIMONIO_EMBUTIDO_RE = new RegExp(
   `(?:^|[^A-Z0-9])(${PREFIXO_PATRIMONIO_FONTE})(\\d{1,${DIGITOS_PATRIMONIO}})(?![0-9])`,
   'g',
 )
 
-export function extrairPatrimonioDoHostname(hostname: string | null | undefined): string | null {
+export function extrairPatrimonioDoHostname(
+  hostname: string | null | undefined,
+  prefixos: readonly string[],
+): string | null {
   const h = (hostname ?? '').toUpperCase()
   for (const m of h.matchAll(PATRIMONIO_EMBUTIDO_RE)) {
-    if (PREFIXOS_PATRIMONIO.has(m[1]!)) {
+    if (prefixos.includes(m[1]!)) {
       return canonicalizarPatrimonio(m[1]! + m[2]!)
     }
   }
   return null
-}
-
-// ---------------------------------------------------------------------------
-// Unidades / filiais (spec §5, ampliado 15/07/2026) — espelho da F4
-
-const UNIDADES: Record<string, FilialOficial> = {
-  'matriz': 'Matriz',
-  'matriz sao marcos': 'Matriz',
-  'cd-afp': 'CD-Afonso Pena',
-  'cd afp': 'CD-Afonso Pena',
-  'cd-pena': 'CD-Afonso Pena',
-  'cd pena': 'CD-Afonso Pena',
-  'cd-afonso pena': 'CD-Afonso Pena',
-  'cd afonso pena': 'CD-Afonso Pena',
-  'cd-afonsopena': 'CD-Afonso Pena',
-  'afonso pena': 'CD-Afonso Pena',
-  'eusebio': 'Eusébio',
-  'filial-ce': 'Eusébio',
-  'filial ce': 'Eusébio',
-  'serra': 'Serra',
-  'serra park': 'Serra',
-  'linhares': 'Linhares',
-  'filial - linhares': 'Linhares',
-  'filial linhares': 'Linhares',
-}
-
-export function mapearUnidade(raw: string | null | undefined): FilialOficial | null {
-  const t = normalizarTexto(raw ?? '')
-  return UNIDADES[t] ?? null
-}
-
-export const SLUG_POR_FILIAL: Record<FilialOficial, string> = {
-  'Matriz': 'matriz',
-  'CD-Afonso Pena': 'cd-afonso-pena',
-  'Linhares': 'linhares',
-  'Eusébio': 'eusebio',
-  'Serra': 'serra',
-}
-
-const FILIAL_POR_SLUG: Record<string, FilialOficial> = Object.fromEntries(
-  (Object.entries(SLUG_POR_FILIAL) as [FilialOficial, string][]).map(([f, s]) => [s, f]),
-)
-
-/** Slug do banco → filial oficial (para casar o Site da linha com a filial escolhida). */
-export function filialPorSlug(slug: string): FilialOficial | null {
-  return FILIAL_POR_SLUG[slug] ?? null
-}
-
-// ---------------------------------------------------------------------------
-// Categoria (Tipo → enum). F7 §3: desconhecido é BLOQUEANTE — por isso aqui
-// devolvemos null (a F4 devolvia 'outro' silenciosamente).
-
-const CATEGORIAS: Record<string, CategoriaImport> = {
-  'notebook': 'notebook',
-  'desktop': 'desktop',
-  'monitor': 'monitor',
-  'celular': 'celular',
-  'tablet': 'tablet',
-}
-
-/** Categoria da planilha → enum; fora do vocabulário → null (chamador bloqueia). */
-export function mapearCategoria(raw: string | null | undefined): CategoriaImport | null {
-  return CATEGORIAS[normalizarTexto(raw ?? '')] ?? null
-}
-
-/** F7B — termos de Tipo aceitos pelo De→Para (candidatos da sugestão por Levenshtein). */
-export const CATEGORIAS_TERMOS: readonly string[] = Object.keys(CATEGORIAS)
-
-/**
- * F7B — tabela reversa de `CATEGORIAS`: enum → termo que a UI grava na célula Tipo.
- * `outro` fica de fora porque o vocabulário do CSV não tem termo que resolva para
- * ele (`mapearCategoria` nunca devolve 'outro') — categoria desconhecida se corrige
- * para uma das 5 conhecidas ou a linha sai do import. Exaustivo por construção
- * (`Record<CategoriaImport, string>`): `enums-sql.test.ts` lê `Object.keys(...)`
- * em runtime como testemunha de `CategoriaImport` (F56 · Frente B).
- */
-export const TIPO_CANONICO: Record<CategoriaImport, string> = {
-  notebook: 'Notebook',
-  desktop: 'Desktop',
-  monitor: 'Monitor',
-  celular: 'Celular',
-  tablet: 'Tablet',
-}
-
-// ---------------------------------------------------------------------------
-// Estado da planilha (spec §4; precedência Situação > Status — DECISOES 15/07)
-
-// Exportado (F56 · Frente B) só para `enums-sql.test.ts` ler os VALORES em runtime
-// como testemunha independente de `EstadoPlanilha` (o `Record<EstadoAlvoImport,
-// string>` de `SITUACAO_CANONICA` já testemunha `EstadoAlvoImport`; `ESTADOS` é a
-// ÚNICA fonte, no código de produção, que cobre também `descartado`).
-export const ESTADOS: Record<string, EstadoPlanilha> = {
-  'saida': 'em_uso',
-  'remanejo': 'em_uso',
-  'guardada': 'em_estoque',
-  'estoque': 'em_estoque',
-  'reservada': 'reservado',
-  'reservado': 'reservado',
-  'emprestimo': 'emprestado',
-  'validar': 'em_triagem',
-  'devolvido': 'em_triagem',
-  'devolucao': 'em_triagem',
-  'manutencao': 'em_manutencao',
-  'rt wap': 'defasado',
-  'posse wap': 'defasado',
-  'defasada': 'defasado',
-  'defasado': 'defasado',
-  'descarte': 'descartado',
-  'descartado': 'descartado',
-}
-
-/**
- * Estado corrente segundo a planilha: `Situação` vence quando preenchida, senão
- * `Status`. Valor fora da tabela → null (o chamador gera bloqueante
- * estado_desconhecido). Espelho fiel da precedência da F4.
- */
-export function estadoPlanilha(
-  status: string | null | undefined,
-  situacao: string | null | undefined,
-): EstadoPlanilha | null {
-  const sit = normalizarTexto(situacao ?? '')
-  const sta = normalizarTexto(status ?? '')
-  const efetivo = sit !== '' ? sit : sta
-  if (efetivo === '') return null
-  return ESTADOS[efetivo] ?? null
-}
-
-/**
- * F7B — termos de Situação/Status aceitos como CORREÇÃO: o vocabulário `ESTADOS`
- * menos os que resolvem para `descartado`. Descartado continua bloqueante (régua
- * da F7 §W1.5 — intocada): corrigir `estado_descartado` é trocar o estado ou
- * remover a linha, nunca "aceitar o descartado".
- */
-export const ESTADOS_CORRIGIVEIS: readonly string[] = Object.entries(ESTADOS)
-  .filter(([, estado]) => estado !== 'descartado')
-  .map(([termo]) => termo)
-
-/**
- * F7B — tabela canônica reversa (OS-F7B §3.4): estado do sistema → termo que a UI
- * grava na coluna Situação. Como Situação vence Status na precedência, escrever
- * `SITUACAO_CANONICA[estado]` na célula resolve o estado da linha sem tocar em
- * Status. `descartado` não tem entrada — de propósito (ver ESTADOS_CORRIGIVEIS).
- * O teste de ciclo garante `estadoPlanilha(_, SITUACAO_CANONICA[e]) === e`.
- */
-// F14: `devolvido_fornecedor` também fica de fora (baixa terminal, como descartado):
-// não é um estado da planilha legada de startup — o import nunca o tem como alvo.
-// F56 · Frente B (Decisão 4): o tipo é `Record<EstadoAlvoImport, string>` —
-// `EstadoAlvoImport` JÁ exclui `descartado` (e `EstadoPlanilha`, do qual deriva,
-// já exclui `devolvido_fornecedor`). Antes da F56 isto era
-// `Record<Exclude<StatusAtivo, 'descartado' | 'devolvido_fornecedor'>, string>`
-// com `StatusAtivo` local (8 valores, sem `devolvido_fornecedor`) — a exclusão
-// de `devolvido_fornecedor` era um NO-OP (fato 16/17): ele já não estava na
-// união, então excluí-lo não mudava nada. `EstadoAlvoImport` fecha esse buraco.
-export const SITUACAO_CANONICA: Record<EstadoAlvoImport, string> = {
-  em_estoque: 'Estoque',
-  em_uso: 'Saída',
-  reservado: 'Reservado',
-  emprestado: 'Empréstimo',
-  em_triagem: 'Validar',
-  em_manutencao: 'Manutenção',
-  defasado: 'Defasado',
 }
 
 // ---------------------------------------------------------------------------

@@ -126,8 +126,12 @@ describe('a regex de patrimônio deriva de uma fonte só (Decisão 5, fato 18)',
     // Prova mais forte que ler texto escapado: se a quantificação um dia
     // regredisse para `{DIGITOS_PATRIMONIO}` fixo (igual à canônica), este
     // caso de 4 dígitos deixaria de casar e a função devolveria null.
-    expect(extrairPatrimonioDoHostname('NB-PRO3694')).toBe('PRO0003694')
-    expect(extrairPatrimonioDoHostname('NB-WAP0001234')).toBe('WAP0001234')
+    // F56 · Frente D (segunda metade) — os prefixos válidos chegam por
+    // parâmetro (`VocabularioImport.prefixosPatrimonio`); aqui, os mesmos
+    // PRO/WAP de sempre.
+    const PREFIXOS = ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO']
+    expect(extrairPatrimonioDoHostname('NB-PRO3694', PREFIXOS)).toBe('PRO0003694')
+    expect(extrairPatrimonioDoHostname('NB-WAP0001234', PREFIXOS)).toBe('WAP0001234')
   })
 
   it('a divergência do hostname está documentada em comentário (não é acidente)', () => {

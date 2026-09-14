@@ -160,6 +160,72 @@ describe('fallback — código desconhecido nunca vaza o texto cru do Postgres e
   })
 })
 
+// F56 (Frente E) — o vocabulário de unidades (nome de filial × apelido,
+// migration 0139, Decisões 1/2/13 do PLAN-F56). Os dois índices únicos
+// traduzem para uma frase ESPECÍFICA (a pré-checagem em `dono-do-termo.ts` já
+// deu a mensagem precisa antes de escrever; estes ramos só cobrem a corrida
+// rara de dois admins simultâneos). O P0001 do gatilho `vocabulario_unidades_
+// guarda` — que JÁ nomeia o termo e a filial dona, em pt-BR — recebe de
+// propósito uma frase GENÉRICA (a doutrina do arquivo: nunca extrair valor
+// dinâmico de dentro da mensagem do banco).
+describe('vocabulário de unidades (F56 · migration 0139)', () => {
+  it('índice único do NOME da filial (filiais_nome_chave_uidx)', () => {
+    const msg = 'duplicate key value violates unique constraint "filiais_nome_chave_uidx"'
+    expect(traduzErroBanco(msg, '23505')).toBe(
+      'Já existe uma filial com este nome (a comparação ignora acento, maiúscula e espaço a mais). Atualize a página e tente de novo.',
+    )
+  })
+
+  it('índice único do APELIDO (unidades_apelidos_apelido_chave_uidx)', () => {
+    const msg =
+      'duplicate key value violates unique constraint "unidades_apelidos_apelido_chave_uidx"'
+    expect(traduzErroBanco(msg, '23505')).toBe(
+      'Este apelido já está cadastrado para alguma filial. Atualize a página e tente de novo.',
+    )
+  })
+
+  it('nenhum dos dois cai no genérico de "duplicate key" (ramo específico ganha)', () => {
+    const nome = traduzErroBanco(
+      'duplicate key value violates unique constraint "filiais_nome_chave_uidx"',
+      '23505',
+    )
+    const apelido = traduzErroBanco(
+      'duplicate key value violates unique constraint "unidades_apelidos_apelido_chave_uidx"',
+      '23505',
+    )
+    const generico = 'Já existe um registro com esses dados. Atualize a página e tente de novo.'
+    expect(nome).not.toBe(generico)
+    expect(apelido).not.toBe(generico)
+  })
+
+  it.each([
+    // As quatro frases exatas do P0001 de `vocabulario_unidades_guarda` (migration
+    // 0139) — nome × apelido, nos dois sentidos, e a própria filial.
+    'Este termo já é o próprio nome da filial Serra.',
+    'Este nome não pode repetir o nome de outra filial (Matriz).',
+    'Este apelido já é apelido desta própria filial (Serra).',
+    'Este apelido já é apelido de outra filial (Matriz).',
+  ])('o P0001 do gatilho vira a frase GENÉRICA, sem repassar o texto do banco: %s', (raw) => {
+    const t = traduzErroBanco(raw, 'P0001')
+    expect(t).toBe(
+      'Este nome ou apelido já está em uso (por outra filial, ou por esta mesma do outro lado). Atualize a página para ver qual, e tente de novo.',
+    )
+    // A doutrina do arquivo: nunca vazar o nome dinâmico que o Postgres interpolou.
+    expect(t).not.toContain('Serra')
+    expect(t).not.toContain('Matriz')
+  })
+
+  it('nenhum dos ramos de vocabulário cai no fallback (não loga)', () => {
+    traduzErroBanco('duplicate key value violates unique constraint "filiais_nome_chave_uidx"', '23505')
+    traduzErroBanco(
+      'duplicate key value violates unique constraint "unidades_apelidos_apelido_chave_uidx"',
+      '23505',
+    )
+    traduzErroBanco('Este termo já é o próprio nome da filial Serra.', 'P0001')
+    expect(spyErro).not.toHaveBeenCalled()
+  })
+})
+
 describe('retrocompat — chamada com 1 argumento (sem code) segue funcionando', () => {
   it('mapeia por substring sem passar o SQLSTATE', () => {
     expect(traduzErroBanco('violates foreign key constraint')).toBe(

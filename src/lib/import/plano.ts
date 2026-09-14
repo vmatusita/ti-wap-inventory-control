@@ -1,13 +1,18 @@
 // Motor de validação + montagem do plano de import (OS-F7 / W1). Função pública:
-// `validarCsvImport(buffer, filial)` → `ValidacaoImport` (contrato §1.5). Puro,
-// determinístico: mesmo conteúdo → mesmo `arquivoHash` (sha-256). Nada de banco/UI.
+// `validarCsvImport(buffer, filial, vocabulario)` → `ValidacaoImport` (contrato
+// §1.5). Puro, determinístico: mesmo conteúdo → mesmo `arquivoHash` (sha-256).
+// Nada de banco/UI — o vocabulário (unidades, categoria, situação, prefixos de
+// patrimônio) chega por PARÂMETRO (`VocabularioImport`, `./vocabulario.ts`,
+// F56 · Frente D): quem chama o motor é quem fala com o banco.
 //
 // Régua de validação (decisões do Johnny 16/07 + F7F 17/07/2026):
 //   BLOQUEANTES (1+ ⇒ plano null): header fora dos 3 layouts; patrimônio COM valor
 //   fora do formato canônico (vazio-na-prática NÃO bloqueia — ver abaixo); par
 //   patrimônio+ST repetido no CSV (ou patrimônio repetido sem ST — colisão do índice
-//   único); Site ≠ filial escolhida (após De→Para); categoria (Tipo) desconhecida;
-//   estado não resolvível; estado alvo `descartado`.
+//   único); Site ≠ filial escolhida (após o vocabulário de unidades); categoria (Tipo)
+//   desconhecida; estado não resolvível; estado alvo `descartado`; a FILIAL
+//   SELECIONADA fora do vocabulário (F56 · Frente A/D — um bloqueante só, não N
+//   `site_divergente`).
 //   PATRIMÔNIO VAZIO-NA-PRÁTICA (F7F, decisão do Johnny 17/07/2026 — REVOGA a
 //   não-inferência por hostname de 16/07): auto-preenche pelo patrimônio embutido no
 //   HOSTNAME quando houver (aviso informativo `patrimonio_do_hostname`); senão importa
@@ -27,25 +32,28 @@ import { resolverPatrimonio } from './resolver-patrimonio'
 import {
   agruparErros,
   aplicarCorrecoes,
-  csvCorrigido,
   csvCorrigidoParaTexto,
 } from './correcoes'
 import {
   chaveServiceTag,
-  estadoPlanilha,
   extrairChamado,
-  filialPorSlug,
   hojeIso,
   limparCampo,
   modeloSemMarca,
-  mapearCategoria,
-  mapearUnidade,
   normalizarServiceTag,
   parseColaboradorInventario,
   parseData,
   patrimonioVazio,
   resolverDataEntrega,
 } from './deparas'
+import {
+  categoriasImportaveis,
+  estadoPlanilha,
+  filialDoVocabulario,
+  mapearCategoria,
+  mapearUnidade,
+  type VocabularioImport,
+} from './vocabulario'
 import {
   decodificarCsv,
   detectarLayout,
@@ -60,6 +68,7 @@ import { lerXlsx, pareceXlsx } from './xlsx'
 import {
   abreviar60,
   conferirTetos,
+  ErroArquivoImport,
   LIMITES_CAMPO_PLANO,
   msgValorLongoDemais,
 } from './limites'
@@ -134,12 +143,18 @@ type Candidato = { ativo: AtivoPlano; linha: number; chave: string }
  * Monta os candidatos a `AtivoPlano` a partir dos registros crus, acumulando
  * bloqueantes/avisos de LINHA (Site, patrimônio, categoria, estado, data,
  * colaborador). A deduplicação entre linhas é feita depois, em validarCsvImport.
+ *
+ * `filialAlvo` é o `filial_id` da filial selecionada, ou `null` quando ela está
+ * FORA do vocabulário (não cadastrada, ou inativa) — nesse caso a coluna Site
+ * não é conferida linha a linha (quem chama já emitiu o bloqueante único
+ * `filial_fora_do_vocabulario`; ver `analisar`).
  */
 export function montarPlanoImport(
   registros: RegistroImport[],
-  filialAlvo: ReturnType<typeof filialPorSlug>,
+  filialAlvo: number | null,
   filialNome: string,
   hoje: string,
+  vocabulario: VocabularioImport,
   // F7J: linhas que o operador mandou FORÇAR o patrimônio cru (op `forcar_patrimonio`).
   forcados: ReadonlySet<number> = new Set(),
 ): { candidatos: Candidato[]; bloqueantes: ErroImport[]; avisos: ErroImport[] } {
@@ -154,23 +169,24 @@ export function montarPlanoImport(
       bloqueado = true
     }
 
-    // 1) Site = filial escolhida (após De→Para). Import nunca transfere.
+    // 1) Site = filial escolhida (pelo vocabulário de unidades). Import nunca transfere.
     //
-    // F56 (Frente A): com `filialAlvo` null — a filial selecionada está FORA do vocabulário
-    // de unidades — a coluna Site não é conferida linha a linha. Quem chama (`analisar`)
-    // emite UM bloqueante `filial_fora_do_vocabulario`, e o plano não sai. Até a F56, TODA
-    // linha virava `site_divergente` com uma mensagem que culpava o ARQUIVO pelo que é um
-    // buraco do CADASTRO — e o card nem tinha correção a oferecer.
+    // F56 (Frente A/D): com `filialAlvo` null — a filial selecionada está FORA do
+    // vocabulário (não cadastrada ou inativa) — a coluna Site não é conferida linha
+    // a linha. Quem chama (`analisar`) emite UM bloqueante `filial_fora_do_vocabulario`,
+    // e o plano não sai. Antes da F56, TODA linha virava `site_divergente` com uma
+    // mensagem que culpava o ARQUIVO pelo que é um buraco do CADASTRO.
     if (filialAlvo !== null) {
-      const filialLinha = mapearUnidade(reg.site)
+      const filialLinha = mapearUnidade(reg.site, vocabulario)
       if (filialLinha !== filialAlvo) {
+        const nomeLinha = filialLinha === null ? null : filialDoVocabulario(filialLinha, vocabulario)?.nome
         bloq(
           'Site',
           reg.site,
           'site_divergente',
           filialLinha === null
             ? `Site "${reg.site}" não corresponde a nenhuma filial conhecida (esperado: ${filialNome})`
-            : `Site "${reg.site}" (${filialLinha}) ≠ filial selecionada (${filialNome}); o import não transfere ativo entre filiais`,
+            : `Site "${reg.site}" (${nomeLinha ?? filialLinha}) ≠ filial selecionada (${filialNome}); o import não transfere ativo entre filiais`,
         )
       }
     }
@@ -181,7 +197,13 @@ export function montarPlanoImport(
     //    de aviso/bloqueante são as MESMAS de antes; o cru fica em `patrimonioOriginal` e a
     //    dedupe usa o valor final (colisão reaparece).
     const eraVazio = patrimonioVazio(reg.patrimonio)
-    const resPatr = resolverPatrimonio(reg.patrimonio, eraVazio, reg.hostname, forcados.has(reg.linha))
+    const resPatr = resolverPatrimonio(
+      reg.patrimonio,
+      eraVazio,
+      reg.hostname,
+      forcados.has(reg.linha),
+      vocabulario.prefixosPatrimonio,
+    )
     let patrimonio: string | null = null
     if ('bloqueante' in resPatr) {
       bloq('Patrimônio', reg.patrimonio, resPatr.bloqueante.tipo, resPatr.bloqueante.mensagem)
@@ -198,25 +220,27 @@ export function montarPlanoImport(
       }
     }
 
-    // 3) Categoria (Tipo) no De→Para (desconhecido = bloqueante).
-    const categoria = mapearCategoria(reg.tipo)
+    // 3) Categoria (Tipo) no vocabulário (desconhecido = bloqueante).
+    const categoria = mapearCategoria(reg.tipo, vocabulario)
     if (!categoria) {
       bloq(
         'Tipo',
         reg.tipo,
         'categoria_desconhecida',
-        `Tipo "${reg.tipo}" fora do vocabulário (Notebook, Desktop, Monitor, Celular, Tablet)`,
+        `Tipo "${reg.tipo}" fora do vocabulário (${categoriasImportaveis(vocabulario)
+          .map((c) => c.rotulo)
+          .join(', ')})`,
       )
     }
 
     // 4) Estado (precedência Situação>Status). Desconhecido/descartado = bloqueante.
-    const estado = estadoPlanilha(reg.status, reg.situacao)
+    const estado = estadoPlanilha(reg.status, reg.situacao, vocabulario)
     if (!estado) {
       bloq(
         'Situação',
         `Status="${reg.status}" Situação="${reg.situacao}"`,
         'estado_desconhecido',
-        'Status/Situação sem estado resolvível no De→Para da spec §5',
+        'Status/Situação sem estado resolvível no vocabulário do import',
       )
     } else if (estado === 'descartado') {
       bloq(
@@ -360,7 +384,9 @@ export function montarPlanoImport(
  * `existentesEmOutraFilial` (F7C): chave `chavePatrimonio(patrimonio, serviceTag)`
  * (ou `∅::<tag>` sem patrimônio) → nome da filial onde o ativo JÁ está cadastrado.
  * Vazio = comportamento anterior, byte a byte. `correcoes` (F7B): validação DO ZERO
- * sobre as células corrigidas, nunca patch incremental (OS-F7B §8.1).
+ * sobre as células corrigidas, nunca patch incremental (OS-F7B §8.1). `vocabulario`
+ * (F56 · Frente D): o vocabulário de unidades/categoria/situação/prefixos, lido do
+ * banco por quem chama — o motor nunca o busca sozinho.
  */
 function analisar(
   csvOriginal: CsvCru,
@@ -369,6 +395,7 @@ function analisar(
   hoje: string,
   correcoes: CorrecaoImport[],
   existentesEmOutraFilial: ReadonlyMap<string, string>,
+  vocabulario: VocabularioImport,
 ): ValidacaoImport {
   // F56 · Frente C (Decisão 6, critério 10) — PRIMEIRA LINHA de `analisar()`, antes
   // de qualquer outra validação: os tetos de linhas/colunas/conteúdo, IGUAIS para
@@ -391,7 +418,7 @@ function analisar(
       valor: csvOriginal.header.filter((h) => h.trim() !== '').join(' | '),
       tipo: 'header_invalido',
       mensagem:
-        `Cabeçalho não corresponde a nenhum layout (matriz/cd/padrao20). ` +
+        `Cabeçalho não corresponde a nenhum layout conhecido (colunas18/colunas16/colunas20). ` +
         `Mais próximo: ${det.maisProximo}. ` +
         `Faltando: [${det.faltando.join(', ') || '—'}]. Sobrando: [${det.sobrando.join(', ') || '—'}]`,
     }
@@ -451,7 +478,7 @@ function analisar(
     porOp,
     linhasRemovidas,
     invalidas,
-  } = aplicarCorrecoes(csvSemDesalinhamento, correcoes, mapaColunas(csvOriginal.header), filial.nome)
+  } = aplicarCorrecoes(csvSemDesalinhamento, correcoes, mapaColunas(csvOriginal.header), vocabulario, filial.nome)
   bloqueantes.push(...invalidas)
 
   const { registros, descartadas, totalLinhasDados } = extrairRegistros(csv)
@@ -467,22 +494,27 @@ function analisar(
     })
   }
 
-  const filialAlvo = filialPorSlug(filial.slug) ?? mapearUnidade(filial.nome)
-  // F56 (Frente A) — a filial selecionada fora do vocabulário de unidades é UM erro de
-  // cadastro, e não N erros de arquivo. Um bloqueante só, com a mensagem verdadeira; o resto
-  // da análise segue (os outros erros das linhas continuam úteis), mas o plano não sai.
-  if (filialAlvo === null) {
+  // F56 (Frente A → Frente D) — a filial selecionada fora do vocabulário de
+  // unidades (não cadastrada OU inativa) é UM erro de cadastro, e não N erros de
+  // arquivo: o GATILHO FINAL (fato 5 da ordem) — dispara quando `filial.id` não
+  // está em `vocabulario.filiais` como filial ATIVA. Um bloqueante só, com a
+  // mensagem verdadeira; o resto da análise segue (os outros erros das linhas
+  // continuam úteis), mas o plano não sai.
+  const registroFilial = filialDoVocabulario(filial.id, vocabulario)
+  const filialValida = registroFilial !== null && registroFilial.ativa
+  if (!filialValida) {
     bloqueantes.push({
       linha: 0,
       coluna: 'Site',
       valor: filial.nome,
       tipo: 'filial_fora_do_vocabulario',
       mensagem:
-        `A filial selecionada (${filial.nome}) não está no vocabulário de unidades do import, ` +
-        'e por isso nenhuma linha pode ser conferida pela coluna Site. O problema não está no ' +
-        'arquivo: a filial precisa ser cadastrada no vocabulário do import antes de importar.',
+        `A filial selecionada (${filial.nome}) não está no vocabulário de unidades do import, ou está ` +
+        'inativa, e por isso nenhuma linha pode ser conferida pela coluna Site. O problema não está no ' +
+        'arquivo: cadastre ou reative a filial em Administração › Filiais antes de importar.',
     })
   }
+  const filialAlvo = filialValida ? filial.id : null
   // F7J: linhas que o operador mandou FORÇAR o patrimônio cru (op `forcar_patrimonio`).
   const forcados = new Set(
     correcoes.filter((c) => c.op === 'forcar_patrimonio').map((c) => c.linha),
@@ -492,6 +524,7 @@ function analisar(
     filialAlvo,
     filial.nome,
     hoje,
+    vocabulario,
     forcados,
   )
   bloqueantes.push(...bloqLinha)
@@ -636,7 +669,7 @@ function analisar(
 
   // F7B — agrupamento + contexto das linhas com erro/aviso (a tela corrige a
   // linha inteira, não a célula solta). `registros` já vem CORRIGIDO.
-  const grupos = agruparErros(bloqueantes, avisos, registros, filial.nome, filialPorLinha)
+  const grupos = agruparErros(bloqueantes, avisos, registros, vocabulario, filial.nome, filialPorLinha)
   const porNumero = new Map(registros.map((r) => [r.linha, r]))
   const contexto: Record<number, RegistroImport> = {}
   for (const erro of [...bloqueantes, ...avisos]) {
@@ -684,15 +717,16 @@ function analisar(
 }
 
 /**
- * Função pública do motor (CSV). Recebe o buffer bruto do arquivo, a filial e as
- * correções da tela; devolve o preview + o plano aplicável (null se houver
- * bloqueante). SÍNCRONA — o caminho CSV não tem I/O assíncrono. `hoje` é injetável
- * só para os testes (detecção de data futura determinística); o contrato de 2 args
- * é preservado, então toda a suíte da F7/F7B/F7E continua chamando igual.
+ * Função pública do motor (CSV). Recebe o buffer bruto do arquivo, a filial e o
+ * vocabulário do import (unidades/categoria/situação/prefixos — lido do banco por
+ * quem chama, F56 · Frente D); devolve o preview + o plano aplicável (null se
+ * houver bloqueante). SÍNCRONA — o caminho CSV não tem I/O assíncrono. `hoje` é
+ * injetável só para os testes (detecção de data futura determinística).
  */
 export function validarCsvImport(
   conteudo: ArrayBuffer | Uint8Array,
   filial: FilialSelecionada,
+  vocabulario: VocabularioImport,
   hoje: string = hojeIso(),
   correcoes: CorrecaoImport[] = [],
   existentesEmOutraFilial: ReadonlyMap<string, string> = new Map(),
@@ -702,7 +736,7 @@ export function validarCsvImport(
   const arquivoHash = hashConteudo(conteudo)
   const { texto } = decodificarCsv(conteudo)
   const csvOriginal = parseCsv(texto)
-  return analisar(csvOriginal, arquivoHash, filial, hoje, correcoes, existentesEmOutraFilial)
+  return analisar(csvOriginal, arquivoHash, filial, hoje, correcoes, existentesEmOutraFilial, vocabulario)
 }
 
 /**
@@ -717,6 +751,7 @@ export function validarCsvImport(
 export async function validarArquivoImport(
   conteudo: ArrayBuffer | Uint8Array,
   filial: FilialSelecionada,
+  vocabulario: VocabularioImport,
   hoje: string = hojeIso(),
   correcoes: CorrecaoImport[] = [],
   existentesEmOutraFilial: ReadonlyMap<string, string> = new Map(),
@@ -724,9 +759,9 @@ export async function validarArquivoImport(
   if (pareceXlsx(conteudo)) {
     const arquivoHash = hashConteudo(conteudo)
     const csvOriginal = await lerXlsx(conteudo)
-    return analisar(csvOriginal, arquivoHash, filial, hoje, correcoes, existentesEmOutraFilial)
+    return analisar(csvOriginal, arquivoHash, filial, hoje, correcoes, existentesEmOutraFilial, vocabulario)
   }
-  return validarCsvImport(conteudo, filial, hoje, correcoes, existentesEmOutraFilial)
+  return validarCsvImport(conteudo, filial, vocabulario, hoje, correcoes, existentesEmOutraFilial)
 }
 
 /**
@@ -739,14 +774,29 @@ export async function validarArquivoImport(
 export async function csvCorrigidoDeArquivo(
   conteudo: ArrayBuffer | Uint8Array,
   correcoes: CorrecaoImport[],
+  vocabulario: VocabularioImport,
   filialNome?: string,
 ): Promise<string> {
-  if (pareceXlsx(conteudo)) {
-    const csv = await lerXlsx(conteudo)
-    const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), filialNome)
-    return csvCorrigidoParaTexto(corrigido)
+  // F56 · revisão adversarial final (achado médio) — o "Baixar corrigido" passa pelas
+  // MESMAS duas travas estruturais de `analisar()`, com o mesmo leitor. Antes daqui ele
+  // lia o arquivo e aplicava as correções sem teto nenhum de linhas/colunas/conteúdo (os
+  // corpos 4 e 5 da Decisão 6 são desta ação) e reserializava linha DESALINHADA como se
+  // estivesse certa — com o valor na coluna errada, no arquivo que o operador reimporta.
+  const csv = pareceXlsx(conteudo) ? await lerXlsx(conteudo) : parseCsv(decodificarCsv(conteudo).texto)
+  conferirTetos(csv)
+  const desalinhadas = linhasDesalinhadas(csv)
+  if (desalinhadas.length > 0) {
+    const primeira = desalinhadas[0]!
+    const quantas =
+      desalinhadas.length === 1 ? '1 linha desalinhada' : `${desalinhadas.length} linhas desalinhadas`
+    throw new ErroArquivoImport(
+      `O arquivo tem ${quantas} (a primeira é a linha ${primeira.linha}: ${primeira.contagemCelulas} células ` +
+        `para ${primeira.larguraUtil} colunas do cabeçalho). Linha desalinhada se corrige no próprio arquivo — ` +
+        'ajuste e analise de novo antes de baixar o corrigido.',
+    )
   }
-  return csvCorrigido(conteudo, correcoes, filialNome)
+  const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), vocabulario, filialNome)
+  return csvCorrigidoParaTexto(corrigido)
 }
 
 // Re-export do tipo de estado para consumidores que só importam daqui.

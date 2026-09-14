@@ -21,6 +21,8 @@ export const problemasImportEAcesso: PaginaAjuda = {
     'importar',
     'csv',
     'xlsx',
+    'apelido',
+    'vocabulario',
     'cargo',
     'sem permissao',
     'desativado',
@@ -41,6 +43,16 @@ export const problemasImportEAcesso: PaginaAjuda = {
             '"O arquivo está vazio." — o download veio truncado; exporte de novo.',
             '"Não foi possível ler o arquivo. Confira o CSV/Excel e tente de novo." — abra a planilha e confirme que a primeira linha é o cabeçalho.',
             '"Filial inativa: import bloqueado." — reative a filial em Administração › Filiais antes de recomeçar.',
+          ],
+        },
+        {
+          sintoma: 'Selecionei a filial certa, mas TODA linha do arquivo virou erro de Site.',
+          causa:
+            'A filial escolhida no passo 1 não está no vocabulário de unidades que o import reconhece — não está cadastrada, ou está inativa. Não é um problema do arquivo: nenhuma linha chega a ser conferida pela coluna Site enquanto a filial em si não for reconhecida, e o preview mostra o cartão "Filial fora do vocabulário" em vez de um erro por linha.',
+          saida: [
+            'Vá a Administração › Filiais e confira se a filial existe e está ATIVA.',
+            'Se a filial existe mas o arquivo escreve o nome dela de outro jeito ("CD-Afonso Pena" em vez de "CD Afonso Pena", por exemplo), edite a filial e cadastre essa grafia como apelido, na seção "Na coluna Site do import".',
+            'Volte ao import e use "Analisar arquivo" de novo — a nova unidade já é reconhecida.',
           ],
         },
         {

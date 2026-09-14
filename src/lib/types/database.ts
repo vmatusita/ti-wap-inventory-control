@@ -416,6 +416,54 @@ export type Database = {
           },
         ]
       }
+      import_prefixos_patrimonio: {
+        Row: {
+          prefixo: string
+        }
+        Insert: {
+          prefixo: string
+        }
+        Update: {
+          prefixo?: string
+        }
+        Relationships: []
+      }
+      import_termos_categoria: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          rotulo: string | null
+          termo: string
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["categoria_ativo"]
+          rotulo?: string | null
+          termo: string
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["categoria_ativo"]
+          rotulo?: string | null
+          termo?: string
+        }
+        Relationships: []
+      }
+      import_termos_estado: {
+        Row: {
+          estado: Database["public"]["Enums"]["status_ativo"]
+          rotulo: string | null
+          termo: string
+        }
+        Insert: {
+          estado: Database["public"]["Enums"]["status_ativo"]
+          rotulo?: string | null
+          termo: string
+        }
+        Update: {
+          estado?: Database["public"]["Enums"]["status_ativo"]
+          rotulo?: string | null
+          termo?: string
+        }
+        Relationships: []
+      }
       itens: {
         Row: {
           ativo: boolean
@@ -1147,7 +1195,6 @@ export type Database = {
         }
         Relationships: []
       }
-      // hand-fix F56 — substituído pela regeneração de produção
       unidades_apelidos: {
         Row: {
           apelido: string
@@ -1179,57 +1226,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      // hand-fix F56 — substituído pela regeneração de produção
-      import_termos_categoria: {
-        Row: {
-          categoria: Database["public"]["Enums"]["categoria_ativo"]
-          rotulo: string | null
-          termo: string
-        }
-        Insert: {
-          categoria: Database["public"]["Enums"]["categoria_ativo"]
-          rotulo?: string | null
-          termo: string
-        }
-        Update: {
-          categoria?: Database["public"]["Enums"]["categoria_ativo"]
-          rotulo?: string | null
-          termo?: string
-        }
-        Relationships: []
-      }
-      // hand-fix F56 — substituído pela regeneração de produção
-      import_termos_estado: {
-        Row: {
-          estado: Database["public"]["Enums"]["status_ativo"]
-          rotulo: string | null
-          termo: string
-        }
-        Insert: {
-          estado: Database["public"]["Enums"]["status_ativo"]
-          rotulo?: string | null
-          termo: string
-        }
-        Update: {
-          estado?: Database["public"]["Enums"]["status_ativo"]
-          rotulo?: string | null
-          termo?: string
-        }
-        Relationships: []
-      }
-      // hand-fix F56 — substituído pela regeneração de produção
-      import_prefixos_patrimonio: {
-        Row: {
-          prefixo: string
-        }
-        Insert: {
-          prefixo: string
-        }
-        Update: {
-          prefixo?: string
-        }
-        Relationships: []
       }
     }
     Views: {
@@ -1835,7 +1831,6 @@ export type Database = {
         Returns: number
       }
       ultima_migracao_aplicada: { Args: never; Returns: string }
-      // hand-fix F56 — substituído pela regeneração de produção
       vocabulario_chave: { Args: { p_texto: string }; Returns: string }
     }
     Enums: {

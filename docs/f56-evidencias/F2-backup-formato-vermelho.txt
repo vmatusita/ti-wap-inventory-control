@@ -1,0 +1,26 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/actions/backup-formato.test.ts (17 tests | 1 failed) 55ms
+     × backup do IMPORT (aplicarImport) 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/actions/backup-formato.test.ts > 1. os cabeçalhos de backup casam versão × conjunto de chaves > backup do IMPORT (aplicarImport)
+AssertionError: backup do IMPORT (aplicarImport): o código grava `versao: 2`, e esta suíte não declara essa versão. Bumpou? Declare o conjunto de chaves da versão nova em `formatos`.: expected undefined to be defined
+ ❯ src/lib/actions/backup-formato.test.ts:237:7
+    235|       esperadas,
+    236|       `${c.rotulo}: o código grava \`versao: ${versao}\`, e esta suíte…
+    237|     ).toBeDefined()
+       |       ^
+    238|
+    239|     expect(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 passed (17)
+   Start at  11:20:39
+   Duration  404ms (transform 61ms, setup 0ms, import 85ms, tests 55ms, environment 0ms)
+

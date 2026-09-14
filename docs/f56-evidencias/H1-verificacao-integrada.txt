@@ -1,0 +1,82 @@
+
+> estoque-ti-wap@1.61.0 lint
+> eslint
+
+
+> estoque-ti-wap@1.61.0 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  192 passed (192)
+      Tests  5010 passed (5010)
+   Start at  12:19:40
+   Duration  194.34s (transform 27.30s, setup 0ms, import 923.03s, tests 75.53s, environment 148ms)
+
+
+> estoque-ti-wap@1.61.0 build
+> next build
+
+▲ Next.js 16.2.12 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 35.3s
+  Running TypeScript ...
+  Finished TypeScript in 50s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/32) ...
+  Generating static pages using 7 workers (8/32) 
+  Generating static pages using 7 workers (16/32) 
+  Generating static pages using 7 workers (24/32) 
+✓ Generating static pages using 7 workers (32/32) in 2.2s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin/colaboradores
+├ ƒ /admin/filiais
+├ ƒ /admin/importar
+├ ƒ /admin/itens
+├ ƒ /admin/kits
+├ ƒ /admin/motivos
+├ ƒ /admin/senhas
+├ ƒ /admin/tipos-item
+├ ƒ /admin/usuarios
+├ ƒ /ajuda
+├ ƒ /ajuda/[slug]
+├ ƒ /ajuda/manual
+├ ƒ /api/saude
+├ ƒ /ativos
+├ ƒ /ativos/[id]
+├ ƒ /ativos/novo
+├ ƒ /auth/confirm
+├ ƒ /auth/definir-senha
+├ ƒ /dev
+├ ƒ /dev/destrutivo
+├ ƒ /itens
+├ ƒ /itens/conferencia
+├ ƒ /itens/historico
+├ ○ /login
+├ ƒ /movimentacoes
+├ ƒ /movimentacoes/devolucao-fornecedor
+├ ƒ /movimentacoes/nova
+├ ƒ /pendencias
+├ ƒ /relatorios/[filial]
+├ ƒ /relatorios/acesso
+├ ƒ /relatorios/gerados
+├ ƒ /relatorios/gerados/[id]
+└ ƒ /versoes
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+exit=0

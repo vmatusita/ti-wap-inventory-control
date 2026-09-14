@@ -1,5 +1,7 @@
 // Motor de CORREÇÕES do import de startup (OS-F7B / W1). Módulo PURO: opera nas
-// CÉLULAS cruas do CSV enviado, antes de `extrairRegistros`. Nada de banco/UI.
+// CÉLULAS cruas do CSV enviado, antes de `extrairRegistros`. Nada de banco/UI —
+// o vocabulário (unidades, categoria, situação) chega por PARÂMETRO
+// (`VocabularioImport`, `./vocabulario.ts`, F56 · Frente D).
 //
 // Princípio (OS-F7B §1): correção NÃO é bypass. É transformação declarada dos
 // dados de entrada, revalidada do zero por `validarCsvImport` a cada mudança — a
@@ -19,18 +21,27 @@
 //
 // NOTA (divisão de validação — contrato §1.5 do ultracode): o Zod do W3 faz o
 // estrutural (shape da union, whitelist, cap 300, `para` não vazio, DATAS via
-// `parseData`). O que depende de CSV/layout/filial fica aqui: op semanticamente
-// inválida vira bloqueante `correcao_invalida` na reanálise — nunca silenciosa,
-// nunca aplicada.
+// `parseData`). O que depende de CSV/layout/filial/VOCABULÁRIO fica aqui: op
+// semanticamente inválida vira bloqueante `correcao_invalida` na reanálise —
+// nunca silenciosa, nunca aplicada.
+//
+// ⚠ CORRIGIDO NA F56 (achado da medição V): o cabeçalho desta seção dizia
+// "folha client-safe" — nunca foi verdade na árvore de import de hoje. Nenhum
+// Client Component importa `correcoes.ts` como VALOR fora de `plano.ts`, que é
+// server-only (importa `node:crypto`); os três consumidores de cliente
+// (`grupos-erros.tsx`, `ops-grupo.ts`, `importar-wizard.tsx`) importam valor só
+// dos módulos-folha de verdade client-safe (`./deparas`, `./vocabulario`).
 
+import { normalizarTexto } from './deparas'
 import {
-  CATEGORIAS_TERMOS,
-  ESTADOS_CORRIGIVEIS,
   estadoPlanilha,
+  filialDoVocabulario,
   mapearCategoria,
   mapearUnidade,
-  normalizarTexto,
-} from './deparas'
+  termosCategoria,
+  termosEstadoCorrigiveis,
+  type VocabularioImport,
+} from './vocabulario'
 import { decodificarCsv, mapaColunas, parseCsv, type CsvCru, type RegistroImport } from './parse'
 import type {
   CampoEditavel,
@@ -92,13 +103,13 @@ function descreverOp(op: CorrecaoImport): string {
 // Validação semântica das ops (regras 3, 4 e 7 da §3).
 
 /**
- * Regras que dependem do CSV/filial, SEM o layout (o layout é checado à parte
- * porque campo fora do layout é no-op, não erro — regra §3.7). `filialNome`
- * ausente = fachada `csvCorrigido`, que não conhece a filial: a metade "para = a
- * filial selecionada" da regra 3 não roda ali (a op já passou pelo preview, que
- * conhece a filial e teria virado bloqueante).
+ * Regras que dependem do CSV/filial/vocabulário, SEM o layout (o layout é
+ * checado à parte porque campo fora do layout é no-op, não erro — regra §3.7).
+ * `filialNome` ausente = fachada `csvCorrigido`, que não conhece a filial: a
+ * metade "para = a filial selecionada" da regra 3 não roda ali (a op já passou
+ * pelo preview, que conhece a filial e teria virado bloqueante).
  */
-function validarSemantica(op: CorrecaoImport, filialNome?: string): string | null {
+function validarSemantica(op: CorrecaoImport, vocabulario: VocabularioImport, filialNome?: string): string | null {
   if (op.op === 'substituir') {
     // Defesa em profundidade: o tipo já barra patrimônio/service tag em massa
     // (regra §3.2), mas um chamador fora do TS (JSON da action) poderia tentar.
@@ -119,16 +130,17 @@ function validarSemantica(op: CorrecaoImport, filialNome?: string): string | nul
   // mascarada que a decisão proíbe. A metade que depende da linha (o Site ATUAL
   // da célula) é checada em `aplicarCorrecoes`, que tem a linha em mãos.
   if (op.op === 'substituir' && op.campo === 'site') {
-    const de = mapearUnidade(op.de)
+    const de = mapearUnidade(op.de, vocabulario)
     if (de !== null) {
-      return `Site "${op.de}" já corresponde à filial ${de} — ativo de outra filial não entra por aqui (remova as linhas; transferência é operação do sistema).`
+      const nomeDe = filialDoVocabulario(de, vocabulario)?.nome ?? String(de)
+      return `Site "${op.de}" já corresponde à filial ${nomeDe} — ativo de outra filial não entra por aqui (remova as linhas; transferência é operação do sistema).`
     }
   }
   const paraSite =
     (op.op === 'substituir' || op.op === 'editar') && op.campo === 'site' ? op.para : null
   if (paraSite !== null && filialNome !== undefined) {
-    const alvo = mapearUnidade(filialNome)
-    const para = mapearUnidade(paraSite)
+    const alvo = mapearUnidade(filialNome, vocabulario)
+    const para = mapearUnidade(paraSite, vocabulario)
     const casa = alvo === null ? paraSite.trim() === filialNome.trim() : para === alvo
     if (!casa) {
       return `O Site só pode ser corrigido para a filial selecionada (${filialNome}) — o import não transfere ativo entre filiais.`
@@ -142,9 +154,9 @@ function validarSemantica(op: CorrecaoImport, filialNome?: string): string | nul
         ? op.para
         : null
   if (paraSituacao !== null) {
-    const estado = estadoPlanilha(null, paraSituacao)
+    const estado = estadoPlanilha(null, paraSituacao, vocabulario)
     if (estado === null) {
-      return `Situação "${paraSituacao}" não corresponde a nenhum estado do De→Para (spec §5).`
+      return `Situação "${paraSituacao}" não corresponde a nenhum estado do vocabulário do import.`
     }
     if (estado === 'descartado') {
       return `Situação "${paraSituacao}" resolve para descartado — ativo descartado não entra num CSV de startup; troque o estado ou remova as linhas.`
@@ -162,9 +174,10 @@ function validarSemantica(op: CorrecaoImport, filialNome?: string): string | nul
 export function validarCorrecao(
   op: CorrecaoImport,
   layoutCols: ReadonlySet<string>,
+  vocabulario: VocabularioImport,
   filialNome: string,
 ): string | null {
-  const semantica = validarSemantica(op, filialNome)
+  const semantica = validarSemantica(op, vocabulario, filialNome)
   if (semantica !== null) return semantica
   const campo = campoDaOp(op)
   if (campo !== null && !layoutCols.has(COLUNA_POR_CAMPO[campo])) {
@@ -203,6 +216,7 @@ export function aplicarCorrecoes(
   csv: CsvCru,
   correcoes: CorrecaoImport[],
   mapa: Map<string, number>,
+  vocabulario: VocabularioImport,
   filialNome?: string,
 ): { csv: CsvCru; porOp: number[]; linhasRemovidas: number; invalidas: ErroImport[] } {
   const linhas: LinhaMutavel[] = csv.linhas.map((l) => ({ linha: l.linha, celulas: [...l.celulas] }))
@@ -228,7 +242,7 @@ export function aplicarCorrecoes(
       porOp.push(0) // §3.7 — campo fora do layout não é erro, é no-op
       continue
     }
-    const motivo = validarSemantica(op, filialNome)
+    const motivo = validarSemantica(op, vocabulario, filialNome)
     if (motivo !== null) {
       invalidas.push({
         linha: 0,
@@ -273,14 +287,15 @@ export function aplicarCorrecoes(
         // desconhecido (typo) é corrigível; o de outra filial só se remove.
         if (op.campo === 'site') {
           const atual = celula(l, i).trim()
-          const unidade = mapearUnidade(atual)
+          const unidade = mapearUnidade(atual, vocabulario)
           if (unidade !== null) {
+            const nomeUnidade = filialDoVocabulario(unidade, vocabulario)?.nome ?? String(unidade)
             invalidas.push({
               linha: op.linha,
               coluna: COLUNA_POR_CAMPO.site,
               valor: descreverOp(op),
               tipo: 'correcao_invalida',
-              mensagem: `Site "${atual}" já corresponde à filial ${unidade} — ativo de outra filial não entra por aqui (remova a linha; transferência é operação do sistema).`,
+              mensagem: `Site "${atual}" já corresponde à filial ${nomeUnidade} — ativo de outra filial não entra por aqui (remova a linha; transferência é operação do sistema).`,
             })
             porOp.push(0)
             break
@@ -363,16 +378,18 @@ export function csvCorrigidoParaTexto(csv: CsvCru): string {
  * §3.3 não roda e o artefato baixado poderia conter uma transformação que o
  * preview RECUSOU (revisão adversarial da F7B, 17/07/2026). O CSV corrigido é o
  * artefato do que foi importado — tem de aplicar exatamente as mesmas ops que o
- * preview aplicou, nem uma a mais. A action sempre passa a filial.
+ * preview aplicou, nem uma a mais. A action sempre passa a filial (e sempre lê o
+ * vocabulário do banco a cada chamada — F56 · Frente D, Decisão 3).
  */
 export function csvCorrigido(
   conteudo: ArrayBuffer | Uint8Array,
   correcoes: CorrecaoImport[],
+  vocabulario: VocabularioImport,
   filialNome?: string,
 ): string {
   const { texto } = decodificarCsv(conteudo)
   const csv = parseCsv(texto)
-  const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), filialNome)
+  const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), vocabulario, filialNome)
   return csvCorrigidoParaTexto(corrigido)
 }
 
@@ -469,21 +486,26 @@ function chaveDoGrupo(
   }
 }
 
-function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): GrupoErro['correcao'] {
+function correcaoDoGrupo(
+  tipo: string,
+  chave: string,
+  vocabulario: VocabularioImport,
+  filialNome: string,
+): GrupoErro['correcao'] {
   switch (tipo) {
     case 'site_divergente': {
-      const alvo = mapearUnidade(filialNome)
-      // Borda: a filial SELECIONADA não está no De→Para da spec §5 (ex.: uma
-      // filial nova cadastrada em admin/filiais). Oferecer "Definir como {filial}"
-      // seria um botão que o operador clica para sempre (revisão adversarial da F7B,
-      // 17/07/2026): o card é informativo.
+      const alvo = mapearUnidade(filialNome, vocabulario)
+      // Borda: a filial SELECIONADA não está no vocabulário (ex.: uma filial nova
+      // cadastrada em admin/filiais, ainda sem apelido). Oferecer "Definir como
+      // {filial}" seria um botão que o operador clica para sempre (revisão
+      // adversarial da F7B, 17/07/2026): o card é informativo.
       //
-      // F56 (Frente A): o preview não chega mais a este ramo — com a filial fora do
+      // F56 (Frente A/D): o preview não chega mais a este ramo — com a filial fora do
       // vocabulário, `analisar` emite o bloqueante único `filial_fora_do_vocabulario` e
       // `montarPlanoImport` não confere o Site linha a linha. O ramo fica como defesa para
       // quem chamar `agruparErros` direto com um `site_divergente` dessa filial.
       if (alvo === null) return { kind: 'nenhuma' }
-      const unidade = mapearUnidade(chave)
+      const unidade = mapearUnidade(chave, vocabulario)
       // Site desconhecido (typo) → corrigível para a filial selecionada.
       // Site de OUTRA filial conhecida → só remover (decisão 4 do Johnny: forçar
       // a filial do import mascararia uma transferência).
@@ -492,19 +514,19 @@ function correcaoDoGrupo(tipo: string, chave: string, filialNome: string): Grupo
         : { kind: 'site_outra_filial' }
     }
     case 'categoria_desconhecida': {
-      const termo = sugerirValor(chave, CATEGORIAS_TERMOS)
-      return { kind: 'categoria', sugestao: termo === null ? null : mapearCategoria(termo) }
+      const termo = sugerirValor(chave, termosCategoria(vocabulario))
+      return { kind: 'categoria', sugestao: termo === null ? null : mapearCategoria(termo, vocabulario) }
     }
     case 'estado_desconhecido':
     case 'estado_descartado': {
       const [statusDe = '', situacaoDe = ''] = chave.split(SEP_ESTADO)
       const efetivo = situacaoDe.trim() !== '' ? situacaoDe : statusDe
-      const termo = sugerirValor(efetivo, ESTADOS_CORRIGIVEIS)
+      const termo = sugerirValor(efetivo, termosEstadoCorrigiveis(vocabulario))
       return {
         kind: 'estado',
         statusDe,
         situacaoDe,
-        sugestao: termo === null ? null : estadoPlanilha(null, termo),
+        sugestao: termo === null ? null : estadoPlanilha(null, termo, vocabulario),
       }
     }
     // F7C — o par já existe no banco, em outra filial: o Substituir tudo não apaga
@@ -548,6 +570,7 @@ export function agruparErros(
   bloqueantes: ErroImport[],
   avisos: ErroImport[],
   registros: RegistroImport[],
+  vocabulario: VocabularioImport,
   filialNome: string,
   /** F7C — linha → filial onde o ativo daquela linha JÁ está cadastrado (só as
    *  linhas com `patrimonio_em_outra_filial`). Agrupa o card por filial dona. */
@@ -574,7 +597,7 @@ export function agruparErros(
     chave,
     linhas: [...new Set(erros.map((e) => e.linha))].sort((a, b) => a - b),
     erros,
-    correcao: correcaoDoGrupo(tipo, chave, filialNome),
+    correcao: correcaoDoGrupo(tipo, chave, vocabulario, filialNome),
   }))
 
   return grupos.sort(

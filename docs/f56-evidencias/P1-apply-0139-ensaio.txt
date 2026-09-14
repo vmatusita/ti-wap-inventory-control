@@ -1,0 +1,62 @@
+# F56 — apply da migration 0139 (vocabulário do import) no ENSAIO, 11/09/2026
+
+Caminho A do runbook (tabelas, policies, seed, comentário — nenhuma exclusão). Pré-condição cumprida: o CI
+do PR #42 no commit 31c7878 ficou VERDE nos dois checks obrigatórios — `verificar` e `banco-sem-docker`
+(run 34636816039: a 0139 aplicou no Postgres do CI, gate de deriva de tipos e determinismo verdes,
+34 roteiros verdes com `vocabulario_import` incluído, e o injetor com 69/69 mutações detectadas pelo
+cenário nomeado, entre elas `vocabulario-perde-a-guarda-de-ambiguidade` e
+`vocabulario-perde-o-indice-de-nome-unico`). A primeira execução (run 34636086388) tinha acusado 1 falha
+no roteiro — um defeito do PRÓPRIO cenário 5e, que lia FOUND ao contrário —, corrigida no commit 31c7878
+sem tocar a migration.
+
+Ferramenta: MCP da Supabase, `apply_migration(project_id=sgmvldiizsrjbxzzpmhh, name='vocabulario_import',
+query=<texto integral de supabase/migrations/0139_vocabulario_import.sql>)` → {"success": true}.
+Verificações: `execute_sql` só de leitura e `get_advisors(security)`. Nenhum dado de negócio lido.
+
+## Antes do apply (mesma sessão, minutos antes)
+- ledger termina em `resumo_integridade_e_rotulo` (0138); as quatro tabelas, as duas funções e o índice novos
+  NÃO existem; slugs: matriz, cd-afonso-pena, linhares, serra, eusebio.
+- contagens: ativos 1602 · movimentacoes 3239 · lancamentos_item 31 · pendencias_item 23 · termos_gerados 2 ·
+  filiais 5 · profiles 4 · eventos_admin 0.
+- advisors de segurança: 3 INFO (rls_enabled_no_policy: ambiente, senha_tentativas, senhas_acesso) ·
+  28 WARN (authenticated_security_definer_function_executable) · 1 WARN (auth_leaked_password_protection).
+
+## Depois do apply
+| verificação | esperado | obtido | ok |
+|---|---|---|---|
+| última migration do ledger | vocabulario_import | vocabulario_import | sim |
+| RLS ligada nas 4 tabelas | true ×4 | true ×4 | sim |
+| policies | unidades_apelidos: leitura operador (SELECT), admin insere apelido (INSERT), admin apaga apelido (DELETE); import_termos_categoria/estado e import_prefixos_patrimonio: só leitura operador (SELECT) | idem | sim |
+| vocabulario_chave: volatilidade / paralelismo / definer | i / s / false | i / s / false | sim |
+| EXECUTE vocabulario_chave: anon / authenticated | false / true | false / true | sim |
+| EXECUTE vocabulario_unidades_guarda: anon / authenticated | false / false | false / false | sim |
+| md5 do prosrc normalizado — vocabulario_chave (arquivo, via corpo-vigente.mjs) | f35ebb1b546a47a6ff9c476b3b2c98cf | f35ebb1b546a47a6ff9c476b3b2c98cf | sim |
+| md5 do prosrc normalizado — vocabulario_unidades_guarda | b7f123ffdac1b40834fbce333c6b50f0 | b7f123ffdac1b40834fbce333c6b50f0 | sim |
+| apelidos (13, slug\|apelido, ordem C) | 89ee4e8879bdb2bfdd71034098276dc1 | 89ee4e8879bdb2bfdd71034098276dc1 (13) | sim |
+| categorias (5, termo\|categoria\|rótulo) | af4ae8c59c18dbd3e80c4b5ff80d1bab | af4ae8c59c18dbd3e80c4b5ff80d1bab | sim |
+| estados (17, termo\|estado\|rótulo) | d21f1829796e6bb15c7e4ff99bb7c84c | d21f1829796e6bb15c7e4ff99bb7c84c | sim |
+| prefixos (7) | 37f3e8658d0a11c65c961fdfc2917952 | 37f3e8658d0a11c65c961fdfc2917952 | sim |
+| formas de exibição | 12 | 12 | sim |
+| md5 do comment de eventos_admin.acao (os 21 verbos vigentes + os 3 novos = 24) | e34e0162486cad23e548133f53bc96dc | e34e0162486cad23e548133f53bc96dc | sim |
+| gatilhos | filiais_vocabulario_guarda, unidades_apelidos_vocabulario_guarda | idem | sim |
+| índices novos | 5 | 5 | sim |
+| sonda vocabulario_chave('  CD Afonso Pena:  ') | cd afonso pena: | cd afonso pena: | sim |
+| sonda vocabulario_chave('Eusébio') | eusebio | eusebio | sim |
+| sonda vocabulario_chave('Filial - Linhares') | filial - linhares | filial - linhares | sim |
+| sonda vocabulario_chave('Manutenção') | manutencao | manutencao | sim |
+| contagens do acervo antes = depois | 1602/3239/31/23/2/5/4/0 | 1602/3239/31/23/2/5/4/0 | sim |
+| advisors de segurança | sem achado novo | idênticos aos de antes (3 INFO · 28 WARN · 1 WARN) | sim |
+| notify pgrst, 'reload schema' | executado | executado | sim |
+
+As impressões "esperado" foram calculadas ANTES do apply, a partir do arquivo commitado, por
+scripts de leitura (corpo-vigente.mjs + md5 do texto normalizado e dos valores do seed). Iguais nos dois
+lados = nenhum erro de transcrição na passagem do SQL pelo MCP.
+
+## Achado registrado, não corrigido nesta fase
+`information_schema.role_table_grants` mostra `anon` e `authenticated` com TODOS os privilégios de tabela
+(inclusive TRUNCATE) nas quatro tabelas novas. É o privilégio padrão do Supabase para tabela nova em
+`public` — e é EXATAMENTE o que as tabelas equivalentes que já existem têm no mesmo banco (tipos_item,
+colaboradores, itens, filiais, motivos, kits_modelos, eventos_admin, import_logs; só `ativos` teve o
+TRUNCATE revogado). A RLS protege as linhas e o PostgREST não expõe TRUNCATE; revogar os privilégios padrão
+de todas as tabelas de vocabulário é hardening transversal (backlog nomeado no relatório), não um defeito
+introduzido pela 0139. O Postgres do CI não tem esses default privileges, e por isso o CI não os mostra.

@@ -19,7 +19,7 @@
 // As mensagens de aviso/bloqueante são IDÊNTICAS às que `montarPlanoImport` emitia (byte a
 // byte); o chamador só anexa `linha`/`coluna: 'Patrimônio'`/`valor: <cru>`.
 
-import { canonicalizarPatrimonio } from '@/lib/patrimonio'
+import { canonicalizarPatrimonio, exemploFormatoPatrimonio } from '@/lib/patrimonio'
 import { extrairPatrimonioDoHostname } from './deparas'
 
 export type ResolucaoPatrimonio =
@@ -35,12 +35,17 @@ export type ResolucaoPatrimonio =
  *                  para decidir o `patrimonio_original`), passado aqui para não recomputar.
  * @param hostname  o hostname cru da linha (fonte do patrimônio embutido).
  * @param forcado   a linha está em `forcar_patrimonio` (op F7J)?
+ * @param prefixos  `VocabularioImport.prefixosPatrimonio` (F56 · Frente D) — os
+ *                  prefixos válidos para reconhecer um patrimônio embutido no
+ *                  hostname; o primeiro deles vira o exemplo de formato na
+ *                  mensagem do bloqueante (5).
  */
 export function resolverPatrimonio(
   cru: string,
   eraVazio: boolean,
   hostname: string | null,
   forcado: boolean,
+  prefixos: readonly string[],
 ): ResolucaoPatrimonio {
   // (1) célula canônica vence tudo.
   const canon = eraVazio ? null : canonicalizarPatrimonio(cru)
@@ -61,7 +66,7 @@ export function resolverPatrimonio(
   }
 
   // (3) hostname com patrimônio embutido → auto-preenche (aviso informativo).
-  const doHostname = extrairPatrimonioDoHostname(hostname)
+  const doHostname = extrairPatrimonioDoHostname(hostname, prefixos)
   if (doHostname) {
     return {
       patrimonio: doHostname,
@@ -90,7 +95,7 @@ export function resolverPatrimonio(
   return {
     bloqueante: {
       tipo: 'patrimonio_invalido',
-      mensagem: `Patrimônio "${cru}" fora do formato canônico (ex.: WAP0004491) e sem hostname aproveitável`,
+      mensagem: `Patrimônio "${cru}" fora do formato canônico (ex.: ${exemploFormatoPatrimonio(prefixos[0])}) e sem hostname aproveitável`,
     },
   }
 }

@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/dialog'
 import { Aviso } from '@/components/layout/aviso'
 import { atualizarFilial, criarFilial } from '@/lib/actions/admin'
+import { incluirApelidoUnidade, removerApelidoUnidade } from '@/lib/actions/unidades-apelidos'
+import { FilialApelidos, type ApelidoDeFilial } from '@/components/admin/filial-apelidos'
 
 function slugify(s: string): string {
   return s
@@ -37,6 +39,8 @@ type FilialEdit = {
   ativo: boolean
   cidade: string
   totalAtivos: number
+  /** F56 — os apelidos dela na coluna Site do import (migration 0139). */
+  apelidos: ApelidoDeFilial[]
 }
 
 // Criar/editar filial (OS-F3 3.7.2). Ao desativar filial com ativos, o servidor
@@ -54,6 +58,50 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   // F29/UXG-05 — a recusa do servidor vive na TELA, não só num toast que some.
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, start] = useTransition()
+
+  // F56 (Frente E · Decisão 13) — os apelidos da coluna Site do import. Estado
+  // LOCAL atualizado pelo RETORNO da action (`res.apelidos`), no molde de
+  // `com-esta-pessoa-linha.tsx`: cada inclusão/remoção é sua própria Server
+  // Action, sua própria linha de auditoria — sem depender de `router.refresh()`
+  // para a lista deste diálogo (o `revalidatePath` do servidor garante que
+  // OUTRAS rotas, como /admin/importar, vejam o dado novo na próxima navegação).
+  const [apelidos, setApelidos] = useState<ApelidoDeFilial[]>(filial?.apelidos ?? [])
+  const [erroApelido, setErroApelido] = useState<string | null>(null)
+  const [enviandoApelido, startApelido] = useTransition()
+
+  function incluirApelido(apelido: string) {
+    if (!filial) return
+    setErroApelido(null)
+    startApelido(async () => {
+      try {
+        const res = await incluirApelidoUnidade({ filialId: filial.id, apelido })
+        if (!res.ok) {
+          setErroApelido(res.erro ?? 'Não foi possível incluir o apelido.')
+          return
+        }
+        setApelidos(res.apelidos ?? [])
+      } catch {
+        setErroApelido('Não foi possível incluir o apelido. Verifique sua conexão e tente de novo.')
+      }
+    })
+  }
+
+  function removerApelido(apelidoId: number) {
+    if (!filial) return
+    setErroApelido(null)
+    startApelido(async () => {
+      try {
+        const res = await removerApelidoUnidade({ apelidoId, filialId: filial.id })
+        if (!res.ok) {
+          setErroApelido(res.erro ?? 'Não foi possível remover o apelido.')
+          return
+        }
+        setApelidos(res.apelidos ?? [])
+      } catch {
+        setErroApelido('Não foi possível remover o apelido. Verifique sua conexão e tente de novo.')
+      }
+    })
+  }
 
   function mudarNome(v: string) {
     setNome(v)
@@ -155,17 +203,36 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
           </p>
         </div>
 
-        {/* F56 (Frente A) — o import de startup não reconhece a filial pelo cadastro: ele
-            confere a coluna Site da planilha pelo vocabulário de unidades. Sem este aviso,
-            criar uma filial parece deixá-la pronta para importar, e o primeiro import dela
-            é recusado. */}
+        {/* F56 (Frente A, texto atualizado na Frente E · Decisão 13) — o import de
+            startup reconhece a filial na coluna Site pelo PRÓPRIO NOME cadastrado aqui
+            (sempre vale) ou por qualquer apelido incluído na seção abaixo. Sem este
+            aviso, criar uma filial parece deixá-la pronta para importar sob qualquer
+            grafia, e o primeiro import com uma grafia diferente é recusado. */}
         <Aviso intencao="informacao">
           <p>
-            O import de startup reconhece a coluna Site da planilha só pelo vocabulário
-            de unidades. Uma filial que ainda não esteja nele tem o import recusado com a
-            mensagem «filial fora do vocabulário».
+            O import de startup reconhece esta filial na coluna Site pelo nome próprio
+            cadastrado aqui ou por um apelido incluído abaixo. Uma grafia fora desse
+            vocabulário tem o import recusado com a mensagem «filial fora do vocabulário».
           </p>
         </Aviso>
+
+        {/* F56 (Frente E · Decisão 13) — só na EDIÇÃO: a filial em criação ainda não
+            tem `id`, e apelido pendura em `filial_id`. */}
+        {edicao ? (
+          <FilialApelidos
+            filialNome={filial.nome}
+            apelidos={apelidos}
+            pendente={enviandoApelido}
+            erro={erroApelido}
+            onIncluir={incluirApelido}
+            onRemover={removerApelido}
+          />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Os apelidos da coluna Site do import se incluem depois de criar a filial —
+            volte a editá-la para cadastrá-los.
+          </p>
+        )}
 
         {edicao && (
           <label className="flex items-center gap-2 text-sm">

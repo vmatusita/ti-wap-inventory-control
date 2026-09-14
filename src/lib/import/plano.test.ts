@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { validarCsvImport } from './plano'
+import { csvCorrigidoDeArquivo, validarCsvImport } from './plano'
 import { ErroArquivoImport, LIMITES_CAMPO_PLANO, MAX_COLUNAS_PLANILHA, MAX_LINHAS_PLANILHA } from './limites'
 import type { FilialSelecionada } from './tipos'
+import type { VocabularioImport } from './vocabulario'
 
 // ===========================================================================
 // Helpers — CSVs 100% FICTÍCIOS (padrão WAP0001234 / "Fulano"/"Ciclano").
+//
+// F56 · Frente D (segunda metade) — o vocabulário deixou de ser hardcoded em
+// `deparas.ts`; o motor recebe `VocabularioImport` por parâmetro. A fixture
+// abaixo espelha byte a byte o vocabulário que estava hardcoded até aqui (os
+// mesmos 18 termos históricos, 5 categorias, 17 estados, 7 prefixos) — a
+// regressão de que o SEED real bate com isto mora em `vocabulario.test.ts`
+// (fixture DERIVADA do SQL); aqui o que importa é o COMPORTAMENTO do motor
+// dado um vocabulário, não a fidelidade ao seed.
 
 const H_MATRIZ =
   'Site;Marca;Tipo;Modelo;Fornecedor;Service Tag;Patrimônio;Memória;Armazenamento;Processador;Hostname;Data de Entrega;Status;Situação;Data de Inclusão;Colaborador;Termo de Ativos;Observação'
@@ -19,6 +28,46 @@ const MATRIZ: FilialSelecionada = { id: 1, slug: 'matriz', nome: 'Matriz' }
 const SERRA: FilialSelecionada = { id: 5, slug: 'serra', nome: 'Serra' }
 const CD: FilialSelecionada = { id: 2, slug: 'cd-afonso-pena', nome: 'CD-Afonso Pena' }
 const EUSEBIO: FilialSelecionada = { id: 4, slug: 'eusebio', nome: 'Eusébio' }
+const LINHARES: FilialSelecionada = { id: 3, slug: 'linhares', nome: 'Linhares' }
+
+const VOCAB: VocabularioImport = {
+  filiais: [
+    { id: MATRIZ.id, nome: MATRIZ.nome, ativa: true },
+    { id: CD.id, nome: CD.nome, ativa: true },
+    { id: LINHARES.id, nome: LINHARES.nome, ativa: true },
+    { id: EUSEBIO.id, nome: EUSEBIO.nome, ativa: true },
+    { id: SERRA.id, nome: SERRA.nome, ativa: true },
+  ],
+  apelidos: [
+    { filialId: CD.id, apelido: 'CD-AFP' },
+    { filialId: CD.id, apelido: 'CD-PENA' },
+    { filialId: CD.id, apelido: 'CD Pena' },
+    { filialId: CD.id, apelido: 'Afonso Pena' },
+    { filialId: EUSEBIO.id, apelido: 'Filial-CE' },
+    { filialId: SERRA.id, apelido: 'Serra Park' },
+    { filialId: LINHARES.id, apelido: 'Filial - Linhares' },
+  ],
+  categorias: [
+    { termo: 'notebook', categoria: 'notebook', rotulo: 'Notebook' },
+    { termo: 'desktop', categoria: 'desktop', rotulo: 'Desktop' },
+    { termo: 'monitor', categoria: 'monitor', rotulo: 'Monitor' },
+    { termo: 'celular', categoria: 'celular', rotulo: 'Celular' },
+    { termo: 'tablet', categoria: 'tablet', rotulo: 'Tablet' },
+  ],
+  estados: [
+    { termo: 'saida', estado: 'em_uso', rotulo: 'Saída' },
+    { termo: 'remanejo', estado: 'em_uso', rotulo: null },
+    { termo: 'estoque', estado: 'em_estoque', rotulo: 'Estoque' },
+    { termo: 'reservado', estado: 'reservado', rotulo: 'Reservado' },
+    { termo: 'emprestimo', estado: 'emprestado', rotulo: 'Empréstimo' },
+    { termo: 'validar', estado: 'em_triagem', rotulo: 'Validar' },
+    { termo: 'manutencao', estado: 'em_manutencao', rotulo: 'Manutenção' },
+    { termo: 'defasado', estado: 'defasado', rotulo: 'Defasado' },
+    { termo: 'descarte', estado: 'descartado', rotulo: null },
+    { termo: 'descartado', estado: 'descartado', rotulo: null },
+  ],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
 
 function linhaDe(headers: string[], v: Record<string, string>): string {
   return headers.map((h) => v[h] ?? '').join(';')
@@ -35,7 +84,7 @@ function rowMatriz(over: Record<string, string> = {}): Record<string, string> {
   return { Site: 'Matriz', Tipo: 'Notebook', 'Patrimônio': 'WAP0001234', Status: 'Estoque', ...over }
 }
 function validarMatriz(linhas: Record<string, string>[], filial = MATRIZ) {
-  return validarCsvImport(buf(montar(H_MATRIZ, linhas)), filial, HOJE)
+  return validarCsvImport(buf(montar(H_MATRIZ, linhas)), filial, VOCAB, HOJE)
 }
 
 // ===========================================================================
@@ -55,7 +104,7 @@ describe('layouts válidos', () => {
       }),
     ])
     expect(r.bloqueantes).toHaveLength(0)
-    expect(r.resumo.layout).toBe('matriz')
+    expect(r.resumo.layout).toBe('colunas18')
     expect(r.plano).not.toBeNull()
     expect(r.plano!.filialId).toBe(1)
     expect(r.plano!.totalLinhasDados).toBe(1)
@@ -79,10 +128,11 @@ describe('layouts válidos', () => {
         ]),
       ),
       MATRIZ,
+      VOCAB,
       HOJE,
     )
     expect(r.bloqueantes).toHaveLength(0)
-    expect(r.resumo.layout).toBe('cd')
+    expect(r.resumo.layout).toBe('colunas16')
     expect(r.plano!.ativos[0]!.categoria).toBe('monitor')
     expect(r.plano!.ativos[0]!.dataEntrada).toBe('2025-03-01')
     expect(r.plano!.ativos[0]!.chamado).toBeNull()
@@ -105,10 +155,11 @@ describe('layouts válidos', () => {
         ]),
       ),
       SERRA,
+      VOCAB,
       HOJE,
     )
     expect(r.bloqueantes).toHaveLength(0)
-    expect(r.resumo.layout).toBe('padrao20')
+    expect(r.resumo.layout).toBe('colunas20')
     const a = r.plano!.ativos[0]!
     expect(a.estadoAlvo).toBe('em_uso')
     expect(a.colaborador).toBe('Fulano')
@@ -122,7 +173,7 @@ describe('layouts válidos', () => {
 describe('header', () => {
   it('quebrado → bloqueante header_invalido, plano null', () => {
     const header = H_MATRIZ.split(';').filter((c) => c !== 'Patrimônio').join(';')
-    const r = validarCsvImport(buf(montar(header, [])), MATRIZ, HOJE)
+    const r = validarCsvImport(buf(montar(header, [])), MATRIZ, VOCAB, HOJE)
     expect(r.plano).toBeNull()
     expect(r.bloqueantes).toHaveLength(1)
     expect(r.bloqueantes[0]!.tipo).toBe('header_invalido')
@@ -135,14 +186,14 @@ describe('encoding', () => {
     const texto = montar(H_MATRIZ, [
       { Site: 'Eusébio', Tipo: 'Notebook', 'Patrimônio': 'WAP0000900', Status: 'Estoque', Observação: 'Configuração ç ã' },
     ])
-    const r = validarCsvImport(Buffer.from(texto, 'latin1'), EUSEBIO, HOJE)
+    const r = validarCsvImport(Buffer.from(texto, 'latin1'), EUSEBIO, VOCAB, HOJE)
     expect(r.bloqueantes).toHaveLength(0)
     expect(r.plano!.ativos[0]!.observacoes).toBe('Configuração ç ã')
   })
   it('UTF-8 com BOM', () => {
     const texto = montar(H_MATRIZ, [rowMatriz({ Observação: 'com BOM' })])
     const comBom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(texto, 'utf8')])
-    const r = validarCsvImport(comBom, MATRIZ, HOJE)
+    const r = validarCsvImport(comBom, MATRIZ, VOCAB, HOJE)
     expect(r.bloqueantes).toHaveLength(0)
     expect(r.plano!.ativos[0]!.observacoes).toBe('com BOM')
   })
@@ -255,6 +306,67 @@ describe('filial fora do vocabulário (F56 — Frente A)', () => {
   it('os outros erros da linha continuam aparecendo (o preview segue útil)', () => {
     const r = validarMatriz([rowMatriz({ Site: 'Filial Inventada', Tipo: 'Impressora' })], INVENTADA)
     expect(r.bloqueantes.some((e) => e.tipo === 'categoria_desconhecida')).toBe(true)
+  })
+})
+
+// F56 · Frente D (segunda metade) — o GATILHO FINAL: depois que o vocabulário virou
+// dado, a condição deixa de ser "slug/nome não bate com as 5 filiais hardcoded" e
+// passa a ser "o filial_id selecionado não está no vocabulário como filial ATIVA".
+describe('filial fora do vocabulário — o gatilho final (F56 · Frente D)', () => {
+  it('filial PRESENTE no vocabulário mas INATIVA continua disparando', () => {
+    const vocabComEusebioInativo: VocabularioImport = {
+      ...VOCAB,
+      filiais: VOCAB.filiais.map((f) => (f.id === EUSEBIO.id ? { ...f, ativa: false } : f)),
+    }
+    const r = validarCsvImport(
+      buf(montar(H_MATRIZ, [rowMatriz({ Site: 'Eusébio' })])),
+      EUSEBIO,
+      vocabComEusebioInativo,
+      HOJE,
+    )
+    expect(r.plano).toBeNull()
+    expect(r.bloqueantes.filter((e) => e.tipo === 'filial_fora_do_vocabulario')).toHaveLength(1)
+    expect(r.bloqueantes.some((e) => e.tipo === 'site_divergente')).toBe(false)
+  })
+
+  it('filial ATIVA só com o nome próprio (sem nenhum apelido) NÃO dispara, e a linha com Site = o nome passa', () => {
+    const semApelidos: VocabularioImport = { ...VOCAB, apelidos: [] }
+    const r = validarCsvImport(
+      buf(montar(H_MATRIZ, [rowMatriz({ Site: 'Matriz' })])),
+      MATRIZ,
+      semApelidos,
+      HOJE,
+    )
+    expect(r.bloqueantes.some((e) => e.tipo === 'filial_fora_do_vocabulario')).toBe(false)
+    expect(r.plano).not.toBeNull()
+    expect(r.plano!.ativos).toHaveLength(1)
+  })
+
+  it('depois de um RENAME no vocabulário, o nome NOVO vale e o VELHO não', () => {
+    const renomeada: VocabularioImport = {
+      ...VOCAB,
+      filiais: VOCAB.filiais.map((f) => (f.id === MATRIZ.id ? { ...f, nome: 'Sede Matriz' } : f)),
+    }
+    const comNomeNovo = validarCsvImport(
+      buf(montar(H_MATRIZ, [rowMatriz({ Site: 'Sede Matriz' })])),
+      MATRIZ,
+      renomeada,
+      HOJE,
+    )
+    expect(comNomeNovo.bloqueantes.some((e) => e.tipo === 'filial_fora_do_vocabulario')).toBe(false)
+    expect(comNomeNovo.plano).not.toBeNull()
+
+    const comNomeVelho = validarCsvImport(
+      buf(montar(H_MATRIZ, [rowMatriz({ Site: 'Matriz' })])),
+      MATRIZ,
+      renomeada,
+      HOJE,
+    )
+    // a filial SELECIONADA continua válida (id existe, ativa) — o gatilho final não
+    // dispara —, mas a linha com o nome VELHO não bate mais com o filial_id: vira
+    // site_divergente, exatamente como um typo bateria.
+    expect(comNomeVelho.bloqueantes.some((e) => e.tipo === 'filial_fora_do_vocabulario')).toBe(false)
+    expect(comNomeVelho.bloqueantes.some((e) => e.tipo === 'site_divergente')).toBe(true)
   })
 })
 
@@ -429,6 +541,7 @@ describe('F7E/F7C — sem patrimônio com tag existente em OUTRA filial', () => 
     const r = validarCsvImport(
       buf(montar(H_MATRIZ, [rowMatriz({ 'Patrimônio': 'n/a', 'Service Tag': 'ST-X' })])),
       MATRIZ,
+      VOCAB,
       HOJE,
       [],
       new Map([[`${SEM}::ST-X`, 'Linhares']]),
@@ -449,6 +562,7 @@ describe('F7E/F7C — sem patrimônio com tag existente em OUTRA filial', () => 
     const r = validarCsvImport(
       buf(montar(H_MATRIZ, [rowMatriz({ 'Patrimônio': 'n/a' })])),
       MATRIZ,
+      VOCAB,
       HOJE,
       [],
       new Map([[`${SEM}::ST-OUTRA`, 'Linhares']]),
@@ -570,7 +684,7 @@ describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
   const csv = (over: Record<string, string>) => buf(montar(H_MATRIZ, [rowMatriz(over)]))
 
   it('sem forçar: valor fora de formato (LEA7LYHQH4) → bloqueante patrimonio_invalido', () => {
-    const r = validarCsvImport(csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }), MATRIZ, HOJE)
+    const r = validarCsvImport(csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }), MATRIZ, VOCAB, HOJE)
     expect(r.plano).toBeNull()
     expect(r.bloqueantes.filter((e) => e.tipo === 'patrimonio_invalido')).toHaveLength(1)
   })
@@ -579,6 +693,7 @@ describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
     const r = validarCsvImport(
       csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }),
       MATRIZ,
+      VOCAB,
       HOJE,
       [{ op: 'forcar_patrimonio', linha: 2 }],
     )
@@ -593,6 +708,7 @@ describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
     const r = validarCsvImport(
       csv({ 'Patrimônio': 'STF003LOC', Hostname: 'NB-WAP0001234' }),
       MATRIZ,
+      VOCAB,
       HOJE,
       [{ op: 'forcar_patrimonio', linha: 2 }],
     )
@@ -603,6 +719,7 @@ describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
     const r = validarCsvImport(
       csv({ 'Patrimônio': 'n/a', Hostname: 'DESKTOP-SALA' }),
       MATRIZ,
+      VOCAB,
       HOJE,
       [{ op: 'forcar_patrimonio', linha: 2 }],
     )
@@ -614,6 +731,7 @@ describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
     const r = validarCsvImport(
       csv({ 'Patrimônio': 'LEA7LYHQH4', Hostname: 'DESKTOP-SALA' }),
       MATRIZ,
+      VOCAB,
       HOJE,
       [{ op: 'editar', linha: 2, campo: 'patrimonio', para: '' }],
     )
@@ -624,7 +742,7 @@ describe('F7-pós — forçar patrimônio fora do padrão e limpar', () => {
 
   it('forçar valor LONGO demais (>60 chars) → bloqueante no preview (espelha a sanidade da RPC)', () => {
     const longo = 'X'.repeat(61)
-    const r = validarCsvImport(csv({ 'Patrimônio': longo, Hostname: 'DESKTOP-SALA' }), MATRIZ, HOJE, [
+    const r = validarCsvImport(csv({ 'Patrimônio': longo, Hostname: 'DESKTOP-SALA' }), MATRIZ, VOCAB, HOJE, [
       { op: 'forcar_patrimonio', linha: 2 },
     ])
     expect(r.plano).toBeNull() // não passa pro apply (a RPC também recusaria)
@@ -652,9 +770,9 @@ describe('hash', () => {
   it('sha-256 estável (mesmo conteúdo → mesmo hash; conteúdo diferente → diferente)', () => {
     const csvA = buf(montar(H_MATRIZ, [rowMatriz({ Observação: 'a' })]))
     const csvB = buf(montar(H_MATRIZ, [rowMatriz({ Observação: 'b' })]))
-    const h1 = validarCsvImport(csvA, MATRIZ, HOJE).plano!.arquivoHash
-    const h2 = validarCsvImport(csvA, MATRIZ, HOJE).plano!.arquivoHash
-    const h3 = validarCsvImport(csvB, MATRIZ, HOJE).plano!.arquivoHash
+    const h1 = validarCsvImport(csvA, MATRIZ, VOCAB, HOJE).plano!.arquivoHash
+    const h2 = validarCsvImport(csvA, MATRIZ, VOCAB, HOJE).plano!.arquivoHash
+    const h3 = validarCsvImport(csvB, MATRIZ, VOCAB, HOJE).plano!.arquivoHash
     expect(h1).toMatch(/^[0-9a-f]{64}$/)
     expect(h1).toBe(h2)
     expect(h1).not.toBe(h3)
@@ -700,8 +818,8 @@ describe('F56 · Frente C — conferirTetos no CSV', () => {
   it('recusa CSV com mais colunas que o teto', () => {
     const header = Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, (_, i) => `Col${i + 1}`).join(';')
     const texto = [header, Array.from({ length: MAX_COLUNAS_PLANILHA + 1 }, () => 'x').join(';')].join('\n')
-    expect(() => validarCsvImport(buf(texto), MATRIZ, HOJE)).toThrow(ErroArquivoImport)
-    expect(() => validarCsvImport(buf(texto), MATRIZ, HOJE)).toThrow(`${MAX_COLUNAS_PLANILHA + 1} colunas`)
+    expect(() => validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE)).toThrow(ErroArquivoImport)
+    expect(() => validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE)).toThrow(`${MAX_COLUNAS_PLANILHA + 1} colunas`)
   })
 
   it('recusa quando o conteúdo total das células passa do teto de bytes', () => {
@@ -722,7 +840,7 @@ describe('F56 · Frente C — linha_desalinhada', () => {
   it('célula A MAIS (com valor) além da largura útil → bloqueante na linha certa', () => {
     const linhaComSobra = linhaDe(H_MATRIZ.split(';'), rowMatriz()) + ';VALOR SOBRANDO'
     const texto = [H_MATRIZ, linhaComSobra].join('\n')
-    const r = validarCsvImport(buf(texto), MATRIZ, HOJE)
+    const r = validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE)
     expect(r.plano).toBeNull()
     expect(r.bloqueantes).toEqual([
       expect.objectContaining({ linha: 2, tipo: 'linha_desalinhada' }),
@@ -733,7 +851,7 @@ describe('F56 · Frente C — linha_desalinhada', () => {
     const colunas = H_MATRIZ.split(';').length
     const linhaCurta = Array.from({ length: colunas - 1 }, () => 'x').join(';') // falta 1 célula
     const texto = [H_MATRIZ, linhaCurta].join('\n')
-    const r = validarCsvImport(buf(texto), MATRIZ, HOJE)
+    const r = validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE)
     expect(r.plano).toBeNull()
     const erro = r.bloqueantes.find((e) => e.tipo === 'linha_desalinhada')
     expect(erro).toBeDefined()
@@ -753,10 +871,48 @@ describe('F56 · Frente C — linha_desalinhada', () => {
     const texto =
       [H_MATRIZ, linhaValida, linhaComColunasVaziasADireita, linhaEmBranco].join('\r\n') + '\r\n' // CRLF + \n final
     const comBom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), buf(texto)])
-    const r = validarCsvImport(comBom, MATRIZ, HOJE)
+    const r = validarCsvImport(comBom, MATRIZ, VOCAB, HOJE)
     expect(r.bloqueantes.filter((e) => e.tipo === 'linha_desalinhada')).toEqual([])
     expect(r.plano).not.toBeNull()
     expect(r.plano!.ativos).toHaveLength(2) // as 2 linhas com Site/Patrimônio; a em branco é pulada
+  })
+})
+
+// ===========================================================================
+// F56 · revisão adversarial final (achado médio) — o "Baixar corrigido" passa pelas
+// MESMAS travas estruturais de `analisar()`. Antes, `csvCorrigidoDeArquivo` lia e
+// reserializava o arquivo sem teto nenhum e sem recusar linha desalinhada.
+
+describe('F56 · revisão final — csvCorrigidoDeArquivo passa pelas travas da Frente C', () => {
+  it('recusa arquivo acima do teto de linhas, com a mesma mensagem do leitor', async () => {
+    const linhas = Array.from({ length: MAX_LINHAS_PLANILHA + 1 }, (_, i) =>
+      rowMatriz({ 'Patrimônio': `WAP${String(i + 1).padStart(7, '0')}` }),
+    )
+    const conteudo = buf(montar(H_MATRIZ, linhas))
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(ErroArquivoImport)
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(
+      `${(MAX_LINHAS_PLANILHA + 1).toLocaleString('pt-BR')} linhas`,
+    )
+  })
+
+  it('recusa linha desalinhada em vez de devolvê-la com o valor na coluna errada', async () => {
+    const linhaComSobra = linhaDe(H_MATRIZ.split(';'), rowMatriz()) + ';VALOR SOBRANDO'
+    const conteudo = buf([H_MATRIZ, linhaComSobra].join('\n'))
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(ErroArquivoImport)
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(
+      /linha desalinhada.*linha 2/,
+    )
+  })
+
+  it('arquivo legítimo (colunas vazias à direita, linha em branco, `\\n` final) continua saindo', async () => {
+    const colunas = H_MATRIZ.split(';')
+    const linhaComColunasVaziasADireita = linhaDe(colunas, rowMatriz({ 'Patrimônio': 'WAP0002222' })) + ';;;'
+    const linhaEmBranco = Array.from({ length: colunas.length }, () => '').join(';')
+    const texto =
+      [H_MATRIZ, linhaDe(colunas, rowMatriz()), linhaComColunasVaziasADireita, linhaEmBranco].join('\n') + '\n'
+    const saida = await csvCorrigidoDeArquivo(buf(texto), [], VOCAB, MATRIZ.nome)
+    expect(saida).toContain('WAP0001234')
+    expect(saida).toContain('WAP0002222')
   })
 })
 

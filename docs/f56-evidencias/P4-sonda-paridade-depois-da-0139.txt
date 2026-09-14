@@ -1,0 +1,33 @@
+# F56 — sonda de paridade ensaio × produção DEPOIS da 0139 nos dois e da 0140 só no ensaio (14/09/2026)
+
+Consulta: `supabase/ci/impressao-schema.sql` (a sonda normalizada do RUNBOOK-BANCO.md, 11 classes — a de
+11/09 tinha 10 porque rodou sem `policy_storage`), rodada pelo MCP da Supabase (execute_sql, só leitura) nos
+dois projetos, com UMA classe a mais só desta rodada: `func_sem_0140` = a classe `func` sem as três funções
+que a 0140 recria (import_apagar_acervo_filial, import_revalidar_contagens, importar_ativos_substituir).
+Só contagens e impressões de catálogo — nenhum dado de negócio.
+
+Estado dos ledgers na hora: ensaio termina em `import_desarma_fk` (0140); produção em `vocabulario_import` (0139).
+
+classe          | objetos | impressão (produção)              | impressão (ensaio)                | igual
+----------------+---------+-----------------------------------+-----------------------------------+------
+coluna          |     304 | 04389aafedd3c6228355ae38c8bf908d  | 04389aafedd3c6228355ae38c8bf908d  | sim
+constraint      |      91 | e4f2683c66ee7dfdb120655e88e92679  | e4f2683c66ee7dfdb120655e88e92679  | sim
+enum            |       7 | 34837fbf7cb50082e461fd8cdad47532  | 34837fbf7cb50082e461fd8cdad47532  | sim
+func            |      81 | 041a1e1ad487e67041577ecc13eb9f76  | 7e8c6ce718111281e1f8a8e0e0a13dd2  | NÃO (esperado)
+func_sem_0140   |      78 | 00d08afa8e9c7e118e40ea64ebbdc205  | 00d08afa8e9c7e118e40ea64ebbdc205  | sim
+grant_func      |      81 | 51c5daaef409de7c5de6e4c6bacfe1b1  | 51c5daaef409de7c5de6e4c6bacfe1b1  | sim
+indice          |      87 | e47ba34aaec5c4950f5c621ffe081ac8  | e47ba34aaec5c4950f5c621ffe081ac8  | sim
+policy          |      53 | 4392469ec82bcd18cf90b72d44a6b0a3  | 4392469ec82bcd18cf90b72d44a6b0a3  | sim
+policy_storage  |       8 | cd68b8eccf9532909791b7cf67619b08  | cd68b8eccf9532909791b7cf67619b08  | sim
+rls_flag        |      24 | 09081944cd2aeaac407de7fcb40093a2  | 09081944cd2aeaac407de7fcb40093a2  | sim
+trigger         |       8 | c8a10e985ab40e20f14532ae7c740b86  | c8a10e985ab40e20f14532ae7c740b86  | sim
+view            |       9 | 667064b2620246551d5bbd726e5c456e  | 667064b2620246551d5bbd726e5c456e  | sim
+
+Leitura:
+- A 0139 produziu o MESMO schema nos dois bancos: +12 colunas (292→304), +16 constraints (75→91), +9 índices
+  (78→87), +6 policies (47→53), +4 tabelas com RLS (20→24), +2 gatilhos (6→8), +2 funções (79→81) — tudo
+  idêntico, inclusive os grants de EXECUTE de todas as 81 funções.
+- A ÚNICA divergência é a classe `func`, e ela some inteira quando as três funções da 0140 saem da conta
+  (`func_sem_0140` igual): é exatamente a 0140, que está no ensaio e ainda não está em produção. Os grants
+  dessas três já são iguais nos dois (a 0140 não muda grant nenhum — só os reafirma).
+- Depois da 0140 em produção, a expectativa é `func` igual nos 11 — conferir com esta mesma sonda.

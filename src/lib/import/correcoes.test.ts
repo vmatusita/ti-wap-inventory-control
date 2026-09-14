@@ -9,10 +9,11 @@ import {
   sugerirValor,
   validarCorrecao,
 } from './correcoes'
-import { CATEGORIAS_TERMOS, ESTADOS_CORRIGIVEIS, SITUACAO_CANONICA } from './deparas'
 import { extrairRegistros, mapaColunas, parseCsv, type RegistroImport } from './parse'
 import { hashConteudo, validarCsvImport } from './plano'
+import { rotuloEstado, termosCategoria, termosEstadoCorrigiveis } from './vocabulario'
 import type { CampoEditavel, CorrecaoImport, FilialSelecionada } from './tipos'
+import type { VocabularioImport } from './vocabulario'
 
 // ===========================================================================
 // Helpers — CSVs 100% FICTÍCIOS (padrão WAP0001234 / "Fulano"), como na F7.
@@ -24,6 +25,52 @@ const H_CD =
 
 const HOJE = '2026-07-16'
 const MATRIZ: FilialSelecionada = { id: 1, slug: 'matriz', nome: 'Matriz' }
+const CD: FilialSelecionada = { id: 2, slug: 'cd-afonso-pena', nome: 'CD-Afonso Pena' }
+const SERRA: FilialSelecionada = { id: 5, slug: 'serra', nome: 'Serra' }
+
+// F56 · Frente D (segunda metade) — o vocabulário deixou de ser hardcoded em
+// `deparas.ts`; o motor recebe `VocabularioImport` por parâmetro. Mesma fixture
+// (byte a byte) de `plano.test.ts` — a fidelidade ao SEED real fica em
+// `vocabulario.test.ts` (fixture derivada do SQL); aqui o que importa é o
+// COMPORTAMENTO do motor de correções dado um vocabulário.
+const VOCAB: VocabularioImport = {
+  filiais: [
+    { id: MATRIZ.id, nome: MATRIZ.nome, ativa: true },
+    { id: CD.id, nome: CD.nome, ativa: true },
+    { id: 3, nome: 'Linhares', ativa: true },
+    { id: 4, nome: 'Eusébio', ativa: true },
+    { id: SERRA.id, nome: SERRA.nome, ativa: true },
+  ],
+  apelidos: [
+    { filialId: CD.id, apelido: 'CD-AFP' },
+    { filialId: CD.id, apelido: 'CD-PENA' },
+    { filialId: CD.id, apelido: 'CD Pena' },
+    { filialId: CD.id, apelido: 'Afonso Pena' },
+    { filialId: 4, apelido: 'Filial-CE' },
+    { filialId: SERRA.id, apelido: 'Serra Park' },
+    { filialId: 3, apelido: 'Filial - Linhares' },
+  ],
+  categorias: [
+    { termo: 'notebook', categoria: 'notebook', rotulo: 'Notebook' },
+    { termo: 'desktop', categoria: 'desktop', rotulo: 'Desktop' },
+    { termo: 'monitor', categoria: 'monitor', rotulo: 'Monitor' },
+    { termo: 'celular', categoria: 'celular', rotulo: 'Celular' },
+    { termo: 'tablet', categoria: 'tablet', rotulo: 'Tablet' },
+  ],
+  estados: [
+    { termo: 'saida', estado: 'em_uso', rotulo: 'Saída' },
+    { termo: 'remanejo', estado: 'em_uso', rotulo: null },
+    { termo: 'estoque', estado: 'em_estoque', rotulo: 'Estoque' },
+    { termo: 'reservado', estado: 'reservado', rotulo: 'Reservado' },
+    { termo: 'emprestimo', estado: 'emprestado', rotulo: 'Empréstimo' },
+    { termo: 'validar', estado: 'em_triagem', rotulo: 'Validar' },
+    { termo: 'manutencao', estado: 'em_manutencao', rotulo: 'Manutenção' },
+    { termo: 'defasado', estado: 'defasado', rotulo: 'Defasado' },
+    { termo: 'descarte', estado: 'descartado', rotulo: null },
+    { termo: 'descartado', estado: 'descartado', rotulo: null },
+  ],
+  prefixosPatrimonio: ['WAP', 'PRO', 'LEA', 'TEC', 'STF', 'PAT', 'NOO'],
+}
 
 function linhaDe(headers: string[], v: Record<string, string>): string {
   return headers.map((h) => v[h] ?? '').join(';')
@@ -42,7 +89,7 @@ function rowMatriz(over: Record<string, string> = {}): Record<string, string> {
 /** Aplica correções sobre um texto CSV e devolve o resultado + os registros já corrigidos. */
 function aplicar(texto: string, correcoes: CorrecaoImport[], filialNome: string | undefined = 'Matriz') {
   const csv = parseCsv(texto)
-  const r = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), filialNome)
+  const r = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), VOCAB, filialNome)
   return { ...r, registros: extrairRegistros(r.csv).registros, original: csv }
 }
 
@@ -56,6 +103,7 @@ function validar(
   return validarCsvImport(
     buf(montar(H_MATRIZ, linhas)),
     filial,
+    VOCAB,
     HOJE,
     correcoes,
     existentesEmOutraFilial,
@@ -142,7 +190,7 @@ describe('aplicarCorrecoes — cada op aplica e conta certo', () => {
       rowMatriz({ Status: 'Saída', Situação: 'Xyz', 'Patrimônio': 'WAP0003333' }), // par diferente
     ])
     const r = aplicar(texto, [
-      { op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: 'Xyz', para: SITUACAO_CANONICA.em_manutencao },
+      { op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: 'Xyz', para: rotuloEstado('em_manutencao', VOCAB) },
     ])
     expect(r.porOp).toEqual([2])
     expect(r.registros.map((x) => x.situacao)).toEqual(['Manutenção', 'Manutenção', 'Xyz'])
@@ -174,6 +222,7 @@ describe('aplicarCorrecoes — cada op aplica e conta certo', () => {
         { op: 'editar', linha: 2, campo: 'colaborador', para: 'Fulano' },
       ],
       mapaColunas(csv.header),
+      VOCAB,
       'Matriz',
     )
     expect(JSON.stringify(csv)).toBe(antes)
@@ -317,6 +366,7 @@ describe('validarCorrecao / correcao_invalida (§3.3–5)', () => {
     const motivo = validarCorrecao(
       { op: 'substituir', campo: 'site', de: 'Serra Park', para: 'Matriz' },
       LAYOUT_MATRIZ,
+      VOCAB,
       'Matriz',
     )
     expect(motivo).toContain('Serra')
@@ -325,54 +375,54 @@ describe('validarCorrecao / correcao_invalida (§3.3–5)', () => {
 
   it('substituir de site desconhecido para filial ≠ selecionada → inválida', () => {
     expect(
-      validarCorrecao({ op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Serra' }, LAYOUT_MATRIZ, 'Matriz'),
+      validarCorrecao({ op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Serra' }, LAYOUT_MATRIZ, VOCAB, 'Matriz'),
     ).toContain('filial selecionada (Matriz)')
   })
 
   it('substituir de site desconhecido para a filial selecionada → válida (typo)', () => {
     expect(
-      validarCorrecao({ op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Matriz' }, LAYOUT_MATRIZ, 'Matriz'),
+      validarCorrecao({ op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Matriz' }, LAYOUT_MATRIZ, VOCAB, 'Matriz'),
     ).toBeNull()
     // apelido do De→Para que resolve para a MESMA filial também vale
     expect(
-      validarCorrecao({ op: 'substituir', campo: 'site', de: 'CD Pena 2', para: 'CD-PENA' }, LAYOUT_MATRIZ, 'CD-Afonso Pena'),
+      validarCorrecao({ op: 'substituir', campo: 'site', de: 'CD Pena 2', para: 'CD-PENA' }, LAYOUT_MATRIZ, VOCAB, 'CD-Afonso Pena'),
     ).toBeNull()
   })
 
   it('estado → descartado é inválido em substituir_estado e em editar (régua da F7 intacta)', () => {
     expect(
-      validarCorrecao({ op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: '', para: 'Descarte' }, LAYOUT_MATRIZ, 'Matriz'),
+      validarCorrecao({ op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: '', para: 'Descarte' }, LAYOUT_MATRIZ, VOCAB, 'Matriz'),
     ).toContain('descartado')
     expect(
-      validarCorrecao({ op: 'editar', linha: 2, campo: 'situacao', para: 'Descartado' }, LAYOUT_MATRIZ, 'Matriz'),
+      validarCorrecao({ op: 'editar', linha: 2, campo: 'situacao', para: 'Descartado' }, LAYOUT_MATRIZ, VOCAB, 'Matriz'),
     ).toContain('descartado')
   })
 
   it('situação fora do vocabulário → inválida', () => {
     expect(
-      validarCorrecao({ op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: '', para: 'Xyz' }, LAYOUT_MATRIZ, 'Matriz'),
+      validarCorrecao({ op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: '', para: 'Xyz' }, LAYOUT_MATRIZ, VOCAB, 'Matriz'),
     ).toContain('não corresponde')
   })
 
   it('todos os termos canônicos de estado são aceitos', () => {
-    for (const para of Object.values(SITUACAO_CANONICA)) {
+    for (const para of VOCAB.estados.map((e) => e.rotulo).filter((r): r is string => r !== null)) {
       expect(
-        validarCorrecao({ op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: 'Xyz', para }, LAYOUT_MATRIZ, 'Matriz'),
+        validarCorrecao({ op: 'substituir_estado', statusDe: 'Estoque', situacaoDe: 'Xyz', para }, LAYOUT_MATRIZ, VOCAB, 'Matriz'),
       ).toBeNull()
     }
   })
 
   it('campo fora do layout → mensagem para a UI desabilitar (mas é no-op no motor)', () => {
-    expect(validarCorrecao({ op: 'editar', linha: 2, campo: 'dataEntrega', para: '01/02/2025' }, LAYOUT_CD, 'Matriz')).toContain(
+    expect(validarCorrecao({ op: 'editar', linha: 2, campo: 'dataEntrega', para: '01/02/2025' }, LAYOUT_CD, VOCAB, 'Matriz')).toContain(
       'não existe no layout',
     )
-    expect(validarCorrecao({ op: 'editar', linha: 2, campo: 'dataEntrega', para: '01/02/2025' }, LAYOUT_MATRIZ, 'Matriz')).toBeNull()
+    expect(validarCorrecao({ op: 'editar', linha: 2, campo: 'dataEntrega', para: '01/02/2025' }, LAYOUT_MATRIZ, VOCAB, 'Matriz')).toBeNull()
   })
 
   it('substituir em massa de patrimônio/service tag é barrado mesmo vindo de fora do TS (§3.2)', () => {
     // A union já barra em tempo de compilação; o JSON da action, não.
     const op = { op: 'substituir', campo: 'patrimonio', de: 'ABC', para: 'WAP0001234' } as unknown as CorrecaoImport
-    expect(validarCorrecao(op, LAYOUT_MATRIZ, 'Matriz')).toContain('linha a linha')
+    expect(validarCorrecao(op, LAYOUT_MATRIZ, VOCAB, 'Matriz')).toContain('linha a linha')
   })
 
   it('op inválida vira bloqueante correcao_invalida (linha 0, coluna = campo) e NÃO é aplicada', () => {
@@ -414,29 +464,29 @@ describe('sugerirValor — Levenshtein próprio (zero dependência)', () => {
   })
 
   it('typo próximo sugere (categoria)', () => {
-    expect(sugerirValor('Notbook', CATEGORIAS_TERMOS)).toBe('notebook')
-    expect(sugerirValor('MONITOR', CATEGORIAS_TERMOS)).toBe('monitor')
-    expect(sugerirValor('Celullar', CATEGORIAS_TERMOS)).toBe('celular')
+    expect(sugerirValor('Notbook', termosCategoria(VOCAB))).toBe('notebook')
+    expect(sugerirValor('MONITOR', termosCategoria(VOCAB))).toBe('monitor')
+    expect(sugerirValor('Celullar', termosCategoria(VOCAB))).toBe('celular')
   })
 
   it('valor distante NÃO sugere (nada de palpite)', () => {
-    expect(sugerirValor('Impressora', CATEGORIAS_TERMOS)).toBeNull()
-    expect(sugerirValor('Teclado', CATEGORIAS_TERMOS)).toBeNull()
-    expect(sugerirValor('', CATEGORIAS_TERMOS)).toBeNull()
+    expect(sugerirValor('Impressora', termosCategoria(VOCAB))).toBeNull()
+    expect(sugerirValor('Teclado', termosCategoria(VOCAB))).toBeNull()
+    expect(sugerirValor('', termosCategoria(VOCAB))).toBeNull()
     expect(sugerirValor('Notbook', [])).toBeNull()
   })
 
   it('respeita o limiar de 40% do comprimento (palavra curta não vira palpite)', () => {
     // distância 2 num valor de 3 letras = 67% → sem sugestão, mesmo com d ≤ 2
-    expect(sugerirValor('Not', CATEGORIAS_TERMOS)).toBeNull()
+    expect(sugerirValor('Not', termosCategoria(VOCAB))).toBeNull()
     // distância 2 num valor de 8 letras = 25% → sugere
-    expect(sugerirValor('Notebok2', CATEGORIAS_TERMOS)).toBe('notebook')
+    expect(sugerirValor('Notebok2', termosCategoria(VOCAB))).toBe('notebook')
   })
 
   it('typo de estado sugere; termo de descarte não tem sugestão (o usuário decide)', () => {
-    expect(sugerirValor('Manutencao', ESTADOS_CORRIGIVEIS)).toBe('manutencao')
-    expect(sugerirValor('Estoqe', ESTADOS_CORRIGIVEIS)).toBe('estoque')
-    expect(sugerirValor('Descarte', ESTADOS_CORRIGIVEIS)).toBeNull()
+    expect(sugerirValor('Manutencao', termosEstadoCorrigiveis(VOCAB))).toBe('manutencao')
+    expect(sugerirValor('Estoqe', termosEstadoCorrigiveis(VOCAB))).toBe('estoque')
+    expect(sugerirValor('Descarte', termosEstadoCorrigiveis(VOCAB))).toBeNull()
   })
 
   it('determinístico: empate resolve pelo primeiro candidato da lista', () => {
@@ -634,9 +684,9 @@ describe('agruparErros', () => {
     // caminho de lavagem (baixa com Site=Serra, reenvia escolhendo Serra).
     const texto = montar(H_MATRIZ, [rowMatriz({ Site: 'Matriz SM' })])
     const ops: CorrecaoImport[] = [{ op: 'substituir', campo: 'site', de: 'Matriz SM', para: 'Serra' }]
-    expect(validarCsvImport(buf(texto), MATRIZ, HOJE, ops).plano).toBeNull() // preview recusa
-    expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).toContain('Matriz SM') // artefato espelha o preview
-    expect(csvCorrigido(buf(texto), ops, MATRIZ.nome)).not.toContain('Serra')
+    expect(validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE, ops).plano).toBeNull() // preview recusa
+    expect(csvCorrigido(buf(texto), ops, VOCAB, MATRIZ.nome)).toContain('Matriz SM') // artefato espelha o preview
+    expect(csvCorrigido(buf(texto), ops, VOCAB, MATRIZ.nome)).not.toContain('Serra')
   })
 
   // F7C → F24 — a régua NASCEU bloqueante porque o índice único era GLOBAL e o insert da
@@ -765,7 +815,7 @@ describe('agruparErros', () => {
   it('agruparErros é puro e determinístico (mesma entrada → mesma saída)', () => {
     const registros: RegistroImport[] = []
     const erro = { linha: 2, coluna: 'Tipo', valor: 'Notbook', tipo: 'categoria_desconhecida', mensagem: 'x' }
-    expect(agruparErros([erro], [], registros, 'Matriz')).toEqual(agruparErros([erro], [], registros, 'Matriz'))
+    expect(agruparErros([erro], [], registros, VOCAB, 'Matriz')).toEqual(agruparErros([erro], [], registros, VOCAB, 'Matriz'))
   })
 })
 
@@ -777,7 +827,7 @@ describe('csvCorrigido / csvCorrigidoParaTexto — round-trip', () => {
       rowMatriz({ Observação: 'nota' }),
       rowMatriz({ 'Patrimônio': 'WAP0009999', Marca: 'Dell' }),
     ])
-    const saida = csvCorrigido(buf(texto), [])
+    const saida = csvCorrigido(buf(texto), [], VOCAB)
     expect(saida.startsWith('﻿')).toBe(false) // quem baixa põe o BOM
     expect(saida.split('\r\n')[0]).toBe(H_MATRIZ) // grafia e ordem do header
     expect(saida).toContain('\r\n')
@@ -787,7 +837,7 @@ describe('csvCorrigido / csvCorrigidoParaTexto — round-trip', () => {
   it('preserva `;`, aspas e reescapa na volta', () => {
     const linha = 'Matriz;Dell;Notebook;"Mod ; 3440";;;WAP0001234;;;;;;Estoque;;;;;"Obs ""boa"""'
     const texto = [H_MATRIZ, linha].join('\n')
-    const saida = csvCorrigido(buf(texto), [])
+    const saida = csvCorrigido(buf(texto), [], VOCAB)
     expect(parseCsv(saida)).toEqual(parseCsv(texto))
     const reg = extrairRegistros(parseCsv(saida)).registros[0]!
     expect(reg.modelo).toBe('Mod ; 3440')
@@ -800,13 +850,13 @@ describe('csvCorrigido / csvCorrigidoParaTexto — round-trip', () => {
     const texto = montar(H_MATRIZ, [rowMatriz()])
     const saida = csvCorrigido(buf(texto), [
       { op: 'editar', linha: 2, campo: 'colaborador', para: 'Fulano; "Ciclano" / TI' },
-    ])
+    ], VOCAB)
     expect(extrairRegistros(parseCsv(saida)).registros[0]!.colaborador).toBe('Fulano; "Ciclano" / TI')
   })
 
   it('linhas removidas ficam FORA do CSV corrigido', () => {
     const texto = montar(H_MATRIZ, [rowMatriz(), rowMatriz({ 'Patrimônio': 'WAP0002222' })])
-    const saida = csvCorrigido(buf(texto), [{ op: 'remover_linha', linha: 2 }])
+    const saida = csvCorrigido(buf(texto), [{ op: 'remover_linha', linha: 2 }], VOCAB)
     expect(saida).not.toContain('WAP0001234')
     expect(saida).toContain('WAP0002222')
     expect(parseCsv(saida).linhas).toHaveLength(1)
@@ -824,11 +874,11 @@ describe('csvCorrigido / csvCorrigidoParaTexto — round-trip', () => {
       { op: 'remover_linha', linha: 4 },
     ]
     const original = buf(montar(H_MATRIZ, linhas))
-    const comCorrecoes = validarCsvImport(original, MATRIZ, HOJE, correcoes)
+    const comCorrecoes = validarCsvImport(original, MATRIZ, VOCAB, HOJE, correcoes)
     expect(comCorrecoes.bloqueantes).toHaveLength(0)
 
-    const texto = csvCorrigido(original, correcoes)
-    const reimport = validarCsvImport(buf(texto), MATRIZ, HOJE)
+    const texto = csvCorrigido(original, correcoes, VOCAB)
+    const reimport = validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE)
     expect(reimport.bloqueantes).toHaveLength(0)
     expect(reimport.plano!.ativos).toHaveLength(2)
     expect(reimport.plano!.ativos.map((a) => a.patrimonio)).toEqual(['WAP0001234', 'WAP0002222'])
@@ -865,20 +915,20 @@ describe('validarCsvImport com correções — o ciclo do preview', () => {
     const conserta: CorrecaoImport[] = [{ op: 'substituir', campo: 'tipo', de: 'Notbook', para: 'Notebook' }]
     const original = buf(montar(H_MATRIZ, [rowMatriz({ Tipo: 'Notbook' })]))
 
-    expect(validarCsvImport(original, MATRIZ, HOJE).plano).toBeNull() // categoria_desconhecida
-    const comCorrecao = validarCsvImport(original, MATRIZ, HOJE, conserta)
+    expect(validarCsvImport(original, MATRIZ, VOCAB, HOJE).plano).toBeNull() // categoria_desconhecida
+    const comCorrecao = validarCsvImport(original, MATRIZ, VOCAB, HOJE, conserta)
     expect(comCorrecao.plano).not.toBeNull()
 
     // hash do plano corrigido == hash do buffer enviado (o mesmo de um CSV que já
     // viesse limpo) e != hash do CSV corrigido reserializado.
-    const jaLimpo = validarCsvImport(buf(montar(H_MATRIZ, [rowMatriz()])), MATRIZ, HOJE)
+    const jaLimpo = validarCsvImport(buf(montar(H_MATRIZ, [rowMatriz()])), MATRIZ, VOCAB, HOJE)
     expect(comCorrecao.plano!.arquivoHash).toBe(hashConteudo(original))
     expect(comCorrecao.plano!.arquivoHash).not.toBe(jaLimpo.plano!.arquivoHash)
 
-    const doCorrigido = validarCsvImport(buf(csvCorrigido(original, conserta)), MATRIZ, HOJE)
+    const doCorrigido = validarCsvImport(buf(csvCorrigido(original, conserta, VOCAB)), MATRIZ, VOCAB, HOJE)
     expect(comCorrecao.plano!.arquivoHash).not.toBe(doCorrigido.plano!.arquivoHash)
     // ...e a lista de correções muda o plano, nunca o hash
-    expect(validarCsvImport(original, MATRIZ, HOJE, [{ op: 'remover_linha', linha: 2 }]).resumo.linhasRemovidas).toBe(1)
+    expect(validarCsvImport(original, MATRIZ, VOCAB, HOJE, [{ op: 'remover_linha', linha: 2 }]).resumo.linhasRemovidas).toBe(1)
   })
 
   it('correção que cria duplicata → par_duplicado na reanálise (§8.1)', () => {
@@ -986,7 +1036,7 @@ describe('validarCsvImport com correções — o ciclo do preview', () => {
 
   it('header_invalido: correções não se aplicam, 1 grupo sem ação (§8.6)', () => {
     const header = H_MATRIZ.split(';').filter((c) => c !== 'Patrimônio').join(';')
-    const r = validarCsvImport(buf(montar(header, [])), MATRIZ, HOJE, [
+    const r = validarCsvImport(buf(montar(header, [])), MATRIZ, VOCAB, HOJE, [
       { op: 'substituir', campo: 'tipo', de: 'Notbook', para: 'Notebook' },
       { op: 'remover_linha', linha: 2 },
     ])
@@ -1031,7 +1081,7 @@ describe('validarCsvImport com correções — o ciclo do preview', () => {
           op: 'substituir_estado',
           statusDe: 'Estoque',
           situacaoDe: 'Descarte',
-          para: SITUACAO_CANONICA.em_triagem,
+          para: rotuloEstado('em_triagem', VOCAB),
         },
       ],
     )
@@ -1050,11 +1100,15 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     rowMatriz({ 'Patrimônio': 'WAP0003333', Tipo: 'Impressora' }),
   ]
 
-  it('2, 3 e 4 argumentos (com lista vazia) dão o MESMO resultado', () => {
+  // F56 · Frente D — `vocabulario` passou a ser obrigatório (3º parâmetro), então
+  // o "2 argumentos" de antes (só conteúdo + filial) não existe mais; o que este
+  // teste prova continua de pé: omitir `hoje`/`correcoes` (que têm default) dá o
+  // MESMO resultado que passá-los explícitos com os valores neutros.
+  it('vocabulário sozinho, com hoje explícito, e com lista vazia dão o MESMO resultado', () => {
     const texto = montar(H_MATRIZ, linhas)
-    const dois = validarCsvImport(buf(texto), MATRIZ)
-    const tres = validarCsvImport(buf(texto), MATRIZ, HOJE)
-    const quatro = validarCsvImport(buf(texto), MATRIZ, HOJE, [])
+    const dois = validarCsvImport(buf(texto), MATRIZ, VOCAB)
+    const tres = validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE)
+    const quatro = validarCsvImport(buf(texto), MATRIZ, VOCAB, HOJE, [])
     expect(tres).toEqual(quatro)
     expect(dois.bloqueantes).toEqual(tres.bloqueantes)
     expect(dois.plano).toEqual(tres.plano)
@@ -1084,7 +1138,7 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
     // sempre `false` e os totais batem com os arrays vazios acima.
     expect(r.resumo).toEqual({
       conflitos: 0, criar: 1, semData: 0, semPatrimonio: 0, semServiceTag: 1, patrimonioDoHostname: 0,
-      layout: 'matriz', linhasRemovidas: 0,
+      layout: 'colunas18', linhasRemovidas: 0,
       detalhe: { reduzido: false, totalBloqueantes: 0, totalAvisos: 0, mantidosPorTipo: null },
     })
   })
@@ -1092,7 +1146,7 @@ describe('retrocompatibilidade F7 — sem correções, nada muda', () => {
   it('CSV vazio (0 linhas de dados) sem correções: comportamento da F7 preservado', () => {
     // plano_vazio é da F7B e só dispara quando houve REMOÇÃO — a RPC segue sendo
     // a guarda do plano sem ativos vindo de um arquivo vazio.
-    const r = validarCsvImport(buf(montar(H_MATRIZ, [])), MATRIZ, HOJE)
+    const r = validarCsvImport(buf(montar(H_MATRIZ, [])), MATRIZ, VOCAB, HOJE)
     expect(r.bloqueantes).toHaveLength(0)
     expect(r.plano!.ativos).toHaveLength(0)
     expect(r.resumo.linhasRemovidas).toBe(0)

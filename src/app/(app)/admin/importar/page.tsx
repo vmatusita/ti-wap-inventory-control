@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarImportLogs } from '@/lib/queries/import-logs'
+import { lerVocabularioImport } from '@/lib/queries/vocabulario-import'
+import { paraCliente, VocabularioImportInvalidoError } from '@/lib/import'
+import { registrarFalha } from '@/lib/observabilidade'
 import { formatDateTime } from '@/lib/format'
 import {
   Table,
@@ -11,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { History } from 'lucide-react'
+import { Aviso } from '@/components/layout/aviso'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { ImportarWizard } from '@/components/admin/importar/importar-wizard'
@@ -30,10 +34,21 @@ export const metadata = {
 // Leituras pelo client autenticado (com a sessão de admin).
 export default async function AdminImportarPage() {
   const client = await createClient()
-  const [filiais, logs] = await Promise.all([
+  const [filiais, logs, leituraVocabulario] = await Promise.all([
     listarFiliais(client),
     listarImportLogs(client),
+    // F56 · revisão adversarial final (achado baixo) — as duas actions do motor já
+    // tratavam a falha de leitura do vocabulário com mensagem própria; a PÁGINA caía no
+    // boundary genérico. Um vocabulário que `conferirVocabulario` recusa (ambíguo ou
+    // incompleto) derruba só o wizard, com o motivo à vista — o histórico continua lá.
+    lerVocabularioImport(client).then(
+      (vocabulario) => ({ ok: true as const, vocabulario }),
+      (erro: unknown) => ({ ok: false as const, erro }),
+    ),
   ])
+  if (!leituraVocabulario.ok) {
+    registrarFalha({ escopo: 'import.vocabulario', erro: leituraVocabulario.erro, ctx: { tela: 'admin/importar' } })
+  }
 
   return (
     <div className="space-y-6">
@@ -49,7 +64,24 @@ export default async function AdminImportarPage() {
         <LinkAjuda pagina="import-de-startup" rotulo="Ajuda sobre o import de startup" />
       </div>
 
-      <ImportarWizard filiais={filiais} />
+      {/* F56 · Frente D — SÓ a fatia de cliente (`paraCliente`) desce por prop: o
+          Server Component leu o vocabulário inteiro (`filiais`/`apelidos` inclusos)
+          para as duas actions do motor lerem de novo do banco; o wizard e os cards
+          recebem só o que precisam para EXIBIR (Select, "Definir como", o painel do
+          hostname) — nunca julgam com ele. */}
+      {leituraVocabulario.ok ? (
+        <ImportarWizard filiais={filiais} vocabulario={paraCliente(leituraVocabulario.vocabulario)} />
+      ) : (
+        <Aviso intencao="erro">
+          <p>
+            O import está indisponível: não foi possível ler o vocabulário do import (os nomes e
+            apelidos das filiais, as categorias, os estados e os prefixos de patrimônio).
+            {leituraVocabulario.erro instanceof VocabularioImportInvalidoError
+              ? ` ${leituraVocabulario.erro.message} Confira os apelidos em Administração › Filiais.`
+              : ' Recarregue a página; se continuar, avise quem cuida do sistema.'}
+          </p>
+        </Aviso>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Histórico de imports</h2>

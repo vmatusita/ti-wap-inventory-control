@@ -1,6 +1,9 @@
-import { TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
+import { TAMANHO_MAX_ROTULO, MAX_LINHAS_PLANILHA, MAX_COLUNAS_PLANILHA } from '@/lib/import/limites'
 import { PAPEL_ROTULO } from '@/lib/auth/papeis'
 import type { PaginaAjuda } from '@/lib/ajuda/tipos'
+
+const LIMITE_LINHAS_ROTULO = MAX_LINHAS_PLANILHA.toLocaleString('pt-BR')
+const LIMITE_COLUNAS_ROTULO = MAX_COLUNAS_PLANILHA.toLocaleString('pt-BR')
 
 // REGRA DE OURO: o teto de tamanho do arquivo vem de `TAMANHO_MAX_ROTULO` — o
 // MESMO rotulo que o passo "Upload" mostra e que a mensagem de recusa repete.
@@ -22,6 +25,8 @@ export const importDeStartup: PaginaAjuda = {
     'preview',
     'correcao',
     'backup',
+    'apelido',
+    'vocabulario',
   ],
   legado: ['admin', 'como-fazer'],
   blocos: [
@@ -76,6 +81,11 @@ export const importDeStartup: PaginaAjuda = {
       colunas: ['O que aparece no preview', 'Nível', 'O que fazer'],
       linhas: [
         [
+          'Cartão "Filial fora do vocabulário"',
+          'bloqueante',
+          'A FILIAL escolhida no passo 1 não é reconhecida (não está cadastrada, ou está inativa) — o problema é de cadastro, não do arquivo. Nenhuma linha chega a ser conferida pelo Site. Cadastre um apelido ou reative a filial em Administração › Filiais e use "Analisar arquivo" de novo.',
+        ],
+        [
           'Cartão "Tipo" (categoria fora do vocabulário)',
           'bloqueante',
           'Escolha o tipo correto no seletor e use "Corrigir N linhas" — vale para todas as linhas daquele valor de uma vez.',
@@ -88,12 +98,22 @@ export const importDeStartup: PaginaAjuda = {
         [
           'Cartão "Site" (filial escrita diferente)',
           'bloqueante',
-          'Use "Definir como {filial} (N linhas)" quando for só erro de grafia da própria filial.',
+          'Use "Definir como {filial} (N linhas)" quando for só erro de grafia da própria filial. Se a mesma grafia voltar a aparecer em todo import futuro dessa filial, cadastre-a como apelido em Administração › Filiais — daí em diante o Site já entra reconhecido, sem precisar corrigir de novo.',
         ],
         [
           'Cartão "Site" de OUTRA filial',
           'bloqueante',
           'Remova as linhas: forçar o Site mascararia uma transferência. Registre a transferência pelo sistema depois.',
+        ],
+        [
+          'Cartão "Linha desalinhada"',
+          'bloqueante',
+          'A linha tem mais ou menos células do que o cabeçalho — a estrutura da planilha está com problema ali, não é um valor errado numa célula. Corrija a linha no próprio arquivo (ou apague-a) e envie de novo; não há correção pela tela para isso.',
+        ],
+        [
+          'Cartão "Valor longo demais"',
+          'bloqueante',
+          'Uma célula (Observação e Modelo são os casos mais comuns) passou do tamanho aceito para aquela coluna. Encurte o valor no arquivo — o import recusa a linha em vez de cortar o texto sozinho — e envie de novo.',
         ],
         [
           'Cartão "Conflito entre filiais"',
@@ -187,6 +207,8 @@ export const importDeStartup: PaginaAjuda = {
         'Os ativos da filial passam a existir com origem "importacao", já no estado que o arquivo declarava, e cada um nasce com a sua movimentação na linha do tempo.',
         'Ativo vindo do import NÃO abre pendência de termo de responsabilidade nem de item faltante — o acervo herdado da planilha não inunda a fila. As pendências que ele pode abrir são as de identificação — "sem patrimônio físico" e "sem service tag" — e a de "conflito entre filiais", quando a linha traz um aparelho que já tem cadastro em outra unidade.',
         'O acervo anterior daquela filial deixa de existir: ativos, movimentações, anotações e termos são apagados, nas contagens que o passo "Confirmar" mostrou. O backup gravado antes fica disponível para baixar no resultado e no "Histórico de imports".',
+        'Pendência de item em aberto daquela filial (por exemplo, um item que ainda faltava devolver) é encerrada junto com o acervo — uma cópia dela fica guardada no backup. Lançamento de item que estava preso a uma movimentação ou a uma pendência do acervo apagado perde esse vínculo, mas o SALDO do item não muda: nada volta nem some da prateleira por causa disso.',
+        'Se um equipamento de OUTRA filial tinha sido cadastrado como substituto de um aparelho que acabou de ser apagado (o fluxo de devolução ao fornecedor), a ficha desse substituto deixa de mostrar a seção "Histórico do ativo substituído" — o aparelho antigo não existe mais para ela apontar.',
         'O histórico do rodapé da tela guarda cada import com "Quando", "Quem", "Filial", "Linhas", "Criados", "Correções", "Conflitos", "Apagados" e o "Backup" — é o rastro de auditoria da virada.',
         'Os saldos de itens por quantidade não entram por aqui: o import é só de equipamentos com patrimônio.',
       ],
@@ -205,6 +227,26 @@ export const importDeStartup: PaginaAjuda = {
           `O arquivo tem {x} MB — o limite é ${TAMANHO_MAX_ROTULO}.`,
           'O arquivo passou do tamanho aceito.',
           'Confira se é mesmo o inventário da filial; planilha com abas e imagens costuma ser o arquivo errado.',
+        ],
+        [
+          `A planilha tem {x} linhas de dados — o limite é ${LIMITE_LINHAS_ROTULO}.`,
+          'O arquivo tem mais linhas do que o import aceita de uma vez.',
+          'Divida o arquivo por filial, ou remova as linhas sobrando, e envie de novo.',
+        ],
+        [
+          `A planilha tem {x} colunas — o limite é ${LIMITE_COLUNAS_ROTULO}.`,
+          'Sobrou coluna preenchida além do cabeçalho esperado.',
+          'Remova as colunas sobrando à direita do cabeçalho e envie de novo.',
+        ],
+        [
+          'O conteúdo das células desta planilha passa do limite de texto aceito.',
+          'A soma do texto de todas as células passou do teto — mais comum quando um campo livre (como Observação) vem muito preenchido em muitas linhas.',
+          'Reduza o texto das observações/campos livres, ou divida o arquivo por filial, e envie de novo.',
+        ],
+        [
+          'O arquivo Excel expande para muito mais do que uma planilha de inventário legítima produz depois de descomprimido.',
+          'O `.xlsx` foi construído de um jeito incomum (célula com conteúdo repetitivo demais) ou está corrompido.',
+          'Confira o arquivo no Excel; se ele abrir normal e for mesmo o inventário da filial, exporte de novo e reenvie.',
         ],
         [
           'O arquivo está vazio.',

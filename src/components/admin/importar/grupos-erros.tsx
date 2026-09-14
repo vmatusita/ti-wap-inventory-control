@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 // VALOR só dos módulos-folha PUROS do motor: o barrel `@/lib/import` re-exporta
 // `plano.ts`, que importa node:crypto — ele não pode entrar no bundle do cliente.
 // Os TIPOS vêm do barrel normalmente (são apagados no build).
-import { extrairPatrimonioDoHostname, SITUACAO_CANONICA, TIPO_CANONICO } from '@/lib/import/deparas'
+import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
 import type {
   CategoriaImport,
@@ -25,6 +25,7 @@ import type {
   EstadoAlvoImport,
   GrupoErro,
   RegistroImport,
+  VocabularioCliente,
 } from '@/lib/import'
 import { rotuloTipoErro, VAZIO } from '@/components/admin/importar/rotulos'
 import {
@@ -51,7 +52,9 @@ type CorrigirFn = (ops: CorrecaoImport[]) => void
 
 /** Props comuns que o dispatcher passa a cada card. F7D: o rascunho (valores
  *  digitados/escolhidos) vive no PAI, não em cada card — é o que torna possível o
- *  botão "corrigir a seção" e o botão global. */
+ *  botão "corrigir a seção" e o botão global. F56 · Frente D: `vocabulario` é a
+ *  fatia de CLIENTE (`VocabularioCliente`) — só para EXIBIR (Select, prefixos do
+ *  hostname); o servidor nunca julga com o que desceu por aqui. */
 type CtrlProps = {
   bloqueante: boolean
   contexto: Record<number, RegistroImport>
@@ -60,10 +63,8 @@ type CtrlProps = {
   filialNome: string
   rascunho: Rascunho
   setCampo: (chave: string, valor: string) => void
+  vocabulario: VocabularioCliente
 }
-
-const CATEGORIAS = Object.entries(TIPO_CANONICO) as [CategoriaImport, string][]
-const ESTADOS = Object.entries(SITUACAO_CANONICA) as [EstadoAlvoImport, string][]
 
 function plural(n: number, singular: string, pluralTxt: string): string {
   return n === 1 ? singular : pluralTxt
@@ -261,7 +262,7 @@ function CardCategoria({
   grupo: GrupoErro
   sugestao: CategoriaImport | null
 }) {
-  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir, vocabulario } = comuns
   const categoria = massaEfetiva(grupo, rascunho)
   const n = grupo.linhas.length
 
@@ -273,9 +274,9 @@ function CardCategoria({
             <SelectValue placeholder="Escolha o tipo correto" />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORIAS.map(([cat, termo]) => (
+            {vocabulario.categorias.map(({ categoria: cat, rotulo }) => (
               <SelectItem key={cat} value={cat}>
-                {termo}
+                {rotulo}
               </SelectItem>
             ))}
           </SelectContent>
@@ -289,8 +290,8 @@ function CardCategoria({
           type="button"
           size="sm"
           className="gap-2"
-          disabled={!grupoPronto(grupo, rascunho, contexto) || pendente}
-          onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+          disabled={!grupoPronto(grupo, rascunho, contexto, vocabulario) || pendente}
+          onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome, vocabulario))}
         >
           <Wand2 className="size-3.5" />
           Corrigir {n} {plural(n, 'linha', 'linhas')}
@@ -317,7 +318,7 @@ function CardEstado({
   situacaoDe: string
   sugestao: EstadoAlvoImport | null
 }) {
-  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir, vocabulario } = comuns
   const estado = massaEfetiva(grupo, rascunho)
   const n = grupo.linhas.length
 
@@ -333,10 +334,10 @@ function CardEstado({
             <SelectValue placeholder="Escolha o estado correto" />
           </SelectTrigger>
           <SelectContent>
-            {ESTADOS.map(([e, termo]) => (
+            {vocabulario.estados.map(({ estado: e, rotulo }) => (
               <SelectItem key={e} value={e}>
                 {STATUS_META[e].rotulo}
-                <span className="ml-2 font-mono text-xs text-muted-foreground">{termo}</span>
+                <span className="ml-2 font-mono text-xs text-muted-foreground">{rotulo}</span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -350,8 +351,8 @@ function CardEstado({
           type="button"
           size="sm"
           className="gap-2"
-          disabled={!grupoPronto(grupo, rascunho, contexto) || pendente}
-          onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+          disabled={!grupoPronto(grupo, rascunho, contexto, vocabulario) || pendente}
+          onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome, vocabulario))}
         >
           <Wand2 className="size-3.5" />
           Corrigir {n} {plural(n, 'linha', 'linhas')}
@@ -365,7 +366,7 @@ function CardEstado({
 // kind: 'site_desconhecido' — erro de grafia: ação única, vira a filial do import.
 
 function CardSiteDesconhecido({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
-  const { filialNome, rascunho, contexto, pendente, onCorrigir } = comuns
+  const { filialNome, rascunho, contexto, pendente, onCorrigir, vocabulario } = comuns
   const n = grupo.linhas.length
   return (
     <CardGrupo grupo={grupo} {...comuns}>
@@ -374,7 +375,7 @@ function CardSiteDesconhecido({ grupo, ...comuns }: CtrlProps & { grupo: GrupoEr
         size="sm"
         className="gap-2"
         disabled={pendente}
-        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome, vocabulario))}
       >
         <Wand2 className="size-3.5" />
         Definir como {filialNome} ({n} {plural(n, 'linha', 'linhas')})
@@ -486,6 +487,7 @@ function LinhaPatrimonio({
   onCorrigir,
   rascunho,
   setCampo,
+  prefixosPatrimonio,
   opcional = false,
 }: {
   linha: number
@@ -494,6 +496,7 @@ function LinhaPatrimonio({
   onCorrigir: CorrigirFn
   rascunho: Rascunho
   setCampo: (chave: string, valor: string) => void
+  prefixosPatrimonio: readonly string[]
   opcional?: boolean
 }) {
   // F7-pós (Johnny, 20/07/2026): no card de patrimônio VAZIO (`opcional`), o valor cru
@@ -513,7 +516,7 @@ function LinhaPatrimonio({
   // "Corrigir" (por linha / seção / global) é que aplica. No card de patrimônio vazio o
   // motor já auto-preenche quando o hostname resolve, então aqui o botão só aparece no
   // card de patrimônio INVÁLIDO (valor errado + hostname bom), que o motor não sobrescreve.
-  const hostnamePatrimonio = extrairPatrimonioDoHostname(reg?.hostname)
+  const hostnamePatrimonio = extrairPatrimonioDoHostname(reg?.hostname, prefixosPatrimonio)
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
@@ -610,7 +613,7 @@ function LinhaPatrimonio({
 }
 
 function CardPatrimonio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
-  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir, vocabulario } = comuns
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <div className="space-y-2">
@@ -623,15 +626,16 @@ function CardPatrimonio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) 
             onCorrigir={onCorrigir}
             rascunho={rascunho}
             setCampo={setCampo}
+            prefixosPatrimonio={vocabulario.prefixosPatrimonio}
           />
         ))}
       </div>
       <BotaoSecao
         n={grupo.linhas.length}
-        pronto={grupoPronto(grupo, rascunho, contexto)}
+        pronto={grupoPronto(grupo, rascunho, contexto, vocabulario)}
         faltam={faltamNoGrupo(grupo, rascunho, contexto)}
         pendente={pendente}
-        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome, vocabulario))}
       />
     </CardGrupo>
   )
@@ -645,7 +649,7 @@ function CardPatrimonio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) 
 // é por linha, dentro de `LinhaPatrimonio`, que também traz a sugestão de hostname).
 
 function CardPatrimonioVazio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
-  const { rascunho, setCampo, contexto, pendente, onCorrigir } = comuns
+  const { rascunho, setCampo, contexto, pendente, onCorrigir, vocabulario } = comuns
   return (
     <CardGrupo grupo={grupo} {...comuns} removivel={false}>
       <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
@@ -663,6 +667,7 @@ function CardPatrimonioVazio({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErr
             onCorrigir={onCorrigir}
             rascunho={rascunho}
             setCampo={setCampo}
+            prefixosPatrimonio={vocabulario.prefixosPatrimonio}
             opcional
           />
         ))}
@@ -810,7 +815,7 @@ function CardDuplicata({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
 // dataEntrada = a mais antiga válida). `editar` por linha é exato.
 
 function CardData({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
-  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir, vocabulario } = comuns
   const [massa, setMassa] = useState('')
   const n = grupo.linhas.length
   const massaOk = dataValida(massa)
@@ -880,10 +885,10 @@ function CardData({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
       </div>
       <BotaoSecao
         n={n}
-        pronto={grupoPronto(grupo, rascunho, contexto)}
+        pronto={grupoPronto(grupo, rascunho, contexto, vocabulario)}
         faltam={faltamNoGrupo(grupo, rascunho, contexto)}
         pendente={pendente}
-        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome, vocabulario))}
       />
     </CardGrupo>
   )
@@ -990,7 +995,7 @@ function LinhaColaborador({
 }
 
 function CardColaborador({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro }) {
-  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir } = comuns
+  const { rascunho, setCampo, contexto, filialNome, pendente, onCorrigir, vocabulario } = comuns
   return (
     <CardGrupo grupo={grupo} {...comuns}>
       <div className="space-y-2">
@@ -1008,10 +1013,10 @@ function CardColaborador({ grupo, ...comuns }: CtrlProps & { grupo: GrupoErro })
       </div>
       <BotaoSecao
         n={grupo.linhas.length}
-        pronto={grupoPronto(grupo, rascunho, contexto)}
+        pronto={grupoPronto(grupo, rascunho, contexto, vocabulario)}
         faltam={faltamNoGrupo(grupo, rascunho, contexto)}
         pendente={pendente}
-        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome))}
+        onClick={() => onCorrigir(opsDoGrupo(grupo, rascunho, contexto, filialNome, vocabulario))}
       />
     </CardGrupo>
   )
@@ -1027,6 +1032,7 @@ export function GruposErros({
   tiposAviso,
   pendente,
   onCorrigir,
+  vocabulario,
 }: {
   grupos: GrupoErro[]
   contexto: Record<number, RegistroImport>
@@ -1034,6 +1040,10 @@ export function GruposErros({
   tiposAviso: Set<string>
   pendente: boolean
   onCorrigir: CorrigirFn
+  /** F56 · Frente D — a fatia de CLIENTE do vocabulário (`paraCliente`, lida pela
+   *  página e repassada pelo wizard). Só para EXIBIR (Select, prefixos do
+   *  hostname) — o servidor nunca julga com o que desceu por aqui. */
+  vocabulario: VocabularioCliente
 }) {
   // F7D — o rascunho (valores digitados/escolhidos) vive AQUI, não em cada card:
   // é o que torna possível o botão global juntar tudo numa reanálise só. Persiste
@@ -1050,9 +1060,9 @@ export function GruposErros({
   const opsGlobais = useMemo(
     () =>
       grupos
-        .filter((g) => grupoPronto(g, rascunho, contexto))
-        .flatMap((g) => opsDoGrupo(g, rascunho, contexto, filialNome)),
-    [grupos, rascunho, contexto, filialNome],
+        .filter((g) => grupoPronto(g, rascunho, contexto, vocabulario))
+        .flatMap((g) => opsDoGrupo(g, rascunho, contexto, filialNome, vocabulario)),
+    [grupos, rascunho, contexto, filialNome, vocabulario],
   )
   const resumoGlobal = resumoOps(opsGlobais)
   // F7F — quantas linhas dos cards corrigíveis ainda faltam preencher (o botão
@@ -1106,6 +1116,7 @@ export function GruposErros({
           filialNome,
           rascunho,
           setCampo,
+          vocabulario,
         }
         const chaveReact = `${grupo.tipo}::${grupo.chave}`
 

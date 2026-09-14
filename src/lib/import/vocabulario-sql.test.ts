@@ -1,16 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
 import { PREFIXO_PATRIMONIO_FONTE } from '@/lib/patrimonio'
+import { normalizarTexto } from './deparas'
 import {
-  ESTADOS,
-  TIPO_CANONICO,
-  SITUACAO_CANONICA,
-  PREFIXOS_PATRIMONIO,
-  mapearUnidade,
-  mapearCategoria,
-  normalizarTexto,
-} from './deparas'
+  apelidosNoSql,
+  categoriasNoSql,
+  checkPrefixoFormato,
+  estadosNoSql,
+  migracaoComAncora,
+  nomesDasFiliaisHoje,
+  prefixosNoSql,
+  type LinhaApelido,
+  type LinhaCategoria,
+  type LinhaEstado,
+} from './leitor-seed-vocabulario'
 
 // GUARDA DO SEED DO VOCABULÁRIO DO IMPORT (F56 · Frente D, Decisão 1).
 //
@@ -23,122 +25,13 @@ import {
 //
 // Este teste NASCE VERMELHO antes da 0139 existir (não há migration para ler) — é a
 // trava do item 1a da ordem da fase, guardada em docs/f56-evidencias/.
-
-const DIR_MIGRACOES = join(process.cwd(), 'supabase', 'migrations')
-
-function lerMigracoes(): { arquivo: string; sql: string }[] {
-  return readdirSync(DIR_MIGRACOES)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-    .map((arquivo) => ({ arquivo, sql: readFileSync(join(DIR_MIGRACOES, arquivo), 'utf8') }))
-}
-
-/** A migration VIGENTE que contém a âncora — a de MAIOR número (não deveria haver
- *  duas: migration aplicada nunca se edita; a busca por âncora, e não por número
- *  fixo, é só para a mensagem de erro apontar o arquivo certo enquanto a 0139 ainda
- *  não existe). */
-function migracaoComAncora(ancora: string): { arquivo: string; sql: string } {
-  const achadas = lerMigracoes().filter((m) => m.sql.includes(ancora))
-  const arquivo = achadas.at(-1)
-  if (!arquivo) {
-    throw new Error(
-      `nenhuma migration contém "${ancora}" — a 0139 (vocabulário do import) ainda não existe`,
-    )
-  }
-  return arquivo
-}
-
-// -----------------------------------------------------------------------------
-// Extração das tuplas de cada INSERT — funções PURAS de texto, sem SQL parser.
-// -----------------------------------------------------------------------------
-
-/** O trecho entre `ancora` e o `;` que fecha o comando (o PRIMEIRO `;` depois dela —
- *  nenhum dos quatro INSERTs desta migration tem `;` dentro de literal). */
-function corpoDoComando(sql: string, ancora: string): string {
-  const inicio = sql.indexOf(ancora)
-  if (inicio === -1) throw new Error(`âncora não encontrada: "${ancora}"`)
-  const aposAncora = inicio + ancora.length
-  const fimRel = sql.slice(aposAncora).indexOf(';')
-  if (fimRel === -1) throw new Error(`comando sem ';' de fechamento após "${ancora}"`)
-  return sql.slice(aposAncora, aposAncora + fimRel)
-}
-
-type LinhaApelido = { slug: string; apelido: string }
-
-function apelidosNoSql(sql: string): LinhaApelido[] {
-  const corpo = corpoDoComando(
-    sql,
-    'insert into public.unidades_apelidos (filial_id, apelido)',
-  )
-  return [...corpo.matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g)].map((m) => ({
-    slug: m[1]!,
-    apelido: m[2]!,
-  }))
-}
-
-type LinhaCategoria = { termo: string; categoria: string; rotulo: string | null }
-
-function categoriasNoSql(sql: string): LinhaCategoria[] {
-  const corpo = corpoDoComando(
-    sql,
-    'insert into public.import_termos_categoria (termo, categoria, rotulo) values',
-  )
-  return [...corpo.matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g)].map((m) => ({
-    termo: m[1]!,
-    categoria: m[2]!,
-    rotulo: m[3]!,
-  }))
-}
-
-type LinhaEstado = { termo: string; estado: string; rotulo: string | null }
-
-function estadosNoSql(sql: string): LinhaEstado[] {
-  const corpo = corpoDoComando(
-    sql,
-    'insert into public.import_termos_estado (termo, estado, rotulo) values',
-  )
-  return [
-    ...corpo.matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*(null|'[^']*')\s*\)/g),
-  ].map((m) => ({
-    termo: m[1]!,
-    estado: m[2]!,
-    rotulo: m[3] === 'null' ? null : m[3]!.slice(1, -1),
-  }))
-}
-
-function prefixosNoSql(sql: string): string[] {
-  const corpo = corpoDoComando(sql, 'insert into public.import_prefixos_patrimonio (prefixo) values')
-  return [...corpo.matchAll(/\(\s*'([^']+)'\s*\)/g)].map((m) => m[1]!)
-}
-
-function checkPrefixoFormato(sql: string): string {
-  const m = sql.match(/import_prefixos_patrimonio_formato check \(prefixo ~ '([^']+)'\)/)
-  if (!m) throw new Error('não achei o check import_prefixos_patrimonio_formato')
-  return m[1]!
-}
-
-/** As tuplas `(slug, nome)` do seed fixo de filiais (0007) — só as CINCO originais.
- *  `filialteste` não entra: não tem migration própria (nasceu direto em produção,
- *  fato 3 da ordem) e o nome próprio dela não é histórico (não tinha apelido nenhum
- *  no deparas.ts de hoje). */
-function filiaisNoSeedFixo(): { slug: string; nome: string }[] {
-  const { sql } = migracaoComAncora('insert into public.filiais (slug, nome) values')
-  const corpo = corpoDoComando(sql, 'insert into public.filiais (slug, nome) values')
-  return [...corpo.matchAll(/\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g)].map((m) => ({
-    slug: m[1]!,
-    nome: m[2]!,
-  }))
-}
-
-/** O rename idempotente da 0026: `serra-park` → slug `serra`, nome `Serra`. */
-function nomesDasFiliaisHoje(): Map<string, string> {
-  const mapa = new Map(filiaisNoSeedFixo().map((f) => [f.slug, f.nome]))
-  if (mapa.has('serra-park')) {
-    mapa.delete('serra-park')
-    mapa.set('serra', 'Serra')
-  }
-  return mapa
-}
+//
+// Os LEITORES de SQL moraram aqui até a segunda metade da Frente D — agora vivem
+// em `leitor-seed-vocabulario.ts` (não-teste, sem literal de filial/WAP nenhum, só
+// nomes de tabela/coluna): `vocabulario.test.ts` os reusa para CONSTRUIR a fixture
+// da regressão dos 18 termos históricos a partir do MESMO seed, em vez de
+// reimplementar o parser — e importar um `.test.ts` de outro executaria os
+// `describe`/`it` dele de novo, então o parser tinha de sair para um módulo comum.
 
 // -----------------------------------------------------------------------------
 // OS LITERAIS ESPERADOS — vivem aqui, e só aqui.
@@ -340,54 +233,12 @@ describe('0139: os 7 prefixos de patrimônio, e o check bate com PREFIXO_PATRIMO
 })
 
 // -----------------------------------------------------------------------------
-// ⚠ DESCRIBE TEMPORÁRIO — sai na Frente D2.
-//
-// Enquanto `deparas.ts` ainda tem UNIDADES/CATEGORIAS/ESTADOS/TIPO_CANONICO/
-// SITUACAO_CANONICA/PREFIXOS_PATRIMONIO como dado hardcoded (a segunda metade da
-// Frente D substitui essas constantes por parâmetro vindo do banco), este describe
-// prova que o seed novo da 0139 e o código velho ainda concordam — a rede de
-// segurança de quem vai apagar as constantes. Assim que elas saírem de deparas.ts,
-// este describe (e só ele) fica órfão e deve ser apagado, não corrigido.
+// O describe temporário que comparava este seed com as constantes hardcoded de
+// `deparas.ts` (UNIDADES/CATEGORIAS/ESTADOS/TIPO_CANONICO/SITUACAO_CANONICA/
+// PREFIXOS_PATRIMONIO) SAIU (F56 · Frente D, segunda metade — ata em
+// docs/DECISOES.md): essas constantes não existem mais — o vocabulário virou
+// parâmetro (`VocabularioImport`, `./vocabulario.ts`). A regressão equivalente
+// ("os 18 termos históricos resolvem para a filial certa") agora mora em
+// `vocabulario.test.ts`, com uma fixture CONSTRUÍDA a partir deste mesmo SQL
+// (não copiada de cabeça) — é o sucessor deste describe, por desenho.
 // -----------------------------------------------------------------------------
-describe('(TEMPORÁRIO — sai quando a Frente D2 apagar as constantes de deparas.ts) o seed da 0139 ainda bate com o vocabulário hardcoded de hoje', () => {
-  it('todo apelido histórico resolve, hoje, para a MESMA filial que o seed aponta', () => {
-    const filialPorSlugLocal: Record<string, string> = {
-      matriz: 'Matriz',
-      'cd-afonso-pena': 'CD-Afonso Pena',
-      linhares: 'Linhares',
-      eusebio: 'Eusébio',
-      serra: 'Serra',
-    }
-    for (const { slug, apelido } of APELIDOS_13) {
-      expect(mapearUnidade(apelido), `apelido "${apelido}"`).toBe(filialPorSlugLocal[slug])
-    }
-  })
-
-  it('as 5 categorias do seed resolvem, hoje, para o mesmo enum via mapearCategoria', () => {
-    for (const { termo, categoria } of CATEGORIAS_5) {
-      expect(mapearCategoria(termo)).toBe(categoria)
-    }
-  })
-
-  it('ESTADOS (ainda exportado de deparas.ts) tem as mesmas 17 chaves → estado do seed', () => {
-    const doTs = Object.entries(ESTADOS).map(([termo, estado]) => ({ termo, estado }))
-    const doSeed = ESTADOS_17.map(({ termo, estado }) => ({ termo, estado }))
-    expect(doTs).toEqual(doSeed)
-  })
-
-  it('TIPO_CANONICO (ainda exportado) tem exatamente os 5 rótulos de categoria do seed', () => {
-    const doTs = Object.values(TIPO_CANONICO).sort()
-    const doSeed = CATEGORIAS_5.map((c) => c.rotulo).sort()
-    expect(doTs).toEqual(doSeed)
-  })
-
-  it('SITUACAO_CANONICA (ainda exportado) tem exatamente os 7 rótulos de estado do seed', () => {
-    const doTs = Object.values(SITUACAO_CANONICA).sort()
-    const doSeed = ESTADOS_17.filter((e) => e.rotulo !== null).map((e) => e.rotulo).sort()
-    expect(doTs).toEqual(doSeed)
-  })
-
-  it('PREFIXOS_PATRIMONIO (ainda exportado) é o MESMO conjunto de 7 do seed', () => {
-    expect([...PREFIXOS_PATRIMONIO].sort()).toEqual([...PREFIXOS_7].sort())
-  })
-})

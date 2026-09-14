@@ -80,16 +80,15 @@ export type EstadoAlvoImport = ExcluirDaUniao<EstadoPlanilha, 'descartado'>
  */
 export type CategoriaImport = ExcluirDaUniao<Enums<'categoria_ativo'>, 'outro'>
 
-export type FilialOficial =
-  | 'Matriz'
-  | 'CD-Afonso Pena'
-  | 'Linhares'
-  | 'Eusébio'
-  | 'Serra'
-
-/** Os 3 layouts do CSV de inventário (F4). `padrao20` = layout de 20 colunas das
- *  filiais (matriz + Grade + GLPI); espelha o `filial` dos scripts da F4. */
-export type LayoutImport = 'matriz' | 'cd' | 'padrao20'
+/**
+ * Os 3 layouts do CSV de inventário (F4) — nomeados pela CONTAGEM de colunas,
+ * não pela planilha de origem (F56 · Frente D, Decisão 12 do PLAN-F56.md: o
+ * layout é o conjunto de COLUNAS, não uma filial ou uma exportação específica).
+ * `colunas18` = Site…Observação (18 colunas); `colunas16` = `colunas18` sem
+ * Data de Entrega/Termo de Ativos (16); `colunas20` = `colunas18` + Grade/GLPI
+ * (20) — espelha o `filial` dos scripts da F4.
+ */
+export type LayoutImport = 'colunas18' | 'colunas16' | 'colunas20'
 
 /** Filial escolhida na tela (o W3 passa isto ao motor). */
 export type FilialSelecionada = { id: number; slug: string; nome: string }

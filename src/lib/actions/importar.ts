@@ -8,12 +8,15 @@ import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
+  categoriasImportaveis,
   csvCorrigidoDeArquivo,
+  estadosImportaveis,
   validarArquivoImport,
   type CorrecaoImport,
   type PlanoImport,
   type ValidacaoImport,
 } from '@/lib/import'
+import { lerVocabularioImport } from '@/lib/queries/vocabulario-import'
 import { correcoesSchema, parseCorrecoesJson } from '@/lib/validators/importar'
 import {
   ErroArquivoImport,
@@ -26,6 +29,7 @@ import {
 import {
   custoSubstituir,
   exportarAcervoFilial,
+  exportarDesvinculosFk,
   paresEmOutrasFiliais,
   type CustoSubstituir,
   type TermoMultiFilial,
@@ -71,6 +75,17 @@ import {
 // em `@/lib/validators/importar`). Elas alimentam o motor no preview e viram
 // trilha de auditoria no aplicar (`import_logs.correcoes`) — o arquivo enviado
 // continua imutável e o `arquivoHash` continua sendo o do arquivo ORIGINAL.
+//
+// F56 · Frente D (segunda metade, Decisão 3 do PLAN-F56.md) — o vocabulário do
+// import (unidades/categoria/situação/prefixos) saiu do código: `validarImport` e
+// `baixarCsvCorrigido` (as DUAS actions que rodam o motor) leem o vocabulário do
+// BANCO A CADA CHAMADA (`lerVocabularioImport`), nunca de um campo do `FormData` —
+// o cliente NUNCA envia vocabulário nenhum, e um vocabulário forjado no pedido não
+// mudaria nada porque `lerPedidoFormData` (abaixo) só lê `arquivo`/`filialId`/
+// `correcoes` (prova: `src/lib/actions/importar.test.ts`). `aplicarImport` NÃO roda
+// o motor — o plano já chega PRONTO do preview —, mas lê o vocabulário que ELA
+// leu (nunca o do cliente) para recusar um plano com `categoria`/`estadoAlvo` fora
+// dos valores importáveis (critério 6).
 
 // Limite de tamanho do arquivo: `TAMANHO_MAX_ARQUIVO` (fonte única em
 // `@/lib/import/limites`, compartilhada com o wizard).
@@ -79,18 +94,43 @@ import {
  * Os SQLSTATE em que a RPC do import RECUSOU — isto é, em que se sabe que ela **não**
  * commitou. Só eles autorizam descartar o backup que subiu antes dela.
  *
- * ⚠ A LISTA É FECHADA DE PROPÓSITO, e a régua é "sei que não commitou", não "deu erro":
+ * ⚠ A LISTA É FECHADA DE PROPÓSITO, e a régua é **"sei que não commitou"**, não "deu
+ * erro": a RPC do import não tem `exception` nem `savepoint` internos (nenhum
+ * `begin…exception when…` no corpo das três funções, `0131`/`0132`/`0140`), então TODO
+ * SQLSTATE que o Postgres devolve para quem a chamou significa transação ABORTADA —
+ * não há como um `raise` no meio ter sido "pego" e a transação seguir viva:
  *   · `P0001` — os `raise exception` da própria RPC (confirmação, contagens, guardas);
  *   · `22023` — parâmetro inválido, a família que as guardas de backup/confirmação usam;
- *   · `42501` — recusa de permissão (`e_admin()` por dentro);
- *   · `57014` — `statement_timeout`: o servidor abortou a transação, então nada entrou.
+ *   · `42501` — recusa de permissão (`e_admin()`/`pode_escrever_filial()` por dentro);
+ *   · `57014` — `statement_timeout`: o servidor abortou a transação, então nada entrou;
+ *   · F56 · Frente F (0140, Decisão 10) — os quatro SQLSTATE de violação de integridade
+ *     que uma transação Postgres levanta e que o conserto da FK deixou alcançáveis (uma
+ *     pendência/lançamento que escapou da desvinculação, um NOT NULL, uma unicidade, um
+ *     CHECK): `23502` (not_null_violation), `23503` (foreign_key_violation — o `23503`
+ *     cru que o fato 30 mediu em produção antes desta fase), `23505`
+ *     (unique_violation), `23514` (check_violation);
+ *   · F56 · Frente F — as duas abortagens de CONCORRÊNCIA, que o Postgres também aborta
+ *     a transação para resolver: `40001` (serialization_failure) e `40P01`
+ *     (deadlock_detected) — o `pg_advisory_xact_lock` serializa import×import da mesma
+ *     filial, mas não import×outra transação que dispute a mesma linha por outro caminho.
  *
  * Erro de REDE ou de gateway (504 do edge, conexão derrubada) chega aqui **sem código**
  * ou com código de outra família — e nesses a RPC pode ter commitado do outro lado.
  * Na dúvida o backup FICA: um órfão a mais no bucket custa a 12ª checagem contá-lo;
  * um backup descartado por engano custa a única cópia do que sumiu.
  */
-const RECUSAS_DA_RPC = new Set(['P0001', '22023', '42501', '57014'])
+const RECUSAS_DA_RPC = new Set([
+  'P0001',
+  '22023',
+  '42501',
+  '57014',
+  '23502',
+  '23503',
+  '23505',
+  '23514',
+  '40001',
+  '40P01',
+])
 
 /**
  * A mensagem que o operador vê quando a LEITURA do arquivo falha. `ErroArquivoImport`
@@ -146,11 +186,23 @@ const planoImportSchema = z.object({
   ativos: z.array(ativoPlanoSchema).min(1).max(MAX_LINHAS_PLANILHA),
 })
 
+// F56 · Frente F (migration 0140, Decisão 9) — as QUATRO chaves novas com
+// `.default(0)`: o código velho no navegador (antes desta fase) manda
+// `custoPreview` sem elas, e o `.default(0)` é o que permite ao Zod aceitar esse
+// payload em vez de recusar o plano inteiro por "formato inválido". O objeto
+// resultante vira `p_contagens` da RPC sem tradução nenhuma (`custoPreview as
+// unknown as Json`, abaixo) — é a `import_revalidar_contagens` (0140) que faz a
+// parte pesada: ela confere o VIVO e recusa se ele não for 0 (nunca "não
+// confira"), o mesmo `coalesce(…, 0)` do lado SQL, nunca `-1`.
 const custoSchema = z.object({
   ativos: z.number().int().nonnegative(),
   movimentacoes: z.number().int().nonnegative(),
   anotacoes: z.number().int().nonnegative(),
   termos: z.number().int().nonnegative(),
+  pendencias_item: z.number().int().nonnegative().default(0),
+  lancamentos_movimentacao: z.number().int().nonnegative().default(0),
+  lancamentos_pendencia: z.number().int().nonnegative().default(0),
+  ponteiros_substituto: z.number().int().nonnegative().default(0),
 })
 
 const aplicarSchema = z.object({
@@ -177,6 +229,15 @@ const rpcRetornoSchema = z.object({
   // resposta veio inesperada" — um falso erro pós-destrutivo, o pior momento possível
   // para assustar quem acabou de substituir o acervo de uma filial.
   conflitos_abertos: z.number().default(0),
+  // F56 · Frente F (migration 0140) — o mesmo precedente do `conflitos_abertos` acima,
+  // para as TRÊS chaves que `import_apagar_acervo_filial` passou a devolver
+  // (`pendencias_apagadas`/`lancamentos_desvinculados`/`ponteiros_anulados`,
+  // 0140:294-302) e que `importar_ativos_substituir` repassa no retorno final
+  // (0140:574-586). RPC velha no ar (deploy fora de ordem, fato 33) → ausentes → 0,
+  // nunca um "Import concluído, mas a resposta veio inesperada" pelo motivo errado.
+  pendencias_apagadas: z.number().default(0),
+  lancamentos_desvinculados: z.number().default(0),
+  ponteiros_anulados: z.number().default(0),
 })
 
 // ---- tipos de retorno ----------------------------------------------------
@@ -217,6 +278,14 @@ export type ResultadoImport = {
    * e o número que a tela mostra tem de ser o que ficou no banco.
    */
   conflitosAbertos: number
+  /** F56 · Frente F (0140) — pendências de item do acervo que a RPC apagou. */
+  pendenciasApagadas: number
+  /** F56 · Frente F (0140) — lançamentos de item que perderam o vínculo (com a
+   *  movimentação OU com a pendência — soma dos dois; o saldo de itens não muda). */
+  lancamentosDesvinculados: number
+  /** F56 · Frente F (0140) — ativos de OUTRA filial que deixaram de apontar para um
+   *  ativo substituído desta filial. */
+  ponteirosAnulados: number
 }
 
 export type AplicarImportResult =
@@ -261,6 +330,36 @@ function lerFilialId(formData: FormData): { ok: true; filialId: number } | { ok:
   return { ok: true, filialId }
 }
 
+export type PedidoImportFormData =
+  | { ok: true; filialId: number; arquivo: File; correcoes: CorrecaoImport[] }
+  | { ok: false; erro: string }
+
+/**
+ * A ÚNICA leitura do `FormData` do wizard (F56 · Frente D, critério 6/7) — as
+ * DUAS actions que recebem o arquivo (`validarImport`, `baixarCsvCorrigido`)
+ * chamam esta função, e só ela. Lê exatamente TRÊS chaves: `arquivo`,
+ * `filialId` e `correcoes` — nenhuma outra, nunca um campo de vocabulário
+ * (que o cliente nem tem por que enviar: as duas actions leem o vocabulário do
+ * BANCO a cada chamada, `lerVocabularioImport`). Async só para caber no
+ * contrato de Server Action deste módulo (`'use server'` exige função async em
+ * todo export de topo) — não há `await` real aqui.
+ *
+ * PURA quanto ao `FormData`: não fala com o banco. `src/lib/actions/
+ * importar.test.ts` prova as duas metades do critério 7 — (a) um `FormData`
+ * com um campo de vocabulário FORJADO a mais não muda o resultado (porque esta
+ * função nunca o lê); (b) uma varredura de `src/lib/actions/importar.ts`
+ * reprova se aparecer `formData.get(` de qualquer chave fora destas três.
+ */
+export async function lerPedidoFormData(formData: FormData): Promise<PedidoImportFormData> {
+  const idRes = lerFilialId(formData)
+  if (!idRes.ok) return idRes
+  const arqRes = lerArquivoImport(formData)
+  if (!arqRes.ok) return arqRes
+  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
+  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
+  return { ok: true, filialId: idRes.filialId, arquivo: arqRes.arquivo, correcoes: corrRes.correcoes }
+}
+
 async function filialPorId(
   client: Awaited<ReturnType<typeof createClient>>,
   id: number,
@@ -289,26 +388,33 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   const aut = await exigirAdmin(client)
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const idRes = lerFilialId(formData)
-  if (!idRes.ok) return idRes
-  const arqRes = lerArquivoImport(formData)
-  if (!arqRes.ok) return arqRes
+  // F56 · Frente D — a ÚNICA leitura do FormData: arquivo/filialId/correcoes, nunca
+  // um campo de vocabulário (critério 6/7; ver o comentário no topo do arquivo).
+  const pedido = await lerPedidoFormData(formData)
+  if (!pedido.ok) return pedido
 
-  // F7B — correções da tela (ausente = []). Estrutura/whitelist/cap/datas aqui; o
-  // que depende do CSV vira `correcao_invalida` no motor.
-  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
-  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
-
-  const filial = await filialPorId(client, idRes.filialId)
+  const filial = await filialPorId(client, pedido.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
+
+  // F56 · Frente D — o vocabulário do import (unidades/categoria/situação/prefixos)
+  // vem do BANCO, lido A CADA CHAMADA — nunca do cliente e nunca de um cache entre
+  // chamadas: um apelido cadastrado agora mesmo em Administração › Filiais tem de
+  // valer já no próximo preview.
+  let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
+  try {
+    vocabulario = await lerVocabularioImport(client)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
+  }
 
   const filialSel = { id: filial.id, slug: filial.slug, nome: filial.nome }
   let validacao: ValidacaoImport
   let buffer: ArrayBuffer
   try {
-    buffer = await arqRes.arquivo.arrayBuffer()
-    validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes)
+    buffer = await pedido.arquivo.arrayBuffer()
+    validacao = await validarArquivoImport(buffer, filialSel, vocabulario, undefined, pedido.correcoes)
   } catch (e) {
     // Item T (30/08/2026): o leitor de planilha RECUSA arquivo acima dos tetos em vez de
     // truncar em silêncio, e a mensagem dele é escrita para o operador (diz o número e o
@@ -344,7 +450,7 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   try {
     const emOutras = await paresEmOutrasFiliais(client, filial.id, patrimonios, tagsSemPatrimonio)
     if (emOutras.size > 0) {
-      validacao = await validarArquivoImport(buffer, filialSel, undefined, corrRes.correcoes, emOutras)
+      validacao = await validarArquivoImport(buffer, filialSel, vocabulario, undefined, pedido.correcoes, emOutras)
     }
   } catch (erro) {
     registrarFalha({
@@ -413,6 +519,29 @@ export async function aplicarImport(input: {
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
 
+  // F56 · Frente D (critério 6) — `aplicarImport` NÃO roda o motor (o plano já chega
+  // PRONTO do preview), mas confere que TODO ativo do plano tem `categoria` e
+  // `estadoAlvo` entre os valores IMPORTÁVEIS do vocabulário que ELA MESMA leu do
+  // banco agora — nunca de um vocabulário que o cliente pudesse ter mandado (que
+  // esta action nem lê: `aplicarSchema` só confere `z.string()`, não pertencimento).
+  // Fecha "o servidor nunca julga com o vocabulário do cliente" também para quem
+  // não passa pelo motor inteiro.
+  let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
+  try {
+    vocabulario = await lerVocabularioImport(client)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
+  }
+  const categoriasValidas = new Set<string>(categoriasImportaveis(vocabulario).map((c) => c.categoria))
+  const estadosValidos = new Set<string>(estadosImportaveis(vocabulario).map((e) => e.estado))
+  const planoDentroDoVocabulario = plano.ativos.every(
+    (a) => categoriasValidas.has(a.categoria) && estadosValidos.has(a.estadoAlvo),
+  )
+  if (!planoDentroDoVocabulario) {
+    return { ok: false, erro: 'Plano de import inválido. Gere o preview novamente.' }
+  }
+
   // Confirmação estilo GitHub: o texto tem de ser o nome da filial.
   //
   // F52 — a régua passou a ser `confirmacaoImportConfere` (a da casa: caixa e espaço nas
@@ -448,11 +577,19 @@ export async function aplicarImport(input: {
     return { ok: false, erro: 'Não foi possível revalidar o estado da filial. Tente novamente.' }
   }
 
+  // F56 · Frente F (0140, Decisão 9) — as OITO contagens: as quatro de sempre e as
+  // quatro novas da FK. Espelha a revalidação que `import_revalidar_contagens` faz
+  // dentro da transação (a checagem aqui é só a conveniência da mensagem cedo; a
+  // guarda que vale de verdade é a da RPC, sob o advisory lock).
   const mudou =
     atual.ativos !== custoPreview.ativos ||
     atual.movimentacoes !== custoPreview.movimentacoes ||
     atual.anotacoes !== custoPreview.anotacoes ||
-    atual.termos !== custoPreview.termos
+    atual.termos !== custoPreview.termos ||
+    atual.pendencias_item !== custoPreview.pendencias_item ||
+    atual.lancamentos_movimentacao !== custoPreview.lancamentos_movimentacao ||
+    atual.lancamentos_pendencia !== custoPreview.lancamentos_pendencia ||
+    atual.ponteiros_substituto !== custoPreview.ponteiros_substituto
   if (mudou) {
     return {
       ok: false,
@@ -482,28 +619,29 @@ export async function aplicarImport(input: {
   const backupPath = `${prefixoBackupImport(filial.id)}${timestampArquivo()}.json`
   try {
     const acervo = await exportarAcervoFilial(client, filial.id)
+    // F56 · Frente F (migration 0140, Decisão 9) — a mesma leitura PRÉ-RPC de
+    // `exportarAcervoFilial` acima, para as três classes novas que o conserto da FK
+    // vai apagar/desvincular/anular. Lida ANTES da RPC de propósito: depois dela os
+    // elos já estariam nulos, e a pré-imagem seria irrecuperável.
+    const desvinculos = await exportarDesvinculosFk(client, filial.id)
     const backup = {
-      versao: 1,
+      versao: 2,
       exportadoEm: new Date().toISOString(),
       filial: { id: filial.id, slug: filial.slug, nome: filial.nome },
       contagens: custoPreview,
-      // F54 — o que este backup NÃO leva. Um backup que documenta os próprios limites é a
-      // única defesa contra restaurar acreditando ter restaurado tudo.
-      //
-      // ⚠ A lista foi LEVANTADA POR MEDIÇÃO, comparando o que a RPC vigente EM PRODUÇÃO
-      // apaga com o que o exportador lê, tabela a tabela (a tabela está em
-      // `docs/PLAN-F54.md` §3). Para as TABELAS a diferença é VAZIA: a RPC apaga
-      // `movimentacoes`, `anotacoes`, `termos_gerados` e `ativos`, e é exatamente isso que
-      // `exportarAcervoFilial` lê. Os `.docx` deixaram de faltar nesta fase.
-      //
-      // O que sobra é uma assimetria conhecida, e ela é sobre o FUTURO: a RPC do import
-      // não apaga `pendencias_item` e o exportador não a lê. Hoje nada se perde, porque
-      // nada é apagado. No dia em que a RPC aprender a apagá-la — e a lacuna já está
-      // registrada em `queries/dev-destrutivo.ts:364-366` —, o backup ficaria incompleto
-      // SEM QUE NADA AVISASSE. É para esse dia que a linha existe.
-      nao_incluido: [
-        'pendencias_item — o import não apaga esta tabela, e por isso o backup também não a lê. Se a RPC passar a apagá-la, este backup deixa de ser suficiente para restaurar.',
-      ],
+      // F56 · Frente F — A LINHA DA F54 DEIXOU DE SER VERDADE (ela dizia que o import
+      // "não apaga `pendencias_item`, e por isso o backup também não a lê" — a 0140
+      // apaga, e agora o backup lê). Reconferido tabela a tabela contra o que a 0140
+      // apaga/desvincula/anula: `movimentacoes`, `anotacoes`, `termos_gerados`, `ativos`
+      // (as quatro de sempre, `...acervo`), `pendencias_item` (linhas inteiras),
+      // `lancamentos_desvinculados` (a pré-imagem dos dois elos) e `ponteiros_perdidos`
+      // (as linhas inteiras dos substitutos de outra filial) — os cinco caminhos de FK
+      // do fato 27, um a um. A diferença é VAZIA: não há mais nada que este backup
+      // precise levar para cobrir o que `import_apagar_acervo_filial` faz hoje.
+      nao_incluido: [],
+      pendencias_item: desvinculos.pendenciasItem,
+      lancamentos_desvinculados: desvinculos.lancamentosDesvinculados,
+      ponteiros_perdidos: desvinculos.ponteirosPerdidos,
       ...acervo,
     }
     const corpo = new Blob([JSON.stringify(backup)], { type: 'application/json' })
@@ -574,12 +712,19 @@ export async function aplicarImport(input: {
     // derrubada) — e nesses casos a RPC pode ter COMMITADO do outro lado. Descartar ali
     // apagaria a única cópia do que sumiu, que é exatamente o defeito que o parágrafo
     // acima diz existir para evitar. Por isso o descarte é gateado pelos SQLSTATE de
-    // RECUSA: os `raise` da própria RPC (`P0001`), a violação de regra que ela levanta
-    // (`22023`), a falta de permissão (`42501`) e o timeout de statement (`57014`, em
-    // que a transação é abortada pelo servidor). Erro sem código, ou com código de
-    // outra família, NÃO descarta — na dúvida, o backup fica.
+    // RECUSA (a régua "sei que não commitou" — ver o comentário de `RECUSAS_DA_RPC`
+    // no topo do arquivo). Erro sem código, ou com código de outra família, NÃO
+    // descarta — na dúvida, o backup fica.
     // (Achado da revisão adversarial: o gatilho era `if (error)`, sem filtrar.)
-    if (RECUSAS_DA_RPC.has(error.code ?? '')) {
+    //
+    // F56 · Frente F (Decisão 10) — o EVENTO grava a chave certa para cada caso, e não
+    // sempre `backup_descartado` (fato 30: antes disto, um `23503` cru — não coberto por
+    // `RECUSAS_DA_RPC` — descrevia como "descartado" um backup que na verdade FICOU, e a
+    // 12ª checagem (que só lê `backup_path`, `0138:257-264`) contava mais um
+    // `backup_orfao`). `descartou` decide as DUAS coisas juntas: se descarta de fato, e
+    // qual chave o evento grava — elas não podem divergir.
+    const descartou = RECUSAS_DA_RPC.has(error.code ?? '')
+    if (descartou) {
       await descartarBackupNaoUsado(client, backupPath)
     } else {
       registrarFalha({
@@ -603,7 +748,9 @@ export async function aplicarImport(input: {
         filial_nome: filial.nome,
         arquivo_hash: plano.arquivoHash,
         erro_codigo: error.code ?? null,
-        backup_descartado: backupPath,
+        // F56 · Frente F (Decisão 10) — `backup_descartado` SÓ quando ele saiu de fato;
+        // `backup_path` (a chave que a 12ª checagem lê, `0138:257-264`) quando fica.
+        ...(descartou ? { backup_descartado: backupPath } : { backup_path: backupPath }),
       },
     })
 
@@ -614,6 +761,26 @@ export async function aplicarImport(input: {
   if (!ret.success) {
     // A RPC concluiu (dados já substituídos), mas o retorno veio fora do formato.
     // Não há o que desfazer; sinaliza para o operador conferir os ativos.
+    //
+    // F56 · Frente F (Decisão 10, fato 30) — grava `import_executado` MESMO no formato
+    // inesperado: sem isto, o backup que subiu antes da RPC (que COMMITOU — este ramo só
+    // roda depois do `if (error)` acima) não aparece em `eventos_admin.detalhe->>
+    // 'backup_path'` nem em `import_logs.backup_path` (a trilha que a RPC grava por
+    // dentro é o caminho normal — mas se o RETORNO já veio fora do formato, mais vale um
+    // registro redundante do lado de fora do que depender só do que a RPC gravou), e a
+    // 12ª checagem contaria mais um `backup_orfao` do que sumiu sem deixar rastro.
+    await registrarEventoAdmin({
+      acao: 'import_executado',
+      autor: aut.uid,
+      alvo: filial.slug,
+      detalhe: {
+        filial_id: filial.id,
+        filial_nome: filial.nome,
+        arquivo_hash: plano.arquivoHash,
+        backup_path: backupPath,
+        retorno_inesperado: true,
+      },
+    })
     return {
       ok: false,
       erro: 'Import concluído, mas a resposta veio inesperada. Confira os ativos da filial.',
@@ -667,6 +834,10 @@ export async function aplicarImport(input: {
       correcoes: correcoes.length,
       // F24 — quantos conflitos entre filiais este import deixou em aberto.
       conflitos_abertos: ret.data.conflitos_abertos,
+      // F56 · Frente F (0140) — o que o conserto da FK apagou/desvinculou/anulou.
+      pendencias_apagadas: ret.data.pendencias_apagadas,
+      lancamentos_desvinculados: ret.data.lancamentos_desvinculados,
+      ponteiros_anulados: ret.data.ponteiros_anulados,
       backup_path: backupPath,
     },
   })
@@ -690,6 +861,9 @@ export async function aplicarImport(input: {
       ...(avisoTermos ? { avisoTermos } : {}),
       correcoesAplicadas: correcoes.length,
       conflitosAbertos: ret.data.conflitos_abertos,
+      pendenciasApagadas: ret.data.pendencias_apagadas,
+      lancamentosDesvinculados: ret.data.lancamentos_desvinculados,
+      ponteirosAnulados: ret.data.ponteiros_anulados,
     },
   }
 }
@@ -746,26 +920,31 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
   const aut = await exigirAdmin(client)
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
-  const idRes = lerFilialId(formData)
-  if (!idRes.ok) return idRes
-  const arqRes = lerArquivoImport(formData)
-  if (!arqRes.ok) return arqRes
+  // F56 · Frente D — a ÚNICA leitura do FormData (ver o comentário no topo do arquivo).
+  const pedido = await lerPedidoFormData(formData)
+  if (!pedido.ok) return pedido
 
-  const corrRes = parseCorrecoesJson(formData.get('correcoes'))
-  if (!corrRes.ok) return { ok: false, erro: corrRes.erro }
-
-  const filial = await filialPorId(client, idRes.filialId)
+  const filial = await filialPorId(client, pedido.filialId)
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
 
+  // F56 · Frente D — o vocabulário do BANCO, lido a cada chamada (nunca do cliente).
+  let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
   try {
-    const buffer = await arqRes.arquivo.arrayBuffer()
+    vocabulario = await lerVocabularioImport(client)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
+  }
+
+  try {
+    const buffer = await pedido.arquivo.arrayBuffer()
     // Sem BOM — quem baixa põe o BOM (padrão de export do projeto).
     // A filial vai junto: sem ela o motor não roda a metade "para = a filial
     // selecionada" da regra do Site e o artefato sairia com uma op que o preview
     // recusou (revisão adversarial da F7B) — o baixado tem de espelhar o preview.
     // F7G — se a entrada foi .xlsx, o artefato sai como CSV corrigido reimportável
     // (datas já normalizadas em dd/MM/aaaa).
-    const conteudo = await csvCorrigidoDeArquivo(buffer, corrRes.correcoes, filial.nome)
+    const conteudo = await csvCorrigidoDeArquivo(buffer, pedido.correcoes, vocabulario, filial.nome)
     return { ok: true, nome: `import-corrigido-${filial.slug}.csv`, conteudo }
   } catch (e) {
     if (e instanceof ErroArquivoImport) return { ok: false, erro: e.message }

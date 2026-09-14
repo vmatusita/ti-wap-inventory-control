@@ -13,8 +13,14 @@ import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { getSaldosItens } from '@/lib/queries/itens'
-import { getEstadoUsuario, idsDeAdminsAtivos, perfilPorEmail } from '@/lib/queries/admin'
+import {
+  getEstadoUsuario,
+  idsDeAdminsAtivos,
+  listarVocabularioDeUnidades,
+  perfilPorEmail,
+} from '@/lib/queries/admin'
 import type { EstadoUsuario } from '@/lib/queries/admin'
+import { encontrarDonoDoTermo, mensagemColisaoNomeFilial } from '@/lib/unidades/dono-do-termo'
 import {
   conviteSchema,
   convidarUsuarioSchema,
@@ -584,9 +590,24 @@ export async function criarFilial(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
+  // F56 (Decisões 2/13 do PLAN) — o nome não pode colidir com o nome de outra
+  // filial nem com um apelido de filial nenhuma. O banco (índice
+  // `filiais_nome_chave_uidx` + o gatilho `vocabulario_unidades_guarda`,
+  // migration 0139) é a garantia real; esta pré-checagem só nomeia a filial dona
+  // sem esperar o SQLSTATE. `filialAlvoId: null` — filial em criação nunca
+  // colide "consigo mesma".
+  const vocabularioUnidades = await listarVocabularioDeUnidades()
+  const donoDoNome = encontrarDonoDoTermo(
+    parsed.data.nome,
+    vocabularioUnidades.filiais,
+    vocabularioUnidades.apelidos,
+  )
+  const colisaoDeNome = mensagemColisaoNomeFilial(parsed.data.nome, null, donoDoNome)
+  if (colisaoDeNome) return { ok: false, erro: colisaoDeNome }
+
   const { error } = await client.from('filiais').insert(parsed.data)
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate')) {
+    if (error.message.toLowerCase().includes('filiais_slug_key')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
@@ -610,6 +631,16 @@ export async function atualizarFilial(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
   const { id, nome, slug, ativo, cidade } = parsed.data
+
+  // F56 (Decisões 2/13 do PLAN) — mesma pré-checagem de criarFilial, agora com o
+  // id da PRÓPRIA filial: renomear para o nome atual dela mesma (só caixa/acento
+  // mudou, ou nem isso) não é colisão; renomear para um apelido dela mesma É
+  // ("remova o apelido antes") — `mensagemColisaoNomeFilial` trata as duas
+  // diferenças a partir do `filialAlvoId`.
+  const vocabularioUnidades = await listarVocabularioDeUnidades()
+  const donoDoNome = encontrarDonoDoTermo(nome, vocabularioUnidades.filiais, vocabularioUnidades.apelidos)
+  const colisaoDeNome = mensagemColisaoNomeFilial(nome, id, donoDoNome)
+  if (colisaoDeNome) return { ok: false, erro: colisaoDeNome }
 
   // Bloquear desativar filial com ativos (OS-F3 3.7.2) OU com saldo de itens por
   // quantidade (F12-W4-07). As DUAS checagens são independentes, e não uma só,
@@ -670,7 +701,7 @@ export async function atualizarFilial(input: {
 
   const { error } = await client.from('filiais').update(patch).eq('id', id)
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate')) {
+    if (error.message.toLowerCase().includes('filiais_slug_key')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }

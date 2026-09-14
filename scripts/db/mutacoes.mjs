@@ -708,21 +708,63 @@ const IMPORT_SUBSTITUIR = [
     id: 'import-revalidacao-nao-compara-o-vivo',
     roteiro: 'import_substituir.sql',
     classe: 'guarda-neutralizada',
-    derruba: ['0b'],
+    derruba: ['0b', '5a'],
     porque:
       'A OUTRA metade do TOCTOU: as contagens chegam, mas ninguém as compara com o estado real da filial. O preview pode ter sido gerado ontem, alguém pode ter cadastrado dez ativos desde então, e o import apaga tudo assim mesmo — a guarda vira ritual.',
     // A primeira mutação prova que a RECUSA existe; esta prova que a COMPARAÇÃO
     // existe. Separá-las é o que impede uma metade de passar de carona na outra.
+    //
+    // ⚠ REAPONTADA NA F56 (0140, Frente F): a condição de DUAS linhas da 0131
+    // virou OITO — a 0140 acrescenta as quatro chaves da FK (fato 33). O texto
+    // velho deixou de existir verbatim no corpo vigente assim que a 0140 nasceu;
+    // `trocarNoCorpo` reprovaria no CARREGAMENTO do catálogo se este `de` não
+    // fosse atualizado para o texto novo — é o "falhar ALTO" que o cabeçalho de
+    // `corpo-vigente.mjs` promete. Desligar a condição INTEIRA (`if false`) prova
+    // as OITO comparações de uma vez — inclusive as quatro velhas, por isso o
+    // rótulo `0b` (que já existia) continua na lista ao lado do `5a` novo.
     sql: mutarFuncao(
       'public.import_revalidar_contagens(jsonb, smallint)',
-      `  if v_conferidos <> v_esp_ativos or v_liv_movs <> v_esp_movs
-     or v_liv_anot <> v_esp_anot or v_liv_termos <> v_esp_termos then`,
+      `  if v_conferidos <> v_esp_ativos
+     or v_liv_movs <> v_esp_movs
+     or v_liv_anot <> v_esp_anot
+     or v_liv_termos <> v_esp_termos
+     or v_liv_pend <> v_esp_pend
+     or v_liv_lanc_mov <> v_esp_lanc_mov
+     or v_liv_lanc_pend <> v_esp_lanc_pend
+     or v_liv_subst <> v_esp_subst
+  then`,
       `  if false then  ${MARCA}`,
       'import-revalidacao-nao-compara-o-vivo',
     ),
     prova: {
       sql: `select pg_get_functiondef('public.import_revalidar_contagens(jsonb, smallint)'::regprocedure)
               like '%if false then  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-revalidacao-ignora-pendencia-nova-do-acervo',
+    roteiro: 'import_substituir.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['5a-bis'],
+    porque:
+      'A revalidação PARA DE COMPARAR só a chave nova `pendencias_item` — as outras sete continuam certas. É a regressão mais provável do conserto da FK: alguém adiciona uma chave nova e esquece dela no `if`, e a asserção agregada (5a, "se QUALQUER uma diverge") não pegaria essa falta isolada, porque as outras sete ainda recusariam por outro motivo. Precisa de um cenário que isole só esta chave.',
+    // 0140 (F56): reescreve o corpo já mutado por `import-revalidacao-nao-
+    // compara-o-vivo`? NÃO — cada mutação parte do CORPO VIGENTE original, uma
+    // de cada vez (o injetor aplica uma mutação por banco descartável). Este
+    // `de` mira só a LINHA de `pendencias_item`, comentando-a: o restante da
+    // condição (as outras sete comparações) sobrevive intacto.
+    sql: mutarFuncao(
+      'public.import_revalidar_contagens(jsonb, smallint)',
+      `
+     or v_liv_pend <> v_esp_pend`,
+      `
+     ${MARCA}`,
+      'import-revalidacao-ignora-pendencia-nova-do-acervo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_revalidar_contagens(jsonb, smallint)'::regprocedure)
+              not like '%or v_liv_pend <> v_esp_pend%'`,
       espera: 't',
     },
   },
@@ -894,6 +936,113 @@ const IMPORT_SUBSTITUIR = [
     prova: {
       sql: `select pg_get_functiondef('public.import_gravar_trilha(jsonb, smallint, text, jsonb, uuid, integer, integer, integer, integer, integer)'::regprocedure)
               like '%v_log_id := null;  --%'`,
+      espera: 't',
+    },
+  },
+  // ===========================================================================
+  // F56 (0140, Frente F) — a bomba de FK (fatos 27-35). QUATRO mutações, uma por
+  // metade do conserto de `import_apagar_acervo_filial`: cada uma remove UM dos
+  // quatro passos novos e reabre EXATAMENTE o caminho de FK que ele fechava. As
+  // quatro convergem no MESMO ponto de explosão — o `delete from
+  // public.movimentacoes`/`pendencias_item`/`ativos` do bloco que já existia —
+  // então o injetor vê o MESMO `23503` não tratado nas quatro: o cenário 5a do
+  // roteiro captura a exceção (fato 35, "captura e emite ✗ do rótulo nomeado, em
+  // vez de abortar o roteiro") e marca ✗ para todas. `derruba` é uma LISTA, não
+  // precisa ser 1:1 — reaproveitar `['5a']` nas quatro é mais barato que quatro
+  // fixtures isoladas e ainda prova a coisa certa: a explosão sob FK volta a
+  // existir sempre que QUALQUER um dos quatro passos falte.
+  // ===========================================================================
+  {
+    id: 'import-nao-desvincula-lancamento-da-pendencia',
+    roteiro: 'import_substituir.sql',
+    classe: 'fk-nao-tratada',
+    derruba: ['5c'],
+    porque:
+      'O lançamento que RESOLVEU uma pendência do acervo (o elo pendencia_item_id) deixa de ser desvinculado antes do delete das pendências. A "Substituir tudo" volta a estourar 23503 em qualquer filial com uma pendência resolvida por lançamento — a bomba do fato 27, caminho 4.',
+    sql: mutarFuncao(
+      'public.import_apagar_acervo_filial(smallint)',
+      `  update public.lancamentos_item li
+     set pendencia_item_id = null
+   where li.pendencia_item_id in (
+     select pi.id from public.pendencias_item pi
+      where pi.ativo_id in (select id from public.ativos where filial_id = p_filial)
+   );
+  get diagnostics v_lanc_pend_desvinc = row_count;`,
+      `  v_lanc_pend_desvinc := 0;  ${MARCA}`,
+      'import-nao-desvincula-lancamento-da-pendencia',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_apagar_acervo_filial(smallint)'::regprocedure)
+              like '%v_lanc_pend_desvinc := 0;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-nao-desvincula-lancamento-da-movimentacao',
+    roteiro: 'import_substituir.sql',
+    classe: 'fk-nao-tratada',
+    derruba: ['5c'],
+    porque:
+      'O lançamento de item preso a uma MOVIMENTAÇÃO do acervo (o elo movimentacao_id, "o que foi junto") deixa de ser desvinculado antes do delete das movimentações. A "Substituir tudo" volta a estourar 23503 em qualquer filial com item vinculado a uma entrega — a bomba do fato 27, caminho 3, medida em produção: 18 lançamentos presos na Matriz, 16 em Linhares, 12 na Filial de Teste.',
+    sql: mutarFuncao(
+      'public.import_apagar_acervo_filial(smallint)',
+      `  update public.lancamentos_item li
+     set movimentacao_id = null
+   where li.movimentacao_id in (
+     select m.id from public.movimentacoes m
+      where m.ativo_id in (select id from public.ativos where filial_id = p_filial)
+   );
+  get diagnostics v_lanc_mov_desvinc = row_count;`,
+      `  v_lanc_mov_desvinc := 0;  ${MARCA}`,
+      'import-nao-desvincula-lancamento-da-movimentacao',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_apagar_acervo_filial(smallint)'::regprocedure)
+              like '%v_lanc_mov_desvinc := 0;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-nao-apaga-pendencias-do-acervo',
+    roteiro: 'import_substituir.sql',
+    classe: 'fk-nao-tratada',
+    derruba: ['5c'],
+    porque:
+      'As pendências de item do acervo substituído deixam de ser apagadas. Sem isso a "Substituir tudo" estoura 23503 no delete de ativos seguinte (pendencias_item.ativo_id é FK imediata) em qualquer filial com pendência aberta — e, se por algum motivo não estourasse, a pendência velha ficaria apontando para um ativo que não existe mais, visível na mesa de /pendencias.',
+    sql: mutarFuncao(
+      'public.import_apagar_acervo_filial(smallint)',
+      `  delete from public.pendencias_item pi
+   where pi.ativo_id in (select id from public.ativos where filial_id = p_filial);
+  get diagnostics v_pend_apagadas = row_count;`,
+      `  v_pend_apagadas := 0;  ${MARCA}`,
+      'import-nao-apaga-pendencias-do-acervo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_apagar_acervo_filial(smallint)'::regprocedure)
+              like '%v_pend_apagadas := 0;  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'import-nao-anula-ponteiro-de-substituto',
+    roteiro: 'import_substituir.sql',
+    classe: 'fk-nao-tratada',
+    derruba: ['5c'],
+    porque:
+      'O substituto de OUTRA filial fica com substitui_ativo_id apontando para um ativo do acervo apagado — referência pendurada que o delete de ativos seguinte (ativos.substitui_ativo_id é FK imediata) faz estourar 23503 na hora, e que, se não estourasse, a ficha do ativo ou um join futuro poderia tentar seguir.',
+    sql: mutarFuncao(
+      'public.import_apagar_acervo_filial(smallint)',
+      `  update public.ativos
+     set substitui_ativo_id = null
+   where substitui_ativo_id in (select id from public.ativos where filial_id = p_filial)
+     and filial_id <> p_filial;
+  get diagnostics v_subst_anulados = row_count;`,
+      `  v_subst_anulados := 0;  ${MARCA}`,
+      'import-nao-anula-ponteiro-de-substituto',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.import_apagar_acervo_filial(smallint)'::regprocedure)
+              like '%v_subst_anulados := 0;  --%'`,
       espera: 't',
     },
   },

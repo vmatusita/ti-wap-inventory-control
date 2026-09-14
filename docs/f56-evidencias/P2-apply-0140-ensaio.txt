@@ -1,0 +1,73 @@
+# F56 — apply da migration 0140 (o "Substituir tudo" desarma a FK) no ENSAIO, 14/09/2026
+
+Caminho B do runbook (contém `delete from public.ativos` dentro do corpo de `import_apagar_acervo_filial`).
+Pré-condição cumprida: o CI do PR #43 no commit 9f50387 ficou VERDE nos dois checks obrigatórios —
+`verificar` e `banco-sem-docker` (run 34853956001: a 0140 aplicou no Postgres do CI, 34 roteiros e 818
+asserções verdes — `import_substituir` 32, `restauracao` 17, `vocabulario_import` 56 — e o injetor com
+74/74 mutações detectadas pelo cenário nomeado).
+
+Ferramenta: MCP da Supabase, `apply_migration(project_id=sgmvldiizsrjbxzzpmhh, name='import_desarma_fk',
+query=<texto integral de supabase/migrations/0140_import_desarma_fk.sql>)` → {"success": true}.
+Verificações: `execute_sql` só de leitura (contagens e catálogo) e `get_advisors(security)`. Nenhum dado de
+negócio lido — só contagens.
+
+## Antes do apply (mesma sessão, minutos antes)
+- ledger termina em `vocabulario_import` (0139).
+- md5 do prosrc normalizado (os corpos da 0131/0132, vigentes):
+  import_apagar_acervo_filial e313d1feb28b33ee29436e81c2ae1a70 ·
+  import_revalidar_contagens 3ad2f66b50aab234a579b74a154600f0 ·
+  importar_ativos_substituir 8ab118c36b7ba00ab8647445a52d89a1.
+- 1 função por nome (3 no total).
+- contagens: ativos 1602 · movimentacoes 3239 · lancamentos_item 31 · lancamentos vinculados
+  (movimentacao_id ou pendencia_item_id preenchido) 5 · pendencias_item 23 · termos_gerados 2 · import_logs 0.
+- advisors de segurança (P1, mesma base): 3 INFO (rls_enabled_no_policy) · 28 WARN
+  (authenticated_security_definer_function_executable) · 1 WARN (auth_leaked_password_protection).
+
+## Depois do apply
+| verificação | esperado | obtido | ok |
+|---|---|---|---|
+| última migration do ledger | import_desarma_fk | import_desarma_fk | sim |
+| md5 prosrc normalizado — import_apagar_acervo_filial (arquivo, via corpo-vigente.mjs) | facb251140fb7e0b8417a24e84b83aba | facb251140fb7e0b8417a24e84b83aba | sim |
+| md5 prosrc normalizado — import_revalidar_contagens | 1157476902ff7ed96a4cfb53bdd92a3a | 1157476902ff7ed96a4cfb53bdd92a3a | sim |
+| md5 prosrc normalizado — importar_ativos_substituir | cd1bb4efb5e4ab98f1dfce815e3bf286 | cd1bb4efb5e4ab98f1dfce815e3bf286 | sim |
+| assinaturas (sem overload) | import_apagar_acervo_filial(smallint) · import_revalidar_contagens(jsonb,smallint) · importar_ativos_substituir(jsonb,text,jsonb,jsonb) | idem, 1 por nome | sim |
+| EXECUTE orquestradora: anon / authenticated / service_role | false / true / false | false / true / false | sim |
+| EXECUTE das 2 auxiliares recriadas nos 3 papéis | false ×6 | false ×6 | sim |
+| proacl sem entrada de PUBLIC (`=X/`) | auxiliares {postgres=X/postgres}; orquestradora {postgres=X/postgres,authenticated=X/postgres} | idem | sim |
+| funções com `delete from public.ativos` no prosrc (lista inalterada; na cadeia do import, só a auxiliar e a orquestradora — que só a cita em comentário) | apagar_ativo, apagar_ativos_conflito_filiais, import_apagar_acervo_filial, importar_ativos_substituir, resetar_acervo, resetar_dados_ficticios | idem | sim |
+| contagens antes = depois | 1602/3239/31/5/23/2/0 | 1602/3239/31/5/23/2/0 | sim |
+| advisors de segurança | sem achado novo | idênticos (3 INFO · 28 WARN · 1 WARN; a orquestradora já estava na lista 0029 — EXECUTE para authenticated é o desenho desde a F21) | sim |
+| notify pgrst, 'reload schema' | executado | executado 14/09/2026 11:21:43 -03 | sim |
+
+As impressões "esperado" foram calculadas ANTES do apply, a partir do arquivo commitado, com
+`scripts/db/corpo-vigente.mjs` + md5 do texto normalizado (ver F1-diff-dos-corpos.txt). Iguais nos dois
+lados = nenhum erro de transcrição na passagem do SQL pelo MCP.
+
+## Ensaio da ORDEM DE ROLLBACK (só no ensaio, 14/09/2026, logo depois do apply)
+
+O rollback escrito no cabeçalho da 0140 é "reemitir por `create or replace` os corpos da 0131 (as duas
+auxiliares) e da 0132 (a orquestradora), com os mesmos revoke/grant". Ensaiado assim:
+
+1. Um script de leitura extraiu os três `create or replace function` VIGENTES ANTES da 0140 direto dos
+   arquivos (`definicoesDeFuncao` de `scripts/db/corpo-vigente.mjs` sobre 0131_import_decomposto.sql e
+   0132_guardas_de_escopo.sql) e conferiu o md5 normalizado de cada corpo contra o que o ensaio tinha ANTES
+   do apply: e313d1fe… / 3ad2f66b… / 8ab118c3… — iguais.
+2. Esses três comandos + os quatro revoke/grant rodaram no ensaio dentro de UM bloco `do $…$` que, no fim,
+   lê o md5 do prosrc das três funções e a lista das 7 tabelas do acervo, e termina com `raise exception`
+   PROPOSITAL — a exceção desfaz a transação inteira (o equivalente a `begin … rollback`, com a vantagem de
+   devolver a leitura de dentro da transação na própria mensagem de erro).
+3. Mensagem devolvida (de DENTRO da transação, depois do rollback reemitido):
+   `md5s [import_apagar_acervo_filial=e313d1feb28b33ee29436e81c2ae1a70 ; import_revalidar_contagens=3ad2f66b50aab234a579b74a154600f0 ; importar_ativos_substituir=8ab118c36b7ba00ab8647445a52d89a1]`
+   `tabelas [anotacoes,ativos,import_logs,lancamentos_item,movimentacoes,pendencias_item,termos_gerados]`
+   → os corpos da 0131/0132 COMPILAM sobre o schema atual (0139 + 0140) e voltam a ser os vigentes; nenhuma
+   tabela some.
+4. Depois da exceção (fora da transação), o estado vivo continua o da 0140: md5s facb2511… / 11574769… /
+   cd1bb4ef…, 3 funções, proacl idêntico ao de cima, contagens 1602/3239/31/23/2/0.
+
+O ensaio prova que o rollback é executável e restaura exatamente os corpos anteriores; não prova nada
+sobre dado, porque não há dado a restaurar (a 0140 é recriação pura de função).
+
+Sobre a linha "funções com delete from public.ativos": o regex sobre `prosrc` lê comentário como código
+(a nota de `import-uma-porta.test.ts`/`codigoVivo()`); `importar_ativos_substituir` aparece porque os
+comentários dela citam o `delete from public.ativos where filial_id = v_filial`. A prova de "uma porta só"
+continua sendo o teste de `codigoVivo()`, não esta consulta — ela só mostra que a lista não mudou.

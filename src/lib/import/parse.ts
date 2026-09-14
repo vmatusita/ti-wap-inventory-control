@@ -2,7 +2,8 @@
 // `scripts/import/parse.ts` (F4) para produção: decodificação (BOM UTF-8 →
 // UTF-8; UTF-8 estrito; fallback cp1252 — o Excel da WAP exporta cp1252),
 // PapaParse com `;`, validação de header por CONJUNTO de nomes normalizados
-// (3 layouts: matriz/cd/padrao20) e extração de registros CRUS com nº de linha.
+// (3 layouts: colunas18/colunas16/colunas20 — nomeados pela contagem de
+// colunas, F56 · Frente D) e extração de registros CRUS com nº de linha.
 // A normalização de VALORES fica em deparas.ts (também puro).
 
 import Papa from 'papaparse'
@@ -87,9 +88,9 @@ const COLS_CD = COLS_MATRIZ.filter((c) => !['data de entrega', 'termo de ativos'
 const COLS_PADRAO20 = [...COLS_MATRIZ, 'grade', 'glpi']
 
 const LAYOUTS: Record<LayoutImport, string[]> = {
-  matriz: COLS_MATRIZ,
-  cd: COLS_CD,
-  padrao20: COLS_PADRAO20,
+  colunas18: COLS_MATRIZ,
+  colunas16: COLS_CD,
+  colunas20: COLS_PADRAO20,
 }
 
 function conjuntoHeader(headers: string[]): Set<string> {
@@ -121,7 +122,7 @@ export function detectarLayout(headers: string[]): DeteccaoLayout {
     }
   }
   // sem match: escolhe o layout de menor diferença simétrica
-  let melhor: LayoutImport = 'matriz'
+  let melhor: LayoutImport = 'colunas18'
   let melhorDif = Infinity
   for (const nome of Object.keys(LAYOUTS) as LayoutImport[]) {
     const esperado = new Set(LAYOUTS[nome])

@@ -65,6 +65,17 @@ declare
   v_ordem    bigint;
   v_erro     text;
   v_seq      text;
+
+  -- F56 · Frente F (0140) — cenários 6 e 7: a versão 2 do backup, que o
+  -- restaurador aprende a religar (os dois elos de lancamentos_item e o
+  -- ponteiro de substituto).
+  v_item6    smallint;
+  v_pend6    uuid;
+  v_lanc6    uuid;
+  v_mid6     uuid;
+  v_pid6     uuid;
+  v_ativo_sub7 uuid;
+  v_sub7       uuid;
 begin
   select id into v_f1 from public.filiais where ativo order by id limit 1;
   if v_f1 is null then
@@ -392,6 +403,110 @@ begin
     raise warning '✗ 5b dentro da janela o INSERT forçado falhou: %', v_erro;
   end;
   perform set_config('estoque.dev_destrutivo', 'off', true);
+
+  -- =========================================================================
+  -- 6/7 — VERSÃO 2 (F56 · Frente F, migration 0140): o restaurador aprende a
+  -- religar os dois elos de `lancamentos_item` e o ponteiro de
+  -- `ativos.substitui_ativo_id` que o conserto da FK do import desvincula/anula.
+  -- Os dois UPDATEs testados aqui são EXATAMENTE os que
+  -- `scripts/db/sqlDeReligarElos`/`sqlDeReligarPonteiros` montam (provado por
+  -- inspeção no roteiro Vitest, sem banco — este arquivo prova que o Postgres
+  -- de verdade aceita a forma).
+  -- =========================================================================
+
+  -- ---- 6 — religar os DOIS elos de um lançamento de item -------------------
+  insert into public.itens (nome, grupo) values ('F56 Restauração Item', 'acessorio')
+  returning id into v_item6;
+
+  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (v_ativo, v_mov_a, 'F56 pendência do religar', v_f1, 'F56 Fulano')
+  returning id into v_pend6;
+
+  -- O lançamento nasce COM os dois elos (o retrato que um backup versão 2
+  -- teria salvo ANTES do desvínculo) — a janela é obrigatória para o INSERT
+  -- de `pendencia_item_id`/`movimentacao_id` não ser recusado por acaso e
+  -- para o UPDATE seguinte, que simula o PÓS-desvínculo, ser aceito.
+  perform set_config('estoque.dev_destrutivo', 'on', true);
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+                                       movimentacao_id, pendencia_item_id, criado_por)
+  values (v_item6, v_f1, 'entrada', 1, current_date, v_mov_a, v_pend6, k_autor)
+  returning id into v_lanc6;
+
+  -- Simula o PÓS-desvínculo — exatamente o que `import_apagar_acervo_filial`
+  -- (0140) deixa no banco depois do "Substituir tudo".
+  update public.lancamentos_item set movimentacao_id = null, pendencia_item_id = null
+   where id = v_lanc6;
+  perform set_config('estoque.dev_destrutivo', 'off', true);
+
+  -- ---- 6a. cenário montado: os dois elos estão nulos -----------------------
+  select movimentacao_id, pendencia_item_id into v_mid6, v_pid6
+    from public.lancamentos_item where id = v_lanc6;
+  if v_mid6 is null and v_pid6 is null then
+    v_ok := v_ok + 1;
+    raise notice '✓ 6a cenário montado: os dois elos do lançamento estão nulos (pós-desvínculo simulado)';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 6a cenário mal montado: elos não nulos (mov=%, pend=%)', v_mid6, v_pid6;
+  end if;
+
+  -- ---- 6b. DENTRO da janela, o UPDATE religa OS DOIS elos de uma vez -------
+  -- Sem trigger nenhum: trg_valida_lancamento_item é BEFORE INSERT só (fato 32
+  -- da F56) e não dispara em UPDATE.
+  perform set_config('estoque.dev_destrutivo', 'on', true);
+  update public.lancamentos_item as li
+     set movimentacao_id   = v.movimentacao_id,
+         pendencia_item_id = v.pendencia_item_id
+    from (values (v_lanc6, v_mov_a, v_pend6)) as v(id, movimentacao_id, pendencia_item_id)
+   where li.id = v.id;
+  perform set_config('estoque.dev_destrutivo', 'off', true);
+
+  select movimentacao_id, pendencia_item_id into v_mid6, v_pid6
+    from public.lancamentos_item where id = v_lanc6;
+  if v_mid6 = v_mov_a and v_pid6 = v_pend6 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 6b o UPDATE de religação restaura os dois elos de uma vez, dentro da janela';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 6b elos não religados: mov esperado %/obtido %, pend esperado %/obtido %',
+      v_mov_a, v_mid6, v_pend6, v_pid6;
+  end if;
+
+  -- ---- 6c. FORA da janela, o MESMO UPDATE é RECUSADO por guarda_acervo -----
+  -- Prova a premissa escrita no cabeçalho de `sqlDeReligarElos`: a janela já
+  -- tem de estar aberta no ponto de `montarTransacao` onde o UPDATE entra —
+  -- sem ela, `lancamentos_item_guarda_acervo` (0081) recusa qualquer UPDATE.
+  begin
+    update public.lancamentos_item as li
+       set movimentacao_id   = v.movimentacao_id,
+           pendencia_item_id = v.pendencia_item_id
+      from (values (v_lanc6, v_mov_a, v_pend6)) as v(id, movimentacao_id, pendencia_item_id)
+     where li.id = v.id;
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 6c o UPDATE de religação passou FORA da janela (deveria ser recusado)';
+  exception when insufficient_privilege then
+    v_ok := v_ok + 1;
+    raise notice '✓ 6c fora da janela, guarda_acervo recusa o UPDATE de religação';
+  end;
+
+  -- ---- 7 — religar `ativos.substitui_ativo_id` (o mesmo UPDATE do backup do
+  --      RESET, fato 27) — SEM precisar de janela: ativos_guarda_acervo (0081)
+  --      só recusa DELETE, nunca UPDATE ------------------------------------
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, substitui_ativo_id)
+  values ('WAP0056002', 'F56REST2', 'notebook', v_f1, null) returning id into v_ativo_sub7;
+
+  update public.ativos as a
+     set substitui_ativo_id = v.substitui_ativo_id
+    from (values (v_ativo_sub7, v_ativo)) as v(id, substitui_ativo_id)
+   where a.id = v.id;
+
+  select substitui_ativo_id into v_sub7 from public.ativos where id = v_ativo_sub7;
+  if v_sub7 = v_ativo then
+    v_ok := v_ok + 1;
+    raise notice '✓ 7a o UPDATE de religação restaura substitui_ativo_id, sem precisar da janela';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 7a substitui_ativo_id não religado: esperado %, obtido %', v_ativo, v_sub7;
+  end if;
 
   raise notice 'FIM restauracao: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

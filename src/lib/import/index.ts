@@ -1,8 +1,11 @@
 // Superfície pública do motor de import de startup (OS-F7 / W1, ampliada pela
-// OS-F7B). O W3 importa daqui: `import { validarArquivoImport } from '@/lib/import'`.
+// OS-F7B e pela F56 · Frente D). O W3 importa daqui:
+// `import { validarArquivoImport } from '@/lib/import'`.
 // F7G — `validarArquivoImport` (async) é a entrada única CSV/XLSX; `validarCsvImport`
 // (sync) segue exportada para a suíte de testes da F7/F7B/F7E. `csvCorrigidoDeArquivo`
-// gera o "baixar corrigido" para os dois formatos.
+// gera o "baixar corrigido" para os dois formatos. F56 · Frente D — as duas recebem o
+// vocabulário do import (`VocabularioImport`) por parâmetro; quem chama o motor é
+// quem fala com o banco (o motor continua puro).
 export {
   validarArquivoImport,
   validarCsvImport,
@@ -26,21 +29,39 @@ export {
   validarCorrecao,
 } from './correcoes'
 
-// Vocabulários canônicos: o Select da tela escolhe o ESTADO/CATEGORIA e grava na
-// célula o TERMO que o De→Para entende.
+// F56 · Frente D — o vocabulário do import como DADO: o tipo serializável, a
+// fatia de cliente, o construtor/conferência e as funções que o motor usa, no
+// padrão `rotuloTipoItem(slug, mapa)` (F39). O Select da tela escolhe o
+// ESTADO/CATEGORIA e grava na célula o TERMO que o vocabulário entende.
 export {
-  CATEGORIAS_TERMOS,
-  ESTADOS_CORRIGIVEIS,
-  SITUACAO_CANONICA,
-  TIPO_CANONICO,
-} from './deparas'
+  categoriasImportaveis,
+  conferirVocabulario,
+  estadoPlanilha,
+  estadosImportaveis,
+  filialDoVocabulario,
+  mapearCategoria,
+  mapearUnidade,
+  paraCliente,
+  rotuloCategoria,
+  rotuloEstado,
+  termosCategoria,
+  termosEstadoCorrigiveis,
+  VocabularioImportInvalidoError,
+} from './vocabulario'
+export type {
+  ApelidoVocabulario,
+  FilialVocabulario,
+  TermoCategoriaVocabulario,
+  TermoEstadoVocabulario,
+  VocabularioCliente,
+  VocabularioImport,
+} from './vocabulario'
 
 // Re-export para o Zod das actions (W3) e o preview ao vivo da UI.
 // F7E — `resolverDataEntrega` (datas dd/MMM do arquivo) e `patrimonioVazio`
 // (patrimônio "vazio na prática" → importa nulo) fazem parte do contrato §1.5.
 export {
   extrairPatrimonioDoHostname,
-  mapearUnidade,
   parseData,
   patrimonioVazio,
   resolverDataEntrega,
@@ -57,7 +78,6 @@ export type {
   ErroImport,
   EstadoAlvoImport,
   EstadoPlanilha,
-  FilialOficial,
   FilialSelecionada,
   GrupoErro,
   LayoutImport,

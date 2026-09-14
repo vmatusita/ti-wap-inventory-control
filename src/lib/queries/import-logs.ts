@@ -20,11 +20,27 @@ type Row<T extends keyof Database['public']['Tables']> =
 
 // Contagem do que a substituição APAGA nesta filial (espelha o DELETE da RPC
 // 0032: movs/anotações dos ativos da filial + termos "puros" da filial).
+//
+// F56 · Frente F (migration 0140) — as QUATRO chaves novas, na mesma ordem e com
+// o MESMO critério (a filial ATUAL do ativo) que `import_revalidar_contagens`
+// usa (0140:355-392). Nomes em snake_case DE PROPÓSITO, e não por descuido: este
+// objeto vira `p_contagens` da RPC por passagem direta (`custoPreview as unknown
+// as Json` em `aplicarImport`) — não há tradução de chave no meio, e o precedente
+// da casa para um valor que atravessa a fronteira RPC sem tradução é snake_case
+// (`conflitos_abertos` em `rpcRetornoSchema`, mesmo arquivo).
 export type CustoSubstituir = {
   ativos: number
   movimentacoes: number
   anotacoes: number
   termos: number
+  /** pendências de item do acervo — 0140 `v_liv_pend` (:378-379). */
+  pendencias_item: number
+  /** lançamentos presos a MOVIMENTAÇÃO do acervo — 0140 `v_liv_lanc_mov` (:380-384). */
+  lancamentos_movimentacao: number
+  /** lançamentos presos a PENDÊNCIA do acervo — 0140 `v_liv_lanc_pend` (:385-389). */
+  lancamentos_pendencia: number
+  /** ativos de OUTRA filial cujo `substitui_ativo_id` aponta para o acervo — 0140 `v_liv_subst` (:390-392). */
+  ponteiros_substituto: number
 }
 
 // Termo que mistura ESTA filial com outra — o preview bloqueia o passo 4 e a RPC
@@ -89,6 +105,82 @@ async function contarAnotacoes(client: DbClient, ids: string[]): Promise<number>
       .select('*', { count: 'exact', head: true })
       .in('ativo_id', lote)
     if (error) throw new Error(`Falha ao contar anotações: ${error.message}`)
+    total += count ?? 0
+  }
+  return total
+}
+
+// F56 · Frente F — as quatro contagens da FK (0140), cada uma espelhando UMA das
+// quatro `select count(*)` de `import_revalidar_contagens` (0140:378-392). Pelo
+// critério da RPC (a filial ATUAL do ativo — nunca `filial_id` histórico).
+
+/** 0140 `v_liv_pend` (:378-379): pendências de item cujo `ativo_id` é do acervo. */
+async function contarPendenciasItem(client: DbClient, idsAtivos: string[]): Promise<number> {
+  let total = 0
+  for (const lote of emLotes(idsAtivos)) {
+    const { count, error } = await client
+      .from('pendencias_item')
+      .select('*', { count: 'exact', head: true })
+      .in('ativo_id', lote)
+    if (error) throw new Error(`Falha ao contar pendências de item: ${error.message}`)
+    total += count ?? 0
+  }
+  return total
+}
+
+/**
+ * Os ids de `movimentacoes`/`pendencias_item` do acervo — o PostgREST não tem
+ * subconsulta (`in (select …)`), então onde o SQL da 0140 aninha um `select id
+ * from … where ativo_id in (…)` dentro do `count(*)`, aqui são dois passos: lista
+ * os ids do acervo, depois conta `lancamentos_item` que apontam para eles.
+ */
+async function idsPorAtivo(
+  client: DbClient,
+  tabela: 'movimentacoes' | 'pendencias_item',
+  idsAtivos: string[],
+): Promise<string[]> {
+  const out: string[] = []
+  for (const lote of emLotes(idsAtivos)) {
+    const parte = await paginarTodos<{ id: string }>(
+      `Falha ao listar ${tabela} da filial`,
+      (from, to) => client.from(tabela).select('id').in('ativo_id', lote).order('id').range(from, to),
+    )
+    out.push(...parte.map((r) => r.id))
+  }
+  return out
+}
+
+async function contarLancamentosPorColuna(
+  client: DbClient,
+  coluna: 'movimentacao_id' | 'pendencia_item_id',
+  ids: string[],
+): Promise<number> {
+  let total = 0
+  for (const lote of emLotes(ids)) {
+    const { count, error } = await client
+      .from('lancamentos_item')
+      .select('*', { count: 'exact', head: true })
+      .in(coluna, lote)
+    if (error) throw new Error(`Falha ao contar lancamentos_item.${coluna}: ${error.message}`)
+    total += count ?? 0
+  }
+  return total
+}
+
+/** 0140 `v_liv_subst` (:390-392): ativos de OUTRA filial que apontam para o acervo. */
+async function contarPonteirosSubstituto(
+  client: DbClient,
+  idsAtivos: string[],
+  filialId: number,
+): Promise<number> {
+  let total = 0
+  for (const lote of emLotes(idsAtivos)) {
+    const { count, error } = await client
+      .from('ativos')
+      .select('*', { count: 'exact', head: true })
+      .in('substitui_ativo_id', lote)
+      .neq('filial_id', filialId)
+    if (error) throw new Error(`Falha ao contar ponteiros de substituto: ${error.message}`)
     total += count ?? 0
   }
   return total
@@ -181,7 +273,7 @@ export async function custoSubstituir(
   const ids = await idsDaFilial(client, filialId)
   const filialSet = new Set(ids)
 
-  const [movimentacoes, anotacoes, termosData] = await Promise.all([
+  const [movimentacoes, anotacoes, termosData, pendenciasItem] = await Promise.all([
     contarMovs(client, ids),
     contarAnotacoes(client, ids),
     // Paginado: um projeto com > 1.000 termos gerados teria a classificação
@@ -195,6 +287,21 @@ export async function custoSubstituir(
           .order('id')
           .range(from, to),
     ),
+    // F56 · Frente F (0140) — pendências de item do acervo.
+    contarPendenciasItem(client, ids),
+  ])
+
+  // As duas contagens de `lancamentos_item` dependem dos ids de movimentações/
+  // pendências do acervo — não dá para paralelizar com a leitura de `ids` acima
+  // (dependem dela), mas as duas entre si sim.
+  const [movIds, pendIds] = await Promise.all([
+    idsPorAtivo(client, 'movimentacoes', ids),
+    idsPorAtivo(client, 'pendencias_item', ids),
+  ])
+  const [lancamentosMovimentacao, lancamentosPendencia, ponteirosSubstituto] = await Promise.all([
+    contarLancamentosPorColuna(client, 'movimentacao_id', movIds),
+    contarLancamentosPorColuna(client, 'pendencia_item_id', pendIds),
+    contarPonteirosSubstituto(client, ids, filialId),
   ])
 
   let termos = 0
@@ -211,7 +318,16 @@ export async function custoSubstituir(
   }
 
   return {
-    custo: { ativos: ids.length, movimentacoes, anotacoes, termos },
+    custo: {
+      ativos: ids.length,
+      movimentacoes,
+      anotacoes,
+      termos,
+      pendencias_item: pendenciasItem,
+      lancamentos_movimentacao: lancamentosMovimentacao,
+      lancamentos_pendencia: lancamentosPendencia,
+      ponteiros_substituto: ponteirosSubstituto,
+    },
     termosMultiFilial,
   }
 }
@@ -287,6 +403,118 @@ export async function exportarAcervoFilial(
   const termos_gerados = [...porId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
   return { ativos, movimentacoes, anotacoes, termos_gerados }
+}
+
+// ---------------------------------------------------------------------------
+// F56 · Frente F (migration 0140) — o que o backup `versao: 2` do import ganha
+// para cobrir os cinco caminhos de FK do fato 27, além das quatro tabelas de
+// `AcervoFilial` (que ficam EXATAMENTE como estão — congeladas por
+// `backup-formato.test.ts` describe 2 — estes três campos entram DIRETO no
+// cabeçalho do backup, ao lado do espalhamento `...acervo`, nunca dentro dele).
+// ---------------------------------------------------------------------------
+
+/** A pré-imagem de UM elo de `lancamentos_item`, ANTES do UPDATE que o desvincula. */
+export type LancamentoDesvinculado = {
+  id: string
+  movimentacao_id: string | null
+  pendencia_item_id: string | null
+}
+
+export type DesvinculosFk = {
+  /** 0140 passo iii: as pendências de item do acervo — linhas inteiras, sob o
+   *  nome da tabela (`restaurar.mjs` já sabe inserir `pendencias_item` na ordem certa). */
+  pendenciasItem: Row<'pendencias_item'>[]
+  /** 0140 passos i e ii: a pré-imagem de cada lançamento que a RPC desvincula —
+   *  `pendencia_item_id` numa pendência do acervo OU `movimentacao_id` numa
+   *  movimentação do acervo. UNIÃO por id (fato 32: nunca os dois ao mesmo
+   *  tempo, mas a dedução protege mesmo assim). */
+  lancamentosDesvinculados: LancamentoDesvinculado[]
+  /** 0140 passo iv: ativos de OUTRA filial cujo `substitui_ativo_id` aponta
+   *  para o acervo — linhas INTEIRAS, molde de `montarBackupDoReset`
+   *  (`src/lib/queries/dev-destrutivo.ts:517-546`, mesmo nome de propósito). */
+  ponteirosPerdidos: Row<'ativos'>[]
+}
+
+/**
+ * Lê, ANTES da RPC (que é quando o backup é gravado), tudo o que o conserto da
+ * FK vai apagar/desvincular/anular — a pré-imagem que `scripts/db/restaurar.mjs`
+ * usa para religar os dois elos e o ponteiro dentro da janela de restauração.
+ *
+ * Chamada separada de `exportarAcervoFilial` de propósito (ver o cabeçalho
+ * acima): duas leituras independentes de `idsDaFilial`, o mesmo padrão que
+ * `custoSubstituir`/`exportarAcervoFilial` já usam entre si.
+ */
+export async function exportarDesvinculosFk(client: DbClient, filialId: number): Promise<DesvinculosFk> {
+  const ids = await idsDaFilial(client, filialId)
+
+  const pendenciasItem: Row<'pendencias_item'>[] = []
+  for (const lote of emLotes(ids)) {
+    const parte = await paginarTodos<Row<'pendencias_item'>>(
+      'Falha ao exportar pendências de item',
+      (from, to) => client.from('pendencias_item').select('*').in('ativo_id', lote).order('id').range(from, to),
+    )
+    pendenciasItem.push(...parte)
+  }
+
+  const [movIds, pendIds] = await Promise.all([
+    idsPorAtivo(client, 'movimentacoes', ids),
+    idsPorAtivo(client, 'pendencias_item', ids),
+  ])
+
+  const porIdLanc = new Map<string, LancamentoDesvinculado>()
+  for (const lote of emLotes(movIds)) {
+    const parte = await paginarTodos<LancamentoDesvinculado>(
+      'Falha ao exportar lançamentos presos a movimentação',
+      (from, to) =>
+        client
+          .from('lancamentos_item')
+          .select('id, movimentacao_id, pendencia_item_id')
+          .in('movimentacao_id', lote)
+          .order('id')
+          .range(from, to),
+    )
+    for (const l of parte) porIdLanc.set(l.id, l)
+  }
+  for (const lote of emLotes(pendIds)) {
+    const parte = await paginarTodos<LancamentoDesvinculado>(
+      'Falha ao exportar lançamentos presos a pendência',
+      (from, to) =>
+        client
+          .from('lancamentos_item')
+          .select('id, movimentacao_id, pendencia_item_id')
+          .in('pendencia_item_id', lote)
+          .order('id')
+          .range(from, to),
+    )
+    for (const l of parte) porIdLanc.set(l.id, l)
+  }
+  const lancamentosDesvinculados = [...porIdLanc.values()].sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  )
+
+  const ponteirosPerdidos: Row<'ativos'>[] = []
+  if (ids.length > 0) {
+    const porIdAtivo = new Map<string, Row<'ativos'>>()
+    for (const lote of emLotes(ids)) {
+      const parte = await paginarTodos<Row<'ativos'>>(
+        'Falha ao exportar ativos que apontam para o acervo',
+        (from, to) =>
+          client
+            .from('ativos')
+            .select('*')
+            .in('substitui_ativo_id', lote)
+            .neq('filial_id', filialId)
+            .order('id')
+            .range(from, to),
+      )
+      for (const a of parte) porIdAtivo.set(a.id, a)
+    }
+    ponteirosPerdidos.push(
+      ...[...porIdAtivo.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    )
+  }
+
+  return { pendenciasItem, lancamentosDesvinculados, ponteirosPerdidos }
 }
 
 // ---------------------------------------------------------------------------

@@ -33,6 +33,9 @@ export default async function AdminFiliaisPage() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead className="hidden md:table-cell">Slug</TableHead>
+              {/* F56 (Frente E · Decisão 13) — os apelidos que também reconhecem esta
+                  filial na coluna Site do import. */}
+              <TableHead className="hidden lg:table-cell">Na coluna Site do import</TableHead>
               <TableHead>Ativos</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -44,6 +47,19 @@ export default async function AdminFiliaisPage() {
                 <TableCell className="font-medium">{f.nome}</TableCell>
                 <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
                   {f.slug}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  {f.apelidos.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Só o nome próprio</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {f.apelidos.map((a) => (
+                        <Badge key={a.id} variant="secondary" className="text-xs">
+                          {a.apelido}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="tabular-nums">
                   {f.totalAtivos.toLocaleString('pt-BR')}

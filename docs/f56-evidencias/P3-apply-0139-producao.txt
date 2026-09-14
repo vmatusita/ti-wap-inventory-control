@@ -1,0 +1,69 @@
+# F56 — apply da migration 0139 (vocabulário do import) em PRODUÇÃO, 14/09/2026
+
+Caminho A do runbook (tabelas, policies, seed, comentário — nenhuma exclusão, nenhuma função existente
+recriada). Decisão iv da ordem: o agente aplica a 0139 e a 0140, ensaio primeiro. Pré-condições cumpridas:
+- CI verde com a 0139 (run 34636816039, PR #42; e de novo no PR #43, run 34853956001);
+- apply e verificação no ENSAIO em 11/09 (P1-apply-0139-ensaio.txt), tudo igual ao esperado;
+- a 0139 é pré-requisito do merge do PR #43: o código das Frentes D2/E lê as quatro tabelas novas.
+
+Ferramenta: MCP da Supabase, `apply_migration(project_id=pbtjcalbmepmrqzprusb, name='vocabulario_import',
+query=<texto integral de supabase/migrations/0139_vocabulario_import.sql>)` → {"success": true}.
+Verificações: `execute_sql` só de leitura (catálogo, contagens, o seed que a própria migration gravou) e
+`get_advisors(security)`. Nenhum dado de negócio lido — só contagens.
+
+## Antes do apply (mesma sessão, minutos antes)
+- ledger termina em `resumo_integridade_e_rotulo` (0138);
+- não existem as 4 tabelas, as 2 funções, nem o índice `filiais_nome_chave_uidx`;
+- collation "und-x-icu" presente;
+- filiais: 6, slugs cd-afonso-pena, eusebio, filialteste, linhares, matriz, serra (os 5 do seed presentes);
+  nenhum nome de filial repetido em minúsculas;
+- corpos do import intocados: e313d1fe… / 3ad2f66b… / 8ab118c3… (0131/0132);
+- contagens: ativos 1620 · movimentacoes 3536 · lancamentos_item 120 · pendencias_item 17 ·
+  termos_gerados 101 · filiais 6 · profiles 16 · eventos_admin 100 · import_logs 12;
+- advisors de segurança: 3 INFO (rls_enabled_no_policy: ambiente, senha_tentativas, senhas_acesso) ·
+  28 WARN (authenticated_security_definer_function_executable) · 1 WARN (auth_leaked_password_protection) —
+  a mesma base do ensaio.
+
+## Depois do apply
+Impressões "esperado" recalculadas hoje a partir do arquivo commitado com
+`node docs/f56-handoff/scripts/esperado-0139.mjs` (arquivo e trava sem diff contra HEAD).
+
+| verificação | esperado | obtido | ok |
+|---|---|---|---|
+| última migration do ledger | vocabulario_import | vocabulario_import | sim |
+| RLS ligada nas 4 tabelas | true ×4 | true ×4 | sim |
+| policies | unidades_apelidos: leitura operador (SELECT), admin insere apelido (INSERT), admin apaga apelido (DELETE); as outras 3: só leitura operador (SELECT) | idem | sim |
+| vocabulario_chave: volatilidade / paralelismo / definer | i / s / false | i / s / false | sim |
+| EXECUTE vocabulario_chave: anon / authenticated | false / true | false / true | sim |
+| EXECUTE vocabulario_unidades_guarda: anon / authenticated | false / false | false / false | sim |
+| md5 prosrc normalizado — vocabulario_chave | f35ebb1b546a47a6ff9c476b3b2c98cf | f35ebb1b546a47a6ff9c476b3b2c98cf | sim |
+| md5 prosrc normalizado — vocabulario_unidades_guarda | b7f123ffdac1b40834fbce333c6b50f0 | b7f123ffdac1b40834fbce333c6b50f0 | sim |
+| apelidos (slug\|apelido, ordem C) | 13 · 89ee4e8879bdb2bfdd71034098276dc1 | 13 · 89ee4e8879bdb2bfdd71034098276dc1 | sim |
+| categorias | 5 · af4ae8c59c18dbd3e80c4b5ff80d1bab | 5 · af4ae8c59c18dbd3e80c4b5ff80d1bab | sim |
+| estados | 17 · d21f1829796e6bb15c7e4ff99bb7c84c | 17 · d21f1829796e6bb15c7e4ff99bb7c84c | sim |
+| prefixos | 7 · 37f3e8658d0a11c65c961fdfc2917952 | 7 · 37f3e8658d0a11c65c961fdfc2917952 | sim |
+| formas de exibição | 12 | 12 | sim |
+| md5 do comment de eventos_admin.acao | e34e0162486cad23e548133f53bc96dc | e34e0162486cad23e548133f53bc96dc | sim |
+| gatilhos | filiais_vocabulario_guarda, unidades_apelidos_vocabulario_guarda | idem | sim |
+| índices novos | 5 | 5 | sim |
+| sonda vocabulario_chave('  CD Afonso Pena:  ') | cd afonso pena: | cd afonso pena: | sim |
+| sonda vocabulario_chave('Eusébio') | eusebio | eusebio | sim |
+| sonda vocabulario_chave('Filial - Linhares') | filial - linhares | filial - linhares | sim |
+| sonda vocabulario_chave('Manutenção') | manutencao | manutencao | sim |
+| corpos do import (a 0139 não os toca) | e313d1fe… / 3ad2f66b… / 8ab118c3… | idem | sim |
+| contagens antes = depois | 1620/3536/120/17/101/6/16/100/12 | 1620/3536/120/17/101/6/16/100/12 | sim |
+| advisors de segurança | sem achado novo | idênticos (3 INFO · 28 WARN · 1 WARN) | sim |
+| notify pgrst, 'reload schema' | executado | executado 14/09/2026 11:30:14 -03 | sim |
+
+Iguais nos dois lados = nenhum erro de transcrição na passagem do SQL pelo MCP, e o mesmo resultado do
+ensaio (P1) num banco com uma filial a mais.
+
+## O que isto muda para produção, e o que não muda
+- A 6ª filial (`filialteste`) não ganha apelido nenhum — é de propósito (Decisão 2): o NOME PRÓPRIO dela vale
+  como termo implícito na coluna Site. O import dela só fica possível quando o código das Frentes D2/E
+  (PR #43) estiver no ar — até lá, o código de produção continua lendo o vocabulário das constantes, e
+  nenhum código no ar lê as tabelas novas.
+- Primeira tentativa de verificação recusada pelo próprio Postgres (`"char" || unknown`, 42725 — o mesmo
+  tropeço registrado no ensaio): consulta de leitura corrigida com `::text` e rodada de novo. Nada escrito.
+- Mesmo achado do P1, também aqui: `anon`/`authenticated` com os privilégios de tabela padrão do Supabase
+  nas quatro tabelas novas (a RLS protege as linhas). Backlog de hardening transversal, não defeito da 0139.

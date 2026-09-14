@@ -174,6 +174,9 @@ const EXCECOES: Record<string, string> = {
     'resolverColaboradoresPorNome só é chamada por Server Actions (colaboradores.ts:382, itens.ts:105, movimentacoes.ts) com o client da sessão',
   'queries/itens.ts':
     'saldosPorColaborador e acessoriosDasMovimentacoes só saem de Server Actions (itens.ts:127, movimentacoes.ts:515, termos.ts:262,360)',
+  // F56 (Frente D) — mesmo padrão de queries/import-logs.ts.
+  'queries/vocabulario-import.ts':
+    'lerVocabularioImport sai de actions/importar.ts:351,476,833 (validarImport/aplicarImport/baixarCsvCorrigido, atrás de exigirAdmin) e de admin/importar/page.tsx:38 — rota de admin, nunca de relatório, sempre client de sessão',
 }
 
 const arquivosDaSuperficie = (): string[] =>
