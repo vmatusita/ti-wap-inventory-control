@@ -10827,3 +10827,11 @@ varredura de dado real e credencial sobre a fase inteira não achou nada.
 **Verificação depois dos consertos:** `npm run lint` limpo · `npx tsc --noEmit` 0 erros · `npm run test`
 **5014/5014** (192 arquivos; os 4 testes a mais são os três de `csvCorrigidoDeArquivo` e o do `filialId`
 obrigatório) · `npm run build` verde, 32 rotas — saída em `docs/f56-evidencias/H5-verificacao-pos-revisao.txt`.
+
+**O CI desse push reprovou por um teste instável, e não pelo conserto.** Run `34865411451`, `verificar`:
+`importar.test.ts` › "um FormData com um campo de VOCABULÁRIO FORJADO a mais dá o MESMO resultado" — os dois
+`File` do teste nasciam em chamadas separadas, e `lastModified` assume `Date.now()`; as duas criações caíram
+em milissegundos diferentes (`…349` × `…350`) e a comparação profunda reprovou. Passou nas três execuções
+anteriores do CI e na mesa porque caíam no mesmo milissegundo. **Escolha:** fixar `lastModified: 0` no
+arquivo de teste, mantendo a asserção inteira — nunca rodar o CI de novo até ficar verde, nem trocar
+`toEqual` por uma comparação mais frouxa.

@@ -34,7 +34,14 @@ const FONTE = readFileSync(fileURLToPath(new URL('./importar.ts', import.meta.ur
 
 function formDataValido(): FormData {
   const fd = new FormData()
-  fd.set('arquivo', new File(['Site;Tipo\nMatriz;Notebook'], 'inventario.csv', { type: 'text/csv' }))
+  // `lastModified` FIXO: sem ele o `File` assume `Date.now()`, e o teste que compara dois
+  // FormData criados em sequência (o do vocabulário forjado, abaixo) reprovava quando as
+  // duas criações caíam em milissegundos diferentes — medido no CI do PR #43 (run
+  // 34865411451: …349 × …350), com a asserção certa e o produto certo.
+  fd.set(
+    'arquivo',
+    new File(['Site;Tipo\nMatriz;Notebook'], 'inventario.csv', { type: 'text/csv', lastModified: 0 }),
+  )
   fd.set('filialId', '1')
   fd.set('correcoes', JSON.stringify([{ op: 'remover_linha', linha: 2 }]))
   return fd
