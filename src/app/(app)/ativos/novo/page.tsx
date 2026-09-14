@@ -47,7 +47,7 @@ export default async function NovoEquipamentoPage({
   // F21 — a filial que RECEBE a compra é escrita: o select oferece só as filiais
   // vinculadas (admin → todas as ativas). A lista de leitura desta tela não
   // existe, então aqui não há duas listas para conciliar.
-  const filiaisEscrita = filiaisParaEscrita(operador, filiais)
+  const opcoesDeEscrita = filiaisParaEscrita(operador, filiais)
 
   const [inicial, ultimaCompra] = await Promise.all<DadosCompraInicial | null>([
     duplicarParam ? dadosParaDuplicarCompra(duplicarParam) : Promise.resolve(null),
@@ -83,7 +83,7 @@ export default async function NovoEquipamentoPage({
       {podeEscrever(operador?.papel) ? (
         <div className={MEDIDA_DE_FORMULARIO}>
           <NovaCompraForm
-            filiais={filiaisEscrita}
+            filiais={opcoesDeEscrita}
             inicial={inicial}
             ultimaCompra={ultimaCompra}
           />

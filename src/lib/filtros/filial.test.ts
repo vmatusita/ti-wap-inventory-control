@@ -43,8 +43,8 @@ const listaSlug = (slugs: string[], incluiSemUnidade = false): SelecaoDeUnidades
   incluiSemUnidade,
 })
 
-function op(papel: PapelUsuario, filiaisEscrita: number[] = []): OperadorDoFiltro {
-  return { papel, filiaisEscrita }
+function op(papel: PapelUsuario, escopoEscrita: number[] = []): OperadorDoFiltro {
+  return { papel, escopoEscrita }
 }
 
 describe('unidadesMarcadasPorPadrao — os quatro cargos', () => {
@@ -62,8 +62,8 @@ describe('unidadesMarcadasPorPadrao — os quatro cargos', () => {
     expect(unidadesMarcadasPorPadrao('consulta', [], ATIVAS)).toEqual(TODAS)
   })
 
-  it('admin com filiaisEscrita cheio (ele recebe todas) ainda assim NÃO recorta', () => {
-    // `filiaisDeEscrita` devolve TODAS as ativas para o nível admin — se a regra
+  it('admin com escopoEscrita cheio (ele recebe todas) ainda assim NÃO recorta', () => {
+    // `escopoDeEscrita` devolve TODAS as ativas para o nível admin — se a regra
     // olhasse a lista em vez do cargo, o admin entraria "filtrado por todas", e o
     // botão Limpar/contagem passaria a mentir.
     expect(unidadesMarcadasPorPadrao('admin', ATIVAS, ATIVAS)).toEqual(TODAS)

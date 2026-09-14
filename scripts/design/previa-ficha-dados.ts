@@ -386,10 +386,10 @@ export function rotulosTipoDaPrevia(): MapaRotulosTipo {
 
 /**
  * O operador logado que a prévia empresta ao render — só o recorte que
- * `podeEscreverNaFilial`/`eAdmin` leem (cargo + filiais de escrita).
+ * `podeEscreverNoEscopo`/`eAdmin` leem (cargo + filiais de escrita).
  *
  * `--cenarios consulta` troca o cargo para `consulta` (sem filial de escrita
- * nenhuma) — é o que faz `podeEscreverNaFilial` fechar e a ficha trocar a barra
+ * nenhuma) — é o que faz `podeEscreverNoEscopo` fechar e a ficha trocar a barra
  * de ações pelo card "você só lê nesta filial".
  */
 export function operadorDaPrevia(cenario: CenarioFicha): Operador {
@@ -398,7 +398,7 @@ export function operadorDaPrevia(cenario: CenarioFicha): Operador {
       id: '60000000-0000-4000-8000-000000000001',
       nome: NOME_OPERADOR,
       papel: 'consulta',
-      filiaisEscrita: [],
+      escopoEscrita: [],
       email: null,
     }
   }
@@ -406,7 +406,7 @@ export function operadorDaPrevia(cenario: CenarioFicha): Operador {
     id: '60000000-0000-4000-8000-000000000001',
     nome: NOME_OPERADOR,
     papel: 'operador',
-    filiaisEscrita: [FILIAL_DA_FICHA.id],
+    escopoEscrita: [FILIAL_DA_FICHA.id],
     email: null,
   }
 }

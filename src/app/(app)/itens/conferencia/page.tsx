@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { ClipboardCheck, PackageOpen } from 'lucide-react'
 import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
-import { filiaisParaEscrita, podeEscreverNaFilial } from '@/components/layout/permissoes'
+import { filiaisParaEscrita, podeEscreverNoEscopo } from '@/components/layout/permissoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { getSaldosItens } from '@/lib/queries/itens'
 import { Button } from '@/components/ui/button'
@@ -48,7 +48,7 @@ export default async function ConferenciaPage({
 
   const sp = await searchParams
   const filiais = await listarFiliais()
-  const filiaisEscrita = filiaisParaEscrita(operador, filiais)
+  const opcoesDeEscrita = filiaisParaEscrita(operador, filiais)
   const escreve = podeEscrever(operador.papel)
 
   // A filial da URL só vale se este cargo ESCREVE nela — conferir é gravar
@@ -56,7 +56,7 @@ export default async function ConferenciaPage({
   // numa tela que só recusaria no fim. (A trava real é a policy `operador lanca`,
   // que `lancarItens` atravessa; isto é ergonomia.)
   const filialPedida = idNumerico(primeiro(sp.filial))
-  const filialId = podeEscreverNaFilial(operador, filialPedida) ? filialPedida : null
+  const filialId = podeEscreverNoEscopo(operador, filialPedida) ? filialPedida : null
   const filial = filialId != null ? filiais.find((f) => f.id === filialId) : undefined
 
   // O casco e o título saem daqui — as QUATRO saídas da tela (sem escrita, sem
@@ -73,7 +73,7 @@ export default async function ConferenciaPage({
 
   // Cargo sem escrita nenhuma (consulta), ou operador sem vínculo: a tela explica
   // em vez de abrir um seletor vazio.
-  if (!escreve || filiaisEscrita.length === 0) {
+  if (!escreve || opcoesDeEscrita.length === 0) {
     return (
       <Pagina>
         {cabecalho}
@@ -104,7 +104,7 @@ export default async function ConferenciaPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            {filiaisEscrita.map((f) => (
+            {opcoesDeEscrita.map((f) => (
               <Button key={f.id} asChild variant="outline" className="min-h-11">
                 <Link href={`/itens/conferencia?filial=${f.id}`}>{f.nome}</Link>
               </Button>
@@ -144,7 +144,7 @@ export default async function ConferenciaPage({
         filialId={filial.id}
         filialNome={filial.nome}
         saldos={saldos}
-        outrasFiliais={filiaisEscrita.filter((f) => f.id !== filial.id)}
+        outrasFiliais={opcoesDeEscrita.filter((f) => f.id !== filial.id)}
       />
     </Pagina>
   )

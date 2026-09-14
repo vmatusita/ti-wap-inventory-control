@@ -33,11 +33,11 @@ import { resolverFilialPorSlug } from '@/lib/queries/relatorios/comum'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
 import {
   abaRelatorioPadrao,
-  filiaisDeEscrita,
+  escopoDeEscrita,
   podeEscrever,
   type PapelUsuario,
 } from '@/lib/auth/papeis'
-import { filiaisParaEscrita, podeEscreverNaFilial } from '@/components/layout/permissoes'
+import { filiaisParaEscrita, podeEscreverNoEscopo } from '@/components/layout/permissoes'
 import {
   resolverFiliaisSlugsSemPadrao,
   selecaoDeUnidades,
@@ -132,12 +132,12 @@ const SLUGS_AO_VIVO: Readonly<Record<string, string>> = {
 
 // A sessão como `getOperador()` a monta: o cargo e as filiais de escrita derivadas dos
 // vínculos e das filiais ATIVAS.
-type Sessao = { papel: PapelUsuario; filiaisEscrita: readonly number[] }
+type Sessao = { papel: PapelUsuario; escopoEscrita: readonly number[] }
 
 function sessao(papel: PapelUsuario, vinculos: readonly number[]): Sessao {
   return {
     papel,
-    filiaisEscrita: filiaisDeEscrita(
+    escopoEscrita: escopoDeEscrita(
       papel,
       vinculos,
       ATIVAS.map((f) => f.id),
@@ -268,7 +268,7 @@ const ADAPTADOR: Adaptador = {
     return filtroGravado(registro)
   },
   abaPadrao(s) {
-    return abaRelatorioPadrao(s.papel, s.filiaisEscrita, ATIVAS)
+    return abaRelatorioPadrao(s.papel, s.escopoEscrita, ATIVAS)
   },
   // Espelha `src/app/(app)/itens/conferencia/page.tsx` linha a linha.
   conferencia(param, s) {
@@ -276,7 +276,7 @@ const ADAPTADOR: Adaptador = {
     const escrita = filiaisParaEscrita(s, ATIVAS)
     if (!escreve || escrita.length === 0) return escreve ? 'aviso-sem-escrita' : 'cargo-sem-escrita'
     const pedida = idNumerico(param)
-    const filialId = podeEscreverNaFilial(s, pedida) ? pedida : null
+    const filialId = podeEscreverNoEscopo(s, pedida) ? pedida : null
     const filial = filialId != null ? ATIVAS.find((f) => f.id === filialId) : undefined
     return filial ? `filial:${filial.id}` : 'seletor'
   },

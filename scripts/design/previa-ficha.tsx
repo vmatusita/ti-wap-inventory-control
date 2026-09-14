@@ -79,7 +79,7 @@ import {
   MSG_SOMENTE_LEITURA,
   msgSemEscritaNaFilial,
 } from '@/lib/auth/acesso'
-import { podeEscreverNaFilial } from '@/components/layout/permissoes'
+import { podeEscreverNoEscopo } from '@/components/layout/permissoes'
 import { eAdmin } from '@/lib/auth/papeis'
 import { rotuloCategoria, rotuloTermo } from '@/lib/dominio'
 import { formatDate, ouTraco } from '@/lib/format'
@@ -271,7 +271,7 @@ function Miolo({ cenario }: { cenario: CenarioFicha }) {
 
   // F21 — esta ficha é de UM ativo, que mora em UMA filial: dá para responder
   // exatamente se quem abriu pode agir sobre ele.
-  const podeEscreverNesta = podeEscreverNaFilial(operador, ativo.filial_id)
+  const podeEscreverNesta = podeEscreverNoEscopo(operador, ativo.filial_id)
   const motivoSemEscrita = podeEscreverNesta
     ? null
     : operador?.papel === 'consulta'

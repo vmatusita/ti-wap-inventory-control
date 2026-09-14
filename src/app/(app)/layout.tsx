@@ -116,9 +116,9 @@ export default async function AppLayout({
     const hrefRelatorios = await rotaRelatorioPadrao(operador)
     // Só o OPERADOR vê "Escreve em: …": admin e dev escrevem em todas (a linha seria
     // ruído) e consulta não escreve em nenhuma (o rótulo do cargo já diz isso).
-    const filiaisEscritaNomes =
+    const nomesDoEscopoEscrita =
       operador.papel === 'operador'
-        ? operador.filiaisEscrita
+        ? operador.escopoEscrita
             .map((id) => filiaisDoShell.find((f) => f.id === id)?.nome)
             .filter((n): n is string => Boolean(n))
         : undefined
@@ -160,7 +160,7 @@ export default async function AppLayout({
                 nome={operador.nome}
                 papel={operador.papel}
                 email={operador.email}
-                filiaisEscrita={filiaisEscritaNomes}
+                nomesDoEscopoEscrita={nomesDoEscopoEscrita}
                 pendencias={pendencias}
                 podeEscrever={escreve}
                 eAdmin={admin}

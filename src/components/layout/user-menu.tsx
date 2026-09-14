@@ -70,7 +70,7 @@ export function UserMenu({
   nome,
   papel,
   email,
-  filiaisEscrita,
+  nomesDoEscopoEscrita,
 }: {
   nome: string
   papel?: PapelUsuario
@@ -78,7 +78,7 @@ export function UserMenu({
   /** Nomes das filiais em que este cargo ESCREVE. Só desce para operador — para
    *  quem escreve em todas (admin/dev) a linha seria ruído, e para consulta a
    *  ausência de escrita já está dita no rótulo do cargo. */
-  filiaisEscrita?: readonly string[]
+  nomesDoEscopoEscrita?: readonly string[]
 }) {
   // Sem guarda de `montado`: o conteúdo do DropdownMenu do Radix só é montado
   // quando o menu ABRE — o servidor nunca o renderiza, então não há hidratação
@@ -115,9 +115,9 @@ export function UserMenu({
               {PAPEL_ROTULO[papel]}
             </span>
           )}
-          {filiaisEscrita && filiaisEscrita.length > 0 && (
+          {nomesDoEscopoEscrita && nomesDoEscopoEscrita.length > 0 && (
             <span className="block text-xs font-normal text-muted-foreground">
-              Escreve em: {filiaisEscrita.join(', ')}
+              Escreve em: {nomesDoEscopoEscrita.join(', ')}
             </span>
           )}
         </DropdownMenuLabel>

@@ -28,10 +28,10 @@ export async function rotaRelatorioPadrao(operador: Operador | null): Promise<st
   try {
     // `listarFiliais()` é memoizada por request e já vem ordenada por nome — que é
     // exatamente a ordem que a regra pede. Ordenar aqui exigiria copiar o array;
-    // ordenar `filiaisEscrita` seria pior (ele é COMPARTILHADO por referência
+    // ordenar `escopoEscrita` seria pior (ele é COMPARTILHADO por referência
     // entre o layout e a página do mesmo render).
     const filiais = await listarFiliais()
-    return `/relatorios/${abaRelatorioPadrao(operador.papel, operador.filiaisEscrita, filiais)}`
+    return `/relatorios/${abaRelatorioPadrao(operador.papel, operador.escopoEscrita, filiais)}`
   } catch {
     // Uma falha de leitura das filiais não pode tirar o operador do relatório: o
     // Consolidado é um destino válido para todo cargo (a leitura é ampla).

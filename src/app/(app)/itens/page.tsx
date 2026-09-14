@@ -6,7 +6,7 @@ import { getOperador } from '@/lib/auth/acesso'
 import { eAdmin, podeEscrever } from '@/lib/auth/papeis'
 import {
   filiaisParaEscrita,
-  podeEscreverNaFilial,
+  podeEscreverNoEscopo,
 } from '@/components/layout/permissoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarTiposItem } from '@/lib/queries/tipos-item'
@@ -159,17 +159,17 @@ export default async function ItensPage({
   // F21 — três decisões de cargo nesta tela:
   //  · `escreve` (≥ operador): lançar, transferir e conferir. Consulta só lê.
   //  · `admin`: o destino do estado vazio (o catálogo é cadastrado em /admin/itens).
-  //  · `filiaisEscrita`: a filial do LANÇAMENTO. Os filtros e a comparação por
+  //  · `opcoesDeEscrita`: a filial do LANÇAMENTO. Os filtros e a comparação por
   //    filial continuam com a lista inteira — leitura é ampla.
   const escreve = podeEscrever(operador.papel)
   const admin = eAdmin(operador.papel)
-  const filiaisEscrita = filiaisParaEscrita(operador, filiais)
+  const opcoesDeEscrita = filiaisParaEscrita(operador, filiais)
   // O `?filial=N` da tela é um filtro de LEITURA: só vale como pré-seleção do
   // lançamento se for uma filial em que este cargo escreve — senão o diálogo
   // abriria com um valor fora das opções. Com 2+ marcadas não há "a filial da
   // tela", e escolher uma seria adivinhar.
   const filialUnica = filialIds.length === 1 ? filialIds[0] : null
-  const filialPreset = podeEscreverNaFilial(operador, filialUnica) ? filialUnica : null
+  const filialPreset = podeEscreverNoEscopo(operador, filialUnica) ? filialUnica : null
 
   // Cruzamento catálogo × saldo do aviso "repor". `listarItensAtivos` só traz item
   // ATIVO e a RPC traz ativo OU com lançamento: item desativado que ainda tem saldo
@@ -262,7 +262,7 @@ export default async function ItensPage({
             {/* F31 · ITN-04 — a conferência é de quem grava ajustes; com nenhuma
                 filial de escrita não há o que conferir. Quando o filtro tem UMA
                 filial só, ela vai no link. */}
-            {escreve && filiaisEscrita.length > 0 && (
+            {escreve && opcoesDeEscrita.length > 0 && (
               <Button asChild variant="outline" className="gap-2">
                 <Link
                   href={
@@ -280,8 +280,8 @@ export default async function ItensPage({
                 botão só existe para quem tem ao menos DUAS filiais de escrita.
                 (A validação dura é do servidor: `exigirEscrita` nas duas + a policy
                 `operador lanca`, que a RPC atravessa linha a linha.) */}
-            {escreve && filiaisEscrita.length >= 2 && (
-              <TransferirItemDialog itens={itensAtivos} filiais={filiaisEscrita} />
+            {escreve && opcoesDeEscrita.length >= 2 && (
+              <TransferirItemDialog itens={itensAtivos} filiais={opcoesDeEscrita} />
             )}
             {/* `?lancar=1` chega da paleta de comandos (Ctrl+K → "Lançar item").
                 F41 — `podeCriarItem` é `escreve`, e não `admin`: quem lança no
@@ -290,7 +290,7 @@ export default async function ItensPage({
             {escreve && (
               <LancarItemDialog
                 itens={itensAtivos}
-                filiais={filiaisEscrita}
+                filiais={opcoesDeEscrita}
                 ultimo={ultimo}
                 abrirAoMontar={primeiro(sp.lancar) === '1'}
                 podeCriarItem={escreve}
@@ -355,7 +355,7 @@ export default async function ItensPage({
             escreve={escreve}
             filialPreset={filialPreset}
             filiaisTransferencia={
-              filiaisEscrita.length >= 2 ? filiaisEscrita.map((f) => f.id) : []
+              opcoesDeEscrita.length >= 2 ? opcoesDeEscrita.map((f) => f.id) : []
             }
             cabecalhos={cabecalhos}
             escopo={escopo}

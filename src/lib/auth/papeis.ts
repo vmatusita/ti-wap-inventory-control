@@ -139,10 +139,10 @@ export function validarVinculosDoPapel(
 // é o que alimenta os selects de filial das telas de ESCRITA.
 //
 // ⚠ O ramo de cima usa `eAdmin` (NÍVEL), e não `papel === 'admin'`: com a igualdade, um dev
-// receberia `[]` aqui e o efeito seria devastador e mudo — `Operador.filiaisEscrita` viria
+// receberia `[]` aqui e o efeito seria devastador e mudo — `Operador.escopoEscrita` viria
 // vazio em `getOperador()`, apagando todo select de filial e todo CTA de ficha, enquanto o
 // banco lhe dá permissão em tudo.
-export function filiaisDeEscrita(
+export function escopoDeEscrita(
   papel: PapelUsuario | null | undefined,
   vinculos: readonly number[],
   filiaisAtivas: readonly number[],
@@ -156,7 +156,7 @@ export function filiaisDeEscrita(
 // ---------------------------------------------------------------------------
 // F25 — o PADRÃO do filtro de filial das listas (LEITURA, não escrita)
 // ---------------------------------------------------------------------------
-// ⚠ FILTRO DE LEITURA ≠ SELECT DE ESCRITA. `filiaisDeEscrita` acima decide o que a
+// ⚠ FILTRO DE LEITURA ≠ SELECT DE ESCRITA. `escopoDeEscrita` acima decide o que a
 // pessoa PODE GRAVAR e é regra de permissão espelhada no Postgres. O que vem abaixo
 // é só a marcação INICIAL de um filtro de lista: conveniência de tela, zero
 // permissão. Todo cargo continua LENDO tudo (ADR-001/ADR-002), e um link explícito
@@ -175,7 +175,7 @@ export function filiaisDeEscrita(
  * "sem recorte" — o mesmo valor de uma lista que esvaziou, que é justamente a confusão que a
  * fase fecha (ver `auth/recorte-leitura.ts`).
  *
- * ⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`. Lista vazia tem
+ * ⚠ A decisão olha o CARGO, nunca `escopoEscrita.length === 0`. Lista vazia tem
  * dois significados diferentes: `consulta` (que não escreve em lugar nenhum, e para
  * quem "todas" é o certo) e `operador` sem vínculo válido — um usuário quebrado,
  * que com o atalho errado veria uma lista SEMPRE VAZIA e nenhuma pista do porquê.
@@ -183,11 +183,11 @@ export function filiaisDeEscrita(
  */
 export function unidadesMarcadasPorPadrao(
   papel: PapelUsuario | null | undefined,
-  filiaisEscrita: readonly number[],
+  escopoEscrita: readonly number[],
   filiaisAtivas: readonly number[],
 ): SelecaoDeUnidades {
   if (papel !== 'operador') return { familia: 'id', modo: 'todas' }
-  const vinculadas = filiaisAtivas.filter((id) => filiaisEscrita.includes(id))
+  const vinculadas = filiaisAtivas.filter((id) => escopoEscrita.includes(id))
   // Operador sem vínculo ATIVO: cai em "todas" de propósito (ver o ⚠ acima).
   return vinculadas.length > 0
     ? { familia: 'id', modo: 'lista', ids: vinculadas }
@@ -205,19 +205,19 @@ export function unidadesMarcadasPorPadrao(
  *
  * ⚠ `filiais` tem de vir ORDENADA POR NOME — é o que `listarFiliais()` já entrega
  * (`.order('nome')`). Ordenar aqui exigiria copiar o array; pior, ordenar
- * `filiaisEscrita` no lugar seria escrever num array COMPARTILHADO por referência
+ * `escopoEscrita` no lugar seria escrever num array COMPARTILHADO por referência
  * entre o layout e a página do mesmo render (ver o `readonly` de `Operador`).
  */
 export const ABA_RELATORIO_CONSOLIDADO = 'geral'
 
 export function abaRelatorioPadrao(
   papel: PapelUsuario | null | undefined,
-  filiaisEscrita: readonly number[],
+  escopoEscrita: readonly number[],
   filiaisOrdenadasPorNome: readonly { id: number; slug: string }[],
 ): string {
   const padrao = unidadesMarcadasPorPadrao(
     papel,
-    filiaisEscrita,
+    escopoEscrita,
     filiaisOrdenadasPorNome.map((f) => f.id),
   )
   if (padrao.modo === 'todas') return ABA_RELATORIO_CONSOLIDADO
@@ -238,15 +238,15 @@ export function abaRelatorioPadrao(
 // administrador (`eAdmin` — admin OU dev) escreve em qualquer filial, sem
 // vínculo nenhum; só o `operador` é recortado pela lista de vínculos. Qualquer
 // outro cargo (ou `null`/`undefined`, sessão sem perfil) não escreve em
-// filial nenhuma. `filiaisEscrita`/`filialId` ausentes ou malformados nunca
+// filial nenhuma. `escopoEscrita`/`filialId` ausentes ou malformados nunca
 // lançam — só resolvem para "não escreve".
 export function escreveNaFilial(
   papel: PapelUsuario | null | undefined,
-  filiaisEscrita: readonly number[] | null | undefined,
+  escopoEscrita: readonly number[] | null | undefined,
   filialId: number | null | undefined,
 ): boolean {
   if (eAdmin(papel)) return true
   if (papel !== 'operador') return false
   if (filialId == null) return false
-  return (filiaisEscrita ?? []).includes(filialId)
+  return (escopoEscrita ?? []).includes(filialId)
 }

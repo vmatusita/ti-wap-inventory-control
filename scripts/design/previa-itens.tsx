@@ -295,7 +295,7 @@ function Miolo({
   // exige ao menos UMA filial de escrita, Transferir exige DUAS (não se transfere
   // sem destino). Uma prévia que afrouxa a regra de cargo fotografa uma tela que
   // não existe para ninguém.
-  const filiaisEscrita = escreve ? FILIAIS_PREVIA : []
+  const opcoesDeEscrita = escreve ? FILIAIS_PREVIA : []
   const Tabela = VARIANTES[variante].Tabela
 
   // ⚠ AS MESMAS DUAS LINHAS DA `page.tsx` (linhas 122-145): `filialIds` recorta os
@@ -361,7 +361,7 @@ function Miolo({
                 Histórico
               </a>
             </Button>
-            {escreve && filiaisEscrita.length > 0 && (
+            {escreve && opcoesDeEscrita.length > 0 && (
               <Button asChild variant="outline" className="gap-2">
                 <a href="/itens/conferencia">
                   <ClipboardCheck className="size-4" />
@@ -369,13 +369,13 @@ function Miolo({
                 </a>
               </Button>
             )}
-            {escreve && filiaisEscrita.length >= 2 && (
-              <TransferirItemDialog itens={CATALOGO} filiais={filiaisEscrita} />
+            {escreve && opcoesDeEscrita.length >= 2 && (
+              <TransferirItemDialog itens={CATALOGO} filiais={opcoesDeEscrita} />
             )}
             {escreve && (
               <LancarItemDialog
                 itens={CATALOGO}
-                filiais={filiaisEscrita}
+                filiais={opcoesDeEscrita}
                 ultimo={null}
                 podeCriarItem
               />

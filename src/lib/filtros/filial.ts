@@ -29,7 +29,7 @@ import { selecaoFilialIds, selecaoFilialSlugs } from '@/lib/url-params'
 // e este módulo é puro (tem teste em ambiente node, sem banco e sem sessão).
 export type OperadorDoFiltro = {
   papel: PapelUsuario
-  filiaisEscrita: readonly number[]
+  escopoEscrita: readonly number[]
 } | null
 
 // F57 — AS SELEÇÕES: o que o usuário pediu, com o MODO passado adiante em vez de achatado.
@@ -75,13 +75,13 @@ export function selecaoDeUnidades(
   const sel = selecaoFilialIds(param)
   if (sel.modo === 'todas') return TODAS_POR_ID
   if (sel.modo === 'lista') return { familia: 'id', modo: 'lista', ids: sel.valores }
-  return unidadesMarcadasPorPadrao(operador?.papel, operador?.filiaisEscrita ?? [], filiaisAtivas)
+  return unidadesMarcadasPorPadrao(operador?.papel, operador?.escopoEscrita ?? [], filiaisAtivas)
 }
 
 /**
  * A seleção das telas que filtram por SLUG (`/pendencias`).
  *
- * `filiais` precisa trazer id E slug porque o padrão do cargo sai de `filiaisEscrita`,
+ * `filiais` precisa trazer id E slug porque o padrão do cargo sai de `escopoEscrita`,
  * que é uma lista de IDs — a tradução para slug acontece aqui, e não na página.
  * Slug que não está na lista de filiais ATIVAS é preservado assim mesmo: é o
  * comportamento de hoje (um `?filial=<slug de filial desativada>` continua
@@ -99,7 +99,7 @@ export function selecaoDeUnidadesPorSlug(
   }
   const padrao = unidadesMarcadasPorPadrao(
     operador?.papel,
-    operador?.filiaisEscrita ?? [],
+    operador?.escopoEscrita ?? [],
     filiais.map((f) => f.id),
   )
   if (padrao.modo === 'todas') return TODAS_POR_SLUG

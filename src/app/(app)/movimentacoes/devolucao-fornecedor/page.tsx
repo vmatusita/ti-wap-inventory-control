@@ -12,7 +12,7 @@ import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 import {
   filiaisParaEscrita,
-  podeEscreverNaFilial,
+  podeEscreverNoEscopo,
 } from '@/components/layout/permissoes'
 import {
   getOperador,
@@ -80,7 +80,7 @@ export default async function DevolucaoFornecedorPage({
   // devolução a registrar (nem com substituto). Segunda linha da mesma regra que
   // `devolverAoFornecedor` aplica no servidor — aqui só para não abrir um
   // formulário de duas partes que terminaria em recusa.
-  if (!podeEscreverNaFilial(operador, ativo.filial_id)) {
+  if (!podeEscreverNoEscopo(operador, ativo.filial_id)) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         {voltar}
