@@ -376,8 +376,8 @@ async function main(): Promise<void> {
       quantidade: 3,
       data: hojeIso,
     })
-    const saldoAntes = await lerSaldoItemNaFilial(sessaoPersona, { itemId, filialId: sedeId, ate: hojeIso })
-    marcar('saldo do item do smoke garantido', !!saldoAntes && saldoAntes.total > 0, JSON.stringify(saldoAntes))
+    const saldoGarantido = await lerSaldoItemNaFilial(sessaoPersona, { itemId, filialId: sedeId, ate: hojeIso })
+    marcar('saldo do item do smoke garantido', !!saldoGarantido && saldoGarantido.total > 0, JSON.stringify(saldoGarantido))
 
     const { movimentacaoId: movSaida } = await criarSaidaComItemJunto(sessaoPersona, {
       ativoId: ativoEstoque.id as string,
@@ -400,6 +400,14 @@ async function main(): Promise<void> {
     const pendenciaCriada = pendenciasAntes.find((p) => p.ativo_id === ativoEmUso.id)
     marcar('pendência de item aberta', !!pendenciaCriada, pendenciaCriada ? `id=${pendenciaCriada.id}` : 'não achada')
     if (!pendenciaCriada) abortar('A fixture da devolução não abriu pendência de item — confira o trigger 0051.')
+
+    // A foto "antes" do saldo é tirada AQUI — depois das fixtures, logo antes do passe
+    // 2. A primeira versão a tirava antes da SAÍDA com item junto, e a execução de
+    // 14/09/2026 acusou "saldo mudou" (estoque 3 → 2) por causa da própria saída, não
+    // do import. `rel_saldo_itens` (0027) conta total/estoque/atrelados/falta só por
+    // `tipo`/`quantidade`/`chamado` dos lançamentos — nenhum dos quatro depende de
+    // `movimentacao_id`, então desvincular o lançamento não pode mudar nenhum deles.
+    const saldoAntes = await lerSaldoItemNaFilial(sessaoPersona, { itemId, filialId: sedeId, ate: hojeIso })
 
     // ---------------------------------------------------------------------
     // PASSE 2 — a bomba, no mundo real: um SEGUNDO "Substituir tudo", com

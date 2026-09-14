@@ -1,0 +1,157 @@
+# F56 · Frente G — o smoke do import no ENSAIO, execuções de 14/09/2026
+
+Comando: `npx tsx scripts/smoke/import-ensaio.ts` (Playwright + `next dev` local apontado para o ensaio
+`sgmvldiizsrjbxzzpmhh`; a guarda confere o ref E `rotulo_de_ambiente() = 'desenvolvimento'` antes de
+qualquer login). Código no ar no `next dev`: a branch `f56-continuacao` com D2, E e F (SQL + TS) commitadas;
+migrations 0139 e 0140 aplicadas no ensaio. Saída copiada do terminal SEM edição (o script mascara segredos
+e só imprime contagens, ids fictícios e ✓/✗; o e-mail da persona sai como `seed.admin@…`).
+
+Antes de rodar, os seletores marcados `SELETOR-A-CONFERIR` foram conferidos contra o código das telas e o
+catálogo do ensaio, e quatro defeitos do próprio script foram corrigidos (commit e717917): a opção "Eusébio"
+montada de um regex do slug, o arquivo enviado antes do "Avançar", a régua "site divergente" que não existe
+na tela (o card se chama "Site"), a leitura do número de "ativos criados" que devolvia sempre 0, e o status
+de pendência `'pendente'` (o banco usa `'aberta'`).
+
+## Execução 1 — parou na persona (nada criado)
+
+    [guarda] ref sgmvldiizsrjbxzzpmhh · rotulo_de_ambiente() = 'desenvolvimento' — confirmado
+    Ensaio confirmado: ref sgmvldiizsrjbxzzpmhh
+
+    Não consegui listar as contas do Auth: Database error finding users
+    exit=1
+
+Causa medida (log do Auth do ensaio, `query_logs` source `auth_logs`): `Scan error on column index 3, name
+"confirmation_token": converting NULL to string is unsupported` em `GET /admin/users`. Uma das 4 contas do
+ensaio — um `operador` criado por SQL em 09/09/2026, sem senha, sem identidade, nunca usado (compatível com
+o fixture que mantém `operador_sem_filial = 1`) — tem `confirmation_token`, `recovery_token`,
+`email_change_token_new`, `email_change` e `raw_app_meta_data` NULL. O GoTrue não lê essa linha, e
+`auth.admin.listUsers()` falha para o projeto inteiro (a tela Administração › Usuários do ensaio também).
+
+A normalização dessa conta (NULL → '' nas quatro colunas de token) foi BARRADA pelo classificador — não foi
+reformulada. O smoke passou a achar a persona por `GET /auth/v1/admin/users?filter=<e-mail>` (só lê as
+contas que casam; commit dfaa017). O SQL de normalização fica no relatório, como decisão do Johnny.
+
+## Execução 2 — 21/22 (a régua do saldo estava no lugar errado)
+
+    [guarda] ref sgmvldiizsrjbxzzpmhh · rotulo_de_ambiente() = 'desenvolvimento' — confirmado
+    Ensaio confirmado: ref sgmvldiizsrjbxzzpmhh
+
+    Persona pronta: criada agora · estava inativa antes? não
+
+      [✓] checagens (antes) lidas — 12 chaves
+    … subindo o next dev em http://localhost:54744
+      [✓] next dev no ar — http://localhost:54744
+      [✓] login da persona — seed.admin@…
+      [✓] filial "sede" garantida — criada agora
+      [✓] apelido "sede" garantido — "Sede Central (smoke)"
+      [✓] passe 1 — "Substituir tudo" na sede — 4 ativos criados (esperado 4)
+      [✓] N ativos na sede conferido no banco — 4 (esperado 4)
+      [✓] saldo do item do smoke garantido — {"total":3,"estoque":3,"atrelados":0,"falta":0}
+      [✓] lançamento de item preso à movimentação — movimentacao_id=100c60d7-9556-467d-bb5d-6c96e37b9ba1
+      [✓] pendência de item aberta — id=616af634-edfe-4052-8850-4cdaeca13cfe
+      [✓] passe 2 — segundo "Substituir tudo" (arquivo diferente) — 4 ativos criados (esperado 4)
+      [✗] saldo do item igual antes×depois — antes={"total":3,"estoque":3,"atrelados":0,"falta":0} depois={"total":3,"estoque":2,"atrelados":0,"falta":0}
+      [✓] pendência sumiu do acervo — restam 0 pendência(s) na sede
+      [✓] lançamento ficou SEM vínculo de movimentação — movimentacao_id=—
+      [✓] pendência apagada está no backup (versão 2) — id=616af634…
+      [✓] passe 3 preview · matriz — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · cd-afonso-pena — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · linhares — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · serra — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · eusebio — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] as 12 checagens iguais antes×depois — nenhuma diferença
+
+      arquivo_termo_orfao              antes=   0  depois=   0  =
+      ativo_filial_inativa             antes=   0  depois=   0  =
+      backup_orfao                     antes=   0  depois=   0  =
+      conflito_entre_filiais           antes=   0  depois=   0  =
+      conta_sem_perfil                 antes=   0  depois=   0  =
+      detentor_em_estado_sem_dono      antes=   0  depois=   0  =
+      operador_sem_filial              antes=   1  depois=   1  =
+      patrimonio_duplicado             antes=   0  depois=   0  =
+      pendencia_de_estornada           antes=   0  depois=   0  =
+      perfil_sem_conta                 antes=   0  depois=   0  =
+      reserva_aberta                   antes=   0  depois=   0  =
+      termo_sem_arquivo                antes=   0  depois=   0  =
+
+      [✓] persona desativada (finally) — ativo=false
+
+    RESUMO — 21/22 passos ✓
+    Falharam:
+      ✗ saldo do item igual antes×depois — antes={"total":3,"estoque":3,"atrelados":0,"falta":0} depois={"total":3,"estoque":2,"atrelados":0,"falta":0}
+    exit=1
+
+Leitura da falha: a foto "antes" do saldo era tirada ANTES da saída com item junto (a fixture do próprio
+passe 2). `rel_saldo_itens` (0027) calcula estoque = total − atrelados − (saídas − retornos): a saída de 1
+unidade leva o estoque de 3 para 2 — é exatamente o valor "depois". Nenhum dos quatro números depende de
+`lancamentos_item.movimentacao_id`, então o import não tinha como mudá-los; a régua comparava contra a
+foto errada. Corrigido: a foto "antes" passou para depois das fixtures, logo antes do passe 2.
+
+## Execução 3 — 22/22 (a que vale)
+
+Mesma árvore, só com a régua do saldo no lugar certo. Exercita também o caminho da persona REAPROVEITADA
+(conta já existente, estava inativa desde a execução 2 → senha nova em memória, reativada, trilha
+`usuario_reativado`) e da filial `sede` que já existia.
+
+    [guarda] ref sgmvldiizsrjbxzzpmhh · rotulo_de_ambiente() = 'desenvolvimento' — confirmado
+    Ensaio confirmado: ref sgmvldiizsrjbxzzpmhh
+
+    Persona pronta: reaproveitada · estava inativa antes? sim
+
+      [✓] checagens (antes) lidas — 12 chaves
+    … subindo o next dev em http://localhost:64419
+      [✓] next dev no ar — http://localhost:64419
+      [✓] login da persona — seed.admin@…
+      [✓] filial "sede" garantida — já existia
+      [✓] apelido "sede" garantido — "Sede Central (smoke)"
+      [✓] passe 1 — "Substituir tudo" na sede — 4 ativos criados (esperado 4)
+      [✓] N ativos na sede conferido no banco — 4 (esperado 4)
+      [✓] saldo do item do smoke garantido — {"total":6,"estoque":5,"atrelados":0,"falta":0}
+      [✓] lançamento de item preso à movimentação — movimentacao_id=bb9523a0-a5cd-4884-b662-e10de5c01de0
+      [✓] pendência de item aberta — id=352a1195-bee7-408e-9e34-714b6234badd
+      [✓] passe 2 — segundo "Substituir tudo" (arquivo diferente) — 4 ativos criados (esperado 4)
+      [✓] saldo do item igual antes×depois — antes={"total":6,"estoque":4,"atrelados":0,"falta":0} depois={"total":6,"estoque":4,"atrelados":0,"falta":0}
+      [✓] pendência sumiu do acervo — restam 0 pendência(s) na sede
+      [✓] lançamento ficou SEM vínculo de movimentação — movimentacao_id=—
+      [✓] pendência apagada está no backup (versão 2) — id=352a1195…
+      [✓] passe 3 preview · matriz — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · cd-afonso-pena — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · linhares — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · serra — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] passe 3 preview · eusebio — "0 bloqueantes" · nenhum termo histórico em "Filial fora do vocabulário"
+      [✓] as 12 checagens iguais antes×depois — nenhuma diferença
+
+      arquivo_termo_orfao              antes=   0  depois=   0  =
+      ativo_filial_inativa             antes=   0  depois=   0  =
+      backup_orfao                     antes=   0  depois=   0  =
+      conflito_entre_filiais           antes=   0  depois=   0  =
+      conta_sem_perfil                 antes=   0  depois=   0  =
+      detentor_em_estado_sem_dono      antes=   0  depois=   0  =
+      operador_sem_filial              antes=   1  depois=   1  =
+      patrimonio_duplicado             antes=   0  depois=   0  =
+      pendencia_de_estornada           antes=   0  depois=   0  =
+      perfil_sem_conta                 antes=   0  depois=   0  =
+      reserva_aberta                   antes=   0  depois=   0  =
+      termo_sem_arquivo                antes=   0  depois=   0  =
+
+      [✓] persona desativada (finally) — ativo=false
+
+    RESUMO — 22/22 passos ✓
+    exit=0
+
+## O que estas execuções provam, e o que NÃO provam
+
+Provam, no caminho REAL (login pela tela, Server Actions, bucket, RPC), num banco com a 0139 e a 0140:
+- a filial que o código não conhecia (`sede`) importa pelo nome próprio E por um apelido cadastrado na tela
+  nova de Administração › Filiais;
+- o "Substituir tudo" sobre uma filial com lançamento de item preso a movimentação e pendência de item
+  aberta NÃO estoura `23503`: a pendência sai do acervo e entra no backup versão 2, o lançamento perde só o
+  vínculo, e o saldo do item não muda;
+- os 18 termos históricos da coluna Site das cinco filiais WAP continuam resolvendo (0 bloqueantes no preview);
+- as 12 checagens de integridade ficam idênticas antes e depois (inclusive `backup_orfao = 0`);
+- a persona admin termina inativa nas duas execuções que chegaram a criá-la.
+
+NÃO provam: o caminho "substituto de outra filial" (caminho 5 da FK — zero linhas no ensaio, coberto só pelo
+roteiro SQL `import_substituir.sql`); o `lancamentos_item.pendencia_item_id` (caminho 4 — idem); nada sobre
+PRODUÇÃO (o smoke nunca aponta para lá); a UI por teste automatizado próprio (os seletores foram conferidos à
+mão contra o código em 14/09); e as outras quatro RPCs destrutivas (backlog nomeado da fase).
