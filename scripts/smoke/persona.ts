@@ -85,6 +85,37 @@ async function gravarEventoAdmin(
   if (error) throw new Error(`Falha ao gravar a trilha (${acao}): ${error.message}`)
 }
 
+/** Endereço do projeto e chave de serviço — os MESMOS que a guarda já validou. */
+export type AcessoAuthAdmin = { url: string; chaveServico: string }
+
+/**
+ * Procura a persona no Auth pelo e-mail, SEM listar todas as contas.
+ *
+ * ⚠ Por que não `db.auth.admin.listUsers()` (a primeira versão, no molde de
+ * scripts/seed.ts): ela LÊ TODAS as contas do projeto, e basta UMA conta inserida
+ * direto por SQL com colunas de token NULL para o GoTrue derrubar a listagem inteira
+ * — medido no ensaio em 14/09/2026: "Database error finding users", e no log do Auth
+ * `Scan error on column "confirmation_token": converting NULL to string is
+ * unsupported`. A conta quebrada não é a persona, e este smoke não tem por que ler
+ * (nem consertar) conta alheia. O endpoint admin do GoTrue aceita `filter` (busca
+ * por e-mail), que devolve só as contas que casam — a linha quebrada nem é lida.
+ * O e-mail exato é conferido aqui, porque o filtro é por trecho.
+ */
+async function acharPersonaPorEmail(acesso: AcessoAuthAdmin): Promise<string | undefined> {
+  const endpoint = new URL('/auth/v1/admin/users', acesso.url)
+  endpoint.searchParams.set('filter', EMAIL_PERSONA)
+  endpoint.searchParams.set('per_page', '50')
+  const resp = await fetch(endpoint, {
+    headers: { apikey: acesso.chaveServico, Authorization: `Bearer ${acesso.chaveServico}` },
+  })
+  if (!resp.ok) {
+    const corpo = await resp.text().catch(() => '')
+    throw new Error(`Não consegui procurar a persona no Auth (HTTP ${resp.status}): ${corpo.slice(0, 200)}`)
+  }
+  const json = (await resp.json()) as { users?: { id: string; email?: string }[] }
+  return (json.users ?? []).find((u) => u.email?.toLowerCase() === EMAIL_PERSONA)?.id
+}
+
 export type PersonaPreparada = {
   id: string
   email: string
@@ -102,23 +133,10 @@ export type PersonaPreparada = {
  * escrever já divergia do alvo (nunca grava um verbo que descreveria uma mudança
  * que não aconteceu). Devolve a senha NOVA — quem chama nunca a loga.
  */
-export async function prepararPersona(db: Db): Promise<PersonaPreparada> {
+export async function prepararPersona(db: Db, acesso: AcessoAuthAdmin): Promise<PersonaPreparada> {
   const senha = gerarSenhaPersona()
 
-  // Paginação como scripts/seed.ts (~:1362-1376): um ensaio com muitas contas não
-  // pode fazer o e-mail sumir de uma leitura de 1 página só.
-  let id: string | undefined
-  for (let pagina = 1; pagina <= 50; pagina++) {
-    const { data, error } = await db.auth.admin.listUsers({ page: pagina, perPage: 200 })
-    if (error) throw new Error(`Não consegui listar as contas do Auth: ${error.message}`)
-    const usuarios = data?.users ?? []
-    const achado = usuarios.find((u) => u.email?.toLowerCase() === EMAIL_PERSONA)
-    if (achado) {
-      id = achado.id
-      break
-    }
-    if (usuarios.length < 200) break
-  }
+  let id = await acharPersonaPorEmail(acesso)
 
   const eraNova = !id
   if (!id) {

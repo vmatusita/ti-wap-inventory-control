@@ -220,7 +220,9 @@ async function main(): Promise<void> {
   // abrir a sessão "de cabeça" e o login headless, que ainda podem falhar —
   // entra no try/finally logo abaixo: é o finally que desativa a persona, e ele
   // só protege o que está DENTRO do try (ver o comentário de `abortar()`).
-  const persona = await prepararPersona(admin)
+  const chaveServico = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!chaveServico) throw new Error('SUPABASE_SERVICE_ROLE_KEY ausente — necessária para preparar a persona.')
+  const persona = await prepararPersona(admin, { url, chaveServico })
   registrarSegredo(persona.senha)
   log(`Persona pronta: ${persona.eraNova ? 'criada agora' : 'reaproveitada'} · ` +
     `estava inativa antes? ${persona.eraInativa ? 'sim' : 'não'}\n`)
