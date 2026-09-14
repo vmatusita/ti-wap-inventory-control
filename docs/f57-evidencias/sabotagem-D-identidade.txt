@@ -1,0 +1,331 @@
+# F57 · Sabotagem D — a identidade do ativo (14/09/2026)
+
+## D.1 — ANTES do conserto: a guarda nasce VERMELHA contra o código de hoje
+(src/lib/ativos/identidade.ts e seus testes já existem; compras.ts, ativos.ts e devolucao-fornecedor.ts ainda consultam por conta própria)
+
+$ npx vitest run src/lib/ativos/identidade.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/ativos/identidade.test.ts (13 tests | 3 failed) 184ms
+     × nenhuma Server Action consulta a identidade por conta própria 85ms
+     × nenhuma Server Action monta a chave antiga (`chavePatrimonio`) para decidir duplicidade 57ms
+     × as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > a régua de identidade mora num lugar só (src/lib/ativos/identidade.ts) > nenhuma Server Action consulta a identidade por conta própria
+AssertionError: expected { Object (src/lib/actions/ativos.ts, src/lib/actions/compras.ts, ...) } to deeply equal {}
+
+- Expected
++ Received
+
+- {}
++ {
++   "src/lib/actions/ativos.ts": 3,
++   "src/lib/actions/compras.ts": 1,
++   "src/lib/actions/devolucao-fornecedor.ts": 1,
++ }
+
+ ❯ src/lib/ativos/identidade.test.ts:251:42
+    249| describe('a régua de identidade mora num lugar só (src/lib/ativos/iden…
+    250|   it('nenhuma Server Action consulta a identidade por conta própria', …
+    251|     expect(contagens('src/lib/actions')).toEqual({})
+       |                                          ^
+    252|   })
+    253|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > a régua de identidade mora num lugar só (src/lib/ativos/identidade.ts) > nenhuma Server Action monta a chave antiga (`chavePatrimonio`) para decidir duplicidade
+AssertionError: expected [ 'src/lib/actions/compras.ts', …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/lib/actions/compras.ts",
++   "src/lib/actions/devolucao-fornecedor.ts",
++ ]
+
+ ❯ src/lib/ativos/identidade.test.ts:258:22
+    256|       .filter((p) => /\bchavePatrimonio\s*\(/.test(limpar(readFileSync…
+    257|       .map(posix)
+    258|     expect(culpados).toEqual([])
+       |                      ^
+    259|   })
+    260|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > a régua de identidade mora num lugar só (src/lib/ativos/identidade.ts) > as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades
+AssertionError: src/lib/actions/compras.ts: chama a consulta única: expected 0 to be greater than 0
+ ❯ src/lib/ativos/identidade.test.ts:278:69
+    276|       const fonte = limpar(readFileSync(join(RAIZ, arquivo), 'utf8'), …
+    277|       const chamadas = argumentosDasChamadas(fonte, 'cadastrosComMesma…
+    278|       expect(chamadas.length, `${arquivo}: chama a consulta única`).to…
+       |                                                                     ^
+    279|       for (const args of chamadas) {
+    280|         expect(args, `${arquivo}: cadastrosComMesmaIdentidade(${args})…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 10 passed (13)
+   Start at  15:00:24
+   Duration  515ms (transform 66ms, setup 0ms, import 94ms, tests 184ms, environment 0ms)
+
+(vitest exit=1)
+
+## D.2 — DEPOIS do conserto: as três actions consultam pela régua única, e a guarda fica verde
+
+$ npx vitest run src/lib/ativos/identidade.test.ts   # D.2 verde
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  15:07:02
+   Duration  468ms (transform 68ms, setup 0ms, import 93ms, tests 153ms, environment 0ms)
+
+
+(vitest exit=0)
+
+## D.3 — reintroduzir a consulta global inline em compras.ts: a guarda de régua única fica VERMELHA
+
+arquivo: src/lib/actions/compras.ts
+troca:
+--- de
+  const erros = recusasDeRepeticaoNoLote(dados.itens)
+
+--- para
+  const erros = recusasDeRepeticaoNoLote(dados.itens)
+  const { data: sabotagem } = await supabase.from('ativos').select('patrimonio').in('patrimonio', dados.itens.map((i) => i.patrimonio))
+  void sabotagem
+
+
+$ npx vitest run src/lib/ativos/identidade.test.ts   # D.3 — reintroduzir a consulta global inline em compras.ts: a guarda de régua única fica VERMELHA
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/ativos/identidade.test.ts (13 tests | 1 failed) 190ms
+     × nenhuma Server Action consulta a identidade por conta própria 83ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  15:07:04
+   Duration  582ms (transform 74ms, setup 0ms, import 102ms, tests 190ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > a régua de identidade mora num lugar só (src/lib/ativos/identidade.ts) > nenhuma Server Action consulta a identidade por conta própria
+AssertionError: expected { 'src/lib/actions/compras.ts': 1 } to deeply equal {}
+
+- Expected
++ Received
+
+- {}
++ {
++   "src/lib/actions/compras.ts": 1,
++ }
+
+ ❯ src/lib/ativos/identidade.test.ts:251:42
+    249| describe('a régua de identidade mora num lugar só (src/lib/ativos/iden…
+    250|   it('nenhuma Server Action consulta a identidade por conta própria', …
+    251|     expect(contagens('src/lib/actions')).toEqual({})
+       |                                          ^
+    252|   })
+    253|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## D.4 — aplicar a decisão i na chamada da compra (recortar por filial): a guarda de PRESENÇA fica VERMELHA
+
+arquivo: src/lib/actions/compras.ts
+troca:
+--- de
+    { alcance: ALCANCE_DA_RECUSA_MANUAL },
+
+--- para
+    { alcance: { alcance: 'unidade', unidadeId: dados.filial_id } },
+
+
+$ npx vitest run src/lib/ativos/identidade.test.ts   # D.4 — aplicar a decisão i na chamada da compra (recortar por filial): a guarda de PRESENÇA fica VERMELHA
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/ativos/identidade.test.ts (13 tests | 1 failed) 171ms
+     × as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades 8ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  15:07:07
+   Duration  533ms (transform 85ms, setup 0ms, import 123ms, tests 171ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > a régua de identidade mora num lugar só (src/lib/ativos/identidade.ts) > as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades
+AssertionError: src/lib/actions/compras.ts: cadastrosComMesmaIdentidade(
+    supabase,
+    dados.itens.map((it) => ({ patrimonio: it.patrimonio, serviceTag: it.service_tag })),
+    { alcance: { alcance: '       ', unidadeId: dados.filial_id } },
+  ): expected '\n    supabase,\n    dados.itens.map(…' to match /alcance:\s*ALCANCE_DA_RECUSA_MANUAL\b/
+
+- Expected:
+/alcance:\s*ALCANCE_DA_RECUSA_MANUAL\b/
+
++ Received:
+"
+    supabase,
+    dados.itens.map((it) => ({ patrimonio: it.patrimonio, serviceTag: it.service_tag })),
+    { alcance: { alcance: '       ', unidadeId: dados.filial_id } },
+  "
+
+ ❯ src/lib/ativos/identidade.test.ts:280:74
+    278|       expect(chamadas.length, `${arquivo}: chama a consulta única`).to…
+    279|       for (const args of chamadas) {
+    280|         expect(args, `${arquivo}: cadastrosComMesmaIdentidade(${args})…
+       |                                                                          ^
+    281|           /alcance:\s*ALCANCE_DA_RECUSA_MANUAL\b/,
+    282|         )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## D.5 — trocar o alcance da recusa manual por uma unidade: o teste de EFEITO "outra filial também recusado" fica VERMELHO
+
+arquivo: src/lib/ativos/identidade.ts
+troca:
+--- de
+export const ALCANCE_DA_RECUSA_MANUAL: AlcanceDaIdentidade = Object.freeze({
+  alcance: 'todas-as-unidades',
+})
+--- para
+export const ALCANCE_DA_RECUSA_MANUAL: AlcanceDaIdentidade = Object.freeze({
+  alcance: 'unidade',
+  unidadeId: 2,
+})
+
+$ npx vitest run src/lib/ativos/identidade.test.ts   # D.5 — trocar o alcance da recusa manual por uma unidade: o teste de EFEITO "outra filial também recusado" fica VERMELHO
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/ativos/identidade.test.ts (13 tests | 3 failed) 181ms
+     × par que já existe em OUTRA filial: TAMBÉM recusado — o conflito só nasce do import 8ms
+     × sem patrimônio, a tag sozinha identifica — e diz em qual filial está 2ms
+     × com o alcance da recusa manual, nenhuma cláusula de filial é aplicada 2ms
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 10 passed (13)
+   Start at  15:07:10
+   Duration  581ms (transform 78ms, setup 0ms, import 109ms, tests 181ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > a compra recusa a identidade que o acervo já tem — em QUALQUER filial (spec §10.2) > par que já existe em OUTRA filial: TAMBÉM recusado — o conflito só nasce do import
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "Já existe um ativo WAP0001234 sem service tag — use uma service tag distinta.",
+- ]
++ []
+
+ ❯ src/lib/ativos/identidade.test.ts:103:86
+    101|     // O acervo tem WAP0001234 sem tag na Charlie. Uma compra do mesmo…
+    102|     // é recusada. É a regra da spec §10.2 que o índice por filial (00…
+    103|     expect(await recusasDaCompra([{ patrimonio: 'WAP0001234', service_…
+       |                                                                                      ^
+    104|       'Já existe um ativo WAP0001234 sem service tag — use uma service…
+    105|     ])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > cadastrosComMesmaIdentidade — a consulta única > sem patrimônio, a tag sozinha identifica — e diz em qual filial está
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "ativoId": "a3",
+-     "filialId": 4,
+-     "filialNome": "Delta",
+-   },
+- ]
++ []
+
+ ❯ src/lib/ativos/identidade.test.ts:130:57
+    128|       { alcance: ALCANCE_DA_RECUSA_MANUAL },
+    129|     )
+    130|     expect(res.ok && [...res.porChave.values()].flat()).toEqual([
+       |                                                         ^
+    131|       { ativoId: 'a3', filialId: 4, filialNome: 'Delta' },
+    132|     ])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |puro| src/lib/ativos/identidade.test.ts > cadastrosComMesmaIdentidade — a consulta única > com o alcance da recusa manual, nenhuma cláusula de filial é aplicada
+AssertionError: expected [ { metodo: 'eq', …(2) }, …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "coluna": "filial_id",
++     "metodo": "eq",
++     "valor": 2,
++   },
++   {
++     "coluna": "filial_id",
++     "metodo": "eq",
++     "valor": 2,
++   },
++ ]
+
+ ❯ src/lib/ativos/identidade.test.ts:168:70
+    166|     )
+    167|     expect(consultas).toHaveLength(2)
+    168|     expect(consultas.flat().filter((f) => f.coluna === 'filial_id')).t…
+       |                                                                      ^
+    169|   })
+    170|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## Depois das três sabotagens, com tudo restaurado
+
+$ npx vitest run src/lib/ativos/identidade.test.ts   # final
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  15:07:12
+   Duration  572ms (transform 81ms, setup 0ms, import 113ms, tests 158ms, environment 0ms)
+
+
+(vitest exit=0)

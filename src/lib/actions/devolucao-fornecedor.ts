@@ -8,7 +8,11 @@ import {
   devolverFornecedorSchema,
   type DevolverFornecedorInput,
 } from '@/lib/validators/devolucao-fornecedor'
-import { chavePatrimonio } from '@/lib/patrimonio'
+import {
+  ALCANCE_DA_RECUSA_MANUAL,
+  cadastrosComMesmaIdentidade,
+  recusasDeIdentidadeNoAcervo,
+} from '@/lib/ativos/identidade'
 import { buscarAtivoResumo } from '@/lib/queries/ativos'
 import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
 import type { Json } from '@/lib/types/database'
@@ -67,31 +71,20 @@ export async function devolverAoFornecedor(
   // Colisão do substituto no par (patrimônio + service tag) — §5. Erro amigável
   // ANTES da RPC; a atomicidade da RPC também garante o rollback total se algo
   // escapar (corrida).
+  // F57 — a consulta é a mesma da compra (`ativos/identidade.ts`), com o alcance de TODAS as
+  // unidades: o substituto nasce por cadastro, e cadastro nunca abre conflito entre filiais.
   const sub = dados.substituto
   if (sub) {
-    const { data: existentes, error: exErr } = await supabase
-      .from('ativos')
-      .select('patrimonio, service_tag')
-      .eq('patrimonio', sub.patrimonio)
-    if (exErr) {
-      return { ok: false, erroGeral: traduzErroBanco(exErr.message, exErr.code) }
-    }
-    const existSet = new Set(
-      (existentes ?? [])
-        .filter(
-          (e): e is { patrimonio: string; service_tag: string | null } =>
-            e.patrimonio !== null,
-        )
-        .map((e) => chavePatrimonio(e.patrimonio, e.service_tag)),
+    const noAcervo = await cadastrosComMesmaIdentidade(
+      supabase,
+      [{ patrimonio: sub.patrimonio, serviceTag: sub.service_tag }],
+      { alcance: ALCANCE_DA_RECUSA_MANUAL },
     )
-    if (existSet.has(chavePatrimonio(sub.patrimonio, sub.service_tag))) {
-      return {
-        ok: false,
-        erros: [
-          `Já existe um ativo ${sub.patrimonio} ${sub.service_tag ? `com service tag ${sub.service_tag}` : 'sem service tag'} — use uma service tag distinta.`,
-        ],
-      }
+    if (!noAcervo.ok) {
+      return { ok: false, erroGeral: traduzErroBanco(noAcervo.erro.message, noAcervo.erro.code) }
     }
+    const recusas = recusasDeIdentidadeNoAcervo([sub], noAcervo.porChave)
+    if (recusas.length > 0) return { ok: false, erros: recusas }
   }
 
   // Chamados herdados do ÚLTIMO envio_manutencao (autoridade no servidor).

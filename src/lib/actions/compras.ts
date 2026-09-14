@@ -5,7 +5,12 @@ import { createClient } from '@/lib/supabase/server'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
-import { chavePatrimonio } from '@/lib/patrimonio'
+import {
+  ALCANCE_DA_RECUSA_MANUAL,
+  cadastrosComMesmaIdentidade,
+  recusasDeIdentidadeNoAcervo,
+  recusasDeRepeticaoNoLote,
+} from '@/lib/ativos/identidade'
 import { exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import {
   sugestoesMarcas,
@@ -55,43 +60,29 @@ export async function registrarCompra(
   const aut = await exigirEscrita(supabase, dados.filial_id)
   if (!aut.ok) return { ok: false, criados: [], erroGeral: aut.erro }
 
-  const erros: string[] = []
-
   // Duplicidade DENTRO do lote.
-  const vistos = new Set<string>()
-  for (const it of dados.itens) {
-    const k = chavePatrimonio(it.patrimonio, it.service_tag)
-    if (vistos.has(k)) {
-      erros.push(
-        `Patrimônio repetido no lote: ${it.patrimonio}${it.service_tag ? ` (service tag ${it.service_tag})` : ''}.`,
-      )
-    }
-    vistos.add(k)
-  }
+  const erros = recusasDeRepeticaoNoLote(dados.itens)
 
   // Duplicidade contra o que já existe no banco (§5: precisa de service tag distinta).
-  const patrimonios = [...new Set(dados.itens.map((i) => i.patrimonio))]
-  const { data: existentes, error: exErr } = await supabase
-    .from('ativos')
-    .select('patrimonio, service_tag')
-    .in('patrimonio', patrimonios)
-  if (exErr) {
-    return { ok: false, criados: [], erroGeral: traduzErroBanco(exErr.message, exErr.code) }
-  }
-  // Um lote de compra sempre tem patrimônio canônico; ativos existentes sem
-  // patrimônio (F7E) nunca colidem com ele — filtra os nulos antes da chave.
-  const existSet = new Set(
-    (existentes ?? [])
-      .filter((e): e is { patrimonio: string; service_tag: string | null } => e.patrimonio !== null)
-      .map((e) => chavePatrimonio(e.patrimonio, e.service_tag)),
+  //
+  // F57 — as duas regras e a consulta moram em `ativos/identidade.ts`, a mesma régua da ficha e
+  // do substituto da devolução. O ALCANCE vai nomeado: TODAS as unidades. O índice do banco é
+  // por filial desde a 0091 e deixaria esta compra passar se o par existisse noutra filial — mas
+  // cadastro manual nunca abre conflito entre filiais (spec §10.2; o conflito só nasce do
+  // import), e esta consulta é a única linha que segura isso.
+  const noAcervo = await cadastrosComMesmaIdentidade(
+    supabase,
+    dados.itens.map((it) => ({ patrimonio: it.patrimonio, serviceTag: it.service_tag })),
+    { alcance: ALCANCE_DA_RECUSA_MANUAL },
   )
-  for (const it of dados.itens) {
-    if (existSet.has(chavePatrimonio(it.patrimonio, it.service_tag))) {
-      erros.push(
-        `Já existe um ativo ${it.patrimonio} ${it.service_tag ? `com service tag ${it.service_tag}` : 'sem service tag'} — use uma service tag distinta.`,
-      )
+  if (!noAcervo.ok) {
+    return {
+      ok: false,
+      criados: [],
+      erroGeral: traduzErroBanco(noAcervo.erro.message, noAcervo.erro.code),
     }
   }
+  erros.push(...recusasDeIdentidadeNoAcervo(dados.itens, noAcervo.porChave))
 
   if (erros.length > 0) {
     return { ok: false, criados: [], erros: [...new Set(erros)] }
