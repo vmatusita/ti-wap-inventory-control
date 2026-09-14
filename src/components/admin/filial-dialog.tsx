@@ -87,10 +87,11 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   }
 
   function removerApelido(apelidoId: number) {
+    if (!filial) return
     setErroApelido(null)
     startApelido(async () => {
       try {
-        const res = await removerApelidoUnidade({ apelidoId })
+        const res = await removerApelidoUnidade({ apelidoId, filialId: filial.id })
         if (!res.ok) {
           setErroApelido(res.erro ?? 'Não foi possível remover o apelido.')
           return

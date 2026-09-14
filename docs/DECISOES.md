@@ -10788,3 +10788,42 @@ F-TS escreveram quando esses passos ainda não tinham acontecido.
 erros · `npm run test` **5010/5010** (192 arquivos) · `npm run build` verde, 32 rotas — saída inteira em
 `docs/f56-evidencias/H1-verificacao-integrada.txt` · depois das correções de documento,
 `npx vitest run src/lib/versoes src/lib/ajuda src/lib/validators/migrations-lock.test.ts` 459/459.
+
+## 2026-09-14 · F56 (revisão adversarial final) · o que ela achou, e o que virou
+
+Revisão em contexto fresco contra os 35 critérios, o `PLAN-F56.md` e o diff da fase inteira (a parte 1 já na
+`main` e a parte 2 do PR #43), com leitura linha a linha das duas migrations e `lint`/`tsc` rodados por ela.
+**Nenhum achado de gravidade alta.** A camada de segurança da `0139`/`0140` (RLS, grants, definer × invoker,
+auxiliares fechadas, gatilho serializado) e a ordem dos cinco passos de FK foram confirmadas corretas. A
+varredura de dado real e credencial sobre a fase inteira não achou nada.
+
+- **MÉDIO — "Baixar corrigido" fora das travas da Frente C.** `csvCorrigidoDeArquivo` lia o arquivo e aplicava as
+  correções sem `conferirTetos` nem `linhasDesalinhadas` — as duas só rodavam dentro de `analisar()`. Os corpos
+  4 e 5 da Decisão 6 são desta ação, e uma linha desalinhada saía no CSV baixado com o valor na coluna errada.
+  **Corrigido:** a função usa agora o mesmo leitor, chama `conferirTetos` e RECUSA linha desalinhada com
+  `ErroArquivoImport` ("se corrige no próprio arquivo"). **Escolha:** recusar, não excluir a linha em silêncio —
+  a Decisão 8 diz que estrutura não se corrige por célula, e o artefato baixado é o que o operador reimporta.
+  Três testes novos em `plano.test.ts` (teto de linhas, linha desalinhada, arquivo legítimo continua saindo).
+  Os critérios 10, 11 e 13, que a revisão marcou PARCIAL por isto, voltam a CONFORME.
+- **BAIXO — `removerApelidoUnidade` não conferia a filial.** Um id de outra filial (lista velha, duas abas)
+  apagaria o apelido errado em silêncio. **Corrigido:** o schema exige `filialId`, a action recusa quando a
+  filial dona diverge, e o diálogo passa `filial.id`; testes do schema atualizados.
+- **BAIXO — a página de importar sem tratamento do vocabulário.** As actions já tratavam; a página caía no
+  boundary genérico. **Corrigido:** falha de leitura vira um `Aviso` de erro com o motivo (o texto de
+  `VocabularioImportInvalidoError` quando for ambiguidade) e `registrarFalha`; o histórico continua visível.
+- **BAIXO — a persona do smoke ficava ativa se o processo fosse interrompido por sinal.** O `finally` não roda
+  em Ctrl+C/kill. **Corrigido:** handler de `SIGINT`/`SIGTERM` que desativa a persona uma vez só e sai com 130;
+  o `finally` zera o handler antes de desativar.
+- **Efeito colateral, não exceção nova:** a guarda `if (!filial) return` desceu uma linha os três literais já
+  permitidos de `filial-dialog.tsx` na allowlist NOMINAL da `sem-wapismo` (170/196/199 → 171/197/200, mesmo
+  texto). A trava acusou na hora; ajustei os três números, com comentário.
+- **Não corrigidos, com o motivo (vão para o backlog do relatório):** (a) o saldo do item fictício do smoke
+  cresce a cada execução — dado fictício do ensaio, sem efeito nas checagens; (b) o smoke não tem trava contra
+  duas execuções simultâneas — é ritual manual de uma pessoa; (c) a janela de pré-imagem do backup da FK: entre
+  a leitura do backup e a revalidação dentro da RPC, uma pendência trocada por outra mantém a contagem e o
+  backup guarda uma linha que não é a apagada — a mesma limitação aceita desde a F21 para as contagens
+  antigas; a revalidação dentro da RPC continua sob advisory lock.
+
+**Verificação depois dos consertos:** `npm run lint` limpo · `npx tsc --noEmit` 0 erros · `npm run test`
+**5014/5014** (192 arquivos; os 4 testes a mais são os três de `csvCorrigidoDeArquivo` e o do `filialId`
+obrigatório) · `npm run build` verde, 32 rotas — saída em `docs/f56-evidencias/H5-verificacao-pos-revisao.txt`.

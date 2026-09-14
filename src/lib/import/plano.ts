@@ -32,7 +32,6 @@ import { resolverPatrimonio } from './resolver-patrimonio'
 import {
   agruparErros,
   aplicarCorrecoes,
-  csvCorrigido,
   csvCorrigidoParaTexto,
 } from './correcoes'
 import {
@@ -69,6 +68,7 @@ import { lerXlsx, pareceXlsx } from './xlsx'
 import {
   abreviar60,
   conferirTetos,
+  ErroArquivoImport,
   LIMITES_CAMPO_PLANO,
   msgValorLongoDemais,
 } from './limites'
@@ -777,12 +777,26 @@ export async function csvCorrigidoDeArquivo(
   vocabulario: VocabularioImport,
   filialNome?: string,
 ): Promise<string> {
-  if (pareceXlsx(conteudo)) {
-    const csv = await lerXlsx(conteudo)
-    const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), vocabulario, filialNome)
-    return csvCorrigidoParaTexto(corrigido)
+  // F56 · revisão adversarial final (achado médio) — o "Baixar corrigido" passa pelas
+  // MESMAS duas travas estruturais de `analisar()`, com o mesmo leitor. Antes daqui ele
+  // lia o arquivo e aplicava as correções sem teto nenhum de linhas/colunas/conteúdo (os
+  // corpos 4 e 5 da Decisão 6 são desta ação) e reserializava linha DESALINHADA como se
+  // estivesse certa — com o valor na coluna errada, no arquivo que o operador reimporta.
+  const csv = pareceXlsx(conteudo) ? await lerXlsx(conteudo) : parseCsv(decodificarCsv(conteudo).texto)
+  conferirTetos(csv)
+  const desalinhadas = linhasDesalinhadas(csv)
+  if (desalinhadas.length > 0) {
+    const primeira = desalinhadas[0]!
+    const quantas =
+      desalinhadas.length === 1 ? '1 linha desalinhada' : `${desalinhadas.length} linhas desalinhadas`
+    throw new ErroArquivoImport(
+      `O arquivo tem ${quantas} (a primeira é a linha ${primeira.linha}: ${primeira.contagemCelulas} células ` +
+        `para ${primeira.larguraUtil} colunas do cabeçalho). Linha desalinhada se corrige no próprio arquivo — ` +
+        'ajuste e analise de novo antes de baixar o corrigido.',
+    )
   }
-  return csvCorrigido(conteudo, correcoes, vocabulario, filialNome)
+  const { csv: corrigido } = aplicarCorrecoes(csv, correcoes, mapaColunas(csv.header), vocabulario, filialNome)
+  return csvCorrigidoParaTexto(corrigido)
 }
 
 // Re-export do tipo de estado para consumidores que só importam daqui.

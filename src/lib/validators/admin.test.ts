@@ -751,14 +751,22 @@ describe('apelidoFilialSchema', () => {
 })
 
 describe('removerApelidoUnidadeSchema', () => {
-  it('aceita um id positivo', () => {
-    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 7 }).success).toBe(true)
+  it('aceita um id positivo com a filial da tela', () => {
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 7, filialId: 3 }).success).toBe(true)
   })
 
   it('recusa id não-inteiro, negativo, zero ou ausente', () => {
-    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 1.5 }).success).toBe(false)
-    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: -1 }).success).toBe(false)
-    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 0 }).success).toBe(false)
-    expect(removerApelidoUnidadeSchema.safeParse({}).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 1.5, filialId: 3 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: -1, filialId: 3 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 0, filialId: 3 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ filialId: 3 }).success).toBe(false)
+  })
+
+  // F56 · revisão adversarial final — a filial esperada é obrigatória: é ela que a action
+  // compara com a filial DONA do apelido antes de apagar.
+  it('recusa sem a filial da tela, ou com filial inválida', () => {
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 7 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 7, filialId: 0 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 7, filialId: '3' }).success).toBe(false)
   })
 })

@@ -85,6 +85,7 @@ export async function incluirApelidoUnidade(input: {
 
 export async function removerApelidoUnidade(input: {
   apelidoId: number
+  filialId: number
 }): Promise<ApelidoUnidadeResult> {
   const client = await createClient()
   const aut = await exigirAdmin(client)
@@ -105,6 +106,12 @@ export async function removerApelidoUnidade(input: {
   if (eLeitura) return { ok: false, erro: traduzErroBanco(eLeitura.message, eLeitura.code) }
   if (!linha) {
     return { ok: false, erro: 'Este apelido já não existe — atualize a página.' }
+  }
+  // F56 · revisão adversarial final (achado baixo) — o id veio da tela de UMA filial. Um id
+  // de outra filial (lista velha numa aba antiga, corrida entre duas abas) apagaria o
+  // apelido errado em silêncio e devolveria para esta tela a lista de outra filial.
+  if (linha.filial_id !== parsed.data.filialId) {
+    return { ok: false, erro: 'Este apelido não pertence a esta filial — atualize a página.' }
   }
 
   const { error } = await client.from('unidades_apelidos').delete().eq('id', parsed.data.apelidoId)

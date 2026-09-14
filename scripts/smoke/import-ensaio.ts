@@ -145,6 +145,24 @@ function abortar(motivo: string): never {
   throw new Error(`✋ ${motivo}`)
 }
 
+// F56 revisão adversarial FINAL (achado baixo): o `finally` de `main()` também NÃO roda
+// quando o processo é INTERROMPIDO por sinal — Ctrl+C no terminal, `kill`, o fim da
+// janela. É a mesma classe do `process.exit()` acima, pela outra porta: a persona admin
+// ficaria ATIVA no ensaio. Enquanto ela existir, `desativarAoInterromper` guarda a
+// desativação; o handler a roda UMA vez e só então sai (130 = interrompido). O `finally`
+// zera a variável antes de desativar, para os dois caminhos nunca desativarem em dobro.
+let desativarAoInterromper: (() => Promise<unknown>) | null = null
+for (const sinal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(sinal, () => {
+    const desativar = desativarAoInterromper
+    desativarAoInterromper = null
+    console.error(`\n✋ ${sinal} recebido — ${desativar ? 'desativando a persona antes de sair…' : 'saindo.'}`)
+    void (desativar ? desativar() : Promise.resolve())
+      .catch((e: unknown) => console.error(`⚠ não consegui desativar a persona: ${textoDe(e)}`))
+      .finally(() => process.exit(130))
+  })
+}
+
 // ---------------------------------------------------------------------------
 // O SERVIDOR — molde EXATO de scripts/design/capturar.mjs (subirServidor/
 // esperarServidor/pararServidor), com uma diferença: o ambiente já está validado
@@ -224,6 +242,7 @@ async function main(): Promise<void> {
   if (!chaveServico) throw new Error('SUPABASE_SERVICE_ROLE_KEY ausente — necessária para preparar a persona.')
   const persona = await prepararPersona(admin, { url, chaveServico })
   registrarSegredo(persona.senha)
+  desativarAoInterromper = () => desativarPersona(admin, persona.id)
   log(`Persona pronta: ${persona.eraNova ? 'criada agora' : 'reaproveitada'} · ` +
     `estava inativa antes? ${persona.eraInativa ? 'sim' : 'não'}\n`)
 
@@ -535,7 +554,9 @@ async function main(): Promise<void> {
 
     // Limpeza dos arquivos locais gerados (nunca commitados — scratchpad/ é ignorado).
   } finally {
-    // A PERSONA É DESATIVADA SEMPRE, deu certo ou não.
+    // A PERSONA É DESATIVADA SEMPRE, deu certo ou não. O handler de sinal sai de cena
+    // antes: a partir daqui quem desativa é este bloco, uma vez só.
+    desativarAoInterromper = null
     const r = await desativarPersona(admin, persona.id)
     personaDesativadaComSucesso = r.ok
     marcar('persona desativada (finally)', r.ok, r.ok ? 'ativo=false' : (r.erro ?? 'falhou'))

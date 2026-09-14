@@ -179,9 +179,11 @@ const LINHAS_PERMITIDAS: Record<string, string> = {
   // apelidos) e deslocou estas três linhas de 123/149/152 para 170/196/199 —
   // mesmo texto, posição nova; e acrescentou o campo de apelido em
   // filial-apelidos.tsx (novo), com um placeholder do mesmo tipo.
-  'src/components/admin/filial-dialog.tsx:170': 'exemplo de slug no texto de ajuda do diálogo',
-  'src/components/admin/filial-dialog.tsx:196': 'placeholder de exemplo do campo Cidade',
-  'src/components/admin/filial-dialog.tsx:199': 'exemplo de assinatura de termo no texto de ajuda',
+  // F56 (revisão adversarial final) — a guarda `if (!filial) return` em
+  // `removerApelido` desceu as três uma linha: 170/196/199 → 171/197/200. Mesmo texto.
+  'src/components/admin/filial-dialog.tsx:171': 'exemplo de slug no texto de ajuda do diálogo',
+  'src/components/admin/filial-dialog.tsx:197': 'placeholder de exemplo do campo Cidade',
+  'src/components/admin/filial-dialog.tsx:200': 'exemplo de assinatura de termo no texto de ajuda',
   'src/components/admin/filial-apelidos.tsx:109': 'placeholder de exemplo do campo "novo apelido"',
   'src/components/admin/criar-senha-dialog.tsx:204': 'placeholder de exemplo do campo Rótulo',
 }

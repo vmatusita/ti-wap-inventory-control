@@ -328,6 +328,9 @@ export const apelidoFilialSchema = z.object({
 
 export const removerApelidoUnidadeSchema = z.object({
   apelidoId: z.number().int().positive(),
+  // F56 · revisão adversarial final — a filial da TELA, que a action compara com a
+  // filial dona do apelido antes de apagar.
+  filialId: z.number().int().positive(),
 })
 
 // ---- Motivos ----

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validarCsvImport } from './plano'
+import { csvCorrigidoDeArquivo, validarCsvImport } from './plano'
 import { ErroArquivoImport, LIMITES_CAMPO_PLANO, MAX_COLUNAS_PLANILHA, MAX_LINHAS_PLANILHA } from './limites'
 import type { FilialSelecionada } from './tipos'
 import type { VocabularioImport } from './vocabulario'
@@ -875,6 +875,44 @@ describe('F56 · Frente C — linha_desalinhada', () => {
     expect(r.bloqueantes.filter((e) => e.tipo === 'linha_desalinhada')).toEqual([])
     expect(r.plano).not.toBeNull()
     expect(r.plano!.ativos).toHaveLength(2) // as 2 linhas com Site/Patrimônio; a em branco é pulada
+  })
+})
+
+// ===========================================================================
+// F56 · revisão adversarial final (achado médio) — o "Baixar corrigido" passa pelas
+// MESMAS travas estruturais de `analisar()`. Antes, `csvCorrigidoDeArquivo` lia e
+// reserializava o arquivo sem teto nenhum e sem recusar linha desalinhada.
+
+describe('F56 · revisão final — csvCorrigidoDeArquivo passa pelas travas da Frente C', () => {
+  it('recusa arquivo acima do teto de linhas, com a mesma mensagem do leitor', async () => {
+    const linhas = Array.from({ length: MAX_LINHAS_PLANILHA + 1 }, (_, i) =>
+      rowMatriz({ 'Patrimônio': `WAP${String(i + 1).padStart(7, '0')}` }),
+    )
+    const conteudo = buf(montar(H_MATRIZ, linhas))
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(ErroArquivoImport)
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(
+      `${(MAX_LINHAS_PLANILHA + 1).toLocaleString('pt-BR')} linhas`,
+    )
+  })
+
+  it('recusa linha desalinhada em vez de devolvê-la com o valor na coluna errada', async () => {
+    const linhaComSobra = linhaDe(H_MATRIZ.split(';'), rowMatriz()) + ';VALOR SOBRANDO'
+    const conteudo = buf([H_MATRIZ, linhaComSobra].join('\n'))
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(ErroArquivoImport)
+    await expect(csvCorrigidoDeArquivo(conteudo, [], VOCAB, MATRIZ.nome)).rejects.toThrow(
+      /linha desalinhada.*linha 2/,
+    )
+  })
+
+  it('arquivo legítimo (colunas vazias à direita, linha em branco, `\\n` final) continua saindo', async () => {
+    const colunas = H_MATRIZ.split(';')
+    const linhaComColunasVaziasADireita = linhaDe(colunas, rowMatriz({ 'Patrimônio': 'WAP0002222' })) + ';;;'
+    const linhaEmBranco = Array.from({ length: colunas.length }, () => '').join(';')
+    const texto =
+      [H_MATRIZ, linhaDe(colunas, rowMatriz()), linhaComColunasVaziasADireita, linhaEmBranco].join('\n') + '\n'
+    const saida = await csvCorrigidoDeArquivo(buf(texto), [], VOCAB, MATRIZ.nome)
+    expect(saida).toContain('WAP0001234')
+    expect(saida).toContain('WAP0002222')
   })
 })
 
