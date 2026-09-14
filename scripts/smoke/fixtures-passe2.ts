@@ -265,7 +265,12 @@ export async function lerSaldoItemNaFilial(
 
 /** Pendências de item ABERTAS na filial (leitura direta — o piso de leitura vale
  *  para qualquer logado ativo, inclusive a persona). Só ids/contagem — nunca dado
- *  de negócio real (esta filial só tem dado fictício do próprio smoke). */
+ *  de negócio real (esta filial só tem dado fictício do próprio smoke).
+ *
+ *  O status de pendência aberta é `'aberta'` (`pendencias_item_status_check`:
+ *  `'aberta'`/`'resolvida'`, conferido no ensaio em 14/09/2026). A primeira versão
+ *  filtrava `'pendente'`, que não existe: a fixture nunca "achava" a pendência que
+ *  acabou de abrir, e a conferência "a pendência sumiu" ficaria verde por vácuo. */
 export async function lerPendenciasAbertasDaFilial(
   sessao: Sessao,
   filialId: number,
@@ -274,7 +279,7 @@ export async function lerPendenciasAbertasDaFilial(
     .from('pendencias_item')
     .select('id, ativo_id, movimentacao_id, item')
     .eq('filial_id', filialId)
-    .eq('status', 'pendente')
+    .eq('status', 'aberta')
   if (error) throw new Error(`Falha ao ler pendências de item da filial: ${error.message}`)
   return data ?? []
 }

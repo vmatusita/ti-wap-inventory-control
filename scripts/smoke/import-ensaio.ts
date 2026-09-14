@@ -58,7 +58,13 @@ import {
   lerElosDoLancamento,
   SLUG_ITEM_FALTANTE,
 } from './fixtures-passe2'
-import { gerarCsvSede, gerarCsvFilialWap, gerarNonce, conferirPatrimoniosLivres } from './planilha'
+import {
+  gerarCsvSede,
+  gerarCsvFilialWap,
+  gerarNonce,
+  conferirPatrimoniosLivres,
+  TERMOS_HISTORICOS_POR_FILIAL,
+} from './planilha'
 
 // Mesmo motivo do alias `Sessao` em checagens.ts/fixtures-passe2.ts/planilha.ts —
 // DELIBERADAMENTE `any` (ver o comentário longo em fixtures-passe2.ts).
@@ -332,7 +338,11 @@ async function main(): Promise<void> {
       arquivo: arquivoPasse1,
       nomeParaConfirmacao: sedeRow.nome as string,
     })
-    marcar('passe 1 — "Substituir tudo" na sede', true, `${criadosPasse1} ativos criados (esperado ${QUANTIDADE_PASSE1})`)
+    marcar(
+      'passe 1 — "Substituir tudo" na sede',
+      criadosPasse1 === QUANTIDADE_PASSE1,
+      `${criadosPasse1} ativos criados (esperado ${QUANTIDADE_PASSE1})`,
+    )
 
     const { count: contagemSede1 } = await sessaoPersona
       .from('ativos')
@@ -413,7 +423,11 @@ async function main(): Promise<void> {
       arquivo: arquivoPasse2,
       nomeParaConfirmacao: sedeRow.nome as string,
     })
-    marcar('passe 2 — segundo "Substituir tudo" (arquivo diferente)', true, `${criadosPasse2} ativos criados`)
+    marcar(
+      'passe 2 — segundo "Substituir tudo" (arquivo diferente)',
+      criadosPasse2 === QUANTIDADE_PASSE1,
+      `${criadosPasse2} ativos criados (esperado ${QUANTIDADE_PASSE1})`,
+    )
 
     // ---------------------------------------------------------------------
     // Conferências do passe 2 — saldo igual, pendência sumiu + está no backup,
@@ -465,22 +479,33 @@ async function main(): Promise<void> {
       await writeFile(arquivo3, csv3, 'utf8')
 
       await pagina.goto(`${base}/admin/importar`, { waitUntil: 'networkidle' })
-      // SELETOR-A-CONFERIR — o rótulo exato da opção do Select de Filial é o
-      // NOME cadastrado (ex.: "Matriz", "CD Afonso Pena", "Eusébio"); confira
-      // acentuação contra `filiais.nome` se a Frente D2 tiver mudado o Select.
+      // A opção do Select de Filial é o NOME cadastrado — com acento ("Eusébio"). Um
+      // regex montado do SLUG (`/^eusebio/i`) nunca casaria com ele (conferido em
+      // 14/09/2026 contra `filiais.nome` do ensaio). O nome vem do mapa dos termos
+      // históricos, cujo primeiro termo de cada filial é o nome próprio.
+      const nomeFilial = TERMOS_HISTORICOS_POR_FILIAL[slug][0]
       await pagina.getByLabel('Filial').click()
-      await pagina.getByRole('option', { name: new RegExp(`^${slug === 'cd-afonso-pena' ? 'CD Afonso Pena' : slug}`, 'i') }).click()
-      await pagina.getByLabel(/Arquivo \(CSV ou Excel/).setInputFiles(arquivo3)
+      await pagina.getByRole('option', { name: nomeFilial, exact: true }).click()
+      // O campo do arquivo só existe no PASSO 2 do wizard — "Avançar" vem ANTES do
+      // arquivo (a mesma ordem de `rodarWizardImport`; conferido em 14/09/2026 contra
+      // `importar-wizard.tsx`, onde o passo 1 só tem a Filial).
       await pagina.getByRole('button', { name: 'Avançar' }).click()
+      await pagina.getByLabel(/Arquivo \(CSV ou Excel/).setInputFiles(arquivo3)
       await pagina.getByRole('button', { name: /Analisar arquivo/ }).click()
       await pagina.waitForSelector('text=bloqueantes', { timeout: 20_000 })
 
-      const textoBloqueantes = await pagina.getByText(/bloqueantes$/).first().innerText()
-      const semSiteDivergente = (await pagina.getByText(/filial fora do vocabulário|site divergente/i).count()) === 0
+      const textoBloqueantes = (await pagina.getByText(/bloqueantes$/).first().innerText()).trim()
+      // O card de `site_divergente` se chama só "Site" (src/components/admin/importar/
+      // rotulos.ts, conferido em 14/09/2026) — procurar o texto "site divergente" na
+      // tela nunca acharia a regressão. A régua é o TOTAL: a planilha do passe 3 só
+      // tem linhas limpas, então qualquer bloqueante é um termo histórico que deixou
+      // de resolver para a filial — e "Filial fora do vocabulário" continua proibido.
+      const semForaDoVocabulario = (await pagina.getByText('Filial fora do vocabulário').count()) === 0
+      const zeroBloqueantes = textoBloqueantes === '0 bloqueantes'
       marcar(
         `passe 3 preview · ${slug}`,
-        semSiteDivergente,
-        `"${textoBloqueantes.trim()}" · nenhum apelido histórico caiu em "filial fora do vocabulário"`,
+        zeroBloqueantes && semForaDoVocabulario,
+        `"${textoBloqueantes}" · ${semForaDoVocabulario ? 'nenhum' : 'ALGUM'} termo histórico em "Filial fora do vocabulário"`,
       )
       // NUNCA aplica — o passe 3 é só preview (regra da fase). Não clica em
       // "Avançar"/"Substituir tudo" a partir daqui.
@@ -556,8 +581,15 @@ async function rodarWizardImport(
 
   // Passo 5 — Resultado.
   await pagina.waitForSelector('text=Import concluído', { timeout: 60_000 })
-  const textoAtivos = await pagina.getByText('ativos criados', { exact: false }).first().innerText()
-  const numero = Number((textoAtivos.match(/\d+/) ?? ['0'])[0])
+  // O número NÃO está no mesmo elemento do rótulo: `NumeroGrande` põe o valor numa
+  // `div` e "ativos criados" na `div` irmã (conferido em 14/09/2026). Ler só o
+  // rótulo devolvia sempre 0 — o texto do cartão inteiro é o do PAI.
+  const textoAtivos = await pagina
+    .getByText('ativos criados', { exact: true })
+    .first()
+    .locator('xpath=..')
+    .innerText()
+  const numero = Number((textoAtivos.replace(/\./g, '').match(/\d+/) ?? ['-1'])[0])
   return numero
 }
 
