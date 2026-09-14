@@ -1,0 +1,79 @@
+# F57 · Sabotagem G — a chaveVersao contra a unique do snapshot (14/09/2026)
+
+## G.1 — a chave TS vira `periodo|filial` (some o periodo_ate): a trava fica VERMELHA
+
+arquivo: src/lib/relatorios/versao-snapshot.ts
+--- de
+return `${periodoDe}|${periodoAte}|${filialId ?? SLUG_CONSOLIDADO}`
+--- para
+void periodoAte; return `${periodoDe}|${filialId ?? SLUG_CONSOLIDADO}` // SABOTAGEM G
+
+$ npx vitest run src/lib/relatorios/chave-versao-sql.test.ts   # G.1 sabotada
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/relatorios/chave-versao-sql.test.ts (7 tests | 2 failed) 51ms
+     × a chave tem uma parte por coluna, na mesma ordem 7ms
+     × mudar QUALQUER coluna da chave muda a chave (nenhuma é ignorada) 1ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  15:13:08
+   Duration  3.05s (transform 65ms, setup 0ms, import 2.80s, tests 51ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha a chave única, MENOS a versão > a chave tem uma parte por coluna, na mesma ordem
+AssertionError: expected [ '2026-09-06', '2' ] to deeply equal [ '2026-09-06', '2026-09-12', '2' ]
+
+- Expected
++ Received
+
+  [
+    "2026-09-06",
+-   "2026-09-12",
+    "2",
+  ]
+
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:103:67
+    101|
+    102|   it('a chave tem uma parte por coluna, na mesma ordem', () => {
+    103|     expect(chaveVersao('2026-09-06', '2026-09-12', 2).split('|')).toEq…
+       |                                                                   ^
+    104|       '2026-09-06',
+    105|       '2026-09-12',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha a chave única, MENOS a versão > mudar QUALQUER coluna da chave muda a chave (nenhuma é ignorada)
+AssertionError: expected '2026-09-06|2' not to be '2026-09-06|2' // Object.is equality
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:114:60
+    112|     expect(chaveVersao('2026-09-07', '2026-09-12', 2)).not.toBe(base)
+    113|     // o caso que uma chave `periodo|filial` erraria: mesmo começo, fi…
+    114|     expect(chaveVersao('2026-09-06', '2026-09-13', 2)).not.toBe(base)
+       |                                                            ^
+    115|     expect(chaveVersao('2026-09-06', '2026-09-12', 3)).not.toBe(base)
+    116|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+(vitest exit=1)
+
+restaurado byte a byte: true
+
+## G.2 — restaurada: verde de novo
+
+$ npx vitest run src/lib/relatorios/chave-versao-sql.test.ts   # G.2 restaurada
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  15:13:13
+   Duration  4.82s (transform 67ms, setup 0ms, import 4.55s, tests 45ms, environment 0ms)
+
+
+(vitest exit=0)

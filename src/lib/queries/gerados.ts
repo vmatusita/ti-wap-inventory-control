@@ -4,6 +4,9 @@ import type { AnySnapshot } from '@/lib/relatorios/tipos'
 import { ehUuid } from '@/lib/url-params'
 import { registrarFalha } from '@/lib/observabilidade'
 import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
+// A chave da unicidade de versão mora no módulo puro desde a F57, travada contra o SQL
+// (`relatorios/chave-versao-sql.test.ts`).
+import { chaveVersao } from '@/lib/relatorios/versao-snapshot'
 
 // Histórico e leitura dos relatórios GERADOS (snapshots — spec §7.1 / OS-F3 3.8).
 // Recebe o client resolvido (operador OU visualizador por senha) — ambos leem.
@@ -52,12 +55,6 @@ const LISTA_SELECT =
   'id, periodo_de, periodo_ate, filial_id, versao, gerado_em, observacao, ' +
   'filial:filiais!relatorios_gerados_filial_id_fkey(nome, slug), ' +
   'autor:profiles!relatorios_gerados_gerado_por_fkey(nome)'
-
-// Chave da unicidade de versão no banco (`unique (periodo_de, periodo_ate, filial_id,
-// versao)` — 0010/0013): é por ela que se sabe qual snapshot superou qual.
-function chaveVersao(periodoDe: string, periodoAte: string, filialId: number | null): string {
-  return `${periodoDe}|${periodoAte}|${filialId ?? SLUG_CONSOLIDADO}`
-}
 
 // Faixa pedida além do fim do resultado: o PostgREST responde 416 com este código em vez de
 // uma lista vazia. Mesmo tratamento das outras listas paginadas (ativos, movimentacoes,
