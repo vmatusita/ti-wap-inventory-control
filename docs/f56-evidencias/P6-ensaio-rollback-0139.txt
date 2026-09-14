@@ -1,0 +1,50 @@
+# F56 — ensaio da ORDEM DE ROLLBACK da migration 0139, só no ENSAIO, 14/09/2026
+
+O rollback escrito no cabeçalho da 0139, na ordem dele: os dois gatilhos → a função de guarda → o índice de
+expressão de `filiais` → as quatro tabelas → a função `vocabulario_chave` (a coluna gerada de
+`unidades_apelidos` depende dela, então só sai depois da tabela) → reemitir o `comment on column
+public.eventos_admin.acao` da 0137 (os 21 verbos, sem os três da F56). Sem `CASCADE` de propósito: uma
+dependência que o cabeçalho não previu faria o comando falhar, em vez de levar junto o que não devia.
+
+O SQL foi GERADO dos arquivos, não colado à mão: `node docs/f56-handoff/scripts/rollback-0139.mjs --ensaio`
+(o texto do comment vem da própria 0137; o script recusa imprimir se esse texto já citar um verbo da F56). O
+mesmo script sem `--ensaio` imprime o rollback de verdade (`begin … commit` + conferência + `notify pgrst`).
+
+Forma do ensaio: um único `execute_sql` com um bloco `do $…$` que lê a existência dos objetos da 0139 ANTES,
+executa o rollback, lê de novo DEPOIS, confere que as tabelas do acervo continuam lá, lê o md5 do comment e
+termina em `raise exception` PROPOSITAL — a exceção desfaz a transação inteira (o equivalente a
+`begin … rollback`, devolvendo as leituras de dentro da transação na própria mensagem).
+
+## Mensagem devolvida (de dentro da transação)
+
+    ENSAIO-ROLLBACK-0139 dentro da transacao:
+      antes  [filiais_vocabulario_guarda,public.filiais_nome_chave_uidx,public.import_prefixos_patrimonio,
+              public.import_termos_categoria,public.import_termos_estado,public.unidades_apelidos,
+              public.vocabulario_chave(text),public.vocabulario_unidades_guarda(),unidades_apelidos_vocabulario_guarda]
+      depois [(nenhum)]
+      acervo [public.ativos,public.eventos_admin,public.filiais,public.lancamentos_item,public.movimentacoes,public.pendencias_item]
+      comment [56e0ccdcf8d0a87dd832d8d22cc4291f]
+    (excecao proposital: tudo desfeito)
+
+| verificação | esperado | obtido | ok |
+|---|---|---|---|
+| objetos da 0139 antes | 9 (4 tabelas, 1 índice, 2 funções, 2 gatilhos) | 9 | sim |
+| objetos da 0139 depois do rollback | nenhum | nenhum | sim |
+| dependência não prevista pelo cabeçalho | nenhuma (sem CASCADE, qualquer uma derrubaria o bloco antes do raise) | nenhuma | sim |
+| tabelas do acervo depois | as 6 | as 6 | sim |
+| md5 do comment de eventos_admin.acao depois | 56e0ccdcf8d0a87dd832d8d22cc4291f (o da 0137, calculado pelo script a partir do arquivo) | 56e0ccdcf8d0a87dd832d8d22cc4291f | sim |
+
+## Depois da exceção (fora da transação)
+
+| verificação | esperado | obtido | ok |
+|---|---|---|---|
+| objetos da 0139 | os 9 | os 9 | sim |
+| apelidos | 14 (os 13 do seed + "Sede Central (smoke)", do smoke G2) | 14 | sim |
+| md5 do comment de eventos_admin.acao | e34e0162486cad23e548133f53bc96dc (o da 0139) | e34e0162486cad23e548133f53bc96dc | sim |
+| última migration do ledger | import_desarma_fk | import_desarma_fk | sim |
+
+O ensaio prova que o rollback da 0139 é executável na ordem escrita e não arrasta nada além do vocabulário.
+Ele NÃO prova a reversão completa da fase: reverter a 0139 com o código novo no ar quebra o import (o código
+lê as quatro tabelas) — a ordem da reversão é `git revert` + deploy → rollback da 0140 (`P2`) → rollback da
+0139 (este). Os apelidos cadastrados pela tela depois do apply se perdem num rollback de verdade; o script não
+os exporta.
