@@ -6,8 +6,10 @@ import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
-import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
-import { paginaNumerica } from '@/lib/url-params'
+import { selecaoDeUnidadesSemPadrao } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { paginaNumerica, selecaoFilialSlugs } from '@/lib/url-params'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
@@ -50,13 +52,30 @@ export default async function RelatoriosGeradosPage({
   }
 
   const sp = await searchParams
+  // F57 — slug de filial que não existe responde 404; o do Consolidado passa (é o valor especial
+  // deste filtro, não uma linha de `filiais`). Pelo client RESOLVIDO: esta rota também é do
+  // visualizador por senha, que com o client de sessão veria `filiais` vazia.
+  await recusarFilialInexistente(
+    acesso.client,
+    typeof sp.filial === 'string' ? sp.filial : undefined,
+    'slug',
+    { aceitaConsolidado: true },
+  )
   // F25 — multi-seleção, mas SEM padrão por cargo (decisão §4.7): o arquivo é
   // global e boa parte dele é de relatório CONSOLIDADO, que não pertence a filial
   // nenhuma; recortar por padrão esconderia justamente esses do operador. Esta é
   // também a única tela cujo filtro aceita o valor especial 'geral'.
-  const filialFiltro = resolverFiliaisSlugsSemPadrao(
-    typeof sp.filial === 'string' ? sp.filial : undefined,
+  // F57 — o que a QUERY recebe: a seleção sem padrão ∩ o recorte de quem pede (o visualizador
+  // por senha não tem cargo: `null`). O Consolidado é o terceiro valor da vista.
+  const unidades = efetivar(
+    recorteDe(acesso.modo === 'operador' ? acesso.operador : null),
+    selecaoDeUnidadesSemPadrao(typeof sp.filial === 'string' ? sp.filial : undefined),
   )
+  // Os slugs MARCADOS no seletor, na ORDEM da URL e com o do Consolidado onde ele veio — é o que
+  // o rótulo do filtro escreve. Estado de TELA: a query recebe `unidades`, onde o Consolidado virou
+  // o terceiro valor da vista (e por isso perdeu a posição na lista).
+  const selecaoNaUrl = selecaoFilialSlugs(typeof sp.filial === 'string' ? sp.filial : undefined)
+  const filialFiltro: string[] = selecaoNaUrl.modo === 'lista' ? selecaoNaUrl.valores : []
 
   // F25 — 'Ver ao vivo' leva ao mesmo destino por cargo da sidebar. No modo
   // VISUALIZADOR não há operador (nem cargo), e a função devolve o Consolidado —
@@ -72,7 +91,7 @@ export default async function RelatoriosGeradosPage({
 
   const [filiais, gerados] = await Promise.all([
     listarFiliais(acesso.client),
-    listarRelatoriosGerados(acesso.client, filialFiltro, { page }),
+    listarRelatoriosGerados(acesso.client, unidades, { page }),
   ])
 
   // Slug cru era o que aparecia na mensagem de vazio ("cd-afonso-pena"). Com a

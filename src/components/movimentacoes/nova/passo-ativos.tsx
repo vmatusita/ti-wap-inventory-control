@@ -22,7 +22,7 @@ export function PassoAtivos({
   jaAdicionados,
   comandoRef,
   papel = null,
-  filiaisEscrita = [],
+  escopoEscrita = [],
   onAdicionar,
   onAdicionarVarios,
   onRemover,
@@ -40,7 +40,7 @@ export function PassoAtivos({
   // `exigirEscritaEm` no servidor). `null`/`[]` = nível administrador
   // (dev/admin) ou sessão sem operador — nenhum item ganha o badge.
   papel?: PapelUsuario | null
-  filiaisEscrita?: readonly number[]
+  escopoEscrita?: readonly number[]
   onAdicionar: (ativo: AtivoResumo) => void
   onAdicionarVarios: (ativos: AtivoResumo[]) => void
   onRemover: (id: string) => void
@@ -52,7 +52,7 @@ export function PassoAtivos({
   // do operador. Só o cargo `operador` é recortado (`escreveNaFilial`); dev e
   // admin nunca aparecem aqui.
   const foraDoVinculo = itens.filter(
-    (a) => !escreveNaFilial(papel, filiaisEscrita, a.filial_id),
+    (a) => !escreveNaFilial(papel, escopoEscrita, a.filial_id),
   )
 
   return (
@@ -139,7 +139,7 @@ export function PassoAtivos({
                   (`escreveNaFilial` já devolve `true` pra eles). `basis-full`
                   força linha própria — a frase é longa demais pra dividir
                   espaço com o resto da linha. */}
-              {!escreveNaFilial(papel, filiaisEscrita, a.filial_id) && (
+              {!escreveNaFilial(papel, escopoEscrita, a.filial_id) && (
                 <span className="flex basis-full items-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                   <TriangleAlert className="size-3 shrink-0" aria-hidden />
                   Você não escreve em {a.filial_nome} — o registro será

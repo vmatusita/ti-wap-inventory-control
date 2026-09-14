@@ -9,7 +9,10 @@ import { listarFiliais } from '@/lib/queries/filiais'
 import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { dataISO, ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
 import { Button } from '@/components/ui/button'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
@@ -70,13 +73,27 @@ export default async function MovimentacoesPage({
   // do cargo (o filtro de filial continua com a lista inteira: é leitura).
   // F25 — o cargo e as filiais vêm ANTES da lista: o filtro de filial tem padrão
   // por cargo. `getOperador()` é memoizada por request (o layout já a chamou).
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), texto(sp.filial), 'id')
+
   const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
 
-  const filialIds = resolverFiliaisIds(
-    texto(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
+  // F57 — o que a QUERY recebe: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      texto(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
   )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // F28/MOV-05 — a sentinela só vira filtro de verdade com sessão (o visualizador
   // por senha não alcança esta rota, mas `operador` continua opcional na
@@ -89,7 +106,7 @@ export default async function MovimentacoesPage({
     de,
     ate,
     tipo,
-    filialIds,
+    unidades,
     criadoPor,
     page,
     pageSize: MOV_PAGE_SIZE,
@@ -111,7 +128,8 @@ export default async function MovimentacoesPage({
   // operador de uma filial sem movimentação lia "Nenhuma movimentação registrada
   // ainda", afirmação global, com o histórico das outras filiais cheio.
   // `< filiais.length` porque operador vinculado a TODAS lê o mesmo que um admin.
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   // A saída do vazio, na mesma escada de /ativos e /pendencias: com filtro na URL,
   // "Limpar" volta à URL de repouso (o destino do botão "Limpar" da barra); com só o
@@ -168,7 +186,7 @@ export default async function MovimentacoesPage({
 
       <ListaFiltros
         filiais={filiais}
-        filiaisSelecionadas={filialIds.map(String)}
+        filiaisSelecionadas={filiaisMarcadas.map(String)}
         mostrarFiltroAutor={!!operador}
       />
 

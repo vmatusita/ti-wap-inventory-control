@@ -8,7 +8,7 @@ import {
   ePapelValido,
   escreveNaFilial,
   exigeVinculoDeFilial,
-  filiaisDeEscrita,
+  escopoDeEscrita,
   papelAtende,
   podeEscrever,
   validarVinculosDoPapel,
@@ -23,9 +23,9 @@ import type { PapelUsuario } from './papeis'
 // aqui provamos o vocabulário e as regras de formulário.
 //
 // ⚠ O QUE A F22 QUEBRARIA EM SILÊNCIO, e por isso tem teste próprio abaixo: `eAdmin` era
-// `papel === 'admin'` e `filiaisDeEscrita` decidia pelo mesmo literal. Com a igualdade, o dev
+// `papel === 'admin'` e `escopoDeEscrita` decidia pelo mesmo literal. Com a igualdade, o dev
 // seria recusado no app enquanto o banco o aceitaria (e_admin() = papel_atual() in
-// ('admin','dev'), migration 0072) — e `filiaisDeEscrita('dev', …)` devolveria lista VAZIA,
+// ('admin','dev'), migration 0072) — e `escopoDeEscrita('dev', …)` devolveria lista VAZIA,
 // apagando todo select de filial de um cargo que escreve em todas.
 
 describe('papelAtende — hierarquia', () => {
@@ -219,55 +219,55 @@ describe('validarVinculosDoPapel — a regra do formulário de usuário', () => 
   })
 })
 
-describe('filiaisDeEscrita — o que alimenta os selects das telas de escrita', () => {
+describe('escopoDeEscrita — o que alimenta os selects das telas de escrita', () => {
   const ativas = [1, 2, 3]
 
   it('dev escreve em TODAS as ativas, ignorando vínculos', () => {
     // ⚠ O bug MUDO que a F22 evitou: com a comparação literal antiga o dev recebia `[]`
-    // aqui, `Operador.filiaisEscrita` vinha vazio e sumiam os selects de filial e os CTAs
+    // aqui, `Operador.escopoEscrita` vinha vazio e sumiam os selects de filial e os CTAs
     // de ficha — enquanto o banco lhe dava permissão em tudo.
-    expect(filiaisDeEscrita('dev', [], ativas)).toEqual([1, 2, 3])
-    expect(filiaisDeEscrita('dev', [2], ativas)).toEqual([1, 2, 3])
+    expect(escopoDeEscrita('dev', [], ativas)).toEqual([1, 2, 3])
+    expect(escopoDeEscrita('dev', [2], ativas)).toEqual([1, 2, 3])
   })
 
   it('admin escreve em TODAS as ativas, ignorando vínculos', () => {
-    expect(filiaisDeEscrita('admin', [], ativas)).toEqual([1, 2, 3])
-    expect(filiaisDeEscrita('admin', [2], ativas)).toEqual([1, 2, 3])
+    expect(escopoDeEscrita('admin', [], ativas)).toEqual([1, 2, 3])
+    expect(escopoDeEscrita('admin', [2], ativas)).toEqual([1, 2, 3])
   })
 
   it('operador escreve só na interseção vínculos × ativas', () => {
-    expect(filiaisDeEscrita('operador', [2], ativas)).toEqual([2])
-    expect(filiaisDeEscrita('operador', [1, 3], ativas)).toEqual([1, 3])
+    expect(escopoDeEscrita('operador', [2], ativas)).toEqual([2])
+    expect(escopoDeEscrita('operador', [1, 3], ativas)).toEqual([1, 3])
   })
 
   it('vínculo em filial INATIVA não vale (a filial saiu do universo)', () => {
-    expect(filiaisDeEscrita('operador', [9], ativas)).toEqual([])
-    expect(filiaisDeEscrita('operador', [2, 9], ativas)).toEqual([2])
+    expect(escopoDeEscrita('operador', [9], ativas)).toEqual([])
+    expect(escopoDeEscrita('operador', [2, 9], ativas)).toEqual([2])
   })
 
   it('operador sem vínculo não escreve em nada — falha segura', () => {
-    expect(filiaisDeEscrita('operador', [], ativas)).toEqual([])
+    expect(escopoDeEscrita('operador', [], ativas)).toEqual([])
   })
 
   it('consulta e papel nulo nunca escrevem', () => {
-    expect(filiaisDeEscrita('consulta', [1, 2], ativas)).toEqual([])
-    expect(filiaisDeEscrita(null, [1, 2], ativas)).toEqual([])
-    expect(filiaisDeEscrita(undefined, [1, 2], ativas)).toEqual([])
+    expect(escopoDeEscrita('consulta', [1, 2], ativas)).toEqual([])
+    expect(escopoDeEscrita(null, [1, 2], ativas)).toEqual([])
+    expect(escopoDeEscrita(undefined, [1, 2], ativas)).toEqual([])
   })
 
   it('nível administrador devolve CÓPIA da lista de ativas, não a mesma referência', () => {
-    // `Operador.filiaisEscrita` é compartilhado por referência entre layout, admin/layout e
+    // `Operador.escopoEscrita` é compartilhado por referência entre layout, admin/layout e
     // page do mesmo render (ver o comentário de `getOperador`): devolver o array de origem
     // deixaria um `.sort()` de qualquer um deles reescrever a lista dos outros.
     for (const papel of ['dev', 'admin'] as const) {
-      const r = filiaisDeEscrita(papel, [], ativas)
+      const r = escopoDeEscrita(papel, [], ativas)
       expect(r).toEqual(ativas)
       expect(r).not.toBe(ativas)
     }
   })
 
   it('preserva a ordem das filiais ativas (a UI mostra na ordem do cadastro)', () => {
-    expect(filiaisDeEscrita('operador', [3, 1], [1, 2, 3])).toEqual([1, 3])
+    expect(escopoDeEscrita('operador', [3, 1], [1, 2, 3])).toEqual([1, 3])
   })
 })
 
@@ -302,22 +302,22 @@ describe('vocabulário completo', () => {
 // item, nada trava): a trava real continua sendo `exigirEscritaEm` no
 // servidor, intocada por esta fase.
 describe('escreveNaFilial — aviso de vínculo de filial no wizard (F28/MOV-03)', () => {
-  const filiaisEscrita = [1, 3]
+  const escopoEscrita = [1, 3]
 
   it('dev escreve em QUALQUER filial, mesmo sem estar na lista de vínculos', () => {
     expect(escreveNaFilial('dev', [], 99)).toBe(true)
-    expect(escreveNaFilial('dev', filiaisEscrita, 2)).toBe(true)
+    expect(escreveNaFilial('dev', escopoEscrita, 2)).toBe(true)
   })
 
   it('admin escreve em QUALQUER filial, mesmo sem estar na lista de vínculos', () => {
     expect(escreveNaFilial('admin', [], 99)).toBe(true)
-    expect(escreveNaFilial('admin', filiaisEscrita, 2)).toBe(true)
+    expect(escreveNaFilial('admin', escopoEscrita, 2)).toBe(true)
   })
 
   it('operador escreve só nas filiais vinculadas', () => {
-    expect(escreveNaFilial('operador', filiaisEscrita, 1)).toBe(true)
-    expect(escreveNaFilial('operador', filiaisEscrita, 3)).toBe(true)
-    expect(escreveNaFilial('operador', filiaisEscrita, 2)).toBe(false)
+    expect(escreveNaFilial('operador', escopoEscrita, 1)).toBe(true)
+    expect(escreveNaFilial('operador', escopoEscrita, 3)).toBe(true)
+    expect(escreveNaFilial('operador', escopoEscrita, 2)).toBe(false)
   })
 
   it('operador com lista de vínculos VAZIA não escreve em filial nenhuma', () => {
@@ -326,12 +326,12 @@ describe('escreveNaFilial — aviso de vínculo de filial no wizard (F28/MOV-03)
   })
 
   it('consulta nunca escreve, mesmo com a filial na lista', () => {
-    expect(escreveNaFilial('consulta', filiaisEscrita, 1)).toBe(false)
+    expect(escreveNaFilial('consulta', escopoEscrita, 1)).toBe(false)
   })
 
   it('papel nulo ou indefinido não explode e nunca escreve', () => {
-    expect(escreveNaFilial(null, filiaisEscrita, 1)).toBe(false)
-    expect(escreveNaFilial(undefined, filiaisEscrita, 1)).toBe(false)
+    expect(escreveNaFilial(null, escopoEscrita, 1)).toBe(false)
+    expect(escreveNaFilial(undefined, escopoEscrita, 1)).toBe(false)
   })
 
   it('lista de vínculos nula ou indefinida não explode — operador não escreve em nada', () => {
@@ -340,7 +340,7 @@ describe('escreveNaFilial — aviso de vínculo de filial no wizard (F28/MOV-03)
   })
 
   it('filial ausente (nula ou indefinida) não explode e não escreve', () => {
-    expect(escreveNaFilial('operador', filiaisEscrita, null)).toBe(false)
-    expect(escreveNaFilial('operador', filiaisEscrita, undefined)).toBe(false)
+    expect(escreveNaFilial('operador', escopoEscrita, null)).toBe(false)
+    expect(escreveNaFilial('operador', escopoEscrita, undefined)).toBe(false)
   })
 })

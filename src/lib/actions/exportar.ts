@@ -41,10 +41,11 @@ import {
   type NumerosDoItem,
 } from '@/lib/itens/lista'
 import { getOperador } from '@/lib/auth/acesso'
+import { efetivar, lerUnidades, recorteDe, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { dataISO, idNumerico } from '@/lib/url-params'
 import {
-  resolverFiliaisIds,
-  resolverFiliaisSlugs,
+  selecaoDeUnidades,
+  selecaoDeUnidadesPorSlug,
   type OperadorDoFiltro,
 } from '@/lib/filtros/filial'
 import {
@@ -159,16 +160,43 @@ async function contextoFilial(): Promise<{
 //
 // F42 — o gate MORREU junto com a visão. Não há mais tela em que o filtro de filial
 // esteja invisível e mesmo assim recorte: ele é sempre renderizado e sempre vale,
-// nas duas rotas. A função ficou sendo o que sempre quis ser — o `resolverFiliaisIds`
-// das telas de item, com o padrão por cargo, igual ao de `/ativos`.
+// nas duas rotas. A função ficou sendo o que sempre quis ser — a seleção de unidades das
+// telas de item, com o padrão por cargo, igual à de `/ativos`. F57 — já EFETIVADA: devolve
+// `UnidadesEfetivas`, e é o parser COMUM do saldo e do histórico.
 function filiaisDeItens(
   p: URLSearchParams,
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
-): number[] {
-  return resolverFiliaisIds(
-    texto(p, 'filial'),
-    ctx.operador,
-    ctx.filiais.map((f) => f.id),
+): UnidadesEfetivas<'id'> {
+  return unidadesPorId(texto(p, 'filial'), ctx)
+}
+
+// F57 — as UNIDADES EFETIVAS que o export entrega às queries: a MESMA seleção da tela (URL +
+// padrão do cargo) intersectada com o recorte de leitura de quem pede. Uma função por família, e as
+// duas passam por `efetivar` — a tela e o arquivo não podem recortar diferente.
+//
+// ⚠ Recebem o VALOR do param, e não a querystring: quem lê `'filial'` continua sendo cada parser,
+// no próprio corpo — é nessa fatia que `exportar-filtros.test.ts` confere a sincronia tela × CSV.
+function unidadesPorId(
+  param: string | undefined,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): UnidadesEfetivas<'id'> {
+  return efetivar(
+    recorteDe(ctx.operador),
+    selecaoDeUnidades(
+      param,
+      ctx.operador,
+      ctx.filiais.map((f) => f.id),
+    ),
+  )
+}
+
+function unidadesPorSlug(
+  param: string | undefined,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): UnidadesEfetivas<'slug'> {
+  return efetivar(
+    recorteDe(ctx.operador),
+    selecaoDeUnidadesPorSlug(param, ctx.operador, ctx.filiais),
   )
 }
 
@@ -207,11 +235,7 @@ function filtrosAtivos(
 
   return {
     q: texto(p, 'q'),
-    filialIds: resolverFiliaisIds(
-      texto(p, 'filial'),
-      ctx.operador,
-      ctx.filiais.map((f) => f.id),
-    ),
+    unidades: unidadesPorId(texto(p, 'filial'), ctx),
     categoria: CATEGORIA_ORDEM.includes(categoriaRaw as CategoriaAtivo)
       ? (categoriaRaw as CategoriaAtivo)
       : undefined,
@@ -234,7 +258,7 @@ function filtrosPendencias(
 ): FiltrosPendencias {
   const tipoRaw = texto(p, 'tipo')
   return {
-    filialSlugs: resolverFiliaisSlugs(texto(p, 'filial'), ctx.operador, ctx.filiais),
+    unidades: unidadesPorSlug(texto(p, 'filial'), ctx),
     tipo: TIPOS_PENDENCIA.includes(tipoRaw as TipoFila) ? (tipoRaw as TipoFila) : null,
     q: texto(p, 'q') ?? null,
   }
@@ -248,10 +272,11 @@ function filtrosHistorico(
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
 ): FiltrosHistorico {
   const tipoRaw = texto(p, 'tipo')
-  const filialIds = filiaisDeItens(p, ctx)
+  const unidades = filiaisDeItens(p, ctx)
+  const vista = lerUnidades(unidades)
   const itemId = idNumerico(texto(p, 'item'))
   return {
-    filialIds,
+    unidades,
     itemId,
     tipo: TIPOS_LANCAMENTO.includes(tipoRaw as TipoLancamento)
       ? (tipoRaw as TipoLancamento)
@@ -268,7 +293,7 @@ function filtrosHistorico(
     // CSV do MESMO recorte sairia em ordem de REGISTRO, e as duas listas
     // ficariam invertidas entre si na presença de um lançamento retroativo.
     // A régua é a mesma da tela (`mostrarSaldoApos` em itens/page.tsx).
-    ordenarPorData: filialIds.length === 1 && itemId != null,
+    ordenarPorData: vista.modo === 'lista' && vista.valores.length === 1 && itemId != null,
   }
 }
 
@@ -455,7 +480,7 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
     // caminho da tela.
     if (texto(p, 'tipo') === 'conflito') {
       const todos = await listarConflitosParaExport({
-        filialSlugs: resolverFiliaisSlugs(texto(p, 'filial'), ctx.operador, ctx.filiais),
+        unidades: unidadesPorSlug(texto(p, 'filial'), ctx),
         q: texto(p, 'q') ?? null,
       })
       // ⚠ O corte é por GRUPO, não por linha. `todos.slice(0, CAP_EXPORT)` podia cair no
@@ -515,7 +540,9 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
       ? (grupoRaw as GrupoItem)
       : undefined
     const q = (texto(p, 'q') ?? '').toLowerCase()
-    const filialIds = filiaisDeItens(p, ctx)
+    const unidades = filiaisDeItens(p, ctx)
+    const vista = lerUnidades(unidades)
+    const idsDoRecorte = vista.modo === 'lista' ? vista.valores : null
 
     const [{ itens }, catalogo, tipos] = await Promise.all([
       getSaldosPorFilial(ctx.filiais),
@@ -524,9 +551,12 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
     ])
 
     // As filiais que viram COLUNA: as do recorte quando há um, todas quando não há
-    // — exatamente as que a linha expansível da tela lista.
+    // — exatamente as que a linha expansível da tela lista. F57 — "não há recorte" é o modo
+    // `todas`; uma interseção vazia não vira coluna nenhuma.
     const filiaisVisiveis =
-      filialIds.length > 0 ? ctx.filiais.filter((f) => filialIds.includes(f.id)) : ctx.filiais
+      vista.modo === 'todas'
+        ? ctx.filiais
+        : ctx.filiais.filter((f) => idsDoRecorte?.includes(f.id) ?? false)
 
     const filtrados = itens.filter(
       (s) => (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
@@ -536,9 +566,9 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
     // nomear TODAS as filiais somadas: escrever "Consolidado" (ou o nome de uma
     // delas) num CSV que soma duas é mentira por omissão.
     const rotuloFilial =
-      filialIds.length === 0
+      vista.modo === 'todas'
         ? 'Consolidado'
-        : filialIds
+        : (idsDoRecorte ?? [])
             .map((id) => ctx.filiais.find((f) => f.id === id)?.nome ?? `#${id}`)
             .join(' + ')
 
@@ -549,7 +579,7 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
         colunasSaldosItens(
           filiaisVisiveis,
           rotuloFilial,
-          (l) => saldoDoRecorte(l, filialIds),
+          (l) => saldoDoRecorte(l, unidades),
           tiposPorItemDoCatalogo(catalogo, tipos),
         ),
         linhas,

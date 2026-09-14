@@ -9,7 +9,8 @@ import { SidebarLateral } from '@/components/layout/sidebar-lateral'
 import { SidebarColapsoProvider } from '@/components/layout/sidebar-colapso'
 import { SCRIPT_SIDEBAR } from '@/components/layout/sidebar-preferencia'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
-import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
+import { selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { ViewerHeader } from '@/components/layout/viewer-header'
 import {
@@ -84,13 +85,17 @@ export default async function AppLayout({
       registrarFalha({ escopo: 'layout.filiais-shell', erro: e, operador: operador.id })
       return [] as Awaited<ReturnType<typeof listarFiliais>>
     })
-    const filiaisDoSelo =
+    // F57 — sem a lista de filiais (a leitura falhou), o selo cai no GLOBAL, como antes — agora
+    // pela seleção `todas`, com nome, e não por uma lista vazia.
+    const unidadesDoSelo = efetivar(
+      recorteDe(operador),
       filiaisDoShell.length > 0
-        ? resolverFiliaisSlugs(undefined, operador, filiaisDoShell)
-        : []
+        ? selecaoDeUnidadesPorSlug(undefined, operador, filiaisDoShell)
+        : { familia: 'slug', modo: 'todas' },
+    )
     const [pendenciasFila, conflitos] = await Promise.all([
-      contarPendenciasAbertas(filiaisDoSelo),
-      contarConflitosAbertos(filiaisDoSelo),
+      contarPendenciasAbertas(unidadesDoSelo),
+      contarConflitosAbertos(unidadesDoSelo),
     ])
     const pendencias = pendenciasFila + conflitos
     // F21 — o CARGO é resolvido UMA vez, aqui, e desce por prop para o shell
@@ -116,9 +121,9 @@ export default async function AppLayout({
     const hrefRelatorios = await rotaRelatorioPadrao(operador)
     // Só o OPERADOR vê "Escreve em: …": admin e dev escrevem em todas (a linha seria
     // ruído) e consulta não escreve em nenhuma (o rótulo do cargo já diz isso).
-    const filiaisEscritaNomes =
+    const nomesDoEscopoEscrita =
       operador.papel === 'operador'
-        ? operador.filiaisEscrita
+        ? operador.escopoEscrita
             .map((id) => filiaisDoShell.find((f) => f.id === id)?.nome)
             .filter((n): n is string => Boolean(n))
         : undefined
@@ -160,7 +165,7 @@ export default async function AppLayout({
                 nome={operador.nome}
                 papel={operador.papel}
                 email={operador.email}
-                filiaisEscrita={filiaisEscritaNomes}
+                nomesDoEscopoEscrita={nomesDoEscopoEscrita}
                 pendencias={pendencias}
                 podeEscrever={escreve}
                 eAdmin={admin}

@@ -31,6 +31,8 @@ import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-di
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { registrarFalha } from '@/lib/observabilidade'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { recorteDe } from '@/lib/auth/recorte-leitura'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2). Estático (não por filial): o nome
 // exato da filial já está no `<h1>` da própria tela.
@@ -96,6 +98,11 @@ export default async function RelatorioFilialPage({
     ate: primeiro(sp.ate),
   })
 
+  // F57 — a MESMA régua das outras sete rotas. Esta já recusava o slug inexistente (logo abaixo,
+  // e aquela recusa fica: é ela que resolve o id); o helper entra para a regra morar num lugar só
+  // e para `unidades/rotas.test.ts` poder exigi-la de toda rota que lê `filial`.
+  await recusarFilialInexistente(acesso.client, filialSlug, 'slug', { aceitaConsolidado: true })
+
   // F16/T4 — o id numérico da filial (o filtro de /ativos é por id, não pelo slug)
   // para os KPI tiles clicáveis do operador. `geral` → null (sem filtro de filial).
   let filialId: number | null = null
@@ -125,6 +132,8 @@ export default async function RelatorioFilialPage({
     listarFiliais(acesso.client),
     getSnapshotRelatorioV2(
       acesso.client,
+      // F57 — o recorte de quem pede; o visualizador por senha não tem cargo (`null`).
+      recorteDe(acesso.modo === 'operador' ? acesso.operador : null),
       filialSlug,
       { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
       ehOperador, // viewer → sem pendências no snapshot ao vivo

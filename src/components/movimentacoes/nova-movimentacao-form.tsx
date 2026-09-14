@@ -125,7 +125,7 @@ export function NovaMovimentacaoForm({
   ultimaMov,
   origemInvalida = null,
   papel = null,
-  filiaisEscrita = [],
+  escopoEscrita = [],
   tiposItem = [],
   tiposItemTodos = [],
   itensCatalogo = [],
@@ -161,7 +161,7 @@ export function NovaMovimentacaoForm({
   // do vínculo do OPERADOR. `null`/`[]` = nível administrador (dev/admin) ou
   // sessão sem operador — nenhum aviso aparece (ver `escreveNaFilial`).
   papel?: PapelUsuario | null
-  filiaisEscrita?: readonly number[]
+  escopoEscrita?: readonly number[]
   // F38 — o vocabulário de tipos (checklist de dois desfechos) e o catálogo de
   // itens (a ponte tipo→item e a seção "Itens que vão junto"). Vêm do servidor,
   // como filiais/motivos/kits: o wizard não consulta banco.
@@ -1400,7 +1400,7 @@ export function NovaMovimentacaoForm({
           jaAdicionados={jaAdicionados}
           comandoRef={comandoRef}
           papel={papel}
-          filiaisEscrita={filiaisEscrita}
+          escopoEscrita={escopoEscrita}
           onAdicionar={adicionar}
           onAdicionarVarios={adicionarVarios}
           onRemover={remover}
@@ -1421,7 +1421,7 @@ export function NovaMovimentacaoForm({
           itensCatalogo={itensCatalogo}
           filiais={filiais}
           papel={papel}
-          filiaisEscrita={filiaisEscrita}
+          escopoEscrita={escopoEscrita}
           ultimaMov={ultimaMov}
           kits={kits}
           kitAplicado={kitAplicado}

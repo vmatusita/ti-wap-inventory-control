@@ -3,6 +3,7 @@ import { Constants } from '@/lib/types/database'
 import { DOMINIOS_TEXTO, emailDeOperador } from '@/lib/auth/dominios-email'
 import { eAdmin, eDev, validarVinculosDoPapel } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
+import { SLUGS_RESERVADOS } from '@/lib/unidades/slugs'
 
 // Schemas de administração (convites, filiais, motivos) — antes definidos inline
 // em actions/admin.ts. Espelham as regras de negócio da spec §3/§6.
@@ -274,16 +275,12 @@ export function validarExclusaoDeUsuario(args: {
 // ---- Filiais ----
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
-// F25 — SLUGS RESERVADOS. Duas palavras não podem virar slug de filial porque já
-// significam outra coisa nas URLs do sistema:
-//   'todas' — a sentinela de "sem recorte" do filtro de filial (url-params.ts).
-//             Em /pendencias o filtro é POR SLUG, então uma filial 'todas'
-//             tornaria `?filial=todas` ambíguo.
-//   'geral' — o Consolidado de /relatorios/[filial] e o valor especial do filtro
-//             de /relatorios/gerados (`filial_id is null`). Já era reservado de
-//             fato desde a F3; nunca esteve escrito.
-// Nenhuma filial real usa essas palavras (conferido nos dois bancos em 04/08/2026).
-const SLUGS_RESERVADOS = ['todas', 'geral'] as const
+// F25 — SLUGS RESERVADOS: duas palavras não podem virar slug de filial porque já significam
+// outra coisa nas URLs do sistema. A lista, e o motivo de cada palavra, moram em
+// `unidades/slugs.ts` desde a F57 (fonte única — `SLUGS_RESERVADOS` importado acima).
+//
+// ⚠ HOMÔNIMO SEM RELAÇÃO: `SLUGS_RESERVADOS` de `src/lib/ajuda/registry.ts` são slugs de PÁGINA
+// DE AJUDA (`manual`), não de filial. Mesmo nome, outro espaço de nomes — não os misture.
 
 export const filialSchema = z.object({
   nome: z.string().trim().min(2, 'Informe o nome').max(80),

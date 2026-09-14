@@ -28,7 +28,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { FILIAL_TODAS } from '@/lib/url-params'
+import { FILIAL_TODAS } from '@/lib/unidades/slugs'
 import type { Filial } from '@/lib/queries/filiais'
 
 export type OpcaoFiltroFilial = { valor: string; rotulo: string }
@@ -78,7 +78,7 @@ export function FiltroFilial({
   }
 
   // ⚠ Valor SELECIONADO que não está nas opções. Acontece de verdade:
-  // `resolverFiliaisSlugs` preserva de propósito o slug de uma filial DESATIVADA
+  // `selecaoDeUnidadesPorSlug` preserva de propósito o slug de uma filial DESATIVADA
   // vindo de um link antigo, e `listarFiliais()` só devolve filial ativa. Sem esta
   // linha ele não tinha caixa nenhuma na tela (mas contava no badge) e — pior — o
   // `filter` abaixo o apagava da URL no primeiro clique em QUALQUER outra filial,

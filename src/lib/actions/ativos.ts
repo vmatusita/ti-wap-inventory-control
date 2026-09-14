@@ -12,6 +12,11 @@ import {
   validarCorrecaoPatrimonio,
 } from '@/lib/validators/ativo'
 import { PENDENCIA_SEM_PATRIMONIO, PENDENCIA_SEM_SERVICE_TAG } from '@/lib/dominio'
+import {
+  ALCANCE_DA_RECUSA_MANUAL,
+  cadastrosComMesmaIdentidade,
+  chaveDeIdentidadeSemUnidade,
+} from '@/lib/ativos/identidade'
 
 // Remove UM trecho de uma pendência `;`-joinable (comparação case-insensitive),
 // preservando os demais (ex.: 'sem patrimônio físico; termo pendente' → 'termo
@@ -48,35 +53,31 @@ function limparPendenciaSemPatrimonio(pendencia: string | null): string | null {
 // resultado dela é um conflito visível na mesa — não corrupção —, e é o mesmo modelo de
 // outras validações da casa. Aceito e registrado em docs/DECISOES.md.
 //
-// A régua espelha `chave_identidade_ativo` (migration 0092): com patrimônio, o par exato;
+// A régua espelha `chave_identidade_ativo` (migration 0099): com patrimônio, o par exato;
 // sem patrimônio, a service tag sozinha. Comparação EXATA, como os índices.
+//
+// F57 — a CONSULTA mudou de casa: mora em `ativos/identidade.ts`, a mesma que a compra e o
+// substituto da devolução usam, com o alcance de TODAS as unidades nomeado na chamada. O que
+// fica aqui são as duas leituras próprias desta função, que não mudam: a service tag sem espaço
+// nas pontas, e o patrimônio vazio tratado como "sem patrimônio".
 async function filialComMesmaIdentidade(
   supabase: Awaited<ReturnType<typeof createClient>>,
   patrimonio: string | null,
   serviceTag: string | null,
   exetoAtivoId: string,
 ): Promise<string | null> {
-  const tag = (serviceTag ?? '').trim()
+  const par = { patrimonio: patrimonio ? patrimonio : null, serviceTag: (serviceTag ?? '').trim() }
 
-  let query = supabase
-    .from('ativos')
-    .select('id, patrimonio, service_tag, filiais(nome)')
-    .neq('id', exetoAtivoId)
+  const res = await cadastrosComMesmaIdentidade(supabase, [par], {
+    alcance: ALCANCE_DA_RECUSA_MANUAL,
+    excetoAtivoId: exetoAtivoId,
+  })
+  if (!res.ok) throw new Error(res.erro.message)
 
-  if (patrimonio) query = query.eq('patrimonio', patrimonio)
-  else if (tag !== '') query = query.is('patrimonio', null).eq('service_tag', tag)
-  else return null // sem patrimônio E sem tag = sem identidade: nada a conferir
-
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-
-  for (const a of data ?? []) {
-    // Espelha `coalesce(service_tag,'')` do índice: null e '' são a mesma coisa.
-    if ((a.service_tag ?? '') !== tag) continue
-    const nome = (a.filiais as { nome: string } | null)?.nome
-    return nome ?? 'outra filial'
-  }
-  return null
+  // Sem patrimônio E sem tag = sem identidade: nada a conferir (a consulta nem roda).
+  const chave = chaveDeIdentidadeSemUnidade(par.patrimonio, par.serviceTag)
+  const primeiro = chave === null ? undefined : res.porChave.get(chave)?.[0]
+  return primeiro ? (primeiro.filialNome ?? 'outra filial') : null
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import { getOperador } from '@/lib/auth/acesso'
 import { eAdmin, podeEscrever } from '@/lib/auth/papeis'
 import {
   filiaisParaEscrita,
-  podeEscreverNaFilial,
+  podeEscreverNoEscopo,
 } from '@/components/layout/permissoes'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarTiposItem } from '@/lib/queries/tipos-item'
@@ -47,7 +47,10 @@ import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { minimosDoCatalogo } from '@/lib/itens/repor'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 // A paginação é a MESMA de `/ativos`, com o mesmo salto de página e o mesmo
 // seletor de tamanho — e agora ela pagina os ITENS, não o histórico. `pp` e
 // `TAMANHOS_PAGINA` saem da fonte única de `@/lib/ativos/lista` (doutrina F12/W6A:
@@ -118,17 +121,31 @@ export default async function ItensPage({
   const page = paginaNumerica(primeiro(sp.page))
   const pageSize = parseTamanhoPagina(sp.pp) ?? TAMANHO_PAGINA_PADRAO
 
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), primeiro(sp.filial), 'id')
+
   // F25 — as filiais vêm antes do resto: o filtro tem padrão por cargo.
   const filiais = await listarFiliais()
   // F42 — o `?filial` vale SEMPRE. Antes ele era neutralizado no parse quando a
   // visão era "por filial" (a padrão), o que fazia um `/itens?filial=3` de favorito
   // deixar de recortar sem nada na tela dizendo isso. Sem visões, não há mais o que
   // neutralizar: o filtro está sempre visível e sempre vale.
-  const filialIds = resolverFiliaisIds(
-    primeiro(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
+  // F57 — o recorte dos NÚMEROS: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      primeiro(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
   )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   const [itensAtivos, tipos, saldosPorFilial, ultimo] = await Promise.all([
     listarItensAtivos(),
@@ -139,12 +156,15 @@ export default async function ItensPage({
 
   // As filiais que a linha expansível compara: as marcadas, quando há recorte;
   // todas, quando não há. `foraDasFiliais` denuncia o que sobra fora dessa lista.
+  const idsDoRecorte = vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : null
   const filiaisVisiveis =
-    filialIds.length > 0 ? filiais.filter((f) => filialIds.includes(f.id)) : filiais
+    vistaDasUnidades.modo === 'todas'
+      ? filiais
+      : filiais.filter((f) => idsDoRecorte?.includes(f.id) ?? false)
 
   const linhas = montarLinhasDeItem({
     linhas: saldosPorFilial.itens,
-    filialIds,
+    unidades,
     filiaisVisiveis: filiaisVisiveis.map((f) => f.id),
     tiposPorItem: tiposPorItemDoCatalogo(itensAtivos, tipos),
   })
@@ -159,17 +179,17 @@ export default async function ItensPage({
   // F21 — três decisões de cargo nesta tela:
   //  · `escreve` (≥ operador): lançar, transferir e conferir. Consulta só lê.
   //  · `admin`: o destino do estado vazio (o catálogo é cadastrado em /admin/itens).
-  //  · `filiaisEscrita`: a filial do LANÇAMENTO. Os filtros e a comparação por
+  //  · `opcoesDeEscrita`: a filial do LANÇAMENTO. Os filtros e a comparação por
   //    filial continuam com a lista inteira — leitura é ampla.
   const escreve = podeEscrever(operador.papel)
   const admin = eAdmin(operador.papel)
-  const filiaisEscrita = filiaisParaEscrita(operador, filiais)
+  const opcoesDeEscrita = filiaisParaEscrita(operador, filiais)
   // O `?filial=N` da tela é um filtro de LEITURA: só vale como pré-seleção do
   // lançamento se for uma filial em que este cargo escreve — senão o diálogo
   // abriria com um valor fora das opções. Com 2+ marcadas não há "a filial da
   // tela", e escolher uma seria adivinhar.
-  const filialUnica = filialIds.length === 1 ? filialIds[0] : null
-  const filialPreset = podeEscreverNaFilial(operador, filialUnica) ? filialUnica : null
+  const filialUnica = filiaisMarcadas.length === 1 ? filiaisMarcadas[0] : null
+  const filialPreset = podeEscreverNoEscopo(operador, filialUnica) ? filialUnica : null
 
   // Cruzamento catálogo × saldo do aviso "repor". `listarItensAtivos` só traz item
   // ATIVO e a RPC traz ativo OU com lançamento: item desativado que ainda tem saldo
@@ -184,11 +204,11 @@ export default async function ItensPage({
   // para as DUAS superfícies que passam a dizê-la: a linha acima dos cartões e a
   // `<caption>` da tabela.
   //
-  // ⚠ Ele sai de `filialIds`, e não de `filiaisVisiveis`: sem recorte a tela mostra
+  // ⚠ Ele sai das `unidades`, e não de `filiaisVisiveis`: sem recorte a tela mostra
   // o CONSOLIDADO da RPC (que enxerga filial desativada com saldo), e marcar as
   // cinco filiais à mão mostra a SOMA das cinco colunas — dois números que podem
   // divergir, e a legenda tem de dizer qual dos dois está na tela.
-  const escopo = escopoDosNumeros(filiais, filialIds)
+  const escopo = escopoDosNumeros(filiais, unidades)
   const cabecalhos = cabecalhosComEscopo(NUMEROS_ITEM, escopo)
 
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL. Usar a lista
@@ -200,7 +220,8 @@ export default async function ItensPage({
   // ⚠ ...e o RECORTE DO CARGO não aparece na URL mas recorta a leitura: sem isto o
   // operador de Serra lia "Nenhum saldo ainda" — afirmação global — com as outras
   // filiais cheias de item.
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   // A saída do estado vazio tem de MUDAR alguma coisa: com filtro na URL, "Limpar"
   // volta à URL de repouso; com só o recorte do cargo não há filtro a limpar e o
@@ -262,7 +283,7 @@ export default async function ItensPage({
             {/* F31 · ITN-04 — a conferência é de quem grava ajustes; com nenhuma
                 filial de escrita não há o que conferir. Quando o filtro tem UMA
                 filial só, ela vai no link. */}
-            {escreve && filiaisEscrita.length > 0 && (
+            {escreve && opcoesDeEscrita.length > 0 && (
               <Button asChild variant="outline" className="gap-2">
                 <Link
                   href={
@@ -280,8 +301,8 @@ export default async function ItensPage({
                 botão só existe para quem tem ao menos DUAS filiais de escrita.
                 (A validação dura é do servidor: `exigirEscrita` nas duas + a policy
                 `operador lanca`, que a RPC atravessa linha a linha.) */}
-            {escreve && filiaisEscrita.length >= 2 && (
-              <TransferirItemDialog itens={itensAtivos} filiais={filiaisEscrita} />
+            {escreve && opcoesDeEscrita.length >= 2 && (
+              <TransferirItemDialog itens={itensAtivos} filiais={opcoesDeEscrita} />
             )}
             {/* `?lancar=1` chega da paleta de comandos (Ctrl+K → "Lançar item").
                 F41 — `podeCriarItem` é `escreve`, e não `admin`: quem lança no
@@ -290,7 +311,7 @@ export default async function ItensPage({
             {escreve && (
               <LancarItemDialog
                 itens={itensAtivos}
-                filiais={filiaisEscrita}
+                filiais={opcoesDeEscrita}
                 ultimo={ultimo}
                 abrirAoMontar={primeiro(sp.lancar) === '1'}
                 podeCriarItem={escreve}
@@ -300,7 +321,7 @@ export default async function ItensPage({
         }
       />
 
-      <ItensFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
+      <ItensFiltros filiais={filiais} filiaisSelecionadas={filiaisMarcadas.map(String)} />
 
       {pagina.rows.length === 0 ? (
         itensAtivos.length === 0 && linhas.length === 0 ? (
@@ -355,7 +376,7 @@ export default async function ItensPage({
             escreve={escreve}
             filialPreset={filialPreset}
             filiaisTransferencia={
-              filiaisEscrita.length >= 2 ? filiaisEscrita.map((f) => f.id) : []
+              opcoesDeEscrita.length >= 2 ? opcoesDeEscrita.map((f) => f.id) : []
             }
             cabecalhos={cabecalhos}
             escopo={escopo}

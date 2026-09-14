@@ -1,4 +1,5 @@
 import { formatDate, ouTraco } from '@/lib/format'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 
 // F29/REL-04 — o que o operador precisa saber ANTES de congelar um snapshot, e o
 // que o sistema faz quando dois operadores clicam ao mesmo tempo. Funções PURAS
@@ -43,4 +44,22 @@ export function ehViolacaoDeVersao(
     m.includes('relatorios_gerados_periodo_filial_versao_uidx') ||
     (m.includes('duplicate key') && m.includes('relatorios_gerados'))
   )
+}
+
+// A CHAVE DA UNICIDADE DE VERSÃO — espelho, em TypeScript, da `unique (periodo_de, periodo_ate,
+// filial_id, versao)` da 0010 e do índice `relatorios_gerados_periodo_filial_versao_uidx` da 0013,
+// MENOS a versão: é por ela que a lista de `/relatorios/gerados` sabe qual snapshot superou qual (a
+// badge "superada", F29/REL-05b). O consolidado (`filial_id is null`) vira o slug do Consolidado
+// — o mesmo papel do `coalesce(filial_id, -1)` do índice: dar ao NULL uma chave concreta.
+//
+// Até a F57 ela vivia privada em `queries/gerados.ts`, sem trava nenhuma. Agora mora aqui, ao lado
+// de `ehViolacaoDeVersao`, e `chave-versao-sql.test.ts` a confere contra o SQL LIDO DO DISCO.
+//
+// ⚠ O LAÇO QUE A F65 HERDA: quando a unique do snapshot ganhar `empresa_id` (e o índice for
+// recriado), duas coisas quebram JUNTAS e têm de mudar no mesmo commit — esta chave (senão o
+// consolidado da empresa A e o da B produzem a mesma chave e uma versão "supera" a outra) e o
+// casamento pelo NOME do índice em `ehViolacaoDeVersao`, logo acima (senão a renumeração da F29
+// perde a segunda pista). A F57 só registra; o conserto é da F65.
+export function chaveVersao(periodoDe: string, periodoAte: string, filialId: number | null): string {
+  return `${periodoDe}|${periodoAte}|${filialId ?? SLUG_CONSOLIDADO}`
 }

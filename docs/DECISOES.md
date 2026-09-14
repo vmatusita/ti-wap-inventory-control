@@ -10853,3 +10853,195 @@ arquivo de teste, mantendo a asserção inteira — nunca rodar o CI de novo at�
   `docs/README.md`, `H6` e esta ata) — os dois checks rodam também sobre o fechamento, e ninguém precisa da
   exceção de administrador. **A tag `v1.61.0`, anotada, vai no merge desse PR** — o commit final da fase, como a
   regra 8 do `CLAUDE.md` pede — e é publicada com `git push origin v1.61.0`.
+
+## 2026-09-14 · F57 · ⚠ A decisão i do Johnny NÃO foi aplicada — a compra continua recusando par de outra filial
+
+- **Contexto.** A ordem (`docs/prompts/F57-quatro-significados-de-filial-ultracode.md`) traz a decisão i: "`compras.ts`
+  é consertado de verdade — recorta por filial, alinhando com a `0091`/`0092`". A premissa escrita nos fatos 15 e 16 é
+  que a régua **certa** mora em `actions/ativos.ts` e consulta por filial, e que a consulta global de `compras.ts` é o
+  defeito. A ficha F57 do `PLANO-MULTIEMPRESA.md` diz o mesmo.
+- **Medição (régua 1 da ordem).** `filialComMesmaIdentidade` (`actions/ativos.ts`, na `main` 711facd) é **global** —
+  `.eq('patrimonio', …)` sem cláusula de filial, sob o comentário "A CHECAGEM GLOBAL DE IDENTIDADE, que virou a ÚNICA
+  linha de defesa". `devolucao-fornecedor.ts` (o substituto) também é global. `criar_compra_lote` não confere
+  identidade: depende só do índice, que é por filial desde a `0091`. Ou seja, **a pré-checagem global de `compras.ts` é
+  a única coisa que hoje impede uma compra de abrir conflito entre filiais**, e ela é a regra escrita em três lugares:
+  `ESPECIFICACAO.md` §10.2 ("o conflito só nasce do import: cadastro manual, corrigir patrimônio e definir service tag
+  continuam recusando par que exista em qualquer filial"), a ata F24 de 30/07/2026 e a regra permanente 2 do `CLAUDE.md`.
+- **Escolha.** A Frente E **unificou** as três consultas numa régua só (`src/lib/ativos/identidade.ts`,
+  `cadastrosComMesmaIdentidade`) e **preservou** a recusa em qualquer filial. A compra com patrimônio repetido em OUTRA
+  filial continua recusada, com a mesma mensagem. O alcance virou a constante `ALCANCE_DA_RECUSA_MANUAL`
+  (`{ alcance: 'todas-as-unidades' }`), com teste de PRESENÇA (as três actions a passam) e de EFEITO (outra filial
+  também recusa). O critério 13 da ordem fica, portanto, **não cumprido por decisão**, e é a primeira pergunta do
+  roteiro do Johnny no relatório.
+- **Motivo.** A hierarquia do `CLAUDE.md` (a spec manda) e a régua 1 da ordem (a medição ganha da frase, desde que esteja
+  no relatório). E a assimetria de reversão: se o Johnny quiser revogar o §10.2 para a compra, a troca é uma linha — o
+  alcance, que agora mora num lugar só — mais a emenda da spec; se a fase tivesse aplicado a decisão i e ele não a
+  quisesse, desfazer exigiria apagar conflitos entre filiais já criados em produção por compras reais. A sabotagem D.4
+  (`docs/f57-evidencias/sabotagem-D-identidade.txt`) mostra que aplicar a decisão i na chamada da compra deixa a guarda
+  vermelha — a troca não passa despercebida.
+
+## 2026-09-14 · F57 · As nove decisões da fase
+
+O desenho inteiro, com as assinaturas, está em `docs/PLAN-F57.md` §2 e §5. Aqui, a escolha e o motivo de cada uma.
+
+1. **`RecorteDeLeitura`** = `{ alcance: 'universal' } | { alcance: 'restrito'; unidades: {id, slug}[]; alcancaSemUnidade }`,
+   e `recorteDe(sessao)` recebe o menor recorte estrutural (`{ papel } | null | undefined`). **Motivo:** "universal" com
+   nome, porque a lista vazia é justamente o valor que a fase proíbe de significar "tudo"; o recorte restrito carrega
+   id E slug porque as duas famílias de filtro existem de propósito e, depois da virada, slug repete entre empresas. O
+   parâmetro é aceito e ignorado (`void sessao`), no molde de `escopoDoImportLog`: todo cargo lê tudo (ADR-001/002).
+2. **`UnidadesEfetivas<F extends 'id' | 'slug'>`** — marca por chave `unique symbol` não exportada, o dado mora SOB a
+   chave, leitura só por `lerUnidades`; por família, nunca as duas juntas; `efetivar` é interseção de verdade.
+   **Motivo:** medido pela sabotagem A, o `tsc` recusa objeto literal, `as` direto, `number[]` e `[] as` — os tipos não se
+   sobrepõem. A única fuga que o compilador não fecha (`as unknown as`) é fechada por trava de fonte. E `efetivar` como
+   operação, e não identidade, é o argumento de `pertenceAoEscopo`: só assim o teste de EFEITO distingue "intersectou e
+   concordou" de "não intersectou" (sabotagem A.2: 5 falhas).
+3. **O terceiro valor** = flag `incluiSemUnidade` ao lado da lista + os modos nomeados `somente-sem-unidade` e `nenhuma`.
+   **Motivo:** o Consolidado é ortogonal às filiais (`?filial=geral,bravo` pede os dois), então é flag; mas `?filial=geral`
+   sozinho seria lista vazia com flag — o valor proibido —, então é modo. Só a seleção por slug SEM padrão liga o flag;
+   `/pendencias` continua tratando `geral` como um slug qualquer.
+4. **O alcance do rename** — `filiaisDeEscrita`→`escopoDeEscrita`, `filiaisEscrita`→`escopoEscrita` nos TRÊS tipos
+   (`Operador`, `Permissoes`, `OperadorDoFiltro`) e em toda variável/prop/parâmetro, `podeEscreverNaFilial`→
+   `podeEscreverNoEscopo`. **Ficam, pelo critério "o nome antigo continua verdadeiro":** `escreveNaFilial` (pergunta sobre
+   UMA filial dada), `filiaisParaEscrita` (devolve objetos de filial para o select) e `filiaisEscritaSchema` (o campo de
+   VÍNCULOS do formulário de usuário — `operador_filiais` —, não o escopo derivado). Props com NOMES de filial viraram
+   `nomesDoEscopoEscrita`; locais com OBJETOS de filial, `opcoesDeEscrita`. A regex de `permissoes.test.ts` foi estendida a
+   `escopo\w*` no mesmo commit, senão a trava ficaria cega. Prova de rename puro: mapa inverso devolve o HEAD em 26 de 26
+   arquivos (`frente-C-rename-puro.txt`).
+5. **`unidades/slugs.ts`** — `FILIAL_TODAS`, `SLUG_CONSOLIDADO`, `SLUGS_RESERVADOS`; trava por AST do TypeScript (a
+   dependência já existe) sobre `src/lib/**` não-teste. **Allowlist:** só `'todas'` como DISCRIMINANTE de estado
+   (`modo`/`tipo` em atribuição de propriedade, tipo literal de propriedade, comparação com `.modo`/`.tipo`, `case` de
+   `switch (x.modo)`), nunca como valor solto. **Motivo:** `'todas'` é também o nome de um modo, e proibir o discriminante
+   obrigaria a renomear a união inteira sem ganho. `ajuda/registry.ts` não foi tocado — o comentário do homônimo foi para
+   `slugs.ts` e `validators/admin.ts` (a antiga casa de `SLUGS_RESERVADOS`).
+6. **A régua de identidade** — `chaveDeIdentidadeSemUnidade(patrimonio, serviceTag)` (espelho de
+   `chave_identidade_ativo`, `0099`, com prefixo de comprimento contado por code point) e `chaveDeIdentidade(unidadeId, …)`
+   (o índice da `0091`, `coalesce` incluído); uma consulta só, `cadastrosComMesmaIdentidade`, com o alcance por
+   parâmetro. `actions/ativos.ts` delega e mantém o `trim` e o "patrimônio vazio = null"; as mensagens de recusa são as de
+   hoje. **Motivo:** a guarda TS↔SQL lê o corpo vigente do disco (`identidade-sql.test.ts`), no molde de
+   `colaboradores/chave-sql.test.ts`; e a decisão de alcance fica num lugar só (ver a ata acima).
+7. **O helper de pertinência** — `recusarFilialInexistente(client, param, familia, { aceitaConsolidado })` em
+   `src/lib/unidades/pertinencia.ts` (`server-only`): reusa o parser de sempre, só consulta quando há lista, consulta
+   `filiais` SEM filtro de `ativo`, e responde `notFound()` se qualquer valor pedido não existir. Falha de consulta LANÇA
+   (vira a tela de erro), nunca abre nem recusa em silêncio. `client` obrigatório, porque o visualizador por senha lê pelo
+   client resolvido. **Motivo:** a decisão ii do Johnny (só o que não existe); consultar em vez de reusar a lista já
+   carregada porque a página carrega só as ATIVAS. `rotas.test.ts` descobre as rotas pelo disco (leitura de
+   `sp.filial`/`sp['filial']`, `params: Promise<{ filial`, desestruturação de `await params`, `searchParams.get('filial')`)
+   e exige `>= 8`.
+8. **Os lotes e a régua do inventário** — H1 `queries/relatorios/**` · H2 o resto de `queries/**` + `recorte-consulta.ts`
+   · H3 `actions/**` · H4 telas e o fim do legado; cada lote troca a assinatura da sua superfície e arrasta o chamador no
+   mesmo commit, com `tsc`/lint/test verdes entre eles. Os três nomes antigos viveram como invólucros `@deprecated` em
+   `filtros/filial.ts` até o H4, e só ali. **Classificação** (a primeira que casa decide): INSERT/UPSERT → precisa de
+   `empresa_id` explícito (F63); service role alcançável pelo visualizador → precisa (F68); service role fora dele →
+   precisa (F67); UPDATE/DELETE pela sessão → confia na RLS (F67); SELECT pela sessão → confia na RLS (F66). **Motivo:** a
+   classe é decidida pelo client de verdade (quem ignora RLS precisa escrever o tenant) e pela operação (a F63 derruba o
+   default da coluna).
+9. **O laço da `chaveVersao`** — `chaveVersao` saiu de `queries/gerados.ts` para `relatorios/versao-snapshot.ts` (puro,
+   exportado), e `chave-versao-sql.test.ts` lê a `unique` da `0010` e o índice da `0013` do disco. **Nada consertado:** o
+   `empresa_id` entra na chave junto com o índice novo (F65), e `ehViolacaoDeVersao` casa pelo NOME
+   `relatorios_gerados_periodo_filial_versao_uidx` — as duas pistas quebram juntas, e a trava nova avisa quando isso
+   acontecer. Consertar aqui seria antecipar a F65, fora do escopo.
+
+## 2026-09-14 · F57 · As divergências medidas contra a ordem e a ficha
+
+- **Call-sites:** a ficha dizia ~109, a ordem 116 (em `lib/queries`+`lib/actions`). Medido na `main`: **116 + 1** em
+  `src/app/(app)/ativos/[id]/page.tsx` = **117 em 21 arquivos**; depois da Frente E, **115** (três consultas de identidade
+  viraram uma). O inventário lista esses 115 mais **13** pares ponto × tabela de `.from(<variável>)`, que a varredura
+  literal não vê: **128**.
+- `filtros/filial.ts` tinha **84** linhas, não 97; `podeEscreverNaFilial` morava em `components/layout/permissoes.ts`;
+  o campo `filiaisEscrita` vivia em **três** tipos (o terceiro é `OperadorDoFiltro`); o defeito de identidade apontado
+  era em `actions/compras.ts`; e `url-params.ts` já devolvia `{ modo }` — as cinco divergências que a ordem já declarava,
+  todas confirmadas.
+- **O "⚠" do operador sem vínculo existe só do lado da ESCRITA** (`AvisoSemFilialDeEscrita`, 3 usos). Nas leituras a
+  queda em "todas" é silenciosa, hoje e depois. O caso-limite 3 foi provado como o código é, não como a ficha o descreve.
+- **As seleções ganharam o campo `familia`**, que a forma da ficha não tinha: sem ele, `efetivar` não sabe, diante de
+  `todas` com um recorte restrito, se devolve ids ou slugs.
+- **A ficha pedia recusa para "`?filial=<id de outra filial>`"**; a decisão ii do Johnny a restringe a filial que NÃO
+  existe — outra filial ativa continua abrindo. Vale a decisão ii.
+- **`recorte.test.ts` mora em `src/lib/auth/`** (ao lado do módulo), não em `src/lib/filtros/` como a lista de entregas
+  da ficha escreve.
+- **Mudança declarada na matriz de casos-limite:** 8 células da coluna P passam de `abre` a `404` — `inexistente` e
+  `misto` nas quatro rotas por id (uma linha da matriz), `inexistente`, `misto` e `geral` em `/pendencias`,
+  `inexistente` e `misto` em `/relatorios/gerados`, `inexistente` em `/itens/conferencia`. O `geral` de `/pendencias` é
+  recusado porque lá ele nunca foi o Consolidado (a tela o tratava como slug e mostrava a lista vazia). Nenhuma outra
+  célula mudou (`casos-limite-antes.md` × `casos-limite-depois.md`).
+- **O smoke que a ficha cita ("o smoke passa idêntico") não foi rodado:** ele roda contra o ensaio/produção, e a ordem
+  proíbe rodar qualquer coisa contra produção e escrever em banco. A equivalência foi provada pela matriz de casos-limite
+  e pelos testes.
+
+## 2026-09-14 · F57 · O que a execução corrigiu no próprio caminho
+
+- **Lote H2, `exportar-filtros.test.ts` vermelho (2 falhas).** A guarda existente exige o literal `'filial'` dentro do
+  corpo de cada parser de export; os helpers novos o tinham escondido. **Conserto no código, não na guarda:** os helpers
+  passaram a receber o valor cru e cada parser voltou a chamar `texto(p, 'filial')`. No mesmo passo apareceu que
+  `filtrosHistorico` contornava o parser compartilhado de itens (`filiaisDeItens`) — exatamente o que a guarda existe
+  para impedir —, e o lote H3 o religou.
+- **A catraca de presença de `efetivar` nasceu com piso 15 e o próprio teste mediu 14.** O 15 vinha de um `grep` cru,
+  que contava a menção em comentário de `queries/ativos.ts`; o varredor do teste apaga comentário e string. O piso ficou
+  no número que o varredor mede (14: 12 em `src/`, 2 nas prévias), com a conta escrita ao lado — não é afrouxamento,
+  a trava nunca esteve verde em 15.
+- **A entrada do `CHANGELOG.md` citava fases futuras (F63, F65–F68, F70, F72)** e `cobertura-changelog.test.ts` as leu
+  como fases sem versão. **Conserto no texto, não em `SEM_VERSAO`:** a entrada deixou de citar código de fase futura (a
+  contagem por fase de destino fica no inventário e no relatório), como a entrada da F56 já fazia.
+
+## 2026-09-14 · F57 · A revisão adversarial final — zero achado mantido, e a trava de rotas fortalecida assim mesmo
+
+- **Como rodou.** Seis revisores em contexto fresco (tipo e fail-open · casos-limite e leitura · rename, slugs e
+  registry · identidade · rotas e `chaveVersao` · inventário e escopo), com as perguntas da seção "Como trabalhar" da
+  ordem e a lista das divergências já declaradas, proibidos de editar arquivo e de tocar banco; cada achado passou por um
+  cético instruído a refutar. **Um achado, refutado; zero mantido.** O resumo de cada dimensão está no
+  `RELATORIO-F57.md` §9.
+- **O achado.** O detector de `src/lib/unidades/rotas.test.ts` não via `filial` lido por desestruturação de
+  `searchParams`, por `props.searchParams` nem por `(await searchParams)?.filial`. O cético refutou: nenhuma das 8 rotas
+  usa essas formas, e o plano declarava exatamente as formas cobertas.
+- **Escolha: fortalecer a trava mesmo com o achado refutado.** A ordem pergunta "o `rotas.test.ts` quebraria com uma
+  rota nova?", e a resposta honesta era "depende de como ela for escrita". O leitor passou a reconhecer as três formas, a
+  guarda do próprio teste ganhou os casos e um negativo, e a sabotagem E.3 (`sabotagem-E-rotas.txt`) prova com uma rota
+  temporária por desestruturação que a trava acusa o arquivo. **Motivo:** é endurecimento de trava; o único efeito
+  colateral possível — um falso positivo — é visível e barato de corrigir, enquanto a direção contrária (a trava cega) é
+  silenciosa. O limite que sobra, o objeto de search params passado a outra função, ficou escrito no cabeçalho do
+  teste.
+
+## 2026-09-14 · F57 · A verificação do fechamento reprovou por tempo-limite — consertado na causa, não no limite
+
+- **O que aconteceu.** A primeira rodada completa do fechamento (`npm run test`, suíte inteira) reprovou 1 de 5.104:
+  `chave-versao-sql.test.ts > ehViolacaoDeVersao reconhece a violação pelo nome do índice LIDO DO SQL`, com
+  "Test timed out in 5000ms" (10.198 ms). O mesmo arquivo, sozinho, passava em 136 ms — e já tinha passado na rodada
+  completa do lote 4.
+- **Causa.** `vigenteCom` relia e normalizava a pasta inteira de `supabase/migrations/` (140 arquivos) a cada chamada,
+  três vezes por arquivo, uma delas DENTRO do corpo de um `it` — o único trecho que conta contra o tempo-limite. Sob a
+  carga da suíte inteira (201 arquivos em paralelo), a leitura repetida passou dos 5 s.
+- **Escolha: ler uma vez, na coleta — e NÃO aumentar o tempo-limite.** A pasta passou a ser lida uma vez por arquivo de
+  teste, no nível do módulo; `vigenteCom` filtra o que já está em memória. As asserções e o que o teste prova não
+  mudaram (a mesma migration vigente, a mesma normalização). Sozinho, o teste caiu de 136 ms para 2 ms. **Motivo:**
+  subir o `testTimeout` esconderia a causa e deixaria a trava à mercê do runner do CI, que é mais lento que a mesa; e
+  "rodar de novo até passar" é justamente o que a casa não faz.
+- **A mesma classe, fechada nos outros testes da fase** que varriam o disco dentro de um `it`: `recorte.test.ts` (a
+  trava da dupla asserção e as quatro de presença), `rotas.test.ts`, `slugs.test.ts` (uma árvore sintática por arquivo
+  de `src/lib/**`), `identidade.test.ts` e `identidade-sql.test.ts`. Em todos a varredura foi para a coleta, com as
+  asserções intactas; os seis arquivos passam com 193 ms de corpo de teste somado. As sabotagens D, E e F continuam
+  valendo: a varredura ainda lê o disco de verdade a cada execução, só não dentro do `it`.
+
+## 2026-09-14 · F57 · fechamento — o PR, o CI e o que fica para depois do merge
+
+- **O PR #46** (`f57-quatro-significados-de-filial` → `main`) foi aberto com a fase inteira verificada na mesa: lint,
+  `tsc`, 201 arquivos / 5.104 testes, build e `verificar:actions` (`docs/f57-evidencias/fechamento-verificacao.txt`). Um
+  push só antes do CI, para não gastar a cota com rodada de "ver se passa".
+- **CI verde na primeira run** (`34887305598`, head `8d2d6cc`): `verificar` em 3m21s e `banco-sem-docker` em 1m43s. O
+  injetor de mutações fechou **74/74 pelo cenário nomeado, 2 em quarentena**, o gate de deriva **34 relações · 312 colunas
+  · 75 funções** e os roteiros **34 arquivos / 818 asserções** — os três exatamente iguais aos da F56, que é a prova do
+  critério 22: a fase não tocou SQL, e o banco não se mexeu. Trechos em `docs/f57-evidencias/ci-pr46.txt`.
+- **O único comentário no PR** foi o aviso automático da prévia da Vercel — nada a responder, nenhum conserto.
+- **O relatório entra no mesmo PR, num commit final**, e o merge espera os dois checks verdes também sobre ele. **Escolha:**
+  não abrir um segundo PR só para o relatório, como a F56 fez — lá o relatório precisava citar o deploy e o smoke de
+  produção, que só existem depois do merge; aqui a ordem proíbe olhar produção, então não há fato pós-merge que o relatório
+  precise conter além do merge e da tag, e esses dois ficam nesta ata e na resposta final. **A tag anotada `v1.62.0` vai no
+  commit de merge**, publicada com `git push origin v1.62.0`.
+- **O que a fase NÃO fez depois do merge, por ordem:** nenhuma consulta a produção (nem `/api/saude`, nem smoke). O deploy
+  é o automático da Vercel. O item 2 do roteiro do Johnny no relatório é a conferência humana que falta.
+- **A checagem factual dos documentos, antes do último commit.** Sete checadores em contexto fresco, com cético por
+  divergência, conferiram o relatório, estas atas, o CHANGELOG, o registry, a `ARQUITETURA.md` e o índice contra o disco,
+  o git e as evidências. **Cinco divergências mantidas e corrigidas no mesmo commit** (a atribuição D.4/D.5 no roteiro;
+  18 funções em 9 arquivos, e não 8 — erro do §1 do `PLAN-F57.md`, que fica como está, por ser o plano datado; a conta
+  dos 90 testes, cujo 90º é o de `servidor-apenas.test.ts` para `recorte-consulta.ts`; "sete atas", e não quatro; e o
+  critério 26 marcado ⏳ em vez de ✅ antes do merge), **uma refutada**. **Motivo de rodar:** o relatório é o que o Johnny
+  lê no lugar do código, e um número errado nele custa mais do que a checagem.

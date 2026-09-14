@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { podeLer, podeEscreverNaFilial, filiaisParaEscrita } from './permissoes'
+import { podeLer, podeEscreverNoEscopo, filiaisParaEscrita } from './permissoes'
 
 // AUTORIZAÇÃO NÃO SE DERIVA DO COMPRIMENTO DE UMA LISTA (F50).
 //
 // A doutrina já estava escrita — em `src/lib/auth/papeis.ts`, no comentário de
-// `filtroFilialPadrao`:
+// `unidadesMarcadasPorPadrao` (até a F57, `filtroFilialPadrao`):
 //
-//   "⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`. Lista vazia tem
+//   "⚠ A decisão olha o CARGO, nunca `escopoEscrita.length === 0`. Lista vazia tem
 //    dois significados diferentes: `consulta` (que não escreve em lugar nenhum) e
 //    `operador` sem vínculo válido — um usuário quebrado."
 //
 // O que faltava era alguém conferindo. Esta trava confere: nenhuma prop de PERMISSÃO
-// pode receber `filiais.length > 0` (ou a variante com `filiaisEscrita`). O perigo não
+// pode receber `filiais.length > 0` (ou a variante com `escopoEscrita`). O perigo não
 // é estético — é que as duas populações têm respostas diferentes, e um `.length`
 // devolve a mesma para as duas. Quando `Permissoes` ganhar `empresaId`, o mesmo
 // atalho passaria a confundir "lista vazia porque a empresa não tem filial" com
@@ -24,15 +24,24 @@ const RAIZ = join(process.cwd(), 'src')
 const PROPS_DE_PERMISSAO = ['podeCadastrar', 'podeCriar', 'podeEscrever', 'podeLer', 'podeEditar']
 
 /**
+ * O nome da lista cujo comprimento NÃO pode virar permissão: `filiais*` e, desde a F57,
+ * `escopo*`. ⚠ A segunda metade não é enfeite: a F57 renomeou o campo `filiaisEscrita` para
+ * `escopoEscrita`, e com o prefixo antigo sozinho esta trava ficaria CEGA exatamente para a
+ * variante que ela nasceu para pegar — `podeCadastrar={escopoEscrita.length > 0}` passaria
+ * verde, sem ninguém notar.
+ */
+const LISTA_DE_ESCOPO = String.raw`\b(?:filiais|escopo)\w*`
+
+/**
  * `<prop>={…filiais…length…}` — a prop de permissão alimentada por comprimento.
  *
- * Só casa `.length`/`[0]` de algo que se chame `filiais*`: um `podeCadastrar={itens.length > 0}`
- * é outra conversa (viabilidade de uma lista de itens), e acusá-lo aqui só ensinaria
- * a desligar a trava.
+ * Só casa `.length`/`[0]` de algo que se chame `filiais*` ou `escopo*`: um
+ * `podeCadastrar={itens.length > 0}` é outra conversa (viabilidade de uma lista de itens), e
+ * acusá-lo aqui só ensinaria a desligar a trava.
  */
 function derivacoesDeAutorizacao(): string[] {
   const re = new RegExp(
-    `(${PROPS_DE_PERMISSAO.join('|')})=\\{[^}]*\\bfiliais\\w*(?:\\.length|\\[0\\])[^}]*\\}`,
+    `(${PROPS_DE_PERMISSAO.join('|')})=\\{[^}]*${LISTA_DE_ESCOPO}(?:\\.length|\\[0\\])[^}]*\\}`,
     'g',
   )
   const achados: string[] = []
@@ -78,8 +87,8 @@ const EXCECOES: Record<string, string> = {
 
 describe('podeLer (F50)', () => {
   it('responde "existe sessão com permissões?" e nada além disso', () => {
-    expect(podeLer({ papel: 'consulta', filiaisEscrita: [] })).toBe(true)
-    expect(podeLer({ papel: 'operador', filiaisEscrita: [] })).toBe(true)
+    expect(podeLer({ papel: 'consulta', escopoEscrita: [] })).toBe(true)
+    expect(podeLer({ papel: 'operador', escopoEscrita: [] })).toBe(true)
     expect(podeLer(null)).toBe(false)
     expect(podeLer(undefined)).toBe(false)
   })
@@ -88,15 +97,15 @@ describe('podeLer (F50)', () => {
     // O piso de leitura é `papel_atual() is not null`, e `consulta` com zero filiais
     // é exatamente quem esta função precisa deixar passar. Se um dia ela começar a
     // recusar por cargo, este teste diz que a mudança foi deliberada.
-    expect(podeLer({ papel: 'consulta', filiaisEscrita: [] })).toBe(
-      podeLer({ papel: 'dev', filiaisEscrita: [1, 2, 3] }),
+    expect(podeLer({ papel: 'consulta', escopoEscrita: [] })).toBe(
+      podeLer({ papel: 'dev', escopoEscrita: [1, 2, 3] }),
     )
   })
 
-  it('é independente de podeEscreverNaFilial (ler não é escrever)', () => {
-    const consulta = { papel: 'consulta' as const, filiaisEscrita: [] }
+  it('é independente de podeEscreverNoEscopo (ler não é escrever)', () => {
+    const consulta = { papel: 'consulta' as const, escopoEscrita: [] }
     expect(podeLer(consulta)).toBe(true)
-    expect(podeEscreverNaFilial(consulta, 1)).toBe(false)
+    expect(podeEscreverNoEscopo(consulta, 1)).toBe(false)
     expect(filiaisParaEscrita(consulta, [{ id: 1 }])).toEqual([])
   })
 })
@@ -104,8 +113,10 @@ describe('podeLer (F50)', () => {
 describe('nenhum componente deriva AUTORIZAÇÃO do comprimento da lista de filiais', () => {
   it('a varredura enxerga o repositório (guarda do próprio teste)', () => {
     // Sem isto, um regex que parasse de casar deixaria a trava verde e vazia.
-    const re = new RegExp(`(${PROPS_DE_PERMISSAO.join('|')})=\\{[^}]*\\bfiliais\\w*\\.length[^}]*\\}`)
+    const re = new RegExp(`(${PROPS_DE_PERMISSAO.join('|')})=\\{[^}]*${LISTA_DE_ESCOPO}\\.length[^}]*\\}`)
     expect(re.test('<X podeCadastrar={filiais.length > 0} />')).toBe(true)
+    // F57 — o nome novo do campo tem de continuar sendo visto (senão o rename cegou a trava).
+    expect(re.test('<X podeCadastrar={escopoEscrita.length > 0} />')).toBe(true)
     expect(re.test('<X podeCadastrar={papel !== \'consulta\'} />')).toBe(false)
   })
 

@@ -21,7 +21,10 @@ import { HistoricoFiltros } from '@/components/itens/historico-filtros'
 import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { dataISO, ehFiltroDeFilial, idNumerico, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
@@ -100,22 +103,36 @@ export default async function HistoricoItensPage({
   const buscaFiltro = (primeiro(sp.busca) ?? '').trim() || null
   const page = paginaNumerica(primeiro(sp.page))
 
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), primeiro(sp.filial), 'id')
+
   // F25 — as filiais vêm antes do resto: o filtro tem padrão por cargo.
   const filiais = await listarFiliais()
-  const filialIds = resolverFiliaisIds(
-    primeiro(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
+  // F57 — o que as QUERIES recebem: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      primeiro(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
   )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // ITN-03a — "Saldo após" só faz sentido com EXATAMENTE 1 item + 1 filial no
   // recorte (o saldo de um item é por filial; ver `saldo-apos.ts`).
-  const mostrarSaldoApos = filialIds.length === 1 && itemFiltro != null
+  const mostrarSaldoApos = filiaisMarcadas.length === 1 && itemFiltro != null
 
   const [itensAtivos, historico, saldos, lancamentosSaldoApos] = await Promise.all([
     listarItensAtivos(),
     getHistoricoLancamentos({
-      filialIds,
+      unidades,
       itemId: itemFiltro,
       tipo: tipoFiltro,
       de: deFiltro,
@@ -134,12 +151,12 @@ export default async function HistoricoItensPage({
     // própria, ele passa a ser uma leitura própria — e só quando a coluna vai
     // mesmo aparecer, que é o caso raro de 1 item + 1 filial.
     mostrarSaldoApos
-      ? getSaldosItensDeFiliais(filialIds)
+      ? getSaldosItensDeFiliais(unidades)
       : Promise.resolve<Awaited<ReturnType<typeof getSaldosItensDeFiliais>>>([]),
     // Histórico COMPLETO do item×filial (sem tipo/data/busca/página), só quando a
     // coluna vai aparecer.
     mostrarSaldoApos && itemFiltro != null
-      ? listarLancamentosParaSaldoApos(itemFiltro, filialIds[0])
+      ? listarLancamentosParaSaldoApos(itemFiltro, filiaisMarcadas[0])
       : Promise.resolve<LancamentoParaSaldoApos[]>([]),
   ])
 
@@ -164,7 +181,8 @@ export default async function HistoricoItensPage({
   const temFiltro =
     Boolean(itemFiltro || tipoFiltro || deFiltro || ateFiltro || buscaFiltro) ||
     ehFiltroDeFilial(primeiro(sp.filial))
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   const total = historico.total.toLocaleString('pt-BR')
   const descricao = temFiltro
@@ -201,7 +219,7 @@ export default async function HistoricoItensPage({
       <HistoricoFiltros
         itens={itensAtivos}
         filiais={filiais}
-        filiaisSelecionadas={filialIds.map(String)}
+        filiaisSelecionadas={filiaisMarcadas.map(String)}
       />
 
       {historico.rows.length === 0 ? (

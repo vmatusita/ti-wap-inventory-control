@@ -6,6 +6,8 @@ import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { filialParaRpc } from '@/lib/queries/rpc-filial'
+import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import type { LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
 import type { LancamentoDeAcessorio, TipoDeAcessorio } from '@/lib/termos/acessorios'
 
@@ -187,16 +189,26 @@ export function somarSaldosDeFiliais(porFilial: SaldoItem[][]): SaldoItem[] {
 }
 
 /**
- * Saldos da seleção de filiais. `[]` = consolidado (todas), 1 id = a RPC direta,
- * 2+ = N leituras somadas.
+ * Saldos das unidades efetivas. `todas` = o consolidado, uma unidade = a RPC direta, 2+ = N
+ * leituras somadas. Todo lançamento de item tem filial, então não há saldo "sem unidade" a
+ * mostrar: `somente-sem-unidade` e `nenhuma` devolvem a lista vazia de SALDOS (não de filtro).
  */
 export async function getSaldosItensDeFiliais(
-  filialIds: readonly number[],
+  unidades: UnidadesEfetivas<'id'>,
 ): Promise<SaldoItem[]> {
-  if (filialIds.length === 0) return getSaldosItens(null)
-  if (filialIds.length === 1) return getSaldosItens(filialIds[0])
-  const porFilial = await Promise.all(filialIds.map((id) => getSaldosItens(id)))
-  return somarSaldosDeFiliais(porFilial)
+  const vista = lerUnidades(unidades)
+  switch (vista.modo) {
+    case 'todas':
+      return getSaldosItens(null)
+    case 'lista': {
+      if (vista.valores.length === 1) return getSaldosItens(vista.valores[0])
+      const porFilial = await Promise.all(vista.valores.map((id) => getSaldosItens(id)))
+      return somarSaldosDeFiliais(porFilial)
+    }
+    case 'somente-sem-unidade':
+    case 'nenhuma':
+      return []
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -366,8 +378,9 @@ const LANC_SELECT =
 // tela e pelo export CSV (F10 · T5), para o arquivo sair com EXATAMENTE as
 // linhas do filtro visível.
 export type FiltrosHistorico = {
-  // F25 — multi-seleção. Lista vazia/ausente = sem recorte (todas as filiais).
-  filialIds?: readonly number[]
+  // F25 — multi-seleção. F57 — `UnidadesEfetivas`, obrigatório: o "sem recorte" é o modo
+  // `todas`, com nome, e não um campo esquecido.
+  unidades: UnidadesEfetivas<'id'>
   itemId?: number | null
   tipo?: TipoLancamento | null
   de?: string | null
@@ -403,7 +416,7 @@ function queryHistorico(
   head = false,
 ) {
   let q = supabase.from('lancamentos_item').select(LANC_SELECT, { count: 'exact', head })
-  if (opts.filialIds && opts.filialIds.length > 0) q = q.in('filial_id', opts.filialIds)
+  q = recortarPorUnidade(q, 'filial_id', opts.unidades)
   if (opts.itemId) q = q.eq('item_id', opts.itemId)
   if (opts.tipo) q = q.eq('tipo', opts.tipo)
   if (opts.de) q = q.gte('data', opts.de)

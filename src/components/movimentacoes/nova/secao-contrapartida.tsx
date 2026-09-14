@@ -58,7 +58,7 @@ export function SecaoContrapartida({
   rotuloMotivo,
   comandoRef,
   papel = null,
-  filiaisEscrita = [],
+  escopoEscrita = [],
   tiposItem,
   itensCatalogo,
   onAdicionar,
@@ -76,7 +76,7 @@ export function SecaoContrapartida({
   // AVISO, não trava. `null`/`[]` = nível administrador ou sessão sem
   // operador — nenhum item ganha o badge.
   papel?: PapelUsuario | null
-  filiaisEscrita?: readonly number[]
+  escopoEscrita?: readonly number[]
   // F38 · D12 — o vocabulário e o catálogo do checklist de dois desfechos.
   tiposItem: TipoItem[]
   itensCatalogo: ItemDoCatalogo[]
@@ -224,7 +224,7 @@ export function SecaoContrapartida({
                   </span>
                   {/* F28/MOV-03 — mesmo aviso do lote principal, mesma
                       condição (dev/admin nunca veem isto). */}
-                  {!escreveNaFilial(papel, filiaisEscrita, a.filial_id) && (
+                  {!escreveNaFilial(papel, escopoEscrita, a.filial_id) && (
                     <span className="flex basis-full items-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                       <TriangleAlert className="size-3 shrink-0" aria-hidden />
                       Você não escreve em {a.filial_nome} — o registro será

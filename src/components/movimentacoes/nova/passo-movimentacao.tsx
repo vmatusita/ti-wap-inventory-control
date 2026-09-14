@@ -145,7 +145,7 @@ export function PassoMovimentacao({
   errosPorAtivo,
   filiais,
   papel = null,
-  filiaisEscrita = [],
+  escopoEscrita = [],
   ultimaMov,
   kits,
   kitAplicado,
@@ -178,7 +178,7 @@ export function PassoMovimentacao({
   // `SecaoContrapartida` (o lote principal é aviso do PASSO 1, em
   // `PassoAtivos`). `null`/`[]` = nível administrador ou sessão sem operador.
   papel?: PapelUsuario | null
-  filiaisEscrita?: readonly number[]
+  escopoEscrita?: readonly number[]
   // F38 — o vocabulário de tipos e o catálogo de itens (checklist + itens junto).
   tiposItem: TipoItem[]
   itensCatalogo: ItemDoCatalogo[]
@@ -591,7 +591,7 @@ export function PassoMovimentacao({
           rotuloMotivo={rotuloMotivoTroca}
           comandoRef={comandoContrapartidaRef}
           papel={papel}
-          filiaisEscrita={filiaisEscrita}
+          escopoEscrita={escopoEscrita}
           tiposItem={tiposItem}
           itensCatalogo={itensCatalogo}
           onAdicionar={onAdicionarContrapartida}

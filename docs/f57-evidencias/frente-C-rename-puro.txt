@@ -1,0 +1,43 @@
+# F57 · Frente C — o rename do vocabulário de escrita é rename PURO (14/09/2026)
+
+Script: um mapa de ida (palavra inteira) e o mapa INVERSO. A prova: aplicar o inverso ao arquivo
+renomeado devolve o arquivo do HEAD byte a byte — então nenhum corpo, nenhum comentário e
+nenhum literal mudou além dos nomes. Mapas:
+  filiaisDeEscrita → escopoDeEscrita · podeEscreverNaFilial → podeEscreverNoEscopo · filiaisEscrita → escopoEscrita
+  exceções nominais: opcoesDeEscrita (locais com OBJETOS de filial em ativos/novo, itens, itens/conferencia e previa-itens)
+                    nomesDoEscopoEscrita (props com NOMES em app-header e user-menu; e filiaisEscritaNomes em layout.tsx)
+  ficam, por decisão (ata): escreveNaFilial, filiaisParaEscrita, filiaisEscritaSchema (vínculos do formulário)
+
+$ node rename-f57c.mjs
+1. arquivos que já usavam um nome novo antes do rename: 0
+2. arquivos renomeados: 26
+   - src/app/(app)/ativos/novo/page.tsx
+   - src/app/(app)/ativos/[id]/page.tsx
+   - src/app/(app)/itens/conferencia/page.tsx
+   - src/app/(app)/itens/page.tsx
+   - src/app/(app)/layout.tsx
+   - src/app/(app)/movimentacoes/devolucao-fornecedor/page.tsx
+   - src/app/(app)/movimentacoes/nova/page.tsx
+   - src/components/admin/usuarios/usuarios-tabela.tsx
+   - src/components/layout/app-header.tsx
+   - src/components/layout/permissoes.test.ts
+   - src/components/layout/permissoes.ts
+   - src/components/layout/user-menu.tsx
+   - src/components/movimentacoes/nova/passo-ativos.tsx
+   - src/components/movimentacoes/nova/passo-movimentacao.tsx
+   - src/components/movimentacoes/nova/secao-contrapartida.tsx
+   - src/components/movimentacoes/nova-movimentacao-form.tsx
+   - src/lib/auth/acesso.ts
+   - src/lib/auth/papeis.test.ts
+   - src/lib/auth/papeis.ts
+   - src/lib/filtros/casos-limite.test.ts
+   - src/lib/filtros/filial.test.ts
+   - src/lib/filtros/filial.ts
+   - src/lib/relatorios/rota-padrao.ts
+   - scripts/design/previa-ficha-dados.ts
+   - scripts/design/previa-ficha.tsx
+   - scripts/design/previa-itens.tsx
+3. arquivos em que a volta (mapa inverso) difere do HEAD: 0 de 26
+4. ocorrências de nome antigo (palavra inteira) depois do rename: 0
+
+(exit=0)

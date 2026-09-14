@@ -1,0 +1,59 @@
+# F57 · Sabotagem B — `[]` passado a uma query migrada NÃO COMPILA (14/09/2026)
+
+Até a F57, `[]` era "sem recorte": qualquer lista que esvaziasse no caminho virava o acervo inteiro.
+Agora as queries recebem `UnidadesEfetivas`, que só `efetivar` produz. Cinco chamadas migradas
+recebem `[]` ao mesmo tempo; o `tsc` tem de recusar as cinco.
+
+## B.1 — as cinco trocas
+
+arquivo: src/lib/queries/ativos.ts
+--- de
+  q = recortarPorUnidade(q, 'filial_id', params.unidades)
+--- para
+  q = recortarPorUnidade(q, 'filial_id', []) // SABOTAGEM B
+
+arquivo: src/app/(app)/pendencias/page.tsx
+--- de
+    getPendencias(client, unidades),
+--- para
+    getPendencias(client, []), // SABOTAGEM B
+
+arquivo: src/app/(app)/layout.tsx
+--- de
+      contarPendenciasAbertas(unidadesDoSelo),
+--- para
+      contarPendenciasAbertas([]), // SABOTAGEM B
+
+arquivo: src/app/(app)/relatorios/gerados/page.tsx
+--- de
+    listarRelatoriosGerados(acesso.client, unidades, { page }),
+--- para
+    listarRelatoriosGerados(acesso.client, [], { page }), // SABOTAGEM B
+
+arquivo: src/app/(app)/itens/page.tsx
+--- de
+  const escopo = escopoDosNumeros(filiais, unidades)
+--- para
+  const escopo = escopoDosNumeros(filiais, []) // SABOTAGEM B
+
+$ npx tsc --noEmit   # B.1 sabotada
+src/app/(app)/itens/page.tsx(211,44): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'UnidadesEfetivas<"id">'.
+  Property '[MARCA]' is missing in type 'never[]' but required in type 'UnidadesEfetivas<"id">'.
+src/app/(app)/layout.tsx(97,31): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'UnidadesEfetivas<"slug">'.
+  Property '[MARCA]' is missing in type 'never[]' but required in type 'UnidadesEfetivas<"slug">'.
+src/app/(app)/pendencias/page.tsx(188,27): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'UnidadesEfetivas<"slug">'.
+  Property '[MARCA]' is missing in type 'never[]' but required in type 'UnidadesEfetivas<"slug">'.
+src/app/(app)/relatorios/gerados/page.tsx(94,44): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'UnidadesEfetivas<"slug">'.
+  Property '[MARCA]' is missing in type 'never[]' but required in type 'UnidadesEfetivas<"slug">'.
+src/lib/queries/ativos.ts(137,42): error TS2345: Argument of type 'never[]' is not assignable to parameter of type 'UnidadesEfetivas<FamiliaDeUnidade>'.
+  Property '[MARCA]' is missing in type 'never[]' but required in type 'UnidadesEfetivas<FamiliaDeUnidade>'.
+(tsc exit=2)
+
+chamadas recusadas pelo compilador: 5 de 5
+restaurado byte a byte: true
+
+## B.2 — restaurada: o compilador aceita de novo
+
+$ npx tsc --noEmit   # B.2 restaurada
+(sem saída)
+(tsc exit=0)

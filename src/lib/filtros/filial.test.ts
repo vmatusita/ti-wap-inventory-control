@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
-  resolverFiliaisIds,
-  resolverFiliaisSlugs,
-  resolverFiliaisSlugsSemPadrao,
+  selecaoDeUnidades,
+  selecaoDeUnidadesPorSlug,
+  selecaoDeUnidadesSemPadrao,
   type OperadorDoFiltro,
+  type SelecaoDeUnidades,
+  type SelecaoDeUnidadesPorSlug,
 } from '@/lib/filtros/filial'
 import {
   abaRelatorioPadrao,
-  filtroFilialPadrao,
+  unidadesMarcadasPorPadrao,
   type PapelUsuario,
 } from '@/lib/auth/papeis'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { selecaoFilialIds, selecaoFilialSlugs } from '@/lib/url-params'
 
 // F25 — o filtro de filial: padrão por cargo + multi-seleção.
+// F57 — as funções devolvem a SELEÇÃO (o modo passado adiante), não mais `[]` para "todas".
+// Os casos abaixo são os MESMOS que existiam até a F57, com a expectativa escrita na forma
+// nova: `[]` virou `TODAS`, `[2, 3]` virou `lista([2, 3])`. Nenhum foi removido.
 // Filiais 100% fictícias.
 
 const ATIVAS = [1, 2, 3, 4]
@@ -27,46 +33,56 @@ const FILIAIS = [
   { id: 4, slug: 'delta', nome: 'Delta' },
 ]
 
-function op(papel: PapelUsuario, filiaisEscrita: number[] = []): OperadorDoFiltro {
-  return { papel, filiaisEscrita }
+const TODAS: SelecaoDeUnidades = { familia: 'id', modo: 'todas' }
+const lista = (ids: number[]): SelecaoDeUnidades => ({ familia: 'id', modo: 'lista', ids })
+const TODAS_SLUG: SelecaoDeUnidadesPorSlug = { familia: 'slug', modo: 'todas' }
+const listaSlug = (slugs: string[], incluiSemUnidade = false): SelecaoDeUnidadesPorSlug => ({
+  familia: 'slug',
+  modo: 'lista',
+  slugs,
+  incluiSemUnidade,
+})
+
+function op(papel: PapelUsuario, escopoEscrita: number[] = []): OperadorDoFiltro {
+  return { papel, escopoEscrita }
 }
 
-describe('filtroFilialPadrao — os quatro cargos', () => {
+describe('unidadesMarcadasPorPadrao — os quatro cargos', () => {
   it('operador entra com TODAS as filiais vinculadas dele marcadas', () => {
-    expect(filtroFilialPadrao('operador', [4, 2], ATIVAS)).toEqual([2, 4])
+    expect(unidadesMarcadasPorPadrao('operador', [4, 2], ATIVAS)).toEqual(lista([2, 4]))
   })
 
   it('operador de uma filial só entra com ela', () => {
-    expect(filtroFilialPadrao('operador', [3], ATIVAS)).toEqual([3])
+    expect(unidadesMarcadasPorPadrao('operador', [3], ATIVAS)).toEqual(lista([3]))
   })
 
   it('dev, admin e consulta entram SEM recorte (todas)', () => {
-    expect(filtroFilialPadrao('dev', [], ATIVAS)).toEqual([])
-    expect(filtroFilialPadrao('admin', [], ATIVAS)).toEqual([])
-    expect(filtroFilialPadrao('consulta', [], ATIVAS)).toEqual([])
+    expect(unidadesMarcadasPorPadrao('dev', [], ATIVAS)).toEqual(TODAS)
+    expect(unidadesMarcadasPorPadrao('admin', [], ATIVAS)).toEqual(TODAS)
+    expect(unidadesMarcadasPorPadrao('consulta', [], ATIVAS)).toEqual(TODAS)
   })
 
-  it('admin com filiaisEscrita cheio (ele recebe todas) ainda assim NÃO recorta', () => {
-    // `filiaisDeEscrita` devolve TODAS as ativas para o nível admin — se a regra
+  it('admin com escopoEscrita cheio (ele recebe todas) ainda assim NÃO recorta', () => {
+    // `escopoDeEscrita` devolve TODAS as ativas para o nível admin — se a regra
     // olhasse a lista em vez do cargo, o admin entraria "filtrado por todas", e o
     // botão Limpar/contagem passaria a mentir.
-    expect(filtroFilialPadrao('admin', ATIVAS, ATIVAS)).toEqual([])
+    expect(unidadesMarcadasPorPadrao('admin', ATIVAS, ATIVAS)).toEqual(TODAS)
   })
 
   it('operador SEM vínculo cai em todas — e não numa lista sempre vazia', () => {
     // Usuário quebrado (vínculo nenhum, ou só em filial desativada). Recortar por
-    // [] literal deixaria a tela permanentemente vazia sem explicar por quê.
-    expect(filtroFilialPadrao('operador', [], ATIVAS)).toEqual([])
-    expect(filtroFilialPadrao('operador', [99], ATIVAS)).toEqual([])
+    // lista vazia deixaria a tela permanentemente vazia sem explicar por quê.
+    expect(unidadesMarcadasPorPadrao('operador', [], ATIVAS)).toEqual(TODAS)
+    expect(unidadesMarcadasPorPadrao('operador', [99], ATIVAS)).toEqual(TODAS)
   })
 
   it('vínculo em filial DESATIVADA é descartado (só as ativas contam)', () => {
-    expect(filtroFilialPadrao('operador', [2, 99], ATIVAS)).toEqual([2])
+    expect(unidadesMarcadasPorPadrao('operador', [2, 99], ATIVAS)).toEqual(lista([2]))
   })
 
   it('sem cargo (sem sessão) não recorta', () => {
-    expect(filtroFilialPadrao(null, [], ATIVAS)).toEqual([])
-    expect(filtroFilialPadrao(undefined, [1], ATIVAS)).toEqual([])
+    expect(unidadesMarcadasPorPadrao(null, [], ATIVAS)).toEqual(TODAS)
+    expect(unidadesMarcadasPorPadrao(undefined, [1], ATIVAS)).toEqual(TODAS)
   })
 })
 
@@ -176,56 +192,141 @@ describe('selecaoFilialSlugs — a família que filtra por SLUG', () => {
   })
 })
 
-describe('resolverFiliaisIds — URL + cargo (o que a tela E o export usam)', () => {
+describe('selecaoDeUnidades — URL + cargo (o que a tela E o export usam)', () => {
   it('sem param: o operador entra recortado, o admin não', () => {
-    expect(resolverFiliaisIds(undefined, op('operador', [2, 3]), ATIVAS)).toEqual([2, 3])
-    expect(resolverFiliaisIds(undefined, op('admin'), ATIVAS)).toEqual([])
+    expect(selecaoDeUnidades(undefined, op('operador', [2, 3]), ATIVAS)).toEqual(lista([2, 3]))
+    expect(selecaoDeUnidades(undefined, op('admin'), ATIVAS)).toEqual(TODAS)
   })
 
   it('a sentinela devolve o operador a "todas"', () => {
-    expect(resolverFiliaisIds('todas', op('operador', [2, 3]), ATIVAS)).toEqual([])
+    expect(selecaoDeUnidades('todas', op('operador', [2, 3]), ATIVAS)).toEqual(TODAS)
   })
 
   it('link EXPLÍCITO abre igual para qualquer cargo', () => {
-    expect(resolverFiliaisIds('1,4', op('operador', [2, 3]), ATIVAS)).toEqual([1, 4])
-    expect(resolverFiliaisIds('1,4', op('admin'), ATIVAS)).toEqual([1, 4])
-    expect(resolverFiliaisIds('1,4', op('consulta'), ATIVAS)).toEqual([1, 4])
-    expect(resolverFiliaisIds('1,4', null, ATIVAS)).toEqual([1, 4])
+    expect(selecaoDeUnidades('1,4', op('operador', [2, 3]), ATIVAS)).toEqual(lista([1, 4]))
+    expect(selecaoDeUnidades('1,4', op('admin'), ATIVAS)).toEqual(lista([1, 4]))
+    expect(selecaoDeUnidades('1,4', op('consulta'), ATIVAS)).toEqual(lista([1, 4]))
+    expect(selecaoDeUnidades('1,4', null, ATIVAS)).toEqual(lista([1, 4]))
   })
 
   it('sem operador (viewer/sem sessão) não recorta', () => {
-    expect(resolverFiliaisIds(undefined, null, ATIVAS)).toEqual([])
+    expect(selecaoDeUnidades(undefined, null, ATIVAS)).toEqual(TODAS)
   })
 
   it('consulta sem vínculo nenhum NÃO explode nem recorta', () => {
-    expect(resolverFiliaisIds(undefined, op('consulta', []), ATIVAS)).toEqual([])
+    expect(selecaoDeUnidades(undefined, op('consulta', []), ATIVAS)).toEqual(TODAS)
+  })
+
+  it('id de filial fora das ATIVAS passa assim mesmo (o link antigo não muda de sentido)', () => {
+    // A família por slug já tinha este caso; a família por id não tinha — lacuna medida na F57.
+    expect(selecaoDeUnidades('99', op('operador', [2]), ATIVAS)).toEqual(lista([99]))
   })
 })
 
-describe('resolverFiliaisSlugs — o padrão do cargo traduzido para slug', () => {
+describe('selecaoDeUnidadesPorSlug — o padrão do cargo traduzido para slug', () => {
   it('operador entra com os slugs das filiais vinculadas', () => {
-    expect(resolverFiliaisSlugs(undefined, op('operador', [2, 4]), FILIAIS)).toEqual([
-      'bravo',
-      'delta',
-    ])
+    expect(selecaoDeUnidadesPorSlug(undefined, op('operador', [2, 4]), FILIAIS)).toEqual(
+      listaSlug(['bravo', 'delta']),
+    )
   })
 
   it('admin entra sem recorte', () => {
-    expect(resolverFiliaisSlugs(undefined, op('admin'), FILIAIS)).toEqual([])
+    expect(selecaoDeUnidadesPorSlug(undefined, op('admin'), FILIAIS)).toEqual(TODAS_SLUG)
   })
 
   it('slug explícito passa mesmo fora da lista de ATIVAS (link antigo não muda de sentido)', () => {
-    expect(resolverFiliaisSlugs('extinta', op('operador', [2]), FILIAIS)).toEqual(['extinta'])
+    expect(selecaoDeUnidadesPorSlug('extinta', op('operador', [2]), FILIAIS)).toEqual(
+      listaSlug(['extinta']),
+    )
+  })
+
+  it('em /pendencias o slug do Consolidado é um slug como outro qualquer (não liga o terceiro valor)', () => {
+    expect(selecaoDeUnidadesPorSlug('geral', op('admin'), FILIAIS)).toEqual(listaSlug(['geral']))
   })
 })
 
-describe('resolverFiliaisSlugsSemPadrao — /relatorios/gerados (decisão §4.7)', () => {
+describe('selecaoDeUnidadesSemPadrao — /relatorios/gerados (decisão §4.7)', () => {
   it('operador NÃO é recortado: o arquivo é global e tem os consolidados', () => {
-    expect(resolverFiliaisSlugsSemPadrao(undefined)).toEqual([])
+    expect(selecaoDeUnidadesSemPadrao(undefined)).toEqual(TODAS_SLUG)
   })
 
-  it('mas a seleção explícita continua valendo', () => {
-    expect(resolverFiliaisSlugsSemPadrao('geral,bravo')).toEqual(['geral', 'bravo'])
+  it('mas a seleção explícita continua valendo — e o Consolidado vira o terceiro valor', () => {
+    expect(selecaoDeUnidadesSemPadrao('geral,bravo')).toEqual(listaSlug(['bravo'], true))
+    expect(selecaoDeUnidadesSemPadrao('geral')).toEqual(listaSlug([], true))
+    expect(selecaoDeUnidadesSemPadrao('bravo')).toEqual(listaSlug(['bravo']))
+  })
+
+  it('a sentinela é "todas", igual à ausência', () => {
+    expect(selecaoDeUnidadesSemPadrao('todas')).toEqual(TODAS_SLUG)
+  })
+})
+
+describe('F57 — os três casos-limite da ficha, no nível do módulo', () => {
+  const universal = recorteDe(null)
+
+  it('caso 1 — o consolidado (filial_id is null) sobrevive em /relatorios/gerados', () => {
+    expect(lerUnidades(efetivar(universal, selecaoDeUnidadesSemPadrao(undefined)))).toEqual({
+      modo: 'todas',
+    })
+    expect(lerUnidades(efetivar(universal, selecaoDeUnidadesSemPadrao('geral')))).toEqual({
+      modo: 'somente-sem-unidade',
+    })
+    expect(lerUnidades(efetivar(universal, selecaoDeUnidadesSemPadrao('geral,bravo')))).toEqual({
+      modo: 'lista',
+      valores: ['bravo'],
+      incluiSemUnidade: true,
+    })
+  })
+
+  it('caso 2 — a filial DESATIVADA continua recortando, por id e por slug', () => {
+    const operador = op('operador', [2])
+    expect(lerUnidades(efetivar(universal, selecaoDeUnidades('99', operador, ATIVAS)))).toEqual({
+      modo: 'lista',
+      valores: [99],
+      incluiSemUnidade: false,
+    })
+    expect(
+      lerUnidades(efetivar(universal, selecaoDeUnidadesPorSlug('extinta', operador, FILIAIS))),
+    ).toEqual({ modo: 'lista', valores: ['extinta'], incluiSemUnidade: false })
+  })
+
+  it('caso 3 — o operador sem vínculo cai em "todas", e NUNCA em "nenhuma"', () => {
+    for (const vinculos of [[], [99]]) {
+      const quebrado = op('operador', vinculos)
+      expect(lerUnidades(efetivar(universal, selecaoDeUnidades(undefined, quebrado, ATIVAS)))).toEqual(
+        { modo: 'todas' },
+      )
+      expect(
+        lerUnidades(efetivar(universal, selecaoDeUnidadesPorSlug(undefined, quebrado, FILIAIS))),
+      ).toEqual({ modo: 'todas' })
+    }
+  })
+})
+
+describe('F57 — a convenção `[]` morreu: nenhuma seleção é lista vazia querendo dizer "todas"', () => {
+  it('toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome)', () => {
+    const params = [undefined, '', 'todas', '2', '1,4', 'abc', '99999', 'bravo', 'geral', 'geral,bravo']
+    const operadores: OperadorDoFiltro[] = [
+      null,
+      op('dev'),
+      op('admin', ATIVAS),
+      op('operador'),
+      op('operador', [2]),
+      op('operador', [99]),
+      op('consulta'),
+    ]
+    for (const p of params) {
+      for (const o of operadores) {
+        const porId = selecaoDeUnidades(p, o, ATIVAS)
+        if (porId.modo === 'lista') expect(porId.ids.length).toBeGreaterThan(0)
+        const porSlug = selecaoDeUnidadesPorSlug(p, o, FILIAIS)
+        if (porSlug.modo === 'lista') expect(porSlug.slugs.length).toBeGreaterThan(0)
+      }
+      const semPadrao = selecaoDeUnidadesSemPadrao(p)
+      if (semPadrao.modo === 'lista') {
+        expect(semPadrao.slugs.length > 0 || semPadrao.incluiSemUnidade).toBe(true)
+      }
+    }
   })
 })
 

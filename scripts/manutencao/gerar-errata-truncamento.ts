@@ -27,6 +27,7 @@ import { join } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { loadEnvLocal } from '../env-guard'
 import { getSnapshotRelatorioV2 } from '../../src/lib/queries/relatorios/snapshot'
+import { recorteDe } from '../../src/lib/auth/recorte-leitura'
 import { periodoAnterior } from '../../src/lib/relatorios/periodo'
 import type { SnapshotRelatorioV2 } from '../../src/lib/relatorios/tipos'
 import { formatDate } from '../../src/lib/format'
@@ -188,7 +189,9 @@ async function main() {
     // v2 apresentaria como "a versão corrigida daquela semana" uma seção que
     // nunca foi daquela semana. O que era as-of na v1 continua as-of na v2; o que
     // não era, a v2 herda congelado da v1 em vez de inventar.
-    const novo = await getSnapshotRelatorioV2(client, escopo, periodo, false)
+    // F57 — script de manutenção: service role e nenhuma sessão, então o recorte de hoje
+    // (universal). Na virada, este é um dos pontos que passam a receber a empresa.
+    const novo = await getSnapshotRelatorioV2(client, recorteDe(null), escopo, periodo, false)
     novo.pendencias = (l.dados.pendencias ?? []) as SnapshotRelatorioV2['pendencias']
     const antesK = totalDe(l.dados, 'kpis')
     const antesKA = totalDe(l.dados, 'kpisAnterior')

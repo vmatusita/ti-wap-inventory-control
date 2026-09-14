@@ -16,6 +16,7 @@ import { loadEnvLocal } from './env-guard'
 import { hojeISO } from '@/lib/format'
 import { semanaUtilCorrente } from '@/lib/relatorios/periodo'
 import type { DbClient } from '@/lib/queries/relatorios'
+import { recorteDe } from '@/lib/auth/recorte-leitura'
 
 type Combo = { filial: string; nome: string; de: string; ate: string }
 
@@ -68,7 +69,9 @@ async function capturarEstavel(outfile: string) {
   const v2: Record<string, unknown> = {}
   for (const c of combos) {
     const chave = `${c.filial}|${c.nome}`
-    v2[chave] = await rel.getSnapshotRelatorioV2(client, c.filial, {
+    // F57 — script de manutenção: service role e nenhuma sessão, então o recorte de hoje
+    // (universal). Na virada, este é um dos pontos que passam a receber a empresa.
+    v2[chave] = await rel.getSnapshotRelatorioV2(client, recorteDe(null), c.filial, {
       de: c.de,
       ate: c.ate,
       rotulo: c.nome,
@@ -118,7 +121,7 @@ async function equivalencia() {
   for (const filial of FILIAIS) {
     const [v1, v2] = await Promise.all([
       rel.getSnapshotRelatorio(client, filial, periodo),
-      rel.getSnapshotRelatorioV2(client, filial, periodo),
+      rel.getSnapshotRelatorioV2(client, recorteDe(null), filial, periodo),
     ])
     // KPIs
     const kOk = kpisIguais(v1.kpis, v2.kpis)

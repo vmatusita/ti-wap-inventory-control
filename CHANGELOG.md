@@ -6,6 +6,46 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 14/09/2026 — F57 · Os quatro significados de filial, e o fim do fail-open ✅
+
+**v1.62.0** · **sem migration** · Fase quase invisível ao operador: a única mudança de tela é a recusa de filial
+inexistente no endereço. O que muda é por dentro — "filial" carregava quatro significados fundidos (onde se
+escreve, o que se lê, o que a tela filtra e a identidade do ativo), e o filtro de leitura tratava a lista vazia
+como "todas as filiais", o fail-open que a virada multiempresa não pode herdar. Ata completa em
+[`docs/DECISOES.md`](docs/DECISOES.md); relatório, com a pergunta sobre a compra no topo, em
+[`docs/RELATORIO-F57.md`](docs/RELATORIO-F57.md).
+
+- ✅ **Filial que não existe no endereço responde "página não encontrada"** em `/ativos`, `/movimentacoes`,
+  `/itens`, `/itens/historico`, `/itens/conferencia`, `/pendencias` e `/relatorios/gerados` (a oitava rota,
+  `/relatorios/[filial]`, já recusava). Antes, `?filial=9999` abria a tela filtrada por uma filial inexistente — a
+  lista vazia, sem dizer por quê. Filial **desativada** continua valendo, outra filial ativa continua abrindo,
+  `/itens/conferencia` mantém o seletor, e lixo no parâmetro continua ignorado (inclusive `99999`, fora da faixa
+  do id). Um helper só (`src/lib/unidades/pertinencia.ts`), e `rotas.test.ts` acha as rotas pelo disco.
+- ✅ **"Sem recorte" deixou de ser lista vazia.** As queries recebem `UnidadesEfetivas` — tipo nominal que só
+  `efetivar(recorteDe(sessão), seleção)` produz (`src/lib/auth/recorte-leitura.ts`); "todas", "nenhuma" e o
+  Consolidado (`filial_id is null`) têm modo com nome, e `[]` passado a uma query migrada não compila (sabotagem B:
+  cinco de cinco recusadas). O recorte de leitura é **universal** para todo cargo, como hoje (ADR-001/002):
+  nenhum cargo passou a ver menos. `recorteDe` é o ponto em que o recorte por empresa entra na virada.
+- ✅ **Os quatro significados ganharam nome.** Escrita: `escopoDeEscrita`/`escopoEscrita`/`podeEscreverNoEscopo`
+  nas três camadas (rename puro, provado arquivo a arquivo). Leitura: `RecorteDeLeitura`. Filtro da tela:
+  `SelecaoDeUnidades`/`unidadesMarcadasPorPadrao` (`src/lib/filtros/filial.ts`). Identidade:
+  `src/lib/ativos/identidade.ts`.
+- ✅ **A régua de identidade do ativo numa função só**, espelho do SQL (`0099`/`0091`) com trava contra o disco.
+  **A decisão i da ordem (recortar a checagem da compra por filial) NÃO foi aplicada:** a medição mostrou que as
+  três checagens de cadastro manual já eram globais por decisão da F24 e da spec §10.2. A compra com patrimônio
+  repetido em outra filial **continua recusada, com a mesma mensagem** — e mudar isso passou a ser uma linha
+  (`ALCANCE_DA_RECUSA_MANUAL`) mais a emenda da spec. É a pergunta no topo do relatório.
+- ✅ **Slugs reservados numa fonte só** (`src/lib/unidades/slugs.ts`, com trava por AST sobre `src/lib/**`) e
+  **`chaveVersao` do snapshot travada contra a `unique` da `0010` e o índice da `0013`** (o laço com a `unique` por empresa
+  fica registrado, não consertado).
+- ✅ **O inventário das leituras** — [`docs/INVENTARIO-LEITURAS.md`](docs/INVENTARIO-LEITURAS.md): **128**
+  call-sites nas cinco tabelas do acervo (115 literais em 21 arquivos — eram 117 antes de a régua de identidade
+  juntar três consultas numa — mais 13 com a tabela em variável), cada um com a classificação e o porquê:
+  **16 "precisa de `empresa_id` explícito"** e **112 "confia na RLS"**, com a fase de destino de cada um. É o
+  orçamento das fases que levam `empresa_id` ao acervo.
+
+---
+
 ## 14/09/2026 — F56 · O import sem WAP-ismo e sem bomba de chave estrangeira ✅ 🔒
 
 **v1.61.0** · migrations `0139` (o vocabulário do import vira dado no banco) e `0140` (as cinco chaves

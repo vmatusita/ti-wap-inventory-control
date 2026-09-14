@@ -1,0 +1,456 @@
+# F57 · Sabotagem C — os três casos-limite da ficha (14/09/2026)
+
+Cada quebra roda `npx vitest run src/lib/filtros src/lib/auth/papeis.test.ts` (o módulo, papeis e a matriz de casos-limite)
+e é restaurada antes da próxima. A saída de cada rodada vem RESUMIDA — nomes dos testes, resumo
+e as linhas de diff das asserções —, porque o diff da matriz inteira tem centenas de linhas.
+
+## C.1 — o terceiro valor some: o Consolidado pedido em /relatorios/gerados não liga mais `incluiSemUnidade`
+
+arquivo: src/lib/filtros/filial.ts
+--- de
+    incluiSemUnidade: sel.valores.includes(SLUG_CONSOLIDADO),
+--- para
+    incluiSemUnidade: false, // SABOTAGEM C.1
+
+$ npx vitest run src/lib/filtros src/lib/auth/papeis.test.ts   # C.1 sabotada
+
+ ❯ |puro| src/lib/filtros/filial.test.ts (43 tests | 3 failed) 58ms
+     × mas a seleção explícita continua valendo — e o Consolidado vira o terceiro valor 15ms
+     × caso 1 — o consolidado (filial_id is null) sobrevive em /relatorios/gerados 2ms
+     × toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome) 11ms
+ ❯ |puro| src/lib/filtros/casos-limite.test.ts (4 tests | 2 failed) 25ms
+     × bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS 17ms
+     × caso 1 — o consolidado (filial_id is null) aparece em /relatorios/gerados 3ms
+ Test Files  2 failed | 1 passed (3)
+      Tests  5 failed | 83 passed (88)
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — a matriz de casos-limite (cargo × vínculos × parâmetro) > bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS
+ ❯ src/lib/filtros/casos-limite.test.ts:511:27
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — os três casos-limite que a ficha nomeia, escritos por extenso > caso 1 — o consolidado (filial_id is null) aparece em /relatorios/gerados
+ ❯ src/lib/filtros/casos-limite.test.ts:523:46
+ FAIL  |puro| src/lib/filtros/filial.test.ts > selecaoDeUnidadesSemPadrao — /relatorios/gerados (decisão §4.7) > mas a seleção explícita continua valendo — e o Consolidado vira o terceiro valor
+ ❯ src/lib/filtros/filial.test.ts:254:55
+ FAIL  |puro| src/lib/filtros/filial.test.ts > F57 — os três casos-limite da ficha, no nível do módulo > caso 1 — o consolidado (filial_id is null) sobrevive em /relatorios/gerados
+ ❯ src/lib/filtros/filial.test.ts:271:83
+ FAIL  |puro| src/lib/filtros/filial.test.ts > F57 — a convenção `[]` morreu: nenhuma seleção é lista vazia querendo dizer "todas" > toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome)
+ ❯ src/lib/filtros/filial.test.ts:327:74
+
+-- diffs das asserções (linhas - esperado / + recebido) --
+AssertionError: expected [ …(2) ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "S3|qualquer cargo e o visualizador|geral: is(filial_id, null) → vazio-sem-consulta",
++   "S3|qualquer cargo e o visualizador|geral+valido: or(filial_id.is.null,filial_id.in.(2)) → in(filial_id, [2])",
++ ]
+
+AssertionError: expected 'vazio-sem-consulta' to be 'is(filial_id, null)' // Object.is equality
+
+AssertionError: expected { Object (familia, modo, ...) } to deeply equal { Object (familia, modo, ...) }
+- Expected
++ Received
+-   "incluiSemUnidade": true,
++   "incluiSemUnidade": false,
+
+AssertionError: expected { modo: 'nenhuma' } to deeply equal { modo: 'somente-sem-unidade' }
+- Expected
++ Received
+-   "modo": "somente-sem-unidade",
++   "modo": "nenhuma",
+
+AssertionError: expected false to be true // Object.is equality
+- Expected
++ Received
+- true
++ false
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## C.2 — o filtro passa a resolver pelas filiais ATIVAS: a filial desativada deixa de recortar (por id e por slug)
+
+arquivo: src/lib/filtros/filial.ts
+--- de
+  if (sel.modo === 'lista') return { familia: 'id', modo: 'lista', ids: sel.valores }
+--- para
+  if (sel.modo === 'lista') return { familia: 'id', modo: 'lista', ids: sel.valores.filter((id) => filiaisAtivas.includes(id)) } // SABOTAGEM C.2
+
+arquivo: src/lib/filtros/filial.ts
+--- de
+    return { familia: 'slug', modo: 'lista', slugs: sel.valores, incluiSemUnidade: false }
+--- para
+    return { familia: 'slug', modo: 'lista', slugs: sel.valores.filter((s) => filiais.some((f) => f.slug === s)), incluiSemUnidade: false } // SABOTAGEM C.2
+
+$ npx vitest run src/lib/filtros src/lib/auth/papeis.test.ts   # C.2 sabotada
+
+ ❯ |puro| src/lib/filtros/filial.test.ts (43 tests | 5 failed) 49ms
+     × id de filial fora das ATIVAS passa assim mesmo (o link antigo não muda de sentido) 15ms
+     × slug explícito passa mesmo fora da lista de ATIVAS (link antigo não muda de sentido) 2ms
+     × em /pendencias o slug do Consolidado é um slug como outro qualquer (não liga o terceiro valor) 2ms
+     × caso 2 — a filial DESATIVADA continua recortando, por id e por slug 1ms
+     × toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome) 2ms
+ ❯ |puro| src/lib/filtros/casos-limite.test.ts (4 tests | 2 failed) 27ms
+     × bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS 22ms
+     × caso 2 — a filial DESATIVADA continua recortando (id e slug) 2ms
+ Test Files  2 failed | 1 passed (3)
+      Tests  7 failed | 81 passed (88)
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — a matriz de casos-limite (cargo × vínculos × parâmetro) > bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS
+ ❯ src/lib/filtros/casos-limite.test.ts:511:27
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — os três casos-limite que a ficha nomeia, escritos por extenso > caso 2 — a filial DESATIVADA continua recortando (id e slug)
+ ❯ src/lib/filtros/casos-limite.test.ts:532:41
+ FAIL  |puro| src/lib/filtros/filial.test.ts > selecaoDeUnidades — URL + cargo (o que a tela E o export usam) > id de filial fora das ATIVAS passa assim mesmo (o link antigo não muda de sentido)
+ ❯ src/lib/filtros/filial.test.ts:222:66
+ FAIL  |puro| src/lib/filtros/filial.test.ts > selecaoDeUnidadesPorSlug — o padrão do cargo traduzido para slug > slug explícito passa mesmo fora da lista de ATIVAS (link antigo não muda de sentido)
+ ❯ src/lib/filtros/filial.test.ts:238:79
+ FAIL  |puro| src/lib/filtros/filial.test.ts > selecaoDeUnidadesPorSlug — o padrão do cargo traduzido para slug > em /pendencias o slug do Consolidado é um slug como outro qualquer (não liga o terceiro valor)
+ ❯ src/lib/filtros/filial.test.ts:244:69
+ FAIL  |puro| src/lib/filtros/filial.test.ts > F57 — os três casos-limite da ficha, no nível do módulo > caso 2 — a filial DESATIVADA continua recortando, por id e por slug
+ ❯ src/lib/filtros/filial.test.ts:283:89
+ FAIL  |puro| src/lib/filtros/filial.test.ts > F57 — a convenção `[]` morreu: nenhuma seleção é lista vazia querendo dizer "todas" > toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome)
+ ❯ src/lib/filtros/filial.test.ts:323:68
+
+-- diffs das asserções (linhas - esperado / + recebido) --
+AssertionError: expected [ …(112) ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "S1|dev · nenhum|inexistente: ids:77 → nenhuma",
++   "S1|dev · nenhum|misto: ids:2,77 → ids:2",
++   "S1|dev · nenhum|desativada: ids:5 → nenhuma",
++   "S2|dev · nenhum|inexistente: slugs:fantasma → nenhuma",
++   "S2|dev · nenhum|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|dev · nenhum|desativada: slugs:extinta → nenhuma",
++   "S2|dev · nenhum|geral: slugs:geral → nenhuma",
++   "S1|dev · um|inexistente: ids:77 → nenhuma",
++   "S1|dev · um|misto: ids:2,77 → ids:2",
++   "S1|dev · um|desativada: ids:5 → nenhuma",
++   "S2|dev · um|inexistente: slugs:fantasma → nenhuma",
++   "S2|dev · um|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|dev · um|desativada: slugs:extinta → nenhuma",
++   "S2|dev · um|geral: slugs:geral → nenhuma",
++   "S1|dev · dois|inexistente: ids:77 → nenhuma",
++   "S1|dev · dois|misto: ids:2,77 → ids:2",
++   "S1|dev · dois|desativada: ids:5 → nenhuma",
++   "S2|dev · dois|inexistente: slugs:fantasma → nenhuma",
++   "S2|dev · dois|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|dev · dois|desativada: slugs:extinta → nenhuma",
++   "S2|dev · dois|geral: slugs:geral → nenhuma",
++   "S1|dev · so-desativada|inexistente: ids:77 → nenhuma",
++   "S1|dev · so-desativada|misto: ids:2,77 → ids:2",
++   "S1|dev · so-desativada|desativada: ids:5 → nenhuma",
++   "S2|dev · so-desativada|inexistente: slugs:fantasma → nenhuma",
++   "S2|dev · so-desativada|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|dev · so-desativada|desativada: slugs:extinta → nenhuma",
++   "S2|dev · so-desativada|geral: slugs:geral → nenhuma",
++   "S1|admin · nenhum|inexistente: ids:77 → nenhuma",
++   "S1|admin · nenhum|misto: ids:2,77 → ids:2",
++   "S1|admin · nenhum|desativada: ids:5 → nenhuma",
++   "S2|admin · nenhum|inexistente: slugs:fantasma → nenhuma",
++   "S2|admin · nenhum|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|admin · nenhum|desativada: slugs:extinta → nenhuma",
++   "S2|admin · nenhum|geral: slugs:geral → nenhuma",
++   "S1|admin · um|inexistente: ids:77 → nenhuma",
++   "S1|admin · um|misto: ids:2,77 → ids:2",
++   "S1|admin · um|desativada: ids:5 → nenhuma",
++   "S2|admin · um|inexistente: slugs:fantasma → nenhuma",
++   "S2|admin · um|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|admin · um|desativada: slugs:extinta → nenhuma",
++   "S2|admin · um|geral: slugs:geral → nenhuma",
++   "S1|admin · dois|inexistente: ids:77 → nenhuma",
++   "S1|admin · dois|misto: ids:2,77 → ids:2",
++   "S1|admin · dois|desativada: ids:5 → nenhuma",
++   "S2|admin · dois|inexistente: slugs:fantasma → nenhuma",
++   "S2|admin · dois|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|admin · dois|desativada: slugs:extinta → nenhuma",
++   "S2|admin · dois|geral: slugs:geral → nenhuma",
++   "S1|admin · so-desativada|inexistente: ids:77 → nenhuma",
++   "S1|admin · so-desativada|misto: ids:2,77 → ids:2",
++   "S1|admin · so-desativada|desativada: ids:5 → nenhuma",
++   "S2|admin · so-desativada|inexistente: slugs:fantasma → nenhuma",
++   "S2|admin · so-desativada|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|admin · so-desativada|desativada: slugs:extinta → nenhuma",
++   "S2|admin · so-desativada|geral: slugs:geral → nenhuma",
++   "S1|operador · nenhum|inexistente: ids:77 → nenhuma",
++   "S1|operador · nenhum|misto: ids:2,77 → ids:2",
++   "S1|operador · nenhum|desativada: ids:5 → nenhuma",
++   "S2|operador · nenhum|inexistente: slugs:fantasma → nenhuma",
++   "S2|operador · nenhum|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|operador · nenhum|desativada: slugs:extinta → nenhuma",
++   "S2|operador · nenhum|geral: slugs:geral → nenhuma",
++   "S1|operador · um|inexistente: ids:77 → nenhuma",
++   "S1|operador · um|misto: ids:2,77 → ids:2",
++   "S1|operador · um|desativada: ids:5 → nenhuma",
++   "S2|operador · um|inexistente: slugs:fantasma → nenhuma",
++   "S2|operador · um|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|operador · um|desativada: slugs:extinta → nenhuma",
++   "S2|operador · um|geral: slugs:geral → nenhuma",
++   "S1|operador · dois|inexistente: ids:77 → nenhuma",
++   "S1|operador · dois|misto: ids:2,77 → ids:2",
++   "S1|operador · dois|desativada: ids:5 → nenhuma",
++   "S2|operador · dois|inexistente: slugs:fantasma → nenhuma",
++   "S2|operador · dois|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|operador · dois|desativada: slugs:extinta → nenhuma",
++   "S2|operador · dois|geral: slugs:geral → nenhuma",
++   "S1|operador · so-desativada|inexistente: ids:77 → nenhuma",
++   "S1|operador · so-desativada|misto: ids:2,77 → ids:2",
++   "S1|operador · so-desativada|desativada: ids:5 → nenhuma",
++   "S2|operador · so-desativada|inexistente: slugs:fantasma → nenhuma",
++   "S2|operador · so-desativada|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|operador · so-desativada|desativada: slugs:extinta → nenhuma",
++   "S2|operador · so-desativada|geral: slugs:geral → nenhuma",
++   "S1|consulta · nenhum|inexistente: ids:77 → nenhuma",
++   "S1|consulta · nenhum|misto: ids:2,77 → ids:2",
++   "S1|consulta · nenhum|desativada: ids:5 → nenhuma",
++   "S2|consulta · nenhum|inexistente: slugs:fantasma → nenhuma",
++   "S2|consulta · nenhum|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|consulta · nenhum|desativada: slugs:extinta → nenhuma",
++   "S2|consulta · nenhum|geral: slugs:geral → nenhuma",
++   "S1|consulta · um|inexistente: ids:77 → nenhuma",
++   "S1|consulta · um|misto: ids:2,77 → ids:2",
++   "S1|consulta · um|desativada: ids:5 → nenhuma",
++   "S2|consulta · um|inexistente: slugs:fantasma → nenhuma",
++   "S2|consulta · um|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|consulta · um|desativada: slugs:extinta → nenhuma",
++   "S2|consulta · um|geral: slugs:geral → nenhuma",
++   "S1|consulta · dois|inexistente: ids:77 → nenhuma",
++   "S1|consulta · dois|misto: ids:2,77 → ids:2",
++   "S1|consulta · dois|desativada: ids:5 → nenhuma",
++   "S2|consulta · dois|inexistente: slugs:fantasma → nenhuma",
++   "S2|consulta · dois|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|consulta · dois|desativada: slugs:extinta → nenhuma",
++   "S2|consulta · dois|geral: slugs:geral → nenhuma",
++   "S1|consulta · so-desativada|inexistente: ids:77 → nenhuma",
++   "S1|consulta · so-desativada|misto: ids:2,77 → ids:2",
++   "S1|consulta · so-desativada|desativada: ids:5 → nenhuma",
++   "S2|consulta · so-desativada|inexistente: slugs:fantasma → nenhuma",
++   "S2|consulta · so-desativada|misto: slugs:bravo,fantasma → slugs:bravo",
++   "S2|consulta · so-desativada|desativada: slugs:extinta → nenhuma",
++   "S2|consulta · so-desativada|geral: slugs:geral → nenhuma",
++ ]
+
+AssertionError: expected 'nenhuma' to be 'ids:5' // Object.is equality
+
+AssertionError: expected { familia: 'id', modo: 'lista', …(1) } to deeply equal { familia: 'id', modo: 'lista', …(1) }
+- Expected
++ Received
+-   "ids": [
+-     99,
+-   ],
++   "ids": [],
+
+AssertionError: expected { Object (familia, modo, ...) } to deeply equal { Object (familia, modo, ...) }
+- Expected
++ Received
+-   "slugs": [
+-     "extinta",
+-   ],
++   "slugs": [],
+
+AssertionError: expected { Object (familia, modo, ...) } to deeply equal { Object (familia, modo, ...) }
+- Expected
++ Received
+-   "slugs": [
+-     "geral",
+-   ],
++   "slugs": [],
+
+AssertionError: expected { modo: 'nenhuma' } to deeply equal { Object (modo, valores, ...) }
+- Expected
++ Received
+-   "incluiSemUnidade": false,
+-   "modo": "lista",
+-   "valores": [
+-     99,
+-   ],
++   "modo": "nenhuma",
+
+AssertionError: expected 0 to be greater than 0
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## C.3 — a trava do CARGO vira o atalho `escopoEscrita.length === 0`
+
+arquivo: src/lib/auth/papeis.ts
+--- de
+  if (papel !== 'operador') return { familia: 'id', modo: 'todas' }
+--- para
+  if (escopoEscrita.length === 0) return { familia: 'id', modo: 'todas' } // SABOTAGEM C.3
+
+$ npx vitest run src/lib/filtros src/lib/auth/papeis.test.ts   # C.3 sabotada
+
+ ❯ |puro| src/lib/filtros/filial.test.ts (43 tests | 2 failed) 52ms
+     × admin com escopoEscrita cheio (ele recebe todas) ainda assim NÃO recorta 17ms
+     × sem cargo (sem sessão) não recorta 3ms
+ ❯ |puro| src/lib/filtros/casos-limite.test.ts (4 tests | 1 failed) 27ms
+     × bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS 22ms
+ Test Files  2 failed | 1 passed (3)
+      Tests  3 failed | 85 passed (88)
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — a matriz de casos-limite (cargo × vínculos × parâmetro) > bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS
+ ❯ src/lib/filtros/casos-limite.test.ts:511:27
+ FAIL  |puro| src/lib/filtros/filial.test.ts > unidadesMarcadasPorPadrao — os quatro cargos > admin com escopoEscrita cheio (ele recebe todas) ainda assim NÃO recorta
+ ❯ src/lib/filtros/filial.test.ts:69:64
+ FAIL  |puro| src/lib/filtros/filial.test.ts > unidadesMarcadasPorPadrao — os quatro cargos > sem cargo (sem sessão) não recorta
+ ❯ src/lib/filtros/filial.test.ts:85:63
+
+-- diffs das asserções (linhas - esperado / + recebido) --
+AssertionError: expected [ …(48) ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "S1|dev · nenhum|ausente: todas → ids:1,2,3,4",
++   "S1|dev · nenhum|lixo: todas → ids:1,2,3,4",
++   "S1|dev · nenhum|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|dev · nenhum|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|dev · nenhum|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|dev · nenhum|sem parâmetro: geral → alfa",
++   "S1|dev · um|ausente: todas → ids:1,2,3,4",
++   "S1|dev · um|lixo: todas → ids:1,2,3,4",
++   "S1|dev · um|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|dev · um|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|dev · um|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|dev · um|sem parâmetro: geral → alfa",
++   "S1|dev · dois|ausente: todas → ids:1,2,3,4",
++   "S1|dev · dois|lixo: todas → ids:1,2,3,4",
++   "S1|dev · dois|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|dev · dois|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|dev · dois|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|dev · dois|sem parâmetro: geral → alfa",
++   "S1|dev · so-desativada|ausente: todas → ids:1,2,3,4",
++   "S1|dev · so-desativada|lixo: todas → ids:1,2,3,4",
++   "S1|dev · so-desativada|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|dev · so-desativada|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|dev · so-desativada|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|dev · so-desativada|sem parâmetro: geral → alfa",
++   "S1|admin · nenhum|ausente: todas → ids:1,2,3,4",
++   "S1|admin · nenhum|lixo: todas → ids:1,2,3,4",
++   "S1|admin · nenhum|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|admin · nenhum|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|admin · nenhum|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|admin · nenhum|sem parâmetro: geral → alfa",
++   "S1|admin · um|ausente: todas → ids:1,2,3,4",
++   "S1|admin · um|lixo: todas → ids:1,2,3,4",
++   "S1|admin · um|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|admin · um|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|admin · um|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|admin · um|sem parâmetro: geral → alfa",
++   "S1|admin · dois|ausente: todas → ids:1,2,3,4",
++   "S1|admin · dois|lixo: todas → ids:1,2,3,4",
++   "S1|admin · dois|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|admin · dois|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|admin · dois|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|admin · dois|sem parâmetro: geral → alfa",
++   "S1|admin · so-desativada|ausente: todas → ids:1,2,3,4",
++   "S1|admin · so-desativada|lixo: todas → ids:1,2,3,4",
++   "S1|admin · so-desativada|fora-da-faixa: todas → ids:1,2,3,4",
++   "S2|admin · so-desativada|ausente: todas → slugs:alfa,bravo,charlie,delta",
++   "S2|admin · so-desativada|lixo: todas → slugs:alfa,bravo,charlie,delta",
++   "S4|admin · so-desativada|sem parâmetro: geral → alfa",
++ ]
+
+AssertionError: expected { familia: 'id', modo: 'lista', …(1) } to deeply equal { familia: 'id', modo: 'todas' }
+- Expected
++ Received
+-   "modo": "todas",
++   "ids": [
++     1,
++     2,
++     3,
++     4,
++   ],
++   "modo": "lista",
+
+AssertionError: expected { familia: 'id', modo: 'lista', …(1) } to deeply equal { familia: 'id', modo: 'todas' }
+- Expected
++ Received
+-   "modo": "todas",
++   "ids": [
++     1,
++   ],
++   "modo": "lista",
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## C.4 — o operador sem vínculo perde o fallback: recebe a lista VAZIA de vinculadas (que `efetivar` faz virar "nenhuma")
+
+arquivo: src/lib/auth/papeis.ts
+--- de
+  return vinculadas.length > 0
+    ? { familia: 'id', modo: 'lista', ids: vinculadas }
+    : { familia: 'id', modo: 'todas' }
+--- para
+  return { familia: 'id', modo: 'lista', ids: vinculadas } // SABOTAGEM C.4
+
+$ npx vitest run src/lib/filtros src/lib/auth/papeis.test.ts   # C.4 sabotada
+
+ ❯ |puro| src/lib/filtros/filial.test.ts (43 tests | 3 failed) 49ms
+     × operador SEM vínculo cai em todas — e não numa lista sempre vazia 18ms
+     × caso 3 — o operador sem vínculo cai em "todas", e NUNCA em "nenhuma" 2ms
+     × toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome) 1ms
+ ❯ |puro| src/lib/filtros/casos-limite.test.ts (4 tests | 2 failed) 26ms
+     × bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS 19ms
+     × caso 3 — o operador sem vínculo cai em "todas" na leitura, e no aviso de escrita na conferência 4ms
+ Test Files  2 failed | 1 passed (3)
+      Tests  5 failed | 83 passed (88)
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — a matriz de casos-limite (cargo × vínculos × parâmetro) > bate com a gravação do ANTES, célula a célula, exceto as mudanças DECLARADAS
+ ❯ src/lib/filtros/casos-limite.test.ts:511:27
+ FAIL  |puro| src/lib/filtros/casos-limite.test.ts > F57 — os três casos-limite que a ficha nomeia, escritos por extenso > caso 3 — o operador sem vínculo cai em "todas" na leitura, e no aviso de escrita na conferência
+ ❯ src/lib/filtros/casos-limite.test.ts:542:45
+ FAIL  |puro| src/lib/filtros/filial.test.ts > unidadesMarcadasPorPadrao — os quatro cargos > operador SEM vínculo cai em todas — e não numa lista sempre vazia
+ ❯ src/lib/filtros/filial.test.ts:75:63
+ FAIL  |puro| src/lib/filtros/filial.test.ts > F57 — os três casos-limite da ficha, no nível do módulo > caso 3 — o operador sem vínculo cai em "todas", e NUNCA em "nenhuma"
+ ❯ src/lib/filtros/filial.test.ts:296:96
+ FAIL  |puro| src/lib/filtros/filial.test.ts > F57 — a convenção `[]` morreu: nenhuma seleção é lista vazia querendo dizer "todas" > toda seleção em modo lista tem o que listar (ou pede o consolidado, por nome)
+ ❯ src/lib/filtros/filial.test.ts:321:62
+
+-- diffs das asserções (linhas - esperado / + recebido) --
+AssertionError: expected [ …(10) ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "S1|operador · nenhum|ausente: todas → nenhuma",
++   "S1|operador · nenhum|lixo: todas → nenhuma",
++   "S1|operador · nenhum|fora-da-faixa: todas → nenhuma",
++   "S2|operador · nenhum|ausente: todas → nenhuma",
++   "S2|operador · nenhum|lixo: todas → nenhuma",
++   "S1|operador · so-desativada|ausente: todas → nenhuma",
++   "S1|operador · so-desativada|lixo: todas → nenhuma",
++   "S1|operador · so-desativada|fora-da-faixa: todas → nenhuma",
++   "S2|operador · so-desativada|ausente: todas → nenhuma",
++   "S2|operador · so-desativada|lixo: todas → nenhuma",
++ ]
+
+AssertionError: expected 'nenhuma' to be 'todas' // Object.is equality
+
+AssertionError: expected { familia: 'id', modo: 'lista', …(1) } to deeply equal { familia: 'id', modo: 'todas' }
+- Expected
++ Received
+-   "modo": "todas",
++   "ids": [],
++   "modo": "lista",
+
+AssertionError: expected { modo: 'nenhuma' } to deeply equal { modo: 'todas' }
+- Expected
++ Received
+-   "modo": "todas",
++   "modo": "nenhuma",
+
+AssertionError: expected 0 to be greater than 0
+
+(vitest exit=1)
+restaurado byte a byte: true
+
+## C.5 — tudo restaurado: verde de novo
+
+$ npx vitest run src/lib/filtros src/lib/auth/papeis.test.ts   # C.5 restaurada
+
+ Test Files  3 passed (3)
+      Tests  88 passed (88)
+
+-- diffs das asserções (linhas - esperado / + recebido) --
+
+(vitest exit=0)

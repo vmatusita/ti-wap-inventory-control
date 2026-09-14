@@ -5,6 +5,7 @@ import { registrarFalha } from '@/lib/observabilidade'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import type { DbClient } from '@/lib/auth/acesso'
 import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
+import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 
 // Leituras da MESA DE CONFLITOS entre filiais (F24) — a seção própria de /pendencias.
 //
@@ -148,9 +149,15 @@ function mapearLado(r: RowLado): LadoConflito {
  */
 export async function contarGruposConflito(
   client: DbClient,
-  filialSlugs: readonly string[] = [],
+  unidades: UnidadesEfetivas<'slug'>,
 ): Promise<number> {
-  if (filialSlugs.length === 0) {
+  // F57 — a vista decide o caminho. `todas` conta a view agregada; uma lista segue os dois
+  // caminhos por tamanho logo abaixo; e conflito é sempre ENTRE filiais — nenhuma linha sem
+  // unidade —, então `somente-sem-unidade` e `nenhuma` contam zero sem consultar nada.
+  const vista = lerUnidades(unidades)
+  if (vista.modo === 'somente-sem-unidade' || vista.modo === 'nenhuma') return 0
+  const filialSlugs = vista.modo === 'lista' ? vista.valores : null
+  if (filialSlugs === null) {
     const { count, error } = await client
       .from('v_conflitos_filiais_grupos')
       .select('chave', { count: 'exact', head: true })
@@ -211,12 +218,12 @@ export async function contarGruposConflito(
  */
 export async function contarConflitosAbertos(
   // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
-  // vai mostrar para quem está olhando.
-  filialSlugs: readonly string[] = [],
+  // vai mostrar para quem está olhando. F57 — `UnidadesEfetivas`, sem padrão silencioso.
+  unidades: UnidadesEfetivas<'slug'>,
 ): Promise<number> {
   try {
     const client = await createClient()
-    return await contarGruposConflito(client, filialSlugs)
+    return await contarGruposConflito(client, unidades)
   } catch (e) {
     registrarFalha({ escopo: 'conflitos.contar-abertos', erro: e })
     return 0
@@ -273,12 +280,13 @@ async function chavesPorBusca(client: DbClient, termo: string): Promise<Set<stri
  * simplesmente some da lista (sem lados = sem linha), que é o comportamento certo para uma
  * fonte derivada.
  */
-export async function listarConflitos(
-  opts: { filialSlugs?: readonly string[]; q?: string | null; page?: number } = {},
-): Promise<PaginaConflitos> {
+export async function listarConflitos(opts: {
+  unidades: UnidadesEfetivas<'slug'>
+  q?: string | null
+  page?: number
+}): Promise<PaginaConflitos> {
   const client = await createClient()
   let page = Math.max(1, opts.page ?? 1)
-  const filialSlugs = opts.filialSlugs ?? []
   const termo = opts.q?.trim() || null
 
   // ---- o UNIVERSO de chaves visíveis, ANTES de paginar ----
@@ -288,7 +296,11 @@ export async function listarConflitos(
   // vem depois, sobre o que sobrou.
   let universo: string[] | null = null
 
-  if (filialSlugs.length > 0) universo = await chavesDasFiliais(client, filialSlugs)
+  // F57 — `todas` não restringe o universo; uma lista o restringe às chaves das filiais dela;
+  // `somente-sem-unidade` e `nenhuma` o esvaziam (conflito nunca é de linha sem filial).
+  const vista = lerUnidades(opts.unidades)
+  if (vista.modo === 'lista') universo = await chavesDasFiliais(client, vista.valores)
+  else if (vista.modo !== 'todas') universo = []
 
   if (termo) {
     const porBusca = await chavesPorBusca(client, termo)
@@ -385,11 +397,11 @@ export async function listarConflitos(
  * possa ser ordenado/agrupado no Excel e os pares fiquem adjacentes. Ordenado por chave e
  * filial: os dois lados do mesmo conflito saem lado a lado, como na tela.
  */
-export async function listarConflitosParaExport(
-  opts: { filialSlugs?: readonly string[]; q?: string | null } = {},
-): Promise<{ chave: string; lado: LadoConflito }[]> {
+export async function listarConflitosParaExport(opts: {
+  unidades: UnidadesEfetivas<'slug'>
+  q?: string | null
+}): Promise<{ chave: string; lado: LadoConflito }[]> {
   const client = await createClient()
-  const filialSlugs = opts.filialSlugs ?? []
   const termo = opts.q?.trim() || null
 
   // Recorte por filial e/ou busca: as CHAVES que sobrevivem aos filtros — e depois TODOS os
@@ -400,7 +412,11 @@ export async function listarConflitosParaExport(
   // ⚠ Os MESMOS filtros da tela, pela mesma razão do invariante da F10 §T5: o arquivo tem
   // de sair com exatamente as linhas que estavam visíveis.
   let chaves: string[] | null = null
-  if (filialSlugs.length > 0) chaves = await chavesDasFiliais(client, filialSlugs)
+  // F57 — o mesmo recorte da tela: lista → as chaves das filiais; `todas` → sem restrição;
+  // `somente-sem-unidade`/`nenhuma` → nada (e o `return []` logo abaixo encerra).
+  const vista = lerUnidades(opts.unidades)
+  if (vista.modo === 'lista') chaves = await chavesDasFiliais(client, vista.valores)
+  else if (vista.modo !== 'todas') chaves = []
   if (termo) {
     const porBusca = await chavesPorBusca(client, termo)
     chaves = chaves ? chaves.filter((c) => porBusca.has(c)) : [...porBusca]

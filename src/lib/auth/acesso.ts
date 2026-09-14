@@ -6,14 +6,14 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { registrarFalha } from '@/lib/observabilidade'
 import { lerSessaoView, VIEW_COOKIE_NAME } from '@/lib/auth/senha-sessao'
-import { PAPEL_ROTULO, eAdmin, filiaisDeEscrita, papelAtende } from '@/lib/auth/papeis'
+import { PAPEL_ROTULO, eAdmin, escopoDeEscrita, papelAtende } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { Database } from '@/lib/types/database'
 
 export type DbClient = SupabaseClient<Database>
 
 // F21: o operador deixou de ser só "quem está logado". `papel` é o cargo vigente e
-// `filiaisEscrita` são as filiais em que ele pode ESCREVER (admin → todas as ativas).
+// `escopoEscrita` são as filiais em que ele pode ESCREVER (admin → todas as ativas).
 // Leitura continua ampla para todos os cargos — ADR-001 segue valendo nesse ponto.
 export type Operador = {
   id: string
@@ -22,9 +22,9 @@ export type Operador = {
   // `readonly` porque, com `getOperador` memoizada por request, este array é COMPARTILHADO
   // por referência entre o layout do grupo, o admin/layout e a página do mesmo render: um
   // `.sort()`/`.push()` em qualquer um deles reescreveria em silêncio a lista de permissão de
-  // ESCRITA que os outros leem. Alinha com `Permissoes.filiaisEscrita`
+  // ESCRITA que os outros leem. Alinha com `Permissoes.escopoEscrita`
   // (components/layout/permissoes.ts), que já era readonly.
-  filiaisEscrita: readonly number[]
+  escopoEscrita: readonly number[]
   /**
    * F29/UXG-12 — e-mail da conta logada (de `auth.users`, já lido aqui). Numa máquina
    * compartilhada da TI, "com qual conta eu estou?" é a primeira pergunta, e o app não
@@ -204,7 +204,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
     supabase.from('operador_filiais').select('filial_id').eq('usuario_id', user.id),
   ])
 
-  const filiaisEscrita = filiaisDeEscrita(
+  const escopoEscrita = escopoDeEscrita(
     papel,
     (vinculos ?? []).map((v) => v.filial_id),
     (ativas ?? []).map((f) => f.id),
@@ -214,7 +214,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
     id: user.id,
     nome: perfil.nome?.trim() || user.email || 'Operador',
     papel,
-    filiaisEscrita,
+    escopoEscrita,
     email: user.email ?? null,
   }
 })

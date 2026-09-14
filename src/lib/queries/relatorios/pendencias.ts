@@ -1,5 +1,8 @@
 import 'server-only'
 import { registrarFalha } from '@/lib/observabilidade'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
+import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import {
   ILIKE_ITENS_FALTANTES,
   OR_PATRIMONIO,
@@ -19,12 +22,15 @@ import type { DbClient } from './comum'
 
 // Query base: a fila, opcionalmente recortada por filial. O tipo dela é o contrato
 // dos predicados de balde logo abaixo.
-// F25 — a filial virou LISTA de slugs. `[]` = sem recorte (todas), que é o que o
-// relatório consolidado e o /pendencias sem recorte pedem.
-function queryBase(client: DbClient, filialSlugs: readonly string[]) {
-  let query = client.from('v_fila_pendencias').select('*', { count: 'exact', head: true })
-  if (filialSlugs.length > 0) query = query.in('filial', filialSlugs)
-  return query
+// F25 — a filial virou LISTA de slugs. F57 — e a lista virou `UnidadesEfetivas`: o "sem
+// recorte" do relatório consolidado e do /pendencias sem filtro é o modo `todas`, com nome,
+// e não mais uma lista vazia — que é o valor que uma interseção vazia também produziria.
+function queryBase(client: DbClient, unidades: UnidadesEfetivas<'slug'>) {
+  return recortarPorUnidade(
+    client.from('v_fila_pendencias').select('*', { count: 'exact', head: true }),
+    'filial',
+    unidades,
+  )
 }
 
 type QueryFila = ReturnType<typeof queryBase>
@@ -81,22 +87,37 @@ const CHAVES_BALDE = Object.keys(BALDES) as BaldeChip[]
 
 async function contar(
   client: DbClient,
-  filialSlugs: readonly string[],
+  unidades: UnidadesEfetivas<'slug'>,
   filtrar?: (q: QueryFila) => QueryFila,
 ): Promise<number> {
-  const base = queryBase(client, filialSlugs)
+  const base = queryBase(client, unidades)
   const { count, error } = await (filtrar ? filtrar(base) : base)
   if (error) throw new Error(`Falha ao contar pendências: ${error.message}`)
   return count ?? 0
 }
 
+// O rótulo das filiais no rastro de falha — o mesmo texto de antes (`geral` sem recorte,
+// os slugs juntados por `+` com recorte), agora lido da vista.
+function rotuloDasUnidades(unidades: UnidadesEfetivas<'slug'>): string {
+  const vista = lerUnidades(unidades)
+  switch (vista.modo) {
+    case 'todas':
+      return SLUG_CONSOLIDADO
+    case 'lista':
+      return vista.valores.join('+')
+    case 'somente-sem-unidade':
+    case 'nenhuma':
+      return vista.modo
+  }
+}
+
 export async function getPendencias(
   client: DbClient,
-  filialSlugs: readonly string[],
+  unidades: UnidadesEfetivas<'slug'>,
 ): Promise<ChipPendencia[]> {
   const [total, ...contagens] = await Promise.all([
-    contar(client, filialSlugs, undefined),
-    ...CHAVES_BALDE.map((chave) => contar(client, filialSlugs, BALDES[chave].filtrar)),
+    contar(client, unidades, undefined),
+    ...CHAVES_BALDE.map((chave) => contar(client, unidades, BALDES[chave].filtrar)),
   ])
 
   // "outras" é o RESTO: o que a fila tem e nenhum balde reivindicou. Só assim o chip
@@ -116,7 +137,7 @@ export async function getPendencias(
       erro:
         'Uma linha da fila casa mais de um predicado (pendência `;`-joinable?) — ver lib/pendencias/filtro.ts.',
       ctx: {
-        filiais: filialSlugs.join('+') || 'geral',
+        filiais: rotuloDasUnidades(unidades),
         somaBaldes,
         total,
       },

@@ -46,7 +46,7 @@ const BLOQUEIO_DEV =
 // ⚠ F22: o primeiro ramo era `papel === 'admin'`. Com a igualdade, um Desenvolvedor caía no
 // ramo de baixo e a tela dizia, EM VERMELHO, "Nenhuma — não consegue registrar nada" sobre a
 // conta com MAIS poder de escrita do sistema. `eAdmin` é hierarquia desde a F22 e cobre os
-// dois — é o mesmo predicado que `filiaisDeEscrita()` e `pode_escrever_filial()` usam.
+// dois — é o mesmo predicado que `escopoDeEscrita()` e `pode_escrever_filial()` usam.
 function textoFiliais(
   papel: PapelUsuario,
   vinculos: readonly number[],

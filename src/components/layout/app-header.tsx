@@ -29,7 +29,7 @@ export function AppHeader({
   nome,
   papel,
   email,
-  filiaisEscrita,
+  nomesDoEscopoEscrita,
   pendencias,
   podeEscrever = false,
   eAdmin = false,
@@ -41,7 +41,7 @@ export function AppHeader({
   papel?: PapelUsuario
   /** F29/UXG-12 — e-mail e filiais de escrita descem do shell para o menu do usuário. */
   email?: string | null
-  filiaisEscrita?: readonly string[]
+  nomesDoEscopoEscrita?: readonly string[]
   pendencias?: number
   podeEscrever?: boolean
   eAdmin?: boolean
@@ -179,7 +179,7 @@ export function AppHeader({
           nome={nome}
           papel={papel}
           email={email}
-          filiaisEscrita={filiaisEscrita}
+          nomesDoEscopoEscrita={nomesDoEscopoEscrita}
         />
       </div>
     </header>

@@ -296,7 +296,7 @@ export default async function NovaMovimentacaoPage({
           ultimaMov={ultimaMov}
           origemInvalida={origemInvalida}
           papel={operador?.papel ?? null}
-          filiaisEscrita={operador?.filiaisEscrita ?? []}
+          escopoEscrita={operador?.escopoEscrita ?? []}
         />
       ) : (
         <EstadoVazio

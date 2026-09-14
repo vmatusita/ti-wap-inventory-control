@@ -24,7 +24,10 @@ import {
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 // F25 — o `filial` da URL virou LISTA e ganhou um padrão por CARGO. A resolução
 // mora em um módulo só porque a action de export reparseia esta MESMA querystring.
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
@@ -100,18 +103,31 @@ export default async function AtivosPage({
   // filiais ativas antes de saber o que recortar. Custa pouco: `getOperador()` é
   // memoizada por request (o layout do grupo já a chamou) e `listarFiliais()` lê
   // uma tabela de 5 linhas.
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), texto(sp.filial), 'id')
+
   const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
 
-  // `[]` = sem recorte (todas). Ver src/lib/filtros/filial.ts.
-  const filialIds = resolverFiliaisIds(
-    texto(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
+  // F57 — o que a QUERY recebe: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      texto(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
   )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // F19 — diferencia "não há ativo nenhum" de "nada nesta busca" no estado vazio
   // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
-  // fora: são apresentação, não recorte. `status` e `filialIds` são ARRAYS —
+  // fora: são apresentação, não recorte. `status` e `filiaisMarcadas` são ARRAYS —
   // `Boolean([])` é true, por isso `.length > 0`.
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
   // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
@@ -131,7 +147,8 @@ export default async function AtivosPage({
   // admin, e negar-lhe a comemoração (ou oferecer um "Ver todas" que não alarga
   // nada) seria falso. O caminho real é a conta rebaixada de admin para operador,
   // que a ADR-002 deixa vinculada a todas.
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   // A saída do estado vazio tem de MUDAR alguma coisa: com filtro na URL, "Limpar"
   // volta à URL de repouso (o MESMO destino do botão "Limpar" da barra de filtros,
@@ -176,7 +193,7 @@ export default async function AtivosPage({
 
   const resultado = await listarAtivos({
     q,
-    filialIds,
+    unidades,
     categoria,
     status,
     semPatrimonio,
@@ -222,7 +239,7 @@ export default async function AtivosPage({
         <LembrarLista />
       </Suspense>
 
-      <AtivosFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
+      <AtivosFiltros filiais={filiais} filiaisSelecionadas={filiaisMarcadas.map(String)} />
 
       {/* ATV-12 — visões prontas (Em manutenção · Em estoque · Sem patrimônio ·
           Com pendência), acima da tabela. Fica visível mesmo na lista vazia:

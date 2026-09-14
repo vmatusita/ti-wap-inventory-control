@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.62.0',
+    data: '2026-09-14',
+    fase: 'F57',
+    titulo: 'Link com uma filial que não existe passa a mostrar "página não encontrada"',
+    mudancas: [
+      'Um link com uma filial que não existe — digitado à mão, ou apontando para uma filial que nunca foi cadastrada — passa a mostrar "página não encontrada" nas telas de Ativos, Movimentações, Itens (inclusive o histórico e a conferência), Pendências e Relatórios gerados. Antes a tela abria filtrada por essa filial inexistente e mostrava a lista vazia, sem dizer por quê.',
+      'Links de filial desativada continuam abrindo e filtrando por ela, e os links sem filial ou com "Todas" continuam iguais. O relatório de cada filial já respondia assim antes desta versão.',
+      'Por dentro, o filtro de filial foi reorganizado para que um filtro que termine sem nenhuma filial nunca mais possa ser lido como "todas as filiais". Hoje isso não muda nenhum número na tela: é a proteção que precisa estar no lugar antes de o sistema atender mais de uma empresa.',
+    ],
+  },
+  {
     versao: '1.61.0',
     data: '2026-09-14',
     fase: 'F56',

@@ -41,7 +41,7 @@ import {
   MSG_SOMENTE_LEITURA,
   msgSemEscritaNaFilial,
 } from '@/lib/auth/acesso'
-import { podeEscreverNaFilial } from '@/components/layout/permissoes'
+import { podeEscreverNoEscopo } from '@/components/layout/permissoes'
 import { eAdmin } from '@/lib/auth/papeis'
 import { registrarFalha } from '@/lib/observabilidade'
 
@@ -150,7 +150,7 @@ export default async function AtivoFichaPage({
   // resolver pendência de item) é da filial DESTE ativo, então uma decisão só
   // governa a página inteira. Quando fecha, a ficha diz POR QUÊ — com a mesma
   // frase que a action devolveria, para não haver duas versões da regra.
-  const podeEscreverNesta = podeEscreverNaFilial(operador, ativo.filial_id)
+  const podeEscreverNesta = podeEscreverNoEscopo(operador, ativo.filial_id)
   const motivoSemEscrita = podeEscreverNesta
     ? null
     : operador?.papel === 'consulta'

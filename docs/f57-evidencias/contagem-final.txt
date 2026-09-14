@@ -1,0 +1,101 @@
+# F57 · A contagem final e as varreduras de escopo (14/09/2026)
+
+Tudo abaixo é saída de comando, não digitação. `main` = 711facd (a F56 fechada). Gerado por um script
+da sessão; a regex é `\.from\(\s*['"](ativos|movimentacoes|lancamentos_item|pendencias_item|colaboradores)['"]`, em src/** fora de teste.
+
+## 1. A varredura dos call-sites literais — main × HEAD
+
+main  call-sites: 117 · arquivos: 21
+HEAD  call-sites: 115 · arquivos: 21
+
+$ diff <contagem por arquivo em main> <contagem por arquivo em HEAD>
+3c3
+< src/lib/actions/ativos.ts:8
+---
+> src/lib/actions/ativos.ts:7
+5,6c5
+< src/lib/actions/compras.ts:2
+< src/lib/actions/devolucao-fornecedor.ts:1
+---
+> src/lib/actions/compras.ts:1
+10a10
+> src/lib/ativos/identidade.ts:1
+(as consultas de identidade de actions/ativos.ts, actions/compras.ts e actions/devolucao-fornecedor.ts
+ viraram uma, em lib/ativos/identidade.ts: 117 − 3 + 1 = 115)
+
+## 2. O inventário conferido contra a varredura (árvore de trabalho)
+
+arquivos no inventário: 21 · no disco: 21
+soma do inventário: 115 · soma do disco: 115
+divergências: 0
+(conferir-inventario exit=0)
+
+## 3. Referências de cada nome em src/** (linhas com a palavra inteira) — main × HEAD
+
+nome                               main   HEAD
+resolverFiliaisIds                   26      1
+resolverFiliaisSlugs                 16      1
+resolverFiliaisSlugsSemPadrao         7      1
+filtroFilialPadrao                   20      3
+filiaisDeEscrita                     27      0
+filiaisEscrita                       85      1
+podeEscreverNaFilial                 13      0
+escreveNaFilial                      28     28
+abaRelatorioPadrao                   14     16
+exigirEscritaEm                      19     19
+selecaoDeUnidades                     0     30
+selecaoDeUnidadesPorSlug              0     21
+selecaoDeUnidadesSemPadrao            0     16
+unidadesMarcadasPorPadrao             0     20
+escopoDeEscrita                       0     29
+escopoEscrita                         0     70
+podeEscreverNoEscopo                  0     15
+recorteDe                             0     52
+efetivar                              0     91
+lerUnidades                           0     63
+recortarPorUnidade                    0     22
+recusarFilialInexistente              0     26
+cadastrosComMesmaIdentidade           0     17
+
+$ git grep -nw <os sete nomes antigos> HEAD -- src   # o que sobrou
+HEAD:src/components/layout/permissoes.test.ts:9:// `unidadesMarcadasPorPadrao` (até a F57, `filtroFilialPadrao`):
+HEAD:src/components/layout/permissoes.test.ts:28: * `escopo*`. ⚠ A segunda metade não é enfeite: a F57 renomeou o campo `filiaisEscrita` para
+HEAD:src/lib/auth/papeis.ts:175: * consulta recebem. Até a F57 esta função se chamava `filtroFilialPadrao` e devolvia `[]` para
+HEAD:src/lib/auth/recorte.test.ts:281:        /\b(?:resolverFiliaisIds|resolverFiliaisSlugs|resolverFiliaisSlugsSemPadrao|filtroFilialPadrao)\b/.test(
+
+## 4. Escopo — o que NÃO podia mudar (árvore de trabalho × main)
+
+$ git diff --stat main -- supabase .github src/lib/ajuda/registry.ts package-lock.json '.env*'
+(fim — vazio = nada tocado)
+
+$ git diff main -- package.json
+diff --git a/package.json b/package.json
+index 1855250..5fd36b7 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "estoque-ti-wap",
+-  "version": "1.61.0",
++  "version": "1.62.0",
+   "private": true,
+   "scripts": {
+     "dev": "next dev",
+
+$ git log --oneline main..HEAD -- supabase src/lib/ajuda/registry.ts .github
+(fim — vazio = nenhum commit da fase tocou)
+
+## 5. Dado real e credencial — nos arquivos que a fase criou ou mudou
+
+arquivos considerados: 96
+
+$ grep -nE '<padrões de token JWT, chave publicável/secreta e token de acesso>' <arquivos> | wc -l
+0
+
+$ git diff main | grep '^+' | grep -oE 'WAP[0-9]{7}' | sort | uniq -c   # patrimônios nas linhas ACRESCENTADAS
+     24 WAP0001234
+      3 WAP0009999
+(fim — WAP0001234 é o fictício canônico; WAP0009999 já era fictício na main: RELATORIO-F23 e 6 testes)
+
+$ git diff main | grep '^+' | grep -oE '<e-mail>' | sort | uniq -c   # e-mails nas linhas acrescentadas
+(fim)
