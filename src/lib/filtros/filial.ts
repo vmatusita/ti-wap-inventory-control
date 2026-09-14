@@ -1,4 +1,4 @@
-// F25 — resolução do filtro de filial: URL + cargo → a lista efetiva.
+// F25 — resolução do filtro de filial: URL + cargo → a SELEÇÃO de unidades.
 //
 // POR QUE UM MÓDULO, e não a conta repetida em cada página: o filtro de filial é
 // lido em DOIS lugares por superfície — o Server Component que monta a tela e a
@@ -12,11 +12,16 @@
 // cargo de quem está pedindo". Uma cópia esquecida no export faz o CSV trazer o
 // acervo inteiro enquanto a tela mostra duas filiais — sem erro nenhum.
 //
-// CONVENÇÃO DE RETORNO: `[]` = SEM RECORTE (todas as filiais). É o mesmo valor
-// para "cargo que vê tudo" e para "sentinela `filial=todas`", porque para a query
-// as duas coisas são a mesma: não aplicar `.in`.
+// CONVENÇÃO DE RETORNO (F57): o MODO passa adiante. `{ modo: 'todas' }` é "sem
+// recorte", com nome; `{ modo: 'lista' }` são as filiais pedidas. Até a F57 este
+// módulo devolvia `[]` para "sem recorte" — o mesmo valor para "cargo que vê tudo" e
+// para "sentinela `filial=todas`" —, e qualquer outro `[]` que chegasse à query (uma
+// interseção que esvaziou, um filtro que não resolveu) também virava "todas", em
+// silêncio. Estas funções devolvem a SELEÇÃO; quem a transforma no que uma query
+// aceita é `efetivar` (`auth/recorte-leitura.ts`), que a intersecta com o recorte de
+// leitura da sessão.
 
-import { filtroFilialPadrao } from '@/lib/auth/papeis'
+import { ABA_RELATORIO_CONSOLIDADO, unidadesMarcadasPorPadrao } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { selecaoFilialIds, selecaoFilialSlugs } from '@/lib/url-params'
 
@@ -52,24 +57,29 @@ export type SelecaoDeUnidadesPorSlug =
       readonly incluiSemUnidade: boolean
     }
 
+const TODAS_POR_ID: SelecaoDeUnidades = Object.freeze({ familia: 'id', modo: 'todas' })
+const TODAS_POR_SLUG: SelecaoDeUnidadesPorSlug = Object.freeze({
+  familia: 'slug',
+  modo: 'todas',
+})
+
 /**
- * Filiais efetivas das telas que filtram por ID (`/ativos`, `/movimentacoes`,
- * `/itens`). `[]` = sem recorte.
+ * A seleção das telas que filtram por ID (`/ativos`, `/movimentacoes`, `/itens`,
+ * `/itens/historico`) — e do CSV de cada uma.
  */
-export function resolverFiliaisIds(
+export function selecaoDeUnidades(
   param: string | null | undefined,
   operador: OperadorDoFiltro,
   filiaisAtivas: readonly number[],
-): number[] {
+): SelecaoDeUnidades {
   const sel = selecaoFilialIds(param)
-  if (sel.modo === 'todas') return []
-  if (sel.modo === 'lista') return sel.valores
-  return filtroFilialPadrao(operador?.papel, operador?.filiaisEscrita ?? [], filiaisAtivas)
+  if (sel.modo === 'todas') return TODAS_POR_ID
+  if (sel.modo === 'lista') return { familia: 'id', modo: 'lista', ids: sel.valores }
+  return unidadesMarcadasPorPadrao(operador?.papel, operador?.filiaisEscrita ?? [], filiaisAtivas)
 }
 
 /**
- * Filiais efetivas das telas que filtram por SLUG (`/pendencias`). `[]` = sem
- * recorte.
+ * A seleção das telas que filtram por SLUG (`/pendencias`).
  *
  * `filiais` precisa trazer id E slug porque o padrão do cargo sai de `filiaisEscrita`,
  * que é uma lista de IDs — a tradução para slug acontece aqui, e não na página.
@@ -77,21 +87,28 @@ export function resolverFiliaisIds(
  * comportamento de hoje (um `?filial=<slug de filial desativada>` continua
  * recortando), e mudá-lo seria alterar em silêncio o sentido de links antigos.
  */
-export function resolverFiliaisSlugs(
+export function selecaoDeUnidadesPorSlug(
   param: string | null | undefined,
   operador: OperadorDoFiltro,
   filiais: readonly { id: number; slug: string }[],
-): string[] {
+): SelecaoDeUnidadesPorSlug {
   const sel = selecaoFilialSlugs(param)
-  if (sel.modo === 'todas') return []
-  if (sel.modo === 'lista') return sel.valores
-  const padrao = filtroFilialPadrao(
+  if (sel.modo === 'todas') return TODAS_POR_SLUG
+  if (sel.modo === 'lista') {
+    return { familia: 'slug', modo: 'lista', slugs: sel.valores, incluiSemUnidade: false }
+  }
+  const padrao = unidadesMarcadasPorPadrao(
     operador?.papel,
     operador?.filiaisEscrita ?? [],
     filiais.map((f) => f.id),
   )
-  if (padrao.length === 0) return []
-  return filiais.filter((f) => padrao.includes(f.id)).map((f) => f.slug)
+  if (padrao.modo === 'todas') return TODAS_POR_SLUG
+  return {
+    familia: 'slug',
+    modo: 'lista',
+    slugs: filiais.filter((f) => padrao.ids.includes(f.id)).map((f) => f.slug),
+    incluiSemUnidade: false,
+  }
 }
 
 /**
@@ -102,6 +119,55 @@ export function resolverFiliaisSlugs(
  * de snapshots, e boa parte dele é de relatório CONSOLIDADO (`filial_id is null`),
  * que não pertence a filial nenhuma. Recortar por padrão esconderia justamente
  * esses — o operador abriria o histórico e concluiria que os consolidados sumiram.
+ *
+ * F57 — o slug reservado do Consolidado deixa de ser "mais um slug" na lista: vira o flag
+ * `incluiSemUnidade`, o terceiro valor. É a única seleção que o liga, porque esta é a única
+ * tela cujo filtro aceita o Consolidado.
+ */
+export function selecaoDeUnidadesSemPadrao(
+  param: string | null | undefined,
+): SelecaoDeUnidadesPorSlug {
+  const sel = selecaoFilialSlugs(param)
+  if (sel.modo !== 'lista') return TODAS_POR_SLUG
+  return {
+    familia: 'slug',
+    modo: 'lista',
+    slugs: sel.valores.filter((s) => s !== ABA_RELATORIO_CONSOLIDADO),
+    incluiSemUnidade: sel.valores.includes(ABA_RELATORIO_CONSOLIDADO),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ⚠ TRANSITÓRIO (F57) — os três nomes antigos. Saem no lote 4 da Frente H.
+// ---------------------------------------------------------------------------
+// Os consumidores migram em lotes (`docs/PLAN-F57.md` §4), e o `tsc` precisa ficar verde entre
+// um commit e outro. Até o lote 4, quem ainda não migrou lê por estes invólucros finos — o
+// ÚNICO lugar do repositório onde a convenção `[] = todas` sobrevive, e só até lá.
+
+/** @deprecated F57 — transitório: use `selecaoDeUnidades` + `efetivar`. Sai no lote 4. */
+export function resolverFiliaisIds(
+  param: string | null | undefined,
+  operador: OperadorDoFiltro,
+  filiaisAtivas: readonly number[],
+): number[] {
+  const s = selecaoDeUnidades(param, operador, filiaisAtivas)
+  return s.modo === 'todas' ? [] : [...s.ids]
+}
+
+/** @deprecated F57 — transitório: use `selecaoDeUnidadesPorSlug` + `efetivar`. Sai no lote 4. */
+export function resolverFiliaisSlugs(
+  param: string | null | undefined,
+  operador: OperadorDoFiltro,
+  filiais: readonly { id: number; slug: string }[],
+): string[] {
+  const s = selecaoDeUnidadesPorSlug(param, operador, filiais)
+  return s.modo === 'todas' ? [] : [...s.slugs]
+}
+
+/**
+ * @deprecated F57 — transitório: use `selecaoDeUnidadesSemPadrao` + `efetivar`. Sai no lote 4.
+ * Devolve os slugs na ORDEM da URL, com o do Consolidado onde ele veio — é o que a tela ainda
+ * mostra no rótulo do filtro até migrar.
  */
 export function resolverFiliaisSlugsSemPadrao(param: string | null | undefined): string[] {
   const sel = selecaoFilialSlugs(param)

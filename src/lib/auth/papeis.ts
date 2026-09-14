@@ -13,6 +13,9 @@
 // confira lá. Ver docs/ADR-002-papeis-e-permissoes.md (§ "Cargo dev — 30/07/2026").
 
 import type { Database } from '@/lib/types/database'
+// Só tipo: `filtros/filial.ts` importa este módulo em runtime, e o ciclo de TIPO some na
+// compilação.
+import type { SelecaoDeUnidades } from '@/lib/filtros/filial'
 
 // Vem do enum do banco: se um papel novo entrar na migration, o TypeScript acusa aqui.
 export type PapelUsuario = Database['public']['Enums']['papel_usuario']
@@ -167,8 +170,10 @@ export function filiaisDeEscrita(
 /**
  * As filiais que o filtro já vem marcando quando a URL NÃO traz `filial`.
  *
- * `[]` significa SEM RECORTE (todas) — é o que dev, admin e consulta recebem, e é
- * também o que a query interpreta como "não aplique `.in`".
+ * F57 — devolve a SELEÇÃO, com o modo nomeado: `{ modo: 'todas' }` é o que dev, admin e
+ * consulta recebem. Até a F57 esta função se chamava `filtroFilialPadrao` e devolvia `[]` para
+ * "sem recorte" — o mesmo valor de uma lista que esvaziou, que é justamente a confusão que a
+ * fase fecha (ver `auth/recorte-leitura.ts`).
  *
  * ⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`. Lista vazia tem
  * dois significados diferentes: `consulta` (que não escreve em lugar nenhum, e para
@@ -176,15 +181,17 @@ export function filiaisDeEscrita(
  * que com o atalho errado veria uma lista SEMPRE VAZIA e nenhuma pista do porquê.
  * Os dois caem em "todas", mas por caminhos distintos e explícitos.
  */
-export function filtroFilialPadrao(
+export function unidadesMarcadasPorPadrao(
   papel: PapelUsuario | null | undefined,
   filiaisEscrita: readonly number[],
   filiaisAtivas: readonly number[],
-): number[] {
-  if (papel !== 'operador') return []
+): SelecaoDeUnidades {
+  if (papel !== 'operador') return { familia: 'id', modo: 'todas' }
   const vinculadas = filiaisAtivas.filter((id) => filiaisEscrita.includes(id))
   // Operador sem vínculo ATIVO: cai em "todas" de propósito (ver o ⚠ acima).
-  return vinculadas.length > 0 ? vinculadas : []
+  return vinculadas.length > 0
+    ? { familia: 'id', modo: 'lista', ids: vinculadas }
+    : { familia: 'id', modo: 'todas' }
 }
 
 /**
@@ -208,9 +215,13 @@ export function abaRelatorioPadrao(
   filiaisEscrita: readonly number[],
   filiaisOrdenadasPorNome: readonly { id: number; slug: string }[],
 ): string {
-  const padrao = filtroFilialPadrao(papel, filiaisEscrita, filiaisOrdenadasPorNome.map((f) => f.id))
-  if (padrao.length === 0) return ABA_RELATORIO_CONSOLIDADO
-  const primeira = filiaisOrdenadasPorNome.find((f) => padrao.includes(f.id))
+  const padrao = unidadesMarcadasPorPadrao(
+    papel,
+    filiaisEscrita,
+    filiaisOrdenadasPorNome.map((f) => f.id),
+  )
+  if (padrao.modo === 'todas') return ABA_RELATORIO_CONSOLIDADO
+  const primeira = filiaisOrdenadasPorNome.find((f) => padrao.ids.includes(f.id))
   return primeira?.slug ?? ABA_RELATORIO_CONSOLIDADO
 }
 
@@ -223,7 +234,7 @@ export function abaRelatorioPadrao(
 // não escreve em {filial}" — nada aqui bloqueia adicionar o ativo, avançar de
 // passo ou registrar.
 //
-// Gateia por CARGO antes de olhar a lista, como `filtroFilialPadrao` faz: nível
+// Gateia por CARGO antes de olhar a lista, como `unidadesMarcadasPorPadrao` faz: nível
 // administrador (`eAdmin` — admin OU dev) escreve em qualquer filial, sem
 // vínculo nenhum; só o `operador` é recortado pela lista de vínculos. Qualquer
 // outro cargo (ou `null`/`undefined`, sessão sem perfil) não escreve em

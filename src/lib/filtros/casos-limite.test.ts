@@ -39,10 +39,16 @@ import {
 } from '@/lib/auth/papeis'
 import { filiaisParaEscrita, podeEscreverNaFilial } from '@/components/layout/permissoes'
 import {
-  resolverFiliaisIds,
-  resolverFiliaisSlugs,
   resolverFiliaisSlugsSemPadrao,
+  selecaoDeUnidades,
+  selecaoDeUnidadesPorSlug,
 } from '@/lib/filtros/filial'
+import {
+  efetivar,
+  lerUnidades,
+  recorteDe,
+  type VistaDasUnidades,
+} from '@/lib/auth/recorte-leitura'
 import { idNumerico } from '@/lib/url-params'
 
 // ---------------------------------------------------------------------------
@@ -213,7 +219,24 @@ function filtroGravado(registro: readonly Consulta[]): string {
 // ---------------------------------------------------------------------------
 // O ADAPTADOR — a ÚNICA parte que muda entre o antes e o depois
 // ---------------------------------------------------------------------------
-// ANTES (código de 14/09/2026): `resolverFiliais*` devolvem `[]` para "sem recorte".
+// ANTES (código de 14/09/2026, commit 89cafce): `resolverFiliais*` devolviam `[]` para "sem
+// recorte", e o adaptador lia `r.length === 0 ? 'todas' : …`.
+// DEPOIS da Frente B: a seleção nova passa por `efetivar(recorteDe(sessão), …)` e o adaptador
+// descreve a VISTA — `todas`, `lista`, `somente-sem-unidade` ou `nenhuma`. Uma `nenhuma` que
+// aparecesse aqui onde o antes dizia `todas` seria o fail-open ao contrário, e reprovaria.
+
+function descrever<T>(v: VistaDasUnidades<T>, prefixo: 'ids' | 'slugs'): string {
+  switch (v.modo) {
+    case 'todas':
+      return 'todas'
+    case 'lista':
+      return `${prefixo}:${v.valores.join(',')}${v.incluiSemUnidade ? '+sem-unidade' : ''}`
+    case 'somente-sem-unidade':
+      return 'somente-sem-unidade'
+    case 'nenhuma':
+      return 'nenhuma'
+  }
+}
 
 type Adaptador = {
   porId(param: string | undefined, s: Sessao): string
@@ -228,16 +251,16 @@ type FamiliaDeRota = 'id' | 'slug-com-padrao' | 'slug-sem-padrao' | 'conferencia
 
 const ADAPTADOR: Adaptador = {
   porId(param, s) {
-    const r = resolverFiliaisIds(
+    const selecao = selecaoDeUnidades(
       param,
       s,
       ATIVAS.map((f) => f.id),
     )
-    return r.length === 0 ? 'todas' : `ids:${r.join(',')}`
+    return descrever(lerUnidades(efetivar(recorteDe(s), selecao)), 'ids')
   },
   porSlug(param, s) {
-    const r = resolverFiliaisSlugs(param, s, ATIVAS)
-    return r.length === 0 ? 'todas' : `slugs:${r.join(',')}`
+    const selecao = selecaoDeUnidadesPorSlug(param, s, ATIVAS)
+    return descrever(lerUnidades(efetivar(recorteDe(s), selecao)), 'slugs')
   },
   async gerados(param) {
     const { client, registro } = clienteFalso()

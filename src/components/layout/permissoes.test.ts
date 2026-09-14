@@ -6,7 +6,7 @@ import { podeLer, podeEscreverNaFilial, filiaisParaEscrita } from './permissoes'
 // AUTORIZAÇÃO NÃO SE DERIVA DO COMPRIMENTO DE UMA LISTA (F50).
 //
 // A doutrina já estava escrita — em `src/lib/auth/papeis.ts`, no comentário de
-// `filtroFilialPadrao`:
+// `unidadesMarcadasPorPadrao` (até a F57, `filtroFilialPadrao`):
 //
 //   "⚠ A decisão olha o CARGO, nunca `filiaisEscrita.length === 0`. Lista vazia tem
 //    dois significados diferentes: `consulta` (que não escreve em lugar nenhum) e
