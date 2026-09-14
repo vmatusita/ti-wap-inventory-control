@@ -751,6 +751,33 @@ export function ImportarWizard({
                     rotulo="termos a apagar"
                     tom="destrutivo"
                   />
+                  {/* F56 · Frente F (migration 0140) — as três classes novas que o
+                      "Substituir tudo" passa a tratar: pendência de item some, o
+                      lançamento perde o VÍNCULO (não é apagado; o saldo do item não
+                      muda) e o ponteiro de um substituto de outra filial é anulado.
+                      Condicionais como `semServiceTag`/`conflitos` acima: a maioria
+                      das filiais mostra 0 hoje (CD Afonso Pena, Serra). */}
+                  {previa.custo.pendencias_item > 0 && (
+                    <NumeroGrande
+                      valor={previa.custo.pendencias_item}
+                      rotulo="pendências de item a apagar"
+                      tom="destrutivo"
+                    />
+                  )}
+                  {previa.custo.lancamentos_movimentacao + previa.custo.lancamentos_pendencia > 0 && (
+                    <NumeroGrande
+                      valor={previa.custo.lancamentos_movimentacao + previa.custo.lancamentos_pendencia}
+                      rotulo="lançamentos de item que perdem o vínculo"
+                      tom="aviso"
+                    />
+                  )}
+                  {previa.custo.ponteiros_substituto > 0 && (
+                    <NumeroGrande
+                      valor={previa.custo.ponteiros_substituto}
+                      rotulo="ativos de outra filial que param de apontar para um substituído"
+                      tom="aviso"
+                    />
+                  )}
                 </div>
               </>
             ) : (
@@ -927,6 +954,32 @@ export function ImportarWizard({
                   <strong>{previa.custo.termos.toLocaleString('pt-BR')}</strong> termos
                   apagados
                 </li>
+                {/* F56 · Frente F (migration 0140) — as três classes novas, na mesma
+                    régua condicional do preview (step 3). */}
+                {previa.custo.pendencias_item > 0 && (
+                  <li>
+                    <strong>{previa.custo.pendencias_item.toLocaleString('pt-BR')}</strong>{' '}
+                    pendências de item apagadas
+                  </li>
+                )}
+                {previa.custo.lancamentos_movimentacao + previa.custo.lancamentos_pendencia > 0 && (
+                  <li>
+                    <strong>
+                      {(
+                        previa.custo.lancamentos_movimentacao + previa.custo.lancamentos_pendencia
+                      ).toLocaleString('pt-BR')}
+                    </strong>{' '}
+                    lançamentos de item perdem o vínculo com a movimentação ou a
+                    pendência (o saldo dos itens não muda)
+                  </li>
+                )}
+                {previa.custo.ponteiros_substituto > 0 && (
+                  <li>
+                    <strong>{previa.custo.ponteiros_substituto.toLocaleString('pt-BR')}</strong>{' '}
+                    ativos de outra filial deixam de apontar para um ativo
+                    substituído
+                  </li>
+                )}
                 <li className="sm:col-span-2">
                   <strong>{previa.validacao.resumo.criar.toLocaleString('pt-BR')}</strong>{' '}
                   ativos criados a partir do CSV
@@ -1020,6 +1073,36 @@ export function ImportarWizard({
               />
               <NumeroGrande valor={resultado.resultado.termosApagados} rotulo="termos apagados" />
             </div>
+
+            {/* F56 · Frente F (migration 0140) — o que o conserto da FK de fato fez
+                neste import, vindo da RPC (não do preview): pendências de item
+                apagadas, lançamentos que perderam o vínculo (saldo intacto) e
+                ponteiros de substituto anulados. Condicional: a maioria dos imports
+                de hoje não toca nenhuma das três classes. */}
+            {(resultado.resultado.pendenciasApagadas > 0 ||
+              resultado.resultado.lancamentosDesvinculados > 0 ||
+              resultado.resultado.ponteirosAnulados > 0) && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {resultado.resultado.pendenciasApagadas > 0 && (
+                  <NumeroGrande
+                    valor={resultado.resultado.pendenciasApagadas}
+                    rotulo="pendências de item apagadas"
+                  />
+                )}
+                {resultado.resultado.lancamentosDesvinculados > 0 && (
+                  <NumeroGrande
+                    valor={resultado.resultado.lancamentosDesvinculados}
+                    rotulo="lançamentos que perderam o vínculo"
+                  />
+                )}
+                {resultado.resultado.ponteirosAnulados > 0 && (
+                  <NumeroGrande
+                    valor={resultado.resultado.ponteirosAnulados}
+                    rotulo="ativos de outra filial que deixaram de apontar para um substituído"
+                  />
+                )}
+              </div>
+            )}
 
             {/* F24 — quantos conflitos entre filiais este import deixou em aberto. O
                 número vem do SERVIDOR (contado pela RPC dentro da transação, pela mesma

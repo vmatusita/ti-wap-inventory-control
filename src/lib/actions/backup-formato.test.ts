@@ -147,7 +147,40 @@ const CABECALHOS: Cabecalho[] = [
       // deliberado e está escrito: `nao_incluido` não acrescenta nem tira DADO do
       // arquivo, ele DESCREVE o que o arquivo já não trazia. Um leitor de v1 antigo
       // ignora a chave e restaura exatamente o mesmo conjunto de tabelas.
+      //
+      // ⚠ O CÓDIGO NÃO GRAVA MAIS v1 (desde a F56 · Frente F, ele grava `versao: 2`
+      // direto — não há ramo condicional). Esta entrada fica DECLARADA de propósito,
+      // ao lado da v2: é o registro do formato que backups já gravados no bucket
+      // TÊM (`restaurar.mjs` continua entendendo os dois — `versaoDoBackup`/
+      // `MAIOR_VERSAO_CONHECIDA`), e a suíte não tem como testar contra o bucket.
       1: ['contagens', 'exportadoEm', 'filial', 'nao_incluido', 'versao', '...acervo'],
+      // v2 — F56 · Frente F (migration 0140, Decisão 9): o "Substituir tudo" passou a
+      // tratar os cinco caminhos de FK do fato 27 (desvincula `lancamentos_item`,
+      // apaga `pendencias_item` do acervo, anula `ativos.substitui_ativo_id` de
+      // outra filial), e o backup ganhou os TRÊS campos que cobrem isso — TRÊS
+      // TABELAS/CLASSES NOVAS é mudança de FORMATO, não descrição (`nao_incluido`
+      // permanece: ele só passou a ficar vazio, porque não sobrou nada que este
+      // backup não leve para o que a RPC hoje apaga/desvincula/anula):
+      //   · `pendencias_item` — linhas inteiras (mesmo nome de `AcervoFilial`,
+      //     mas campo IRMÃO, fora do espalhamento — ver `import-logs.ts`);
+      //   · `lancamentos_desvinculados` — a pré-imagem dos dois elos (`{id,
+      //     movimentacao_id, pendencia_item_id}`), sob CHAVE PRÓPRIA (nunca sob o
+      //     nome de uma tabela, senão `restaurar.mjs` tentaria inseri-la como
+      //     linha nova);
+      //   · `ponteiros_perdidos` — linhas inteiras dos ativos de outra filial que
+      //     perderam o ponteiro, no molde do backup do RESET (mesmo nome, mesma
+      //     forma — decisão registrada em `docs/DECISOES.md`, F56 Frente F).
+      2: [
+        'contagens',
+        'exportadoEm',
+        'filial',
+        'lancamentos_desvinculados',
+        'nao_incluido',
+        'pendencias_item',
+        'ponteiros_perdidos',
+        'versao',
+        '...acervo',
+      ],
     },
   },
   {
