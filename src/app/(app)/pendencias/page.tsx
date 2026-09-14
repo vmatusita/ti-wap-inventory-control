@@ -9,7 +9,8 @@ import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
+import { resolverFiliaisSlugs, selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { formatDate } from '@/lib/format'
 import { ClipboardCheck, Filter } from 'lucide-react'
@@ -99,6 +100,12 @@ export default async function PendenciasPage({
   await recusarFilialInexistente(client, primeiro(sp.filial), 'slug')
   const filiais = await listarFiliais(client)
   const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
+  // F57 · lote 1 — os chips do topo já leem pelas unidades efetivas; a fila, a mesa e o chip de
+  // conflito migram no lote 2 e, até lá, leem a lista transitória acima.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidadesPorSlug(primeiro(sp.filial), operador, filiais),
+  )
 
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
   // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
@@ -175,7 +182,7 @@ export default async function PendenciasPage({
   // F39 — `tiposItem`: o vocabulário dos itens faltantes da fila, que a tabela
   // (Client Component) recebe por PROP. TODOS os tipos, inclusive desativados.
   const [chips, lista, conflitos, totalConflitos, tiposItem] = await Promise.all([
-    getPendencias(client, filialSlugs),
+    getPendencias(client, unidades),
     // Não vale a pena consultar a fila quando a mesa é que vai aparecer.
     naMesa
       ? Promise.resolve({ rows: [], total: 0, page: 1, pageSize: 30 })

@@ -32,6 +32,7 @@ import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { registrarFalha } from '@/lib/observabilidade'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { recorteDe } from '@/lib/auth/recorte-leitura'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2). Estático (não por filial): o nome
 // exato da filial já está no `<h1>` da própria tela.
@@ -131,6 +132,8 @@ export default async function RelatorioFilialPage({
     listarFiliais(acesso.client),
     getSnapshotRelatorioV2(
       acesso.client,
+      // F57 — o recorte de quem pede; o visualizador por senha não tem cargo (`null`).
+      recorteDe(acesso.modo === 'operador' ? acesso.operador : null),
       filialSlug,
       { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
       ehOperador, // viewer → sem pendências no snapshot ao vivo

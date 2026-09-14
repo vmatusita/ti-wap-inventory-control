@@ -13,6 +13,7 @@ import {
   type VersaoExistente,
 } from '@/lib/relatorios/versao-snapshot'
 import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
+import { recorteDe } from '@/lib/auth/recorte-leitura'
 import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
@@ -85,7 +86,7 @@ export async function gerarRelatorio(input: {
 
   let snapshot
   try {
-    snapshot = await getSnapshotRelatorioV2(client, filialSlug, {
+    snapshot = await getSnapshotRelatorioV2(client, recorteDe({ papel: aut.papel }), filialSlug, {
       de,
       ate,
       rotulo: `${formatDate(de)} a ${formatDate(ate)}`,

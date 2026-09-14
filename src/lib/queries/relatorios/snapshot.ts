@@ -21,6 +21,7 @@ import {
 } from './movimentacoes'
 import { getGruposItens, getLancamentosItensPeriodo } from './itens'
 import { getPendencias } from './pendencias'
+import { efetivar, type RecorteDeLeitura } from '@/lib/auth/recorte-leitura'
 import { chipManutencaoParada } from '@/lib/relatorios/manutencao-alerta'
 import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 
@@ -40,6 +41,11 @@ import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 // Monta o SnapshotRelatorio schema 2 (serializável, congelável).
 export async function getSnapshotRelatorioV2(
   client: DbClient,
+  // F57 — o recorte de leitura de QUEM pede (`recorteDe(...)`, auth/recorte-leitura.ts).
+  // Obrigatório, e não um padrão silencioso: o relatório CONSOLIDADO lê "todas as filiais", e
+  // "todas" só é a resposta certa enquanto o recorte for universal. Na virada, é por este
+  // parâmetro que o consolidado de uma empresa deixa de somar a fila da outra.
+  recorte: RecorteDeLeitura,
   filialSlug: string,
   periodo: Periodo & { rotulo?: string },
   // A5/F6A: o viewer por senha NÃO recebe pendências (defesa em profundidade; o
@@ -82,9 +88,19 @@ export async function getSnapshotRelatorioV2(
       getPorMotivo(client, filialId, periodo),
       incluirPendencias
         // F25 — `getPendencias` passou a receber LISTA de slugs. O relatório é de
-        // UMA filial (ou consolidado: `[]`), então a tradução é aqui e o snapshot
+        // UMA filial (ou consolidado), então a tradução é aqui e o snapshot
         // congelado não muda de forma.
-        ? getPendencias(client, slugParaView ? [slugParaView] : [])
+        // F57 — e a lista passa pelo recorte de quem pede: o consolidado é a seleção
+        // `todas`, com nome, e é `efetivar` que decide até onde "todas" alcança.
+        ? getPendencias(
+            client,
+            efetivar(
+              recorte,
+              slugParaView
+                ? { familia: 'slug', modo: 'lista', slugs: [slugParaView], incluiSemUnidade: false }
+                : { familia: 'slug', modo: 'todas' },
+            ),
+          )
         : Promise.resolve([] as SnapshotRelatorioV2['pendencias']),
       getGruposItens(client, filialId, periodo),
       getTabelasFinais(client, filialId, periodo),
