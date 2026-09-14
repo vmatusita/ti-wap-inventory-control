@@ -47,7 +47,8 @@ import { LancarItemDialog } from '@/components/itens/lancar-item-dialog'
 import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { minimosDoCatalogo } from '@/lib/itens/repor'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 // A paginação é a MESMA de `/ativos`, com o mesmo salto de página e o mesmo
@@ -131,6 +132,18 @@ export default async function ItensPage({
   // visão era "por filial" (a padrão), o que fazia um `/itens?filial=3` de favorito
   // deixar de recortar sem nada na tela dizendo isso. Sem visões, não há mais o que
   // neutralizar: o filtro está sempre visível e sempre vale.
+  // F57 — o recorte dos NÚMEROS: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      primeiro(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
+  )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // F57 · lote 3 — TRANSITÓRIO: a lista antiga ainda alimenta a legenda de escopo, a pré-seleção
+  // do lançamento, o estado vazio e o filtro da tela, que migram no lote 4.
   const filialIds = resolverFiliaisIds(
     primeiro(sp.filial),
     operador,
@@ -146,12 +159,15 @@ export default async function ItensPage({
 
   // As filiais que a linha expansível compara: as marcadas, quando há recorte;
   // todas, quando não há. `foraDasFiliais` denuncia o que sobra fora dessa lista.
+  const idsDoRecorte = vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : null
   const filiaisVisiveis =
-    filialIds.length > 0 ? filiais.filter((f) => filialIds.includes(f.id)) : filiais
+    vistaDasUnidades.modo === 'todas'
+      ? filiais
+      : filiais.filter((f) => idsDoRecorte?.includes(f.id) ?? false)
 
   const linhas = montarLinhasDeItem({
     linhas: saldosPorFilial.itens,
-    filialIds,
+    unidades,
     filiaisVisiveis: filiaisVisiveis.map((f) => f.id),
     tiposPorItem: tiposPorItemDoCatalogo(itensAtivos, tipos),
   })

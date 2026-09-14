@@ -8,6 +8,7 @@
 
 import { GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
 import type { SaldoDoPar } from '@/lib/itens/regularizacao'
+import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 
 // ---------------------------------------------------------------------------
 // 1 · "EM USO" — a coluna que a F41 batizou e não transformou em coluna
@@ -94,14 +95,20 @@ const ZERO: NumerosDoItem = { total: 0, estoque: 0, atrelados: 0, falta: 0 }
  *
  * A soma é célula a célula pelo mesmo motivo de `somarSaldosDeFiliais`: cada clamp
  * da RPC é aplicado DENTRO de uma filial, então as quatro colunas são aditivas.
+ *
+ * F57 — recebe `UnidadesEfetivas`: o "sem recorte" é o modo `todas`, com nome. Uma interseção
+ * vazia (`nenhuma`) — ou o pedido de linhas sem filial, que o diário de itens não tem — soma
+ * NADA: zero, e nunca o consolidado. É o fail-open da convenção antiga, fechado em memória.
  */
 export function saldoDoRecorte(
   linha: LinhaComFiliais,
-  filialIds: readonly number[],
+  unidades: UnidadesEfetivas<'id'>,
 ): NumerosDoItem {
-  if (filialIds.length === 0) return linha.consolidado
+  const vista = lerUnidades(unidades)
+  if (vista.modo === 'todas') return linha.consolidado
   const soma = { ...ZERO }
-  for (const id of filialIds) {
+  if (vista.modo !== 'lista') return soma
+  for (const id of vista.valores) {
     const c = linha.porFilial[id]
     if (!c) continue
     soma.total += c.total
@@ -156,23 +163,23 @@ export type LinhaDeSaldoPorFilial = {
 /**
  * Junta saldo, catálogo e recorte numa linha pronta para a tabela.
  *
- * `filialIds` recorta os NÚMEROS; `filiaisVisiveis` são as filiais que a linha
+ * `unidades` recorta os NÚMEROS (F57 — já efetivadas); `filiaisVisiveis` são as filiais que a linha
  * expansível vai listar (as mesmas, quando há recorte; todas, quando não há).
  * `foraDasFiliais` é a diferença — normalmente zero, e quando não é, a tela diz.
  */
 export function montarLinhasDeItem({
   linhas,
-  filialIds,
+  unidades,
   filiaisVisiveis,
   tiposPorItem,
 }: {
   linhas: readonly LinhaDeSaldoPorFilial[]
-  filialIds: readonly number[]
+  unidades: UnidadesEfetivas<'id'>
   filiaisVisiveis: readonly number[]
   tiposPorItem: Readonly<Record<number, string | null>>
 }): LinhaDeItem[] {
   return linhas.map((l) => {
-    const saldo = saldoDoRecorte(l, filialIds)
+    const saldo = saldoDoRecorte(l, unidades)
     const somaVisivel = filiaisVisiveis.reduce(
       (acc, id) => acc + (l.porFilial[id]?.estoque ?? 0),
       0,

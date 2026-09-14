@@ -24,6 +24,7 @@ import {
   type LinhaDeSaldoPorFilial,
   type NumerosDoItem,
 } from '@/lib/itens/lista'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import type { MinimosPorItem } from '@/lib/itens/repor'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -249,7 +250,14 @@ export function linhasDaPrevia(filialIds: readonly number[] = []): LinhaDeItem[]
       : FILIAIS_PREVIA.map((f) => f.id)
   return montarLinhasDeItem({
     linhas: saldosDaPrevia(),
-    filialIds,
+    // F57 — a prévia descreve o recorte pela LISTA do cenário (a vazia é "sem filtro de filial");
+    // `montarLinhasDeItem` recebe a seleção já efetivada, com o `todas` por nome.
+    unidades: efetivar(
+      recorteDe(null),
+      filialIds.length > 0
+        ? { familia: 'id', modo: 'lista', ids: filialIds }
+        : { familia: 'id', modo: 'todas' },
+    ),
     filiaisVisiveis: visiveis,
     tiposPorItem: tiposDaPrevia(),
   })

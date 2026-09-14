@@ -13,6 +13,13 @@ import {
   saldoDoRecorte,
   type NumerosDoItem,
 } from '@/lib/itens/lista'
+import { efetivar, recorteDe, type RecorteDeLeitura } from '@/lib/auth/recorte-leitura'
+
+// F57 — o recorte chega como `UnidadesEfetivas`. `TODAS` e `marcadas` são as duas formas que a
+// tela produz hoje; o recorte RESTRITO abaixo é o que a virada produzirá.
+const TODAS = efetivar(recorteDe(null), { familia: 'id', modo: 'todas' })
+const marcadas = (ids: number[]) =>
+  efetivar(recorteDe(null), { familia: 'id', modo: 'lista', ids })
 
 // A REPRODUÇÃO EM TS DA RPC — só para o teste, nunca para a tela.
 //
@@ -115,20 +122,20 @@ describe('saldoDoRecorte — uma leitura alimenta a tabela e a linha expansível
   }
 
   it('sem recorte, usa o consolidado da RPC (que enxerga filial desativada)', () => {
-    expect(saldoDoRecorte(linha, [])).toEqual(linha.consolidado)
-    expect(saldoDoRecorte(linha, []).total).toBe(11)
+    expect(saldoDoRecorte(linha, TODAS)).toEqual(linha.consolidado)
+    expect(saldoDoRecorte(linha, TODAS).total).toBe(11)
   })
 
   it('com recorte, soma célula a célula as filiais marcadas', () => {
-    expect(saldoDoRecorte(linha, [1])).toEqual(colunasDaRpc(4, 0, 1))
-    const duas = saldoDoRecorte(linha, [1, 2])
+    expect(saldoDoRecorte(linha, marcadas([1]))).toEqual(colunasDaRpc(4, 0, 1))
+    const duas = saldoDoRecorte(linha, marcadas([1, 2]))
     expect(duas).toEqual({ total: 10, estoque: 7, atrelados: 0, falta: 0 })
     expect(emUsoDoSaldo(duas)).toBe(3)
   })
 
   it('filial sem saldo daquele item entra como zero, sem estourar', () => {
-    expect(saldoDoRecorte(linha, [1, 99])).toEqual(colunasDaRpc(4, 0, 1))
-    expect(saldoDoRecorte(linha, [99])).toEqual({
+    expect(saldoDoRecorte(linha, marcadas([1, 99]))).toEqual(colunasDaRpc(4, 0, 1))
+    expect(saldoDoRecorte(linha, marcadas([99]))).toEqual({
       total: 0,
       estoque: 0,
       atrelados: 0,
@@ -138,8 +145,22 @@ describe('saldoDoRecorte — uma leitura alimenta a tabela e a linha expansível
 
   it('nao muta a linha de origem', () => {
     const antes = JSON.stringify(linha)
-    saldoDoRecorte(linha, [1, 2])
+    saldoDoRecorte(linha, marcadas([1, 2]))
     expect(JSON.stringify(linha)).toBe(antes)
+  })
+
+  it('F57 — a interseção VAZIA soma zero, e nunca devolve o consolidado', () => {
+    // O fail-open da convenção antiga, em memória: um recorte que não alcança a filial pedida
+    // esvaziava a lista, a lista vazia virava "sem recorte", e a tela mostrava o total da TI
+    // inteira. Com a vista, a interseção vazia é `nenhuma` — e soma nada.
+    const restrito: RecorteDeLeitura = {
+      alcance: 'restrito',
+      unidades: [{ id: 1, slug: 'alfa' }],
+      alcancaSemUnidade: false,
+    }
+    const vazia = efetivar(restrito, { familia: 'id', modo: 'lista', ids: [2] })
+    expect(saldoDoRecorte(linha, vazia)).toEqual({ total: 0, estoque: 0, atrelados: 0, falta: 0 })
+    expect(saldoDoRecorte(linha, vazia)).not.toEqual(linha.consolidado)
   })
 })
 

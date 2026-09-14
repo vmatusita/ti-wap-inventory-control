@@ -25,6 +25,7 @@ import {
   type LinhaDeSaldoPorFilial,
   type NumerosDoItem,
 } from '@/lib/itens/lista'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { distribuicaoDoItem, resumoDaLista, rotulosCurtosDeFilial } from '@/lib/itens/distribuicao'
 import { minimosDoCatalogo } from '@/lib/itens/repor'
 
@@ -110,7 +111,14 @@ function montar(filialIds: number[]) {
   const visiveis = filialIds.length > 0 ? filialIds : FILIAIS.map((f) => f.id)
   return montarLinhasDeItem({
     linhas: LINHAS,
-    filialIds,
+    // F57 — a prova descreve o recorte pela lista (vazia = sem recorte); `montarLinhasDeItem`
+    // recebe a seleção já efetivada.
+    unidades: efetivar(
+      recorteDe(null),
+      filialIds.length > 0
+        ? { familia: 'id', modo: 'lista', ids: filialIds }
+        : { familia: 'id', modo: 'todas' },
+    ),
     filiaisVisiveis: visiveis,
     tiposPorItem: {},
   })

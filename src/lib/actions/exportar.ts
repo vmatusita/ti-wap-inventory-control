@@ -44,7 +44,6 @@ import { getOperador } from '@/lib/auth/acesso'
 import { efetivar, lerUnidades, recorteDe, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { dataISO, idNumerico } from '@/lib/url-params'
 import {
-  resolverFiliaisIds,
   selecaoDeUnidades,
   selecaoDeUnidadesPorSlug,
   type OperadorDoFiltro,
@@ -161,17 +160,14 @@ async function contextoFilial(): Promise<{
 //
 // F42 — o gate MORREU junto com a visão. Não há mais tela em que o filtro de filial
 // esteja invisível e mesmo assim recorte: ele é sempre renderizado e sempre vale,
-// nas duas rotas. A função ficou sendo o que sempre quis ser — o `resolverFiliaisIds`
-// das telas de item, com o padrão por cargo, igual ao de `/ativos`.
+// nas duas rotas. A função ficou sendo o que sempre quis ser — a seleção de unidades das
+// telas de item, com o padrão por cargo, igual à de `/ativos`. F57 — já EFETIVADA: devolve
+// `UnidadesEfetivas`, e é o parser COMUM do saldo e do histórico.
 function filiaisDeItens(
   p: URLSearchParams,
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
-): number[] {
-  return resolverFiliaisIds(
-    texto(p, 'filial'),
-    ctx.operador,
-    ctx.filiais.map((f) => f.id),
-  )
+): UnidadesEfetivas<'id'> {
+  return unidadesPorId(texto(p, 'filial'), ctx)
 }
 
 // F57 — as UNIDADES EFETIVAS que o export entrega às queries: a MESMA seleção da tela (URL +
@@ -276,10 +272,7 @@ function filtrosHistorico(
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
 ): FiltrosHistorico {
   const tipoRaw = texto(p, 'tipo')
-  // F57 · lote 2 — TRANSITÓRIO: o histórico lê o `filial` aqui e o saldo lê em `filiaisDeItens`; os
-  // dois passam pela MESMA `selecaoDeUnidades`, então não recortam diferente. O lote 3 devolve os
-  // dois ao parser comum.
-  const unidades = unidadesPorId(texto(p, 'filial'), ctx)
+  const unidades = filiaisDeItens(p, ctx)
   const vista = lerUnidades(unidades)
   const itemId = idNumerico(texto(p, 'item'))
   return {
@@ -547,7 +540,9 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
       ? (grupoRaw as GrupoItem)
       : undefined
     const q = (texto(p, 'q') ?? '').toLowerCase()
-    const filialIds = filiaisDeItens(p, ctx)
+    const unidades = filiaisDeItens(p, ctx)
+    const vista = lerUnidades(unidades)
+    const idsDoRecorte = vista.modo === 'lista' ? vista.valores : null
 
     const [{ itens }, catalogo, tipos] = await Promise.all([
       getSaldosPorFilial(ctx.filiais),
@@ -556,9 +551,12 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
     ])
 
     // As filiais que viram COLUNA: as do recorte quando há um, todas quando não há
-    // — exatamente as que a linha expansível da tela lista.
+    // — exatamente as que a linha expansível da tela lista. F57 — "não há recorte" é o modo
+    // `todas`; uma interseção vazia não vira coluna nenhuma.
     const filiaisVisiveis =
-      filialIds.length > 0 ? ctx.filiais.filter((f) => filialIds.includes(f.id)) : ctx.filiais
+      vista.modo === 'todas'
+        ? ctx.filiais
+        : ctx.filiais.filter((f) => idsDoRecorte?.includes(f.id) ?? false)
 
     const filtrados = itens.filter(
       (s) => (!grupo || s.grupo === grupo) && (!q || s.item.toLowerCase().includes(q)),
@@ -568,9 +566,9 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
     // nomear TODAS as filiais somadas: escrever "Consolidado" (ou o nome de uma
     // delas) num CSV que soma duas é mentira por omissão.
     const rotuloFilial =
-      filialIds.length === 0
+      vista.modo === 'todas'
         ? 'Consolidado'
-        : filialIds
+        : (idsDoRecorte ?? [])
             .map((id) => ctx.filiais.find((f) => f.id === id)?.nome ?? `#${id}`)
             .join(' + ')
 
@@ -581,7 +579,7 @@ export async function exportarItensSaldosCSV(filtros: string): Promise<Resultado
         colunasSaldosItens(
           filiaisVisiveis,
           rotuloFilial,
-          (l) => saldoDoRecorte(l, filialIds),
+          (l) => saldoDoRecorte(l, unidades),
           tiposPorItemDoCatalogo(catalogo, tipos),
         ),
         linhas,
