@@ -13,6 +13,8 @@ import { CabecalhoDaPagina, Pagina } from '@/components/layout/pagina'
 import { AvisoSemFilialDeEscrita } from '@/components/layout/aviso-sem-escrita'
 import { ConferenciaEstoque } from '@/components/itens/conferencia/conferencia-estoque'
 import { idNumerico } from '@/lib/url-params'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata = {
   title: 'Conferência de estoque',
@@ -50,6 +52,11 @@ export default async function ConferenciaPage({
   const filiais = await listarFiliais()
   const opcoesDeEscrita = filiaisParaEscrita(operador, filiais)
   const escreve = podeEscrever(operador.papel)
+
+  // F57 — a filial que NÃO EXISTE responde 404, como nas outras rotas. A que EXISTE e este cargo
+  // não escreve continua caindo no seletor logo abaixo: aqui o parâmetro governa ESCRITA, e o
+  // seletor é a resposta certa para "existe, mas não é sua".
+  await recusarFilialInexistente(await createClient(), primeiro(sp.filial), 'id')
 
   // A filial da URL só vale se este cargo ESCREVE nela — conferir é gravar
   // ajustes. Filial inválida, ausente ou fora do alcance cai no seletor, nunca

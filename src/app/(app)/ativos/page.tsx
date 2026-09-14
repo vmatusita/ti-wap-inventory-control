@@ -25,6 +25,8 @@ import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 // F25 — o `filial` da URL virou LISTA e ganhou um padrão por CARGO. A resolução
 // mora em um módulo só porque a action de export reparseia esta MESMA querystring.
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { AtivosFiltros } from '@/components/ativos/ativos-filtros'
@@ -100,6 +102,11 @@ export default async function AtivosPage({
   // filiais ativas antes de saber o que recortar. Custa pouco: `getOperador()` é
   // memoizada por request (o layout do grupo já a chamou) e `listarFiliais()` lê
   // uma tabela de 5 linhas.
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), texto(sp.filial), 'id')
+
   const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
 
   // `[]` = sem recorte (todas). Ver src/lib/filtros/filial.ts.

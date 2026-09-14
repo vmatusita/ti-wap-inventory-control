@@ -7,6 +7,7 @@ import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
 import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { paginaNumerica } from '@/lib/url-params'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
@@ -50,6 +51,15 @@ export default async function RelatoriosGeradosPage({
   }
 
   const sp = await searchParams
+  // F57 — slug de filial que não existe responde 404; o do Consolidado passa (é o valor especial
+  // deste filtro, não uma linha de `filiais`). Pelo client RESOLVIDO: esta rota também é do
+  // visualizador por senha, que com o client de sessão veria `filiais` vazia.
+  await recusarFilialInexistente(
+    acesso.client,
+    typeof sp.filial === 'string' ? sp.filial : undefined,
+    'slug',
+    { aceitaConsolidado: true },
+  )
   // F25 — multi-seleção, mas SEM padrão por cargo (decisão §4.7): o arquivo é
   // global e boa parte dele é de relatório CONSOLIDADO, que não pertence a filial
   // nenhuma; recortar por padrão esconderia justamente esses do operador. Esta é

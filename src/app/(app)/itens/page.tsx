@@ -48,6 +48,8 @@ import { TransferirItemDialog } from '@/components/itens/transferir-item-dialog'
 import { minimosDoCatalogo } from '@/lib/itens/repor'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 // A paginação é a MESMA de `/ativos`, com o mesmo salto de página e o mesmo
 // seletor de tamanho — e agora ela pagina os ITENS, não o histórico. `pp` e
 // `TAMANHOS_PAGINA` saem da fonte única de `@/lib/ativos/lista` (doutrina F12/W6A:
@@ -117,6 +119,11 @@ export default async function ItensPage({
   // página que não existe.
   const page = paginaNumerica(primeiro(sp.page))
   const pageSize = parseTamanhoPagina(sp.pp) ?? TAMANHO_PAGINA_PADRAO
+
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), primeiro(sp.filial), 'id')
 
   // F25 — as filiais vêm antes do resto: o filtro tem padrão por cargo.
   const filiais = await listarFiliais()

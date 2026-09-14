@@ -50,6 +50,7 @@ import {
   type VistaDasUnidades,
 } from '@/lib/auth/recorte-leitura'
 import { idNumerico } from '@/lib/url-params'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 
 // ---------------------------------------------------------------------------
 // O universo fictício
@@ -280,12 +281,21 @@ const ADAPTADOR: Adaptador = {
     const filial = filialId != null ? ATIVAS.find((f) => f.id === filialId) : undefined
     return filial ? `filial:${filial.id}` : 'seletor'
   },
-  // HOJE só `/relatorios/[filial]` recusa (`resolverFilialPorSlug` → `notFound()`); as
-  // outras sete rotas abrem com qualquer parâmetro (lido no código, explorador (d)).
+  // ANTES da Frente F só `/relatorios/[filial]` recusava (`resolverFilialPorSlug` → `notFound()`)
+  // e as outras sete rotas abriam com qualquer parâmetro (lido no código, explorador (d)).
+  // DEPOIS: as oito chamam `recusarFilialInexistente` com a família e o `aceitaConsolidado` da
+  // própria rota — e `/relatorios/[filial]` mantém, logo depois, a recusa que já tinha.
   async pertinencia(familia, param) {
-    if (familia !== 'ao-vivo') return 'abre'
-    if (param === 'geral') return 'abre'
     const { client } = clienteFalso()
+    const familiaDoParametro = familia === 'id' || familia === 'conferencia' ? 'id' : 'slug'
+    const aceitaConsolidado = familia === 'slug-sem-padrao' || familia === 'ao-vivo'
+    try {
+      await recusarFilialInexistente(client, param, familiaDoParametro, { aceitaConsolidado })
+    } catch (e) {
+      if (String((e as { digest?: string }).digest ?? '').includes('404')) return '404'
+      throw e
+    }
+    if (familia !== 'ao-vivo' || param === 'geral') return 'abre'
     return (await resolverFilialPorSlug(client, param ?? '')) ? 'abre' : '404'
   },
 }
@@ -349,7 +359,72 @@ type MudancaDeclarada = {
   motivo: string
 }
 
-const MUDANCAS_DECLARADAS: readonly MudancaDeclarada[] = []
+const MUDANCAS_DECLARADAS: readonly MudancaDeclarada[] = [
+  {
+    superficie: 'P',
+    linha: '/ativos · /movimentacoes · /itens · /itens/historico',
+    coluna: 'inexistente',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+  {
+    superficie: 'P',
+    linha: '/ativos · /movimentacoes · /itens · /itens/historico',
+    coluna: 'misto',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+  {
+    superficie: 'P',
+    linha: '/pendencias',
+    coluna: 'inexistente',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+  {
+    superficie: 'P',
+    linha: '/pendencias',
+    coluna: 'misto',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+  {
+    superficie: 'P',
+    linha: '/pendencias',
+    coluna: 'geral',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua. Em /pendencias o slug do Consolidado não é filial nenhuma (só /relatorios o aceita).',
+  },
+  {
+    superficie: 'P',
+    linha: '/relatorios/gerados',
+    coluna: 'inexistente',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+  {
+    superficie: 'P',
+    linha: '/relatorios/gerados',
+    coluna: 'misto',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+  {
+    superficie: 'P',
+    linha: '/itens/conferencia',
+    coluna: 'inexistente',
+    de: 'abre',
+    para: '404',
+    motivo: 'decisão 2 do Johnny (14/09/2026): filial que NÃO EXISTE responde 404, em vez de abrir uma lista vazia ambígua.',
+  },
+]
 
 // ---------------------------------------------------------------------------
 // A evidência

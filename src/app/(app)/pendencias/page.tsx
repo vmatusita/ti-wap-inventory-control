@@ -10,6 +10,7 @@ import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { formatDate } from '@/lib/format'
 import { ClipboardCheck, Filter } from 'lucide-react'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
@@ -94,6 +95,8 @@ export default async function PendenciasPage({
   // F25 — as filiais vêm ANTES do resto: o filtro de filial tem padrão por cargo,
   // e aqui ele é por SLUG (a view `v_fila_pendencias` expõe o slug), então a
   // tradução id→slug precisa da lista.
+  // F57 — slug que não é de filial nenhuma responde 404 (inclusive `geral`, que aqui não é filial).
+  await recusarFilialInexistente(client, primeiro(sp.filial), 'slug')
   const filiais = await listarFiliais(client)
   const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
 

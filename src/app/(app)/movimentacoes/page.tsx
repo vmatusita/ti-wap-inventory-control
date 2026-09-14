@@ -10,6 +10,8 @@ import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { dataISO, ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
 import { Button } from '@/components/ui/button'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
@@ -70,6 +72,11 @@ export default async function MovimentacoesPage({
   // do cargo (o filtro de filial continua com a lista inteira: é leitura).
   // F25 — o cargo e as filiais vêm ANTES da lista: o filtro de filial tem padrão
   // por cargo. `getOperador()` é memoizada por request (o layout já a chamou).
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), texto(sp.filial), 'id')
+
   const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
 
   const filialIds = resolverFiliaisIds(

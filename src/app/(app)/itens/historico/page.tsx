@@ -22,6 +22,8 @@ import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { dataISO, ehFiltroDeFilial, idNumerico, paginaNumerica } from '@/lib/url-params'
 import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
+import { createClient } from '@/lib/supabase/server'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
@@ -99,6 +101,11 @@ export default async function HistoricoItensPage({
   // `/itens` não traduz um no outro (ver `destinoHistoricoLegado`).
   const buscaFiltro = (primeiro(sp.busca) ?? '').trim() || null
   const page = paginaNumerica(primeiro(sp.page))
+
+  // F57 — `?filial=` que pede uma filial que NÃO EXISTE responde 404, em vez de abrir uma lista
+  // vazia e ambígua. Filial desativada continua valendo, e lixo continua ignorado pelo parser
+  // (`unidades/pertinencia.ts`). Só consulta quando a URL traz uma lista.
+  await recusarFilialInexistente(await createClient(), primeiro(sp.filial), 'id')
 
   // F25 — as filiais vêm antes do resto: o filtro tem padrão por cargo.
   const filiais = await listarFiliais()
