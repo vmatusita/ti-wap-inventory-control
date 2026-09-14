@@ -1,0 +1,114 @@
+# F57 · A verificação do fechamento (14/09/2026) — saída real e completa
+
+Árvore: branch f57-quatro-significados-de-filial, HEAD 2588bcf + a Frente I ainda não commitada
+(versão, CHANGELOG, registry, docs), o detector de rotas fortalecido pela revisão adversarial e as varreduras de
+disco dos testes da F57 movidas para a coleta.
+
+Segunda rodada. A primeira (mesma árvore, antes do conserto) reprovou 1 de 5.104 testes por TEMPO-LIMITE:
+`chave-versao-sql.test.ts > ehViolacaoDeVersao reconhece a violação pelo nome do índice LIDO DO SQL` —
+"Test timed out in 5000ms" (10.198 ms), com o arquivo sozinho em 136 ms. Causa: `vigenteCom` relia e
+normalizava a pasta inteira de migrations a cada chamada, uma delas no corpo do `it`. Consertado na causa (a
+pasta é lida uma vez, na coleta; o tempo-limite NÃO foi aumentado), e a mesma classe foi fechada nos outros
+cinco testes da fase que varriam o disco dentro de um `it`. Ata em docs/DECISOES.md.
+
+## $ npm run lint
+
+> estoque-ti-wap@1.62.0 lint
+> eslint
+
+(lint exit=0)
+
+## $ npx tsc --noEmit
+(tsc exit=0)
+
+## $ npm run test
+
+> estoque-ti-wap@1.62.0 test
+> vitest run
+
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  201 passed (201)
+      Tests  5104 passed (5104)
+   Start at  16:25:41
+   Duration  170.14s (transform 23.11s, setup 0ms, import 889.96s, tests 91.40s, environment 313ms)
+
+(test exit=0)
+
+## $ npm run build
+
+> estoque-ti-wap@1.62.0 build
+> next build
+
+▲ Next.js 16.2.12 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 20.5s
+  Running TypeScript ...
+  Finished TypeScript in 31.2s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/32) ...
+  Generating static pages using 7 workers (8/32) 
+  Generating static pages using 7 workers (16/32) 
+  Generating static pages using 7 workers (24/32) 
+✓ Generating static pages using 7 workers (32/32) in 1587ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin/colaboradores
+├ ƒ /admin/filiais
+├ ƒ /admin/importar
+├ ƒ /admin/itens
+├ ƒ /admin/kits
+├ ƒ /admin/motivos
+├ ƒ /admin/senhas
+├ ƒ /admin/tipos-item
+├ ƒ /admin/usuarios
+├ ƒ /ajuda
+├ ƒ /ajuda/[slug]
+├ ƒ /ajuda/manual
+├ ƒ /api/saude
+├ ƒ /ativos
+├ ƒ /ativos/[id]
+├ ƒ /ativos/novo
+├ ƒ /auth/confirm
+├ ƒ /auth/definir-senha
+├ ƒ /dev
+├ ƒ /dev/destrutivo
+├ ƒ /itens
+├ ƒ /itens/conferencia
+├ ƒ /itens/historico
+├ ○ /login
+├ ƒ /movimentacoes
+├ ƒ /movimentacoes/devolucao-fornecedor
+├ ƒ /movimentacoes/nova
+├ ƒ /pendencias
+├ ƒ /relatorios/[filial]
+├ ƒ /relatorios/acesso
+├ ƒ /relatorios/gerados
+├ ƒ /relatorios/gerados/[id]
+└ ƒ /versoes
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+(build exit=0)
+
+## $ npm run verificar:actions
+
+> estoque-ti-wap@1.62.0 verificar:actions
+> node scripts/verificar-actions-build.mjs
+
+[gate] chunks com Server Actions varridos: 39
+[gate] VERDE — nenhum identificador registrado sem binding.
+(verificar:actions exit=0)
