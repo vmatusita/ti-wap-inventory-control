@@ -12,6 +12,7 @@ import {
   ehViolacaoDeVersao,
   type VersaoExistente,
 } from '@/lib/relatorios/versao-snapshot'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 import {
   getSnapshotRelatorioV2,
   resolverFilialPorSlug,
@@ -76,8 +77,8 @@ export async function gerarRelatorio(input: {
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
   const filial =
-    filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
-  if (filialSlug !== 'geral' && !filial) {
+    filialSlug === SLUG_CONSOLIDADO ? null : await resolverFilialPorSlug(client, filialSlug)
+  if (filialSlug !== SLUG_CONSOLIDADO && !filial) {
     return { ok: false, erro: 'Filial não encontrada.' }
   }
   const filialId = filial?.id ?? null
@@ -239,8 +240,8 @@ export async function consultarVersaoDoPeriodo(input: {
   if (!aut.ok) return null
 
   const filial =
-    filialSlug === 'geral' ? null : await resolverFilialPorSlug(client, filialSlug)
-  if (filialSlug !== 'geral' && !filial) return null
+    filialSlug === SLUG_CONSOLIDADO ? null : await resolverFilialPorSlug(client, filialSlug)
+  if (filialSlug !== SLUG_CONSOLIDADO && !filial) return null
 
   // Aqui a falha de leitura degrada para "não sei" (o `null` do retorno): perder o
   // AVISO não é perder a geração, e um erro que não é do operador atrapalharia mais

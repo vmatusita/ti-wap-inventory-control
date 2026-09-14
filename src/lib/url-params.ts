@@ -10,6 +10,8 @@
 // DOUTRINA COMUM: param inválido é IGNORADO — nunca vira filtro no banco e nunca
 // derruba o Server Component. Quem chama decide o default.
 
+import { FILIAL_TODAS } from '@/lib/unidades/slugs'
+
 // `filial_id`/`item_id` são `smallint` (migration 0015): validar só o FORMATO
 // deixaria passar `?filial=99999`, que o Postgres recusa (22003) e derruba a
 // leitura. Achado da revisão adversarial da F9.
@@ -83,9 +85,9 @@ export function paginaNumerica(v: string | null | undefined): number {
 // Um `filial=` só com lixo (`?filial=abc`) cai em `padrao`, e não em `todas`: é a
 // doutrina do módulo (param inválido é IGNORADO, como se não tivesse vindo).
 
-/** A sentinela de "todas as filiais" na URL. Reservada em `filialSchema.slug`
- *  (validators/admin.ts) para nunca colidir com o slug de uma filial de verdade. */
-export const FILIAL_TODAS = 'todas'
+// A sentinela de "todas as filiais" na URL (`FILIAL_TODAS`) mora em `unidades/slugs.ts` desde a
+// F57 — a fonte única dos slugs reservados. Importar um módulo de CONSTANTES não fere a regra
+// de que este é o chão dos parsers (ele não importa validador nenhum).
 
 // Teto de itens: `.in()` monta o filtro na URL do PostgREST, e `?filial=3,3,3,…`
 // repetido milhares de vezes é entrada de usuário (a mesma razão registrada em

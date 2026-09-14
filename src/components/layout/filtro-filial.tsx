@@ -28,7 +28,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { FILIAL_TODAS } from '@/lib/url-params'
+import { FILIAL_TODAS } from '@/lib/unidades/slugs'
 import type { Filial } from '@/lib/queries/filiais'
 
 export type OpcaoFiltroFilial = { valor: string; rotulo: string }

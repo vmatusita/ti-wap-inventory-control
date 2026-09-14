@@ -21,7 +21,8 @@
 // aceita é `efetivar` (`auth/recorte-leitura.ts`), que a intersecta com o recorte de
 // leitura da sessão.
 
-import { ABA_RELATORIO_CONSOLIDADO, unidadesMarcadasPorPadrao } from '@/lib/auth/papeis'
+import { unidadesMarcadasPorPadrao } from '@/lib/auth/papeis'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { selecaoFilialIds, selecaoFilialSlugs } from '@/lib/url-params'
 
@@ -132,8 +133,8 @@ export function selecaoDeUnidadesSemPadrao(
   return {
     familia: 'slug',
     modo: 'lista',
-    slugs: sel.valores.filter((s) => s !== ABA_RELATORIO_CONSOLIDADO),
-    incluiSemUnidade: sel.valores.includes(ABA_RELATORIO_CONSOLIDADO),
+    slugs: sel.valores.filter((s) => s !== SLUG_CONSOLIDADO),
+    incluiSemUnidade: sel.valores.includes(SLUG_CONSOLIDADO),
   }
 }
 

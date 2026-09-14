@@ -22,6 +22,7 @@ import {
 import { getGruposItens, getLancamentosItensPeriodo } from './itens'
 import { getPendencias } from './pendencias'
 import { chipManutencaoParada } from '@/lib/relatorios/manutencao-alerta'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 
 // ===========================================================================
 // RELATÓRIO v2 (formato do e-mail — F3B). Estado reconstruído AS-OF no fim do
@@ -45,7 +46,7 @@ export async function getSnapshotRelatorioV2(
   // corte de verdade é no render). Geração de snapshot e operador mantêm `true`.
   incluirPendencias = true,
 ): Promise<SnapshotRelatorioV2> {
-  const ehGeral = filialSlug === 'geral'
+  const ehGeral = filialSlug === SLUG_CONSOLIDADO
   const filial = ehGeral ? null : await resolverFilialPorSlug(client, filialSlug)
   if (!ehGeral && !filial) throw new Error(`Filial "${filialSlug}" não encontrada`)
   const filialId = filial?.id ?? null

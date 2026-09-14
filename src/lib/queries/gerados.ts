@@ -3,6 +3,7 @@ import type { DbClient } from '@/lib/queries/relatorios'
 import type { AnySnapshot } from '@/lib/relatorios/tipos'
 import { ehUuid } from '@/lib/url-params'
 import { registrarFalha } from '@/lib/observabilidade'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 
 // Histórico e leitura dos relatórios GERADOS (snapshots — spec §7.1 / OS-F3 3.8).
 // Recebe o client resolvido (operador OU visualizador por senha) — ambos leem.
@@ -55,12 +56,8 @@ const LISTA_SELECT =
 // Chave da unicidade de versão no banco (`unique (periodo_de, periodo_ate, filial_id,
 // versao)` — 0010/0013): é por ela que se sabe qual snapshot superou qual.
 function chaveVersao(periodoDe: string, periodoAte: string, filialId: number | null): string {
-  return `${periodoDe}|${periodoAte}|${filialId ?? 'geral'}`
+  return `${periodoDe}|${periodoAte}|${filialId ?? SLUG_CONSOLIDADO}`
 }
-
-// O slug reservado do relatório CONSOLIDADO: no banco ele é `filial_id is null`,
-// e não uma linha de `filiais`.
-const SLUG_CONSOLIDADO = 'geral'
 
 // Faixa pedida além do fim do resultado: o PostgREST responde 416 com este código em vez de
 // uma lista vazia. Mesmo tratamento das outras listas paginadas (ativos, movimentacoes,

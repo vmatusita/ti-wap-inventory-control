@@ -1,0 +1,74 @@
+# F57 · Sabotagem F — a trava dos slugs reservados (14/09/2026)
+
+## F.1 — 'geral' num módulo de src/lib/** fora de unidades/slugs.ts: a trava ACUSA
+
+$ cat src/lib/unidades/sabotagem-f.tmp.ts
+// SABOTAGEM F (temporário)
+export function ehConsolidado(slug: string): boolean {
+  return slug === 'geral'
+}
+
+$ npx vitest run src/lib/unidades/slugs.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/unidades/slugs.test.ts (7 tests | 1 failed) 1106ms
+     × `geral` e `todas` não aparecem como literal em src/lib/** fora do módulo 1084ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/unidades/slugs.test.ts > os slugs reservados moram numa fonte só (src/lib/unidades/slugs.ts) > `geral` e `todas` não aparecem como literal em src/lib/** fora do módulo
+AssertionError: importe de src/lib/unidades/slugs.ts em vez de escrever a palavra: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/lib/unidades/sabotagem-f.tmp.ts:3 'geral'",
++ ]
+
+ ❯ src/lib/unidades/slugs.test.ts:114:74
+    112|       .flatMap(({ p, rel }) => usosDeSlugReservado(readFileSync(p, 'ut…
+    113|       .map((a) => `${a.arquivo}:${a.linha} '${a.texto}'`)
+    114|     expect(achados, `importe de ${MODULO} em vez de escrever a palavra…
+       |                                                                          ^
+    115|   })
+    116|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  14:53:37
+   Duration  9.30s (transform 1.45s, setup 0ms, import 7.76s, tests 1.11s, environment 1ms)
+
+(vitest exit=1)
+
+## F.2 — o MESMO literal num componente (src/components/**): a trava NÃO acusa (o escopo é src/lib/**)
+
+$ cat src/components/layout/sabotagem-f.tmp.tsx
+// SABOTAGEM F (temporário)
+export function RotuloConsolidado({ slug }: { slug: string }) {
+  return <span>{slug === 'geral' ? 'Consolidado' : slug}</span>
+}
+
+$ npx vitest run src/lib/unidades/slugs.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  14:53:51
+   Duration  9.60s (transform 1.43s, setup 0ms, import 8.03s, tests 1.13s, environment 0ms)
+
+(vitest exit=0)
+
+Os dois arquivos temporários foram apagados.
+$ npx vitest run src/lib/unidades/slugs.test.ts   # depois de apagar
+      Tests  7 passed (7)
+   Start at  14:54:04
+   Duration  9.24s (transform 1.45s, setup 0ms, import 7.71s, tests 1.10s, environment 0ms)
+

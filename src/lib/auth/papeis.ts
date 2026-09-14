@@ -16,6 +16,7 @@ import type { Database } from '@/lib/types/database'
 // Só tipo: `filtros/filial.ts` importa este módulo em runtime, e o ciclo de TIPO some na
 // compilação.
 import type { SelecaoDeUnidades } from '@/lib/filtros/filial'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 
 // Vem do enum do banco: se um papel novo entrar na migration, o TypeScript acusa aqui.
 export type PapelUsuario = Database['public']['Enums']['papel_usuario']
@@ -208,7 +209,9 @@ export function unidadesMarcadasPorPadrao(
  * `escopoEscrita` no lugar seria escrever num array COMPARTILHADO por referência
  * entre o layout e a página do mesmo render (ver o `readonly` de `Operador`).
  */
-export const ABA_RELATORIO_CONSOLIDADO = 'geral'
+// O valor mora em `unidades/slugs.ts` (F57 — fonte única); o NOME fica, porque aqui ele é a
+// ABA em que o relatório abre.
+export const ABA_RELATORIO_CONSOLIDADO = SLUG_CONSOLIDADO
 
 export function abaRelatorioPadrao(
   papel: PapelUsuario | null | undefined,

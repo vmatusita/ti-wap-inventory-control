@@ -1,5 +1,6 @@
 import 'server-only'
 import { registrarFalha } from '@/lib/observabilidade'
+import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
 import {
   ILIKE_ITENS_FALTANTES,
   OR_PATRIMONIO,
@@ -116,7 +117,7 @@ export async function getPendencias(
       erro:
         'Uma linha da fila casa mais de um predicado (pendência `;`-joinable?) — ver lib/pendencias/filtro.ts.',
       ctx: {
-        filiais: filialSlugs.join('+') || 'geral',
+        filiais: filialSlugs.join('+') || SLUG_CONSOLIDADO,
         somaBaldes,
         total,
       },
