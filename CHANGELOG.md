@@ -2,7 +2,59 @@
 
 Histórico das fases (ordens de serviço `docs/prompts/F*`), da mais recente para a mais antiga. Cada fase roda em **modo autônomo** (`CLAUDE.md`): o Claude Code decide, executa, faz merge/deploy e registra o rastro detalhado — decisões, contagens, atas de rollout — em [`docs/DECISOES.md`](docs/DECISOES.md). Este arquivo é o resumo navegável; a ata completa de cada item está em `DECISOES.md` na data indicada.
 
-Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. As migrations destrutivas do import (0031–0037, 0040) são aplicadas à mão pelo Johnny no SQL Editor por causa do "gate" do modo autônomo — ver [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md).
+Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela F56, 14/09/2026: as migrations destrutivas do import não bloqueiam o apply automático como esta linha dizia até aqui — medido três vezes que só a EXECUÇÃO da exclusão poderia disparar o bloqueio, nunca a definição da função. O agente aplica pelo caminho normal; ver [`docs/RUNBOOK-BANCO.md`](docs/RUNBOOK-BANCO.md), seção "O gate do modo automático".)*
+
+---
+
+## 14/09/2026 — F56 · O import sem WAP-ismo e sem bomba de chave estrangeira 🚧
+
+**v1.61.0** · migrations `0139` (o vocabulário do import vira dado no banco) e `0140` (as cinco chaves
+estrangeiras que faziam o "Substituir tudo" estourar) — **as duas aplicadas e verificadas no ensaio e em
+produção em 14/09/2026**, com o rollback da `0140` ensaiado e a paridade de schema entre os dois bancos
+conferida nas 11 classes · Fase que mexe em telas de operação (Filiais, Importar) e conserta duas falhas
+medidas em produção. Ata completa em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- ✅ **O vocabulário do import (unidades, categorias, estados, prefixos de patrimônio) sai de constante
+  TypeScript e vira tabela.** Até aqui, uma filial cujo `slug` o código não conhecesse de cor — a sexta
+  filial de produção, criada depois do go-live — não tinha como ser reconhecida pela coluna Site: TODA
+  linha do arquivo virava erro, culpando o arquivo por um buraco do cadastro. Migration `0139`: quatro
+  tabelas (`unidades_apelidos`, `import_termos_categoria`, `import_termos_estado`,
+  `import_prefixos_patrimonio`), lidas do banco a cada análise, com os mesmos 13 apelidos + 5 categorias +
+  17 estados + 7 prefixos que o código já tinha — nada muda para quem importava as cinco filiais
+  históricas.
+- ✅ **Filial fora do vocabulário virou UM erro, não N.** Quando a filial escolhida no passo 1 não está
+  cadastrada (ou está inativa), o preview mostra um único cartão "Filial fora do vocabulário", apontando
+  para Administração › Filiais — em vez de marcar toda linha como Site divergente, como acontecia antes.
+- ✅ **Administração › Filiais ganhou o cadastro de apelidos de unidade.** Cada filial reconhece na coluna
+  Site do import o próprio nome (sempre vale) mais qualquer apelido cadastrado ali — incluir, remover, e
+  recusa quando o termo já é nome ou apelido de outra filial.
+- ✅ **Os tetos do arquivo do import passaram a bater com o limite real da plataforma.** O corpo de pedido
+  e resposta de uma função hospedada tem 4,5 MB de teto — não os 8 MB que a documentação registrava. Novos
+  números: 1 MB de arquivo, 2.000 linhas, 40 colunas, 768 KB de conteúdo de célula (vale para `.csv` e
+  `.xlsx`), com um orçamento próprio para a resposta do preview (nunca deixa a tela travar montando uma
+  resposta enorme quando o arquivo tem erro em toda linha). O `.xlsx` também passou a ser conferido
+  DESCOMPRIMIDO antes de ser carregado, contra um arquivo pequeno construído para inflar centenas de vezes
+  na memória.
+- ✅ **Duas recusas novas de estrutura de arquivo:** linha cujo número de células não bate com o cabeçalho
+  (`linha desalinhada`) e célula com texto além do tamanho aceito para aquela coluna (`valor longo demais`)
+  — as duas se corrigem no arquivo, nunca pela tela, porque deixá-las passar leria o valor da coluna
+  errada em silêncio.
+- ✅ **O "Substituir tudo" para de estourar por chave estrangeira em quatro das seis filiais de produção.**
+  Medido: uma pendência de item em aberto, ou um lançamento de item preso a uma movimentação/pendência do
+  acervo que está sendo substituído, faziam a operação abortar no meio — sem apagar nada, mas também sem
+  dizer por quê, e deixando o backup órfão no bucket. Migration `0140`: a função que apaga o acervo passa a
+  desvincular os dois elos e encerrar as pendências de item da filial (com cópia no backup) antes de
+  apagar o resto; nenhum saldo de item muda. O backup ganha uma segunda versão para guardar o que
+  desvinculou, o preview e a confirmação passam a listar as três classes novas quando elas existem, e o
+  restaurador sabe religar tudo — as duas metades (banco e tela) fechadas e testadas nesta fase, e
+  exercitadas de ponta a ponta no ensaio por um smoke novo do import (login, Filiais, dois "Substituir
+  tudo" sobre uma filial fictícia com pendência e lançamento presos, preview nas cinco filiais históricas:
+  22 de 22 passos, as 12 conferências de integridade iguais antes e depois).
+- ✅ **O gate do modo autônomo foi medido, e a documentação estava mais rígida do que a realidade.** Três
+  medições independentes confirmam que redefinir uma função que contém uma exclusão de dado não dispara o
+  bloqueio automático — só a EXECUÇÃO dessa exclusão poderia. `docs/RUNBOOK-BANCO.md`, `docs/ARQUITETURA.md`
+  e `docs/MATRIZ-REGRAS.md` corrigidos; as migrations `0139` e `0140` foram aplicadas nos dois bancos (ensaio
+  e produção) pelo caminho normal, sem intervenção manual.
 
 ---
 

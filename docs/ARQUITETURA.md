@@ -71,11 +71,11 @@ Server Component (page.tsx)  ── lê ──▶  src/lib/queries/**      ─�
 
 ## 6. Import de startup por filial (`admin/importar`)
 
-O caminho mais complexo do sistema — go-live novo de uma filial, só modo *Substituir tudo*. Motor puro em [`src/lib/import/`](../src/lib/import/) (parse CSV/`.xlsx` → `deparas.ts` → `resolver-patrimonio.ts` → `plano.ts` → `correcoes.ts`), Server Action em `src/lib/actions/importar.ts`, RPC transacional destrutiva `importar_ativos_substituir` no banco.
+O caminho mais complexo do sistema — go-live novo de uma filial, só modo *Substituir tudo*. Motor puro em [`src/lib/import/`](../src/lib/import/) (parse CSV/`.xlsx` → `vocabulario.ts` (o vocabulário, lido do banco e passado por parâmetro — F56) → `resolver-patrimonio.ts` → `plano.ts` → `correcoes.ts`), Server Action em `src/lib/actions/importar.ts`, RPC transacional destrutiva `importar_ativos_substituir` no banco.
 
-Salvaguardas (invariantes que **nunca** afrouxam): backup automático, confirmação pelo nome da filial, preview tudo-ou-nada com erros linha a linha, re-checagem de contagens sob advisory lock (TOCTOU), `arquivoHash` do CSV original imutável. As correções de erro se fazem **no próprio preview** (agrupadas/em massa), auditadas em `import_logs.correcoes`.
+Salvaguardas (invariantes que **nunca** afrouxam): backup automático, confirmação pelo nome da filial, preview tudo-ou-nada com erros linha a linha, re-checagem de contagens sob advisory lock (TOCTOU), `arquivoHash` do CSV original imutável, tetos de arquivo/linhas/colunas/conteúdo numa fonte só (`src/lib/import/limites.ts`, F56). As correções de erro se fazem **no próprio preview** (agrupadas/em massa), auditadas em `import_logs.correcoes`.
 
-> A RPC destrutiva **bate no "gate"** do modo autônomo (contém `delete from public.ativos`): suas migrations são aplicadas à mão pelo Johnny no SQL Editor. **Todo o procedimento** (aplicar, conferir assinatura, recarregar o PostgREST, smoke) está em [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md).
+> A RPC destrutiva **contém `delete from public.ativos`**, o que bate no "gate" do classificador do modo autônomo — mas o gate reage à EXECUÇÃO do `delete`, não à sua DEFINIÇÃO: medido três vezes (migrations `0048`, `0064` e a sonda registrada no Anexo A do runbook), `apply_migration`/`execute_sql` via MCP não dispara o classificador para um `create or replace function` cujo corpo contém a string — só uma execução real do `delete` poderia. Por isso as migrations desta cadeia são aplicadas pelo **agente, via MCP**, com a mesma verificação pós-apply que qualquer migration não-destrutiva recebe — não à mão pelo Johnny no SQL Editor; a `0139` e a `0140` (F56) foram aplicadas assim em ensaio e em produção (14/09/2026). **Todo o procedimento** (aplicar, conferir assinatura, recarregar o PostgREST, smoke) está em [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md).
 
 ## 7. Termos gerados (`.docx`)
 
@@ -101,7 +101,8 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 | Quero… | Mexo em… |
 |---|---|
 | uma transição de estado nova/diferente | `src/lib/dominio.ts` **e** uma nova migration do trigger (`0004` é a base) — os dois lados |
-| um vocabulário De→Para (motivo, unidade) | `src/lib/dominio.ts` / `src/lib/import/deparas.ts`; cadastro em `admin/motivos` ou `admin/filiais` |
+| um vocabulário De→Para de MOTIVO | `src/lib/dominio.ts`; cadastro em `admin/motivos` |
+| o vocabulário do IMPORT (unidade/tipo/situação/prefixo) | as tabelas da migration `0139` (`unidades_apelidos`, `import_termos_categoria`, `import_termos_estado`, `import_prefixos_patrimonio`), lidas por `src/lib/queries/vocabulario-import.ts` e as funções puras de `src/lib/import/vocabulario.ts` (F56 — `deparas.ts` deixou de guardar o vocabulário). Só o apelido de unidade tem tela: `admin/filiais`; Tipo/Situação/prefixo mudam só por migration nesta fase |
 | uma validação de formulário | o schema Zod em `src/lib/validators/**` (vale no cliente e no servidor) |
 | uma nova leitura para uma tela | uma função em `src/lib/queries/**`, consumida pelo Server Component |
 | uma nova escrita | uma Server Action em `src/lib/actions/**` + o validator Zod |

@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.61.0',
+    data: '2026-09-14',
+    fase: 'F56',
+    titulo: 'O import de startup para de travar numa filial nova e de perder pendência na virada',
+    mudancas: [
+      'O import de startup de uma filial nova deixou de travar em todas as linhas do arquivo quando o sistema ainda não reconhecia o nome dela. Agora aparece um único aviso, dizendo para cadastrar a filial (ou uma outra forma de escrever o nome dela) em Administração › Filiais antes de tentar de novo.',
+      'A tela de Filiais ganhou um cadastro de "outros nomes" para cada unidade — formas alternativas de escrever o nome dela que o import de startup passa a reconhecer na coluna Site do arquivo, além do nome oficial, que sempre vale.',
+      'O arquivo do import de startup passou a aceitar até 1 MB e 2.000 linhas — números mais realistas para o inventário de uma filial, e que evitam o sistema travar tentando processar um arquivo grande demais.',
+      'O import de startup passou a avisar quando uma linha da planilha tem o número de colunas errado, ou quando algum campo (como uma observação) está grande demais — em vez de tentar adivinhar e importar um dado deslocado.',
+      'Ao trocar o acervo inteiro de uma filial pelo import de startup, pendências de item em aberto daquela filial e lançamentos de item ainda presos ao equipamento antigo deixaram de travar a operação sem explicação: o sistema resolve os dois sozinho, sem mudar o saldo de nenhum item.',
+    ],
+  },
+  {
     versao: '1.60.0',
     data: '2026-09-10',
     fase: 'F55',

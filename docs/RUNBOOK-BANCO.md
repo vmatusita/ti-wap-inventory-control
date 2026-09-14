@@ -21,7 +21,7 @@ Não existe Supabase CLI local apontando para produção — toda operação em 
 ## O caminho, em 30 segundos
 
 1. Escreva a migration em `supabase/migrations/NNNN_*.sql` (nunca edite uma já aplicada).
-2. Ela contém `delete from ativos/movimentacoes`? **Não** → caminho **A**. **Sim** → caminho **B**.
+2. **Tente sempre o caminho A primeiro** (o agente aplica via MCP), mesmo que o corpo contenha `delete from ativos/movimentacoes` — medido repetidas vezes que a DEFINIÇÃO de função não dispara o classificador (emenda F56 da seção "O gate", abaixo). Só recue para o caminho **B** (humano no SQL Editor) se o MCP **de fato recusar** o apply.
 3. Aplique em **ensaio primeiro**, sempre.
 4. Rode a **verificação pós-apply** (assinatura, grants, contagens antes = depois).
 5. Mexeu em função/trigger/RPC/enum? Rode **TODOS** os roteiros de `supabase/tests/*.sql`.
@@ -42,9 +42,11 @@ Operações de banco são feitas **via MCP Supabase** (o ambiente não tem CLI l
 
 ## O "gate" do modo automático
 
-O classificador do modo autônomo **bloqueia** qualquer DDL cujo corpo contenha `delete from public.ativos` ou `delete from public.movimentacoes` (via `apply_migration`/`execute_sql` do MCP) — em **qualquer** projeto, prod ou ensaio. Na prática isso atinge só a RPC destrutiva do import (`importar_ativos_substituir`, migrations 0031–0037, 0040). O objetivo é impedir que o agente rode uma exclusão de acervo sem um humano no circuito.
+**⚠ Emenda F56 (14/09/2026) — corrigido contra o comportamento MEDIDO três vezes.** O parágrafo abaixo descreve o que esta seção afirmava até a F55: que o classificador barra a `create or replace function` cujo corpo contém `delete from public.ativos`/`delete from public.movimentacoes`. **Isso é mais forte do que o comportamento real.** Três medições independentes — as migrations `0048` e `0064` (Anexo A) e uma sonda dedicada (`execute_sql` com a string dentro de um `if false then`, ata de 09/09 em `docs/DECISOES.md`) — mostram que `apply_migration`/`execute_sql` via MCP **não dispara** o classificador para a DEFINIÇÃO da função: o corpo é gravado, não executado, no momento do apply. O que pode disparar o gate é a EXECUÇÃO real do `delete` — chamar a RPC de verdade —, nunca redefini-la. Na prática, isso significa: **o agente aplica estas migrations pelo MCP**, como qualquer outra, com a MESMA verificação pós-apply (abaixo); "humano no circuito" continua valendo para quem *usa* a função (o botão "Substituir tudo" tem confirmação digitada e é só de admin), não para quem a *publica*. A `0139` (F56, aditiva, sem `delete`) e a `0140` (F56, recria `importar_ativos_substituir` — TEM `delete from public.ativos` no corpo) seguem este caminho corrigido: a `0139` já foi aplicada assim em **ensaio e produção** (`docs/f56-evidencias/P1-apply-0139-ensaio.txt` e `P3-apply-0139-producao.txt`); a `0140` também, em **ensaio e produção** (`P2-apply-0140-ensaio.txt`, com o rollback ensaiado logo em seguida, e `P5-apply-0140-producao.txt`, com a sonda de paridade nas 11 classes depois).
 
-**Consequência (dívida conhecida):** essas migrations são aplicadas **à mão pelo Johnny no SQL Editor** e, por isso, **não são registradas** em `supabase_migrations.schema_migrations`. O estado de produção não é reconstruível só pelo ledger — ver "Divergência" abaixo.
+O texto original, mantido como registro do que se acreditava até aqui: *"O classificador do modo autônomo bloqueia qualquer DDL cujo corpo contenha `delete from public.ativos` ou `delete from public.movimentacoes` (via `apply_migration`/`execute_sql` do MCP) — em qualquer projeto, prod ou ensaio. Na prática isso atinge só a RPC destrutiva do import (`importar_ativos_substituir`, migrations 0031–0037, 0040). O objetivo é impedir que o agente rode uma exclusão de acervo sem um humano no circuito."*
+
+**Consequência prática, agora:** a seção "Divergência" abaixo (ledger sem `0031`-`0037`/`0040`/`0048`) documenta um estado HISTÓRICO — dessas migrations aplicadas de fato à mão, antes de o comportamento real do gate ter sido medido. Migration nova nesta cadeia (a partir da F56) é aplicada pelo agente e **é** registrada em `supabase_migrations.schema_migrations`, como qualquer outra. Se uma execução real da RPC algum dia disparar o classificador (nunca medido até aqui), o caminho B abaixo — humano no SQL Editor — continua sendo o plano B.
 
 ## Aplicar uma migration
 
@@ -52,7 +54,8 @@ O classificador do modo autônomo **bloqueia** qualquer DDL cujo corpo contenha 
 O orquestrador aplica direto via MCP (`apply_migration`) em **ensaio primeiro**, depois produção; confere com `get_advisors` + um smoke só-leitura. Registrada no ledger normalmente.
 
 ### B) Migration DESTRUTIVA / que recria a RPC de import (bate no gate)
-Fluxo humano-no-circuito (o que já se faz desde a F7):
+
+**⚠ Desde a F56, este caminho só entra em cena se o classificador REALMENTE bloquear o apply** (nunca medido acontecendo até aqui — ver a emenda da seção do gate, acima). O primeiro passo, sempre, é tentar o caminho **A** (o agente aplica direto via MCP): se `apply_migration`/`execute_sql` recusar, **aí sim** siga o fluxo abaixo. Fluxo humano-no-circuito (o que se fazia por padrão até a F55, quando a régua era "toda migration com `delete from ativos/movimentacoes` bate no gate"):
 1. **Migration no repo** (`supabase/migrations/NNNN_*.sql`) — fonte da verdade versionada. Recriações de função por `create or replace` PURO (assinatura idêntica → sem overload).
 2. **SQL de handoff** em `scratchpad/` (cópia rodável + bloco de conferência).
 3. **Diff-review**: o diff da nova migration vs a anterior deve ser **só a mudança pretendida** (ex.: "diff 0040 vs 0037 = só a guarda p_contagens"). Qualquer outra diferença é bug. Revisão adversarial byte-a-byte antes do merge.
@@ -467,7 +470,7 @@ done
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/estoque npm run db:test
 ```
 
-Esperado: `25 roteiro(s), 577 asserções no total`, zero `✗`.
+Esperado (F56, 14/09/2026 — CI 34853956001, depois da `0140`; este número **cresce a cada fase que acrescenta roteiro**, então trate como a forma mais recente medida, não como constante): `34 roteiro(s), 818 asserções no total`, zero `✗`.
 
 ⚠ **O bootstrap é o recorte MÍNIMO do que o `supabase start` entrega, e o "mínimo" é deliberado nos
 dois sentidos.** Ele **não** concede privilégio nenhum em `public` — porque o `supabase start` do job

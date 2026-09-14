@@ -69,6 +69,22 @@ export const administracao: PaginaAjuda = {
         'Filial desativada não some do passado: o saldo que ficou nela continua contando no Total da página de Itens, com a nota "inclui N de filial desativada".',
       ],
     },
+    {
+      tipo: 'paragrafo',
+      texto:
+        'Na edição de uma filial, a seção "Na coluna Site do import" mostra o vocabulário que o import de startup reconhece para ela: o NOME PRÓPRIO (sempre vale, não precisa cadastrar) e os apelidos cadastrados — outras grafias que a coluna Site de um arquivo pode trazer. Filial sem nenhum apelido só reconhece a grafia exata do nome próprio.',
+    },
+    {
+      tipo: 'passos',
+      titulo: 'Cadastrar ou remover um apelido de unidade',
+      itens: [
+        'Abra "Editar" na filial — apelido só existe dentro da edição (uma filial em criação ainda não tem onde guardá-lo).',
+        'Digite o termo em "Novo apelido" (como o arquivo escreve o Site) e use "Incluir".',
+        'Cada apelido cadastrado aparece com um X ao lado para remover.',
+        'Um termo que já é nome ou apelido de OUTRA filial é recusado, com a mensagem nomeando de qual filial.',
+        'Sem nenhum apelido cadastrado, um aviso lembra que só a grafia exata do nome próprio é reconhecida.',
+      ],
+    },
 
     { tipo: 'titulo', id: 'admin-colaboradores', texto: 'Colaboradores' },
     {
