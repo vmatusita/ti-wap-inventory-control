@@ -1,0 +1,119 @@
+# F56 — Sabotagem A FINAL (critério 2): as três travas, com tudo verde, reintroduzindo o defeito — 14/09/2026
+
+Feita numa worktree DESCARTÁVEL (git worktree add em C:/Users/victor.matusita/f56-sabotagem, no commit e5b5e13,
+node_modules por junção), nunca na árvore da branch — a árvore da branch está verde (H1; CI 34862188287).
+As três sabotagens pedidas pela ordem ("Verificação — rode de verdade"), aplicadas por script que exige que
+cada troca aconteça exatamente uma vez: (1) um nome de filial de volta num módulo de lib/import/; (2) um
+Exclude com valor FORA da união pelo utilitário estrito; (3) um teto maior sem refazer a conta. As três
+travas ficaram vermelhas, cada uma acusando o ponto exato. Saída crua (rtk proxy), sem edição:
+
+### worktree: e5b5e13 docs(f56): o fechamento — ajuda do import, emendas da spec e da matriz, versao 1.61.0
+sabotado: src/lib/import/vocabulario.ts — + export const SABOTAGEM_A_FINAL = 'Linhares'
+sabotado: src/lib/import/tipos.ts — "ExcluirDaUniao<Enums<'status_ativo'>, 'devolvido_fornecedor'>" → "ExcluirDaUniao<Enums<'status_ativo'>, 'devolvido_ao_fornecedor'>"
+sabotado: src/lib/import/limites.ts — "export const MAX_LINHAS_PLANILHA = 2_000" → "export const MAX_LINHAS_PLANILHA = 3_000"
+
+### git diff --stat (worktree)
+ src/lib/import/limites.ts     | 2 +-
+ src/lib/import/tipos.ts       | 2 +-
+ src/lib/import/vocabulario.ts | 2 ++
+ 3 files changed, 4 insertions(+), 2 deletions(-)
+
+### (1) npx vitest run src/lib/import/sem-wapismo.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/f56-sabotagem
+
+ ❯ |puro| src/lib/import/sem-wapismo.test.ts (2 tests | 1 failed) 1670ms
+     × nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria 1624ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/sem-wapismo.test.ts > sem-wapismo: nenhuma palavra da WAP em literal de código-fonte (F56 · Decisão 12) > nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria
+AssertionError: 1 literal(is) com vocabulário da WAP fora da allowlist:
+  src/lib/import/vocabulario.ts:348 — "Linhares": expected [ { …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "arquivo": "src/lib/import/vocabulario.ts",
++     "linha": 348,
++     "texto": "Linhares",
++   },
++ ]
+
+ ❯ src/lib/import/sem-wapismo.test.ts:231:118
+    229|           .map((v) => `  ${v.arquivo}:${v.linha} — ${JSON.stringify(v.…
+    230|           .join('\n')
+    231|         expect(violacoes, `${violacoes.length} literal(is) com vocabul…
+       |                                                                                                                      ^
+    232|           [],
+    233|         )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  12:29:49
+   Duration  2.31s (transform 115ms, setup 0ms, import 415ms, tests 1.67s, environment 0ms)
+
+exit=1
+
+### (2) npx tsc --noEmit
+src/lib/import/enums-sql.test.ts(139,14): error TS2322: Type 'true' is not assignable to type 'never'.
+src/lib/import/enums-sql.test.ts(140,14): error TS2322: Type 'true' is not assignable to type 'never'.
+src/lib/import/tipos.ts(60,68): error TS2344: Type '"devolvido_ao_fornecedor"' does not satisfy the constraint '"em_estoque" | "reservado" | "em_uso" | "emprestado" | "em_triagem" | "em_manutencao" | "defasado" | "descartado" | "devolvido_fornecedor"'.
+exit=2
+
+### (3) npx vitest run src/lib/import/limites.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/f56-sabotagem
+
+ ❯ |puro| src/lib/import/limites.test.ts (18 tests | 1 failed) 805ms
+     × nenhuma constante muda sem a conta ser refeita (rode scripts/perf/medir-corpos-import.mts) 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/limites.test.ts > carimbo — os números para os quais a conta foi feita > nenhuma constante muda sem a conta ser refeita (rode scripts/perf/medir-corpos-import.mts)
+AssertionError: uma constante de src/lib/import/limites.ts mudou sem a conta ser refeita — rode `NODE_OPTIONS="--conditions=react-server" npx tsx scripts/perf/medir-corpos-import.mts` de novo, atualize este carimbo E as cinco desigualdades abaixo com os números novos, e registre o porquê em docs/DECISOES.md.: expected { TAMANHO_MAX_ARQUIVO: 1048576, …(12) } to deeply equal { TAMANHO_MAX_ARQUIVO: 1048576, …(12) }
+
+- Expected
++ Received
+
+@@ -24,11 +24,11 @@
+    "MAX_ARQUIVO_HASH": 128,
+    "MAX_BYTES_CONTEUDO": 786432,
+    "MAX_COLUNAS_PLANILHA": 40,
+    "MAX_CORRECOES": 500,
+    "MAX_CRU": 120,
+-   "MAX_LINHAS_PLANILHA": 2000,
++   "MAX_LINHAS_PLANILHA": 3000,
+    "MAX_PARA": 120,
+    "MAX_XML_DESCOMPRIMIDO": 33554432,
+    "ORCAMENTO_RESPOSTA_PREVIEW": 2000000,
+    "TAMANHO_MAX_ARQUIVO": 1048576,
+  }
+
+ ❯ src/lib/import/limites.test.ts:62:7
+     60|         'de novo, atualize este carimbo E as cinco desigualdades abaix…
+     61|         'e registre o porquê em docs/DECISOES.md.',
+     62|     ).toEqual({
+       |       ^
+     63|       TAMANHO_MAX_ARQUIVO: 1 * 1024 * 1024,
+     64|       MAX_LINHAS_PLANILHA: 2_000,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  12:30:21
+   Duration  4.79s (transform 288ms, setup 0ms, import 3.66s, tests 805ms, environment 0ms)
+
+exit=1
+done
+
+Depois: a worktree foi removida (a junção desfeita antes, para não tocar o node_modules da árvore principal),
+sem nenhum commit — a branch nunca viu estas três mudanças.
