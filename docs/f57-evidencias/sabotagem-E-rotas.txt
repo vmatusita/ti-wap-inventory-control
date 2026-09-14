@@ -57,3 +57,66 @@ $ npx vitest run src/lib/unidades/rotas.test.ts
    Duration  397ms (transform 42ms, setup 0ms, import 64ms, tests 113ms, environment 0ms)
 
 (fim)
+
+## E.3 — (revisão adversarial) a rota nova lê `filial` por DESESTRUTURAÇÃO, sem o helper: o detector fortalecido acusa
+
+arquivo temporário: src/app/(app)/sabotagem-e3/page.tsx
+--- conteúdo
+export default async function Pagina({ searchParams }: { searchParams: Promise<{ filial?: string }> }) {
+  const { filial } = await searchParams
+  return <p>{filial}</p>
+}
+
+$ npx vitest run src/lib/unidades/rotas.test.ts   # E.3 sabotada
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/unidades/rotas.test.ts (3 tests | 1 failed) 143ms
+     × cada uma chama `recusarFilialInexistente` 64ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/unidades/rotas.test.ts > toda rota que lê `filial` da URL recusa a filial inexistente > cada uma chama `recusarFilialInexistente`
+AssertionError: chame recusarFilialInexistente (src/lib/unidades/pertinencia.ts) nestas rotas: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/app/(app)/sabotagem-e3/page.tsx",
++ ]
+
+ ❯ src/lib/unidades/rotas.test.ts:76:89
+     74|       .filter((r) => !r.chamaHelper)
+     75|       .map((r) => r.arquivo)
+     76|     expect(semHelper, `chame ${HELPER} (src/lib/unidades/pertinencia.t…
+       |                                                                                         ^
+     77|   })
+     78|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  16:11:26
+   Duration  566ms (transform 71ms, setup 0ms, import 101ms, tests 143ms, environment 0ms)
+
+(vitest exit=1)
+
+rota temporária removida: sim
+
+## E.4 — removida: verde de novo
+
+$ npx vitest run src/lib/unidades/rotas.test.ts   # E.4
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  16:11:29
+   Duration  540ms (transform 63ms, setup 0ms, import 102ms, tests 152ms, environment 0ms)
+
+(vitest exit=0)
