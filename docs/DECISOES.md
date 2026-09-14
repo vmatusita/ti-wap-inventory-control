@@ -10835,3 +10835,21 @@ em milissegundos diferentes (`…349` × `…350`) e a comparação profunda rep
 anteriores do CI e na mesa porque caíam no mesmo milissegundo. **Escolha:** fixar `lastModified: 0` no
 arquivo de teste, mantendo a asserção inteira — nunca rodar o CI de novo até ficar verde, nem trocar
 `toEqual` por uma comparação mais frouxa.
+
+## 2026-09-14 · F56 (fechamento) · merge, deploy, smoke de produção, relatório e tag
+
+- **Merge do PR #43** às 16:04:59 UTC, commit `e4ede21`, depois de conferir que o head do PR era o `1a44165` da
+  run verde `34865935016` (`verificar` e `banco-sem-docker`). O CI da própria `main` no commit do merge (run
+  `34866349210`) também fechou verde nos dois jobs.
+- **Deploy** publicado pela Vercel (alvo `production`, commit `e4ede21`), confirmado pela sonda pública às
+  16:06:14 UTC: `/api/saude` → `ok`, `versao 1.61.0`, `commit e4ede21`, `banco ok`. A janela em que produção
+  rodava a RPC nova da `0140` com o código velho fechou aqui, sem nenhum import no meio (o último é de 31/07).
+- **Smoke pós-deploy contra produção** (`node scripts/smoke/smoke-prod.mjs`): `109 OK · 1 aviso · 0 n/a · 0 falha`
+  (`docs/f56-evidencias/H6-smoke-prod-pos-deploy.txt`). O aviso (`kits_modelos` sem RLS comprovada) é estado de
+  dado — não há kit cadastrado —, não desta fase.
+- **O relatório entra por PR, não por push direto.** A `main` exige PR com `verificar` e `banco-sem-docker`; a
+  proteção não é imposta a administrador (`enforce_admins: false`), e a F55 fechou com commits de documento
+  direto na `main`. **Escolha:** um PR pequeno (`RELATORIO-F56.md`, `CHANGELOG.md` com ✅ 🔒, o índice de
+  `docs/README.md`, `H6` e esta ata) — os dois checks rodam também sobre o fechamento, e ninguém precisa da
+  exceção de administrador. **A tag `v1.61.0`, anotada, vai no merge desse PR** — o commit final da fase, como a
+  regra 8 do `CLAUDE.md` pede — e é publicada com `git push origin v1.61.0`.

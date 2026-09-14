@@ -6,7 +6,7 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
-## 14/09/2026 — F56 · O import sem WAP-ismo e sem bomba de chave estrangeira 🚧
+## 14/09/2026 — F56 · O import sem WAP-ismo e sem bomba de chave estrangeira ✅ 🔒
 
 **v1.61.0** · migrations `0139` (o vocabulário do import vira dado no banco) e `0140` (as cinco chaves
 estrangeiras que faziam o "Substituir tudo" estourar) — **as duas aplicadas e verificadas no ensaio e em
