@@ -15,7 +15,7 @@ import type { StatusAtivo } from '@/lib/dominio'
 //
 // DECISÃO (F28/ATV-12) — nenhum chip carrega `filial` no href, de propósito:
 // o recorte de filial não é uma "visão" para alternar, é o RECORTE DE ACESSO
-// do cargo (F25 · `resolverFiliaisIds`). Colar a filial atual no link faria um
+// do cargo (F25 · `selecaoDeUnidades`, F57). Colar a filial atual no link faria um
 // operador nunca alcançar, por exemplo, "Em manutenção" olhando só a filial
 // dele quando quisesse comparar — e omitir o param é exatamente o que devolve
 // o padrão do cargo (mesma leitura de `semFiltros()` em `ativos/page.tsx`).

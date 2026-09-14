@@ -112,6 +112,7 @@ import {
   catalogoDaPrevia,
   linhasDaPrevia,
   minimosDaPrevia,
+  unidadesDaPrevia,
 } from './previa-itens-dados'
 import { VARIANTES, type PropsDaTabela } from './previa-itens-variantes'
 
@@ -311,7 +312,7 @@ function Miolo({
   const pagina = paginarLinhas(linhas, 1, 25)
   // F44 — a MESMA derivação da `page.tsx`: o escopo sai de `filialIds`, e a
   // legenda com escopo sai de `NUMEROS_ITEM` por função pura.
-  const escopo = escopoDosNumeros(FILIAIS_PREVIA, filialIds)
+  const escopo = escopoDosNumeros(FILIAIS_PREVIA, unidadesDaPrevia(filialIds))
   const cabecalhos = cabecalhosComEscopo(NUMEROS_ITEM, escopo)
   const props: PropsDaTabela = {
     rows: pagina.rows,

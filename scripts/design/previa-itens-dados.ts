@@ -236,6 +236,21 @@ function tiposDaPrevia(): Readonly<Record<number, string | null>> {
 }
 
 /**
+ * F57 — as unidades efetivas de um cenário da prévia. A prévia descreve o recorte pela LISTA do
+ * cenário (`RECORTES` de `previa-itens.tsx`), e a lista vazia é o cenário "sem filtro de filial":
+ * aqui ela vira a seleção `todas`, por nome, antes de chegar às funções da tela — que já não
+ * aceitam lista crua.
+ */
+export function unidadesDaPrevia(filialIds: readonly number[]) {
+  return efetivar(
+    recorteDe(null),
+    filialIds.length > 0
+      ? { familia: 'id', modo: 'lista', ids: filialIds }
+      : { familia: 'id', modo: 'todas' },
+  )
+}
+
+/**
  * As linhas prontas para a tabela, JÁ RECORTADAS pelo filtro de filial — pela
  * MESMA função que `src/app/(app)/itens/page.tsx` chama.
  *
@@ -250,14 +265,7 @@ export function linhasDaPrevia(filialIds: readonly number[] = []): LinhaDeItem[]
       : FILIAIS_PREVIA.map((f) => f.id)
   return montarLinhasDeItem({
     linhas: saldosDaPrevia(),
-    // F57 — a prévia descreve o recorte pela LISTA do cenário (a vazia é "sem filtro de filial");
-    // `montarLinhasDeItem` recebe a seleção já efetivada, com o `todas` por nome.
-    unidades: efetivar(
-      recorteDe(null),
-      filialIds.length > 0
-        ? { familia: 'id', modo: 'lista', ids: filialIds }
-        : { familia: 'id', modo: 'todas' },
-    ),
+    unidades: unidadesDaPrevia(filialIds),
     filiaisVisiveis: visiveis,
     tiposPorItem: tiposDaPrevia(),
   })

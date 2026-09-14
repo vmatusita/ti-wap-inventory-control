@@ -9,8 +9,8 @@ import { listarFiliais } from '@/lib/queries/filiais'
 import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { dataISO, ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
-import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
@@ -89,13 +89,11 @@ export default async function MovimentacoesPage({
       filiais.map((f) => f.id),
     ),
   )
-  // F57 · lote 2 — TRANSITÓRIO: a lista antiga ainda alimenta o estado vazio e o filtro da tela,
-  // que migram no lote 4.
-  const filialIds = resolverFiliaisIds(
-    texto(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
-  )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // F28/MOV-05 — a sentinela só vira filtro de verdade com sessão (o visualizador
   // por senha não alcança esta rota, mas `operador` continua opcional na
@@ -130,7 +128,8 @@ export default async function MovimentacoesPage({
   // operador de uma filial sem movimentação lia "Nenhuma movimentação registrada
   // ainda", afirmação global, com o histórico das outras filiais cheio.
   // `< filiais.length` porque operador vinculado a TODAS lê o mesmo que um admin.
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   // A saída do vazio, na mesma escada de /ativos e /pendencias: com filtro na URL,
   // "Limpar" volta à URL de repouso (o destino do botão "Limpar" da barra); com só o
@@ -187,7 +186,7 @@ export default async function MovimentacoesPage({
 
       <ListaFiltros
         filiais={filiais}
-        filiaisSelecionadas={filialIds.map(String)}
+        filiaisSelecionadas={filiaisMarcadas.map(String)}
         mostrarFiltroAutor={!!operador}
       />
 

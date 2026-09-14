@@ -21,8 +21,8 @@ import { HistoricoFiltros } from '@/components/itens/historico-filtros'
 import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { dataISO, ehFiltroDeFilial, idNumerico, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
-import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
@@ -119,17 +119,15 @@ export default async function HistoricoItensPage({
       filiais.map((f) => f.id),
     ),
   )
-  // F57 · lote 2 — TRANSITÓRIO: a lista antiga ainda decide o "Saldo após" e alimenta o estado
-  // vazio e o filtro da tela, que migram no lote 4.
-  const filialIds = resolverFiliaisIds(
-    primeiro(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
-  )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // ITN-03a — "Saldo após" só faz sentido com EXATAMENTE 1 item + 1 filial no
   // recorte (o saldo de um item é por filial; ver `saldo-apos.ts`).
-  const mostrarSaldoApos = filialIds.length === 1 && itemFiltro != null
+  const mostrarSaldoApos = filiaisMarcadas.length === 1 && itemFiltro != null
 
   const [itensAtivos, historico, saldos, lancamentosSaldoApos] = await Promise.all([
     listarItensAtivos(),
@@ -158,7 +156,7 @@ export default async function HistoricoItensPage({
     // Histórico COMPLETO do item×filial (sem tipo/data/busca/página), só quando a
     // coluna vai aparecer.
     mostrarSaldoApos && itemFiltro != null
-      ? listarLancamentosParaSaldoApos(itemFiltro, filialIds[0])
+      ? listarLancamentosParaSaldoApos(itemFiltro, filiaisMarcadas[0])
       : Promise.resolve<LancamentoParaSaldoApos[]>([]),
   ])
 
@@ -183,7 +181,8 @@ export default async function HistoricoItensPage({
   const temFiltro =
     Boolean(itemFiltro || tipoFiltro || deFiltro || ateFiltro || buscaFiltro) ||
     ehFiltroDeFilial(primeiro(sp.filial))
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   const total = historico.total.toLocaleString('pt-BR')
   const descricao = temFiltro
@@ -220,7 +219,7 @@ export default async function HistoricoItensPage({
       <HistoricoFiltros
         itens={itensAtivos}
         filiais={filiais}
-        filiaisSelecionadas={filialIds.map(String)}
+        filiaisSelecionadas={filiaisMarcadas.map(String)}
       />
 
       {historico.rows.length === 0 ? (

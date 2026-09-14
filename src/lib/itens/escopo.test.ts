@@ -11,6 +11,12 @@ import {
   type LegendaDeNumero,
 } from '@/lib/itens/escopo'
 import { NUMEROS_ITEM } from '@/lib/ajuda/conteudo/itens-por-quantidade'
+import { efetivar, recorteDe, type RecorteDeLeitura } from '@/lib/auth/recorte-leitura'
+
+// F57 — o recorte chega como `UnidadesEfetivas`; `TODAS` e `marcadas` são as duas formas de hoje.
+const TODAS = efetivar(recorteDe(null), { familia: 'id', modo: 'todas' })
+const marcadas = (ids: number[]) =>
+  efetivar(recorteDe(null), { familia: 'id', modo: 'lista', ids })
 
 // Filiais INVENTADAS (regra 2 do CLAUDE.md) — nenhuma das cinco da WAP.
 const FILIAIS = [
@@ -24,8 +30,8 @@ const FRASE_DA_TI = 'tudo que a TI possui'
 const FRASE_DA_TI_LONGA = 'Tudo que a TI possui'
 
 describe('escopoDosNumeros — de quem são os números que a tela mostra', () => {
-  it('sem recorte é "todas" — e isso é `filialIds` VAZIO, não "todas marcadas"', () => {
-    expect(escopoDosNumeros(FILIAIS, [])).toEqual({ tipo: 'todas' })
+  it('sem recorte é "todas" — o modo `todas` das unidades, não "todas marcadas"', () => {
+    expect(escopoDosNumeros(FILIAIS, TODAS)).toEqual({ tipo: 'todas' })
   })
 
   it('marcar TODAS as filiais à mão NÃO é o mesmo que não filtrar', () => {
@@ -34,27 +40,39 @@ describe('escopoDosNumeros — de quem são os números que a tela mostra', () =
     // São dois números diferentes, e a legenda tem de dizer qual está na tela.
     const todasMarcadas = escopoDosNumeros(
       FILIAIS,
-      FILIAIS.map((f) => f.id),
+      marcadas(FILIAIS.map((f) => f.id)),
     )
     expect(todasMarcadas.tipo).toBe('varias')
     expect(todasMarcadas).not.toEqual({ tipo: 'todas' })
   })
 
   it('uma filial marcada devolve o NOME dela', () => {
-    expect(escopoDosNumeros(FILIAIS, [3])).toEqual({ tipo: 'uma', nome: 'Cerrado Alto' })
+    expect(escopoDosNumeros(FILIAIS, marcadas([3]))).toEqual({ tipo: 'uma', nome: 'Cerrado Alto' })
   })
 
   it('duas ou mais devolvem os nomes na ordem do recorte', () => {
-    expect(escopoDosNumeros(FILIAIS, [5, 1])).toEqual({
+    expect(escopoDosNumeros(FILIAIS, marcadas([5, 1]))).toEqual({
       tipo: 'varias',
       nomes: ['Estância Velha do Norte', 'Aurora'],
     })
   })
 
   it('id de filial que não existe mais (URL antiga) não vira nome inventado', () => {
-    expect(escopoDosNumeros(FILIAIS, [99])).toEqual({ tipo: 'varias', nomes: [] })
+    expect(escopoDosNumeros(FILIAIS, marcadas([99]))).toEqual({ tipo: 'varias', nomes: [] })
     // …e com uma conhecida junto, sobra a conhecida — que é a verdade do recorte.
-    expect(escopoDosNumeros(FILIAIS, [3, 99])).toEqual({ tipo: 'uma', nome: 'Cerrado Alto' })
+    expect(escopoDosNumeros(FILIAIS, marcadas([3, 99]))).toEqual({ tipo: 'uma', nome: 'Cerrado Alto' })
+  })
+
+  it('F57 — a interseção VAZIA não vira "todas": vira o plural genérico, sem nome', () => {
+    // O fail-open da legenda: um recorte que não alcança a filial pedida esvaziava a lista, e a
+    // lista vazia fazia a tela afirmar "todas as filiais" embaixo de um número que não é de nenhuma.
+    const restrito: RecorteDeLeitura = {
+      alcance: 'restrito',
+      unidades: [{ id: 1, slug: 'aurora' }],
+      alcancaSemUnidade: false,
+    }
+    const vazia = efetivar(restrito, { familia: 'id', modo: 'lista', ids: [3] })
+    expect(escopoDosNumeros(FILIAIS, vazia)).toEqual({ tipo: 'varias', nomes: [] })
   })
 })
 

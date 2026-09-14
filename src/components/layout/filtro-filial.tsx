@@ -78,7 +78,7 @@ export function FiltroFilial({
   }
 
   // ⚠ Valor SELECIONADO que não está nas opções. Acontece de verdade:
-  // `resolverFiliaisSlugs` preserva de propósito o slug de uma filial DESATIVADA
+  // `selecaoDeUnidadesPorSlug` preserva de propósito o slug de uma filial DESATIVADA
   // vindo de um link antigo, e `listarFiliais()` só devolve filial ativa. Sem esta
   // linha ele não tinha caixa nenhuma na tela (mas contava no badge) e — pior — o
   // `filter` abaixo o apagava da URL no primeiro clique em QUALQUER outra filial,

@@ -190,3 +190,99 @@ describe('o NO-OP de hoje: com o recorte universal, a seleção passa inteira', 
     if (vista.modo === 'lista') expect(Object.isFrozen(vista.valores)).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// F57 · lote 4 — a PRESENÇA: o ponto de injeção é usado de verdade
+// ---------------------------------------------------------------------------
+// O teste de EFEITO acima prova que `efetivar` corta quando o recorte é restrito. O que ele não
+// prova é que as CHAMADAS passam o recorte da sessão: bastaria um `efetivar(RECORTE_UNIVERSAL, …)`
+// numa página para a virada da F70/F72 não chegar ali — o tipo compila, a tela funciona, e o
+// recorte de empresa some em silêncio naquele ponto. É a outra metade da fechadura no-op (a mesma
+// divisão PRESENÇA × EFEITO de `escopo/pertencimento.test.ts`).
+
+describe('o recorte da sessão chega a toda chamada de efetivar (PRESENÇA)', () => {
+  const raiz = process.cwd()
+  const modulo = 'src/lib/auth/recorte-leitura.ts'
+  const posix = (p: string) => relative(raiz, p).split(/[\\/]/).join('/')
+
+  const fontes = (dir: string, saida: string[] = []): string[] => {
+    for (const nome of readdirSync(dir)) {
+      if (nome === 'node_modules' || nome.startsWith('.')) continue
+      const caminho = join(dir, nome)
+      if (statSync(caminho).isDirectory()) fontes(caminho, saida)
+      else if (/\.(ts|tsx|mts)$/.test(nome) && !/\.test\.(ts|tsx|mts)$/.test(nome)) saida.push(caminho)
+    }
+    return saida
+  }
+  const producao = [...fontes(join(raiz, 'src')), ...fontes(join(raiz, 'scripts'))].filter(
+    (p) => posix(p) !== modulo,
+  )
+
+  /** O primeiro argumento de cada chamada `nome(...)`, com parênteses aninhados contados. */
+  function primeirosArgumentos(fonte: string, nome: string): string[] {
+    const saida: string[] = []
+    for (const m of fonte.matchAll(new RegExp(String.raw`\b${nome}\s*\(`, 'g'))) {
+      let i = (m.index ?? 0) + m[0].length
+      let profundidade = 0
+      let arg = ''
+      for (; i < fonte.length; i++) {
+        const c = fonte[i]
+        if ('([{'.includes(c)) profundidade++
+        else if (')]}'.includes(c)) {
+          if (profundidade === 0) break
+          profundidade--
+        } else if (c === ',' && profundidade === 0) break
+        arg += c
+      }
+      saida.push(arg.trim())
+    }
+    return saida
+  }
+
+  // Medido em 14/09/2026, no fechamento da Frente H, por ESTE varredor (comentário e string
+  // apagados): 14 chamadas — 12 em `src/` e 2 nas prévias de `scripts/design/`. Um `grep` cru
+  // conta 15, porque pega a menção em comentário de `queries/ativos.ts`. Catraca contra a trava
+  // vazia: se a contagem cair, alguém trocou `efetivar` por outro caminho — e é o teste que
+  // avisa, não o silêncio.
+  const MINIMO_DE_CHAMADAS = 14
+
+  it('toda chamada passa `recorteDe(…)` — ou o parâmetro `recorte` que já o traz', () => {
+    const chamadas = producao.flatMap((p) =>
+      primeirosArgumentos(limpar(readFileSync(p, 'utf8'), true), 'efetivar').map((arg) => ({
+        arquivo: posix(p),
+        arg,
+      })),
+    )
+    const semRecorteDaSessao = chamadas.filter((c) => !/^(?:recorteDe\s*\(|recorte$)/.test(c.arg))
+    expect(semRecorteDaSessao).toEqual([])
+    expect(chamadas.length).toBeGreaterThanOrEqual(MINIMO_DE_CHAMADAS)
+  })
+
+  it('quem passa `recorte` por parâmetro o declara como RecorteDeLeitura', () => {
+    for (const p of producao) {
+      const fonte = limpar(readFileSync(p, 'utf8'), true)
+      if (!primeirosArgumentos(fonte, 'efetivar').includes('recorte')) continue
+      expect(fonte, posix(p)).toMatch(/\brecorte\s*:\s*RecorteDeLeitura\b/)
+    }
+  })
+
+  it('`RECORTE_UNIVERSAL` não é usado fora do módulo — o universal só chega por `recorteDe`', () => {
+    const culpados = producao
+      .filter((p) => /\bRECORTE_UNIVERSAL\b/.test(limpar(readFileSync(p, 'utf8'), true)))
+      .map(posix)
+    expect(culpados).toEqual([])
+  })
+
+  it('`filtros/filial.ts` não devolve `[]`, e os nomes transitórios sumiram do código', () => {
+    const filial = limpar(readFileSync(join(raiz, 'src', 'lib', 'filtros', 'filial.ts'), 'utf8'), true)
+    expect(filial).not.toMatch(/return\s*\[\s*\]/)
+    const comNomeAntigo = producao
+      .filter((p) =>
+        /\b(?:resolverFiliaisIds|resolverFiliaisSlugs|resolverFiliaisSlugsSemPadrao|filtroFilialPadrao)\b/.test(
+          limpar(readFileSync(p, 'utf8'), true),
+        ),
+      )
+      .map(posix)
+    expect(comNomeAntigo).toEqual([])
+  })
+})

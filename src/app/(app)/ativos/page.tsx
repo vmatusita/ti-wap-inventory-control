@@ -24,8 +24,8 @@ import {
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 // F25 — o `filial` da URL virou LISTA e ganhou um padrão por CARGO. A resolução
 // mora em um módulo só porque a action de export reparseia esta MESMA querystring.
-import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
-import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
+import { selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
@@ -119,17 +119,15 @@ export default async function AtivosPage({
       filiais.map((f) => f.id),
     ),
   )
-  // F57 · lote 2 — TRANSITÓRIO: a lista antiga ainda alimenta o estado vazio e o filtro da tela,
-  // que migram no lote 4 (`[]` = sem recorte, só aqui e só até lá).
-  const filialIds = resolverFiliaisIds(
-    texto(sp.filial),
-    operador,
-    filiais.map((f) => f.id),
-  )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela: as da lista, e nenhuma sem recorte (o seletor mostra
+  // "Todas"). É estado de TELA — a query recebe `unidades`.
+  const filiaisMarcadas: readonly number[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // F19 — diferencia "não há ativo nenhum" de "nada nesta busca" no estado vazio
   // (mesma forma de /pendencias e /movimentacoes). `ord`, `pp` e `page` ficam de
-  // fora: são apresentação, não recorte. `status` e `filialIds` são ARRAYS —
+  // fora: são apresentação, não recorte. `status` e `filiaisMarcadas` são ARRAYS —
   // `Boolean([])` é true, por isso `.length > 0`.
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
   // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
@@ -149,7 +147,8 @@ export default async function AtivosPage({
   // admin, e negar-lhe a comemoração (ou oferecer um "Ver todas" que não alarga
   // nada) seria falso. O caminho real é a conta rebaixada de admin para operador,
   // que a ADR-002 deixa vinculada a todas.
-  const temRecorteFilial = filialIds.length > 0 && filialIds.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   // A saída do estado vazio tem de MUDAR alguma coisa: com filtro na URL, "Limpar"
   // volta à URL de repouso (o MESMO destino do botão "Limpar" da barra de filtros,
@@ -240,7 +239,7 @@ export default async function AtivosPage({
         <LembrarLista />
       </Suspense>
 
-      <AtivosFiltros filiais={filiais} filiaisSelecionadas={filialIds.map(String)} />
+      <AtivosFiltros filiais={filiais} filiaisSelecionadas={filiaisMarcadas.map(String)} />
 
       {/* ATV-12 — visões prontas (Em manutenção · Em estoque · Sem patrimônio ·
           Com pendência), acima da tabela. Fica visível mesmo na lista vazia:

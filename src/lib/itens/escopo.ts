@@ -34,6 +34,8 @@
 // números não mudam (decisão do Johnny na F43, não revogada): o que passou a variar
 // é a frase de apoio embaixo do número.
 
+import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+
 /** Rótulo, explicação curta e explicação inteira de um número — o de `NUMEROS_ITEM`. */
 export type LegendaDeNumero = {
   chave: string
@@ -45,7 +47,8 @@ export type LegendaDeNumero = {
 /**
  * De quem são os números que a tela está mostrando agora.
  *
- * ⚠ `todas` é `filialIds` VAZIO, e não "todas as filiais estão marcadas". A
+ * ⚠ `todas` é o modo `todas` das unidades efetivas (até a F57, `filialIds` VAZIO), e não
+ * "todas as filiais estão marcadas". A
  * diferença não é semântica: sem recorte a tela mostra o `consolidado` da RPC, que
  * enxerga também a filial DESATIVADA com saldo; marcando as cinco à mão, ela mostra
  * a SOMA das cinco colunas, que pode ser menor. São dois números diferentes, e a
@@ -60,10 +63,13 @@ export type EscopoDosNumeros =
 /** O escopo a partir do que a `page.tsx` já resolveu: as filiais e o recorte. */
 export function escopoDosNumeros(
   filiais: readonly { id: number; nome: string }[],
-  filialIds: readonly number[],
+  unidades: UnidadesEfetivas<'id'>,
 ): EscopoDosNumeros {
-  if (filialIds.length === 0) return { tipo: 'todas' }
-  const nomes = filialIds
+  const vista = lerUnidades(unidades)
+  if (vista.modo === 'todas') return { tipo: 'todas' }
+  // Uma interseção vazia não é "todas": cai no plural genérico, sem nome inventado (F57).
+  const ids: readonly number[] = vista.modo === 'lista' ? vista.valores : []
+  const nomes = ids
     .map((id) => filiais.find((f) => f.id === id)?.nome)
     .filter((n): n is string => Boolean(n))
   // Recorte que não casa com nenhuma filial conhecida (id de uma filial removida

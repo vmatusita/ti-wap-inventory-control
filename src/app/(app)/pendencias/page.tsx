@@ -9,8 +9,8 @@ import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { listarPendencias, type TipoPendencia } from '@/lib/queries/pendencias-detalhe'
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisSlugs, selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
-import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
+import { selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { formatDate } from '@/lib/format'
 import { ClipboardCheck, Filter } from 'lucide-react'
@@ -99,13 +99,15 @@ export default async function PendenciasPage({
   // F57 — slug que não é de filial nenhuma responde 404 (inclusive `geral`, que aqui não é filial).
   await recusarFilialInexistente(client, primeiro(sp.filial), 'slug')
   const filiais = await listarFiliais(client)
-  const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
-  // F57 — o que as QUERIES recebem: os chips, a fila, a mesa e o chip de conflito. A lista acima
-  // (`filialSlugs`) é TRANSITÓRIA: só o estado vazio a lê, e ela sai no lote 4.
+  // F57 — o que as QUERIES recebem: os chips, a fila, a mesa e o chip de conflito.
   const unidades = efetivar(
     recorteDe(operador),
     selecaoDeUnidadesPorSlug(primeiro(sp.filial), operador, filiais),
   )
+  const vistaDasUnidades = lerUnidades(unidades)
+  // As filiais MARCADAS no filtro da tela (estado de TELA; a query recebe `unidades`).
+  const filiaisMarcadas: readonly string[] =
+    vistaDasUnidades.modo === 'lista' ? vistaDasUnidades.valores : []
 
   // ⚠ F25 — o `filial` conta como FILTRO só quando veio da URL, e `ehFiltroDeFilial`
   // ainda descarta a SENTINELA `todas` (que declara "sem recorte" — ver a nota da
@@ -127,7 +129,8 @@ export default async function PendenciasPage({
   // oferecia um "Ver todas as filiais" que não alarga nada — o caminho real é a
   // conta rebaixada de admin para operador, que a ADR-002 deixa com vínculo em
   // todas as filiais.
-  const temRecorteFilial = filialSlugs.length > 0 && filialSlugs.length < filiais.length
+  const temRecorteFilial =
+    vistaDasUnidades.modo !== 'todas' && filiaisMarcadas.length < filiais.length
 
   // O estado vazio de filtro precisa de uma saída que MUDE alguma coisa:
   //  · com filtro na URL, "Limpar" volta à URL de repouso da tela — o MESMO
@@ -269,7 +272,7 @@ export default async function PendenciasPage({
 
       <PendenciasFiltros
         filiais={filiais}
-        filiaisSelecionadas={filialSlugs}
+        filiaisSelecionadas={[...filiaisMarcadas]}
         tipo={tipo}
         q={q}
       />
