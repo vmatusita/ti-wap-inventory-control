@@ -1,0 +1,67 @@
+# F56 — apply da migration 0140 (o "Substituir tudo" desarma a FK) em PRODUÇÃO, 14/09/2026
+
+Caminho B do runbook (contém `delete from public.ativos` no corpo de `import_apagar_acervo_filial`) —
+aplicado pelo agente por decisão iv da ordem, DEPOIS de: CI verde (run 34853956001), apply e ensaio de
+rollback no ensaio (P2), 0139 em produção (P3) e o smoke do import no ensaio fechando 22/22 (G2). A 0140 é
+recriação pura de três funções (`create or replace`, mesmas assinaturas) — não toca dado; o backup prévio de
+tabela não se aplica, e o rollback (reemitir os corpos da 0131/0132) está pronto e ensaiado
+(`node docs/f56-handoff/scripts/rollback-0140.mjs`).
+
+Ferramenta: MCP da Supabase, `apply_migration(project_id=pbtjcalbmepmrqzprusb, name='import_desarma_fk',
+query=<texto integral de supabase/migrations/0140_import_desarma_fk.sql>)` → {"success": true}.
+Verificações: `execute_sql` só de leitura e `get_advisors(security)`. Nenhum dado de negócio lido — só contagens.
+
+## Antes do apply (minutos antes)
+- ledger termina em `vocabulario_import` (0139);
+- corpos vigentes: import_apagar_acervo_filial e313d1fe… · import_revalidar_contagens 3ad2f66b… ·
+  importar_ativos_substituir 8ab118c3… (0131/0132); 3 funções; proacl das auxiliares {postgres=X/postgres},
+  da orquestradora {postgres=X/postgres,authenticated=X/postgres};
+- contagens: ativos 1620 · movimentacoes 3538 · lancamentos_item 124 · lancamentos vinculados 52 ·
+  pendencias_item 17 · termos_gerados 101 · import_logs 12 (último import 31/07/2026 — nenhum import em curso).
+  (Movimentações e lançamentos subiram desde a leitura de 1h antes — 3536→3538, 120→124: operadores
+  trabalhando no sistema; a comparação que vale é a de minutos antes × logo depois.)
+- advisors de segurança: 3 INFO · 28 WARN (0029) · 1 WARN (leaked password) — a mesma base de P3.
+
+## Depois do apply
+| verificação | esperado | obtido | ok |
+|---|---|---|---|
+| última migration do ledger | import_desarma_fk | import_desarma_fk | sim |
+| md5 prosrc normalizado — import_apagar_acervo_filial | facb251140fb7e0b8417a24e84b83aba | facb251140fb7e0b8417a24e84b83aba | sim |
+| md5 prosrc normalizado — import_revalidar_contagens | 1157476902ff7ed96a4cfb53bdd92a3a | 1157476902ff7ed96a4cfb53bdd92a3a | sim |
+| md5 prosrc normalizado — importar_ativos_substituir | cd1bb4efb5e4ab98f1dfce815e3bf286 | cd1bb4efb5e4ab98f1dfce815e3bf286 | sim |
+| assinaturas, 1 por nome | (smallint) · (jsonb,smallint) · (jsonb,text,jsonb,jsonb) | idem | sim |
+| EXECUTE orquestradora: anon / authenticated / service_role | false / true / false | false / true / false | sim |
+| EXECUTE das 2 auxiliares nos 3 papéis | false ×6 | false ×6 | sim |
+| proacl sem PUBLIC | igual ao de antes | igual ao de antes | sim |
+| funções com `delete from public.ativos` no prosrc | a mesma lista de 6 do ensaio (P2) | idem | sim |
+| contagens antes = depois | 1620/3538/124/52/17/101/12 | 1620/3538/124/52/17/101/12 | sim |
+| advisors de segurança | sem achado novo | idênticos (3 INFO · 28 WARN · 1 WARN) | sim |
+| notify pgrst, 'reload schema' | executado | executado 14/09/2026 12:15:41 -03 | sim |
+
+## Sonda de paridade ensaio × produção DEPOIS (as duas migrations nos dois bancos)
+
+`supabase/ci/impressao-schema.sql`, 11 classes, rodada nos dois projetos logo depois do apply:
+
+classe          | objetos | impressão (produção = ensaio)      | igual
+----------------+---------+------------------------------------+------
+coluna          |     304 | 04389aafedd3c6228355ae38c8bf908d   | sim
+constraint      |      91 | e4f2683c66ee7dfdb120655e88e92679   | sim
+enum            |       7 | 34837fbf7cb50082e461fd8cdad47532   | sim
+func            |      81 | 7e8c6ce718111281e1f8a8e0e0a13dd2   | sim
+grant_func      |      81 | 51c5daaef409de7c5de6e4c6bacfe1b1   | sim
+indice          |      87 | e47ba34aaec5c4950f5c621ffe081ac8   | sim
+policy          |      53 | 4392469ec82bcd18cf90b72d44a6b0a3   | sim
+policy_storage  |       8 | cd68b8eccf9532909791b7cf67619b08   | sim
+rls_flag        |      24 | 09081944cd2aeaac407de7fcb40093a2   | sim
+trigger         |       8 | c8a10e985ab40e20f14532ae7c740b86   | sim
+view            |       9 | 667064b2620246551d5bbd726e5c456e   | sim
+
+A classe `func` que divergia em P4 (só pelas três funções da 0140) agora é idêntica — o impresso de produção
+passou de 041a1e1a… para 7e8c6ce7…, exatamente o do ensaio. Ensaio e produção estão em paridade de schema nas
+11 classes, com a 0139 e a 0140 nos dois.
+
+## Janela de deploy fora de ordem (o código no ar ainda é o da main)
+Até o merge do PR #43 e o deploy, produção roda a RPC NOVA com o código VELHO (ordem (a) do cabeçalho da
+0140): um "Substituir tudo" numa filial com pendência/lançamento preso é recusado com MENSAGEM ("O estado da
+filial mudou desde o preview/backup…") em vez do `23503` cru; nas filiais sem esses elos, passa como sempre.
+Nenhum import é esperado nessa janela (o último foi em 31/07).
