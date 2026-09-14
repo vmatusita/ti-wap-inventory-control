@@ -11020,3 +11020,28 @@ O desenho inteiro, com as assinaturas, está em `docs/PLAN-F57.md` §2 e §5. Aq
   de `src/lib/**`), `identidade.test.ts` e `identidade-sql.test.ts`. Em todos a varredura foi para a coleta, com as
   asserções intactas; os seis arquivos passam com 193 ms de corpo de teste somado. As sabotagens D, E e F continuam
   valendo: a varredura ainda lê o disco de verdade a cada execução, só não dentro do `it`.
+
+## 2026-09-14 · F57 · fechamento — o PR, o CI e o que fica para depois do merge
+
+- **O PR #46** (`f57-quatro-significados-de-filial` → `main`) foi aberto com a fase inteira verificada na mesa: lint,
+  `tsc`, 201 arquivos / 5.104 testes, build e `verificar:actions` (`docs/f57-evidencias/fechamento-verificacao.txt`). Um
+  push só antes do CI, para não gastar a cota com rodada de "ver se passa".
+- **CI verde na primeira run** (`34887305598`, head `8d2d6cc`): `verificar` em 3m21s e `banco-sem-docker` em 1m43s. O
+  injetor de mutações fechou **74/74 pelo cenário nomeado, 2 em quarentena**, o gate de deriva **34 relações · 312 colunas
+  · 75 funções** e os roteiros **34 arquivos / 818 asserções** — os três exatamente iguais aos da F56, que é a prova do
+  critério 22: a fase não tocou SQL, e o banco não se mexeu. Trechos em `docs/f57-evidencias/ci-pr46.txt`.
+- **O único comentário no PR** foi o aviso automático da prévia da Vercel — nada a responder, nenhum conserto.
+- **O relatório entra no mesmo PR, num commit final**, e o merge espera os dois checks verdes também sobre ele. **Escolha:**
+  não abrir um segundo PR só para o relatório, como a F56 fez — lá o relatório precisava citar o deploy e o smoke de
+  produção, que só existem depois do merge; aqui a ordem proíbe olhar produção, então não há fato pós-merge que o relatório
+  precise conter além do merge e da tag, e esses dois ficam nesta ata e na resposta final. **A tag anotada `v1.62.0` vai no
+  commit de merge**, publicada com `git push origin v1.62.0`.
+- **O que a fase NÃO fez depois do merge, por ordem:** nenhuma consulta a produção (nem `/api/saude`, nem smoke). O deploy
+  é o automático da Vercel. O item 2 do roteiro do Johnny no relatório é a conferência humana que falta.
+- **A checagem factual dos documentos, antes do último commit.** Sete checadores em contexto fresco, com cético por
+  divergência, conferiram o relatório, estas atas, o CHANGELOG, o registry, a `ARQUITETURA.md` e o índice contra o disco,
+  o git e as evidências. **Cinco divergências mantidas e corrigidas no mesmo commit** (a atribuição D.4/D.5 no roteiro;
+  18 funções em 9 arquivos, e não 8 — erro do §1 do `PLAN-F57.md`, que fica como está, por ser o plano datado; a conta
+  dos 90 testes, cujo 90º é o de `servidor-apenas.test.ts` para `recorte-consulta.ts`; "sete atas", e não quatro; e o
+  critério 26 marcado ⏳ em vez de ✅ antes do merge), **uma refutada**. **Motivo de rodar:** o relatório é o que o Johnny
+  lê no lugar do código, e um número errado nele custa mais do que a checagem.

@@ -1,6 +1,6 @@
 # Relatório F57 — Os quatro significados de filial, e o fim do fail-open
 
-**v1.62.0** · **sem migration** · 14/09/2026 · branch `f57-quatro-significados-de-filial` → PR ⟨PREENCHER⟩
+**v1.62.0** · **sem migration** · 14/09/2026 · branch `f57-quatro-significados-de-filial` → [PR #46](https://github.com/vmatusita/ti-wap-inventory-control/pull/46)
 
 > A palavra "filial" carregava quatro significados fundidos: onde a pessoa ESCREVE, o que a sessão pode LER, o que a
 > tela FILTRA e a IDENTIDADE do ativo. O filtro de leitura ainda usava a convenção `[] = todas as filiais` — um
@@ -38,8 +38,10 @@ qualquer filial, com a mesma mensagem. O alcance virou uma constante nomeada, `A
 a troca é pequena e reversível, e fica numa ordem própria:
 1. na chamada de `cadastrosComMesmaIdentidade` em `src/lib/actions/compras.ts`, passar o alcance da unidade da compra
    em vez de `ALCANCE_DA_RECUSA_MANUAL` (uma linha);
-2. inverter o teste de presença e o de efeito de `src/lib/ativos/identidade.test.ts` que hoje exigem o contrário (a
-   sabotagem D.4 mostra que eles ficam vermelhos com essa troca — é de propósito);
+2. inverter o teste de PRESENÇA de `src/lib/ativos/identidade.test.ts`, que hoje exige o alcance de todas as unidades
+   nas três actions (a sabotagem D.4 mostra que ele fica vermelho com essa troca — é de propósito), e acrescentar ao teste
+   de EFEITO o caso da compra aceitando o par de outra filial (o de hoje prova a recusa e continua valendo para as outras
+   duas actions; quem o derruba é trocar a própria constante, a sabotagem D.5);
 3. emendar a spec §10.2 e a regra 2 do `CLAUDE.md`, que dizem hoje que cadastro manual nunca cria o par em duas filiais.
 
 Se não, nada a fazer: o comportamento de hoje é o da spec. **Por que a fase não aplicou sozinha:** se aplicasse e você
@@ -84,7 +86,7 @@ lote 1 → G → F → E → D → C → B → A) e o deploy normal. Os lotes ex
 | `podeEscreverNaFilial` | `auth/papeis.ts` (ficha) | `src/components/layout/permissoes.ts` | a ordem já corrigia |
 | Tipos com `filiaisEscrita` | dois (ordem) | **três** — o terceiro é `OperadorDoFiltro` | |
 | Rotas que leem `filial` | 8 | **8** — só `/relatorios/[filial]` recusava | |
-| Funções exportadas com `[] = todas` | — | **18** em 8 arquivos | `PLAN-F57.md` §6 |
+| Funções exportadas com `[] = todas` | — | **18** em 9 arquivos | a lista do `PLAN-F57.md` §6 tem 9 arquivos; o §1 do plano escreveu "8" — erro de contagem do plano, achado pela checagem factual do fechamento (§9) |
 | O "⚠" do operador sem vínculo | "com o ⚠ que a tela já mostra" | **só do lado da escrita** (`AvisoSemFilialDeEscrita`) | ver §3 |
 | Testes | — | **192 arquivos · 5.014 testes**, `tsc` limpo | `00-linha-de-base.txt` |
 
@@ -128,7 +130,12 @@ Linhas com a palavra inteira (`git grep -w`), `main` × HEAD — saída em `docs
 | `3504dd7` | H4 — telas e o fim do legado (inclui a matriz DEPOIS) | 16 | +2.996 / −122 |
 | `4eadd9b` | o inventário | 1 | +331 |
 | `42776d3` | sabotagens B e C | 2 | +515 |
-| ⟨PREENCHER⟩ | I — o fechamento | | |
+| `2588bcf` | o detector de rotas fortalecido (revisão adversarial) + sabotagem E.3/E.4 | 2 | +89 / −11 |
+| `5b868a7` | as varreduras de disco dos testes saem do corpo do `it` (o tempo-limite do fechamento) | 6 | +71 / −33 |
+| `8d2d6cc` | I — o fechamento (versão, CHANGELOG, atas, arquitetura, índice, relatório, evidências) | 9 | +953 / −3 |
+
+**Total da fase** (`git diff --shortstat main...HEAD` no fechamento): **97 arquivos, +12.763 / −516** — a maior parte é
+teste, evidência e documento; só a matriz de casos-limite (`.json` e `.md`, antes e depois) soma cerca de 120 KB.
 
 ## 2.4 Testes — antes × depois
 
@@ -138,8 +145,10 @@ Linhas com a palavra inteira (`git grep -w`), `main` × HEAD — saída em `docs
 | Fechamento (`fechamento-verificacao.txt`, segunda rodada) | **201** | **5.104** |
 
 Os 9 arquivos a mais são os testes novos da fase (`recorte`, `casos-limite`, `slugs`, `identidade`, `identidade-sql`,
-`pertinencia`, `rotas`, `chave-versao-sql`, `recorte-consulta`); os 90 testes a mais são deles e dos casos acrescentados
-a `filial.test.ts`, `lista.test.ts` e `escopo.test.ts`. Nenhum teste existente foi removido.
+`pertinencia`, `rotas`, `chave-versao-sql`, `recorte-consulta`). Os **90** testes a mais: **80** nesses nove arquivos,
+**+9** nos casos acrescentados a `filial.test.ts` (+7), `lista.test.ts` (+1) e `escopo.test.ts` (+1), e **+1** gerado por
+`src/lib/queries/servidor-apenas.test.ts`, que cria um teste por módulo de `src/lib/queries/` e passou a ver
+`recorte-consulta.ts`. Nenhum teste existente foi removido.
 
 ## 2.5 Os call-sites e o inventário
 
@@ -354,11 +363,11 @@ em gerados (sem param, `todas`, `geral`, `geral+valido`), a desativada continua 
 | 19 | Nenhuma migration criada ou tocada; lock intacto | ✅ `contagem-final.txt` §4 |
 | 20 | Nenhuma tela ou texto de operador mudou além do critério 15 | ✅ §7; revisão §9 (nenhum literal de tela mudou no diff de `src/app`/`src/components`) |
 | 21 | Nenhum cargo passou a ver menos | ✅ recorte universal; S1–S4 idênticas; revisão §9 (as 8 rotas, o CSV, o selo, o painel e os relatórios) |
-| 22 | `verificar:actions` e `db:test:mutations` verdes | `verificar:actions` ✅ (39 chunks, verde); `db:test:mutations` ⟨PREENCHER — CI `banco-sem-docker`⟩ |
-| 23 | `1.62.0`, CHANGELOG, registry, tag anotada | ⟨PREENCHER — tag⟩ |
-| 24 | Ata datada em `DECISOES.md` | ✅ quatro atas de 14/09/2026 |
+| 22 | `verificar:actions` e `db:test:mutations` verdes | `verificar:actions` ✅ (39 chunks, verde); `db:test:mutations` ✅ no `banco-sem-docker` do PR #46 (run `34887305598`): **74/74 detectadas pelo cenário nomeado, 2 em quarentena** — os mesmos números da F56, ou seja, não se mexeu; com o gate de deriva (34 relações · 312 colunas · 75 funções) e os 34 roteiros (818 asserções) iguais. `ci-pr46.txt` |
+| 23 | `1.62.0`, CHANGELOG, registry, tag anotada | ✅ versão · ⏳ tag — `package.json`, `CHANGELOG.md` e `registry.ts` em 1.62.0 (`registry.test.ts` e `cobertura-changelog.test.ts` verdes). A tag anotada `v1.62.0` vai no commit de merge do PR #46, publicada com `git push origin v1.62.0` — depois deste commit, que não pode conter o próprio merge (§13) |
+| 24 | Ata datada em `DECISOES.md` | ✅ sete atas "2026-09-14 · F57": a decisão i, as nove decisões, as divergências, as correções do caminho, a revisão adversarial, o tempo-limite e o fechamento |
 | 25 | Este relatório, com o roteiro no topo | ✅ |
-| 26 | PR mergeado com `verificar` e `banco-sem-docker` verdes | ⟨PREENCHER⟩ |
+| 26 | PR mergeado com `verificar` e `banco-sem-docker` verdes | ⏳ **pendente no momento deste commit** — os dois checks verdes no PR #46 (run `34887305598` sobre `8d2d6cc`, o código final); o merge acontece depois deste commit, que só acrescenta o relatório e a evidência do CI, e só com os dois checks verdes também sobre ele. Confirmado na resposta final da sessão (§13) |
 | 27 | `ARQUITETURA.md` §10 e `README.md` com os módulos novos | ✅ |
 | 28 | Nenhum dado real | ✅ `contagem-final.txt` §5 |
 
@@ -397,6 +406,15 @@ suíte inteira isso passou dos 5 s. **Consertado na causa** — a pasta é lida 
 foi fechada nos outros cinco testes da fase que a tinham (`recorte`, `rotas`, `slugs`, `identidade`,
 `identidade-sql`), com as asserções intactas. A segunda rodada é a que está em `fechamento-verificacao.txt`; a ata é
 `2026-09-14 · F57 · A verificação do fechamento reprovou por tempo-limite`.
+
+**E a checagem factual dos documentos, antes do último commit.** Sete checadores em contexto fresco conferiram cada
+número, caminho, linha, hash e run deste relatório, das atas, do CHANGELOG, do registry, da `ARQUITETURA.md` e do índice
+contra o disco, o git e as evidências; cada divergência passou por um cético. **Cinco mantidas, uma refutada — as cinco
+corrigidas neste commit:** o roteiro atribuía à sabotagem D.4 a queda dos testes de presença E de efeito (a D.4 derruba só
+o de presença; o de efeito é a D.5); "18 funções em 8 arquivos" são 18 em **9** (o erro veio do §1 do plano, que não se
+reescreve); a conta dos 90 testes somava 89 (o 90º é o que `servidor-apenas.test.ts` gera para `recorte-consulta.ts`); o
+critério 24 dizia "quatro atas" e são **sete**; e o critério 26 estava marcado ✅ antes do merge — agora ⏳, como o fato é.
+A refutada: a leitura de "fechamento" na ordem de reversão, que abrange os três commits do fechamento.
 
 ---
 
@@ -506,4 +524,20 @@ Saída inteira em `docs/f57-evidencias/contagem-final.txt` §4–§5, medida na 
 
 # 13. O fechamento
 
-⟨PREENCHER — PR, CI, merge, tag⟩
+**O PR.** [PR #46](https://github.com/vmatusita/ti-wap-inventory-control/pull/46), aberto com os 18 commits da tabela do
+§2.3: a ordem, a matriz ANTES, as sete frentes A–G, os quatro lotes da H, o inventário, as sabotagens B e C e os três do
+fechamento. Um push só antes do CI, sem rodada intermediária para "ver se passa" — lint, `tsc`, a suíte inteira e o
+build rodaram na mesa antes (`fechamento-verificacao.txt`).
+
+**O CI.** Run `34887305598`, head `8d2d6cc` — `verificar` verde em 3m21s (lint, 201 arquivos / 5.104 testes, typecheck,
+contraste, build, `verificar:actions`) e `banco-sem-docker` verde em 1m43s (gate de deriva 34 · 312 · 75, 34 roteiros com
+818 asserções, injetor 74/74 com 2 em quarentena). Os trechos estão em `docs/f57-evidencias/ci-pr46.txt`. O único
+comentário no PR foi o aviso automático da prévia da Vercel, sem nada a responder.
+
+**O que vem depois deste commit, e por que ele não o contém.** Este commit acrescenta só este relatório preenchido e a
+evidência do CI; os dois checks rodam de novo sobre ele, e **o merge só acontece com os dois verdes nesse head**. A tag
+anotada `v1.62.0` vai no commit de merge e é publicada com `git push origin v1.62.0`. O deploy é o automático da Vercel no
+merge; **esta fase não confere nada em produção** (a ordem proíbe rodar qualquer coisa lá) — o item 2 do roteiro do Johnny é
+o olho humano que falta. O merge, o commit de merge e a tag são confirmados na resposta final da sessão. A ata
+`2026-09-14 · F57 · fechamento` de `docs/DECISOES.md` foi escrita ANTES do merge e registra o plano, não o resultado; ela
+não se reescreve depois — se o merge trouxer algo a registrar, isso vai numa ata nova, por PR.
