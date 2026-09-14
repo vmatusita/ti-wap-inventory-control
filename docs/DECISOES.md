@@ -10251,3 +10251,233 @@ chegou a produzir, `node scripts/verificar-actions-build.mjs` (o gate de binding
 VERDE (39 chunks varridos, nenhum identificador sem binding) — inclusive `unidades-apelidos.ts`. O
 `npm run test`/`npx tsc --noEmit`/`npm run build` limpos do repositório INTEIRO ficam para depois das
 outras frentes terminarem (a árvore está sendo escrita ao vivo por elas); resultado no relatório final.
+
+## 2026-09-14 · F56 (Frente G) · o preparo do smoke, retomado — achado COMPLETO, não corrigido
+
+Escopo desta ata: fechamento da Frente G (guarda, persona, checagens, fixtures do passe 2, planilhas,
+roteiro principal, README) depois da troca de máquina de 11/09. Contra a `TAREFA` original
+(`docs/f56-handoff/workflows/f56-frente-g-preparo-wf_b86499c5-04d.js`), os oito itens já estavam
+implementados no commit de WIP (`9c8d009`) — inclusive os dois que o handoff marcava como possivelmente
+incompletos (a guarda e as evidências G1). Não havia nenhum `SELETOR-A-CONFERIR` faltando nem
+`.mts`/`.mjs` a resolver: os arquivos nasceram `.ts` (não `.mjs`/`.mts` como a tarefa original dizia) e
+`vitest.config.mts` já cobre `scripts/**/*.test.ts` (não só `.test.mts`) desde a F45 — o comando do
+README (`npx tsx scripts/smoke/import-ensaio.ts`) resolve `tsx` localmente (`node_modules/.bin`, v4.23.13)
+sem nenhuma variável `SMOKE_*`.
+
+- **Verificação, não correção.** Reli os oito itens da `TAREFA` um a um contra o WIP: a guarda
+  (`guarda-ensaio.ts`/`.test.ts`, 11 testes — mais que os 5 casos mínimos pedidos — incluindo a prova por
+  `Proxy` de que o corpo nunca acessa uma chave `SMOKE_*`), a persona (`persona.ts`, só
+  `auth.admin.createUser`/`updateUserById`, papel/ativo por escrita direta com a razão documentada —
+  `definir_papel_usuario`/`definir_status_usuario` têm `revoke` do service role, 0074 —, trilha pelos
+  quatro verbos já na `0139`, desativação num `finally`), as doze checagens (`checagens.ts`, só totais),
+  as fixtures do passe 2 (`fixtures-passe2.ts`, pela sessão da persona, nunca service role), as planilhas
+  fictícias (`planilha.ts`, patrimônio `NOO9xxxxxx` conferido contra `ativos` de TODAS as filiais antes de
+  fechar o CSV) e o roteiro principal (`import-ensaio.ts`, guarda→persona→checagens→next dev→login→Filiais
+  →passe 1→fixtures→passe 2→passe 3→checagens→`finally` desativa a persona). Não encontrei lacuna que
+  exigisse escrever ou reescrever código — só reconferir.
+- **As quatro assinaturas de RPC que as fixtures usam foram checadas contra a definição VIGENTE nas
+  migrations** (nunca contra o banco — nenhuma escrita nem leitura de negócio contra o ensaio nesta etapa,
+  só grep local): `criar_movimentacao_com_itens(p_movimentacoes jsonb, p_itens jsonb, p_criado_por uuid)`
+  — `0126`, a mais recente; `lancar_itens_lote(p_linhas jsonb, p_criado_por uuid)` — `0126`;
+  `checagens_integridade_resumo() returns table(chave text, total bigint)` — `0138`. A quarta quase virou
+  achado: `grep "create or replace function.*rel_saldo_itens"` só acha `0016`/`0019`, mas a definição
+  VIGENTE é da `0027` (`drop function` + `create function`, sem "or replace", porque a assinatura de
+  RETORNO mudou de `saldo` para `total`/`estoque`/`atrelados`/`falta`) — bati essa a fio, e
+  `fixtures-passe2.ts:lerSaldoItemNaFilial` já lê exatamente esses quatro nomes. Também confirmei que
+  `itens` aceita `insert` da persona (`admin` ⊃ `operador`) pela policy "escrita cria item" (`0125`,
+  `pode_escrever()`), a mesma que `criarItemInline` usa.
+- **Nenhum caminho lê `SMOKE_*`.** `grep -rn "SMOKE_" scripts/smoke/*.ts scripts/env-guard.ts` só acha a
+  string dentro de `guarda-ensaio.test.ts` (como fixture do teste, de propósito) e em comentários — nenhum
+  `process.env.SMOKE_*`/`env.SMOKE_*` em código executável.
+- **Comandos rodados nesta sessão** (nada contra banco): `npx tsc --noEmit` do repositório inteiro — 0
+  erro; `npm run lint` — 0 erro/aviso; `npx vitest run scripts/smoke/` — 3 arquivos, 63 testes, todos
+  verdes (inclui os 11 da guarda); `git diff 31c7878 --stat -- scripts/smoke/ scripts/env-guard.ts
+  docs/f56-evidencias/G1-*` confirma que só os arquivos do escopo da Frente G mudaram, e `package.json`
+  não mudou (Playwright já era devDependency antes desta frente — nenhuma dependência nova). As evidências
+  `G1-guarda-vermelha.txt`/`G1-guarda-verde.txt` são saída real (`RUN v4.1.11`, timestamps 16:57/16:58 de
+  11/09), sem dado real.
+- **O que continua pendente, e por quê é do CI/execução, não desta frente:** os pontos
+  `// SELETOR-A-CONFERIR` em `import-ensaio.ts` (o botão "Entrar" do login, o botão que fecha o diálogo de
+  apelidos, o rótulo do Select de Filial no passo 3) dependem da forma FINAL das telas que D2/E ainda
+  escrevem — a régua do handoff (§4.5) é reler o componente ou rodar `playwright codegen` contra o `next
+  dev` local antes da EXECUÇÃO real, não antes do preparo. Rodar o smoke de verdade contra o ensaio (o
+  próximo passo do roteiro do handoff, §4.5) fica para depois de D2/E fecharem e do CI provar as frentes
+  restantes — nesta etapa nada foi executado contra o ensaio, por regra da tarefa.
+
+---
+
+## 2026-09-14 · F56 (Frente E) · retomada após troca de máquina — os dois testes que faltavam do item 7
+
+Escopo desta ata: o fechamento da Frente E na retomada (branch `f56-continuacao`, HEAD `9c8d009`), conferindo
+o WIP de 11/09 item a item contra `TAREFA_E` (`docs/f56-handoff/workflows/f56-frentes-d2-e-e-wf_83a548a2-911.js`)
+e o PLAN. Nenhum arquivo de produção mudou — só teste.
+
+- **Achado:** os itens 1-6 e 8 da tarefa estavam completos e coerentes com a ata de 11/09 acima (componente
+  `FilialApelidos` fora do Portal, `dono-do-termo.ts` com os 17 casos, as duas actions, `FilialDialog`,
+  `admin/filiais/page.tsx` com a coluna de apelidos, `criarFilial`/`atualizarFilial` com a pré-checagem). O
+  item 7 ("Testes: dono-do-termo, o schema Zod, o componente (grau 1), e a tradução nova de erros.ts") estava
+  só PELA METADE: `dono-do-termo.test.ts` (17 casos) e `filial-apelidos.test.tsx` (12 casos, evidências E1/E2
+  reais e ainda batendo) existiam — mas **nenhum teste cobria a tradução nova de `erros.ts`**
+  (`filiais_nome_chave_uidx`, `unidades_apelidos_apelido_chave_uidx`, o backstop genérico do P0001 de
+  `vocabulario_unidades_guarda`), confirmado por `git diff 31c7878 HEAD` vazio em `erros.test.ts`. O schema
+  Zod novo (`apelidoFilialSchema`/`removerApelidoUnidadeSchema`) TAMBÉM não tinha teste — mas
+  `src/lib/validators/admin.test.ts` (694 linhas, os testes de F21/F22 — `validarTrocaDePapel`,
+  `validarStatusDeUsuario`, `validarExclusaoDeUsuario`, `aguardandoPrimeiroAcesso` etc., NADA desta fase) JÁ
+  EXISTIA; um `find` malfeito nesta sessão (`-iname "admin*"` sem olhar a saída com atenção) leu a lista de
+  nomes e concluiu "não existe" quando o arquivo estava bem ali.
+- **Quase-incidente, registrado por transparência:** eu **sobrescrevi este arquivo de 694 linhas inteiro**
+  com `Write` (conteúdo novo, só os dois schemas do F56) sem ler antes — o próprio `Write` deveria recusar
+  isso ("must Read first"), mas por algum motivo não recusou aqui, e o dano só apareceu no `git status`
+  seguinte (`M` num arquivo que eu "criei"). **Corrigido imediatamente**: `git checkout HEAD --
+  src/lib/validators/admin.test.ts` restaurou as 694 linhas originais; os dois `describe` novos
+  (`apelidoFilialSchema`/`removerApelidoUnidadeSchema`, 12 casos) entraram por `Edit` (acrescentando ao
+  import existente e ao fim do arquivo), nunca mais por `Write`. Nada dos 63 testes originais de F21/F22 foi
+  perdido — a régua para quem herdar isto: **antes de `Write` num arquivo que `find`/`grep` já indicou que
+  existe, `Read` primeiro, sempre — mesmo quando a ferramenta parece deixar passar.**
+- **Correção (o que ficou, depois do conserto):** um describe `vocabulário de unidades (F56 · migration
+  0139)` em `src/lib/actions/erros.test.ts` (9 casos: os dois índices únicos por nome de constraint, prova
+  de que não caem no genérico de `duplicate key`, as quatro frases do P0001 do gatilho traduzidas para a
+  mesma frase genérica sem vazar o nome dinâmico interpolado, e a confirmação de que nenhum destes ramos
+  loga no fallback); e dois describes acrescentados ao FIM de `src/lib/validators/admin.test.ts` (12 casos
+  para `apelidoFilialSchema`/`removerApelidoUnidadeSchema`: trim, os dois lados do teto de
+  `MAX_TAMANHO_APELIDO`, id inteiro positivo, payload ausente/tipo errado).
+- **Por que não estava óbvio antes:** a ata de 11/09 já relatava a Frente E como concluída e verificada "nos
+  arquivos que ela tocou" — o que era verdade para os arquivos de produção, mas a verificação daquela sessão
+  não conferiu a MATRIZ item-a-item da tarefa original contra os testes, só rodou o que já existia. É o tipo
+  de lacuna que só aparece comparando a tarefa de novo, não relendo o próprio relatório.
+- **Nada mais mudou.** `criarFilial`/`atualizarFilial`/`incluirApelidoUnidade`/`removerApelidoUnidade`,
+  `dono-do-termo.ts`, `FilialApelidos`, `FilialDialog` e a página de Filiais ficam exatamente como a ata de
+  11/09 descreve.
+
+**Verificação (nesta mesa):** `npx vitest run src/lib/unidades src/components/admin/filial-apelidos.test.tsx
+src/lib/actions/guardas-de-action.test.ts src/lib/actions/admin.test.ts src/lib/actions/erros.test.ts
+src/lib/validators/admin.test.ts src/lib/validators/f25-campos.test.ts src/lib/supabase/superficie-admin.test.ts`
+→ **217/217 verdes** (8 arquivos, depois do conserto acima — os 63 testes originais de
+`validators/admin.test.ts` + os 21 novos entre os dois arquivos, mais os já existentes das outras suítes).
+`npx eslint` nos arquivos desta frente (produção + teste) → limpo, 0 erro/aviso. `npx tsc --noEmit` do
+repositório INTEIRO → **0 erros** (o repositório já estava limpo nesta retomada — não é mérito desta frente,
+é o estado herdado das outras). `src/lib/queries/relatorios/fronteira-viewer.test.ts` (o achado cross-frente
+da ata de 11/09, fora do meu escopo) já está verde — a D2 acrescentou `vocabulario-import.ts` à superfície
+do tripwire entre 11/09 e agora; conferido, não mexido. `npm run build` **não rodado** (regra desta
+retomada: só a Frente D2 builda, uma vez, no fim). `npm run verificar:actions` **não rodado** pelo mesmo
+motivo — depende de `.next/server` fresco, que só a build da D2 produz; a ata de 11/09 já registra que
+passou (39 chunks, `unidades-apelidos.ts` incluído) contra um build oportunista anterior, e a prova de novo
+é o que a build final da D2 (ou o CI) traz.
+
+---
+
+## 2026-09-14 · F56 (Frente F-SQL) · retomada — a matriz da tarefa contra o WIP, sem mudança de código
+
+Escopo desta ata: fechar a metade SQL da Frente F na retomada de 14/09. Não toquei nenhum arquivo da minha
+frente (`supabase/migrations/0140_import_desarma_fk.sql`, `supabase/migrations.lock.json`,
+`supabase/tests/{import_substituir.sql,restauracao.sql}`, `scripts/db/{mutacoes.mjs,mutacoes.test.mts,
+restaurar.mjs,restaurar-guarda.test.mts}`, `src/lib/itens/migrations-f38.test.ts`) — conferi item a item da
+`TAREFA` original (`docs/f56-handoff/workflows/f56-frente-f1-sql-wf_ca743116-994.js`) contra o que a ata de
+11/09 ("F56 (Frente F) · a bomba de FK — Decisão 9 implementada") já deixou pronto e **não achei lacuna**:
+
+- Os cinco caminhos de FK (fato 27), a ordem forçada pelas duas FKs imediatas de `lancamentos_item`, a régua
+  "chave nova ausente vale 0" (nunca -1), a análise do deploy fora de ordem nas duas direções e a ORDEM DE
+  ROLLBACK em prosa — todos presentes no cabeçalho da `0140`, conferidos linha a linha contra o corpo vigente
+  da `0131`/`0132` (`docs/f56-evidencias/F1-diff-dos-corpos.txt`: o diff de `importar_ativos_substituir`
+  mostra que a ÚNICA mudança são as três chaves novas do declare/retorno — nenhuma linha do meio removida ou
+  reordenada, exatamente o que o item 1c da tarefa pedia).
+- As quatro mutações reapontadas/sobreviventes + as cinco novas (`import-revalidacao-ignora-pendencia-nova-
+  do-acervo` e as quatro `import-nao-*`) — teto de `mutacoes.test.mts` em 75 (69+5), com a justificativa
+  escrita no próprio teste, exatamente como a tarefa pedia ("uma por metade do conserto").
+- O cenário 5 (`a`-`l`) de `import_substituir.sql` cobre as cinco fixtures (i-v) da tarefa, com
+  `set constraints all immediate`/`deferred` ao redor da RPC (fato 35) e os saldos de item/colaborador
+  comparados por valor antes×depois — não por `.length`.
+- `restaurar.mjs` v2 (`MAIOR_VERSAO_CONHECIDA = 2`, `sqlDeReligarElos`/`sqlDeReligarPonteiros`, recusa de
+  versão > 2) e os cenários 6/7 de `restauracao.sql` — a decisão de religar `ponteiros_perdidos` do backup do
+  RESET "de graça" (por presença de chave, não por `versao`) já estava registrada na ata de 11/09; não
+  reabri.
+- `npm run db:lock` já regravado com a `0140` (14 linhas de teste conferem o hash); `'0140'` já está em
+  `DA_F38` (`src/lib/itens/migrations-f38.test.ts`), com o comentário explicando por que os DML novos moram
+  dentro do corpo `$$…$$` e não disparam `semCorposDeFuncao`.
+
+**Verificação nesta mesa (sem psql/Docker — o que só o CI prova continua sendo o cenário 5/6/7 contra Postgres
+real):** `npx tsc --noEmit` → 0 erros. `npx eslint` → 0 erros/avisos (o único erro relatado no handoff era numa
+cópia de harness em `docs/f56-handoff/medicoes/c2/harness.mts`, já removida por outro agente antes desta
+sessão — confirmado pelo `git status` mostrando o arquivo como deletado). `npx vitest run scripts/db
+src/lib/itens/migrations-f38.test.ts src/lib/validators/import-uma-porta.test.ts` → **423/423 verdes** (mesmo
+número da ata de 11/09 — nenhuma regressão). `npm run test` (suíte inteira, informativo, fora do meu escopo
+de correção): 4940/4941 verdes, 1 falha — `src/lib/import/sem-wapismo.test.ts` (`deparas.ts:350`, "Serra
+Park" fora da allowlist) — arquivo da Frente D2, ativamente em edição concorrente nesta mesma árvore no
+instante em que a suíte rodou (`git status` mostrou `deparas.ts`/`sem-wapismo.test.ts` como modificados
+durante a corrida); zero falha em qualquer arquivo desta frente. `npm run build` **não rodado** (regra da
+retomada: só a Frente D2 builda).
+
+**Nada foi corrigido porque nada estava quebrado.** Não escrevo "aprovado" por outro agente — registro que a
+auditoria desta retomada, item a item contra a tarefa original, não encontrou divergência a corrigir.
+
+---
+
+## 2026-09-14 · F56 (Frente D2) · retomada após troca de máquina — só o relógio do teste, nada de desenho
+
+Escopo desta ata: fechamento da Frente D2 na retomada (branch `f56-continuacao`, HEAD `9c8d009`), conferindo
+o WIP de 11/09 item a item contra `TAREFA_D2`
+(`docs/f56-handoff/workflows/f56-frentes-d2-e-e-wf_83a548a2-911.js`) e o PLAN (Decisões 3 e 12).
+
+- **Achado: os nove itens da tarefa já estavam implementados e coerentes com o PLAN.** Conferi cada um por
+  leitura e grep, não só de memória: `vocabulario.ts` (tipo serializável, `conferirVocabulario` com os sete
+  recusos listados, o índice memoizado por `WeakMap`, as nove funções por parâmetro) — item 1; `deparas.ts`
+  sem `UNIDADES`/`SLUG_POR_FILIAL`/`CATEGORIAS`/`TIPO_CANONICO`/`SITUACAO_CANONICA`/`PREFIXOS_PATRIMONIO`
+  (grep em `src/lib/import/**`+`components/admin/importar/**` só acha o nome dentro de comentário/teste,
+  nunca como declaração), `FilialOficial` fora de `tipos.ts`, o comentário "folha client-safe" de
+  `correcoes.ts` corrigido — item 2; `validarCsvImport`/`validarArquivoImport`/`csvCorrigidoDeArquivo`/
+  `aplicarCorrecoes`/`validarCorrecao`/`agruparErros`/`montarPlanoImport`/`resolverPatrimonio` todas com
+  `vocabulario: VocabularioImport` por parâmetro, `filialAlvo`/`filialDoVocabulario` comparando por
+  `filial_id`, a mensagem de Tipo listando `categoriasImportaveis(vocabulario).map(c=>c.rotulo)`,
+  `exemploFormatoPatrimonio(prefixo)` em `patrimonio.ts` (nunca um prefixo cru) — item 3; o gatilho FINAL em
+  `plano.ts` (`filialDoVocabulario(filial.id, vocabulario)` — dispara em ausente OU inativa, um bloqueante
+  só) com os quatro cenários exigidos já testados em `plano.test.ts` ("filial PRESENTE mas INATIVA",
+  "filial ATIVA só com o nome próprio... NÃO dispara", "depois de um RENAME o nome novo vale e o velho não")
+  — item 4; `LayoutImport = 'colunas18'|'colunas16'|'colunas20'` em `tipos.ts`/`parse.ts`/a mensagem de
+  `header_invalido` — item 5; `lerVocabularioImport` (`queries/vocabulario-import.ts`, `server-only`, as
+  cinco fontes em paralelo + `conferirVocabulario`) chamada a cada invocação por `validarImport`,
+  `baixarCsvCorrigido` **e** `aplicarImport` (que recusa `categoria`/`estadoAlvo` fora de
+  `categoriasImportaveis`/`estadosImportaveis` antes do backup), a página lendo o vocabulário e descendo só
+  `paraCliente(vocabulario)` — item 6; a prova do vocabulário forjado (`lerPedidoFormData` — comportamental E
+  estática, com sabotagem local) em `src/lib/actions/importar.test.ts` — item 7; a fixture derivada do SQL
+  real da `0139` (`leitor-seed-vocabulario.ts`, puro, sem literal de filial fora de teste) e a regressão dos
+  18 termos históricos em `vocabulario.test.ts` — item 8. Nenhuma linha de produção precisou mudar.
+- **O único gap real: `sem-wapismo.test.ts` isolado passa (~3s), mas passa dos 5s padrão do Vitest sob carga
+  — não é o que a trava varre que está errado, é o relógio do teste.** Reproduzi: `npx vitest run
+  src/lib/import src/components/admin/importar src/lib/actions/importar.test.ts
+  src/lib/patrimonio-sql.test.ts` (16 arquivos) tinha 1 falha só nele, por `Error: Test timed out in 5000ms`
+  aos ~22s reais — a MESMA varredura, sozinha, roda em 2-3s. A causa é estrutural, não um bug introduzido
+  por esta frente: `varrer()` compila TODO `src/**` com o compilador TypeScript, arquivo por arquivo, sem
+  cache nenhum (ao contrário de `fronteira-rsc.test.ts`, que memoiza resolução de alias) — o CUSTO cresce
+  com o tamanho do repositório e com quantos outros testes competem por CPU/IO no mesmo processo Vitest.
+  **Corrigi com um timeout explícito de 60s no segundo `it` (o que chama `varrer()`)**, no MESMO molde já
+  usado nesta casa em `fronteira-rsc.test.ts:138-167` ("Timeout explícito... folga generosa ~3x o pior tempo
+  já medido") — citado ali mesmo como precedente. **Isto não é afrouxamento da trava**: nem o padrão varrido
+  (`violaFn`/`NOMES_FILIAL`/`PALAVRA_WAP`/`APELIDOS_13`/`PREFIXOS_TOKEN`) nem a allowlist nominal mudaram uma
+  linha — só o relógio do runner. Prova por sabotagem, rodada duas vezes nesta sessão (antes de gerar a
+  evidência, e de novo para a capturar): acrescentei temporariamente `export const _SABOTAGEM_SEM_WAPISMO =
+  'Serra Park'` no fim de `deparas.ts`, rodei o teste — vermelho, acusando exatamente `deparas.ts:350 —
+  "Serra Park"` — e desfiz (`git diff --stat` limpo depois). Por coincidência de tempo, essa sabotagem
+  temporária foi capturada de relance pela ata da Frente F-SQL (a mesma sessão, rodando em paralelo, viu
+  `npm run test` com 1 falha no instante exato da minha segunda rodada) — já registrado lá como edição
+  concorrente, não como defeito; confirmando aqui a causa.
+- **Evidências geradas** (não existiam no WIP): `docs/f56-evidencias/D2-vocabulario-forjado.txt` (as 9
+  provas de `importar.test.ts` verdes) e `docs/f56-evidencias/D2-sem-wapismo-verde.txt` (a trava verde,
+  seguida da prova de sabotagem vermelha pelo motivo certo).
+- **Nada fora do escopo tocado.** `docs/f56-handoff/medicoes/c2/harness.mts` (deletado, fora do meu escopo)
+  e as edições concorrentes de `erros.test.ts`/`validators/admin.test.ts` (Frente E) e o crescimento de
+  `DECISOES.md` por outras frentes ficaram como estavam — só reli o fim antes de escrever esta ata, como a
+  regra manda.
+
+**Verificação nesta mesa:** `npx vitest run src/lib/import src/components/admin/importar
+src/lib/actions/importar.test.ts src/lib/patrimonio-sql.test.ts` → **546/546 verdes** (16 arquivos, depois do
+conserto do timeout). `npm run test` (suíte inteira) → **4996/4996 verdes** (192 arquivos — nenhuma falha,
+inclusive `sem-wapismo.test.ts` e `fronteira-viewer.test.ts`, ambos citados como pendência cross-frente nas
+atas anteriores). `npx tsc --noEmit`/`npm run typecheck` → 0 erros. `npm run lint` → 0 erros/avisos. `npm run
+build` rodado (regra da retomada: só a Frente D2 builda, uma vez, no fim) → `Compiled successfully in 27.9s`,
+TypeScript do build em 38.7s, as 32 rotas geradas, sem erro. `node scripts/verificar-actions-build.mjs`
+contra o `.next/server` fresco → VERDE, 39 chunks varridos, nenhum identificador sem binding (inclusive as
+duas actions do import e `unidades-apelidos.ts` da Frente E).
+
+**O que só o CI prova:** nada específico desta frente — D2 é só TypeScript/React, sem SQL nem banco; o que
+falta é a suíte completa (`verificar` + `banco-sem-docker`) rodar verde sobre a árvore final das quatro
+frentes juntas, que esta sessão não pode reproduzir sem psql/Docker.
