@@ -1,0 +1,56 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |puro| src/lib/import/sem-wapismo.test.ts > sem-wapismo: nenhuma palavra da WAP em literal de código-fonte (F56 · Decisão 12) > a varredura encontra arquivos .ts/.tsx para examinar (guarda do próprio teste) 62ms
+ ✓ |puro| src/lib/import/sem-wapismo.test.ts > sem-wapismo: nenhuma palavra da WAP em literal de código-fonte (F56 · Decisão 12) > nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria 2183ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  10:48:26
+   Duration  3.66s (transform 246ms, setup 0ms, import 842ms, tests 2.25s, environment 0ms)
+
+
+--------------------------------------------------------------------------------
+SABOTAGEM (prova exigida pela ordem F56/D2): reintroduzido um literal 'Serra Park'
+em src/lib/import/deparas.ts — a trava tem de acusar. Desfeito logo depois.
+--------------------------------------------------------------------------------
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/import/sem-wapismo.test.ts (2 tests | 1 failed) 2155ms
+     × nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria 2100ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/sem-wapismo.test.ts > sem-wapismo: nenhuma palavra da WAP em literal de código-fonte (F56 · Decisão 12) > nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria
+AssertionError: 1 literal(is) com vocabulário da WAP fora da allowlist:
+  src/lib/import/deparas.ts:350 — "Serra Park": expected [ { …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "arquivo": "src/lib/import/deparas.ts",
++     "linha": 350,
++     "texto": "Serra Park",
++   },
++ ]
+
+ ❯ src/lib/import/sem-wapismo.test.ts:231:118
+    229|           .map((v) => `  ${v.arquivo}:${v.linha} — ${JSON.stringify(v.…
+    230|           .join('\n')
+    231|         expect(violacoes, `${violacoes.length} literal(is) com vocabul…
+       |                                                                                                                      ^
+    232|           [],
+    233|         )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  10:48:48
+   Duration  3.15s (transform 180ms, setup 0ms, import 614ms, tests 2.16s, environment 0ms)
+

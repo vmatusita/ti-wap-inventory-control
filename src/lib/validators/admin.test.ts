@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_TAMANHO_APELIDO,
   MSG_AUTO_DESATIVACAO,
   MSG_AUTO_REBAIXAMENTO,
   MSG_SO_DEV_APAGA,
   MSG_SO_DEV_GERE_DEV,
   MSG_ULTIMO_ADMIN,
   aguardandoPrimeiroAcesso,
+  apelidoFilialSchema,
   convidarUsuarioSchema,
   definirStatusUsuarioSchema,
   editarUsuarioSchema,
+  removerApelidoUnidadeSchema,
   validarExclusaoDeUsuario,
   validarStatusDeUsuario,
   validarTrocaDePapel,
@@ -690,5 +693,72 @@ describe('aguardandoPrimeiroAcesso', () => {
       false,
     )
     expect(aguardandoPrimeiroAcesso({ ultimoAcesso: null, nome: null }, true)).toBe(true)
+  })
+})
+
+// ---- F56 (Frente E · Decisão 13 do PLAN-F56) ----
+// Os dois schemas novos que as actions `incluirApelidoUnidade`/`removerApelidoUnidade`
+// (src/lib/actions/unidades-apelidos.ts) usam para validar o payload ANTES de qualquer
+// leitura de banco. A régua de negócio (colisão nome×apelido) é do lado de
+// `dono-do-termo.ts` (teste próprio) — aqui só o FORMATO: tamanho, trim e tipo.
+
+describe('apelidoFilialSchema', () => {
+  it('aceita um apelido normal', () => {
+    const r = apelidoFilialSchema.safeParse({ filialId: 3, apelido: 'Serra Park' })
+    expect(r.success).toBe(true)
+  })
+
+  it('apara espaço nas pontas (trim)', () => {
+    const r = apelidoFilialSchema.safeParse({ filialId: 3, apelido: '  Serra Park  ' })
+    expect(r.success).toBe(true)
+    if (r.success) expect(r.data.apelido).toBe('Serra Park')
+  })
+
+  it('recusa apelido com 1 caractere (mínimo 2)', () => {
+    const r = apelidoFilialSchema.safeParse({ filialId: 3, apelido: 'X' })
+    expect(r.success).toBe(false)
+  })
+
+  it('recusa apelido vazio ou só espaço (o trim zera antes do min)', () => {
+    expect(apelidoFilialSchema.safeParse({ filialId: 3, apelido: '' }).success).toBe(false)
+    expect(apelidoFilialSchema.safeParse({ filialId: 3, apelido: '   ' }).success).toBe(false)
+  })
+
+  it(`aceita exatamente o teto de ${MAX_TAMANHO_APELIDO} caracteres`, () => {
+    const r = apelidoFilialSchema.safeParse({ filialId: 3, apelido: 'a'.repeat(MAX_TAMANHO_APELIDO) })
+    expect(r.success).toBe(true)
+  })
+
+  it(`recusa ${MAX_TAMANHO_APELIDO + 1} caracteres (um a mais que o teto)`, () => {
+    const r = apelidoFilialSchema.safeParse({
+      filialId: 3,
+      apelido: 'a'.repeat(MAX_TAMANHO_APELIDO + 1),
+    })
+    expect(r.success).toBe(false)
+  })
+
+  it('recusa filialId não-inteiro, negativo ou zero', () => {
+    expect(apelidoFilialSchema.safeParse({ filialId: 1.5, apelido: 'Sede' }).success).toBe(false)
+    expect(apelidoFilialSchema.safeParse({ filialId: -1, apelido: 'Sede' }).success).toBe(false)
+    expect(apelidoFilialSchema.safeParse({ filialId: 0, apelido: 'Sede' }).success).toBe(false)
+  })
+
+  it('recusa payload sem os campos, ou com tipo errado', () => {
+    expect(apelidoFilialSchema.safeParse({}).success).toBe(false)
+    expect(apelidoFilialSchema.safeParse({ filialId: '3', apelido: 'Sede' }).success).toBe(false)
+    expect(apelidoFilialSchema.safeParse({ filialId: 3, apelido: 123 }).success).toBe(false)
+  })
+})
+
+describe('removerApelidoUnidadeSchema', () => {
+  it('aceita um id positivo', () => {
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 7 }).success).toBe(true)
+  })
+
+  it('recusa id não-inteiro, negativo, zero ou ausente', () => {
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 1.5 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: -1 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({ apelidoId: 0 }).success).toBe(false)
+    expect(removerApelidoUnidadeSchema.safeParse({}).success).toBe(false)
   })
 })

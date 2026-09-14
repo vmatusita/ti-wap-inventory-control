@@ -220,16 +220,30 @@ describe('sem-wapismo: nenhuma palavra da WAP em literal de código-fonte (F56 �
     expect(listarArquivosTs(DIR_SRC).length).toBeGreaterThan(100)
   })
 
-  it('nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria', () => {
-    const violacoes = varrer()
-    if (violacoes.length > 0) {
-      const relatorio = violacoes
-        .map((v) => `  ${v.arquivo}:${v.linha} — ${JSON.stringify(v.texto)}`)
-        .join('\n')
-      expect(violacoes, `${violacoes.length} literal(is) com vocabulário da WAP fora da allowlist:\n${relatorio}`).toEqual(
-        [],
-      )
-    }
-    expect(violacoes).toEqual([])
-  })
+  it(
+    'nenhum literal viola o vocabulário — allowlist só nominal (arquivo:linha), nunca por categoria',
+    () => {
+      const violacoes = varrer()
+      if (violacoes.length > 0) {
+        const relatorio = violacoes
+          .map((v) => `  ${v.arquivo}:${v.linha} — ${JSON.stringify(v.texto)}`)
+          .join('\n')
+        expect(violacoes, `${violacoes.length} literal(is) com vocabulário da WAP fora da allowlist:\n${relatorio}`).toEqual(
+          [],
+        )
+      }
+      expect(violacoes).toEqual([])
+    },
+    // Timeout explícito (F56 · Frente D2, 14/09/2026), no molde de
+    // fronteira-rsc.test.ts:162-167: `varrer()` compila TODO `src/**` com o
+    // compilador TypeScript (centenas de arquivos, sem cache — ela varre
+    // literal por arquivo, não import por import), e sozinha já mede ~22s
+    // nesta mesa; sob a carga da suíte inteira ela passa dos 5s padrão do
+    // Vitest e o teste falha por timeout, não pelo que ele varre (o mesmo
+    // arquivo, rodado isolado, é verde em ~4s — nota do coordenador em
+    // 14/09). Não é afrouxamento da trava: nem o padrão varrido (`violaFn`),
+    // nem a allowlist mudam aqui — só o relógio do runner. Folga generosa
+    // (~3x o pior tempo já medido) para o projeto crescer sem reabrir isto.
+    60_000,
+  )
 })
