@@ -27,6 +27,31 @@ export type OperadorDoFiltro = {
   filiaisEscrita: readonly number[]
 } | null
 
+// F57 — AS SELEÇÕES: o que o usuário pediu, com o MODO passado adiante em vez de achatado.
+// `familia` é o que permite a `efetivar` (auth/recorte-leitura.ts) intersectar `todas` com um
+// recorte restrito: diante de "todas", só a família diz se a resposta são ids ou slugs.
+
+/** A seleção das telas que filtram por ID (`/ativos`, `/movimentacoes`, `/itens`). */
+export type SelecaoDeUnidades =
+  | { readonly familia: 'id'; readonly modo: 'todas' }
+  | { readonly familia: 'id'; readonly modo: 'lista'; readonly ids: readonly number[] }
+
+/**
+ * A seleção das telas que filtram por SLUG (`/pendencias`, `/relatorios/gerados`).
+ *
+ * `incluiSemUnidade` é o terceiro valor: pede também as linhas que não pertencem a filial
+ * nenhuma — o consolidado (`filial_id is null`) de `/relatorios/gerados`, pedido na URL pelo slug
+ * reservado do Consolidado. Só a variante SEM padrão o liga.
+ */
+export type SelecaoDeUnidadesPorSlug =
+  | { readonly familia: 'slug'; readonly modo: 'todas' }
+  | {
+      readonly familia: 'slug'
+      readonly modo: 'lista'
+      readonly slugs: readonly string[]
+      readonly incluiSemUnidade: boolean
+    }
+
 /**
  * Filiais efetivas das telas que filtram por ID (`/ativos`, `/movimentacoes`,
  * `/itens`). `[]` = sem recorte.

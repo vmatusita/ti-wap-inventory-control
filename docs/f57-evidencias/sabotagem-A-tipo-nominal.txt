@@ -1,0 +1,190 @@
+# F57 · Sabotagem A — o tipo nominal (14/09/2026)
+
+## A.1 — construir UnidadesEfetivas sem efetivar: o tsc recusa as cinco formas
+
+$ cat src/lib/auth/sabotagem-a.tmp.ts
+// SABOTAGEM A (temporário, apagado logo depois) — tentar construir UnidadesEfetivas sem efetivar.
+import type { UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import type { SelecaoDeUnidades } from '@/lib/filtros/filial'
+
+export const porLiteral: UnidadesEfetivas = { modo: 'todas' }
+export const porAs = { modo: 'todas' } as UnidadesEfetivas
+export const porLista: UnidadesEfetivas = [1, 2]
+export const vaziaPorAs = [] as UnidadesEfetivas
+
+// "efetivar" escrito como identidade literal (o que a ordem manda tentar)
+export function efetivarComoIdentidade(selecao: SelecaoDeUnidades): UnidadesEfetivas {
+  return selecao as UnidadesEfetivas
+}
+
+$ npx tsc --noEmit
+src/lib/auth/sabotagem-a.tmp.ts(5,47): error TS2353: Object literal may only specify known properties, and 'modo' does not exist in type 'UnidadesEfetivas'.
+src/lib/auth/sabotagem-a.tmp.ts(6,22): error TS2352: Conversion of type '{ modo: string; }' to type 'UnidadesEfetivas' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property '[MARCA]' is missing in type '{ modo: string; }' but required in type 'UnidadesEfetivas'.
+src/lib/auth/sabotagem-a.tmp.ts(7,14): error TS2741: Property '[MARCA]' is missing in type 'number[]' but required in type 'UnidadesEfetivas'.
+src/lib/auth/sabotagem-a.tmp.ts(8,27): error TS2352: Conversion of type 'never[]' to type 'UnidadesEfetivas' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property '[MARCA]' is missing in type 'never[]' but required in type 'UnidadesEfetivas'.
+src/lib/auth/sabotagem-a.tmp.ts(12,10): error TS2352: Conversion of type 'SelecaoDeUnidades' to type 'UnidadesEfetivas' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property '[MARCA]' is missing in type '{ readonly familia: "id"; readonly modo: "lista"; readonly ids: readonly number[]; }' but required in type 'UnidadesEfetivas'.
+(tsc exit=2)
+
+Arquivo temporário apagado; a árvore voltou ao estado verde.
+trocas: 2
+
+## A.2 — efetivar reescrita para IGNORAR o recorte (as duas condições `recorte.alcance === 'universal'` viram `true`): o teste de EFEITO fica vermelho
+
+$ npx vitest run src/lib/auth/recorte.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/auth/recorte.test.ts (12 tests | 5 failed) 1124ms
+     × lista ∩ recorte: fica só o que o recorte alcança 23ms
+     × `todas` ∩ recorte restrito = as unidades do recorte, e não "todas" 4ms
+     × interseção vazia é `nenhuma` — o fail-open que a fase fecha 3ms
+     × a família por slug intersecta pelo SLUG 2ms
+     × o terceiro valor também passa pelo recorte: sem alcance, o consolidado cai 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/auth/recorte.test.ts > efetivar é uma INTERSEÇÃO de verdade — alimentada com um recorte restrito, ela corta > lista ∩ recorte: fica só o que o recorte alcança
+AssertionError: expected { modo: 'lista', …(2) } to deeply equal { modo: 'lista', valores: [ 2 ], …(1) }
+
+- Expected
++ Received
+
+  {
+    "incluiSemUnidade": false,
+    "modo": "lista",
+    "valores": [
+      2,
++     3,
+    ],
+  }
+
+ ❯ src/lib/auth/recorte.test.ts:100:60
+     98| describe('efetivar é uma INTERSEÇÃO de verdade — alimentada com um rec…
+     99|   it('lista ∩ recorte: fica só o que o recorte alcança', () => {
+    100|     expect(lerUnidades(efetivar(RESTRITO, porId([2, 3])))).toEqual({
+       |                                                            ^
+    101|       modo: 'lista',
+    102|       valores: [2],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  |puro| src/lib/auth/recorte.test.ts > efetivar é uma INTERSEÇÃO de verdade — alimentada com um recorte restrito, ela corta > `todas` ∩ recorte restrito = as unidades do recorte, e não "todas"
+AssertionError: expected { modo: 'todas' } to deeply equal { modo: 'lista', …(2) }
+
+- Expected
++ Received
+
+  {
+-   "incluiSemUnidade": false,
+-   "modo": "lista",
+-   "valores": [
+-     1,
+-     2,
+-   ],
++   "modo": "todas",
+  }
+
+ ❯ src/lib/auth/recorte.test.ts:108:59
+    106|
+    107|   it('`todas` ∩ recorte restrito = as unidades do recorte, e não "toda…
+    108|     expect(lerUnidades(efetivar(RESTRITO, TODAS_POR_ID))).toEqual({
+       |                                                           ^
+    109|       modo: 'lista',
+    110|       valores: [1, 2],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  |puro| src/lib/auth/recorte.test.ts > efetivar é uma INTERSEÇÃO de verdade — alimentada com um recorte restrito, ela corta > interseção vazia é `nenhuma` — o fail-open que a fase fecha
+AssertionError: expected { modo: 'lista', …(2) } to deeply equal { modo: 'nenhuma' }
+
+- Expected
++ Received
+
+  {
+-   "modo": "nenhuma",
++   "incluiSemUnidade": false,
++   "modo": "lista",
++   "valores": [
++     3,
++     4,
++   ],
+  }
+
+ ❯ src/lib/auth/recorte.test.ts:121:60
+    119|
+    120|   it('interseção vazia é `nenhuma` — o fail-open que a fase fecha', ()…
+    121|     expect(lerUnidades(efetivar(RESTRITO, porId([3, 4])))).toEqual({ m…
+       |                                                            ^
+    122|     expect(lerUnidades(efetivar(RESTRITO, porSlug(['charlie'])))).toEq…
+    123|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  |puro| src/lib/auth/recorte.test.ts > efetivar é uma INTERSEÇÃO de verdade — alimentada com um recorte restrito, ela corta > a família por slug intersecta pelo SLUG
+AssertionError: expected { modo: 'lista', …(2) } to deeply equal { modo: 'lista', …(2) }
+
+- Expected
++ Received
+
+  {
+    "incluiSemUnidade": false,
+    "modo": "lista",
+    "valores": [
+      "bravo",
++     "charlie",
+    ],
+  }
+
+ ❯ src/lib/auth/recorte.test.ts:126:76
+    124|
+    125|   it('a família por slug intersecta pelo SLUG', () => {
+    126|     expect(lerUnidades(efetivar(RESTRITO, porSlug(['bravo', 'charlie']…
+       |                                                                            ^
+    127|       modo: 'lista',
+    128|       valores: ['bravo'],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  |puro| src/lib/auth/recorte.test.ts > efetivar é uma INTERSEÇÃO de verdade — alimentada com um recorte restrito, ela corta > o terceiro valor também passa pelo recorte: sem alcance, o consolidado cai
+AssertionError: expected { modo: 'lista', …(2) } to deeply equal { modo: 'lista', …(2) }
+
+- Expected
++ Received
+
+  {
+-   "incluiSemUnidade": false,
++   "incluiSemUnidade": true,
+    "modo": "lista",
+    "valores": [
+      "bravo",
+    ],
+  }
+
+ ❯ src/lib/auth/recorte.test.ts:135:71
+    133|   it('o terceiro valor também passa pelo recorte: sem alcance, o conso…
+    134|     // Pedido: consolidado + bravo. O recorte não alcança linha sem un…
+    135|     expect(lerUnidades(efetivar(RESTRITO, porSlug(['bravo'], true)))).…
+       |                                                                       ^
+    136|       modo: 'lista',
+    137|       valores: ['bravo'],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 7 passed (12)
+   Start at  14:36:00
+   Duration  1.48s (transform 69ms, setup 0ms, import 95ms, tests 1.12s, environment 0ms)
+
+(vitest exit=1)
+restaurado byte a byte
+
+$ npx vitest run src/lib/auth/recorte.test.ts   # depois de restaurar
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  14:36:05
+   Duration  1.65s (transform 90ms, setup 0ms, import 125ms, tests 1.13s, environment 0ms)
+
