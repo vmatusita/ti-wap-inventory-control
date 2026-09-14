@@ -1,0 +1,109 @@
+# F56 — Sabotagem B FINAL (o vocabulário): um apelido histórico some da FIXTURE da guarda — 14/09/2026
+
+Feita numa worktree DESCARTÁVEL (C:/Users/victor.matusita/f56-sabotagem-b, no commit ce8751b, node_modules por
+junção), nunca na branch e nunca na migration aplicada. A ordem pede: tirar um apelido histórico da fixture
+da guarda → a guarda acusa. As outras duas partes da sabotagem B têm evidência própria: os três caminhos de
+ambiguidade (criar filial, renomear, cadastrar apelido) recusados pelo banco ficam no roteiro
+supabase/tests/vocabulario_import.sql (56 asserções verdes no CI 34862188287) e nos testes de criarFilial/
+atualizarFilial/incluirApelidoUnidade (E1/E2); o vocabulário forjado ignorado pelo servidor, em D2.
+
+A saída abaixo está INTEIRA e sem edição, na ordem em que aconteceu: a PRIMEIRA tentativa de sabotar quebrou
+no escape do node -e inline (SyntaxError) e não mudou nada — o git diff vazio e a guarda verde (23/23) daquela
+rodada valem como CONTROLE; a segunda, por script em arquivo, removeu a linha e a guarda acusou o apelido
+exato que falta.
+
+### worktree: ce8751b test(f56): sabotagem A final — as tres travas voltam a ficar vermelhas com o defeito reintroduzido
+[eval]:4
+if (!process.cwd().replace(/\/g,'/').endsWith('f56-sabotagem-b')) { console.error('recuso: fora da worktree'); process.exit(2) }
+                           ^^^^^^^
+Expected ')', got 'string literal'
+
+SyntaxError: missing ) after argument list
+    at makeContextifyScript (node:internal/vm:194:14)
+    at compileScript (node:internal/process/execution:420:10)
+    at evalTypeScript (node:internal/process/execution:292:22)
+    at node:internal/main/eval_string:71:3
+
+Node.js v26.4.0
+
+### git diff (worktree)
+
+### npx vitest run src/lib/import/vocabulario-sql.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/f56-sabotagem-b
+
+
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  12:31:54
+   Duration  5.12s (transform 145ms, setup 0ms, import 4.79s, tests 18ms, environment 0ms)
+
+exit=0
+
+================ SABOTAGEM (depois do controle verde acima) ================
+sabotado: src/lib/import/vocabulario-sql.test.ts — removido da FIXTURE da guarda o apelido histórico { slug: 'serra', apelido: 'serra park' } (a migration 0139 NÃO foi tocada)
+
+### git diff (worktree)
+diff --git a/src/lib/import/vocabulario-sql.test.ts b/src/lib/import/vocabulario-sql.test.ts
+index 71ddf0a..967b35d 100644
+--- a/src/lib/import/vocabulario-sql.test.ts
++++ b/src/lib/import/vocabulario-sql.test.ts
+@@ -52,7 +52,6 @@ const APELIDOS_13: readonly LinhaApelido[] = [
+   { slug: 'cd-afonso-pena', apelido: 'afonso pena' },
+   { slug: 'eusebio', apelido: 'filial-ce' },
+   { slug: 'eusebio', apelido: 'filial ce' },
+-  { slug: 'serra', apelido: 'serra park' },
+   { slug: 'linhares', apelido: 'filial - linhares' },
+   { slug: 'linhares', apelido: 'filial linhares' },
+ ]
+
+### npx vitest run src/lib/import/vocabulario-sql.test.ts
+
+ RUN  v4.1.11 C:/Users/victor.matusita/f56-sabotagem-b
+
+ ❯ |puro| src/lib/import/vocabulario-sql.test.ts (23 tests | 1 failed) 61ms
+     × são exatamente os 13, na mesma ordem, apontando para o slug certo 24ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/import/vocabulario-sql.test.ts > 0139: os 13 apelidos históricos, um por filial certa > são exatamente os 13, na mesma ordem, apontando para o slug certo
+AssertionError: expected [ { slug: 'matriz', …(1) }, …(12) ] to deeply equal [ { slug: 'matriz', …(1) }, …(11) ]
+
+- Expected
++ Received
+
+@@ -38,10 +38,14 @@
+    {
+      "apelido": "filial ce",
+      "slug": "eusebio",
+    },
+    {
++     "apelido": "serra park",
++     "slug": "serra",
++   },
++   {
+      "apelido": "filial - linhares",
+      "slug": "linhares",
+    },
+    {
+      "apelido": "filial linhares",
+
+ ❯ src/lib/import/vocabulario-sql.test.ts:120:19
+    118|
+    119|   it('são exatamente os 13, na mesma ordem, apontando para o slug cert…
+    120|     expect(doSql).toEqual(APELIDOS_13)
+       |                   ^
+    121|   })
+    122|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 passed (23)
+   Start at  12:32:23
+   Duration  6.85s (transform 189ms, setup 0ms, import 6.35s, tests 61ms, environment 0ms)
+
+exit=1
+
+Depois: a worktree foi removida (junção desfeita antes), sem commit.
