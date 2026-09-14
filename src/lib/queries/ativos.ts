@@ -11,6 +11,8 @@ import {
   type Ordenacao,
 } from '@/lib/ativos/lista'
 import { patrimoniosRepetidos } from '@/lib/patrimonio'
+import type { UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import type { Tables } from '@/lib/types/database'
 
 // Tamanho de página padrão da lista. Desde a F11/T7 o operador pode trocar por
@@ -38,10 +40,11 @@ export type AtivoLista = {
 
 export type ListarAtivosParams = {
   q?: string
-  // F25 — o filtro de filial virou MULTI-seleção. Lista vazia/ausente = SEM
-  // recorte (todas). Quem resolve a lista efetiva (URL + padrão do cargo) é
-  // `resolverFiliaisIds` em `@/lib/filtros/filial` — tela e export usam a mesma.
-  filialIds?: readonly number[]
+  // F25 — o filtro de filial virou MULTI-seleção. F57 — e virou `UnidadesEfetivas`,
+  // OBRIGATÓRIO: quem chama decide o recorte por nome (`efetivar(recorteDe(…), seleção)`),
+  // e "todas" deixa de ser o que acontece quando alguém esquece o campo. Tela e export
+  // resolvem a seleção pela mesma função (`selecaoDeUnidades`, `@/lib/filtros/filial`).
+  unidades: UnidadesEfetivas<'id'>
   categoria?: CategoriaAtivo
   status?: StatusAtivo[]
   // Só ativos sem patrimônio físico (pendência 'sem patrimônio físico' — F7E).
@@ -131,9 +134,7 @@ function aplicarFiltrosAtivos<T>(query: T, params: ListarAtivosParams): T {
       `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%,service_tag.ilike.%${palavra}%,hostname.ilike.%${palavra}%,telefone.ilike.%${palavra}%,imei.ilike.%${palavra}%`,
     )
   }
-  if (params.filialIds && params.filialIds.length > 0) {
-    q = q.in('filial_id', params.filialIds)
-  }
+  q = recortarPorUnidade(q, 'filial_id', params.unidades)
   if (params.categoria) q = q.eq('categoria', params.categoria)
   if (params.status && params.status.length > 0) {
     q = q.in('status', params.status)

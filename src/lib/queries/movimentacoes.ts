@@ -15,6 +15,8 @@ import {
   type RawAtivoResumo,
 } from '@/lib/queries/ativos'
 import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import type { UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import {
   MIN_PREFIXO_SUGESTAO,
   prefixoSeguro,
@@ -489,8 +491,9 @@ export type ListarMovimentacoesParams = {
   de?: string
   ate?: string
   tipo?: TipoMovimentacao
-  // F25 — multi-seleção. Lista vazia/ausente = sem recorte (todas as filiais).
-  filialIds?: readonly number[]
+  // F25 — multi-seleção. F57 — `UnidadesEfetivas`, obrigatório: o "sem recorte" é o modo
+  // `todas`, com nome, e não um campo esquecido.
+  unidades: UnidadesEfetivas<'id'>
   q?: string
   // F28/MOV-05 — filtro "Minhas" (`?autor=eu` na URL). O uid chega AQUI já
   // resolvido pela page (a partir da sessão) — nunca vem cru da URL, e o
@@ -664,9 +667,7 @@ function queryLista(
   // Filial DE ORIGEM (a coluna `filial_id` da movimentação). Numa transferência,
   // a linha aparece no filtro da origem — é onde o evento foi registrado.
   // F25: multi-seleção; a semântica de ORIGEM não muda.
-  if (params.filialIds && params.filialIds.length > 0) {
-    q = q.in('filial_id', params.filialIds)
-  }
+  q = recortarPorUnidade(q, 'filial_id', params.unidades)
   // F28/MOV-05 — "Minhas": só o autor da movimentação. A contagem (`count:
   // 'exact'` no select acima) herda o filtro de graça, por ser a mesma query.
   if (params.criadoPor) q = q.eq('criado_por', params.criadoPor)

@@ -12,7 +12,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getOperador } from '@/lib/auth/acesso'
 import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { listarFiliais } from '@/lib/queries/filiais'
-import { resolverFiliaisSlugs } from '@/lib/filtros/filial'
+import { selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
+import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
+import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
@@ -116,12 +118,18 @@ export default async function DashboardPage() {
   // Sem isto o operador via o selo dizer 0, o card listar 5 pendências de uma filial
   // que não é dele e "ver todas" abrir a lista vazia: três superfícies vizinhas
   // afirmando coisas diferentes.
-  const filiaisDoOperador = await listarFiliais()
-    .then((fs) => resolverFiliaisSlugs(undefined, operador, fs))
-    .catch(() => [] as string[])
-  const filaPendencias = client
-    .from('v_fila_pendencias')
-    .select('id, ordem, patrimonio, categoria, filial, pendencia')
+  // F57 — sem a lista de filiais (a leitura falhou), cai no global pela seleção `todas`, com
+  // nome — o mesmo desfecho de antes, sem lista vazia no meio.
+  const unidadesDoOperador = await listarFiliais()
+    .then((fs) => efetivar(recorteDe(operador), selecaoDeUnidadesPorSlug(undefined, operador, fs)))
+    .catch(() => efetivar(recorteDe(operador), { familia: 'slug', modo: 'todas' }))
+  const filaPendencias = recortarPorUnidade(
+    client
+      .from('v_fila_pendencias')
+      .select('id, ordem, patrimonio, categoria, filial, pendencia'),
+    'filial',
+    unidadesDoOperador,
+  )
 
   const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens, conflitos] =
     await Promise.all([
@@ -131,9 +139,7 @@ export default async function DashboardPage() {
       // aqui esconderia os itens (o backfill 0053 tirou o texto do campo livre) e a
       // prévia divergiria do selo. `ordem` é a chave única por linha (o mesmo ativo
       // pode ter mais de uma linha).
-      (filiaisDoOperador.length > 0
-        ? filaPendencias.in('filial', filiaisDoOperador)
-        : filaPendencias)
+      filaPendencias
         // As 5 mais ANTIGAS abertas (as que mais pedem ação), determinístico e na
         // MESMA ordem da fila (desde asc, desempate por `ordem`) — antes o limit(5)
         // sem order devolvia 5 arbitrários/instáveis (achado da revisão).
@@ -143,13 +149,13 @@ export default async function DashboardPage() {
       getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
       getSaldosItens(null),
       listarItensAtivos(),
-      // FLX-04 — MESMO recorte de filial da fila acima (filiaisDoOperador): o
+      // FLX-04 — MESMO recorte de filial da fila acima (unidadesDoOperador): o
       // selo da sidebar soma fila + conflitos com este recorte por cargo
       // ((app)/layout.tsx:63-73), e o card de Pendências precisa contar a
       // mesma coisa para não voltar a divergir dele. A função já engole o
       // próprio erro e devolve 0 — mesma disciplina das outras leituras desta
       // página (comentário acima do `pendenciasErro`).
-      contarConflitosAbertos(filiaisDoOperador),
+      contarConflitosAbertos(unidadesDoOperador),
     ])
   // A falha de leitura NÃO pode virar lista vazia: o estado vazio deste card é o
   // comemorativo ("Nenhuma pendência aberta 🎉"), então um erro em
@@ -289,7 +295,8 @@ export default async function DashboardPage() {
                 variante="inline"
                 icone={ClipboardCheck}
                 titulo={
-                  filiaisDoOperador.length > 0
+                  // F57 — "recortado" é a vista que NÃO é `todas` (antes: a lista não-vazia).
+                  lerUnidades(unidadesDoOperador).modo !== 'todas'
                     ? 'Nenhuma pendência na fila das suas filiais. 🎉'
                     : 'Nenhuma pendência na fila. 🎉'
                 }

@@ -9,7 +9,8 @@ import { listarFiliais } from '@/lib/queries/filiais'
 import { getOperador } from '@/lib/auth/acesso'
 import { podeEscrever } from '@/lib/auth/papeis'
 import { dataISO, ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import { TIPO_META, type TipoMovimentacao } from '@/lib/dominio'
@@ -79,6 +80,17 @@ export default async function MovimentacoesPage({
 
   const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
 
+  // F57 — o que a QUERY recebe: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      texto(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
+  )
+  // F57 · lote 2 — TRANSITÓRIO: a lista antiga ainda alimenta o estado vazio e o filtro da tela,
+  // que migram no lote 4.
   const filialIds = resolverFiliaisIds(
     texto(sp.filial),
     operador,
@@ -96,7 +108,7 @@ export default async function MovimentacoesPage({
     de,
     ate,
     tipo,
-    filialIds,
+    unidades,
     criadoPor,
     page,
     pageSize: MOV_PAGE_SIZE,

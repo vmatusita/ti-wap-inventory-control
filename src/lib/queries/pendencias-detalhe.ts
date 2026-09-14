@@ -4,6 +4,8 @@ import { registrarFalha } from '@/lib/observabilidade'
 import { type CategoriaAtivo } from '@/lib/dominio'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import type { DbClient } from '@/lib/auth/acesso'
+import type { UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import { ROTULO_TIPO_PENDENCIA, type TipoPendencia } from '@/lib/pendencias/rotulos'
 import {
   ILIKE_ITENS_FALTANTES,
@@ -78,8 +80,8 @@ export type TipoFila = Exclude<TipoPendencia, 'conflito'>
 // (OS-F10 · T5), para que o arquivo saia com EXATAMENTE as linhas visíveis.
 export type FiltrosPendencias = {
   // F25 — multi-seleção por SLUG (`v_fila_pendencias.filial` expõe o slug, não o
-  // id). Lista vazia/ausente = sem recorte.
-  filialSlugs?: readonly string[]
+  // id). F57 — `UnidadesEfetivas`, obrigatório: o "sem recorte" é o modo `todas`.
+  unidades: UnidadesEfetivas<'slug'>
   tipo?: TipoFila | null
   q?: string | null
 }
@@ -113,13 +115,17 @@ export function classificarPendencia(pendencia: string | null): TipoPendencia {
 // F25 — o badge passou a receber as MESMAS filiais com que /pendencias abre para
 // quem está olhando (o padrão do cargo). Sem isso, o selo dizia 20 e a lista
 // mostrava 5 para o operador, quebrando em silêncio a invariante que o comentário
-// acima declara. `[]` = sem recorte, que continua sendo o caso de admin/dev/consulta.
+// acima declara. F57 — o "sem recorte" de admin/dev/consulta é o modo `todas`, com nome, e
+// o parâmetro deixou de ter padrão: esquecê-lo não pode virar "todas" calado.
 export async function contarPendenciasAbertas(
-  filialSlugs: readonly string[] = [],
+  unidades: UnidadesEfetivas<'slug'>,
 ): Promise<number> {
   const client = await createClient()
-  let q = client.from('v_fila_pendencias').select('id', { count: 'exact', head: true })
-  if (filialSlugs.length > 0) q = q.in('filial', filialSlugs)
+  const q = recortarPorUnidade(
+    client.from('v_fila_pendencias').select('id', { count: 'exact', head: true }),
+    'filial',
+    unidades,
+  )
   const { count, error } = await q
 
   if (error) {
@@ -206,9 +212,7 @@ function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false
     // que repete quando um ativo tem termo pendente E itens abertos. Só afeta empates.
     .order('ordem', { ascending: true })
 
-  if (opts.filialSlugs && opts.filialSlugs.length > 0) {
-    query = query.in('filial', opts.filialSlugs)
-  }
+  query = recortarPorUnidade(query, 'filial', opts.unidades)
 
   // Predicados de `@/lib/pendencias/filtro` (fonte única — os chips do relatório usam
   // os MESMOS). 'outras' é a negação dos quatro, na mesma ordem.

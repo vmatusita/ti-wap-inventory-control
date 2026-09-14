@@ -100,8 +100,8 @@ export default async function PendenciasPage({
   await recusarFilialInexistente(client, primeiro(sp.filial), 'slug')
   const filiais = await listarFiliais(client)
   const filialSlugs = resolverFiliaisSlugs(primeiro(sp.filial), operador, filiais)
-  // F57 · lote 1 — os chips do topo já leem pelas unidades efetivas; a fila, a mesa e o chip de
-  // conflito migram no lote 2 e, até lá, leem a lista transitória acima.
+  // F57 — o que as QUERIES recebem: os chips, a fila, a mesa e o chip de conflito. A lista acima
+  // (`filialSlugs`) é TRANSITÓRIA: só o estado vazio a lê, e ela sai no lote 4.
   const unidades = efetivar(
     recorteDe(operador),
     selecaoDeUnidadesPorSlug(primeiro(sp.filial), operador, filiais),
@@ -186,10 +186,10 @@ export default async function PendenciasPage({
     // Não vale a pena consultar a fila quando a mesa é que vai aparecer.
     naMesa
       ? Promise.resolve({ rows: [], total: 0, page: 1, pageSize: 30 })
-      : listarPendencias({ filialSlugs, tipo: tipoDaFila, q, page }),
-    naMesa ? listarConflitos({ filialSlugs, q, page }) : Promise.resolve(null),
+      : listarPendencias({ unidades, tipo: tipoDaFila, q, page }),
+    naMesa ? listarConflitos({ unidades, q, page }) : Promise.resolve(null),
     // O chip de conflito é contado SEMPRE (ele aparece em qualquer aba, como os demais).
-    contarGruposConflito(client, filialSlugs),
+    contarGruposConflito(client, unidades),
     listarTiposItem().catch((err): TipoItem[] => {
       // Degrada, nunca derruba: o mapa serve só ao RÓTULO, e sem ele
       // `rotuloTipoItem` cai no slug cru — o fallback desenhado. Derrubar pendencias

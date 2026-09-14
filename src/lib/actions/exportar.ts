@@ -41,10 +41,12 @@ import {
   type NumerosDoItem,
 } from '@/lib/itens/lista'
 import { getOperador } from '@/lib/auth/acesso'
+import { efetivar, lerUnidades, recorteDe, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { dataISO, idNumerico } from '@/lib/url-params'
 import {
   resolverFiliaisIds,
-  resolverFiliaisSlugs,
+  selecaoDeUnidades,
+  selecaoDeUnidadesPorSlug,
   type OperadorDoFiltro,
 } from '@/lib/filtros/filial'
 import {
@@ -172,6 +174,36 @@ function filiaisDeItens(
   )
 }
 
+// F57 — as UNIDADES EFETIVAS que o export entrega às queries: a MESMA seleção da tela (URL +
+// padrão do cargo) intersectada com o recorte de leitura de quem pede. Uma função por família, e as
+// duas passam por `efetivar` — a tela e o arquivo não podem recortar diferente.
+//
+// ⚠ Recebem o VALOR do param, e não a querystring: quem lê `'filial'` continua sendo cada parser,
+// no próprio corpo — é nessa fatia que `exportar-filtros.test.ts` confere a sincronia tela × CSV.
+function unidadesPorId(
+  param: string | undefined,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): UnidadesEfetivas<'id'> {
+  return efetivar(
+    recorteDe(ctx.operador),
+    selecaoDeUnidades(
+      param,
+      ctx.operador,
+      ctx.filiais.map((f) => f.id),
+    ),
+  )
+}
+
+function unidadesPorSlug(
+  param: string | undefined,
+  ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
+): UnidadesEfetivas<'slug'> {
+  return efetivar(
+    recorteDe(ctx.operador),
+    selecaoDeUnidadesPorSlug(param, ctx.operador, ctx.filiais),
+  )
+}
+
 // F24 — `conflito` NÃO entra aqui: ele não é um filtro da fila (as linhas de conflito vêm
 // de outra fonte) e `FiltrosPendencias.tipo` o exclui no tipo. O export da mesa tem caminho
 // próprio, decidido em `exportarPendenciasCSV` antes de chegar a estes filtros.
@@ -207,11 +239,7 @@ function filtrosAtivos(
 
   return {
     q: texto(p, 'q'),
-    filialIds: resolverFiliaisIds(
-      texto(p, 'filial'),
-      ctx.operador,
-      ctx.filiais.map((f) => f.id),
-    ),
+    unidades: unidadesPorId(texto(p, 'filial'), ctx),
     categoria: CATEGORIA_ORDEM.includes(categoriaRaw as CategoriaAtivo)
       ? (categoriaRaw as CategoriaAtivo)
       : undefined,
@@ -234,7 +262,7 @@ function filtrosPendencias(
 ): FiltrosPendencias {
   const tipoRaw = texto(p, 'tipo')
   return {
-    filialSlugs: resolverFiliaisSlugs(texto(p, 'filial'), ctx.operador, ctx.filiais),
+    unidades: unidadesPorSlug(texto(p, 'filial'), ctx),
     tipo: TIPOS_PENDENCIA.includes(tipoRaw as TipoFila) ? (tipoRaw as TipoFila) : null,
     q: texto(p, 'q') ?? null,
   }
@@ -248,10 +276,14 @@ function filtrosHistorico(
   ctx: { operador: OperadorDoFiltro; filiais: Filial[] },
 ): FiltrosHistorico {
   const tipoRaw = texto(p, 'tipo')
-  const filialIds = filiaisDeItens(p, ctx)
+  // F57 · lote 2 — TRANSITÓRIO: o histórico lê o `filial` aqui e o saldo lê em `filiaisDeItens`; os
+  // dois passam pela MESMA `selecaoDeUnidades`, então não recortam diferente. O lote 3 devolve os
+  // dois ao parser comum.
+  const unidades = unidadesPorId(texto(p, 'filial'), ctx)
+  const vista = lerUnidades(unidades)
   const itemId = idNumerico(texto(p, 'item'))
   return {
-    filialIds,
+    unidades,
     itemId,
     tipo: TIPOS_LANCAMENTO.includes(tipoRaw as TipoLancamento)
       ? (tipoRaw as TipoLancamento)
@@ -268,7 +300,7 @@ function filtrosHistorico(
     // CSV do MESMO recorte sairia em ordem de REGISTRO, e as duas listas
     // ficariam invertidas entre si na presença de um lançamento retroativo.
     // A régua é a mesma da tela (`mostrarSaldoApos` em itens/page.tsx).
-    ordenarPorData: filialIds.length === 1 && itemId != null,
+    ordenarPorData: vista.modo === 'lista' && vista.valores.length === 1 && itemId != null,
   }
 }
 
@@ -455,7 +487,7 @@ export async function exportarPendenciasCSV(filtros: string): Promise<ResultadoE
     // caminho da tela.
     if (texto(p, 'tipo') === 'conflito') {
       const todos = await listarConflitosParaExport({
-        filialSlugs: resolverFiliaisSlugs(texto(p, 'filial'), ctx.operador, ctx.filiais),
+        unidades: unidadesPorSlug(texto(p, 'filial'), ctx),
         q: texto(p, 'q') ?? null,
       })
       // ⚠ O corte é por GRUPO, não por linha. `todos.slice(0, CAP_EXPORT)` podia cair no

@@ -21,7 +21,8 @@ import { HistoricoFiltros } from '@/components/itens/historico-filtros'
 import { HistoricoLancamentos } from '@/components/itens/historico-lancamentos'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { dataISO, ehFiltroDeFilial, idNumerico, paginaNumerica } from '@/lib/url-params'
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
@@ -109,6 +110,17 @@ export default async function HistoricoItensPage({
 
   // F25 — as filiais vêm antes do resto: o filtro tem padrão por cargo.
   const filiais = await listarFiliais()
+  // F57 — o que as QUERIES recebem: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      primeiro(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
+  )
+  // F57 · lote 2 — TRANSITÓRIO: a lista antiga ainda decide o "Saldo após" e alimenta o estado
+  // vazio e o filtro da tela, que migram no lote 4.
   const filialIds = resolverFiliaisIds(
     primeiro(sp.filial),
     operador,
@@ -122,7 +134,7 @@ export default async function HistoricoItensPage({
   const [itensAtivos, historico, saldos, lancamentosSaldoApos] = await Promise.all([
     listarItensAtivos(),
     getHistoricoLancamentos({
-      filialIds,
+      unidades,
       itemId: itemFiltro,
       tipo: tipoFiltro,
       de: deFiltro,
@@ -141,7 +153,7 @@ export default async function HistoricoItensPage({
     // própria, ele passa a ser uma leitura própria — e só quando a coluna vai
     // mesmo aparecer, que é o caso raro de 1 item + 1 filial.
     mostrarSaldoApos
-      ? getSaldosItensDeFiliais(filialIds)
+      ? getSaldosItensDeFiliais(unidades)
       : Promise.resolve<Awaited<ReturnType<typeof getSaldosItensDeFiliais>>>([]),
     // Histórico COMPLETO do item×filial (sem tipo/data/busca/página), só quando a
     // coluna vai aparecer.

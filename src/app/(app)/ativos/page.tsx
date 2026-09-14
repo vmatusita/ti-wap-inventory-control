@@ -24,7 +24,8 @@ import {
 import { ehFiltroDeFilial, paginaNumerica } from '@/lib/url-params'
 // F25 — o `filial` da URL virou LISTA e ganhou um padrão por CARGO. A resolução
 // mora em um módulo só porque a action de export reparseia esta MESMA querystring.
-import { resolverFiliaisIds } from '@/lib/filtros/filial'
+import { resolverFiliaisIds, selecaoDeUnidades } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
@@ -109,7 +110,17 @@ export default async function AtivosPage({
 
   const [operador, filiais] = await Promise.all([getOperador(), listarFiliais()])
 
-  // `[]` = sem recorte (todas). Ver src/lib/filtros/filial.ts.
+  // F57 — o que a QUERY recebe: a seleção (URL + padrão do cargo) ∩ o recorte de leitura.
+  const unidades = efetivar(
+    recorteDe(operador),
+    selecaoDeUnidades(
+      texto(sp.filial),
+      operador,
+      filiais.map((f) => f.id),
+    ),
+  )
+  // F57 · lote 2 — TRANSITÓRIO: a lista antiga ainda alimenta o estado vazio e o filtro da tela,
+  // que migram no lote 4 (`[]` = sem recorte, só aqui e só até lá).
   const filialIds = resolverFiliaisIds(
     texto(sp.filial),
     operador,
@@ -183,7 +194,7 @@ export default async function AtivosPage({
 
   const resultado = await listarAtivos({
     q,
-    filialIds,
+    unidades,
     categoria,
     status,
     semPatrimonio,

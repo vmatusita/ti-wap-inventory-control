@@ -39,9 +39,9 @@ import {
 } from '@/lib/auth/papeis'
 import { filiaisParaEscrita, podeEscreverNoEscopo } from '@/components/layout/permissoes'
 import {
-  resolverFiliaisSlugsSemPadrao,
   selecaoDeUnidades,
   selecaoDeUnidadesPorSlug,
+  selecaoDeUnidadesSemPadrao,
 } from '@/lib/filtros/filial'
 import {
   efetivar,
@@ -265,7 +265,7 @@ const ADAPTADOR: Adaptador = {
   },
   async gerados(param) {
     const { client, registro } = clienteFalso()
-    await listarRelatoriosGerados(client, resolverFiliaisSlugsSemPadrao(param))
+    await listarRelatoriosGerados(client, efetivar(recorteDe(null), selecaoDeUnidadesSemPadrao(param)))
     return filtroGravado(registro)
   },
   abaPadrao(s) {

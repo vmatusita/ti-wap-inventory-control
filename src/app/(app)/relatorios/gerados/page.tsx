@@ -6,7 +6,8 @@ import { resolverAcessoRelatorio } from '@/lib/auth/acesso'
 import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarRelatoriosGerados } from '@/lib/queries/gerados'
-import { resolverFiliaisSlugsSemPadrao } from '@/lib/filtros/filial'
+import { resolverFiliaisSlugsSemPadrao, selecaoDeUnidadesSemPadrao } from '@/lib/filtros/filial'
+import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { paginaNumerica } from '@/lib/url-params'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
@@ -64,6 +65,14 @@ export default async function RelatoriosGeradosPage({
   // global e boa parte dele é de relatório CONSOLIDADO, que não pertence a filial
   // nenhuma; recortar por padrão esconderia justamente esses do operador. Esta é
   // também a única tela cujo filtro aceita o valor especial 'geral'.
+  // F57 — o que a QUERY recebe: a seleção sem padrão ∩ o recorte de quem pede (o visualizador
+  // por senha não tem cargo: `null`). O Consolidado é o terceiro valor da vista.
+  const unidades = efetivar(
+    recorteDe(acesso.modo === 'operador' ? acesso.operador : null),
+    selecaoDeUnidadesSemPadrao(typeof sp.filial === 'string' ? sp.filial : undefined),
+  )
+  // F57 · lote 2 — TRANSITÓRIO: a lista na ORDEM da URL ainda alimenta o rótulo do filtro e o
+  // seletor; sai no lote 4.
   const filialFiltro = resolverFiliaisSlugsSemPadrao(
     typeof sp.filial === 'string' ? sp.filial : undefined,
   )
@@ -82,7 +91,7 @@ export default async function RelatoriosGeradosPage({
 
   const [filiais, gerados] = await Promise.all([
     listarFiliais(acesso.client),
-    listarRelatoriosGerados(acesso.client, filialFiltro, { page }),
+    listarRelatoriosGerados(acesso.client, unidades, { page }),
   ])
 
   // Slug cru era o que aparecia na mensagem de vazio ("cd-afonso-pena"). Com a

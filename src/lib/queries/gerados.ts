@@ -3,7 +3,7 @@ import type { DbClient } from '@/lib/queries/relatorios'
 import type { AnySnapshot } from '@/lib/relatorios/tipos'
 import { ehUuid } from '@/lib/url-params'
 import { registrarFalha } from '@/lib/observabilidade'
-import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
+import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 // A chave da unicidade de versão mora no módulo puro desde a F57, travada contra o SQL
 // (`relatorios/chave-versao-sql.test.ts`).
 import { chaveVersao } from '@/lib/relatorios/versao-snapshot'
@@ -63,9 +63,11 @@ const RANGE_INVALIDO = 'PGRST103'
 
 export async function listarRelatoriosGerados(
   client: DbClient,
-  // F25 — multi-seleção. `[]` = sem recorte (todas). Pode conter `'geral'`
-  // misturado com slugs de filial.
-  filialSlugs: readonly string[] = [],
+  // F25 — multi-seleção, podendo pedir o Consolidado junto com filiais. F57 — chega como
+  // `UnidadesEfetivas` por slug, e o Consolidado (`filial_id is null`) é o TERCEIRO VALOR da
+  // vista: `incluiSemUnidade` numa lista, ou o modo `somente-sem-unidade` sozinho. Obrigatório:
+  // o "sem recorte" é o modo `todas`, com nome.
+  unidades: UnidadesEfetivas<'slug'>,
   // F29/REL-05a — paginação. Ausente = página 1 no tamanho padrão.
   opcoes: { page?: number; pageSize?: number } = {},
 ): Promise<PaginaRelatoriosGerados> {
@@ -76,9 +78,15 @@ export async function listarRelatoriosGerados(
   // inválida é refeita numa página menor, abaixo).
   let filtroFilial: { consolidado: boolean; ids: number[] } | null = null
 
-  if (filialSlugs.length > 0) {
-    const querConsolidado = filialSlugs.includes(SLUG_CONSOLIDADO)
-    const slugsDeFilial = filialSlugs.filter((s) => s !== SLUG_CONSOLIDADO)
+  const vista = lerUnidades(unidades)
+  // Interseção vazia: nada a listar, e nenhuma consulta a fazer.
+  if (vista.modo === 'nenhuma') return { linhas: [], total: 0, page, pageSize }
+
+  if (vista.modo !== 'todas') {
+    const querConsolidado = vista.modo === 'somente-sem-unidade' || vista.incluiSemUnidade
+    // Os slugs de FILIAL pedidos (sem o Consolidado, que já veio no flag). Vazio só quando o
+    // pedido é SÓ o Consolidado — e aí o filtro abaixo vira `filial_id is null`.
+    const slugsDeFilial: readonly string[] = vista.modo === 'lista' ? vista.valores : []
 
     let ids: number[] = []
     if (slugsDeFilial.length > 0) {
