@@ -247,22 +247,27 @@ const PERMITIDOS_EM_QUERIES: Readonly<Record<string, { n: number; motivo: string
 }
 
 describe('a régua de identidade mora num lugar só (src/lib/ativos/identidade.ts)', () => {
+  // As varreduras rodam UMA vez, na coleta, e não no corpo de cada `it` — a mesma causa do
+  // tempo-limite de 5 s que `chave-versao-sql.test.ts` estourou no fechamento da F57.
+  const nasActions = contagens('src/lib/actions')
+  const nasQueries = contagens('src/lib/queries')
+  const comChaveAntiga = fontesSemTeste(join(RAIZ, 'src', 'lib', 'actions'))
+    .filter((p) => /\bchavePatrimonio\s*\(/.test(limpar(readFileSync(p, 'utf8'), true)))
+    .map(posix)
+
   it('nenhuma Server Action consulta a identidade por conta própria', () => {
-    expect(contagens('src/lib/actions')).toEqual({})
+    expect(nasActions).toEqual({})
   })
 
   it('nenhuma Server Action monta a chave antiga (`chavePatrimonio`) para decidir duplicidade', () => {
-    const culpados = fontesSemTeste(join(RAIZ, 'src', 'lib', 'actions'))
-      .filter((p) => /\bchavePatrimonio\s*\(/.test(limpar(readFileSync(p, 'utf8'), true)))
-      .map(posix)
-    expect(culpados).toEqual([])
+    expect(comChaveAntiga).toEqual([])
   })
 
   it('em queries, só os usos nominais de tela e de import', () => {
     const esperado = Object.fromEntries(
       Object.entries(PERMITIDOS_EM_QUERIES).map(([arquivo, { n }]) => [arquivo, n]),
     )
-    expect(contagens('src/lib/queries')).toEqual(esperado)
+    expect(nasQueries).toEqual(esperado)
   })
 
   it('as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades', () => {

@@ -58,7 +58,10 @@ describe('UnidadesEfetivas é NOMINAL — não existe caminho de tipo que não p
     expect(true).toBe(true)
   })
 
-  it('a dupla asserção (a única fuga que o TypeScript não fecha) não aparece fora do módulo', () => {
+  // A varredura roda UMA vez, na coleta, e não no corpo do `it`: ler e limpar `src/` + `scripts/`
+  // sob a carga da suíte inteira chega perto do tempo-limite de 5 s (`chave-versao-sql.test.ts` o
+  // estourou no fechamento da F57 pelo mesmo motivo).
+  const culpadosDaDuplaAssercao = (() => {
     // `x as unknown as UnidadesEfetivas` e `{} as UnidadesEfetivas` compilam — o TypeScript
     // permite converter a partir de `unknown` e de `{}`. Fecha-se aqui, por fonte: nenhum
     // arquivo além do próprio módulo (e deste teste, que é a prova) escreve `as
@@ -84,7 +87,11 @@ describe('UnidadesEfetivas é NOMINAL — não existe caminho de tipo que não p
     }
     varrer(join(raiz, 'src'))
     varrer(join(raiz, 'scripts'))
-    expect(culpados).toEqual([])
+    return culpados
+  })()
+
+  it('a dupla asserção (a única fuga que o TypeScript não fecha) não aparece fora do módulo', () => {
+    expect(culpadosDaDuplaAssercao).toEqual([])
   })
 
   it('lista vazia NÃO significa "tudo": vira `nenhuma`, com nome', () => {
@@ -217,6 +224,11 @@ describe('o recorte da sessão chega a toda chamada de efetivar (PRESENÇA)', ()
   const producao = [...fontes(join(raiz, 'src')), ...fontes(join(raiz, 'scripts'))].filter(
     (p) => posix(p) !== modulo,
   )
+  // Cada fonte é lida e limpa UMA vez, na coleta, e não no corpo de cada `it`: quatro varreduras de
+  // `src/` + `scripts/` sob a carga da suíte inteira chegam perto do tempo-limite de 5 s
+  // (`chave-versao-sql.test.ts` o estourou no fechamento da F57 pelo mesmo motivo).
+  const limpas = new Map(producao.map((p) => [p, limpar(readFileSync(p, 'utf8'), true)] as const))
+  const fonteLimpa = (p: string) => limpas.get(p) ?? ''
 
   /** O primeiro argumento de cada chamada `nome(...)`, com parênteses aninhados contados. */
   function primeirosArgumentos(fonte: string, nome: string): string[] {
@@ -248,7 +260,7 @@ describe('o recorte da sessão chega a toda chamada de efetivar (PRESENÇA)', ()
 
   it('toda chamada passa `recorteDe(…)` — ou o parâmetro `recorte` que já o traz', () => {
     const chamadas = producao.flatMap((p) =>
-      primeirosArgumentos(limpar(readFileSync(p, 'utf8'), true), 'efetivar').map((arg) => ({
+      primeirosArgumentos(fonteLimpa(p), 'efetivar').map((arg) => ({
         arquivo: posix(p),
         arg,
       })),
@@ -260,7 +272,7 @@ describe('o recorte da sessão chega a toda chamada de efetivar (PRESENÇA)', ()
 
   it('quem passa `recorte` por parâmetro o declara como RecorteDeLeitura', () => {
     for (const p of producao) {
-      const fonte = limpar(readFileSync(p, 'utf8'), true)
+      const fonte = fonteLimpa(p)
       if (!primeirosArgumentos(fonte, 'efetivar').includes('recorte')) continue
       expect(fonte, posix(p)).toMatch(/\brecorte\s*:\s*RecorteDeLeitura\b/)
     }
@@ -268,7 +280,7 @@ describe('o recorte da sessão chega a toda chamada de efetivar (PRESENÇA)', ()
 
   it('`RECORTE_UNIVERSAL` não é usado fora do módulo — o universal só chega por `recorteDe`', () => {
     const culpados = producao
-      .filter((p) => /\bRECORTE_UNIVERSAL\b/.test(limpar(readFileSync(p, 'utf8'), true)))
+      .filter((p) => /\bRECORTE_UNIVERSAL\b/.test(fonteLimpa(p)))
       .map(posix)
     expect(culpados).toEqual([])
   })
@@ -279,7 +291,7 @@ describe('o recorte da sessão chega a toda chamada de efetivar (PRESENÇA)', ()
     const comNomeAntigo = producao
       .filter((p) =>
         /\b(?:resolverFiliaisIds|resolverFiliaisSlugs|resolverFiliaisSlugsSemPadrao|filtroFilialPadrao)\b/.test(
-          limpar(readFileSync(p, 'utf8'), true),
+          fonteLimpa(p),
         ),
       )
       .map(posix)

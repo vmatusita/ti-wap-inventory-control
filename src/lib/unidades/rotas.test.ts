@@ -65,12 +65,17 @@ function rotasQueLeemFilial(): { arquivo: string; chamaHelper: boolean }[] {
 }
 
 describe('toda rota que lê `filial` da URL recusa a filial inexistente', () => {
+  // A varredura roda UMA vez, na coleta, e não dentro do corpo de cada `it`: ler e limpar
+  // `src/app/**` a cada teste, sob a carga da suíte inteira, chega perto do tempo-limite de 5 s
+  // (`chave-versao-sql.test.ts` o estourou no fechamento da F57 pelo mesmo motivo).
+  const rotas = rotasQueLeemFilial()
+
   it(`a varredura acha pelo menos ${MINIMO_DE_ROTAS} rotas (senão o leitor ficou cego)`, () => {
-    expect(rotasQueLeemFilial().length).toBeGreaterThanOrEqual(MINIMO_DE_ROTAS)
+    expect(rotas.length).toBeGreaterThanOrEqual(MINIMO_DE_ROTAS)
   })
 
   it(`cada uma chama \`${HELPER}\``, () => {
-    const semHelper = rotasQueLeemFilial()
+    const semHelper = rotas
       .filter((r) => !r.chamaHelper)
       .map((r) => r.arquivo)
     expect(semHelper, `chame ${HELPER} (src/lib/unidades/pertinencia.ts) nestas rotas`).toEqual([])

@@ -105,12 +105,16 @@ function arquivosDeLib(dir: string, saida: string[] = []): string[] {
 const posix = (p: string) => relative(RAIZ, p).split(sep).join('/')
 
 describe('os slugs reservados moram numa fonte só (src/lib/unidades/slugs.ts)', () => {
+  // A varredura (uma árvore sintática por arquivo de `src/lib/**`) roda UMA vez, na coleta, e não
+  // no corpo do `it`: sob a carga da suíte inteira ela chegaria perto do tempo-limite de 5 s
+  // (`chave-versao-sql.test.ts` o estourou no fechamento da F57 pelo mesmo motivo).
+  const achados = arquivosDeLib(join(RAIZ, 'src', 'lib'))
+    .map((p) => ({ p, rel: posix(p) }))
+    .filter(({ rel }) => rel !== MODULO)
+    .flatMap(({ p, rel }) => usosDeSlugReservado(readFileSync(p, 'utf8'), rel))
+    .map((a) => `${a.arquivo}:${a.linha} '${a.texto}'`)
+
   it('`geral` e `todas` não aparecem como literal em src/lib/** fora do módulo', () => {
-    const achados = arquivosDeLib(join(RAIZ, 'src', 'lib'))
-      .map((p) => ({ p, rel: posix(p) }))
-      .filter(({ rel }) => rel !== MODULO)
-      .flatMap(({ p, rel }) => usosDeSlugReservado(readFileSync(p, 'utf8'), rel))
-      .map((a) => `${a.arquivo}:${a.linha} '${a.texto}'`)
     expect(achados, `importe de ${MODULO} em vez de escrever a palavra`).toEqual([])
   })
 

@@ -16,14 +16,21 @@ import { chaveDeIdentidade, chaveDeIdentidadeSemUnidade } from '@/lib/ativos/ide
 
 const PASTA = join(process.cwd(), 'supabase', 'migrations')
 
+// Cada migration é lida UMA vez, na coleta. `vigenteCom` relia a pasta inteira a cada chamada —
+// quatro vezes neste arquivo, três delas no corpo de um `it` —, a mesma causa do tempo-limite de 5 s
+// que `chave-versao-sql.test.ts` estourou no fechamento da F57. A leitura é a mesma; só não se repete.
+const MIGRATIONS: readonly { arquivo: string; sql: string; minusculo: string }[] = readdirSync(PASTA)
+  .filter((f) => f.endsWith('.sql'))
+  .sort()
+  .map((arquivo) => {
+    const sql = readFileSync(join(PASTA, arquivo), 'utf8')
+    return { arquivo, sql, minusculo: sql.toLowerCase() }
+  })
+
 function vigenteCom(ancora: string): { arquivo: string; sql: string } {
-  const arquivo = readdirSync(PASTA)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-    .filter((f) => readFileSync(join(PASTA, f), 'utf8').toLowerCase().includes(ancora))
-    .at(-1)
-  if (!arquivo) throw new Error(`nenhuma migration contém "${ancora}"`)
-  return { arquivo, sql: readFileSync(join(PASTA, arquivo), 'utf8') }
+  const vigente = MIGRATIONS.filter((m) => m.minusculo.includes(ancora)).at(-1)
+  if (!vigente) throw new Error(`nenhuma migration contém "${ancora}"`)
+  return { arquivo: vigente.arquivo, sql: vigente.sql }
 }
 
 const normal = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()

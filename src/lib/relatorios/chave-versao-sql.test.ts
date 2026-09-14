@@ -19,14 +19,19 @@ import { chaveVersao, ehViolacaoDeVersao } from '@/lib/relatorios/versao-snapsho
 const PASTA = join(process.cwd(), 'supabase', 'migrations')
 const normal = (s: string) => s.toLowerCase().replace(/\s+/g, ' ')
 
+// Cada migration é lida e normalizada UMA vez, na coleta. Até o fechamento da F57, `vigenteCom`
+// relia a pasta inteira a cada chamada — três vezes por arquivo, uma delas DENTRO do corpo de um
+// `it`: sozinho custava ~150 ms, e sob a carga da suíte inteira passou dos 5 s de tempo-limite
+// (`docs/f57-evidencias/fechamento-verificacao.txt`). A leitura é a mesma; só não se repete.
+const MIGRATIONS: readonly { arquivo: string; sql: string }[] = readdirSync(PASTA)
+  .filter((f) => f.endsWith('.sql'))
+  .sort()
+  .map((arquivo) => ({ arquivo, sql: normal(readFileSync(join(PASTA, arquivo), 'utf8')) }))
+
 function vigenteCom(ancora: string): { arquivo: string; sql: string } {
-  const arquivo = readdirSync(PASTA)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-    .filter((f) => normal(readFileSync(join(PASTA, f), 'utf8')).includes(ancora))
-    .at(-1)
-  if (!arquivo) throw new Error(`nenhuma migration contém "${ancora}"`)
-  return { arquivo, sql: normal(readFileSync(join(PASTA, arquivo), 'utf8')) }
+  const vigente = MIGRATIONS.filter((m) => m.sql.includes(ancora)).at(-1)
+  if (!vigente) throw new Error(`nenhuma migration contém "${ancora}"`)
+  return vigente
 }
 
 /** Os itens de primeiro nível entre o `(` que segue `depoisDe` e o `)` que o fecha. */
