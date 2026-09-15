@@ -284,7 +284,7 @@ async function conferirRpc(d: LeituraDeRpc): Promise<Ponto[]> {
   const pontos: Ponto[] = []
   const lista = celulas(d.matriz)
   if (lista.length === 0) {
-    pontos.push({ ponto: `${d.rotulo} · (nenhuma célula)`, lidas: 0, count: null, aceitas: 0, recusadas: 0, erros: [], problemas: [], nao_provado: 'a matriz não gerou célula no alvo (nenhuma filial ou pessoa para chamar)' })
+    pontos.push({ ponto: `${d.rotulo} · (nenhuma célula)`, lidas: 0, count: null, aceitas: 0, recusadas: 0, erros: [], problemas: [], nao_provado: 'a grade de argumentos não gerou célula no alvo (nenhuma unidade ou pessoa para chamar)' })
   }
   for (const cel of lista) {
     const p: Ponto = { ponto: `${d.rotulo} · ${cel.rotulo}`, lidas: 0, count: null, aceitas: 0, recusadas: 0, erros: [], problemas: [] }

@@ -45,7 +45,7 @@ l.push('| ponto | lidas | count | recusadas |')
 l.push('|---|---:|---:|---:|')
 for (const p of pontos.filter((x) => !ehRpc(x))) l.push(`| ${p.ponto} | ${p.lidas} | ${p.count ?? '—'} | ${p.recusadas} |`)
 l.push('')
-l.push('## RPCs de leitura, por descritor (a matriz — células rotuladas por número de ordem)')
+l.push('## RPCs de leitura, por descritor (a grade de argumentos — células rotuladas por número de ordem)')
 const porRpc = new Map()
 for (const p of pontos.filter(ehRpc)) {
   const k = p.ponto.split(' · ')[0]
