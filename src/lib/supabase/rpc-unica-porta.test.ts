@@ -110,6 +110,8 @@ const ISENCOES_DE_SCRIPTS: Record<string, string> = {
     'JavaScript puro (.mjs) que mede o custo de papel_atual() direto contra o Supabase; não importa TypeScript e não passa por client tipado',
   'scripts/formas/censo.mjs':
     'JavaScript puro (.mjs) do censo da F58: lê database.ts pelo compilador em runtime e só chama rel_* conferidas no corpo vivo antes da chamada; não importa TypeScript',
+  'scripts/formas/conferir.mts':
+    'conferidor de formas da F58: lê relações e chama RPCs pelos NOMES do CATÁLOGO, que variam por descritor, com client sem Database; só chama RPC da lista de chamáveis calculada do corpo vivo e conferida antes de cada chamada — nunca RPC que escreve',
 }
 
 describe('o detector de uso de rpc reconhece as grafias (guarda do próprio teste)', () => {
