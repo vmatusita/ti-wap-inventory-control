@@ -1,0 +1,34 @@
+# F58 · Sabotagem D — o backup de select('*') (backup-frouxo.test.ts)
+# gerado em 2026-09-15T18:48:22.489Z · HEAD 98603cc
+#
+# D1 troca o z.looseObject do backup de ativos por z.object padrão. A PRIMEIRA defesa a disparar é a guarda
+# de modo de linhas.ts (exigirModo), que recusa forma sem modo declarado antes de conferir.
+# D2 desliga essa guarda e repete a troca: isola a asserção da coluna desconhecida — o z.object padrão
+# REMOVE a coluna que a forma não declara, e o teste acusa a coluna sumida do backup.
+
+## D1 — z.object padrão no lugar do objeto frouxo do backup de ativos (Zona destrutiva)
+arquivo(s) sabotado(s): src/lib/queries/formas/dev-destrutivo.ts
+teste: src/lib/queries/formas/backup-frouxo.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × dev-destrutivo.backup-ativos: linhasDe devolve a coluna desconhecida intacta 5ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/queries/formas/backup-frouxo.test.ts > os backups de select(*) preservam coluna que a forma não conhece (sabotagem D) > dev-destrutivo.backup-ativos: linhasDe devolve a coluna desconhecida intacta
+Error: F58: a forma de "dev-destrutivo.backup-ativos" não declara modo — use z.strictObject (colunas explícitas) ou z.looseObject (select de tudo). O z.object padrão REMOVE coluna em silêncio.
+
+## D2 — a mesma troca, com a guarda de modo desligada: a coluna desconhecida some do backup
+arquivo(s) sabotado(s): src/lib/queries/formas/dev-destrutivo.ts, src/lib/supabase/linhas.ts
+teste: src/lib/queries/formas/backup-frouxo.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × dev-destrutivo.backup-ativos: linhasDe devolve a coluna desconhecida intacta 9ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/queries/formas/backup-frouxo.test.ts > os backups de select(*) preservam coluna que a forma não conhece (sabotagem D) > dev-destrutivo.backup-ativos: linhasDe devolve a coluna desconhecida intacta
+AssertionError: expected undefined to be 'dado-que-nenhuma-forma-declara' // Object.is equality
+
