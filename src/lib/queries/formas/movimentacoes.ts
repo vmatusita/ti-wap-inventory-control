@@ -131,6 +131,8 @@ export const LEITURA_SUGESTAO_COLABORADOR_MOV = leituraDeRelacao({
   select: 'colaborador',
   forma: z.strictObject({ colaborador: s }),
   ordem: ['id'],
+  // o call-site filtra `.not('colaborador', 'is', null)` — o tipo inferido já sai não-nulo, e a forma também
+  naoNulas: ['colaborador'],
 })
 
 export const LEITURA_SUGESTAO_SETOR_MOV = leituraDeRelacao({
@@ -139,6 +141,8 @@ export const LEITURA_SUGESTAO_SETOR_MOV = leituraDeRelacao({
   select: 'setor',
   forma: z.strictObject({ setor: s }),
   ordem: ['id'],
+  // o call-site filtra `.not('setor', 'is', null)` — o tipo inferido já sai não-nulo, e a forma também
+  naoNulas: ['setor'],
 })
 
 // ---------------------------------------------------------------------------

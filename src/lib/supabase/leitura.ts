@@ -34,6 +34,14 @@ export type LeituraDeRelacao<O extends Relacao = Relacao, S extends string = str
   readonly forma: F
   /** Ordem TOTAL para o conferidor paginar sem repetir nem perder linha (a última coluna é única). */
   readonly ordem: readonly string[]
+  /**
+   * Colunas que o call-site SEMPRE filtra com `.not(coluna, 'is', null)`. O supabase-js estreita o tipo inferido com
+   * esse filtro, e a forma declara a coluna não-nula por isso — é pré-condição da LEITURA, não fato da tabela. O
+   * conferidor aplica o MESMO filtro antes de contar e de ler, e `formas/catalogo.test.ts` exige o
+   * `.not('<coluna>', 'is', null)` literal em todo arquivo que usa o descritor. (Achado da rodada cedo do conferidor:
+   * sem isso, a relação inteira trazia os nulos que o call-site nunca lê.)
+   */
+  readonly naoNulas?: readonly string[]
 }
 
 /** Como o conferidor monta os argumentos de uma RPC de LEITURA (nomes reais dos parâmetros). */
