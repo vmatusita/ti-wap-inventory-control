@@ -2,6 +2,8 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { sanearFiltrosAuditoria } from '@/lib/auditoria'
 import type { Json } from '@/lib/types/database'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_EVENTOS_ADMIN } from '@/lib/queries/formas/eventos-admin'
 
 // Leitura da TRILHA de auditoria (F21 — tabela `eventos_admin`, migration 0065). Serve a
 // aba "Auditoria" de /admin/usuarios.
@@ -52,15 +54,6 @@ export const EVENTOS_PAGE_SIZE = 25
 // uma lista vazia. Mesmo tratamento de `listarMovimentacoes` (queries/movimentacoes.ts).
 const RANGE_INVALIDO = 'PGRST103'
 
-type RawLinha = {
-  id: string
-  quando: string
-  acao: string
-  alvo: string | null
-  detalhe: Json | null
-  autor: { nome: string | null } | null
-}
-
 // F22 — os quatro recortes que a área /dev pede (ordem §4: "ação, autor, período, alvo").
 // Até aqui só existia o de AÇÃO, herdado da aba de /admin/usuarios, e ele não responde as
 // perguntas que se fazem a uma trilha: "o que o fulano fez?", "o que aconteceu naquela
@@ -86,7 +79,7 @@ function query(
 ) {
   let q = supabase
     .from('eventos_admin')
-    .select('id, quando, acao, alvo, detalhe, autor:profiles!eventos_admin_autor_fkey(nome)', {
+    .select(LEITURA_EVENTOS_ADMIN.select, {
       count: 'exact',
       head,
     })
@@ -157,7 +150,7 @@ export async function listarEventosAdmin(
 
   if (error) throw new Error(`Falha ao listar a auditoria: ${error.message}`)
 
-  const linhas = ((data ?? []) as unknown as RawLinha[]).map((l) => ({
+  const linhas = linhasDe(data, LEITURA_EVENTOS_ADMIN.forma, LEITURA_EVENTOS_ADMIN.rotulo).map((l) => ({
     id: l.id,
     quando: l.quando,
     acao: l.acao,

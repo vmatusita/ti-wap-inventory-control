@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { registrarFalha } from '@/lib/observabilidade'
 import type { TipoMovimentacao } from '@/lib/dominio'
 import type { PapelUsuario } from '@/lib/auth/papeis'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_MOTIVOS_ADMIN, LEITURA_SENHAS_ACESSO } from '@/lib/queries/formas/admin'
 
 // Leituras das telas de administração (só ADMIN a partir da F21 — o gate está em
 // admin/layout.tsx e, para cada escrita, na guarda `exigirAdmin()` da action).
@@ -407,9 +409,10 @@ export async function listarMotivosAdmin(): Promise<MotivoAdmin[]> {
   const client = await createClient()
   const { data } = await client
     .from('motivos')
-    .select('codigo, rotulo, aplica_a, ativo')
+    .select(LEITURA_MOTIVOS_ADMIN.select)
     .order('rotulo')
-  return (data ?? []) as MotivoAdmin[]
+  const r = linhasOuFalha(data, LEITURA_MOTIVOS_ADMIN.forma, LEITURA_MOTIVOS_ADMIN.rotulo)
+  return r.ok ? r.linhas : []
 }
 
 export type SenhaAdmin = {
@@ -428,7 +431,8 @@ export async function listarSenhasAcesso(): Promise<SenhaAdmin[]> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('senhas_acesso')
-    .select('id, rotulo, ativa, created_at, ultimo_uso')
+    .select(LEITURA_SENHAS_ACESSO.select)
     .order('created_at', { ascending: false })
-  return (data ?? []) as SenhaAdmin[]
+  const r = linhasOuFalha(data, LEITURA_SENHAS_ACESSO.forma, LEITURA_SENHAS_ACESSO.rotulo)
+  return r.ok ? r.linhas : []
 }

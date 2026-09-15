@@ -51,8 +51,14 @@ export type LeituraDeRpc<N extends NomeRpc = NomeRpc, F extends z.ZodType = z.Zo
   readonly forma: F
   readonly retorno: 'linhas' | 'valor'
   readonly matriz: MatrizDeRpc
-  /** Coluna de ordem total para paginar o retorno de tabela (`rel_estoque_asof` não tem `order by`). */
-  readonly ordem?: string
+  /**
+   * Colunas de ordem TOTAL para paginar o retorno de tabela (`rel_estoque_asof` não tem `order by`):
+   * a combinação tem de ser única por linha — as colunas do `group by` vivo, ou a chave do
+   * `distinct on`. Uma coluna só onde a função agrupa por duas repete e pula linha entre páginas
+   * (`rel_saldo_colaborador` agrupa por item E filial — a revisão do lote 2 pegou). O conferidor
+   * reprova a rodada em que duas linhas lidas repetem a chave.
+   */
+  readonly ordem?: readonly string[]
 }
 
 /**

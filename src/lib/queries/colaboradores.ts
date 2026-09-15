@@ -7,6 +7,15 @@ import {
 } from '@/lib/busca/prefixo'
 import { chaveColaborador, chavesDistintas } from '@/lib/colaboradores/chave'
 import { registrarFalha } from '@/lib/observabilidade'
+import { linhasDe, linhasOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_COLABORADORES_POR_NOME,
+  LEITURA_FILA_CONSOLIDACAO,
+  LEITURA_RESUMO_CONSOLIDACAO,
+  LEITURA_SUGESTAO_CADASTRO,
+  LEITURA_SUGESTAO_LANCAMENTOS,
+  LEITURA_SUGESTAO_MOVIMENTACOES,
+} from '@/lib/queries/formas/colaboradores'
 
 // Leituras do cadastro de pessoas (F37 · D5). Rota só do operador — usam o client do
 // servidor com a sessão dele (RLS `authenticated`), como o resto de src/lib/queries.
@@ -125,7 +134,7 @@ export async function filaDeConsolidacao(): Promise<TextoDeColaborador[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('v_colaboradores_textos')
-    .select('nome_chave, grafia_exemplo, ocorrencias, grafias, filial_id, ja_cadastrado, colaborador_id')
+    .select(LEITURA_FILA_CONSOLIDACAO.select)
     .eq('ja_cadastrado', false)
     .order('ocorrencias', { ascending: false })
     .order('grafia_exemplo', { ascending: true })
@@ -138,26 +147,19 @@ export async function filaDeConsolidacao(): Promise<TextoDeColaborador[]> {
     // números vindo da view de resumo — que não depende deste corte.
     .limit(TETO_FILA)
   if (error) throw new Error(`Falha ao ler a fila de consolidação: ${error.message}`)
-  type Row = {
-    nome_chave: string | null
-    grafia_exemplo: string | null
-    ocorrencias: number | null
-    grafias: number | null
-    filial_id: number | null
-    ja_cadastrado: boolean | null
-    colaborador_id: string | null
-  }
-  return ((data ?? []) as Row[])
-    .filter((r): r is Row & { nome_chave: string } => Boolean(r.nome_chave))
-    .map((r) => ({
-      nome_chave: r.nome_chave,
-      grafia_exemplo: r.grafia_exemplo ?? r.nome_chave,
-      ocorrencias: r.ocorrencias ?? 0,
-      grafias: r.grafias ?? 1,
-      filial_id: r.filial_id,
-      ja_cadastrado: false,
-      colaborador_id: null,
-    }))
+  // `nome_chave`, `grafia_exemplo`, `ocorrencias`, `grafias` e `ja_cadastrado` já saem
+  // não-nulos da forma (naoNulaNaView) — o filtro/fallback que existia aqui era defesa
+  // contra o `null` mentiroso do gerador, hoje desnecessária. O filtro `.eq('ja_cadastrado',
+  // false)` já garante que só chega grupo pendente.
+  return linhasDe(data, LEITURA_FILA_CONSOLIDACAO.forma, LEITURA_FILA_CONSOLIDACAO.rotulo).map((r) => ({
+    nome_chave: r.nome_chave,
+    grafia_exemplo: r.grafia_exemplo,
+    ocorrencias: r.ocorrencias,
+    grafias: r.grafias,
+    filial_id: r.filial_id,
+    ja_cadastrado: r.ja_cadastrado,
+    colaborador_id: r.colaborador_id,
+  }))
 }
 
 /**
@@ -186,11 +188,10 @@ export async function resumoDaConsolidacao(): Promise<ResumoConsolidacao> {
   // queria dizer.
   const { data, error } = await supabase
     .from('v_colaboradores_consolidacao')
-    .select('ja_cadastrado, grupos, registros')
+    .select(LEITURA_RESUMO_CONSOLIDACAO.select)
   if (error) throw new Error(`Falha ao resumir a consolidação: ${error.message}`)
 
-  type Linha = { ja_cadastrado: boolean | null; grupos: number | null; registros: number | null }
-  const linhas = (data ?? []) as Linha[]
+  const linhas = linhasDe(data, LEITURA_RESUMO_CONSOLIDACAO.forma, LEITURA_RESUMO_CONSOLIDACAO.rotulo)
   const lado = (cadastrado: boolean) => linhas.find((l) => l.ja_cadastrado === cadastrado)
 
   const pendentes = lado(false)
@@ -228,14 +229,16 @@ export async function resolverColaboradoresPorNome(
   if (chaves.length === 0) return mapa
   const { data, error } = await supabase
     .from('colaboradores')
-    .select('id, nome_chave')
+    .select(LEITURA_COLABORADORES_POR_NOME.select)
     .in('nome_chave', chaves)
   if (error) {
     registrarFalha({ escopo: 'colaboradores.resolver-por-nome', erro: error })
     return mapa
   }
-  for (const r of (data ?? []) as { id: string; nome_chave: string | null }[]) {
-    if (r.nome_chave) mapa.set(r.nome_chave, r.id)
+  const r = linhasOuFalha(data, LEITURA_COLABORADORES_POR_NOME.forma, LEITURA_COLABORADORES_POR_NOME.rotulo)
+  if (!r.ok) return mapa
+  for (const linha of r.linhas) {
+    if (linha.nome_chave) mapa.set(linha.nome_chave, linha.id)
   }
   return mapa
 }
@@ -322,7 +325,7 @@ export async function sugestoesDoCampoColaborador(
     // lá explica por quê.
     supabase
       .from('colaboradores')
-      .select('nome')
+      .select(LEITURA_SUGESTAO_CADASTRO.select)
       .eq('ativo', true)
       .like('nome_chave', `%${chave}%`)
       // A ordem continua por `nome` — a grafia de verdade, com acento e caixa, que
@@ -355,7 +358,7 @@ export async function sugestoesDoCampoColaborador(
     // migration 0113 registrou para este par de tabelas.
     supabase
       .from('movimentacoes')
-      .select('colaborador')
+      .select(LEITURA_SUGESTAO_MOVIMENTACOES.select)
       .not('colaborador', 'is', null)
       .ilike('colaborador', `%${termo}%`)
       // Ordem explícita: sem ela o corte de `LINHAS_HISTORICO` pega um subconjunto
@@ -364,7 +367,7 @@ export async function sugestoesDoCampoColaborador(
       .limit(LINHAS_HISTORICO),
     supabase
       .from('lancamentos_item')
-      .select('colaborador')
+      .select(LEITURA_SUGESTAO_LANCAMENTOS.select)
       .not('colaborador', 'is', null)
       .ilike('colaborador', `%${termo}%`)
       .order('colaborador')
@@ -402,16 +405,19 @@ export async function sugestoesDoCampoColaborador(
     }
   }
 
-  const cadastrados = ((doCadastro.data ?? []) as { nome: string }[]).map((r) => r.nome)
+  const cadastrados = linhasDe(
+    doCadastro.data,
+    LEITURA_SUGESTAO_CADASTRO.forma,
+    LEITURA_SUGESTAO_CADASTRO.rotulo,
+  ).map((r) => r.nome)
   const chavesCadastradas = new Set(cadastrados.map((n) => chaveColaborador(n)))
 
   // Dedup pela MESMA chave do banco — assim "João Silva" e "joão  silva" não
   // aparecem como duas opções, e nenhuma grafia já cadastrada se repete na lista.
   const porChave = new Map<string, string>()
-  const doHistorico = [
-    ...((deMovimentacoes.data ?? []) as { colaborador: string | null }[]),
-    ...((deLancamentos.data ?? []) as { colaborador: string | null }[]),
-  ]
+  const rMov = linhasOuFalha(deMovimentacoes.data, LEITURA_SUGESTAO_MOVIMENTACOES.forma, LEITURA_SUGESTAO_MOVIMENTACOES.rotulo)
+  const rLanc = linhasOuFalha(deLancamentos.data, LEITURA_SUGESTAO_LANCAMENTOS.forma, LEITURA_SUGESTAO_LANCAMENTOS.rotulo)
+  const doHistorico = [...(rMov.ok ? rMov.linhas : []), ...(rLanc.ok ? rLanc.linhas : [])]
   for (const linha of doHistorico) {
     const valor = linha.colaborador?.trim()
     if (!valor) continue

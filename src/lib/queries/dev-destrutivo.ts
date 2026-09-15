@@ -4,8 +4,22 @@ import { exigirDev } from '@/lib/auth/acesso'
 import type { DbClient } from '@/lib/auth/acesso'
 import { rotuloDoAtivo } from '@/lib/validators/dev-destrutivo'
 import type { StatusAtivo } from '@/lib/dominio'
-import { mapComLimite, LIMITE_LOTES_PARALELOS } from '@/lib/queries/relatorios/comum'
+import { mapComLimite, paginarTodos, LIMITE_LOTES_PARALELOS } from '@/lib/queries/relatorios/comum'
 import { chamarRpc } from '@/lib/supabase/rpc'
+import { linhaDe, linhasDe, valorDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_BACKUP_ANOTACOES,
+  LEITURA_BACKUP_ATIVOS,
+  LEITURA_BACKUP_LANCAMENTOS_ITEM,
+  LEITURA_BACKUP_MOVIMENTACOES,
+  LEITURA_BACKUP_PENDENCIAS_ITEM,
+  LEITURA_BACKUP_TERMOS_GERADOS,
+  LEITURA_CANDIDATOS_DESTRUTIVO,
+  LEITURA_ITENS_DESTRUTIVO,
+  LEITURA_MOVS_DESTRUTIVO,
+  LEITURA_PREVIA_RESET,
+  LEITURA_TERMOS_DO_ATIVO_DESTRUTIVO,
+} from '@/lib/queries/formas/dev-destrutivo'
 
 // Leituras da ZONA DESTRUTIVA da /dev (F23) — todas guardadas por `exigirDev()`.
 //
@@ -75,15 +89,14 @@ export async function buscarAtivosDestrutivo(termo: string): Promise<CandidatoAt
 
   const { data, error } = await supabase
     .from('ativos')
-    .select(
-      'id, patrimonio, service_tag, hostname, categoria, marca, modelo, status, filial_id, colaborador_atual',
-    )
+    .select(LEITURA_CANDIDATOS_DESTRUTIVO.select)
     .or(`patrimonio.ilike.${like},service_tag.ilike.${like},hostname.ilike.${like}`)
     .order('patrimonio', { ascending: true, nullsFirst: false })
     .limit(MAX_CANDIDATOS)
 
   if (error) throw new Error(`Falha ao buscar ativos: ${error.message}`)
-  return (data ?? []).map((a) => ({ ...a, rotulo: rotuloDoAtivo(a) }) as CandidatoAtivo)
+  const linhas = linhasDe(data, LEITURA_CANDIDATOS_DESTRUTIVO.forma, LEITURA_CANDIDATOS_DESTRUTIVO.rotulo)
+  return linhas.map((a): CandidatoAtivo => ({ ...a, rotulo: rotuloDoAtivo(a) }))
 }
 
 // ---------------------------------------------------------------------------
@@ -128,14 +141,13 @@ export async function carregarFichaDestrutiva(
 ): Promise<FichaDestrutiva | null> {
   const supabase = await sessaoDeDev()
 
-  const { data: ativo, error: eAtivo } = await supabase
+  const { data: ativoBruto, error: eAtivo } = await supabase
     .from('ativos')
-    .select(
-      'id, patrimonio, service_tag, hostname, categoria, marca, modelo, status, filial_id, colaborador_atual',
-    )
+    .select(LEITURA_CANDIDATOS_DESTRUTIVO.select)
     .eq('id', ativoId)
     .maybeSingle()
   if (eAtivo) throw new Error(`Falha ao carregar o ativo: ${eAtivo.message}`)
+  const ativo = linhaDe(ativoBruto, LEITURA_CANDIDATOS_DESTRUTIVO.forma, LEITURA_CANDIDATOS_DESTRUTIVO.rotulo)
   if (!ativo) return null
 
   // ⚠ ORDENAÇÃO (created_at desc, id desc) — a MESMA de `apagar_movimentacao` (0082), e não a
@@ -143,9 +155,9 @@ export async function carregarFichaDestrutiva(
   // equivalentes quando `created_at` e `data` discordam, o que o import de startup produz em
   // massa. Se esta tela ordenasse por outra régua, ela marcaria como "última" uma linha que a
   // RPC recusaria — um botão que sempre falha.
-  const { data: movs, error: eMovs } = await supabase
+  const { data: movsBrutas, error: eMovs } = await supabase
     .from('movimentacoes')
-    .select('id, tipo, data, created_at, observacao, status_anterior, status_resultante, forcado, estorno_de')
+    .select(LEITURA_MOVS_DESTRUTIVO.select)
     .eq('ativo_id', ativoId)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
@@ -156,17 +168,24 @@ export async function carregarFichaDestrutiva(
     supabase.from('movimentacoes').select('id', { count: 'exact', head: true }).eq('ativo_id', ativoId),
     supabase.from('anotacoes').select('id', { count: 'exact', head: true }).eq('ativo_id', ativoId),
     supabase.from('pendencias_item').select('id', { count: 'exact', head: true }).eq('ativo_id', ativoId),
-    supabase.from('termos_gerados').select('id, ativo_ids, movimentacao_ids').contains('ativo_ids', [ativoId]),
+    supabase
+      .from('termos_gerados')
+      .select(LEITURA_TERMOS_DO_ATIVO_DESTRUTIVO.select)
+      .contains('ativo_ids', [ativoId]),
   ])
   if (termos.error) throw new Error(`Falha ao carregar os termos: ${termos.error.message}`)
 
-  const linhasTermo = termos.data ?? []
+  const linhasTermo = linhasDe(
+    termos.data,
+    LEITURA_TERMOS_DO_ATIVO_DESTRUTIVO.forma,
+    LEITURA_TERMOS_DO_ATIVO_DESTRUTIVO.rotulo,
+  )
   const termoDeLoteBloqueia = linhasTermo.some((t) =>
-    (t.ativo_ids ?? []).some((x: string) => x !== ativoId),
+    (t.ativo_ids ?? []).some((x) => x !== ativoId),
   )
   const movsComTermo = new Set(linhasTermo.flatMap((t) => t.movimentacao_ids ?? []))
 
-  const lista = movs ?? []
+  const lista = linhasDe(movsBrutas, LEITURA_MOVS_DESTRUTIVO.forma, LEITURA_MOVS_DESTRUTIVO.rotulo)
   const estornadas = new Set(
     lista.map((m) => m.estorno_de).filter((x): x is string => typeof x === 'string'),
   )
@@ -176,7 +195,7 @@ export async function carregarFichaDestrutiva(
   const idUltima = lista[0]?.id ?? null
 
   return {
-    ativo: { ...ativo, rotulo: rotuloDoAtivo(ativo) } as CandidatoAtivo,
+    ativo: { ...ativo, rotulo: rotuloDoAtivo(ativo) },
     movimentacoes: lista.map((m) => ({
       id: m.id,
       tipo: m.tipo,
@@ -266,11 +285,11 @@ export async function listarItensDestrutivo(): Promise<CandidatoItem[]> {
 
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo, ativo')
+    .select(LEITURA_ITENS_DESTRUTIVO.select)
     .order('nome', { ascending: true })
   if (error) throw new Error(`Falha ao listar itens: ${error.message}`)
 
-  const itens = data ?? []
+  const itens = linhasDe(data, LEITURA_ITENS_DESTRUTIVO.forma, LEITURA_ITENS_DESTRUTIVO.rotulo)
   if (itens.length === 0) return []
 
   // Contagem CONTADA NO BANCO, uma consulta por item, em LOTES — não mais toda de uma vez.
@@ -307,7 +326,7 @@ export async function listarItensDestrutivo(): Promise<CandidatoItem[]> {
     return count ?? 0
   })
 
-  return itens.map((i, n) => ({ ...i, lancamentos: contagens[n] }) as CandidatoItem)
+  return itens.map((i, n): CandidatoItem => ({ ...i, lancamentos: contagens[n] }))
 }
 
 // ---------------------------------------------------------------------------
@@ -345,7 +364,7 @@ export async function previaDoReset(
     p_filial: filialId,
   })
   if (error) throw new Error(`Falha ao calcular a prévia do reset: ${error.message}`)
-  return data as unknown as PreviaReset
+  return valorDe(data, LEITURA_PREVIA_RESET.forma, LEITURA_PREVIA_RESET.rotulo)
 }
 
 // ---------------------------------------------------------------------------
@@ -370,34 +389,26 @@ export async function montarBackupDoReset(
 ): Promise<Record<string, unknown>> {
   const supabase = await sessaoDeDev()
 
-  const PAGINA = 1000
-
-  // Paginador deliberadamente SEM genérico: as consultas abaixo são de tabelas diferentes, e
-  // um `T` inferido do builder do supabase-js não unifica entre elas. O backup é um dump —
-  // aqui o tipo certo é mesmo `Record<string, unknown>`, e a tipagem forte vive nas queries
-  // que a tela consome, não neste JSON.
-  type Pagina = { data: Record<string, unknown>[] | null; error: { message: string } | null }
-  async function todas(
-    rotulo: string,
-    consulta: (from: number, to: number) => PromiseLike<Pagina>,
-  ): Promise<Record<string, unknown>[]> {
-    const acc: Record<string, unknown>[] = []
-    for (let from = 0; ; from += PAGINA) {
-      const { data, error } = await consulta(from, from + PAGINA - 1)
-      if (error) throw new Error(`${rotulo}: ${error.message}`)
-      const lote = data ?? []
-      acc.push(...lote)
-      if (lote.length < PAGINA) return acc
-    }
-  }
+  // F58 — cada tabela lê pela `paginarTodos` compartilhada (que infere a linha do BUILDER, não
+  // mais um genérico solto) e confere com a forma FROUXA de backup daquela tabela
+  // (`formas/dev-destrutivo.ts`, `LEITURA_BACKUP_*`): a coluna que a forma não declara atravessa
+  // pelo `catchall` de `z.looseObject` — é o que garante que o backup nunca perde coluna nova.
 
   const gerado_em = new Date().toISOString()
 
   if (bloco === 'itens') {
-    const lancamentos = await todas('Falha ao exportar lançamentos', (from, to) => {
-      const q = supabase.from('lancamentos_item').select('*').order('id').range(from, to)
-      return (filialId !== null ? q.eq('filial_id', filialId) : q) as unknown as PromiseLike<Pagina>
-    })
+    const lancamentos = linhasDe(
+      await paginarTodos('Falha ao exportar lançamentos', (from, to) => {
+        const q = supabase
+          .from('lancamentos_item')
+          .select(LEITURA_BACKUP_LANCAMENTOS_ITEM.select)
+          .order('id')
+          .range(from, to)
+        return filialId !== null ? q.eq('filial_id', filialId) : q
+      }),
+      LEITURA_BACKUP_LANCAMENTOS_ITEM.forma,
+      LEITURA_BACKUP_LANCAMENTOS_ITEM.rotulo,
+    )
   // F54 — CABEÇALHO COMPLETO (Decisão 4). Este backup não tinha `versao` nem `contagens`,
   // e os dois faltavam por motivos diferentes: sem `versao` a trava de formato não teria o
   // que congelar, e sem `contagens` a conferência de restauração não teria com o que
@@ -422,11 +433,15 @@ export async function montarBackupDoReset(
   }
 
   // ACERVO. O recorte é pelo ATIVO (a filial em que ele está HOJE) — igual ao da RPC.
-  const ativos = await todas('Falha ao exportar ativos', (from, to) => {
-    const q = supabase.from('ativos').select('*').order('id').range(from, to)
-    return (filialId !== null ? q.eq('filial_id', filialId) : q) as unknown as PromiseLike<Pagina>
-  })
-  const ids = ativos.map((a) => String(a.id))
+  const ativos = linhasDe(
+    await paginarTodos('Falha ao exportar ativos', (from, to) => {
+      const q = supabase.from('ativos').select(LEITURA_BACKUP_ATIVOS.select).order('id').range(from, to)
+      return filialId !== null ? q.eq('filial_id', filialId) : q
+    }),
+    LEITURA_BACKUP_ATIVOS.forma,
+    LEITURA_BACKUP_ATIVOS.rotulo,
+  )
+  const ids = ativos.map((a) => a.id)
 
   // `.in()` monta o filtro na URL: mil uuids estouram o limite. Mesmo lote de 100 do import.
   const LOTE = 100
@@ -436,37 +451,88 @@ export async function montarBackupDoReset(
   /** Os ids do recorte, para o bloco de ponteiros que atravessam a fronteira (F23). */
   const doRecorte = new Set(ids)
 
-  async function porAtivo(
-    tabela: 'movimentacoes' | 'anotacoes' | 'pendencias_item',
-  ): Promise<Record<string, unknown>[]> {
+  // Três funções, e não uma genérica sobre o nome da tabela: o nome tem de ficar LITERAL em
+  // cada `.from(…)` (exigência do catálogo de formas — F58 · Frente C), e um parâmetro `tabela`
+  // montaria o nome em runtime.
+  async function backupMovimentacoes(): Promise<Record<string, unknown>[]> {
     if (filialId === null) {
-      return todas(
-        `Falha ao exportar ${tabela}`,
-        (from, to) =>
-          supabase.from(tabela).select('*').order('id').range(from, to) as unknown as PromiseLike<Pagina>,
+      return linhasDe(
+        await paginarTodos('Falha ao exportar movimentacoes', (from, to) =>
+          supabase.from('movimentacoes').select(LEITURA_BACKUP_MOVIMENTACOES.select).order('id').range(from, to),
+        ),
+        LEITURA_BACKUP_MOVIMENTACOES.forma,
+        LEITURA_BACKUP_MOVIMENTACOES.rotulo,
       )
     }
     const acc: Record<string, unknown>[] = []
     for (const lote of lotes) {
-      const parte = await todas(
-        `Falha ao exportar ${tabela}`,
-        (from, to) =>
-          supabase
-            .from(tabela)
-            .select('*')
-            .in('ativo_id', lote)
-            .order('id')
-            .range(from, to) as unknown as PromiseLike<Pagina>,
+      const rows = await paginarTodos('Falha ao exportar movimentacoes', (from, to) =>
+        supabase
+          .from('movimentacoes')
+          .select(LEITURA_BACKUP_MOVIMENTACOES.select)
+          .in('ativo_id', lote)
+          .order('id')
+          .range(from, to),
       )
-      acc.push(...parte)
+      acc.push(...linhasDe(rows, LEITURA_BACKUP_MOVIMENTACOES.forma, LEITURA_BACKUP_MOVIMENTACOES.rotulo))
+    }
+    return acc
+  }
+
+  async function backupAnotacoes(): Promise<Record<string, unknown>[]> {
+    if (filialId === null) {
+      return linhasDe(
+        await paginarTodos('Falha ao exportar anotacoes', (from, to) =>
+          supabase.from('anotacoes').select(LEITURA_BACKUP_ANOTACOES.select).order('id').range(from, to),
+        ),
+        LEITURA_BACKUP_ANOTACOES.forma,
+        LEITURA_BACKUP_ANOTACOES.rotulo,
+      )
+    }
+    const acc: Record<string, unknown>[] = []
+    for (const lote of lotes) {
+      const rows = await paginarTodos('Falha ao exportar anotacoes', (from, to) =>
+        supabase
+          .from('anotacoes')
+          .select(LEITURA_BACKUP_ANOTACOES.select)
+          .in('ativo_id', lote)
+          .order('id')
+          .range(from, to),
+      )
+      acc.push(...linhasDe(rows, LEITURA_BACKUP_ANOTACOES.forma, LEITURA_BACKUP_ANOTACOES.rotulo))
+    }
+    return acc
+  }
+
+  async function backupPendenciasItem(): Promise<Record<string, unknown>[]> {
+    if (filialId === null) {
+      return linhasDe(
+        await paginarTodos('Falha ao exportar pendencias_item', (from, to) =>
+          supabase.from('pendencias_item').select(LEITURA_BACKUP_PENDENCIAS_ITEM.select).order('id').range(from, to),
+        ),
+        LEITURA_BACKUP_PENDENCIAS_ITEM.forma,
+        LEITURA_BACKUP_PENDENCIAS_ITEM.rotulo,
+      )
+    }
+    const acc: Record<string, unknown>[] = []
+    for (const lote of lotes) {
+      const rows = await paginarTodos('Falha ao exportar pendencias_item', (from, to) =>
+        supabase
+          .from('pendencias_item')
+          .select(LEITURA_BACKUP_PENDENCIAS_ITEM.select)
+          .in('ativo_id', lote)
+          .order('id')
+          .range(from, to),
+      )
+      acc.push(...linhasDe(rows, LEITURA_BACKUP_PENDENCIAS_ITEM.forma, LEITURA_BACKUP_PENDENCIAS_ITEM.rotulo))
     }
     return acc
   }
 
   const [movimentacoes, anotacoes, pendencias_item] = await Promise.all([
-    porAtivo('movimentacoes'),
-    porAtivo('anotacoes'),
-    porAtivo('pendencias_item'),
+    backupMovimentacoes(),
+    backupAnotacoes(),
+    backupPendenciasItem(),
   ])
 
   // Termos: referenciam por `ativo_ids uuid[]`, sem FK — a régua é a mesma da RPC.
@@ -488,24 +554,25 @@ export async function montarBackupDoReset(
   // recorte a aplicar: o reset global apaga TODOS os termos, e ler tudo é o recorte certo.
   let termos_gerados: Record<string, unknown>[]
   if (filialId === null) {
-    termos_gerados = await todas(
-      'Falha ao exportar termos',
-      (from, to) =>
-        supabase.from('termos_gerados').select('*').order('id').range(from, to) as unknown as PromiseLike<Pagina>,
+    termos_gerados = linhasDe(
+      await paginarTodos('Falha ao exportar termos', (from, to) =>
+        supabase.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS.select).order('id').range(from, to),
+      ),
+      LEITURA_BACKUP_TERMOS_GERADOS.forma,
+      LEITURA_BACKUP_TERMOS_GERADOS.rotulo,
     )
   } else {
     const porId = new Map<string, Record<string, unknown>>()
     for (const lote of lotes) {
-      const parte = await todas(
-        'Falha ao exportar termos',
-        (from, to) =>
-          supabase
-            .from('termos_gerados')
-            .select('*')
-            .overlaps('ativo_ids', lote)
-            .order('id')
-            .range(from, to) as unknown as PromiseLike<Pagina>,
+      const rows = await paginarTodos('Falha ao exportar termos', (from, to) =>
+        supabase
+          .from('termos_gerados')
+          .select(LEITURA_BACKUP_TERMOS_GERADOS.select)
+          .overlaps('ativo_ids', lote)
+          .order('id')
+          .range(from, to),
       )
+      const parte = linhasDe(rows, LEITURA_BACKUP_TERMOS_GERADOS.forma, LEITURA_BACKUP_TERMOS_GERADOS.rotulo)
       for (const t of parte) porId.set(String(t.id), t)
     }
     termos_gerados = [...porId.values()].sort((a, b) =>
@@ -529,17 +596,15 @@ export async function montarBackupDoReset(
           const acc: Record<string, unknown>[] = []
           for (const lote of lotes.length > 0 ? lotes : [[]]) {
             if (lote.length === 0) continue
-            const parte = await todas(
-              'Falha ao exportar ativos que apontam para o recorte',
-              (from, to) =>
-                supabase
-                  .from('ativos')
-                  .select('*')
-                  .in('substitui_ativo_id', lote)
-                  .order('id')
-                  .range(from, to) as unknown as PromiseLike<Pagina>,
+            const rows = await paginarTodos('Falha ao exportar ativos que apontam para o recorte', (from, to) =>
+              supabase
+                .from('ativos')
+                .select(LEITURA_BACKUP_ATIVOS.select)
+                .in('substitui_ativo_id', lote)
+                .order('id')
+                .range(from, to),
             )
-            acc.push(...parte)
+            acc.push(...linhasDe(rows, LEITURA_BACKUP_ATIVOS.forma, LEITURA_BACKUP_ATIVOS.rotulo))
           }
           // No alcance GLOBAL todo ativo está no recorte, então quem aponta já está em `ativos`
           // — a lista sai vazia por construção, e é isso mesmo.

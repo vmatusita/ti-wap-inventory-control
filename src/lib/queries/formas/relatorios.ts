@@ -38,7 +38,8 @@ export const LEITURA_REL_ESTOQUE_ASOF = leituraDeRpc({
   }),
   retorno: 'linhas',
   matriz: { tipo: 'filial-e-data', filial: 'p_filial', data: 'p_data' },
-  ordem: 'ativo_id',
+  // uma linha por ativo: `distinct on (e.ativo_id)` no corpo vivo (0134)
+  ordem: ['ativo_id'],
 })
 
 export const LEITURA_REL_SALDO_ITENS = leituraDeRpc({
@@ -56,7 +57,8 @@ export const LEITURA_REL_SALDO_ITENS = leituraDeRpc({
   }),
   retorno: 'linhas',
   matriz: { tipo: 'filial-e-data', filial: 'p_filial', data: 'p_ate' },
-  ordem: 'item_id',
+  // uma linha por item: o agregado final é `group by item_id` (0027)
+  ordem: ['item_id'],
 })
 
 export const LEITURA_REL_MOV_ITENS = leituraDeRpc({
@@ -65,7 +67,8 @@ export const LEITURA_REL_MOV_ITENS = leituraDeRpc({
   forma: z.strictObject({ item_id: n, item: s, grupo: ENUM.grupoItem, ordem: n, entradas: n, saidas: n }),
   retorno: 'linhas',
   matriz: { tipo: 'filial-e-periodo', filial: 'p_filial', de: 'p_de', ate: 'p_ate' },
-  ordem: 'item_id',
+  // uma linha por item: `group by i.id, …` (0016)
+  ordem: ['item_id'],
 })
 
 export const LEITURA_REL_FRESCOR_ITENS = leituraDeRpc({
@@ -74,7 +77,8 @@ export const LEITURA_REL_FRESCOR_ITENS = leituraDeRpc({
   forma: z.strictObject({ grupo: ENUM.grupoItem, ultima: s }),
   retorno: 'linhas',
   matriz: { tipo: 'filial-e-data', filial: 'p_filial', data: 'p_ate' },
-  ordem: 'grupo',
+  // uma linha por grupo: `group by i.grupo` (0016)
+  ordem: ['grupo'],
 })
 
 export const LEITURA_REL_MOV_POR_MES = leituraDeRpc({

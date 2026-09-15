@@ -10,6 +10,18 @@ import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import type { LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
 import type { LancamentoDeAcessorio, TipoDeAcessorio } from '@/lib/termos/acessorios'
+import { linhaOuFalha, linhasDe, linhasOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_ACESSORIOS_DAS_MOVIMENTACOES,
+  LEITURA_HISTORICO_LANCAMENTOS,
+  LEITURA_HISTORICO_PARA_EXPORT,
+  LEITURA_ITENS_ADMIN,
+  LEITURA_ITENS_ATIVOS,
+  LEITURA_ITENS_JUNTO_DO_ATIVO,
+  LEITURA_LANCAMENTOS_SALDO_APOS,
+  LEITURA_SALDO_COLABORADOR,
+  LEITURA_ULTIMO_LANCAMENTO,
+} from '@/lib/queries/formas/itens'
 
 // Leituras da operação de itens por quantidade (F3B / OS 3.3.4). Rota só do
 // operador (o visualizador por senha não acessa /itens) — usam o client do
@@ -91,13 +103,13 @@ export async function listarItensAtivos(): Promise<ItemCatalogo[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo, estoque_minimo, tipo_id')
+    .select(LEITURA_ITENS_ATIVOS.select)
     .eq('ativo', true)
     .order('grupo', { ascending: true })
     .order('ordem', { ascending: true })
     .order('nome', { ascending: true })
   if (error) throw new Error(`Falha ao listar itens: ${error.message}`)
-  return (data ?? []) as ItemCatalogo[]
+  return linhasDe(data, LEITURA_ITENS_ATIVOS.forma, LEITURA_ITENS_ATIVOS.rotulo)
 }
 
 // Catálogo completo + contagem de lançamentos (admin decide desativar × excluir).
@@ -105,22 +117,12 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('itens')
-    .select('id, nome, grupo, ordem, ativo, estoque_minimo, tipo_id, lancamentos_item(count)')
+    .select(LEITURA_ITENS_ADMIN.select)
     .order('grupo', { ascending: true })
     .order('ordem', { ascending: true })
     .order('nome', { ascending: true })
   if (error) throw new Error(`Falha ao listar itens: ${error.message}`)
-  type Row = {
-    id: number
-    nome: string
-    grupo: GrupoItem
-    ordem: number
-    ativo: boolean
-    estoque_minimo: number
-    tipo_id: number | null
-    lancamentos_item: { count: number }[]
-  }
-  return ((data ?? []) as Row[]).map((r) => ({
+  return linhasDe(data, LEITURA_ITENS_ADMIN.forma, LEITURA_ITENS_ADMIN.rotulo).map((r) => ({
     id: r.id,
     nome: r.nome,
     grupo: r.grupo,
@@ -347,6 +349,10 @@ export async function getSaldosPorFilial(
   return { filiais, itens: combinarSaldosPorFilial(filiais, consolidado, porFilial) }
 }
 
+// F58: `item_id`/`filial_id`/`criado_por` são not null (migration 0015) → os três embeds saem
+// objetos NÃO-nulos — o tipo à mão marcava os três `| null`. O select e a forma moram em
+// `queries/formas/itens.ts` (`LEITURA_HISTORICO_LANCAMENTOS`/`LEITURA_HISTORICO_PARA_EXPORT`,
+// mesmo `LANC_SELECT`, agora um template só em vez de concatenado por `+`).
 type RawLancRow = {
   id: string
   data: string
@@ -357,22 +363,10 @@ type RawLancRow = {
   observacao: string | null
   estorna_id: string | null
   created_at: string
-  item: { nome: string; grupo: GrupoItem } | null
-  filial: { nome: string } | null
-  autor: { nome: string | null } | null
+  item: { nome: string; grupo: GrupoItem }
+  filial: { nome: string }
+  autor: { nome: string | null }
 }
-
-// ITN-02 — embed do autor (`criado_por`), mesmo padrão de `queries/movimentacoes.ts`
-// (TIMELINE_SELECT), `queries/ativos.ts` (anotações), `queries/gerados.ts` e
-// `queries/eventos-admin.ts`. A FK não tem nome próprio na 0015 (`criado_por uuid
-// not null references public.profiles (id)`), então o Postgres gera o padrão
-// `<tabela>_<coluna>_fkey` — confirmado contra o mesmo padrão já em produção em
-// `movimentacoes_criado_por_fkey`.
-const LANC_SELECT =
-  'id, data, tipo, quantidade, chamado, colaborador, observacao, estorna_id, created_at, ' +
-  'item:itens!lancamentos_item_item_id_fkey(nome, grupo), ' +
-  'filial:filiais!lancamentos_item_filial_id_fkey(nome), ' +
-  'autor:profiles!lancamentos_item_criado_por_fkey(nome)'
 
 // Filtros do histórico (F9 · I3), sem paginação — compartilhados pela tabela da
 // tela e pelo export CSV (F10 · T5), para o arquivo sair com EXATAMENTE as
@@ -415,7 +409,7 @@ function queryHistorico(
   opts: FiltrosHistorico,
   head = false,
 ) {
-  let q = supabase.from('lancamentos_item').select(LANC_SELECT, { count: 'exact', head })
+  let q = supabase.from('lancamentos_item').select(LEITURA_HISTORICO_LANCAMENTOS.select, { count: 'exact', head })
   q = recortarPorUnidade(q, 'filial_id', opts.unidades)
   if (opts.itemId) q = q.eq('item_id', opts.itemId)
   if (opts.tipo) q = q.eq('tipo', opts.tipo)
@@ -491,7 +485,7 @@ export async function getHistoricoLancamentos(
   }
 
   if (error) throw new Error(`Falha ao listar lançamentos: ${error.message}`)
-  const rows = (bruto ?? []) as unknown as RawLancRow[]
+  const rows = linhasDe(bruto, LEITURA_HISTORICO_LANCAMENTOS.forma, LEITURA_HISTORICO_LANCAMENTOS.rotulo)
 
   // Quais destas linhas já foram estornadas (algum lançamento aponta-as)?
   const ids = rows.map((r) => r.id)
@@ -539,7 +533,7 @@ export async function listarHistoricoParaExport(
     )
     if (error) throw new Error(`Falha ao exportar lançamentos: ${error.message}`)
     total = count ?? total
-    const recebidas = (data ?? []) as unknown as RawLancRow[]
+    const recebidas = linhasDe(data, LEITURA_HISTORICO_PARA_EXPORT.forma, LEITURA_HISTORICO_PARA_EXPORT.rotulo)
     for (const r of recebidas) linhas.push(mapearLancamento(r))
     if (recebidas.length === 0 || linhas.length >= total) break
   }
@@ -569,14 +563,14 @@ export async function listarLancamentosParaSaldoApos(
     const tamanho = Math.min(BLOCO_EXPORT, CAP_EXPORT - linhas.length)
     const { data, error } = await supabase
       .from('lancamentos_item')
-      .select('id, data, created_at, tipo, quantidade, chamado')
+      .select(LEITURA_LANCAMENTOS_SALDO_APOS.select)
       .eq('item_id', itemId)
       .eq('filial_id', filialId)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .range(linhas.length, linhas.length + tamanho - 1)
     if (error) throw new Error(`Falha ao ler histórico para saldo após: ${error.message}`)
-    const recebidas = (data ?? []) as LancamentoParaSaldoApos[]
+    const recebidas = linhasDe(data, LEITURA_LANCAMENTOS_SALDO_APOS.forma, LEITURA_LANCAMENTOS_SALDO_APOS.rotulo)
     linhas.push(...recebidas)
     if (recebidas.length < tamanho) break
   }
@@ -590,14 +584,17 @@ export async function getUltimoLancamento(userId: string): Promise<UltimoLancame
   const supabase = await createClient()
   const { data } = await supabase
     .from('lancamentos_item')
-    .select('item_id, filial_id, tipo, chamado, colaborador')
+    .select(LEITURA_ULTIMO_LANCAMENTO.select)
     .eq('criado_por', userId)
     .is('estorna_id', null)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(1)
     .maybeSingle()
-  return (data as UltimoLancamento | null) ?? null
+  // Caminho de falha ENGOLIDO (erro-engolido.test.ts): o `error` do Supabase já era
+  // descartado aqui — a forma errada segue o MESMO caminho, degradando para `null`.
+  const r = linhaOuFalha(data, LEITURA_ULTIMO_LANCAMENTO.forma, LEITURA_ULTIMO_LANCAMENTO.rotulo)
+  return r.ok ? r.linha : null
 }
 
 // ---------------------------------------------------------------------------
@@ -628,7 +625,7 @@ export async function saldoDoColaborador(
     p_colaborador: colaboradorId,
   })
   if (error) throw new Error(`Falha ao ler o saldo do colaborador: ${error.message}`)
-  return (data ?? []) as SaldoDoColaborador[]
+  return linhasDe(data, LEITURA_SALDO_COLABORADOR.forma, LEITURA_SALDO_COLABORADOR.rotulo)
 }
 
 /** O que a tela diz quando o saldo por pessoa não pôde ser lido. */
@@ -669,7 +666,9 @@ export async function saldosPorColaborador(
       registrarFalha({ escopo: 'itens.saldos-colaboradores', erro: error })
       return { ok: false, erro: MSG_SALDO_INDISPONIVEL }
     }
-    mapa.set(distintos[i], (data ?? []) as SaldoDoColaborador[])
+    const r = linhasOuFalha(data, LEITURA_SALDO_COLABORADOR.forma, LEITURA_SALDO_COLABORADOR.rotulo)
+    if (!r.ok) return { ok: false, erro: MSG_SALDO_INDISPONIVEL }
+    mapa.set(distintos[i], r.linhas)
   }
   return { ok: true, mapa }
 }
@@ -729,9 +728,7 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('lancamentos_item')
-    .select(
-      'id, tipo, quantidade, data, movimentacao_id, regularizacao, itens(nome), movimentacoes!inner(ativo_id)',
-    )
+    .select(LEITURA_ITENS_JUNTO_DO_ATIVO.select)
     .eq('movimentacoes.ativo_id', ativoId)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })
@@ -739,25 +736,16 @@ export async function itensQueForamJunto(ativoId: string): Promise<ItemQueFoiJun
     registrarFalha({ escopo: 'itens.junto-do-ativo', erro: error })
     return []
   }
-  type Row = {
-    id: string
-    tipo: TipoLancamento
-    quantidade: number
-    data: string
-    movimentacao_id: string | null
-    regularizacao: boolean | null
-    itens: { nome: string } | null
-  }
-  return ((data ?? []) as unknown as Row[]).map((r) => ({
-    id: r.id,
-    item: r.itens?.nome ?? '—',
-    tipo: r.tipo,
-    quantidade: r.quantidade,
-    data: r.data,
-    movimentacao_id: r.movimentacao_id ?? '',
-    // `not null default false` na 0125 — o `?? false` é só a defesa contra um
-    // `null` que o tipo do PostgREST admite e o banco não produz.
-    regularizacao: r.regularizacao ?? false,
+  const r = linhasOuFalha(data, LEITURA_ITENS_JUNTO_DO_ATIVO.forma, LEITURA_ITENS_JUNTO_DO_ATIVO.rotulo)
+  if (!r.ok) return []
+  return r.linhas.map((linha) => ({
+    id: linha.id,
+    item: linha.itens.nome,
+    tipo: linha.tipo,
+    quantidade: linha.quantidade,
+    data: linha.data,
+    movimentacao_id: linha.movimentacao_id ?? '',
+    regularizacao: linha.regularizacao,
   }))
 }
 
@@ -817,9 +805,7 @@ export async function acessoriosDasMovimentacoes(
   const supabase = client ?? (await createClient())
   const { data, error } = await supabase
     .from('lancamentos_item')
-    .select(
-      'quantidade, estorna_id, pendencia_item_id, itens!inner(tipo_id, tipos_item(id, rotulo, ordem))',
-    )
+    .select(LEITURA_ACESSORIOS_DAS_MOVIMENTACOES.select)
     .in('movimentacao_id', [...movimentacaoIds])
     .eq('tipo', tipo)
     .is('estorna_id', null)
@@ -830,19 +816,16 @@ export async function acessoriosDasMovimentacoes(
     registrarFalha({ escopo: 'itens.acessorios-movimentacao', erro: error })
     return { lancamentos: [], tipos: [] }
   }
-  type Row = {
-    quantidade: number
-    estorna_id: string | null
-    pendencia_item_id: string | null
-    itens: {
-      tipo_id: number | null
-      tipos_item: { id: number; rotulo: string; ordem: number } | null
-    } | null
-  }
-  const rows = (data ?? []) as unknown as Row[]
+  const resultado = linhasOuFalha(
+    data,
+    LEITURA_ACESSORIOS_DAS_MOVIMENTACOES.forma,
+    LEITURA_ACESSORIOS_DAS_MOVIMENTACOES.rotulo,
+  )
+  if (!resultado.ok) return { lancamentos: [], tipos: [] }
+  const rows = resultado.linhas
   const tipos = new Map<number, TipoDeAcessorio>()
   for (const r of rows) {
-    const t = r.itens?.tipos_item
+    const t = r.itens.tipos_item
     if (t) tipos.set(t.id, { id: t.id, rotulo: t.rotulo, ordem: t.ordem })
   }
   return {
@@ -850,7 +833,7 @@ export async function acessoriosDasMovimentacoes(
     // linha, e `montarLinhaDeAcessorios` as recusa de novo — a regra é do
     // DOCUMENTO, não da consulta, e é lá que ela tem teste.
     lancamentos: rows.map((r) => ({
-      tipo_id: r.itens?.tipo_id ?? null,
+      tipo_id: r.itens.tipo_id,
       quantidade: r.quantidade,
       estorna_id: r.estorna_id,
       pendencia_item_id: r.pendencia_item_id,

@@ -1,8 +1,10 @@
 import 'server-only'
+import type { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { registrarFalha } from '@/lib/observabilidade'
 import { kitPayloadSchema, type KitPayload } from '@/lib/validators/kit'
-import type { Json } from '@/lib/types/database'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { FORMA_KIT, LEITURA_KITS_ADMIN, LEITURA_KITS_ATIVOS } from '@/lib/queries/formas/kits'
 
 // Leituras dos KITS DE MOVIMENTAÇÃO (F12 · M12 / F5 §5.9). Rotas só do operador
 // (/admin/kits e /movimentacoes/nova) — client do servidor com a sessão do
@@ -17,15 +19,10 @@ export type Kit = {
   created_at: string
 }
 
-type RawKitRow = {
-  id: string
-  nome: string
-  payload: Json
-  ativo: boolean
-  created_at: string
-}
-
-const KIT_SELECT = 'id, nome, payload, ativo, created_at'
+// A linha como a forma a entrega (F58): `payload` é JSON de qualquer forma — objeto, lista,
+// escalar ou `null` —, e só `kitPayloadSchema`, abaixo, decide se é um kit. O tipo à mão de antes
+// dizia `Record<string, unknown>`, o que o banco não garante.
+type RawKitRow = z.infer<typeof FORMA_KIT>
 
 // O `payload` é jsonb: chega como `Json`, não como `KitPayload`. Quem grava é
 // sempre uma action com Zod (actions/kits.ts), mas o BANCO não impõe forma
@@ -75,11 +72,11 @@ export async function listarKitsAtivos(): Promise<Kit[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('kits_modelos')
-    .select(KIT_SELECT)
+    .select(LEITURA_KITS_ATIVOS.select)
     .eq('ativo', true)
     .order('nome', { ascending: true })
   if (error) throw new Error(`Falha ao listar kits: ${error.message}`)
-  return mapearKits((data ?? []) as RawKitRow[])
+  return mapearKits(linhasDe(data, LEITURA_KITS_ATIVOS.forma, LEITURA_KITS_ATIVOS.rotulo))
 }
 
 // Catálogo completo (ativos e inativos) para /admin/kits.
@@ -87,10 +84,10 @@ export async function listarKitsAdmin(): Promise<ListaKitsAdmin> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('kits_modelos')
-    .select(KIT_SELECT)
+    .select(LEITURA_KITS_ADMIN.select)
     .order('nome', { ascending: true })
   if (error) throw new Error(`Falha ao listar kits: ${error.message}`)
-  const rows = (data ?? []) as RawKitRow[]
+  const rows = linhasDe(data, LEITURA_KITS_ADMIN.forma, LEITURA_KITS_ADMIN.rotulo)
   const kits = mapearKits(rows)
   return { kits, invalidos: rows.length - kits.length }
 }

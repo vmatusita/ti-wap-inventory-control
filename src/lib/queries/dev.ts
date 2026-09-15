@@ -4,10 +4,11 @@ import { exigirDev } from '@/lib/auth/acesso'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
 import type { DbClient } from '@/lib/auth/acesso'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_CHECAGENS_INTEGRIDADE } from '@/lib/queries/formas/dev'
 import {
   juntarCatalogoComResultados,
   type ChecagemResolvida,
-  type ResultadoChecagemRpc,
 } from '@/lib/validators/dev-integridade'
 
 // Leituras da área /dev (F22) — TODAS guardadas por `exigirDev()`.
@@ -280,11 +281,18 @@ export async function rodarChecagens(): Promise<Checagem[]> {
     return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: error.message }))
   }
 
+  // A forma errada segue o MESMO caminho de falha que o erro de banco, logo acima: a tela de
+  // diagnóstico não pode cair por causa das checagens — cada uma aparece como "não executada".
+  const r = linhasOuFalha(data, LEITURA_CHECAGENS_INTEGRIDADE.forma, LEITURA_CHECAGENS_INTEGRIDADE.rotulo)
+  if (!r.ok) {
+    return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: r.erro.message }))
+  }
+
   // A RPC devolve [{ chave, total, amostra }]. A junção mora em `juntarCatalogoComResultados`
   // (src/lib/validators/dev-integridade.ts, testada à parte): casa cada chave do catálogo pelo
   // nome dela — uma chave do catálogo que a RPC não devolva aparece como "não encontrada" — e,
   // ao final, anexa qualquer chave que a RPC devolva e o catálogo NÃO conheça, rotulada pela
   // própria chave (REDE PERMANENTE — ver o comentário acima de `CHECAGENS`). Assim um
   // descompasso entre este arquivo e a migration fica sempre visível, nunca silencioso.
-  return juntarCatalogoComResultados(CHECAGENS, (data ?? []) as ResultadoChecagemRpc[])
+  return juntarCatalogoComResultados(CHECAGENS, r.linhas)
 }
