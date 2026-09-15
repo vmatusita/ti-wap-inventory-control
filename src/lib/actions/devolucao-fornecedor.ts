@@ -15,7 +15,7 @@ import {
 } from '@/lib/ativos/identidade'
 import { buscarAtivoResumo } from '@/lib/queries/ativos'
 import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
-import type { Json } from '@/lib/types/database'
+import { chamarRpc } from '@/lib/supabase/rpc'
 
 export type DevolverFornecedorResult = {
   ok: boolean
@@ -115,10 +115,10 @@ export async function devolverAoFornecedor(
       }
     : null
 
-  const { data: res, error } = await supabase.rpc('devolver_ao_fornecedor', {
+  const { data: res, error } = await chamarRpc(supabase, 'devolver_ao_fornecedor', {
     p_ativo_id: dados.ativo_id,
-    p_mov: p_mov as unknown as Json,
-    p_substituto: p_substituto as unknown as Json,
+    p_mov,
+    p_substituto,
     p_criado_por: aut.uid,
   })
 

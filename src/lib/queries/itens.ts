@@ -5,7 +5,7 @@ import { hojeISO } from '@/lib/format'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
-import { filialParaRpc } from '@/lib/queries/rpc-filial'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import type { LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
@@ -136,8 +136,8 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
 // consolidado (filialId null). Reaproveita a RPC rel_saldo_itens (0016).
 export async function getSaldosItens(filialId: number | null): Promise<SaldoItem[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('rel_saldo_itens', {
-    p_filial: filialParaRpc(filialId),
+  const { data, error } = await chamarRpc(supabase, 'rel_saldo_itens', {
+    p_filial: filialId,
     p_ate: hojeISO(),
   })
   if (error) throw new Error(`Falha ao ler saldos: ${error.message}`)
@@ -624,7 +624,7 @@ export async function saldoDoColaborador(
   colaboradorId: string,
 ): Promise<SaldoDoColaborador[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('rel_saldo_colaborador', {
+  const { data, error } = await chamarRpc(supabase, 'rel_saldo_colaborador', {
     p_colaborador: colaboradorId,
   })
   if (error) throw new Error(`Falha ao ler o saldo do colaborador: ${error.message}`)
@@ -659,7 +659,7 @@ export async function saldosPorColaborador(
   if (distintos.length === 0) return { ok: true, mapa: new Map() }
 
   const respostas = await Promise.all(
-    distintos.map((id) => supabase.rpc('rel_saldo_colaborador', { p_colaborador: id })),
+    distintos.map((id) => chamarRpc(supabase, 'rel_saldo_colaborador', { p_colaborador: id })),
   )
 
   const mapa = new Map<string, SaldoDoColaborador[]>()

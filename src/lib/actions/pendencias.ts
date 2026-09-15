@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   reabrirPendenciaItemSchema,
@@ -23,7 +24,6 @@ import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { hojeISO } from '@/lib/format'
 import type { TipoLancamento } from '@/lib/dominio'
-import type { Json } from '@/lib/types/database'
 
 // Resolve (encerra) 1..N pendências de item numa tacada — o caminho para zerar a
 // fila herdada com UMA justificativa (F18 §B2). Só toca as ABERTAS (`.eq('status',
@@ -90,7 +90,8 @@ export async function resolverPendenciaItem(input: {
   // branco deixaria o acessório na conta da pessoa exatamente como antes da F38.
   if (lancamentos.erro) return { ok: false, erro: lancamentos.erro }
 
-  const { data, error } = await supabase.rpc(
+  const { data, error } = await chamarRpc(
+    supabase,
     'resolver_pendencias_item_com_lancamentos',
     {
       p_ids: ids,
@@ -98,7 +99,7 @@ export async function resolverPendenciaItem(input: {
       // '' e não null — ver a nota igual em `estornarMovimentacao` (actions/movimentacoes.ts):
       // a RPC faz `nullif(btrim(coalesce(p_observacao, '')), '')` e grava o mesmo.
       p_observacao: observacao ?? '',
-      p_lancamentos: lancamentos.payload as unknown as Json,
+      p_lancamentos: lancamentos.payload,
       p_criado_por: aut.uid,
     },
   )
@@ -133,6 +134,24 @@ export async function resolverPendenciaItem(input: {
 //
 // O texto do `ajuste` da baixa (obrigatório pelo CHECK `lanc_item_ajuste_obs`) é
 // composto por função pura e testada, nunca dentro do SQL.
+//
+// F58 — forma HONESTA do lançamento que vai para `p_lancamentos` (jsonb), em vez de
+// `Record<string, unknown>[]` + `as unknown as Json`: declarada com `type` (não
+// `interface` — ver a armadilha em src/lib/supabase/json.ts), cada campo já é
+// `JsonSerializavel`, então o payload entra na porta sem cast nenhum.
+type LancamentoDaResolucao = {
+  pendencia_id: string
+  item_id: number
+  filial_id: number
+  quantidade: number
+  data: string
+  colaborador: string | null
+  colaborador_id: string | null
+  observacao_retorno: string
+  observacao_regularizacao: string
+  observacao_ajuste: string | null
+}
+
 async function montarLancamentosDaResolucao(
   supabase: Awaited<ReturnType<typeof createClient>>,
   args: {
@@ -146,7 +165,7 @@ async function montarLancamentosDaResolucao(
     desfecho: 'recuperado' | 'baixa'
     observacao: string | null
   },
-): Promise<{ payload: Record<string, unknown>[]; ativos: Set<string>; erro?: string }> {
+): Promise<{ payload: LancamentoDaResolucao[]; ativos: Set<string>; erro?: string }> {
   const ativos = new Set<string>()
   if (args.alvos.length === 0) return { payload: [], ativos }
 
@@ -178,7 +197,7 @@ async function montarLancamentosDaResolucao(
   const saldoPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
 
   const consumido = new Map<string, number>()
-  const payload: Record<string, unknown>[] = []
+  const payload: LancamentoDaResolucao[] = []
 
   for (const p of args.alvos) {
     ativos.add(p.ativo_id)
@@ -327,7 +346,21 @@ export async function reabrirPendenciaItem(input: {
     .is('estorna_id', null)
   if (eLanc) return { ok: false, erro: traduzErroBanco(eLanc.message, eLanc.code) }
 
-  const estornos = (lancDaPendencia ?? []).map((l) => {
+  // F58 — mesma forma honesta de `LancamentoDaResolucao`: `type` (não `interface`)
+  // com campos já `JsonSerializavel`, para a porta aceitar sem cast.
+  type EstornoDaReabertura = {
+    estorna_id: string
+    pendencia_id: string | null
+    item_id: number
+    filial_id: number
+    tipo: TipoLancamento
+    quantidade: number
+    chamado: string | null
+    observacao: string | null
+    colaborador: string | null
+    colaborador_id: string | null
+  }
+  const estornos: EstornoDaReabertura[] = (lancDaPendencia ?? []).map((l) => {
     const plano = planejarEstorno(
       {
         tipo: l.tipo as TipoLancamento,
@@ -355,10 +388,10 @@ export async function reabrirPendenciaItem(input: {
   // docs/DECISOES.md): o CHECK não a exige, e preservá-la perderia sentido — ela
   // descrevia UM desfecho que, reaberta a pendência, deixou de valer. O texto que
   // explica a reabertura é a JUSTIFICATIVA, que vai para a anotação (abaixo).
-  const { error } = await supabase.rpc('reabrir_pendencias_item_com_estornos', {
+  const { error } = await chamarRpc(supabase, 'reabrir_pendencias_item_com_estornos', {
     p_ids: idsAlvo,
     p_justificativa: justificativa,
-    p_estornos: estornos as unknown as Json,
+    p_estornos: estornos,
     p_criado_por: aut.uid,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }

@@ -35,7 +35,7 @@ import {
   type TermoMultiFilial,
 } from '@/lib/queries/import-logs'
 import type { Filial } from '@/lib/queries/filiais'
-import type { Json } from '@/lib/types/database'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/importar'
 import {
   escopoDeGestaoAtual,
@@ -674,11 +674,11 @@ export async function aplicarImport(input: {
   // `create or replace` casa pela LISTA DE TIPOS dos argumentos. O overload quebraria
   // `seguranca_catalogo.sql`, que resolve a assinatura de 4 argumentos e exige UMA linha.
   const planoComConfirmacao = { ...plano, confirmacao: confirmacaoTexto }
-  const { data, error } = await client.rpc('importar_ativos_substituir', {
-    p_plano: planoComConfirmacao as unknown as Json,
+  const { data, error } = await chamarRpc(client, 'importar_ativos_substituir', {
+    p_plano: planoComConfirmacao,
     p_backup_path: backupPath,
-    p_contagens: custoPreview as unknown as Json,
-    p_correcoes: correcoes as unknown as Json,
+    p_contagens: custoPreview,
+    p_correcoes: correcoes,
   })
   if (error) {
     // F7F — diagnóstico: o erro da RPC caía no genérico cego (traduzErroBanco só

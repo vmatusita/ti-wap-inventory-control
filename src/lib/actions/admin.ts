@@ -11,6 +11,7 @@ import type { PapelUsuario } from '@/lib/auth/papeis'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { getSaldosItens } from '@/lib/queries/itens'
 import {
@@ -357,7 +358,7 @@ async function aplicarCargoEVinculos(
   papel: PapelUsuario,
   filiais: readonly number[],
 ): Promise<GravacaoCargo> {
-  const { error: erroPapel } = await supabase.rpc('definir_papel_usuario', {
+  const { error: erroPapel } = await chamarRpc(supabase, 'definir_papel_usuario', {
     p_alvo: usuarioId,
     p_papel: papel,
   })
@@ -377,7 +378,7 @@ async function aplicarCargoEVinculos(
   // banco (`pode_escrever_filial` ignora vínculo de nível admin e fecha para consulta), mas a
   // coluna "Filiais de escrita" passaria a exibir vínculo que não vale nada — e um dia
   // alguém acreditaria nela.
-  const { error: erroVinculos } = await supabase.rpc('definir_vinculos_usuario', {
+  const { error: erroVinculos } = await chamarRpc(supabase, 'definir_vinculos_usuario', {
     p_alvo: usuarioId,
     p_filiais: [...filiais],
   })
@@ -540,7 +541,7 @@ export async function definirStatusUsuario(input: {
   //
   // F22: pela RPC (client de SESSÃO), não mais pelo service role — ver o comentário longo em
   // `aplicarCargoEVinculos`. É o que faz a proteção do dev valer também aqui, no banco.
-  const { error: erroStatus } = await supabase.rpc('definir_status_usuario', {
+  const { error: erroStatus } = await chamarRpc(supabase, 'definir_status_usuario', {
     p_alvo: usuarioId,
     p_ativo: ativo,
   })

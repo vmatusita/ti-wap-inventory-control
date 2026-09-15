@@ -18,7 +18,7 @@ import {
   sugestoesFornecedores,
   MIN_CHARS_SUGESTAO,
 } from '@/lib/queries/compras'
-import type { Json } from '@/lib/types/database'
+import { chamarRpc } from '@/lib/supabase/rpc'
 
 export type CompraResult = {
   ok: boolean
@@ -107,8 +107,8 @@ export async function registrarCompra(
     data: dados.data,
   }))
 
-  const { data: criados, error } = await supabase.rpc('criar_compra_lote', {
-    p_itens: p_itens as unknown as Json,
+  const { data: criados, error } = await chamarRpc(supabase, 'criar_compra_lote', {
+    p_itens,
     p_criado_por: aut.uid,
   })
 

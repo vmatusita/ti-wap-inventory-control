@@ -13,6 +13,7 @@ import {
 } from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
 // `import type` é permitido num módulo 'use server' — a regra da F13 proíbe EXPORTAR o que
@@ -278,14 +279,14 @@ export async function apagarConflito(input: {
   }
 
   // ---- a RPC (a trava de verdade) ----
-  const { data, error } = await supabase.rpc('apagar_ativos_conflito_filiais', {
+  // `p_backup_path = null` é "sem arquivo" (abaixo do cap não há backup em arquivo — o
+  // backup vai em jsonb no próprio evento) — a porta aceita null aqui pelo mapa da RPC
+  // (src/lib/supabase/rpc.ts).
+  const { data, error } = await chamarRpc(supabase, 'apagar_ativos_conflito_filiais', {
     p_ativos: ativoIds,
     p_confirmacao: parsed.data.confirmacao,
     p_justificativa: parsed.data.justificativa,
-    // ⚠ `supabase gen types` declara TODO parâmetro de RPC como não-anulável, mas aqui NULL
-    // é valor de domínio (abaixo do cap não há arquivo de backup — o backup vai em jsonb
-    // no próprio evento). Mesmo contorno que `resetarBloco` usa para o alcance global.
-    p_backup_path: backupPath as unknown as string,
+    p_backup_path: backupPath,
   })
   if (error) {
     registrarFalha({

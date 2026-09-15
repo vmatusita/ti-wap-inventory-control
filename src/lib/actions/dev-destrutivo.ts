@@ -33,6 +33,7 @@ import {
   raizDoAtivo,
   raizDoBackupEmArquivo,
 } from '@/lib/storage/copiar-antes-de-remover'
+import { chamarRpc } from '@/lib/supabase/rpc'
 
 // Server Actions da ZONA DESTRUTIVA da /dev (F23) — apagar, resetar e forçar.
 //
@@ -209,7 +210,7 @@ export async function apagarAtivo(input: {
     }
   }
 
-  const { data, error } = await supabase.rpc('apagar_ativo', {
+  const { data, error } = await chamarRpc(supabase, 'apagar_ativo', {
     p_ativo: ativoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -267,7 +268,7 @@ export async function apagarMovimentacao(input: {
   })
   if (recusa) return { ok: false, erro: recusa }
 
-  const { data, error } = await supabase.rpc('apagar_movimentacao', {
+  const { data, error } = await chamarRpc(supabase, 'apagar_movimentacao', {
     p_mov: movimentacaoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -310,7 +311,7 @@ export async function apagarItem(input: {
   })
   if (recusa) return { ok: false, erro: recusa }
 
-  const { data, error } = await supabase.rpc('apagar_item', {
+  const { data, error } = await chamarRpc(supabase, 'apagar_item', {
     p_item: itemId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -397,12 +398,14 @@ export async function resetarBloco(input: {
     }
   }
 
-  const rpc = bloco === 'acervo' ? 'resetar_acervo' : 'resetar_itens'
-  // ⚠ `p_filial as unknown as number`: `supabase gen types` declara todo parâmetro de RPC como
-  // não-anulável, e aqui NULL é um valor de domínio — o alcance GLOBAL. As duas RPCs tratam
-  // `p_filial is null` em cada recorte (migration 0083).
-  const { data, error } = await supabase.rpc(rpc, {
-    p_filial: filialId as unknown as number,
+  // Tipado explicitamente: a porta exige `N extends NomeRpc`, e o tipo inferido de um
+  // ternário entre dois literais widened para `string` sem essa anotação.
+  const rpc: 'resetar_acervo' | 'resetar_itens' =
+    bloco === 'acervo' ? 'resetar_acervo' : 'resetar_itens'
+  // `p_filial = null` é o alcance GLOBAL, valor de domínio — a porta aceita null aqui por
+  // `ALCANCE_DO_RESET` (src/lib/supabase/rpc.ts).
+  const { data, error } = await chamarRpc(supabase, rpc, {
+    p_filial: filialId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
     p_backup_path: backupPath,
@@ -444,7 +447,7 @@ export async function forcarEstado(input: {
   }
   const { ativoId, status, justificativa } = parsed.data
 
-  const { data, error } = await supabase.rpc('forcar_estado_ativo', {
+  const { data, error } = await chamarRpc(supabase, 'forcar_estado_ativo', {
     p_ativo: ativoId,
     p_status: status,
     p_justificativa: justificativa,
@@ -479,7 +482,7 @@ export async function forcarSaldo(input: {
   }
   const { itemId, filialId, saldoAlvo, justificativa } = parsed.data
 
-  const { data, error } = await supabase.rpc('forcar_saldo_item', {
+  const { data, error } = await chamarRpc(supabase, 'forcar_saldo_item', {
     p_item: itemId,
     p_filial: filialId,
     p_saldo_alvo: saldoAlvo,

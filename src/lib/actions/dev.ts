@@ -9,6 +9,7 @@ import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { emailDoUsuario, getEstadoUsuario, idsDeAdminsAtivos } from '@/lib/queries/admin'
 import { rodarChecagens, type Checagem } from '@/lib/queries/dev'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import {
   alterarEmailUsuarioSchema,
   apagarUsuarioSchema,
@@ -149,7 +150,7 @@ export async function apagarUsuario(input: {
   if (recusa) return { ok: false, erro: recusa }
 
   // 1º — o banco. Aqui mora a trava de verdade (a RPC exige `e_dev()`).
-  const { error: erroRpc } = await supabase.rpc('apagar_usuario', { p_alvo: usuarioId })
+  const { error: erroRpc } = await chamarRpc(supabase, 'apagar_usuario', { p_alvo: usuarioId })
   if (erroRpc) return { ok: false, erro: traduzErroBanco(erroRpc.message, erroRpc.code) }
 
   // 2º — o Auth. `alvo` é o e-mail LEGÍVEL: depois desta linha ele não existe mais em lugar
@@ -229,7 +230,7 @@ export async function encerrarSessoes(input: { usuarioId: string }): Promise<Dev
   }
   const { usuarioId } = parsed.data
 
-  const { data, error } = await supabase.rpc('encerrar_sessoes_usuario', { p_alvo: usuarioId })
+  const { data, error } = await chamarRpc(supabase, 'encerrar_sessoes_usuario', { p_alvo: usuarioId })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   const quantas = typeof data === 'number' ? data : 0

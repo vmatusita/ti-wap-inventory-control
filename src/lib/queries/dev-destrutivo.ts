@@ -5,6 +5,7 @@ import type { DbClient } from '@/lib/auth/acesso'
 import { rotuloDoAtivo } from '@/lib/validators/dev-destrutivo'
 import type { StatusAtivo } from '@/lib/dominio'
 import { mapComLimite, LIMITE_LOTES_PARALELOS } from '@/lib/queries/relatorios/comum'
+import { chamarRpc } from '@/lib/supabase/rpc'
 
 // Leituras da ZONA DESTRUTIVA da /dev (F23) — todas guardadas por `exigirDev()`.
 //
@@ -337,13 +338,11 @@ export async function previaDoReset(
   filialId: number | null,
 ): Promise<PreviaReset> {
   const supabase = await sessaoDeDev()
-  // ⚠ O cast existe porque `supabase gen types` declara TODO parâmetro de RPC como
-  // não-anulável, mesmo quando o SQL aceita NULL — e aqui `p_filial = null` é um valor de
-  // domínio, não um descuido: é o ALCANCE GLOBAL. A função em SQL trata `p_filial is null` em
-  // cada contagem (migration 0086).
-  const { data, error } = await supabase.rpc('previa_reset', {
+  // `p_filial = null` é o ALCANCE GLOBAL, valor de domínio — a porta aceita null aqui por
+  // `ALCANCE_DO_RESET` (src/lib/supabase/rpc.ts).
+  const { data, error } = await chamarRpc(supabase, 'previa_reset', {
     p_bloco: bloco,
-    p_filial: filialId as unknown as number,
+    p_filial: filialId,
   })
   if (error) throw new Error(`Falha ao calcular a prévia do reset: ${error.message}`)
   return data as unknown as PreviaReset

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
 import { lerSessaoView, VIEW_COOKIE_NAME } from '@/lib/auth/senha-sessao'
 import { PAPEL_ROTULO, eAdmin, escopoDeEscrita, papelAtende } from '@/lib/auth/papeis'
@@ -107,7 +108,7 @@ export async function papelAtual(supabase: DbClient): Promise<PapelUsuario | nul
 type LeituraPapel = { ok: true; papel: PapelUsuario | null } | { ok: false }
 
 async function lerPapel(supabase: DbClient): Promise<LeituraPapel> {
-  const { data, error } = await supabase.rpc('papel_atual')
+  const { data, error } = await chamarRpc(supabase, 'papel_atual')
   if (error) {
     // Logado ALTO: é assim que se descobre que o banco caiu, em vez de ler o sintoma como
     // "todo mundo foi desativado".
@@ -136,7 +137,7 @@ async function lerVinculo(
   supabase: DbClient,
   filialId: number,
 ): Promise<LeituraVinculo> {
-  const { data, error } = await supabase.rpc('pode_escrever_filial', { fid: filialId })
+  const { data, error } = await chamarRpc(supabase, 'pode_escrever_filial', { fid: filialId })
   if (error) {
     registrarFalha({ escopo: 'acesso.pode-escrever-filial', erro: error, ctx: { filialId } })
     return { ok: false }

@@ -11,7 +11,7 @@ import type {
 import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
 import { paginarTodos, type DbClient } from './comum'
-import { filialParaRpc } from '@/lib/queries/rpc-filial'
+import { chamarRpc } from '@/lib/supabase/rpc'
 
 // Itens por quantidade nos grupos 2–3 do relatório v2 (acessórios/componentes —
 // OS-F3 3.6): saldo as-of + movimentação no período + carimbo de frescor + a
@@ -80,9 +80,9 @@ export async function getGruposItens(
   periodo: Periodo,
 ): Promise<GrupoRelatorio[]> {
   const [saldos, movs, frescor, obsRows, catalogo] = await Promise.all([
-    client.rpc('rel_saldo_itens', { p_filial: filialParaRpc(filialId), p_ate: periodo.ate }),
-    client.rpc('rel_mov_itens', { p_filial: filialParaRpc(filialId), p_de: periodo.de, p_ate: periodo.ate }),
-    client.rpc('rel_frescor_itens', { p_filial: filialParaRpc(filialId), p_ate: periodo.ate }),
+    chamarRpc(client, 'rel_saldo_itens', { p_filial: filialId, p_ate: periodo.ate }),
+    chamarRpc(client, 'rel_mov_itens', { p_filial: filialId, p_de: periodo.de, p_ate: periodo.ate }),
+    chamarRpc(client, 'rel_frescor_itens', { p_filial: filialId, p_ate: periodo.ate }),
     // Paginada de verdade — o comentário no alto do arquivo já dizia "como as
     // outras quatro", mas esta usava `.limit(1000)` FIXO. Com o preset "Tudo"
     // (plurianual), o 1.001º lançamento com observação sumia sem aviso, e a

@@ -79,7 +79,7 @@ let url, anon, email, senha
 if (alvo === 'ensaio') {
   url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
   anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
-  email = process.env.PERF_PERSONA || 'seed.dev@wap.ind.br'
+  email = opcao('persona') || 'seed.consulta@wap.ind.br'
   if (!/^seed\.[a-z]+@wap\.ind\.br$/.test(email)) recusar('no ensaio a persona tem de ser FICTÍCIA (seed.<x>@wap.ind.br).')
   const fonteSeed = readFileSync(join(RAIZ, 'scripts', 'seed.ts'), 'utf8')
   senha = /const\s+SENHA_PERFIS_SEED\s*=\s*['"]([^'"]+)['"]/.exec(fonteSeed)?.[1] ?? ''

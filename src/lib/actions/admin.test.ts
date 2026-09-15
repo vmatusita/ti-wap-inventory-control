@@ -125,18 +125,28 @@ describe('F22 — cargo, status e vínculo só se gravam pelas RPCs, nunca pelo 
   })
 
   it('as três RPCs de gestão são as chamadas, e com o client de SESSÃO', () => {
+    // F58 · Frente B — a PORTA ÚNICA de RPC: `supabase.rpc('nome', …)` virou
+    // `chamarRpc(supabase, 'nome', …)` (`supabase` é o client de SESSÃO em escopo nas
+    // três funções que gravam cargo/vínculo/status). A prova continua a MESMA — client
+    // de sessão, nunca o administrativo —, só a grafia da chamada mudou.
     for (const rpc of [
       'definir_papel_usuario',
       'definir_vinculos_usuario',
       'definir_status_usuario',
     ]) {
-      expect(SEM_ESPACO, `${rpc} não é chamada`).toContain(`.rpc('${rpc}'`)
+      expect(SEM_ESPACO, `${rpc} não é chamada pela porta`).toContain(
+        `chamarRpc(supabase,'${rpc}'`,
+      )
       // Pelo client administrativo a decisão voltaria a ser do `if` da action: `auth.uid()`
       // é NULO no service role, e a guarda interna da RPC não teria em quem se apoiar.
       expect(SEM_ESPACO, `${rpc} chamada pelo client administrativo`).not.toContain(
-        `admin.rpc('${rpc}'`,
+        `chamarRpc(admin,'${rpc}'`,
       )
     }
+    // Nenhuma chamada de RPC deste arquivo pode voltar a usar `.rpc(` direto — a porta
+    // é a ÚNICA forma, e um `admin.rpc(`/`supabase.rpc(` esquecido é exatamente a volta
+    // que este describe existe para pegar.
+    expect(CODIGO, 'sobrou uma chamada `.rpc(` direta, fora da porta').not.toMatch(/\.rpc\(/)
   })
 
   it('o convite também recusa conceder o cargo dev sem ser dev', () => {

@@ -27,8 +27,7 @@ import {
   ultimoPorAtivo,
   type DbClient,
 } from './comum'
-import { filialParaRpc } from '@/lib/queries/rpc-filial'
-import type { Database } from '@/lib/types/database'
+import { chamarRpc, type ResultadoDaPorta } from '@/lib/supabase/rpc'
 
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
@@ -105,15 +104,14 @@ export async function lerEstadoAtivos(
   // corpo, e paginar por OFFSET sem ordem total repete e perde linhas quando o
   // plano muda entre duas páginas (ver o bloco de `paginarTodos` em comum.ts).
   // `ativo_id` é uuid e há uma linha por ativo, então é ordem total.
-  type LinhaAsof = Database['public']['Functions']['rel_estoque_asof']['Returns'][number]
+  type LinhaAsof = ResultadoDaPorta<'rel_estoque_asof'>[number]
   const linhas = await paginarTodos<LinhaAsof>(
     'Falha ao reconstruir o estoque as-of',
     (from, to) =>
-      client
-        .rpc('rel_estoque_asof', {
-          p_filial: filialParaRpc(filialId),
-          p_data: ate,
-        })
+      chamarRpc(client, 'rel_estoque_asof', {
+        p_filial: filialId,
+        p_data: ate,
+      })
         .order('ativo_id', { ascending: true })
         .range(from, to),
   )

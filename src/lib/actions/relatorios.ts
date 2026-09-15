@@ -20,7 +20,7 @@ import {
   type DbClient,
 } from '@/lib/queries/relatorios'
 import { dataRealSchema } from '@/lib/validators/data'
-import type { Json } from '@/lib/types/database'
+import { paraJson } from '@/lib/supabase/json'
 
 const periodoSchema = z.object({
   filialSlug: z.string().min(1),
@@ -143,7 +143,7 @@ export async function gerarRelatorio(input: {
         periodo_ate: ate,
         filial_id: filialId,
         versao: proxima,
-        dados: snapshot as unknown as Json,
+        dados: paraJson(snapshot),
         gerado_por: aut.uid,
         observacao: obs,
       })

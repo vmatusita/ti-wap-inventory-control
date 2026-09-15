@@ -44,8 +44,8 @@ import {
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { saldosPorColaborador } from '@/lib/queries/itens'
 import { planejarEstorno } from '@/lib/itens/estorno'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import type { StatusAtivo, TipoLancamento } from '@/lib/dominio'
-import type { Json } from '@/lib/types/database'
 
 // Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
 // Client Component e só pode importar deste módulo — `src/lib/queries/**` é
@@ -346,13 +346,12 @@ export async function registrarMovimentacoes(input: {
   // o vínculo em branco — deixaria o acessório na conta da pessoa para sempre.
   if (erroDosItens) return loteInteiroRecusado(itens, undefined, erroDosItens)
 
-  const { data: retorno, error: rpcErr } = await supabase.rpc(
+  const { data: retorno, error: rpcErr } = await chamarRpc(
+    supabase,
     'criar_movimentacao_com_itens',
     {
-      // O gerador de tipos declara `Json` para argumento jsonb; as duas listas
-      // são objetos simples (string/number/null/array), então o cast é honesto.
-      p_movimentacoes: itens.map((item) => montarRow(item, uid, vinculos)) as unknown as Json,
-      p_itens: itensPayload as unknown as Json,
+      p_movimentacoes: itens.map((item) => montarRow(item, uid, vinculos)),
+      p_itens: itensPayload,
       p_criado_por: uid,
     },
   )
@@ -441,13 +440,26 @@ export async function registrarMovimentacoes(input: {
 //     recusar a devolução ali mataria o D12 ("entrega antiga funciona igual"). Sem
 //     saldo, o `retorno` é gravado sem o vínculo — repõe o estoque do mesmo jeito,
 //     sem inventar dívida. A tela diz, discretamente, qual dos dois aconteceu.
+// F58 — forma HONESTA do que vai em `p_itens` (jsonb): `type` (não `interface` —
+// ver a armadilha em src/lib/supabase/json.ts), campos já `JsonSerializavel`.
+type ItemJuntoPayload = {
+  indice_movimentacao: number
+  item_id: number
+  tipo: 'saida' | 'retorno'
+  quantidade: number
+  data: string
+  colaborador: string | null
+  colaborador_id: string | null
+  observacao_regularizacao: string
+}
+
 async function montarItensJunto(
   supabase: ServerClient,
   itens: MovimentacaoInput[],
   itensJunto: ItemJuntoInput[],
   ativoPorId: Map<string, AtivoBasico>,
   vinculos: Map<string, string>,
-): Promise<{ payload: Record<string, unknown>[]; avisos: string[]; erro?: string }> {
+): Promise<{ payload: ItemJuntoPayload[]; avisos: string[]; erro?: string }> {
   if (itensJunto.length === 0) return { payload: [], avisos: [] }
 
   type Linha = ItemJuntoInput & {
@@ -558,15 +570,21 @@ async function montarItensJunto(
     }
   }
 
-  const payload = linhas.map((l) => ({
+  const payload: ItemJuntoPayload[] = linhas.map((l) => ({
     indice_movimentacao: l.indice,
     item_id: l.itemId,
     tipo: l.tipo,
     quantidade: l.quantidade,
     data: l.data,
     colaborador: l.colaborador,
+    // `?? null`: `decisao.get(l)` é `string | null | undefined` (`Map.get`) mesmo já
+    // sabido presente por `decisao.has(l)` — o TS não amarra as duas chamadas. Nunca
+    // é `undefined` em runtime aqui; o `?? null` só torna o tipo tão honesto quanto o
+    // valor.
     colaborador_id:
-      l.tipo === 'retorno' ? (decisao.has(l) ? decisao.get(l) : l.colaboradorId) : l.colaboradorId,
+      l.tipo === 'retorno'
+        ? (decisao.has(l) ? decisao.get(l) : l.colaboradorId) ?? null
+        : l.colaboradorId,
     // F41 — A JUSTIFICATIVA DO ACERTO AUTOMÁTICO, mandada SEMPRE.
     //
     // Quem decide se vai haver acerto é a RPC, sob a trava, lendo o saldo do par
@@ -709,14 +727,14 @@ export async function estornarMovimentacao(input: {
     }
   }
 
-  const { error: insertErr } = await supabase.rpc('estornar_movimentacao_com_itens', {
+  const { error: insertErr } = await chamarRpc(supabase, 'estornar_movimentacao_com_itens', {
     p_movimentacao_id: mov.id,
     // '' e não null: o gerador de tipos declara `p_observacao text` (sem default),
     // então `null` não é atribuível. Os dois são EQUIVALENTES para a RPC, que faz
     // `nullif(btrim(coalesce(p_observacao, '')), '')` — a linha gravada é a mesma.
     // Achado da F41 ao rodar `db:types`: o database.ts estava velho e escondia isso.
     p_observacao: parsed.data.observacao ?? '',
-    p_estornos: estornos as unknown as Json,
+    p_estornos: estornos,
     p_criado_por: aut.uid,
   })
 

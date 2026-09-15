@@ -17,14 +17,15 @@
 //   3. ESVAZIA `SMOKE_*` no processo filho (string vazia, não ausência: o `medir.mjs` só
 //      carrega do `.env.local` o que ainda for `undefined`), para a cascata não ter para
 //      onde cair;
-//   4. loga com uma persona FICTÍCIA do seed (`seed.dev@wap.ind.br`, cargo admin no ensaio),
+//   4. loga com uma persona FICTÍCIA do seed (`--persona=`, padrão `seed.consulta@wap.ind.br` — a única
+//      conta do seed cuja senha ainda é a constante, medido em 15/09/2026),
 //      cuja senha é a constante do próprio `scripts/seed.ts` — lida do arquivo, nunca impressa.
 //
 // Nenhum valor de credencial sai daqui: o terminal mostra NOME, REF e HOST.
 //
 // USO (a credencial entra por `--env-file`, direto do arquivo para o process.env):
 //   node --env-file=.env.local scripts/perf/medir-local.mjs --porta=3100 --rotulo=f58-base-main-local
-//   opcionais: --repeticoes=15 --aquecimento=2 --saida=docs/perf/x.json
+//   opcionais: --persona=seed.<x>@wap.ind.br --repeticoes=15 --aquecimento=2 --saida=docs/perf/x.json
 // =============================================================================
 
 import { spawn } from 'node:child_process'
@@ -76,7 +77,7 @@ if (refSmoke && refSmoke === refAlvo) {
 const fonteSeed = readFileSync(join(RAIZ, 'scripts', 'seed.ts'), 'utf8')
 const senhaPersona = /const\s+SENHA_PERFIS_SEED\s*=\s*['"]([^'"]+)['"]/.exec(fonteSeed)?.[1] ?? ''
 if (!senhaPersona) recusar('não achei SENHA_PERFIS_SEED em scripts/seed.ts.')
-const emailPersona = process.env.PERF_PERSONA || 'seed.dev@wap.ind.br'
+const emailPersona = opcao('persona') || 'seed.consulta@wap.ind.br'
 if (!/^seed\.[a-z]+@wap\.ind\.br$/.test(emailPersona)) recusar('a persona precisa ser uma conta FICTÍCIA do seed (seed.<x>@wap.ind.br).')
 
 const urlApp = `http://localhost:${porta}`

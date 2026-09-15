@@ -19,7 +19,7 @@ import {
   type TransferenciaItemInput,
 } from '@/lib/validators/item'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
-import type { Json } from '@/lib/types/database'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { chaveItem } from '@/lib/itens/chave'
 import { avisoDeRegularizacao, textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { planejarEstorno } from '@/lib/itens/estorno'
@@ -151,7 +151,21 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
     else for (const i of cat ?? []) nomesDeItem.set(i.id, i.nome)
   }
 
-  const payload: Record<string, unknown>[] = []
+  // F58 — forma HONESTA do que vai em `p_linhas` (jsonb): `type` (não `interface` —
+  // ver a armadilha em src/lib/supabase/json.ts), campos já `JsonSerializavel`.
+  type LinhaLancamentoPayload = {
+    item_id: number
+    filial_id: number
+    tipo: TipoLancamento
+    quantidade: number
+    chamado: string | null
+    colaborador: string | null
+    colaborador_id: string | null
+    data: string
+    observacao: string | null
+    observacao_regularizacao: string
+  }
+  const payload: LinhaLancamentoPayload[] = []
 
   for (const v of linhas) {
     const pessoaId = vinculos.get(chaveColaborador(v.colaborador)) ?? null
@@ -221,8 +235,8 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   // linha culpada em `detail` (f41_linha=N), e é ela que fica marcada. As outras
   // não vão como "ok" (não foram gravadas) nem como "erro" (não é culpa delas):
   // vão com o texto de que nada foi gravado.
-  const { data: retorno, error: erroRpc } = await supabase.rpc('lancar_itens_lote', {
-    p_linhas: payload as unknown as Json,
+  const { data: retorno, error: erroRpc } = await chamarRpc(supabase, 'lancar_itens_lote', {
+    p_linhas: payload,
     p_criado_por: uid,
   })
 
@@ -326,7 +340,7 @@ export async function transferirItens(
 
   const obs = observacoesDaTransferencia(origem.nome, destino.nome, observacao)
 
-  const { error } = await supabase.rpc('transferir_item', {
+  const { error } = await chamarRpc(supabase, 'transferir_item', {
     p_origem: origem_id,
     p_destino: destino_id,
     p_itens: linhas.map((l) => ({ item_id: l.item_id, quantidade: l.quantidade })),
