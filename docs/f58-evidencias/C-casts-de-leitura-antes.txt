@@ -1,0 +1,102 @@
+# F58 · Frente C — os casts de leitura ANTES dos lotes, pela trava sem-cast-de-leitura.test.ts
+# HEAD 88ae77e · 99 casts em 84 funções · queries 66 · actions 28 · fora das duas pastas 5
+
+src/app/(app)/dev/acoes-export.ts:139 [lerTrilha] (data ?? []) as unknown as RawLinha[]
+src/app/(app)/page.tsx:173 [DashboardPage] (pendenciasRes.data ?? []) as PendenciaHome[]
+src/lib/actions/colaboradores.ts:276 [consolidarColaboradores] (grupos ?? []) as Grupo[]
+src/lib/actions/colaboradores.ts:297 [consolidarColaboradores] g.grafia_exemplo as string
+src/lib/actions/conflitos.ts:304 [apagarConflito] (data ?? {}) as { ativos?: number movimentacoes?: number termos?: number arquivos_termos?:
+src/lib/actions/dev-destrutivo.ts:220 [apagarAtivo] (data ?? {}) as { arquivos_termos?: string[]; movimentacoes?: number; termos?: number }
+src/lib/actions/dev-destrutivo.ts:278 [apagarMovimentacao] (data ?? {}) as { status_restaurado?: string | null }
+src/lib/actions/dev-destrutivo.ts:321 [apagarItem] (data ?? {}) as { lancamentos?: number }
+src/lib/actions/dev-destrutivo.ts:416 [resetarBloco] (data ?? {}) as Record<string, unknown> & { arquivos_termos?: string[] }
+src/lib/actions/dev-destrutivo.ts:457 [forcarEstado] (data ?? {}) as { alterado?: boolean; de?: string; para?: string }
+src/lib/actions/dev-destrutivo.ts:493 [forcarSaldo] (data ?? {}) as { alterado?: boolean; de?: number; para?: number; delta?: number }
+src/lib/actions/devolucao-fornecedor.ts:129 [devolverAoFornecedor] (res ?? [])[0] as | { mov_id: string; substituto_id: string | null; substituto_mov_id: str
+src/lib/actions/itens.ts:272 [lancarItens] retorno as { regularizacoes?: number; unidades_regularizadas?: number } | null
+src/lib/actions/itens.ts:405 [estornarLancamento] orig.tipo as TipoLancamento
+src/lib/actions/movimentacoes.ts:293 [registrarMovimentacoes] a as AtivoBasico
+src/lib/actions/movimentacoes.ts:378 [registrarMovimentacoes] retorno as { movimentacoes?: string[] regularizacoes?: number unidades_regularizadas?: num
+src/lib/actions/movimentacoes.ts:680 [estornos] l.tipo as TipoLancamento
+src/lib/actions/movimentacoes.ts:712 [estornarMovimentacao] e.colaborador_id as string
+src/lib/actions/movimentacoes.ts:715 [estornarMovimentacao] e.colaborador_id as string
+src/lib/actions/pendencias.ts:115 [resolverPendenciaItem] data as { lancamentos?: number } | null
+src/lib/actions/pendencias.ts:205 [montarLancamentosDaResolucao] (itens ?? []) as ItemDoCatalogo[]
+src/lib/actions/pendencias.ts:206 [montarLancamentosDaResolucao] (tipos ?? []) as TipoParaPonte[]
+src/lib/actions/pendencias.ts:366 [estornos] l.tipo as TipoLancamento
+src/lib/actions/relatorios.ts:212 [lerUltimaVersao] data as unknown as { versao: number gerado_em: string autor: { nome: string | null } | nul
+src/lib/actions/termos.ts:162 [cidadesDasFiliais] (data ?? []) as CidadeDaFilial[]
+src/lib/actions/termos.ts:214 [prepararTermo] (data ?? []) as unknown as MovRow[]
+src/lib/actions/termos.ts:238 [prepararTermo] (existRows ?? []) as { tipo: TermoTipo; dados: CamposTermo & { data?: string } }[]
+src/lib/actions/termos.ts:671 [urlTermo] linha as unknown as { arquivo_path: string tipo: TermoTipo colaborador: string | null dado
+src/lib/actions/termos.ts:903 [pendentesIds] a.id as string
+src/lib/actions/termos.ts:917 [confirmarAssinaturaLote] a.id as string
+src/lib/ativos/identidade.ts:175 [cadastrosComMesmaIdentidade] a.filiais as { nome: string } | null
+src/lib/auth/acesso.ts:118 [lerPapel] data as PapelUsuario | null
+src/lib/auth/acesso.ts:198 [getOperador] perfil.papel as PapelUsuario
+src/lib/queries/admin.ts:412 [listarMotivosAdmin] (data ?? []) as MotivoAdmin[]
+src/lib/queries/admin.ts:433 [listarSenhasAcesso] (data ?? []) as SenhaAdmin[]
+src/lib/queries/ativos.ts:236 [rows] r.filiais as FilialEmbed
+src/lib/queries/ativos.ts:286 [buscarAtivoPorId] filiais as FilialEmbed
+src/lib/queries/ativos.ts:288 [buscarAtivoPorId] ativo as Tables<'ativos'>
+src/lib/queries/ativos.ts:309 [buscarVinculoAtivo] data as VinculoAtivo | null
+src/lib/queries/ativos.ts:325 [buscarSubstitutoDe] data as VinculoAtivo | null
+src/lib/queries/ativos.ts:352 [listarAnotacoesDoAtivo] (data ?? []) as unknown as Row[]
+src/lib/queries/ativos.ts:491 [buscarAtivosParaCombobox] (data ?? []) as unknown as Parameters<typeof resumoDe>[0][]
+src/lib/queries/ativos.ts:590 [listarAtivosParaExport] (data ?? []) as unknown as RawExportRow[]
+src/lib/queries/ativos.ts:638 [buscarAtivosResumoPorIds] (data ?? []) as unknown as RawAtivoResumo[]
+src/lib/queries/ativos.ts:672 [buscarAtivosPorPatrimonios] (data ?? []) as unknown as RawAtivoResumo[]
+src/lib/queries/ativos.ts:694 [buscarAtivoResumo] data as unknown as Parameters<typeof resumoDe>[0]
+src/lib/queries/colaboradores.ts:147 [filaDeConsolidacao] (data ?? []) as Row[]
+src/lib/queries/colaboradores.ts:190 [resumoDaConsolidacao] (data ?? []) as Linha[]
+src/lib/queries/colaboradores.ts:234 [resolverColaboradoresPorNome] (data ?? []) as { id: string; nome_chave: string | null }[]
+src/lib/queries/colaboradores.ts:402 [sugestoesDoCampoColaborador] (doCadastro.data ?? []) as { nome: string }[]
+src/lib/queries/colaboradores.ts:409 [sugestoesDoCampoColaborador] (deMovimentacoes.data ?? []) as { colaborador: string | null }[]
+src/lib/queries/colaboradores.ts:410 [sugestoesDoCampoColaborador] (deLancamentos.data ?? []) as { colaborador: string | null }[]
+src/lib/queries/compras.ts:309 [ultimaCompraDoOperador] data as unknown as UltimaCompraRow | null
+src/lib/queries/dev-destrutivo.ts:86 [buscarAtivosDestrutivo] ({ ...a, rotulo: rotuloDoAtivo(a) }) as CandidatoAtivo
+src/lib/queries/dev-destrutivo.ts:179 [carregarFichaDestrutiva] { ...ativo, rotulo: rotuloDoAtivo(ativo) } as CandidatoAtivo
+src/lib/queries/dev-destrutivo.ts:310 [listarItensDestrutivo] ({ ...i, lancamentos: contagens[n] }) as CandidatoItem
+src/lib/queries/dev-destrutivo.ts:348 [previaDoReset] data as unknown as PreviaReset
+src/lib/queries/dev.ts:289 [rodarChecagens] (data ?? []) as ResultadoChecagemRpc[]
+src/lib/queries/eventos-admin.ts:160 [listarEventosAdmin] (data ?? []) as unknown as RawLinha[]
+src/lib/queries/gerados.ts:162 [listarRelatoriosGerados] (data ?? []) as unknown as RawLista[]
+src/lib/queries/gerados.ts:299 [buscarRelatorioGerado] data as unknown as RawDetalhe
+src/lib/queries/gerados.ts:330 [buscarRelatorioGerado] r.dados as AnySnapshot
+src/lib/queries/import-logs.ts:231 [paresEmOutrasFiliais] a.filiais as { nome: string } | null
+src/lib/queries/import-logs.ts:256 [paresEmOutrasFiliais] a.filiais as { nome: string } | null
+src/lib/queries/itens.ts:100 [listarItensAtivos] (data ?? []) as ItemCatalogo[]
+src/lib/queries/itens.ts:123 [listarItensAdmin] (data ?? []) as Row[]
+src/lib/queries/itens.ts:494 [getHistoricoLancamentos] (bruto ?? []) as unknown as RawLancRow[]
+src/lib/queries/itens.ts:542 [listarHistoricoParaExport] (data ?? []) as unknown as RawLancRow[]
+src/lib/queries/itens.ts:579 [listarLancamentosParaSaldoApos] (data ?? []) as LancamentoParaSaldoApos[]
+src/lib/queries/itens.ts:600 [getUltimoLancamento] data as UltimoLancamento | null
+src/lib/queries/itens.ts:631 [saldoDoColaborador] (data ?? []) as SaldoDoColaborador[]
+src/lib/queries/itens.ts:672 [saldosPorColaborador] (data ?? []) as SaldoDoColaborador[]
+src/lib/queries/itens.ts:751 [itensQueForamJunto] (data ?? []) as unknown as Row[]
+src/lib/queries/itens.ts:842 [acessoriosDasMovimentacoes] (data ?? []) as unknown as Row[]
+src/lib/queries/kits.ts:82 [listarKitsAtivos] (data ?? []) as RawKitRow[]
+src/lib/queries/kits.ts:93 [listarKitsAdmin] (data ?? []) as RawKitRow[]
+src/lib/queries/motivos.ts:22 [listarMotivos] (data ?? []) as Motivo[]
+src/lib/queries/movimentacoes.ts:178 [ultimoEnvioManutencao] data as ChamadosManutencao | null
+src/lib/queries/movimentacoes.ts:214 [ultimaMovimentacaoDoUsuario] data as UltimaMovimentacaoUsuario | null
+src/lib/queries/movimentacoes.ts:246 [buscarMovimentacaoParaDuplicar] data as MovimentacaoParaDuplicar | null
+src/lib/queries/movimentacoes.ts:287 [ultimosAtivosMovimentadosDoOperador] (data ?? []) as unknown as Row[]
+src/lib/queries/movimentacoes.ts:342 [sugestoesDeColuna] (data ?? []) as Record<string, string | null>[]
+src/lib/queries/movimentacoes.ts:416 [possiveisDuplicatasDoDia] (data ?? []) as unknown as Row[]
+src/lib/queries/movimentacoes.ts:736 [listarMovimentacoes] (data ?? []) as unknown as RawListaRow[]
+src/lib/queries/pendencias-detalhe.ts:160 [mapearPendencia] r.id as string
+src/lib/queries/pendencias-detalhe.ts:161 [mapearPendencia] (r.ordem ?? r.id) as string
+src/lib/queries/pendencias-detalhe.ts:195 [buscarServiceTags] a.id as string
+src/lib/queries/pendencias-detalhe.ts:195 [buscarServiceTags] a.service_tag as string | null
+src/lib/queries/pendencias-item.ts:39 [listarPendenciasItemDoAtivo] r.id as string
+src/lib/queries/pendencias-item.ts:40 [listarPendenciasItemDoAtivo] r.item as string
+src/lib/queries/pendencias-item.ts:43 [listarPendenciasItemDoAtivo] r.status as string
+src/lib/queries/relatorios/comum.ts:119 [paginarTodos] (data ?? []) as Row[]
+src/lib/queries/relatorios/movimentacoes.ts:196 [mapMovRows] (data ?? []) as RawMovRow[]
+src/lib/queries/termos.ts:62 [listarTermosDoAtivo] (data ?? []) as unknown as Row[]
+src/lib/queries/tipos-item.ts:32 [listarTiposItemAtivos] (data ?? []) as TipoItem[]
+src/lib/queries/tipos-item.ts:62 [listarTiposItem] (data ?? []) as TipoItem[]
+src/lib/queries/tipos-item.ts:75 [listarTiposItemAdmin] (data ?? []) as Row[]
+src/lib/queries/vocabulario-import.ts:56 [lerVocabularioImport] c.categoria as CategoriaImport
+src/lib/queries/vocabulario-import.ts:61 [lerVocabularioImport] e.estado as EstadoPlanilha

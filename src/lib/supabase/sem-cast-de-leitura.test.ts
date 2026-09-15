@@ -1,0 +1,448 @@
+import { describe, expect, it } from 'vitest'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import ts from 'typescript'
+
+// O CAST DE LEITURA — trava por FORMA, por AST (F58 · Frente C).
+//
+// Um `(data ?? []) as X[]` sobre o resultado do Supabase APAGA o tipo que o `select` infere: o
+// compilador para de conferir, e a coluna que o `select` não traz (o `empresa_id` da F63) vira
+// `undefined` silencioso em vez de erro. A F58 põe essas leituras atrás de `linhasDe`/`linhaDe`/
+// `valorDe` (`src/lib/supabase/linhas.ts`), com a forma conferida e amarrada ao `select`. Esta
+// trava impede o cast de voltar — e nasceu como a LISTA CONGELADA dos pontos medidos, que só
+// encolhe a cada lote até o resíduo justificado.
+//
+// POR QUE AST, E NÃO TEXTO. Uma busca por `as unknown as` deixaria de fora os casts simples
+// (`data as X | null`, `r.filiais as FilialEmbed`), e uma por `) as ` acusaria todo cast do
+// arquivo. Aqui o arquivo é parseado e o que se procura é um `as <Tipo>` (ou `<Tipo>expr`) cuja
+// expressão DERIVA de dado lido do Supabase. "Deriva" é uma propagação local, POR ESCOPO (o nome é
+// resolvido na função que o declara, respeitando sombra — um `s` de outra função não contamina):
+//  · nasce em `const { data } = await …` e `const { data: x } = await …` (renomeado);
+//  · nasce em `x.data` quando `x` veio de um `await` (inclusive `Promise.all` e seus elementos);
+//  · passa por `const y = <derivado> ?? []`, `const [z] = <derivado>`, `const { a } = <derivado>`,
+//    `{ ...<derivado> }`, `for (const r of <derivado>)` e pelo parâmetro dos callbacks de `.map/
+//    .filter/.find/.forEach/.flatMap/.reduce/.some/.every/.sort` chamados sobre um derivado.
+// O cast conta quando a raiz da expressão (tirados parênteses, `!`, `??`/`||` à esquerda e
+// acessos `.x`/`[i]`/chamadas) é um derivado. `as const` não conta. `as unknown as X` conta UMA vez.
+//
+// ⚠ O QUE ELA NÃO PROVA: propagação entre funções (um derivado passado como argumento a outra
+// função e castado lá dentro), e cast sobre o RETORNO tipado de uma função nossa que leu o banco
+// (`lidos.mapa as Map<…>`). O primeiro é pego pelo compilador quando a função recebe o tipo
+// conferido — que é o que a porta devolve; o segundo é cast entre dois tipos nossos, tratado por
+// nome no relatório da fase. Lê o disco na COLETA, nunca dentro do `it`.
+
+const RAIZ = process.cwd()
+
+export type CastDeLeitura = { funcao: string; linha: number; texto: string }
+
+const METODOS_DE_LISTA = new Set(['map', 'filter', 'find', 'findLast', 'forEach', 'flatMap', 'reduce', 'some', 'every', 'sort', 'toSorted'])
+
+function nomeDaFuncao(n: ts.Node): string {
+  for (let p: ts.Node | undefined = n.parent; p; p = p.parent) {
+    if ((ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p)) && p.name) return p.name.getText()
+    if (ts.isArrowFunction(p) || ts.isFunctionExpression(p)) {
+      // `const x = () => …` e também `const x = cache(async () => …)`: sobe pelos argumentos de
+      // chamada até a declaração que dá nome à função
+      let alvo: ts.Node = p.parent
+      while (ts.isCallExpression(alvo) || ts.isParenthesizedExpression(alvo)) alvo = alvo.parent
+      if (ts.isVariableDeclaration(alvo) && ts.isIdentifier(alvo.name)) return alvo.name.text
+    }
+  }
+  return '(módulo)'
+}
+
+function desembrulhar(e: ts.Expression): ts.Expression {
+  for (;;) {
+    if (
+      ts.isParenthesizedExpression(e) ||
+      ts.isNonNullExpression(e) ||
+      ts.isAsExpression(e) ||
+      ts.isTypeAssertionExpression(e) ||
+      ts.isSatisfiesExpression(e) ||
+      ts.isAwaitExpression(e)
+    ) {
+      e = e.expression
+    } else if (
+      ts.isBinaryExpression(e) &&
+      (e.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || e.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+    ) {
+      e = e.left
+    } else {
+      return e
+    }
+  }
+}
+
+/** A raiz nominal de uma expressão: `a.b[0].c(x).d` → `a`. */
+function raiz(e: ts.Expression): ts.Identifier | null {
+  let atual = desembrulhar(e)
+  for (;;) {
+    if (ts.isIdentifier(atual)) return atual
+    if (ts.isPropertyAccessExpression(atual) || ts.isElementAccessExpression(atual)) atual = desembrulhar(atual.expression)
+    else if (ts.isCallExpression(atual)) atual = desembrulhar(atual.expression)
+    else return null
+  }
+}
+
+const ehAwait = (e: ts.Expression | undefined): boolean => {
+  if (!e) return false
+  let x = e
+  while (ts.isParenthesizedExpression(x)) x = x.expression
+  return ts.isAwaitExpression(x)
+}
+
+export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastDeLeitura[] {
+  const sf = ts.createSourceFile(
+    nomeArquivo,
+    fonte,
+    ts.ScriptTarget.Latest,
+    true,
+    nomeArquivo.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  )
+
+  // Escopos: cada função (e o módulo) com os nomes que ela DECLARA (parâmetros e variáveis).
+  const declarados = new Map<ts.Node, Set<string>>()
+  const escopoDaDeclaracao = (n: ts.Node): ts.Node => {
+    for (let p: ts.Node | undefined = n.parent; p; p = p.parent) if (ts.isFunctionLike(p) || ts.isSourceFile(p)) return p
+    return sf
+  }
+  const declarar = (nome: ts.BindingName, onde: ts.Node) => {
+    if (ts.isIdentifier(nome)) {
+      const escopo = escopoDaDeclaracao(onde)
+      if (!declarados.has(escopo)) declarados.set(escopo, new Set())
+      declarados.get(escopo)!.add(nome.text)
+    } else {
+      for (const el of nome.elements) if (ts.isBindingElement(el)) declarar(el.name, onde)
+    }
+  }
+  const coletar = (n: ts.Node): void => {
+    if (ts.isVariableDeclaration(n) || ts.isParameter(n)) declarar(n.name, n)
+    ts.forEachChild(n, coletar)
+  }
+  coletar(sf)
+
+  /** A chave do nome no escopo que o declara (a sombra mais interna vence). */
+  const chaveDe = (id: ts.Identifier): string => {
+    for (let p: ts.Node | undefined = id; p; p = p.parent) {
+      if ((ts.isFunctionLike(p) || ts.isSourceFile(p)) && declarados.get(p)?.has(id.text)) return `${p.pos}:${p.end}:${id.text}`
+    }
+    return `global:${id.text}`
+  }
+
+  const derivados = new Set<string>()
+  const resultados = new Set<string>()
+
+  // Fontes por DECLARAÇÃO de parâmetro — o que a propagação local não alcança porque a linha chega
+  // por argumento (os mapeadores de linha crua):
+  //  · um parâmetro chamado `data` (a forma que a ficha nomeia: `mapMovRows(data: unknown)`);
+  //  · um parâmetro tipado com o tipo da LINHA CRUA do arquivo (`RawX`, `XRow`, `RowX`).
+  const RE_TIPO_DE_LINHA_CRUA = /^(Raw[A-Z]\w*|Row[A-Z]?\w*|\w+Row)(\[\])?$/
+  const fontesDeParametro = (n: ts.Node): void => {
+    if (ts.isParameter(n) && ts.isIdentifier(n.name)) {
+      const tipo = n.type?.getText(sf).trim() ?? ''
+      if (n.name.text === 'data' || RE_TIPO_DE_LINHA_CRUA.test(tipo)) derivados.add(chaveDe(n.name))
+    }
+    ts.forEachChild(n, fontesDeParametro)
+  }
+  fontesDeParametro(sf)
+
+  const derivaDe = (e: ts.Expression | undefined): boolean => {
+    if (!e) return false
+    const d = desembrulhar(e)
+    // `{ ...linha, rotulo }` e `[...linhas]`: o literal carrega o derivado que espalha
+    if (ts.isObjectLiteralExpression(d)) return d.properties.some((p) => ts.isSpreadAssignment(p) && derivaDe(p.expression))
+    if (ts.isArrayLiteralExpression(d)) return d.elements.some((el) => ts.isSpreadElement(el) && derivaDe(el.expression))
+    // `x.data` e `x[0].data` de um resultado de await
+    if (ts.isPropertyAccessExpression(d) && d.name.text === 'data') {
+      const r = raiz(d.expression)
+      if (r && resultados.has(chaveDe(r))) return true
+    }
+    const r = raiz(d)
+    return !!r && derivados.has(chaveDe(r))
+  }
+
+  const marcarPadrao = (nome: ts.BindingName) => {
+    if (ts.isIdentifier(nome)) derivados.add(chaveDe(nome))
+    else for (const el of nome.elements) if (ts.isBindingElement(el)) marcarPadrao(el.name)
+  }
+
+  // Passo 1 — propagação até o ponto fixo (a ordem das declarações no arquivo não importa).
+  const tamanho = () => derivados.size + resultados.size
+  for (let antes = -1; antes !== tamanho(); ) {
+    antes = tamanho()
+    const visitar = (n: ts.Node): void => {
+      if (ts.isVariableDeclaration(n) && n.initializer) {
+        const init = n.initializer
+        if (ts.isObjectBindingPattern(n.name)) {
+          for (const el of n.name.elements) {
+            const chave = el.propertyName ?? el.name
+            const chaveTexto = ts.isIdentifier(chave) || ts.isStringLiteral(chave) ? chave.text : ''
+            const raizInit = raiz(init)
+            const deResultado = ehAwait(init) || (!!raizInit && resultados.has(chaveDe(raizInit)))
+            if ((chaveTexto === 'data' && deResultado) || derivaDe(init)) marcarPadrao(el.name)
+          }
+        } else if (ts.isArrayBindingPattern(n.name)) {
+          const inner = desembrulhar(init)
+          const ehPromiseAll = ehAwait(init) && ts.isCallExpression(inner) && inner.expression.getText(sf) === 'Promise.all'
+          for (const el of n.name.elements) {
+            if (!ts.isBindingElement(el)) continue
+            if (ehPromiseAll && ts.isIdentifier(el.name)) {
+              resultados.add(chaveDe(el.name))
+            } else if (ehPromiseAll && ts.isObjectBindingPattern(el.name)) {
+              // `const [{ data: itens }, { data: tipos }] = await Promise.all([...])`
+              for (const sub of el.name.elements) {
+                const chave = sub.propertyName ?? sub.name
+                if ((ts.isIdentifier(chave) || ts.isStringLiteral(chave)) && chave.text === 'data') marcarPadrao(sub.name)
+              }
+            } else if (derivaDe(init)) {
+              marcarPadrao(el.name)
+            }
+          }
+        } else if (ts.isIdentifier(n.name)) {
+          if (ehAwait(init)) resultados.add(chaveDe(n.name))
+          if (derivaDe(init)) derivados.add(chaveDe(n.name))
+        }
+      }
+      if (ts.isForOfStatement(n) && ts.isVariableDeclarationList(n.initializer)) {
+        const percorrido = desembrulhar(n.expression)
+        for (const d of n.initializer.declarations) {
+          // percorrer os RESULTADOS de um `await Promise.all([...])` (o próprio identificador, não
+          // `x.data`) dá um resultado por volta; percorrer um derivado dá um derivado
+          if (ts.isIdentifier(percorrido) && resultados.has(chaveDe(percorrido)) && ts.isIdentifier(d.name)) {
+            resultados.add(chaveDe(d.name))
+          } else if (derivaDe(n.expression)) {
+            marcarPadrao(d.name)
+          }
+        }
+      }
+      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && METODOS_DE_LISTA.has(n.expression.name.text)) {
+        const alvo = desembrulhar(n.expression.expression)
+        // percorrer os RESULTADOS de um `await Promise.all(...)` (o próprio identificador) dá um
+        // resultado por volta; percorrer um derivado dá um derivado
+        const sobreResultados = ts.isIdentifier(alvo) && resultados.has(chaveDe(alvo))
+        const sobreDerivado = !sobreResultados && derivaDe(n.expression.expression)
+        if (sobreResultados || sobreDerivado) {
+          for (const arg of n.arguments) {
+            if (!(ts.isArrowFunction(arg) || ts.isFunctionExpression(arg))) continue
+            const params = n.expression.name.text === 'reduce' ? arg.parameters.slice(1, 2) : arg.parameters.slice(0, 1)
+            for (const p of params) {
+              if (sobreResultados && ts.isIdentifier(p.name)) resultados.add(chaveDe(p.name))
+              else marcarPadrao(p.name)
+            }
+          }
+        }
+      }
+      ts.forEachChild(n, visitar)
+    }
+    visitar(sf)
+  }
+
+  // Passo 2 — os casts sobre derivado.
+  const achados: CastDeLeitura[] = []
+  const visitarCasts = (n: ts.Node): void => {
+    if (
+      (ts.isAsExpression(n) || ts.isTypeAssertionExpression(n)) &&
+      !(ts.isAsExpression(n.parent) || ts.isTypeAssertionExpression(n.parent))
+    ) {
+      const tipo = n.type.getText(sf)
+      let interno: ts.Expression = n.expression
+      while (ts.isAsExpression(interno) || ts.isTypeAssertionExpression(interno)) interno = interno.expression
+      if (tipo !== 'const' && derivaDe(interno)) {
+        achados.push({
+          funcao: nomeDaFuncao(n),
+          linha: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+          texto: n.getText(sf).replace(/\s+/g, ' ').slice(0, 90),
+        })
+      }
+    }
+    ts.forEachChild(n, visitarCasts)
+  }
+  visitarCasts(sf)
+  return achados
+}
+
+// --- coleta ------------------------------------------------------------------------------
+function varrer(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name)
+    if (e.isDirectory()) varrer(p, acc)
+    else if (/\.tsx?$/.test(e.name) && !e.name.endsWith('.d.ts') && !/\.test\.tsx?$/.test(e.name)) acc.push(p)
+  }
+  return acc
+}
+const rel = (p: string) => relative(RAIZ, p).split(sep).join('/')
+
+const ATUAIS: Record<string, number> = {}
+const DETALHE: string[] = []
+for (const p of varrer(join(RAIZ, 'src'))) {
+  for (const c of castsDeLeitura(readFileSync(p, 'utf8'), p)) {
+    const chave = `${rel(p)}::${c.funcao}`
+    ATUAIS[chave] = (ATUAIS[chave] ?? 0) + 1
+    DETALHE.push(`${rel(p)}:${c.linha} [${c.funcao}] ${c.texto}`)
+  }
+}
+
+/**
+ * O resíduo JUSTIFICADO — casts de leitura que ficam, cada um com o motivo. Não encolhe por lote:
+ * é o que sobra quando a fase termina.
+ */
+const RESIDUO_JUSTIFICADO: Record<string, string> = {}
+
+/**
+ * A lista CONGELADA — os pontos medidos no início da Frente C, que ENCOLHE a cada lote até zero.
+ * Um ponto novo não entra aqui: ele vai para `linhasDe`/`linhaDe`/`valorDe`.
+ */
+const CONGELADOS: Record<string, number> = {
+  'src/app/(app)/dev/acoes-export.ts::lerTrilha': 1,
+  'src/app/(app)/page.tsx::DashboardPage': 1,
+  'src/lib/actions/colaboradores.ts::consolidarColaboradores': 2,
+  'src/lib/actions/conflitos.ts::apagarConflito': 1,
+  'src/lib/actions/dev-destrutivo.ts::apagarAtivo': 1,
+  'src/lib/actions/dev-destrutivo.ts::apagarItem': 1,
+  'src/lib/actions/dev-destrutivo.ts::apagarMovimentacao': 1,
+  'src/lib/actions/dev-destrutivo.ts::forcarEstado': 1,
+  'src/lib/actions/dev-destrutivo.ts::forcarSaldo': 1,
+  'src/lib/actions/dev-destrutivo.ts::resetarBloco': 1,
+  'src/lib/actions/devolucao-fornecedor.ts::devolverAoFornecedor': 1,
+  'src/lib/actions/itens.ts::estornarLancamento': 1,
+  'src/lib/actions/itens.ts::lancarItens': 1,
+  'src/lib/actions/movimentacoes.ts::estornarMovimentacao': 2,
+  'src/lib/actions/movimentacoes.ts::estornos': 1,
+  'src/lib/actions/movimentacoes.ts::registrarMovimentacoes': 2,
+  'src/lib/actions/pendencias.ts::estornos': 1,
+  'src/lib/actions/pendencias.ts::montarLancamentosDaResolucao': 2,
+  'src/lib/actions/pendencias.ts::resolverPendenciaItem': 1,
+  'src/lib/actions/relatorios.ts::lerUltimaVersao': 1,
+  'src/lib/actions/termos.ts::cidadesDasFiliais': 1,
+  'src/lib/actions/termos.ts::confirmarAssinaturaLote': 1,
+  'src/lib/actions/termos.ts::pendentesIds': 1,
+  'src/lib/actions/termos.ts::prepararTermo': 2,
+  'src/lib/actions/termos.ts::urlTermo': 1,
+  'src/lib/ativos/identidade.ts::cadastrosComMesmaIdentidade': 1,
+  'src/lib/auth/acesso.ts::getOperador': 1,
+  'src/lib/auth/acesso.ts::lerPapel': 1,
+  'src/lib/queries/admin.ts::listarMotivosAdmin': 1,
+  'src/lib/queries/admin.ts::listarSenhasAcesso': 1,
+  'src/lib/queries/ativos.ts::buscarAtivoPorId': 2,
+  'src/lib/queries/ativos.ts::buscarAtivoResumo': 1,
+  'src/lib/queries/ativos.ts::buscarAtivosParaCombobox': 1,
+  'src/lib/queries/ativos.ts::buscarAtivosPorPatrimonios': 1,
+  'src/lib/queries/ativos.ts::buscarAtivosResumoPorIds': 1,
+  'src/lib/queries/ativos.ts::buscarSubstitutoDe': 1,
+  'src/lib/queries/ativos.ts::buscarVinculoAtivo': 1,
+  'src/lib/queries/ativos.ts::listarAnotacoesDoAtivo': 1,
+  'src/lib/queries/ativos.ts::listarAtivosParaExport': 1,
+  'src/lib/queries/ativos.ts::rows': 1,
+  'src/lib/queries/colaboradores.ts::filaDeConsolidacao': 1,
+  'src/lib/queries/colaboradores.ts::resolverColaboradoresPorNome': 1,
+  'src/lib/queries/colaboradores.ts::resumoDaConsolidacao': 1,
+  'src/lib/queries/colaboradores.ts::sugestoesDoCampoColaborador': 3,
+  'src/lib/queries/compras.ts::ultimaCompraDoOperador': 1,
+  'src/lib/queries/dev-destrutivo.ts::buscarAtivosDestrutivo': 1,
+  'src/lib/queries/dev-destrutivo.ts::carregarFichaDestrutiva': 1,
+  'src/lib/queries/dev-destrutivo.ts::listarItensDestrutivo': 1,
+  'src/lib/queries/dev-destrutivo.ts::previaDoReset': 1,
+  'src/lib/queries/dev.ts::rodarChecagens': 1,
+  'src/lib/queries/eventos-admin.ts::listarEventosAdmin': 1,
+  'src/lib/queries/gerados.ts::buscarRelatorioGerado': 2,
+  'src/lib/queries/gerados.ts::listarRelatoriosGerados': 1,
+  'src/lib/queries/import-logs.ts::paresEmOutrasFiliais': 2,
+  'src/lib/queries/itens.ts::acessoriosDasMovimentacoes': 1,
+  'src/lib/queries/itens.ts::getHistoricoLancamentos': 1,
+  'src/lib/queries/itens.ts::getUltimoLancamento': 1,
+  'src/lib/queries/itens.ts::itensQueForamJunto': 1,
+  'src/lib/queries/itens.ts::listarHistoricoParaExport': 1,
+  'src/lib/queries/itens.ts::listarItensAdmin': 1,
+  'src/lib/queries/itens.ts::listarItensAtivos': 1,
+  'src/lib/queries/itens.ts::listarLancamentosParaSaldoApos': 1,
+  'src/lib/queries/itens.ts::saldoDoColaborador': 1,
+  'src/lib/queries/itens.ts::saldosPorColaborador': 1,
+  'src/lib/queries/kits.ts::listarKitsAdmin': 1,
+  'src/lib/queries/kits.ts::listarKitsAtivos': 1,
+  'src/lib/queries/motivos.ts::listarMotivos': 1,
+  'src/lib/queries/movimentacoes.ts::buscarMovimentacaoParaDuplicar': 1,
+  'src/lib/queries/movimentacoes.ts::listarMovimentacoes': 1,
+  'src/lib/queries/movimentacoes.ts::possiveisDuplicatasDoDia': 1,
+  'src/lib/queries/movimentacoes.ts::sugestoesDeColuna': 1,
+  'src/lib/queries/movimentacoes.ts::ultimaMovimentacaoDoUsuario': 1,
+  'src/lib/queries/movimentacoes.ts::ultimoEnvioManutencao': 1,
+  'src/lib/queries/movimentacoes.ts::ultimosAtivosMovimentadosDoOperador': 1,
+  'src/lib/queries/pendencias-detalhe.ts::buscarServiceTags': 2,
+  'src/lib/queries/pendencias-detalhe.ts::mapearPendencia': 2,
+  'src/lib/queries/pendencias-item.ts::listarPendenciasItemDoAtivo': 3,
+  'src/lib/queries/relatorios/comum.ts::paginarTodos': 1,
+  'src/lib/queries/relatorios/movimentacoes.ts::mapMovRows': 1,
+  'src/lib/queries/termos.ts::listarTermosDoAtivo': 1,
+  'src/lib/queries/tipos-item.ts::listarTiposItem': 1,
+  'src/lib/queries/tipos-item.ts::listarTiposItemAdmin': 1,
+  'src/lib/queries/tipos-item.ts::listarTiposItemAtivos': 1,
+  'src/lib/queries/vocabulario-import.ts::lerVocabularioImport': 2,
+}
+
+describe('o detector de cast de leitura reconhece a forma (guarda do próprio teste)', () => {
+  it.each([
+    ['(data ?? []) as X[]', 'async function f(){ const { data, error } = await c.from("t").select("a"); return (data ?? []) as X[] }', 1],
+    ['data as X | null', 'async function f(){ const { data } = await c.from("t").select("a").maybeSingle(); return data as X | null }', 1],
+    ['(data ?? {}) as {…}', 'async function f(){ const { data } = await chamarRpc(c, "x"); return (data ?? {}) as { a?: number } }', 1],
+    ['{ data: linhas } renomeado', 'async function f(){ const { data: linhas } = await c.from("t").select("a"); return linhas as X[] }', 1],
+    ['as unknown as conta uma vez', 'async function f(){ const { data } = await c.from("t").select("a"); return data as unknown as X[] }', 1],
+    ['.data de um resultado', 'async function f(){ const r = await c.from("t").select("a"); return (r.data ?? []) as X[] }', 1],
+    ['Promise.all desestruturado', 'async function f(){ const [a, b] = await Promise.all([c.from("t").select("a"), c.from("u").select("b")]); return (a.data ?? []) as X[] }', 1],
+    ['linha de embed num map', 'async function f(){ const { data } = await c.from("t").select("a"); return (data ?? []).map((r) => r.filiais as Embed) }', 1],
+    ['coluna jsonb via variável', 'async function f(){ const { data } = await c.from("t").select("a").single(); const linha = data; return linha.dados as Snapshot }', 1],
+    ['for…of', 'async function f(){ const { data } = await c.from("t").select("a"); for (const r of data ?? []) { use(r.x as Y) } }', 1],
+    ['spread de linha num literal', 'async function f(){ const { data } = await c.from("t").select("a"); return (data ?? []).map((a) => ({ ...a, rotulo: "x" }) as Candidato) }', 1],
+    ['for…of sobre os resultados de Promise.all', 'async function f(){ const respostas = await Promise.all([c.from("t").select("a")]); for (const r of respostas) { for (const a of r.data ?? []) use(a.filiais as E) } }', 1],
+    ['data desestruturado DENTRO do array do Promise.all', 'async function f(){ const [{ data: itens }, { data: tipos }] = await Promise.all([c.from("i").select("a"), c.from("t").select("b")]); return [(itens ?? []) as I[], (tipos ?? []) as T[]] }', 2],
+    ['data de um resultado já aguardado', 'async function f(){ const rs = await Promise.all(ids.map((id) => chamarRpc(c, "x", { id }))); return rs.map((r) => { const { data } = r; return (data ?? []) as S[] }) }', 1],
+    ['parâmetro chamado data (o mapeador de linhas cruas)', 'function mapMovRows(data: unknown) { return (data ?? []) as RawMovRow[] }', 1],
+    ['parâmetro tipado com a linha crua do arquivo', 'function mapTimeline(r: RawTimelineRow) { return r.snapshot_anterior as Snapshot | null }', 1],
+  ])('casa: %s', (_nome, fonte, esperado) => {
+    expect(castsDeLeitura(fonte)).toHaveLength(esperado)
+  })
+
+  it.each([
+    ['as const', 'async function f(){ const { data } = await c.from("t").select("a"); return [data] as const }'],
+    ['cast de valor que não veio do banco', 'function f(x: unknown){ return x as X }'],
+    ['cast de builder', 'function f(q: Q){ return q as unknown as B }'],
+    ['data de outra fonte sem await', 'function f(p: { data: unknown }){ const { data } = p; return data as X }'],
+    ['comentário', '// (data ?? []) as X[]'],
+    [
+      'o MESMO nome, derivado em OUTRA função, não contamina',
+      'async function f(){ const { data } = await c.from("t").select("a"); return (data ?? []).map((s) => s.x) }\nfunction g(p: string){ return p.split(",").map((s) => s.trim()).filter((s) => L.includes(s as Status)) }',
+    ],
+  ])('não casa: %s', (_nome, fonte) => {
+    expect(castsDeLeitura(fonte)).toEqual([])
+  })
+})
+
+describe('nenhum cast de leitura NOVO em src/**', () => {
+  it('a varredura enxerga o repositório', () => {
+    expect(Object.keys(ATUAIS).length + Object.keys(CONGELADOS).length).toBeGreaterThanOrEqual(0)
+  })
+
+  it('nenhum ponto fora da lista congelada e do resíduo', () => {
+    const novos = Object.entries(ATUAIS)
+      .filter(([k, n]) => !(k in RESIDUO_JUSTIFICADO) && n > (CONGELADOS[k] ?? 0))
+      .map(([k, n]) => `${k} (${n} cast(s), congelado: ${CONGELADOS[k] ?? 0})`)
+    expect(
+      novos,
+      'Cast sobre dado lido do Supabase: ele apaga o tipo que o select infere. Passe a leitura por ' +
+        'linhasDe/linhaDe/valorDe (@/lib/supabase/linhas) com a forma amarrada ao select.',
+    ).toEqual([])
+  })
+
+  it('a lista congelada só ENCOLHE (nenhuma entrada acima do que existe)', () => {
+    const velhos = Object.entries(CONGELADOS)
+      .filter(([k, n]) => n !== (ATUAIS[k] ?? 0))
+      .map(([k, n]) => `${k}: congelado ${n}, atual ${ATUAIS[k] ?? 0}`)
+    expect(velhos, 'o lote converteu casts: atualize CONGELADOS para o número atual (ou apague a entrada)').toEqual([])
+  })
+
+  it('cada resíduo traz um motivo escrito', () => {
+    for (const [k, motivo] of Object.entries(RESIDUO_JUSTIFICADO)) expect(motivo.length, k).toBeGreaterThan(60)
+  })
+})
+
+// Utilitário de mesa: `IMPRIMIR_CASTS=1 npx vitest run …` imprime o mapa atual, para congelar.
+if (process.env.IMPRIMIR_CASTS) console.log(`${JSON.stringify(ATUAIS, null, 2)}\n---DETALHE---\n${DETALHE.join('\n')}\n---FIM---`)
