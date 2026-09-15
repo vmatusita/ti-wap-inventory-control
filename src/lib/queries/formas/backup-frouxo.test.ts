@@ -15,11 +15,19 @@ import {
   LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT,
   LEITURA_BACKUP_TERMOS_GERADOS_IMPORT,
 } from '@/lib/queries/formas/import-logs'
+import {
+  LEITURA_BACKUP_ANOTACOES_CONFLITO,
+  LEITURA_BACKUP_ATIVOS_CONFLITO,
+  LEITURA_BACKUP_MOVIMENTACOES_CONFLITO,
+  LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO,
+  LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO,
+} from '@/lib/queries/formas/conflitos'
 
 // A SABOTAGEM D da fase (F58 · Frente C · lote 2, regra 8): os backups de `select('*')`
-// (Zona destrutiva e import de startup) são `z.looseObject` de propósito — a coluna que a forma
-// não declara TEM de sobreviver no JSON do backup, porque é ela que carrega o que uma migration
-// futura acrescentou e este catálogo ainda não conhece (o defeito que a F54 matou).
+// (Zona destrutiva, import de startup e — desde a revisão adversarial — o backup em arquivo da
+// mesa de conflitos) são `z.looseObject` de propósito — a coluna que a forma não declara TEM de
+// sobreviver no JSON do backup, porque é ela que carrega o que uma migration futura acrescentou e
+// este catálogo ainda não conhece (o defeito que a F54 matou).
 //
 // Este teste prova exatamente isso, com uma linha FICTÍCIA carregando uma coluna que NENHUMA
 // forma declara (`coluna_nova_f63`). Se um dia alguém trocar um `z.looseObject` daqui por
@@ -40,17 +48,22 @@ describe('os backups de select(*) preservam coluna que a forma não conhece (sab
     ['import-logs.backup-movimentacoes', LEITURA_BACKUP_MOVIMENTACOES_IMPORT],
     ['import-logs.backup-anotacoes', LEITURA_BACKUP_ANOTACOES_IMPORT],
     ['import-logs.backup-pendencias-item', LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT],
+    ['conflitos.backup-ativos', LEITURA_BACKUP_ATIVOS_CONFLITO],
+    ['conflitos.backup-movimentacoes', LEITURA_BACKUP_MOVIMENTACOES_CONFLITO],
+    ['conflitos.backup-anotacoes', LEITURA_BACKUP_ANOTACOES_CONFLITO],
+    ['conflitos.backup-pendencias-item', LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO],
   ] as const)('%s: linhasDe devolve a coluna desconhecida intacta', (_rotulo, descritor) => {
     const linhaFicticia = { id: 'id-ficticio', [COLUNA_DESCONHECIDA]: VALOR_FICTICIO }
     const [linha] = linhasDe([linhaFicticia], descritor.forma, descritor.rotulo)
     expect((linha as Record<string, unknown>)[COLUNA_DESCONHECIDA]).toBe(VALOR_FICTICIO)
   })
 
-  // As duas formas de `termos_gerados` declaram `ativo_ids` (a coluna que o código lê) — a
-  // linha fictícia precisa dela para passar pela conferência.
+  // As formas de `termos_gerados` declaram `ativo_ids` (a coluna que o código lê) — a linha
+  // fictícia precisa dela para passar pela conferência.
   it.each([
     ['dev-destrutivo.backup-termos-gerados', LEITURA_BACKUP_TERMOS_GERADOS],
     ['import-logs.backup-termos-gerados', LEITURA_BACKUP_TERMOS_GERADOS_IMPORT],
+    ['conflitos.backup-termos-gerados', LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO],
   ] as const)('%s: linhasDe devolve a coluna desconhecida intacta', (_rotulo, descritor) => {
     const linhaFicticia = {
       id: 'id-ficticio',

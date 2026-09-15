@@ -74,3 +74,56 @@ export const LEITURA_APAGAR_CONFLITO = reciboDeRpc({
     selecionados: z.json(),
   }),
 })
+
+// ---------------------------------------------------------------------------
+// Revisão adversarial da F58 — o BACKUP EM ARQUIVO da mesa (`acervoDosAtivos`)
+// ---------------------------------------------------------------------------
+// Acima do teto de ativos da exclusão, o backup sai da RPC e vira arquivo, montado com `select('*')`
+// de cinco tabelas — a mesma classe de leitura dos backups da Zona destrutiva e do import. Até a
+// revisão adversarial ele lia com `paginarTodos<unknown>`, sem forma nenhuma: a coluna que uma
+// migration acrescentasse chegava ao arquivo por acaso, e nada provava isso. Aqui: `z.looseObject`
+// (a coluna que a forma não conhece TEM de chegar ao backup — `backup-frouxo.test.ts`), declarando só
+// o que o código lê da linha.
+
+const s = z.string()
+
+export const LEITURA_BACKUP_ATIVOS_CONFLITO = leituraDeRelacao({
+  rotulo: 'conflitos.backup-ativos',
+  origem: 'ativos',
+  select: '*',
+  forma: z.looseObject({ id: s }),
+  ordem: ['id'],
+})
+
+export const LEITURA_BACKUP_MOVIMENTACOES_CONFLITO = leituraDeRelacao({
+  rotulo: 'conflitos.backup-movimentacoes',
+  origem: 'movimentacoes',
+  select: '*',
+  forma: z.looseObject({ id: s }),
+  ordem: ['id'],
+})
+
+export const LEITURA_BACKUP_ANOTACOES_CONFLITO = leituraDeRelacao({
+  rotulo: 'conflitos.backup-anotacoes',
+  origem: 'anotacoes',
+  select: '*',
+  forma: z.looseObject({ id: s }),
+  ordem: ['id'],
+})
+
+export const LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO = leituraDeRelacao({
+  rotulo: 'conflitos.backup-pendencias-item',
+  origem: 'pendencias_item',
+  select: '*',
+  forma: z.looseObject({ id: s }),
+  ordem: ['id'],
+})
+
+// `ativo_ids` é a coluna que o recorte em memória lê (o array não tem FK).
+export const LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO = leituraDeRelacao({
+  rotulo: 'conflitos.backup-termos-gerados',
+  origem: 'termos_gerados',
+  select: '*',
+  forma: z.looseObject({ id: s, ativo_ids: z.array(s) }),
+  ordem: ['id'],
+})

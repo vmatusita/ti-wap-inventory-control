@@ -7,7 +7,14 @@ import type { DbClient } from '@/lib/auth/acesso'
 import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
 import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { linhasDe } from '@/lib/supabase/linhas'
-import { LEITURA_LADOS_DE_CONFLITO } from '@/lib/queries/formas/conflitos'
+import {
+  LEITURA_BACKUP_ANOTACOES_CONFLITO,
+  LEITURA_BACKUP_ATIVOS_CONFLITO,
+  LEITURA_BACKUP_MOVIMENTACOES_CONFLITO,
+  LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO,
+  LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO,
+  LEITURA_LADOS_DE_CONFLITO,
+} from '@/lib/queries/formas/conflitos'
 
 // Leituras da MESA DE CONFLITOS entre filiais (F24) — a seção própria de /pendencias.
 //
@@ -472,27 +479,61 @@ export async function acervoDosAtivos(
     return { ativos: [], movimentacoes: [], termos_gerados: [], anotacoes: [], pendencias_item: [] }
   }
 
-  const tabela = async (nome: 'ativos' | 'movimentacoes' | 'anotacoes' | 'pendencias_item') =>
-    paginarTodos<unknown>(`Falha ao exportar ${nome} do backup`, (from, to) =>
+  // F58 (revisão adversarial): cada tabela com o nome LITERAL no `.from()` — o catálogo de formas
+  // confere que o call-site lê a MESMA relação do descritor — e cada lote de linhas pela forma frouxa
+  // do backup (`formas/conflitos.ts`). Até aqui era `paginarTodos<unknown>` sobre um nome em variável:
+  // nenhuma forma, e fora do conferidor.
+  const [ativosBrutos, movimentacoesBrutas, anotacoesBrutas, pendenciasBrutas, termosBrutos] = await Promise.all([
+    paginarTodos('Falha ao exportar ativos do backup', (from, to) =>
+      client.from('ativos').select(LEITURA_BACKUP_ATIVOS_CONFLITO.select).in('id', ativoIds).order('id').range(from, to),
+    ),
+    paginarTodos('Falha ao exportar movimentacoes do backup', (from, to) =>
       client
-        .from(nome)
-        .select('*')
-        .in(nome === 'ativos' ? 'id' : 'ativo_id', ativoIds)
+        .from('movimentacoes')
+        .select(LEITURA_BACKUP_MOVIMENTACOES_CONFLITO.select)
+        .in('ativo_id', ativoIds)
         .order('id')
         .range(from, to),
-    )
-
-  const [ativos, movimentacoes, anotacoes, pendencias_item, todosTermos] = await Promise.all([
-    tabela('ativos'),
-    tabela('movimentacoes'),
-    tabela('anotacoes'),
-    tabela('pendencias_item'),
+    ),
+    paginarTodos('Falha ao exportar anotacoes do backup', (from, to) =>
+      client
+        .from('anotacoes')
+        .select(LEITURA_BACKUP_ANOTACOES_CONFLITO.select)
+        .in('ativo_id', ativoIds)
+        .order('id')
+        .range(from, to),
+    ),
+    paginarTodos('Falha ao exportar pendencias_item do backup', (from, to) =>
+      client
+        .from('pendencias_item')
+        .select(LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO.select)
+        .in('ativo_id', ativoIds)
+        .order('id')
+        .range(from, to),
+    ),
     // `termos_gerados.ativo_ids` é array de uuid (sem FK), então o recorte é em memória —
     // mesmo caminho de `exportarAcervoFilial`.
-    paginarTodos<{ ativo_ids: string[] }>('Falha ao exportar termos do backup', (from, to) =>
-      client.from('termos_gerados').select('*').order('id').range(from, to),
+    paginarTodos('Falha ao exportar termos do backup', (from, to) =>
+      client.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO.select).order('id').range(from, to),
     ),
   ])
+  const ativos = linhasDe(ativosBrutos, LEITURA_BACKUP_ATIVOS_CONFLITO.forma, LEITURA_BACKUP_ATIVOS_CONFLITO.rotulo)
+  const movimentacoes = linhasDe(
+    movimentacoesBrutas,
+    LEITURA_BACKUP_MOVIMENTACOES_CONFLITO.forma,
+    LEITURA_BACKUP_MOVIMENTACOES_CONFLITO.rotulo,
+  )
+  const anotacoes = linhasDe(anotacoesBrutas, LEITURA_BACKUP_ANOTACOES_CONFLITO.forma, LEITURA_BACKUP_ANOTACOES_CONFLITO.rotulo)
+  const pendencias_item = linhasDe(
+    pendenciasBrutas,
+    LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO.forma,
+    LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO.rotulo,
+  )
+  const todosTermos = linhasDe(
+    termosBrutos,
+    LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO.forma,
+    LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO.rotulo,
+  )
 
   const alvo = new Set(ativoIds)
   const termos_gerados = todosTermos.filter((t) => t.ativo_ids.some((a) => alvo.has(a)))

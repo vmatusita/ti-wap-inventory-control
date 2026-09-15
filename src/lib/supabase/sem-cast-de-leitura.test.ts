@@ -272,10 +272,39 @@ export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastD
         })
       }
     }
+    // O cast com OUTRA SINTAXE (revisão adversarial da F58): um argumento de tipo explícito num
+    // produtor de linhas que APAGA a linha — `paginarTodos<unknown>(…)`, `<any>`, `<object>`,
+    // `<Record<string, unknown>>` ou um literal com propriedade opcional (`<{ x?: T }>`, que inventa
+    // coluna sem o compilador reclamar). Um tipo concreto sem opcional NÃO é cast: a linha inferida do
+    // builder tem de ser atribuível a ele, e o compilador recusa coluna ausente ou trocada.
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && PRODUTORES_DE_LINHAS.has(n.expression.text)) {
+      const arg = n.typeArguments?.[0]
+      if (arg && apagaALinha(arg)) {
+        achados.push({
+          funcao: nomeDaFuncao(n),
+          linha: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+          texto: `${n.expression.text}<${arg.getText(sf)}>(…)`.replace(/\s+/g, ' ').slice(0, 90),
+        })
+      }
+    }
     ts.forEachChild(n, visitarCasts)
   }
   visitarCasts(sf)
   return achados
+}
+
+/** O argumento de tipo apaga a linha que o builder infere? (ver o comentário em `visitarCasts`) */
+function apagaALinha(t: ts.TypeNode): boolean {
+  if (t.kind === ts.SyntaxKind.UnknownKeyword || t.kind === ts.SyntaxKind.AnyKeyword || t.kind === ts.SyntaxKind.ObjectKeyword) {
+    return true
+  }
+  if (ts.isTypeReferenceNode(t) && ts.isIdentifier(t.typeName) && t.typeName.text === 'Record') {
+    const valor = t.typeArguments?.[1]
+    return !!valor && (valor.kind === ts.SyntaxKind.UnknownKeyword || valor.kind === ts.SyntaxKind.AnyKeyword)
+  }
+  if (ts.isTypeLiteralNode(t)) return t.members.some((m) => ts.isPropertySignature(m) && !!m.questionToken)
+  if (ts.isIntersectionTypeNode(t) || ts.isUnionTypeNode(t)) return t.types.some(apagaALinha)
+  return false
 }
 
 // --- coleta ------------------------------------------------------------------------------
@@ -335,6 +364,9 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['parâmetro tipado com a linha crua do arquivo', 'function mapTimeline(r: RawTimelineRow) { return r.snapshot_anterior as Snapshot | null }', 1],
     ['linhas de paginarTodos num map (o buraco da F58)', 'async function f(){ const rows = await paginarTodos("x", (a, b) => c.from("t").select("a").range(a, b)); return rows.map((r) => r.snapshot as Snapshot | null) }', 1],
     ['linhas de paginarPorIds usadas direto', 'async function f(ids: string[]){ return (await paginarPorIds("x", ids, (l, a, b) => c.from("t").select("a").in("id", l).range(a, b))) as Linha[] }', 1],
+    ['argumento de tipo que APAGA a linha: paginarTodos<unknown> (o achado da revisão adversarial)', 'async function f(){ return paginarTodos<unknown>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['argumento de tipo com propriedade OPCIONAL inventa coluna', 'async function f(){ return paginarPorIds<{ id: string; extra?: number }>("x", ids, (l, a, b) => c.from("t").select("id").in("id", l).range(a, b)) }', 1],
+    ['Record<string, unknown> como linha', 'async function f(){ return paginarTodos<Record<string, unknown>>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
   ])('casa: %s', (_nome, fonte, esperado) => {
     expect(castsDeLeitura(fonte)).toHaveLength(esperado)
   })
