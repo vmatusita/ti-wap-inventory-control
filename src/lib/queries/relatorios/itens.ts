@@ -12,6 +12,13 @@ import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
 import { paginarTodos, type DbClient } from './comum'
 import { chamarRpc } from '@/lib/supabase/rpc'
+import { linhasDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_MOV_ITENS_DO_PERIODO,
+  LEITURA_REL_FRESCOR_ITENS,
+  LEITURA_REL_MOV_ITENS,
+  LEITURA_REL_SALDO_ITENS,
+} from '@/lib/queries/formas/relatorios'
 
 // Itens por quantidade nos grupos 2–3 do relatório v2 (acessórios/componentes —
 // OS-F3 3.6): saldo as-of + movimentação no período + carimbo de frescor + a
@@ -135,8 +142,14 @@ export async function getGruposItens(
   // absorve o próprio erro (ver comentário acima do Promise.all), então não há
   // `.error` para conferir aqui.
 
+  // F58: as três `rel_*` passam pela forma — a linha fora do formato LANÇA, pelo mesmo caminho
+  // dos `throw` acima (a geração de snapshot não congela dado incompleto).
+  const linhasSaldo = linhasDe(saldos.data, LEITURA_REL_SALDO_ITENS.forma, LEITURA_REL_SALDO_ITENS.rotulo)
+  const linhasMov = linhasDe(movs.data, LEITURA_REL_MOV_ITENS.forma, LEITURA_REL_MOV_ITENS.rotulo)
+  const linhasFrescor = linhasDe(frescor.data, LEITURA_REL_FRESCOR_ITENS.forma, LEITURA_REL_FRESCOR_ITENS.rotulo)
+
   const movPorItem = new Map<number, { entradas: number; saidas: number }>()
-  for (const m of movs.data ?? []) {
+  for (const m of linhasMov) {
     movPorItem.set(m.item_id, { entradas: Number(m.entradas), saidas: Number(m.saidas) })
   }
   const obsPorItem = new Map<number, string>()
@@ -144,14 +157,14 @@ export async function getGruposItens(
     if (o.observacao && !obsPorItem.has(o.item_id)) obsPorItem.set(o.item_id, o.observacao)
   }
   const frescorPorGrupo = new Map<GrupoItem, string | null>()
-  for (const f of frescor.data ?? []) frescorPorGrupo.set(f.grupo, f.ultima)
+  for (const f of linhasFrescor) frescorPorGrupo.set(f.grupo, f.ultima)
   // `minimosDoCatalogo` (lib/itens/repor.ts) é a função pura que o dashboard e a
   // tela /itens já usam para a mesma travessia — reusá-la mantém UMA definição de
   // "mínimo do item" no sistema.
   const minimos = minimosDoCatalogo(catalogo)
 
   const porGrupo = new Map<GrupoItem, SaldoItemPeriodo[]>()
-  for (const s of saldos.data ?? []) {
+  for (const s of linhasSaldo) {
     const mov = movPorItem.get(s.item_id) ?? { entradas: 0, saidas: 0 }
     const total = Number(s.total)
     const estoque = Number(s.estoque)
@@ -212,10 +225,8 @@ export async function getGruposItens(
 // paginarTodos é só cinto de segurança contra loop, nunca alcançado).
 // ===========================================================================
 
-const MOV_ITENS_SELECT =
-  'id, data, tipo, quantidade, chamado, colaborador, observacao, estorna_id, ' +
-  'item:itens!lancamentos_item_item_id_fkey(nome, grupo), ' +
-  'filial:filiais!lancamentos_item_filial_id_fkey(nome)'
+// O select desta tabela mora em `queries/formas/relatorios.ts` (LEITURA_MOV_ITENS_DO_PERIODO)
+// desde a F58, como LITERAL — era montado por `+` e a inferência do supabase-js caía.
 
 type RawMovItemRow = {
   id: string
@@ -287,13 +298,13 @@ export async function getLancamentosItensPeriodo(
 ): Promise<LinhaLancamentoItem[]> {
   // Período COMPLETO, paginado como buscarLinhasPeriodo (Saídas/Entradas/Transf.):
   // sem teto próprio que truncaria em silêncio e enganaria o contador da seção.
-  const [rows, estornados] = await Promise.all([
-    paginarTodos<RawMovItemRow>(
+  const [brutas, estornados] = await Promise.all([
+    paginarTodos(
       'Falha ao listar movimentações de itens',
       (from, to) => {
         let q = client
           .from('lancamentos_item')
-          .select(MOV_ITENS_SELECT)
+          .select(LEITURA_MOV_ITENS_DO_PERIODO.select)
           .gte('data', periodo.de)
           .lte('data', periodo.ate)
           // F6C: exclui os lançamentos de saldo inicial da carga (não são do período).
@@ -324,6 +335,7 @@ export async function getLancamentosItensPeriodo(
     ),
     buscarLancEstornadosAteData(client, periodo.ate),
   ])
+  const rows: RawMovItemRow[] = linhasDe(brutas, LEITURA_MOV_ITENS_DO_PERIODO.forma, LEITURA_MOV_ITENS_DO_PERIODO.rotulo)
   // Backstop em JS do filtro da carga (defesa em profundidade — testado).
   return rows
     .filter((r) => !ehSaldoInicialGoLive(r.observacao))

@@ -7,9 +7,17 @@ import type { NomeRpc } from '@/lib/supabase/rpc'
 //
 // Uma leitura migrada para `linhasDe`/`linhaDe`/`valorDe` é declarada UMA vez — origem, texto do
 // `select`, forma e ordem total — num módulo de `src/lib/queries/formas/`. A query ou a action que
-// lê o banco importa o descritor e monta a consulta com ELE (`client.from(d.origem).select(d.select)`);
-// o conferidor de formas (`scripts/formas/conferir.mts`) importa O MESMO descritor e passa as linhas
-// reais de produção pela MESMA forma. Um conferidor com cópia do schema provaria a cópia.
+// lê o banco importa o descritor e monta a consulta com o `select` e a forma DELE
+// (`client.from('tabela').select(d.select)` e `linhasDe(data, d.forma, d.rotulo)`); o conferidor de
+// formas (`scripts/formas/conferir.mts`) importa O MESMO descritor e passa as linhas reais de produção
+// pela MESMA forma. Um conferidor com cópia do schema provaria a cópia.
+//
+// ⚠ O NOME da tabela e o da RPC ficam LITERAIS no call-site — `.from('movimentacoes')`,
+// `chamarRpc(client, 'rel_resumo', …)` —, e não `d.origem`/`d.rpc`. É exigência do tripwire do
+// visualizador por senha (`queries/relatorios/fronteira-viewer.test.ts`), que só aceita nome
+// LITERAL numa lista branca e reprova qualquer nome montado em runtime. A troca não custa a
+// amarração: o literal tem o mesmo tipo do campo do descritor. Quem confere que o call-site e o
+// descritor falam da MESMA relação é `formas/catalogo.test.ts`.
 //
 // Os parâmetros `const` preservam o LITERAL do nome da relação e do `select` — é esse literal que
 // faz o supabase-js inferir a linha no call-site, e é contra essa linha que a amarração de

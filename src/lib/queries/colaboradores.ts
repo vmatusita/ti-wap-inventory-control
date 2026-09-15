@@ -18,7 +18,10 @@ export type Colaborador = {
   setor: string | null
   filial_id: number | null
   ativo: boolean
-  nome_chave: string
+  // F58: `colaboradores.nome_chave` é coluna GERADA e o catálogo a declara anulável — o tipo à mão
+  // dizia `string`, e o cast de `paginarTodos` escondia a diferença. Hoje nenhuma linha é nula
+  // (censo de produção, 15/09/2026); o tipo passa a dizer o que a coluna PODE ser.
+  nome_chave: string | null
 }
 
 export type ColaboradorAdmin = Colaborador & {

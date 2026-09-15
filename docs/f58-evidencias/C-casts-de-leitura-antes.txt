@@ -100,3 +100,22 @@ src/lib/queries/tipos-item.ts:62 [listarTiposItem] (data ?? []) as TipoItem[]
 src/lib/queries/tipos-item.ts:75 [listarTiposItemAdmin] (data ?? []) as Row[]
 src/lib/queries/vocabulario-import.ts:56 [lerVocabularioImport] c.categoria as CategoriaImport
 src/lib/queries/vocabulario-import.ts:61 [lerVocabularioImport] e.estado as EstadoPlanilha
+
+# ---------------------------------------------------------------------------------------------
+# CORREÇÃO MEDIDA NO LOTE 1 (15/09/2026) — a contagem "antes" acima estava UM ponto abaixo
+# ---------------------------------------------------------------------------------------------
+# O detector desta primeira versão tratava `const rows = await paginarTodos(...)` como uma RESPOSTA
+# (que carrega `.data`), quando `paginarTodos`/`paginarPorIds` já devolvem as LINHAS. O parâmetro de
+# `rows.map((r) => …)` virava "resposta" em vez de "derivado", e o cast sobre `r.x` não contava.
+# Um ponto existia antes do lote 1 e ficou de fora da lista acima:
+#
+#   src/lib/queries/movimentacoes.ts:142 [listarMovimentacoesDoAtivo] r.snapshot_anterior as SnapshotAnterior | null
+#
+# O lote 1 removeu esse cast (a linha do tempo passou por LEITURA_LINHA_DO_TEMPO) e, no mesmo lote, o
+# detector ganhou PRODUTORES_DE_LINHAS (paginarTodos, paginarPorIds) com dois casos unitários. Rodado
+# de novo sobre a árvore do lote 1, ele não achou NENHUM outro cast escondido sobre linhas paginadas.
+#
+#   antes, corrigido ........ 100 casts em 85 funções (queries 67 · actions 28 · fora das duas pastas 5)
+#   depois do lote 1 ......... 94 casts em 79 funções
+#   saíram no lote 1 ......... 6: tipos-item.ts ×3, relatorios/comum.ts::paginarTodos (o cast-mãe),
+#                              relatorios/movimentacoes.ts::mapMovRows, movimentacoes.ts:142 (a linha do tempo)

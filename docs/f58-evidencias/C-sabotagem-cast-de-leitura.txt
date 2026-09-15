@@ -1,0 +1,33 @@
+# F58 · Sabotagens C2 e C3 — a trava de cast de leitura (sem-cast-de-leitura.test.ts)
+# gerado em 2026-09-15T16:27:51.923Z · HEAD e7e6572
+
+## C2 — reintroduzir `(data ?? []) as X[]` numa query que hoje não tem cast
+arquivo sabotado: src/lib/queries/filiais.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+ ❯ |puro| src/lib/supabase/sem-cast-de-leitura.test.ts (26 tests | 1 failed) 21ms
+     × nenhum ponto fora da lista congelada e do resíduo 6ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 25 passed (26)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/sem-cast-de-leitura.test.ts > nenhum cast de leitura NOVO em src/** > nenhum ponto fora da lista congelada e do resíduo
+AssertionError: Cast sobre dado lido do Supabase: ele apaga o tipo que o select infere. Passe a leitura por linhasDe/linhaDe/valorDe (@/lib/supabase/linhas) com a forma amarrada ao select.: expected [ Array(1) ] to deeply equal []
++   "src/lib/queries/filiais.ts::sabotagemC2 (1 cast(s), congelado: 0)",
+ ❯ src/lib/supabase/sem-cast-de-leitura.test.ts:432:7
+
+## C3 — o mesmo com `{ data: linhas }` renomeado
+arquivo sabotado: src/lib/queries/filiais.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+ ❯ |puro| src/lib/supabase/sem-cast-de-leitura.test.ts (26 tests | 1 failed) 25ms
+     × nenhum ponto fora da lista congelada e do resíduo 9ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 25 passed (26)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/sem-cast-de-leitura.test.ts > nenhum cast de leitura NOVO em src/** > nenhum ponto fora da lista congelada e do resíduo
+AssertionError: Cast sobre dado lido do Supabase: ele apaga o tipo que o select infere. Passe a leitura por linhasDe/linhaDe/valorDe (@/lib/supabase/linhas) com a forma amarrada ao select.: expected [ Array(1) ] to deeply equal []
++   "src/lib/queries/filiais.ts::sabotagemC3 (1 cast(s), congelado: 0)",
+ ❯ src/lib/supabase/sem-cast-de-leitura.test.ts:432:7
+

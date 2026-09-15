@@ -26,6 +26,28 @@ type MapaDeViews = {
 }
 
 export const COLUNAS_DE_VIEW_NAO_NULAS = {
+  v_conflitos_filiais: {
+    chave: {
+      motivo: 'a chave vem de `grupos`, que só agrupa identidade não-nula; o join por chave descarta o NULL',
+      evidencia: 'where i.chave is not null',
+    },
+    ativo_id: {
+      motivo: 'é a PK de `ativos`, lida por join interno',
+      evidencia: 'join public.ativos a on a.id = i.id',
+    },
+    filial_id: {
+      motivo: '`ativos.filial_id` é not null, lido por join interno',
+      evidencia: 'join public.ativos a on a.id = i.id',
+    },
+    status: {
+      motivo: '`ativos.status` é not null, lido por join interno',
+      evidencia: 'join public.ativos a on a.id = i.id',
+    },
+    categoria: {
+      motivo: '`ativos.categoria` é not null, lido por join interno',
+      evidencia: 'join public.ativos a on a.id = i.id',
+    },
+  },
   v_estoque_atual: {
     filial: {
       motivo: 'é o slug da filial, lido por join INTERNO com `filiais` (slug é not null)',

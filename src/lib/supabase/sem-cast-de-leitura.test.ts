@@ -37,6 +37,20 @@ export type CastDeLeitura = { funcao: string; linha: number; texto: string }
 
 const METODOS_DE_LISTA = new Set(['map', 'filter', 'find', 'findLast', 'forEach', 'flatMap', 'reduce', 'some', 'every', 'sort', 'toSorted'])
 
+/**
+ * As funções da casa que JÁ devolvem as LINHAS (e não a resposta `{ data, error }`) de uma leitura
+ * paginada. O `await` delas não é um resultado com `.data`: é a lista derivada, e um cast sobre ela
+ * (ou sobre o parâmetro de um `.map` dela) é cast de leitura. Buraco medido na própria F58: sem esta
+ * lista, `r.snapshot_anterior as SnapshotAnterior` sobre as linhas de `paginarTodos` escapava.
+ */
+const PRODUTORES_DE_LINHAS = new Set(['paginarTodos', 'paginarPorIds'])
+
+const ehChamadaProdutoraDeLinhas = (e: ts.Expression): boolean => {
+  let x = e
+  while (ts.isParenthesizedExpression(x) || ts.isAwaitExpression(x)) x = x.expression
+  return ts.isCallExpression(x) && ts.isIdentifier(x.expression) && PRODUTORES_DE_LINHAS.has(x.expression.text)
+}
+
 function nomeDaFuncao(n: ts.Node): string {
   for (let p: ts.Node | undefined = n.parent; p; p = p.parent) {
     if ((ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p)) && p.name) return p.name.getText()
@@ -149,6 +163,8 @@ export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastD
   const derivaDe = (e: ts.Expression | undefined): boolean => {
     if (!e) return false
     const d = desembrulhar(e)
+    // as linhas que `paginarTodos`/`paginarPorIds` devolvem já são dado derivado
+    if (ehChamadaProdutoraDeLinhas(d)) return true
     // `{ ...linha, rotulo }` e `[...linhas]`: o literal carrega o derivado que espalha
     if (ts.isObjectLiteralExpression(d)) return d.properties.some((p) => ts.isSpreadAssignment(p) && derivaDe(p.expression))
     if (ts.isArrayLiteralExpression(d)) return d.elements.some((el) => ts.isSpreadElement(el) && derivaDe(el.expression))
@@ -199,7 +215,8 @@ export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastD
             }
           }
         } else if (ts.isIdentifier(n.name)) {
-          if (ehAwait(init)) resultados.add(chaveDe(n.name))
+          // o `await` de um produtor de linhas é LISTA derivada, não resposta com `.data`
+          if (ehAwait(init) && !ehChamadaProdutoraDeLinhas(init)) resultados.add(chaveDe(n.name))
           if (derivaDe(init)) derivados.add(chaveDe(n.name))
         }
       }
@@ -370,12 +387,7 @@ const CONGELADOS: Record<string, number> = {
   'src/lib/queries/pendencias-detalhe.ts::buscarServiceTags': 2,
   'src/lib/queries/pendencias-detalhe.ts::mapearPendencia': 2,
   'src/lib/queries/pendencias-item.ts::listarPendenciasItemDoAtivo': 3,
-  'src/lib/queries/relatorios/comum.ts::paginarTodos': 1,
-  'src/lib/queries/relatorios/movimentacoes.ts::mapMovRows': 1,
   'src/lib/queries/termos.ts::listarTermosDoAtivo': 1,
-  'src/lib/queries/tipos-item.ts::listarTiposItem': 1,
-  'src/lib/queries/tipos-item.ts::listarTiposItemAdmin': 1,
-  'src/lib/queries/tipos-item.ts::listarTiposItemAtivos': 1,
   'src/lib/queries/vocabulario-import.ts::lerVocabularioImport': 2,
 }
 
@@ -397,6 +409,8 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['data de um resultado já aguardado', 'async function f(){ const rs = await Promise.all(ids.map((id) => chamarRpc(c, "x", { id }))); return rs.map((r) => { const { data } = r; return (data ?? []) as S[] }) }', 1],
     ['parâmetro chamado data (o mapeador de linhas cruas)', 'function mapMovRows(data: unknown) { return (data ?? []) as RawMovRow[] }', 1],
     ['parâmetro tipado com a linha crua do arquivo', 'function mapTimeline(r: RawTimelineRow) { return r.snapshot_anterior as Snapshot | null }', 1],
+    ['linhas de paginarTodos num map (o buraco da F58)', 'async function f(){ const rows = await paginarTodos("x", (a, b) => c.from("t").select("a").range(a, b)); return rows.map((r) => r.snapshot as Snapshot | null) }', 1],
+    ['linhas de paginarPorIds usadas direto', 'async function f(ids: string[]){ return (await paginarPorIds("x", ids, (l, a, b) => c.from("t").select("a").in("id", l).range(a, b))) as Linha[] }', 1],
   ])('casa: %s', (_nome, fonte, esperado) => {
     expect(castsDeLeitura(fonte)).toHaveLength(esperado)
   })

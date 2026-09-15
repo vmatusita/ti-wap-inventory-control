@@ -6,6 +6,8 @@ import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import type { DbClient } from '@/lib/auth/acesso'
 import type { GrupoConflito, LadoConflito } from '@/lib/pendencias/conflitos'
 import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_LADOS_DE_CONFLITO } from '@/lib/queries/formas/conflitos'
 
 // Leituras da MESA DE CONFLITOS entre filiais (F24) — a seção própria de /pendencias.
 //
@@ -62,8 +64,10 @@ type RowLado = {
   tem_historico_real: boolean | null
 }
 
-const LADO_SELECT =
-  'chave, ativo_id, patrimonio, service_tag, filial_id, filial, filial_nome, status, categoria, marca, modelo, hostname, colaborador_atual, setor_atual, origem, pendencia, entrada_em, updated_at, movimentacoes, movimentacoes_reais, ultima_mov_data, ultima_mov_tipo, termos, tem_historico_real'
+// F58: o select dos lados e a forma que confere cada linha moram em
+// `queries/formas/conflitos.ts` (LEITURA_LADOS_DE_CONFLITO). `RowLado` continua sendo o tipo de
+// que `mapearLado` precisa — e a linha conferida cabe nele, com as cinco colunas que a view
+// garante não-nulas já sem o `null` do gerador.
 
 /**
  * As chaves não-nulas de um resultado da view.
@@ -353,17 +357,18 @@ export async function listarConflitos(opts: {
   // Os lados dos grupos VISÍVEIS. `chaves` tem no máximo PAGE_SIZE (20) itens e um grupo
   // tem 2–3 lados, então isto cabe folgado numa página do PostgREST — mas pagina do mesmo
   // jeito, para o teto nunca ser uma suposição.
-  const lados = await paginarTodos<RowLado>(
+  const ladosBrutos = await paginarTodos(
     'Falha ao ler os lados do conflito',
     (from, to) =>
       client
         .from('v_conflitos_filiais')
-        .select(LADO_SELECT)
+        .select(LEITURA_LADOS_DE_CONFLITO.select)
         .in('chave', chaves)
         .order('chave', { ascending: true })
         .order('filial_id', { ascending: true })
         .range(from, to),
   )
+  const lados: RowLado[] = linhasDe(ladosBrutos, LEITURA_LADOS_DE_CONFLITO.forma, LEITURA_LADOS_DE_CONFLITO.rotulo)
 
   const porChave = new Map<string, LadoConflito[]>()
   for (const r of lados) {
@@ -426,16 +431,17 @@ export async function listarConflitosParaExport(opts: {
   // Paginado: o export não tem teto de tela, e um import errado pode ter aberto centenas
   // de conflitos de uma vez. O corte de 1.000 do PostgREST sairia como arquivo incompleto
   // sem nenhum aviso — e um export truncado em silêncio é pior que um export que falha.
-  const lados = await paginarTodos<RowLado>('Falha ao exportar conflitos', (from, to) => {
+  const ladosBrutos = await paginarTodos('Falha ao exportar conflitos', (from, to) => {
     let q = client
       .from('v_conflitos_filiais')
-      .select(LADO_SELECT)
+      .select(LEITURA_LADOS_DE_CONFLITO.select)
       .order('chave', { ascending: true })
       .order('filial_id', { ascending: true })
       .range(from, to)
     if (chaves) q = q.in('chave', chaves)
     return q
   })
+  const lados = linhasDe(ladosBrutos, LEITURA_LADOS_DE_CONFLITO.forma, LEITURA_LADOS_DE_CONFLITO.rotulo)
 
   return lados.map((r) => ({ chave: r.chave, lado: mapearLado(r) }))
 }
@@ -508,16 +514,16 @@ export async function ladosDosAtivos(
   // Set antes de chegar aqui. Como é a leitura que diz ao operador quanta coisa
   // será destruída, um corte silencioso subestimaria justamente o número que o
   // diálogo existe para mostrar.
-  const linhas = await paginarPorIds<RowLado>(
+  const linhas = await paginarPorIds(
     'Falha ao ler os cadastros em conflito',
     ativoIds,
     (lote, from, to) =>
       client
         .from('v_conflitos_filiais')
-        .select(LADO_SELECT)
+        .select(LEITURA_LADOS_DE_CONFLITO.select)
         .in('ativo_id', lote)
         .order('ativo_id', { ascending: true })
         .range(from, to),
   )
-  return linhas.map(mapearLado)
+  return linhasDe(linhas, LEITURA_LADOS_DE_CONFLITO.forma, LEITURA_LADOS_DE_CONFLITO.rotulo).map(mapearLado)
 }

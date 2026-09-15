@@ -27,7 +27,9 @@ import {
   ultimoPorAtivo,
   type DbClient,
 } from './comum'
-import { chamarRpc, type ResultadoDaPorta } from '@/lib/supabase/rpc'
+import { chamarRpc } from '@/lib/supabase/rpc'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_REL_ESTOQUE_ASOF } from '@/lib/queries/formas/relatorios'
 
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
@@ -104,8 +106,11 @@ export async function lerEstadoAtivos(
   // corpo, e paginar por OFFSET sem ordem total repete e perde linhas quando o
   // plano muda entre duas páginas (ver o bloco de `paginarTodos` em comum.ts).
   // `ativo_id` é uuid e há uma linha por ativo, então é ordem total.
-  type LinhaAsof = ResultadoDaPorta<'rel_estoque_asof'>[number]
-  const linhas = await paginarTodos<LinhaAsof>(
+  // F58: a linha as-of passa pela forma. `colaborador`/`setor` (e `marca`/`modelo`) chegam
+  // anuláveis desde a porta de RPC — é o SQL vivo que o diz, não o gerador — e a forma confere
+  // isso em runtime; a linha fora do formato LANÇA pelo mesmo caminho de erro desta função (e
+  // `getSerieEstado`, que a embrulha num try/catch, continua degradando igual).
+  const brutas = await paginarTodos(
     'Falha ao reconstruir o estoque as-of',
     (from, to) =>
       chamarRpc(client, 'rel_estoque_asof', {
@@ -115,6 +120,7 @@ export async function lerEstadoAtivos(
         .order('ativo_id', { ascending: true })
         .range(from, to),
   )
+  const linhas = linhasDe(brutas, LEITURA_REL_ESTOQUE_ASOF.forma, LEITURA_REL_ESTOQUE_ASOF.rotulo)
   return linhas.map((r) => ({
     ativo_id: r.ativo_id,
     categoria: r.categoria,

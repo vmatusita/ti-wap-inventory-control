@@ -21,6 +21,8 @@ import {
   MIN_PREFIXO_SUGESTAO,
   prefixoSeguro,
 } from '@/lib/busca/prefixo'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_LINHA_DO_TEMPO } from '@/lib/queries/formas/movimentacoes'
 
 // Estado do ativo ANTES da movimentacao (usado no dialog de estorno — o ativo
 // volta a este estado). Gravado pelo trigger em `snapshot_anterior` (jsonb).
@@ -59,36 +61,10 @@ export type MovimentacaoTimeline = {
 type AutorEmbed = { nome: string | null } | null
 type FilialEmbed = { nome: string } | null
 
-// O select usa hints de FK (`!fkname`) e aliases de embed; o type-checker do
-// supabase-js nao infere esse formato, entao tipamos a linha crua e fazemos o
-// cast explicito. Os nomes de coluna sao verificados em runtime pelo banco.
-type RawTimelineRow = {
-  id: string
-  tipo: MovimentacaoTimeline['tipo']
-  motivo: string | null
-  data: string
-  colaborador: string | null
-  setor: string | null
-  chamado: string | null
-  chamado_fornecedor: string | null
-  status_anterior: StatusAtivo | null
-  status_resultante: StatusAtivo | null
-  itens_faltantes: string[] | null
-  observacao: string | null
-  estorno_de: string | null
-  snapshot_anterior: SnapshotAnterior | null
-  created_at: string
-  forcado: boolean
-  autor: AutorEmbed
-  origem: FilialEmbed
-  destino: FilialEmbed
-}
-
-const TIMELINE_SELECT =
-  'id, tipo, motivo, data, colaborador, setor, chamado, chamado_fornecedor, status_anterior, status_resultante, itens_faltantes, observacao, estorno_de, snapshot_anterior, created_at, forcado, ' +
-  'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
-  'origem:filiais!movimentacoes_filial_id_fkey(nome), ' +
-  'destino:filiais!movimentacoes_filial_destino_id_fkey(nome)'
+// F58: o select da linha do tempo e a forma dela moram em `queries/formas/movimentacoes.ts`
+// (LEITURA_LINHA_DO_TEMPO), como LITERAL. O comentário que ficava aqui dizia que o supabase-js não
+// inferia hints de FK e aliases de embed — ele infere, quando o texto é literal; o que quebrava a
+// inferência era a concatenação por `+`.
 
 // Linha do tempo do ativo. Ordenada por created_at desc, com `ordem` como
 // desempate exato — o empate de created_at e ROTINA (lote e import gravam N
@@ -110,17 +86,18 @@ export async function listarMovimentacoesDoAtivo(
   // linha do tempo faltando história, sem aviso nenhum. Desempate por `ordem`
   // porque `created_at` empata quando um lote grava tudo na mesma transação,
   // e ordenação com empate não pagina — `ordem` é o único total (F53).
-  const rows = await paginarTodos<RawTimelineRow>(
+  const brutas = await paginarTodos(
     'Falha ao carregar a linha do tempo',
     (from, to) =>
       supabase
         .from('movimentacoes')
-        .select(TIMELINE_SELECT)
+        .select(LEITURA_LINHA_DO_TEMPO.select)
         .eq('ativo_id', ativoId)
         .order('created_at', { ascending: false })
         .order('ordem', { ascending: false })
         .range(from, to),
   )
+  const rows = linhasDe(brutas, LEITURA_LINHA_DO_TEMPO.forma, LEITURA_LINHA_DO_TEMPO.rotulo)
   return rows.map((r) => {
     const autor = r.autor
     const origem = r.origem
@@ -139,7 +116,15 @@ export async function listarMovimentacoesDoAtivo(
       itens_faltantes: r.itens_faltantes,
       observacao: r.observacao,
       estorno_de: r.estorno_de,
-      snapshot_anterior: (r.snapshot_anterior as SnapshotAnterior | null) ?? null,
+      // O retrato conferido pela forma frouxa; uma chave AUSENTE num retrato antigo vira `null`.
+      snapshot_anterior: r.snapshot_anterior
+        ? {
+            status: r.snapshot_anterior.status ?? null,
+            colaborador: r.snapshot_anterior.colaborador ?? null,
+            setor: r.snapshot_anterior.setor ?? null,
+            filial_id: r.snapshot_anterior.filial_id ?? null,
+          }
+        : null,
       created_at: r.created_at,
       forcado: r.forcado === true,
       autor_nome: autor?.nome ?? null,
