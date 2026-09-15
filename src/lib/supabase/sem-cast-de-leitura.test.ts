@@ -308,12 +308,12 @@ const RESIDUO_JUSTIFICADO: Record<string, string> = {}
 /**
  * A lista CONGELADA — os pontos medidos no início da Frente C, que ENCOLHE a cada lote até zero.
  * Um ponto novo não entra aqui: ele vai para `linhasDe`/`linhaDe`/`valorDe`.
+ *
+ * Vazia desde o lote 4 (o último): `gerados.ts` era o único resíduo, propositalmente guardado
+ * para o fim (§4 do plano — a forma do snapshot é a mais frouxa/histórica de toda a fase). A
+ * trava continua valendo com a lista vazia — os dois testes abaixo não dependem de ter conteúdo.
  */
-const CONGELADOS: Record<string, number> = {
-  // lote 4 (gerados.ts) — fora do escopo do lote 2, propositalmente não tocado.
-  'src/lib/queries/gerados.ts::buscarRelatorioGerado': 2,
-  'src/lib/queries/gerados.ts::listarRelatoriosGerados': 1,
-}
+const CONGELADOS: Record<string, number> = {}
 
 describe('o detector de cast de leitura reconhece a forma (guarda do próprio teste)', () => {
   it.each([

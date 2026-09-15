@@ -118,6 +118,10 @@ import {
   LEITURA_URL_TERMO,
 } from '@/lib/queries/formas/termos'
 import { LEITURA_VOCAB_CATEGORIAS, LEITURA_VOCAB_ESTADOS } from '@/lib/queries/formas/vocabulario-import'
+import {
+  LEITURA_DETALHE_RELATORIO_GERADO,
+  LEITURA_LISTA_RELATORIOS_GERADOS,
+} from '@/lib/queries/formas/relatorios-gerados'
 
 // O CATÁLOGO DE FORMAS — toda leitura migrada para a porta da leitura (F58 · Frentes C e E).
 //
@@ -266,4 +270,7 @@ export const CATALOGO: readonly Descritor[] = [
   LEITURA_ATIVOS_ID,
   // lote 3 — ativos/identidade.ts
   LEITURA_MESMA_IDENTIDADE,
+  // lote 4 — relatórios gerados (gerados.ts) — o snapshot congelado, FROUXO e histórico
+  LEITURA_LISTA_RELATORIOS_GERADOS,
+  LEITURA_DETALHE_RELATORIO_GERADO,
 ]
