@@ -273,4 +273,12 @@ migration, nenhuma sessão a desfazer.
 
 ## 10. SHA de código congelado
 
-*(preenchido na Frente G, passo 3)*
+**`932665a`** — `fix(f58): a trava de cast resolve o import inline no argumento de tipo`, 15/09/2026. É o último commit que toca
+`src/**` ou `scripts/**`; a partir daqui só entram `docs/**` e o `CHANGELOG.md`. As rodadas que valem como gate (o conferidor em
+produção e no ensaio, o benchmark de lote, o A/B de TTFB e a varredura de evidências) são sobre ele, e a evidência guarda o SHA.
+
+Como se chegou nele: `bb79e67` fechou a versão 1.63.0; a **revisão adversarial** (quatro lentes em contexto fresco, um cético por
+achado) devolveu um achado confirmado — `acervoDosAtivos` lia cinco `select('*')` de backup com `paginarTodos<unknown>` —,
+corrigido em `985ca1c`; e **cinco re-revisões focadas** sobre a correção fecharam, uma a uma, as fugas da resolução de nome da
+trava de cast (`fece834`, `92bb4fe`, `cfa5ef7`, `932665a`), até a quinta rodada voltar sem achado. Cada correção tem sabotagem
+própria em `docs/f58-evidencias/C-sabotagem-alias-na-trava.txt`.
