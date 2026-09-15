@@ -1,0 +1,44 @@
+[censo] alvo PRODUCAO · ref pbtjcalbmepmrqzprusb · só leitura
+[censo] login ok
+[censo] 29 relações lidas por src/** — contando…
+[censo] gravado em docs/f58-evidencias/censo-producao.json
+  tabela anotacoes                                —  erro ERRO ?
+  tabela ativos                                1620  count exato (HEAD)  nulos: colaborador_atual=366 armazenamento=813 fornecedor=3 hostname=274 imei=1620 memoria=820 modelo=11 patrimonio=31 observacoes=763 patrimonio_original=37 pendencia=1551 processador=996 pulsus=1620 service_tag=58 setor_atual=1407 substitui_ativo_id=1618 termo_assinado=1476 telefone=1620 termo_data=1475
+  tabela colaboradores                           28  count exato (HEAD)  nulos: matricula=28 setor=26
+  tabela eventos_admin                          100  count exato (HEAD)  nulos: detalhe=4
+  tabela filiais                                  6  count exato (HEAD)
+  tabela import_logs                             12  count exato (HEAD)
+  tabela import_prefixos_patrimonio               7  count exato (HEAD)
+  tabela import_termos_categoria                  5  count exato (HEAD)
+  tabela import_termos_estado                    17  count exato (HEAD)  nulos: rotulo=10
+  tabela itens                                   23  count exato (HEAD)  nulos: criado_por=23
+  tabela kits_modelos                             0  count exato (HEAD)
+  tabela lancamentos_item                       142  count exato (HEAD)  nulos: colaborador=58 chamado=114 colaborador_id=100 estorna_id=134 movimentacao_id=74 pendencia_item_id=142 observacao=94
+  tabela motivos                                 14  count exato (HEAD)
+  tabela movimentacoes                         3553  count exato (HEAD)  nulos: chamado_fornecedor=3545 colaborador_id=3508 chamado=3138 colaborador=2092 estorno_de=3546 filial_destino_id=3539 itens_faltantes=3457 observacao=241 motivo=3156 setor=3247 termo_assinado=3405 termo_data=3403
+  tabela operador_filiais                        25  count exato (HEAD)
+  tabela pendencias_item                         17  count exato (HEAD)  nulos: desfecho=14 colaborador=5 resolvida_por=14 resolvida_em=14 observacao=15
+  tabela profiles                                16  count exato (HEAD)  nulos: excluido_em=14 sobrenome=4
+  tabela relatorios_gerados                      13  count exato (HEAD)  nulos: filial_id=7 observacao=4
+  tabela senhas_acesso                            0  count exato (HEAD)
+  tabela termos_gerados                         106  count exato (HEAD)  nulos: atualizado_por=94
+  tabela tipos_item                              10  count exato (HEAD)
+  tabela unidades_apelidos                       13  count exato (HEAD)
+  view   v_colaboradores_consolidacao             2  count exato (HEAD)
+  view   v_colaboradores_textos                 918  count exato (HEAD)  nulos: colaborador_id=890
+  view   v_conflitos_filiais                    138  count exato (HEAD)  nulos: colaborador_atual=29 hostname=9 pendencia=138 setor_atual=127
+  view   v_conflitos_filiais_grupos              68  count exato (HEAD)
+  view   v_estoque_atual                         63  count exato (HEAD)
+  view   v_fila_pendencias                       99  count exato (HEAD)  nulos: colaborador_atual=25 item=85 modelo=4 pendencia_item_id=85 patrimonio=31 setor_atual=95
+  view   v_pendencias_item                       17  count exato (HEAD)  nulos: colaborador=5 desfecho=14 observacao=15 resolvida_em=14 resolvida_por=14 resolvida_por_nome=14
+  rpc    rel_estoque_asof                      1611  consolidado · hoje  nulos: modelo=11 colaborador=1472 setor=1445
+  rpc    rel_estoque_asof                       959  consolidado · 180 dias atrás  nulos: modelo=8 colaborador=958 setor=959
+  rpc    rel_frescor_itens                        2  consolidado · hoje
+  rpc    rel_mov_itens                           23  consolidado · 365 dias
+  rpc    rel_mov_por_mes                          8  consolidado · 365 dias
+  rpc    rel_por_motivo                          11  consolidado · 365 dias
+  rpc    rel_resumo                              58  consolidado · 365 dias
+  rpc    rel_saldo_colaborador                   41  amostra de 28 pessoas
+  rpc    rel_saldo_itens                         23  consolidado · hoje
+[censo] total de linhas nas relações: 7032
+exit=0

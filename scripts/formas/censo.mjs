@@ -130,7 +130,11 @@ for (const arq of varrer(join(RAIZ, 'src'))) {
 }
 // As tabelas que o backup lê por NOME EM VARIÁVEL (`tabela()` em conflitos/dev-destrutivo/
 // import-logs) já aparecem literais em outros pontos; a conferência abaixo o prova.
-const relacoesDoApp = [...lidasPor.keys()].sort()
+// `--relacoes=a,b` reconta SÓ essas relações (e nenhuma RPC) — para refazer uma contagem que
+// falhou de forma transitória sem reler o resto do banco.
+const soEstas = opcao('relacoes')?.split(',').map((s) => s.trim()).filter(Boolean)
+const relacoesDoApp = [...lidasPor.keys()].filter((r) => !soEstas || soEstas.includes(r)).sort()
+if (soEstas) rpcsLidas.clear()
 
 // ---------------------------------------------------------------------------
 // 3. Sessão

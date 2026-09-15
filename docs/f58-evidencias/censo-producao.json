@@ -1,0 +1,686 @@
+{
+  "o_que_e": "Censo F58 · Frente A — linhas e nulos por coluna do que src/** lê. Só nomes e números; nenhum valor.",
+  "alvo": "producao",
+  "inicio": "2026-09-15T15:27:06.579Z",
+  "fim": "2026-09-15T15:27:13.795Z",
+  "total_linhas_relacoes": 7032,
+  "relacoes": [
+    {
+      "relacao": "anotacoes",
+      "tipo": "tabela",
+      "lida_por_arquivos": 7,
+      "colunas": 5,
+      "metodo": "erro",
+      "erro": "?"
+    },
+    {
+      "relacao": "ativos",
+      "tipo": "tabela",
+      "lida_por_arquivos": 13,
+      "colunas": 27,
+      "metodo": "count exato (HEAD)",
+      "linhas": 1620,
+      "nulos": {
+        "categoria": 0,
+        "created_at": 0,
+        "colaborador_atual": 366,
+        "filial_id": 0,
+        "armazenamento": 813,
+        "fornecedor": 3,
+        "hostname": 274,
+        "id": 0,
+        "imei": 1620,
+        "marca": 0,
+        "memoria": 820,
+        "modelo": 11,
+        "origem": 0,
+        "patrimonio": 31,
+        "observacoes": 763,
+        "patrimonio_original": 37,
+        "pendencia": 1551,
+        "processador": 996,
+        "pulsus": 1620,
+        "service_tag": 58,
+        "setor_atual": 1407,
+        "status": 0,
+        "substitui_ativo_id": 1618,
+        "termo_assinado": 1476,
+        "telefone": 1620,
+        "termo_data": 1475,
+        "updated_at": 0
+      }
+    },
+    {
+      "relacao": "colaboradores",
+      "tipo": "tabela",
+      "lida_por_arquivos": 2,
+      "colunas": 9,
+      "metodo": "count exato (HEAD)",
+      "linhas": 28,
+      "nulos": {
+        "criado_por": 0,
+        "created_at": 0,
+        "filial_id": 0,
+        "ativo": 0,
+        "id": 0,
+        "matricula": 28,
+        "nome_chave": 0,
+        "nome": 0,
+        "setor": 26
+      }
+    },
+    {
+      "relacao": "eventos_admin",
+      "tipo": "tabela",
+      "lida_por_arquivos": 3,
+      "colunas": 6,
+      "metodo": "count exato (HEAD)",
+      "linhas": 100,
+      "nulos": {
+        "alvo": 0,
+        "acao": 0,
+        "autor": 0,
+        "detalhe": 4,
+        "quando": 0,
+        "id": 0
+      }
+    },
+    {
+      "relacao": "filiais",
+      "tipo": "tabela",
+      "lida_por_arquivos": 12,
+      "colunas": 6,
+      "metodo": "count exato (HEAD)",
+      "linhas": 6,
+      "nulos": {
+        "id": 0,
+        "created_at": 0,
+        "cidade": 0,
+        "ativo": 0,
+        "slug": 0,
+        "nome": 0
+      }
+    },
+    {
+      "relacao": "import_logs",
+      "tipo": "tabela",
+      "lida_por_arquivos": 2,
+      "colunas": 14,
+      "metodo": "count exato (HEAD)",
+      "linhas": 12,
+      "nulos": {
+        "backup_path": 0,
+        "anotacoes_apagadas": 0,
+        "arquivo_hash": 0,
+        "ativos_criados": 0,
+        "conflitos_abertos": 0,
+        "correcoes": 0,
+        "created_at": 0,
+        "criado_por": 0,
+        "filial_id": 0,
+        "id": 0,
+        "modo": 0,
+        "movs_apagadas": 0,
+        "termos_apagados": 0,
+        "total_linhas": 0
+      }
+    },
+    {
+      "relacao": "import_prefixos_patrimonio",
+      "tipo": "tabela",
+      "lida_por_arquivos": 1,
+      "colunas": 1,
+      "metodo": "count exato (HEAD)",
+      "linhas": 7,
+      "nulos": {
+        "prefixo": 0
+      }
+    },
+    {
+      "relacao": "import_termos_categoria",
+      "tipo": "tabela",
+      "lida_por_arquivos": 1,
+      "colunas": 3,
+      "metodo": "count exato (HEAD)",
+      "linhas": 5,
+      "nulos": {
+        "categoria": 0,
+        "rotulo": 0,
+        "termo": 0
+      }
+    },
+    {
+      "relacao": "import_termos_estado",
+      "tipo": "tabela",
+      "lida_por_arquivos": 1,
+      "colunas": 3,
+      "metodo": "count exato (HEAD)",
+      "linhas": 17,
+      "nulos": {
+        "estado": 0,
+        "termo": 0,
+        "rotulo": 10
+      }
+    },
+    {
+      "relacao": "itens",
+      "tipo": "tabela",
+      "lida_por_arquivos": 7,
+      "colunas": 10,
+      "metodo": "count exato (HEAD)",
+      "linhas": 23,
+      "nulos": {
+        "ativo": 0,
+        "criado_por": 23,
+        "estoque_minimo": 0,
+        "created_at": 0,
+        "grupo": 0,
+        "nome_chave": 0,
+        "nome": 0,
+        "id": 0,
+        "tipo_id": 0,
+        "ordem": 0
+      }
+    },
+    {
+      "relacao": "kits_modelos",
+      "tipo": "tabela",
+      "lida_por_arquivos": 2,
+      "colunas": 6,
+      "metodo": "count exato (HEAD)",
+      "linhas": 0,
+      "nulos": {
+        "criado_por": 0,
+        "created_at": 0,
+        "id": 0,
+        "ativo": 0,
+        "payload": 0,
+        "nome": 0
+      }
+    },
+    {
+      "relacao": "lancamentos_item",
+      "tipo": "tabela",
+      "lida_por_arquivos": 8,
+      "colunas": 17,
+      "metodo": "count exato (HEAD)",
+      "linhas": 142,
+      "nulos": {
+        "colaborador": 58,
+        "created_at": 0,
+        "chamado": 114,
+        "colaborador_id": 100,
+        "data": 0,
+        "filial_id": 0,
+        "criado_por": 0,
+        "estorna_id": 134,
+        "id": 0,
+        "forcado": 0,
+        "movimentacao_id": 74,
+        "item_id": 0,
+        "quantidade": 0,
+        "pendencia_item_id": 142,
+        "regularizacao": 0,
+        "observacao": 94,
+        "tipo": 0
+      }
+    },
+    {
+      "relacao": "motivos",
+      "tipo": "tabela",
+      "lida_por_arquivos": 3,
+      "colunas": 4,
+      "metodo": "count exato (HEAD)",
+      "linhas": 14,
+      "nulos": {
+        "aplica_a": 0,
+        "ativo": 0,
+        "rotulo": 0,
+        "codigo": 0
+      }
+    },
+    {
+      "relacao": "movimentacoes",
+      "tipo": "tabela",
+      "lida_por_arquivos": 9,
+      "colunas": 24,
+      "metodo": "count exato (HEAD)",
+      "linhas": 3553,
+      "nulos": {
+        "ativo_id": 0,
+        "chamado_fornecedor": 3545,
+        "colaborador_id": 3508,
+        "chamado": 3138,
+        "colaborador": 2092,
+        "created_at": 0,
+        "criado_por": 0,
+        "data": 0,
+        "estorno_de": 3546,
+        "filial_id": 0,
+        "filial_destino_id": 3539,
+        "forcado": 0,
+        "id": 0,
+        "itens_faltantes": 3457,
+        "observacao": 241,
+        "ordem": 0,
+        "motivo": 3156,
+        "setor": 3247,
+        "snapshot_anterior": 0,
+        "status_resultante": 0,
+        "status_anterior": 0,
+        "termo_assinado": 3405,
+        "tipo": 0,
+        "termo_data": 3403
+      }
+    },
+    {
+      "relacao": "operador_filiais",
+      "tipo": "tabela",
+      "lida_por_arquivos": 2,
+      "colunas": 3,
+      "metodo": "count exato (HEAD)",
+      "linhas": 25,
+      "nulos": {
+        "usuario_id": 0,
+        "created_at": 0,
+        "filial_id": 0
+      }
+    },
+    {
+      "relacao": "pendencias_item",
+      "tipo": "tabela",
+      "lida_por_arquivos": 3,
+      "colunas": 12,
+      "metodo": "count exato (HEAD)",
+      "linhas": 17,
+      "nulos": {
+        "desfecho": 14,
+        "ativo_id": 0,
+        "colaborador": 5,
+        "filial_id": 0,
+        "item": 0,
+        "id": 0,
+        "created_at": 0,
+        "resolvida_por": 14,
+        "resolvida_em": 14,
+        "observacao": 15,
+        "movimentacao_id": 0,
+        "status": 0
+      }
+    },
+    {
+      "relacao": "profiles",
+      "tipo": "tabela",
+      "lida_por_arquivos": 6,
+      "colunas": 8,
+      "metodo": "count exato (HEAD)",
+      "linhas": 16,
+      "nulos": {
+        "ativo": 0,
+        "id": 0,
+        "excluido_em": 14,
+        "papel": 0,
+        "created_at": 0,
+        "nome": 0,
+        "primeiro_nome": 0,
+        "sobrenome": 4
+      }
+    },
+    {
+      "relacao": "relatorios_gerados",
+      "tipo": "tabela",
+      "lida_por_arquivos": 2,
+      "colunas": 9,
+      "metodo": "count exato (HEAD)",
+      "linhas": 13,
+      "nulos": {
+        "gerado_em": 0,
+        "gerado_por": 0,
+        "dados": 0,
+        "filial_id": 7,
+        "id": 0,
+        "periodo_ate": 0,
+        "observacao": 4,
+        "periodo_de": 0,
+        "versao": 0
+      }
+    },
+    {
+      "relacao": "senhas_acesso",
+      "tipo": "tabela",
+      "lida_por_arquivos": 3,
+      "colunas": 7,
+      "metodo": "count exato (HEAD)",
+      "linhas": 0,
+      "nulos": {
+        "hash": 0,
+        "created_at": 0,
+        "ativa": 0,
+        "criado_por": 0,
+        "rotulo": 0,
+        "id": 0,
+        "ultimo_uso": 0
+      }
+    },
+    {
+      "relacao": "termos_gerados",
+      "tipo": "tabela",
+      "lida_por_arquivos": 5,
+      "colunas": 11,
+      "metodo": "count exato (HEAD)",
+      "linhas": 106,
+      "nulos": {
+        "arquivo_path": 0,
+        "atualizado_em": 0,
+        "ativo_ids": 0,
+        "colaborador": 0,
+        "dados": 0,
+        "created_at": 0,
+        "atualizado_por": 94,
+        "id": 0,
+        "gerado_por": 0,
+        "movimentacao_ids": 0,
+        "tipo": 0
+      }
+    },
+    {
+      "relacao": "tipos_item",
+      "tipo": "tabela",
+      "lida_por_arquivos": 3,
+      "colunas": 6,
+      "metodo": "count exato (HEAD)",
+      "linhas": 10,
+      "nulos": {
+        "ativo": 0,
+        "ordem": 0,
+        "id": 0,
+        "created_at": 0,
+        "rotulo": 0,
+        "slug": 0
+      }
+    },
+    {
+      "relacao": "unidades_apelidos",
+      "tipo": "tabela",
+      "lida_por_arquivos": 3,
+      "colunas": 5,
+      "metodo": "count exato (HEAD)",
+      "linhas": 13,
+      "nulos": {
+        "filial_id": 0,
+        "created_at": 0,
+        "apelido_chave": 0,
+        "apelido": 0,
+        "id": 0
+      }
+    },
+    {
+      "relacao": "v_colaboradores_consolidacao",
+      "tipo": "view",
+      "lida_por_arquivos": 1,
+      "colunas": 3,
+      "metodo": "count exato (HEAD)",
+      "linhas": 2,
+      "nulos": {
+        "grupos": 0,
+        "registros": 0,
+        "ja_cadastrado": 0
+      }
+    },
+    {
+      "relacao": "v_colaboradores_textos",
+      "tipo": "view",
+      "lida_por_arquivos": 2,
+      "colunas": 7,
+      "metodo": "count exato (HEAD)",
+      "linhas": 918,
+      "nulos": {
+        "grafia_exemplo": 0,
+        "filial_id": 0,
+        "colaborador_id": 890,
+        "grafias": 0,
+        "nome_chave": 0,
+        "ocorrencias": 0,
+        "ja_cadastrado": 0
+      }
+    },
+    {
+      "relacao": "v_conflitos_filiais",
+      "tipo": "view",
+      "lida_por_arquivos": 1,
+      "colunas": 26,
+      "metodo": "count exato (HEAD)",
+      "linhas": 138,
+      "nulos": {
+        "ativo_id": 0,
+        "categoria": 0,
+        "created_at": 0,
+        "chave": 0,
+        "colaborador_atual": 29,
+        "filial": 0,
+        "filial_id": 0,
+        "filial_nome": 0,
+        "entrada_em": 0,
+        "marca": 0,
+        "modelo": 0,
+        "hostname": 9,
+        "origem": 0,
+        "movimentacoes": 0,
+        "movimentacoes_reais": 0,
+        "patrimonio": 0,
+        "pendencia": 138,
+        "status": 0,
+        "patrimonio_original": 0,
+        "service_tag": 0,
+        "setor_atual": 127,
+        "tem_historico_real": 0,
+        "ultima_mov_data": 0,
+        "updated_at": 0,
+        "termos": 0,
+        "ultima_mov_tipo": 0
+      }
+    },
+    {
+      "relacao": "v_conflitos_filiais_grupos",
+      "tipo": "view",
+      "lida_por_arquivos": 1,
+      "colunas": 9,
+      "metodo": "count exato (HEAD)",
+      "linhas": 68,
+      "nulos": {
+        "ativos": 0,
+        "filiais": 0,
+        "chave": 0,
+        "algum_com_historico_real": 0,
+        "filiais_nomes": 0,
+        "rotulo": 0,
+        "patrimonio": 0,
+        "service_tag": 0,
+        "visto_em": 0
+      }
+    },
+    {
+      "relacao": "v_estoque_atual",
+      "tipo": "view",
+      "lida_por_arquivos": 1,
+      "colunas": 4,
+      "metodo": "count exato (HEAD)",
+      "linhas": 63,
+      "nulos": {
+        "categoria": 0,
+        "filial": 0,
+        "status": 0,
+        "total": 0
+      }
+    },
+    {
+      "relacao": "v_fila_pendencias",
+      "tipo": "view",
+      "lida_por_arquivos": 3,
+      "colunas": 15,
+      "metodo": "count exato (HEAD)",
+      "linhas": 99,
+      "nulos": {
+        "ativo_id": 0,
+        "categoria": 0,
+        "desde": 0,
+        "colaborador_atual": 25,
+        "filial_nome": 0,
+        "filial": 0,
+        "id": 0,
+        "item": 85,
+        "modelo": 4,
+        "ordem": 0,
+        "marca": 0,
+        "pendencia_item_id": 85,
+        "patrimonio": 31,
+        "pendencia": 0,
+        "setor_atual": 95
+      }
+    },
+    {
+      "relacao": "v_pendencias_item",
+      "tipo": "view",
+      "lida_por_arquivos": 1,
+      "colunas": 20,
+      "metodo": "count exato (HEAD)",
+      "linhas": 17,
+      "nulos": {
+        "categoria": 0,
+        "colaborador": 5,
+        "ativo_id": 0,
+        "created_at": 0,
+        "desde": 0,
+        "desfecho": 14,
+        "filial_id": 0,
+        "filial": 0,
+        "id": 0,
+        "filial_nome": 0,
+        "item": 0,
+        "marca": 0,
+        "movimentacao_id": 0,
+        "modelo": 0,
+        "observacao": 15,
+        "resolvida_em": 14,
+        "patrimonio": 0,
+        "resolvida_por": 14,
+        "resolvida_por_nome": 14,
+        "status": 0
+      }
+    }
+  ],
+  "rpcs": [
+    {
+      "funcao": "rel_estoque_asof",
+      "chamada": "consolidado · hoje",
+      "linhas": 1611,
+      "nulos": {
+        "ativo_id": 0,
+        "categoria": 0,
+        "marca": 0,
+        "modelo": 11,
+        "filial_id": 0,
+        "status": 0,
+        "colaborador": 1472,
+        "setor": 1445
+      }
+    },
+    {
+      "funcao": "rel_estoque_asof",
+      "chamada": "consolidado · 180 dias atrás",
+      "linhas": 959,
+      "nulos": {
+        "ativo_id": 0,
+        "categoria": 0,
+        "marca": 0,
+        "modelo": 8,
+        "filial_id": 0,
+        "status": 0,
+        "colaborador": 958,
+        "setor": 959
+      }
+    },
+    {
+      "funcao": "rel_frescor_itens",
+      "chamada": "consolidado · hoje",
+      "linhas": 2,
+      "nulos": {
+        "grupo": 0,
+        "ultima": 0
+      }
+    },
+    {
+      "funcao": "rel_mov_itens",
+      "chamada": "consolidado · 365 dias",
+      "linhas": 23,
+      "nulos": {
+        "item_id": 0,
+        "item": 0,
+        "grupo": 0,
+        "ordem": 0,
+        "entradas": 0,
+        "saidas": 0
+      }
+    },
+    {
+      "funcao": "rel_mov_por_mes",
+      "chamada": "consolidado · 365 dias",
+      "linhas": 8,
+      "nulos": {
+        "mes": 0,
+        "tipo": 0,
+        "total": 0
+      }
+    },
+    {
+      "funcao": "rel_por_motivo",
+      "chamada": "consolidado · 365 dias",
+      "linhas": 11,
+      "nulos": {
+        "tipo": 0,
+        "motivo": 0,
+        "total": 0
+      }
+    },
+    {
+      "funcao": "rel_resumo",
+      "chamada": "consolidado · 365 dias",
+      "linhas": 58,
+      "nulos": {
+        "tipo": 0,
+        "filial_slug": 0,
+        "filial_nome": 0,
+        "motivo": 0,
+        "categoria": 0,
+        "total": 0
+      }
+    },
+    {
+      "funcao": "rel_saldo_colaborador",
+      "chamada": "amostra de 28 pessoas",
+      "linhas": 41,
+      "nulos": {
+        "item_id": 0,
+        "item": 0,
+        "filial_id": 0,
+        "filial": 0,
+        "com_a_pessoa": 0
+      }
+    },
+    {
+      "funcao": "rel_saldo_itens",
+      "chamada": "consolidado · hoje",
+      "linhas": 23,
+      "nulos": {
+        "item_id": 0,
+        "item": 0,
+        "grupo": 0,
+        "ordem": 0,
+        "total": 0,
+        "estoque": 0,
+        "atrelados": 0,
+        "falta": 0
+      }
+    }
+  ]
+}
