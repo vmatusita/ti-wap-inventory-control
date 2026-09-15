@@ -105,7 +105,11 @@ const ehAwait = (e: ts.Expression | undefined): boolean => {
   return ts.isAwaitExpression(x)
 }
 
-export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastDeLeitura[] {
+export function castsDeLeitura(
+  fonte: string,
+  nomeArquivo = 'arquivo.ts',
+  virtuais: Readonly<Record<string, string>> = {},
+): CastDeLeitura[] {
   const sf = ts.createSourceFile(
     nomeArquivo,
     fonte,
@@ -281,7 +285,13 @@ export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastD
     // `paginarTodos<Linha>` é o mesmo apagamento, e passava — ver `apagaALinha`.
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && PRODUTORES_DE_LINHAS.has(n.expression.text)) {
       const arg = n.typeArguments?.[0]
-      if (arg && apagaALinha(arg, { sf, arquivo: nomeArquivo, subst: new Map() })) {
+      const ctx: ContextoDeTipos = {
+        sf,
+        arquivo: nomeArquivo,
+        subst: new Map(),
+        virtuais: new Map(Object.entries(virtuais).map(([k, v]) => [normalizar(k), v])),
+      }
+      if (arg && apagaALinha(arg, ctx)) {
         achados.push({
           funcao: nomeDaFuncao(n),
           linha: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
@@ -304,22 +314,37 @@ export function castsDeLeitura(fonte: string, nomeArquivo = 'arquivo.ts'): CastD
 // como o compilador faria, sem montar um `ts.Program` (a varredura continua lendo arquivo a arquivo):
 //  · pelo ESCOPO do ponto de uso — o mais interno vence; um parâmetro de tipo da função sombreia e é
 //    o repasse genérico (`paginarPorIds<Row>` → `paginarTodos<Row>`), conferido em quem fixa `Row`;
-//  · pelo `import` (`@/…` ou relativo, inclusive `import * as`), seguindo `export … from` de barril;
+//  · pelo `import` — nomeado, renomeado, DEFAULT e `* as` —, com `@/…` ou relativo, seguindo
+//    `export … from` de barril, `export { X as Y }` de declaração local e `export default`;
+//  · por `namespace`/`declare namespace` do próprio arquivo, inclusive aninhado (`A.B.Linha`);
 //  · pelos argumentos de um alias genérico (`type Solta<T> = T` com `<unknown>`), por substituição;
 //  · por `extends` de interface e pelos utilitários (`Partial` apaga; `Pick`/`Omit`/`Readonly`/
 //    `Required`/`NonNullable` preservam o que o primeiro argumento apaga — de modo CONSERVADOR: um
 //    `Omit` que tira justamente a chave opcional ainda acusa, e o remédio é nomear o tipo concreto).
+// A CHAVE ABERTA também apaga (segunda re-revisão): uma assinatura de índice (`[k: string]: T`, com
+// qualquer `T`) ou um `Record` de chave `string`/`number`/`symbol`/`PropertyKey` deixa `r.empresa_id`
+// compilar com o tipo do valor, coluna presente ou não. `Record` de chaves FECHADAS só apaga pelo valor.
 // ⚠ O QUE ELA NÃO RESOLVE: o que só o checker sabe — `typeof x`, `z.infer<…>`, tipo condicional,
 // tipo de pacote de `node_modules` e o acesso indexado ao `Database` gerado (que é a linha EXATA).
 // Nenhum desses aparece hoje como argumento de `paginarTodos`/`paginarPorIds`.
 
 type Substituicao = { no: ts.TypeNode; ctx: ContextoDeTipos }
-type ContextoDeTipos = { sf: ts.SourceFile; arquivo: string; subst: ReadonlyMap<ts.TypeParameterDeclaration, Substituicao> }
+type ContextoDeTipos = {
+  sf: ts.SourceFile
+  arquivo: string
+  subst: ReadonlyMap<ts.TypeParameterDeclaration, Substituicao>
+  /** Módulos em memória (caminho normalizado → fonte): os casos de guarda que atravessam arquivo. */
+  virtuais: ReadonlyMap<string, string>
+}
 type DeclaracaoDeTipo = ts.TypeAliasDeclaration | ts.InterfaceDeclaration
 type Denotacao =
   | { tipo: 'declaracoes'; decls: DeclaracaoDeTipo[]; ctx: ContextoDeTipos }
   | { tipo: 'parametro'; param: ts.TypeParameterDeclaration }
   | null
+/** Onde se procura o membro de um nome qualificado: o corpo de um `namespace`, ou um módulo de `import * as`. */
+type Recipiente =
+  | { tipo: 'bloco'; instrucoes: readonly ts.Statement[]; ctx: ContextoDeTipos }
+  | { tipo: 'modulo'; especificador: string; ctx: ContextoDeTipos }
 
 const LIMITE_DE_SALTOS = 12
 const UTILITARIOS_QUE_PRESERVAM = new Set(['Readonly', 'Pick', 'Omit', 'NonNullable', 'Required'])
@@ -327,38 +352,51 @@ const UTILITARIOS_QUE_PRESERVAM = new Set(['Readonly', 'Pick', 'Omit', 'NonNulla
 const ehApagador = (t: ts.TypeNode | undefined): boolean =>
   !!t && (t.kind === ts.SyntaxKind.UnknownKeyword || t.kind === ts.SyntaxKind.AnyKeyword)
 
+/** Propriedade opcional ou assinatura de índice: as duas deixam passar coluna que o `select` não traz. */
 const membrosApagam = (membros: readonly ts.TypeElement[]): boolean =>
   membros.some(
-    (m) =>
-      ((ts.isPropertySignature(m) || ts.isMethodSignature(m)) && !!m.questionToken) ||
-      (ts.isIndexSignatureDeclaration(m) && ehApagador(m.type)),
+    (m) => ((ts.isPropertySignature(m) || ts.isMethodSignature(m)) && !!m.questionToken) || ts.isIndexSignatureDeclaration(m),
   )
 
+const normalizar = (caminho: string): string => caminho.split(sep).join('/')
+
+const parsear = (caminho: string, fonte: string): ts.SourceFile =>
+  ts.createSourceFile(caminho, fonte, ts.ScriptTarget.Latest, true, caminho.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+
 const modulosAbertos = new Map<string, ts.SourceFile | null>()
-function abrirModulo(especificador: string, deArquivo: string): ts.SourceFile | null {
+function abrirModulo(especificador: string, ctx: ContextoDeTipos): ts.SourceFile | null {
   // pacote de `node_modules` não se abre: o tipo dele não é cast nosso
   const base = especificador.startsWith('@/')
     ? join(RAIZ, 'src', especificador.slice(2))
     : especificador.startsWith('.')
-      ? resolve(dirname(deArquivo), especificador)
+      ? resolve(dirname(ctx.arquivo), especificador)
       : null
   if (!base) return null
+  const candidatos = [`${base}.ts`, `${base}.tsx`, `${base}.d.ts`, join(base, 'index.ts'), join(base, 'index.tsx'), base]
+  const virtual = candidatos.map(normalizar).find((c) => ctx.virtuais.has(c))
+  if (virtual) return parsear(virtual, ctx.virtuais.get(virtual) ?? '')
   if (!modulosAbertos.has(base)) {
-    const achado = [`${base}.ts`, `${base}.tsx`, `${base}.d.ts`, join(base, 'index.ts'), join(base, 'index.tsx'), base].find(
-      (c) => existsSync(c) && statSync(c).isFile(),
-    )
-    modulosAbertos.set(
-      base,
-      achado
-        ? ts.createSourceFile(achado, readFileSync(achado, 'utf8'), ts.ScriptTarget.Latest, true, achado.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
-        : null,
-    )
+    const achado = candidatos.find((c) => existsSync(c) && statSync(c).isFile())
+    modulosAbertos.set(base, achado ? parsear(achado, readFileSync(achado, 'utf8')) : null)
   }
   return modulosAbertos.get(base) ?? null
 }
 
+const ehDefault = (s: ts.Statement): boolean =>
+  ts.canHaveModifiers(s) && !!ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
+
+/** As declarações de tipo com esse nome — `'default'` casa a declaração `export default interface`. */
 const declaracoesNoBloco = (instrucoes: readonly ts.Statement[], nome: string): DeclaracaoDeTipo[] =>
-  instrucoes.filter((s): s is DeclaracaoDeTipo => (ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s)) && s.name.text === nome)
+  instrucoes.filter(
+    (s): s is DeclaracaoDeTipo =>
+      (ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s)) && (s.name.text === nome || (nome === 'default' && ehDefault(s))),
+  )
+
+const corposDeNamespace = (instrucoes: readonly ts.Statement[], nome: string): ts.Statement[] =>
+  instrucoes
+    .filter((s): s is ts.ModuleDeclaration => ts.isModuleDeclaration(s) && ts.isIdentifier(s.name) && s.name.text === nome)
+    // `namespace A.B {}` é `A` com corpo `namespace B {}`: o corpo de `A` é a declaração de `B`
+    .flatMap((m) => (!m.body ? [] : ts.isModuleBlock(m.body) ? [...m.body.statements] : ts.isModuleDeclaration(m.body) ? [m.body] : []))
 
 const parametrosDeTipo = (p: ts.Node): readonly ts.TypeParameterDeclaration[] =>
   ts.isFunctionLike(p) || ts.isClassLike(p) || ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p) ? (p.typeParameters ?? []) : []
@@ -376,11 +414,12 @@ function denotar(nome: string, onde: ts.Node, ctx: ContextoDeTipos, saltos: numb
   return importado(nome, ctx, saltos)
 }
 
-/** Um nome que o arquivo IMPORTA (`import { X }`, `import type { X as Y }`). */
+/** Um nome que o arquivo IMPORTA: `import X from`, `import { X }`, `import type { Y as X }`. */
 function importado(nome: string, ctx: ContextoDeTipos, saltos: number): Denotacao {
   for (const st of ctx.sf.statements) {
-    if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier)) continue
-    const nomeados = st.importClause?.namedBindings
+    if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier) || !st.importClause) continue
+    if (st.importClause.name?.text === nome) return exportado('default', st.moduleSpecifier.text, ctx, saltos + 1)
+    const nomeados = st.importClause.namedBindings
     if (!nomeados || !ts.isNamedImports(nomeados)) continue
     const el = nomeados.elements.find((e) => e.name.text === nome)
     if (el) return exportado((el.propertyName ?? el.name).text, st.moduleSpecifier.text, ctx, saltos + 1)
@@ -388,59 +427,126 @@ function importado(nome: string, ctx: ContextoDeTipos, saltos: number): Denotaca
   return null
 }
 
-/** `T.Linha` com `import * as T from '…'`. */
-function noNamespace(namespace: string, nome: string, ctx: ContextoDeTipos, saltos: number): Denotacao {
-  for (const st of ctx.sf.statements) {
-    if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier)) continue
-    const nomeados = st.importClause?.namedBindings
-    if (nomeados && ts.isNamespaceImport(nomeados) && nomeados.name.text === namespace) {
-      return exportado(nome, st.moduleSpecifier.text, ctx, saltos + 1)
-    }
-  }
-  return null
+/** Um nome no nível de módulo: declarado no próprio arquivo ou importado. */
+function localOuImportado(nome: string, ctx: ContextoDeTipos, saltos: number): Denotacao {
+  const decls = declaracoesNoBloco(ctx.sf.statements, nome)
+  return decls.length > 0 ? { tipo: 'declaracoes', decls, ctx } : importado(nome, ctx, saltos)
 }
 
-/** A declaração que um módulo exporta com esse nome — seguindo `export … from` e `export type { X }`. */
+/** A declaração que um módulo exporta com esse nome — seguindo barril, rename local e `export default`. */
 function exportado(nome: string, especificador: string, ctx: ContextoDeTipos, saltos: number): Denotacao {
   if (saltos > LIMITE_DE_SALTOS) return null
-  const sf = abrirModulo(especificador, ctx.arquivo)
+  const sf = abrirModulo(especificador, ctx)
   if (!sf) return null
-  const alvo: ContextoDeTipos = { sf, arquivo: sf.fileName, subst: ctx.subst }
+  const alvo: ContextoDeTipos = { ...ctx, sf, arquivo: sf.fileName }
   const decls = declaracoesNoBloco(sf.statements, nome)
   if (decls.length > 0) return { tipo: 'declaracoes', decls, ctx: alvo }
   for (const st of sf.statements) {
+    if (nome === 'default' && ts.isExportAssignment(st) && !st.isExportEquals && ts.isIdentifier(st.expression)) {
+      return localOuImportado(st.expression.text, alvo, saltos + 1)
+    }
     if (!ts.isExportDeclaration(st)) continue
     const clausula = st.exportClause
     const el = clausula && ts.isNamedExports(clausula) ? clausula.elements.find((e) => e.name.text === nome) : undefined
     const original = (el?.propertyName ?? el?.name)?.text
     if (st.moduleSpecifier && ts.isStringLiteral(st.moduleSpecifier)) {
       if (original) return exportado(original, st.moduleSpecifier.text, alvo, saltos + 1)
-      if (!clausula) {
+      // `export * from` não reexporta o default
+      if (!clausula && nome !== 'default') {
         const d = exportado(nome, st.moduleSpecifier.text, alvo, saltos + 1)
         if (d) return d
       }
     } else if (original) {
-      return importado(original, alvo, saltos + 1)
+      // `export { Linha as Row }` sem `from`: `Linha` é declarada aqui OU importada aqui
+      return localOuImportado(original, alvo, saltos + 1)
     }
   }
   return null
 }
 
+/** O recipiente da parte à esquerda de um nome qualificado (`A` ou `A.B` em `A.B.Linha`). */
+function recipienteDe(esquerda: ts.EntityName | ts.Expression, onde: ts.Node, ctx: ContextoDeTipos, saltos: number): Recipiente | null {
+  if (saltos > LIMITE_DE_SALTOS) return null
+  if (ts.isIdentifier(esquerda)) {
+    for (let p: ts.Node | undefined = onde.parent; p; p = p.parent) {
+      if (ts.isSourceFile(p) || ts.isBlock(p) || ts.isModuleBlock(p)) {
+        const corpo = corposDeNamespace(p.statements, esquerda.text)
+        if (corpo.length > 0) return { tipo: 'bloco', instrucoes: corpo, ctx }
+      }
+    }
+    for (const st of ctx.sf.statements) {
+      if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier)) continue
+      const nomeados = st.importClause?.namedBindings
+      if (nomeados && ts.isNamespaceImport(nomeados) && nomeados.name.text === esquerda.text) {
+        return { tipo: 'modulo', especificador: st.moduleSpecifier.text, ctx }
+      }
+    }
+    return null
+  }
+  const [dentro, membro] = ts.isQualifiedName(esquerda)
+    ? [esquerda.left, esquerda.right.text]
+    : ts.isPropertyAccessExpression(esquerda) && ts.isIdentifier(esquerda.name)
+      ? [esquerda.expression, esquerda.name.text]
+      : [null, null]
+  if (!dentro || !membro) return null
+  const r = recipienteDe(dentro, onde, ctx, saltos + 1)
+  if (!r) return null
+  if (r.tipo === 'bloco') {
+    const corpo = corposDeNamespace(r.instrucoes, membro)
+    return corpo.length > 0 ? { tipo: 'bloco', instrucoes: corpo, ctx: r.ctx } : null
+  }
+  const sf = abrirModulo(r.especificador, r.ctx)
+  const corpo = sf ? corposDeNamespace(sf.statements, membro) : []
+  return sf && corpo.length > 0 ? { tipo: 'bloco', instrucoes: corpo, ctx: { ...r.ctx, sf, arquivo: sf.fileName } } : null
+}
+
+function noRecipiente(r: Recipiente, nome: string, saltos: number): Denotacao {
+  if (r.tipo === 'modulo') return exportado(nome, r.especificador, r.ctx, saltos + 1)
+  const decls = declaracoesNoBloco(r.instrucoes, nome)
+  return decls.length > 0 ? { tipo: 'declaracoes', decls, ctx: r.ctx } : null
+}
+
+/** A chave de um `Record`/tipo mapeado é ABERTA — qualquer nome de coluna passa? */
+function chaveAberta(t: ts.TypeNode, ctx: ContextoDeTipos, saltos: number): boolean {
+  if (saltos > LIMITE_DE_SALTOS) return false
+  if (ehApagador(t) || [ts.SyntaxKind.StringKeyword, ts.SyntaxKind.NumberKeyword, ts.SyntaxKind.SymbolKeyword].includes(t.kind)) return true
+  if (ts.isParenthesizedTypeNode(t)) return chaveAberta(t.type, ctx, saltos)
+  if (ts.isUnionTypeNode(t)) return t.types.some((x) => chaveAberta(x, ctx, saltos))
+  if (!ts.isTypeReferenceNode(t) || !ts.isIdentifier(t.typeName)) return false
+  if (t.typeName.text === 'PropertyKey') return true
+  const d = denotar(t.typeName.text, t, ctx, saltos)
+  if (d?.tipo === 'parametro') {
+    const sub = ctx.subst.get(d.param)
+    return !!sub && chaveAberta(sub.no, sub.ctx, saltos + 1)
+  }
+  return !!d && d.decls.some((decl) => ts.isTypeAliasDeclaration(decl) && chaveAberta(decl.type, d.ctx, saltos + 1))
+}
+
 /** Uma REFERÊNCIA nomeada (no argumento ou num `extends`) apaga a linha? */
 function referenciaApaga(
-  nome: { namespace?: string; nome: string },
+  nome: string,
+  esquerda: ts.EntityName | ts.Expression | null,
   argumentos: readonly ts.TypeNode[] | undefined,
   onde: ts.Node,
   ctx: ContextoDeTipos,
   saltos: number,
 ): boolean {
   if (saltos > LIMITE_DE_SALTOS) return false
-  if (!nome.namespace) {
-    if (nome.nome === 'Record') return ehApagador(argumentos?.[1])
-    if (nome.nome === 'Partial') return true
-    if (UTILITARIOS_QUE_PRESERVAM.has(nome.nome)) return !!argumentos?.[0] && apagaALinha(argumentos[0], ctx, saltos + 1)
+  if (!esquerda) {
+    if (nome === 'Record') {
+      const [chave, valor] = argumentos ?? []
+      return (!!chave && chaveAberta(chave, ctx, saltos + 1)) || (!!valor && apagaALinha(valor, ctx, saltos + 1))
+    }
+    if (nome === 'Partial') return true
+    if (UTILITARIOS_QUE_PRESERVAM.has(nome)) return !!argumentos?.[0] && apagaALinha(argumentos[0], ctx, saltos + 1)
   }
-  const d = nome.namespace ? noNamespace(nome.namespace, nome.nome, ctx, saltos) : denotar(nome.nome, onde, ctx, saltos)
+  let d: Denotacao
+  if (esquerda) {
+    const r = recipienteDe(esquerda, onde, ctx, saltos + 1)
+    d = r ? noRecipiente(r, nome, saltos + 1) : null
+  } else {
+    d = denotar(nome, onde, ctx, saltos)
+  }
   if (!d) return false
   if (d.tipo === 'parametro') {
     const sub = ctx.subst.get(d.param)
@@ -461,9 +567,9 @@ function referenciaApaga(
       (decl.heritageClauses ?? []).some((h) =>
         h.types.some((e) => {
           const x = e.expression
-          if (ts.isIdentifier(x)) return referenciaApaga({ nome: x.text }, e.typeArguments, e, dentro, saltos + 1)
-          if (ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.expression)) {
-            return referenciaApaga({ namespace: x.expression.text, nome: x.name.text }, e.typeArguments, e, dentro, saltos + 1)
+          if (ts.isIdentifier(x)) return referenciaApaga(x.text, null, e.typeArguments, e, dentro, saltos + 1)
+          if (ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.name)) {
+            return referenciaApaga(x.name.text, x.expression, e.typeArguments, e, dentro, saltos + 1)
           }
           return false
         }),
@@ -478,14 +584,17 @@ function apagaALinha(t: ts.TypeNode, ctx: ContextoDeTipos, saltos = 0): boolean 
   if (ehApagador(t) || t.kind === ts.SyntaxKind.ObjectKeyword) return true
   if (ts.isParenthesizedTypeNode(t)) return apagaALinha(t.type, ctx, saltos)
   if (ts.isTypeLiteralNode(t)) return membrosApagam(t.members)
-  if (ts.isMappedTypeNode(t)) return (!!t.questionToken && t.questionToken.kind !== ts.SyntaxKind.MinusToken) || ehApagador(t.type)
+  if (ts.isMappedTypeNode(t)) {
+    const opcional = !!t.questionToken && t.questionToken.kind !== ts.SyntaxKind.MinusToken
+    const restricao = t.typeParameter.constraint
+    return opcional || (!!restricao && chaveAberta(restricao, ctx, saltos + 1)) || (!!t.type && apagaALinha(t.type, ctx, saltos + 1))
+  }
   if (ts.isIntersectionTypeNode(t) || ts.isUnionTypeNode(t)) return t.types.some((x) => apagaALinha(x, ctx, saltos))
   if (!ts.isTypeReferenceNode(t)) return false
-  if (ts.isIdentifier(t.typeName)) return referenciaApaga({ nome: t.typeName.text }, t.typeArguments, t, ctx, saltos)
-  if (ts.isIdentifier(t.typeName.left)) {
-    return referenciaApaga({ namespace: t.typeName.left.text, nome: t.typeName.right.text }, t.typeArguments, t, ctx, saltos)
-  }
-  return false
+  const { typeName } = t
+  return ts.isIdentifier(typeName)
+    ? referenciaApaga(typeName.text, null, t.typeArguments, t, ctx, saltos)
+    : referenciaApaga(typeName.right.text, typeName.left, t.typeArguments, t, ctx, saltos)
 }
 
 // --- coleta ------------------------------------------------------------------------------
@@ -563,6 +672,15 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['tipo IMPORTADO que apaga (Record<string, unknown> de verdade no repositório)', 'import type { ContextoFalha } from "@/lib/observabilidade-linha"\nasync function f(){ return paginarTodos<ContextoFalha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
     ['tipo importado por namespace', 'import type * as O from "@/lib/observabilidade-linha"\nasync function f(){ return paginarTodos<O.ContextoFalha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
     ['tipo importado com rename', 'import type { ContextoFalha as Linha } from "@/lib/observabilidade-linha"\nasync function f(){ return paginarPorIds<Linha>("x", ids, (l, a, b) => c.from("t").select("*").in("id", l).range(a, b)) }', 1],
+    // segunda re-revisão da F58: namespace local e CHAVE ABERTA
+    ['namespace local', 'namespace X { export type Linha = unknown }\nasync function f(){ return paginarTodos<X.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['declare namespace aninhado', 'declare namespace A.B { type Linha = Record<string, unknown> }\nasync function f(){ return paginarTodos<A.B.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['assinatura de índice com união que esconde unknown', 'async function f(){ return paginarTodos<{ id: string; [k: string]: string | unknown }>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['assinatura de índice com valor CONCRETO (qualquer coluna passa)', 'async function f(){ return paginarTodos<{ id: string; [k: string]: string }>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['Record de chaves fechadas com valor por alias', 'type Oculto = unknown\ntype R = Record<"id", Oculto>\nasync function f(){ return paginarTodos<R>("x", (a, b) => c.from("t").select("id").range(a, b)) }', 1],
+    ['Record de chave aberta com valor concreto', 'async function f(){ return paginarTodos<Record<string, string>>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['Record com a chave aberta atrás de alias', 'type Chave = string\nasync function f(){ return paginarTodos<Record<Chave, number>>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
+    ['tipo mapeado sobre string', 'async function f(){ return paginarTodos<{ [K in string]: number }>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
   ])('casa: %s', (_nome, fonte, esperado) => {
     expect(castsDeLeitura(fonte)).toHaveLength(esperado)
   })
@@ -584,8 +702,27 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['alias concreto interno SOMBREIA o que apaga no módulo', 'type Linha = unknown\nasync function f(){ type Linha = { id: string }; return paginarTodos<Linha>("x", (a, b) => c.from("t").select("id").range(a, b)) }'],
     ['alias genérico com argumento concreto', 'type Com<T> = T & { id: string }\nasync function f(){ return paginarTodos<Com<{ nome: string }>>("x", (a, b) => c.from("t").select("id, nome").range(a, b)) }'],
     ['Readonly de tipo concreto', 'type Linha = { id: string; nome: string }\nasync function f(){ return paginarTodos<Readonly<Linha>>("x", (a, b) => c.from("t").select("id, nome").range(a, b)) }'],
+    ['Record de chaves FECHADAS com valor concreto', 'async function f(){ return paginarTodos<Record<"id" | "nome", string>>("x", (a, b) => c.from("t").select("id, nome").range(a, b)) }'],
+    ['namespace local com tipo concreto', 'namespace X { export type Linha = { id: string } }\nasync function f(){ return paginarTodos<X.Linha>("x", (a, b) => c.from("t").select("id").range(a, b)) }'],
   ])('não casa: %s', (_nome, fonte) => {
     expect(castsDeLeitura(fonte)).toEqual([])
+  })
+
+  // O que atravessa ARQUIVO, com os módulos em memória (caminhos sob a raiz, em qualquer sistema).
+  const VIRTUAL = (arquivo: string) => join(RAIZ, '__virtual__', arquivo)
+  const PAGINA = 'async function f(){ return paginarTodos<Linha>("x", (a, b) => c.from("t").select("id").range(a, b)) }'
+  it.each([
+    ['import DEFAULT de interface com opcional', `import Linha from "./tipos"\n${PAGINA}`, { 'tipos.ts': 'export default interface Linha { id: string; extra?: string }' }, 1],
+    ['`export default Nome` de interface com opcional', `import Linha from "./tipos"\n${PAGINA}`, { 'tipos.ts': 'interface Base { id: string; extra?: string }\nexport default Base' }, 1],
+    ['barril que reexporta o default com nome', `import { Linha } from "./barril"\n${PAGINA}`, { 'direto.ts': 'export default interface Linha { id: string; extra?: string }', 'barril.ts': 'export { default as Linha } from "./direto"' }, 1],
+    ['rename de declaração LOCAL reexportado', `import type { Row as Linha } from "./renomeado"\n${PAGINA}`, { 'renomeado.ts': 'type Oculto = unknown\nexport type { Oculto as Row }' }, 1],
+    ['export * de barril até o alias', `import type { Linha } from "./barril"\n${PAGINA}`, { 'tipos.ts': 'export type Linha = Record<string, unknown>', 'barril.ts': 'export * from "./tipos"' }, 1],
+    ['namespace dentro de módulo importado por * as', 'import type * as M from "./tipos"\nasync function f(){ return paginarTodos<M.Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export namespace Grupo { export type Linha = unknown }' }, 1],
+    ['import default de tipo CONCRETO', `import Linha from "./tipos"\n${PAGINA}`, { 'tipos.ts': 'export default interface Linha { id: string }' }, 0],
+    ['`export *` não reexporta o default', `import { default as Linha } from "./barril"\n${PAGINA}`, { 'tipos.ts': 'export default interface Linha { id: string; extra?: string }', 'barril.ts': 'export * from "./tipos"' }, 0],
+  ])('entre arquivos: %s', (_nome, fonte, arquivos, esperado) => {
+    const virtuais = Object.fromEntries(Object.entries(arquivos).map(([k, v]) => [VIRTUAL(k), v]))
+    expect(castsDeLeitura(fonte, VIRTUAL('consumidor.ts'), virtuais)).toHaveLength(esperado)
   })
 })
 

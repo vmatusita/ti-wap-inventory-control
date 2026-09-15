@@ -43,3 +43,44 @@ sabotagem aplicada; linhas de sucesso das outras guardas omitidas):
 Sem a sabotagem (código restaurado): Test Files 1 passed (1) · Tests 52 passed (52).
 O "tipo importado que apaga" usa um tipo REAL do repositório, `ContextoFalha =
 Record<string, unknown>` de `src/lib/observabilidade-linha.ts` — nenhum dado, só o nome do tipo.
+
+================================================================================
+
+SEGUNDA RE-REVISÃO (sobre `fece834`) — seis achados, cinco confirmados pelo cético e um refutado
+por implausibilidade (barril que reexporta um `export default`), corrigidos os seis:
+  · import DEFAULT (`import Linha from`) e `export default` não eram seguidos;
+  · `export { Oculto as Row }` de declaração LOCAL só era procurado em import;
+  · `namespace X {}`/`declare namespace A.B {}` do próprio arquivo não eram vistos;
+  · assinatura de índice e `Record`/tipo mapeado decidiam o apagamento só por `unknown`/`any` escritos —
+    e a CHAVE ABERTA apaga com qualquer valor: `[k: string]: string` deixa `r.empresa_id` compilar.
+Casos de guarda: 8 novos que casam, 2 que não casam e 8 entre arquivos (módulos em memória) — 70 no arquivo.
+Com as cinco regras novas desligadas de uma vez, 10 ficam vermelhos. Os que continuam verdes se decidem
+por caminho que a sabotagem não tocou: o valor do `Record` por alias, o barril com `default as`, o
+`export *` e o `namespace` dentro de módulo de `import * as`.
+
+Saída real (15/09/2026):
+
+## Rodada 2 da re-revisão — as cinco regras novas desligadas de uma vez
+- import default ignorado
+- assinatura de índice só com `unknown`/`any` escritos
+- chave de `Record`/tipo mapeado nunca aberta
+- namespace do próprio arquivo ignorado
+- rename local reexportado só procurado em import
+
+código de saída: 1 (esperado: diferente de 0)
+
+     × casa: namespace local 7ms
+     × casa: declare namespace aninhado 1ms
+     × casa: assinatura de índice com união que esconde unknown 1ms
+     × casa: assinatura de índice com valor CONCRETO (qualquer coluna passa) 1ms
+     × casa: Record de chave aberta com valor concreto 1ms
+     × casa: Record com a chave aberta atrás de alias 1ms
+     × casa: tipo mapeado sobre string 1ms
+     × entre arquivos: import DEFAULT de interface com opcional 1ms
+     × entre arquivos: `export default Nome` de interface com opcional 1ms
+     × entre arquivos: rename de declaração LOCAL reexportado 1ms
+ Test Files  1 failed (1)
+      Tests  10 failed | 60 passed (70)
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+sha256 antes = depois da restauração: true
