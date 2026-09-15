@@ -11045,3 +11045,174 @@ O desenho inteiro, com as assinaturas, está em `docs/PLAN-F57.md` §2 e §5. Aq
   dos 90 testes, cujo 90º é o de `servidor-apenas.test.ts` para `recorte-consulta.ts`; "sete atas", e não quatro; e o
   critério 26 marcado ⏳ em vez de ✅ antes do merge), **uma refutada**. **Motivo de rodar:** o relatório é o que o Johnny
   lê no lugar do código, e um número errado nele custa mais do que a checagem.
+
+## 2026-09-15 · F58 · As nove decisões da fase
+
+O desenho inteiro, com as assinaturas, está em `docs/PLAN-F58.md` §3, §4 e §8. Aqui, a escolha e o custo que decidiu cada uma.
+
+1. **A porta de RPC** — `src/lib/supabase/rpc.ts`, SEM `server-only`; `chamarRpc(client, nome, ...args)` devolve o BUILDER via
+   `.returns<>()`. **Custo que decidiu:** `.overrideTypes()` devolve um builder terminal — sem `.single()`, `.order()` e `.range()` —,
+   e quebraria as 10 chamadas `rel_*` que paginam e os `Promise.all` de `queries/itens.ts`/`relatorios/itens.ts`; `.returns<>()` está
+   marcado como obsoleto no postgrest-js 2.112.4, e a troca, quando vier, é uma linha. Sem `server-only` porque é tipo mais uma linha
+   sem nome de coluna, e o precedente de script importando `server-only` estava quebrado. A chamada dinâmica é união fechada
+   (`'resetar_acervo' | 'resetar_itens'`). `scripts/**` tem isenção NOMINAL com motivo (8 arquivos: os `.ts` que usam client sem
+   `Database` de propósito e os `.mjs`); os `.rpc(` de teste não são olhados (roteiro sobre texto e fixture). Trava por AST nas três
+   grafias (`.rpc`, `['rpc']`, desestruturada) — sabotagem A.
+2. **O mapa das mentiras** — três mapas nominais em `rpc.ts`/`colunas-de-view.ts`, cada entrada `{ motivo, evidencia }`, e a trava
+   SQL confere a evidência no corpo/definição VIVA: argumento só entra com forma de domínio (`p is null or`, `or p is null`,
+   `coalesce(p,`) fora de comando com `raise`, em função não `strict`. **Custo:** mapa estrutural (derivar do gerador) não existe —
+   o gerador é justamente quem mente; nominal é o que deixa a F60 trocar `p_filial` em UMA linha (`RECORTE_DO_RELATORIO`). Sabotagem B.
+3. **O `Json` tipado** — `JsonSerializavel` nos argumentos da porta (12 RPCs) e `paraJson()` nas 3 escritas de tabela.
+   **Custo:** zero `as unknown as Json`; o domínio de cada payload ganhou tipo próprio (`LancamentoDaResolucao`, `ItemJuntoPayload`,
+   `LinhaLancamentoPayload`).
+4. **A amarração** — F-bound por intersecção, `forma: F & ConfereLinha<L, F>`, com `Recusa<'motivo'>` legível no erro do `tsc`;
+   select não literal recusa (o conserto é tornar o select literal). **Custo:** as 11 provas de `@ts-expect-error` de
+   `linhas-tipos.test.ts` — coluna a mais, a menos, trocada, `empresa_id` lido sem estar no select, select concatenado, nulo tirado de
+   view sem a marca — são a sabotagem C1 permanente.
+5. **O modo por categoria** — colunas explícitas → `z.strictObject`, inclusive leitura de lote; `select('*')` → `z.looseObject`
+   OBRIGATÓRIO; `z.object` padrão recusado em execução (`exigirModo`) porque REMOVE coluna em silêncio. **Custo (benchmark,
+   `docs/perf/f58-bench-formas-antes-lote-2.json`):** estrito × frouxo em 1.620 ativos, 1,97 × 1,49 ms; em 16.200, 15,3 × 15,0 ms;
+   3.553 movimentações, 2,47 × 2,63 ms — ruído perto do TTFB das telas (200–470 ms). Descritores em `src/lib/queries/formas/`
+   com `server-only`; o CATÁLOGO é o que o conferidor lê.
+6. **O erro de forma** — `ErroDeForma` (`code F58_FORMA`), caminho normalizado (nome declarado, `<chave>`, `[]`, e CONTAGEM para
+   chave desconhecida), no máximo 5 problemas distintos, nenhum valor de linha (sabotagem F: `reportInput`, valor na mensagem, chave
+   crua de record — as três vermelhas). `linhasDe`/`linhaDe`/`valorDe` LANÇAM onde a leitura já propagava; as variantes `…OuFalha`
+   põem a falha no caminho que a leitura já tinha; nenhum `catch` novo. `lerPapel` usa `valorOuFalha` e segue distinguindo
+   "sem papel" de "não deu para saber". **O recibo de uma RPC que ESCREVE** (lote 3) chega depois de a transação commitar:
+   forma errada ali nunca pode dizer ao operador que a operação não aconteceu. Os 14 recibos usam `valorOuFalha`/`linhasOuFalha`
+   e degradam para o `?? padrão` que a action já tinha, seguindo `ok: true` — e a revisão do lote 3 pegou a única escrita que
+   fazia o contrário (`confirmarAssinaturaLote`, um `UPDATE … RETURNING` que devolvia `{ ok: false }` e pulava anotação e
+   revalidação). **O recibo prova chave obrigatória**: o leitor de retorno de `rpc-retorno-sql.test.ts` só conta o objeto que a
+   função DEVOLVE (`return jsonb_build_object(…)`, ou a variável que aparece num `return`) — a primeira versão contava o backup
+   interno das ferramentas destrutivas (`select jsonb_build_object(…) into v_backup`) e levou o lote 3 a declarar tudo opcional.
+7. **Os casts de builder** — os 5 de `recorte-consulta.ts` e os 2 de `ativos.ts` FICAM (apagam o tipo do BUILDER para aplicar o
+   mesmo filtro a selects diferentes — decisão da F57); os 7 de `dev-destrutivo.ts` SAÍRAM (apagavam o tipo da LINHA do backup —
+   leitura disfarçada; `paginarTodos` agora infere a linha do builder).
+8. **As listas de erro** — ver a ata "As frases de erro do banco" desta data.
+9. **O conferidor e a medição** — `scripts/formas/conferir.mts` importa o CATÁLOGO (sem cópia), confere a identidade do alvo antes
+   da primeira leitura, só chama RPC da lista de chamáveis calculada do corpo vivo e conferida antes de cada chamada, e prova em
+   execução que a ordem de paginação é TOTAL (chave repetida entre linhas lidas reprova; RPC sem ordem acima de uma página fica NÃO
+   PROVADA). As rodadas cedo rodaram numa worktree temporária no SHA do momento, com as variáveis injetadas por `--env-file`
+   apontando para o `.env.local` do repositório — nunca copiado. **O lado A do A/B (a `main`, `86bd77d`)** foi construído
+   numa worktree temporária fora do repositório, em três tentativas registradas: (1) `node --env-file=… next build` — o Next
+   abre workers com o `execArgv` do pai e o Node recusa `--env-file` dentro de `NODE_OPTIONS`; (2) `node_modules` por
+   JUNÇÃO para o do repositório — o Turbopack recusa link que aponta para fora da raiz do projeto; (3) **o que ficou:**
+   `node_modules` copiado por HARD LINK (`cp -al`: diretório real para o bundler, sem download e sem disco extra — a fase não
+   mexe em `package.json`) e um lançador que recebe as variáveis por `--env-file` e inicia o `next` como filho com o
+   ambiente herdado e `execArgv` vazio. O `.env.local` nunca saiu do repositório. **Resultado do A/B:** 16 rodadas × 3
+   repetições por lado, intercaladas, contra o ensaio, sobre o SHA congelado — **nenhuma rota acima de +10% normalizada pelo
+   `/ajuda`** (o controle ficou em 1,005); as maiores leituras são `/relatorios/acesso` 1,074 (um milissegundo) e
+   `/ativos/[id]` 1,063 (~17 ms na tela com mais leituras por render). **E uma lição de método:** as duas primeiras execuções
+   (8 rodadas) acusaram rotas acima do teto e foram DESCARTADAS com o motivo escrito — na primeira a mesa estava ocupada com
+   scripts meus, na segunda o controle `/ajuda` caiu 4,7% e o `/vercel.svg` 32,5%, e o conjunto de rotas acusadas mudou por
+   inteiro entre elas. Controle que se move é medição que não vale; a resposta foi dobrar a amostra e parar a mesa, não
+   afrouxar o teto.
+
+## 2026-09-15 · F58 · O que a revisão adversarial e as re-revisões mudaram
+
+- **Contexto.** Antes de congelar o SHA, quatro revisores em contexto fresco (porta e mapas; leitura, casts e formas; caminho
+  de falha e frases; conferidor, evidência e escopo) sobre `86bd77d...bb79e67`, cada achado entregue a um cético instruído a
+  refutá-lo; depois, re-revisões focadas sobre cada correção, até limpar.
+- **Rodada adversarial — 1 achado confirmado.** `acervoDosAtivos` (backup em ARQUIVO da mesa de conflitos acima de 25 ativos)
+  lia `select('*')` de cinco tabelas com `paginarTodos<unknown>`: sem forma, fora do catálogo e fora da trava de cast, que só
+  procurava `as`. **Escolha:** cinco descritores frouxos no catálogo (`z.looseObject`, a regra dos `select('*')`), `linhasDe`,
+  os casos em `backup-frouxo.test.ts`, e a trava passou a acusar o argumento de tipo que apaga a linha num produtor de linhas
+  (`985ca1c`). **Motivo:** é o mesmo cast com outra grafia; o implementador do lote 2 o tinha anotado como "fora do escopo"
+  e a orquestração não o fechou.
+- **Re-revisão 1 — 1 achado confirmado.** A regra nova lia só a sintaxe do argumento: `type Linha = unknown` declarado à parte e
+  passado como `paginarTodos<Linha>` escapava. **Escolha:** resolver o NOME para o que ele denota sem montar `ts.Program` —
+  escopo (parâmetro de tipo sombreia = repasse genérico), `import` e barril, substituição em alias genérico, `extends` e
+  utilitários (`fece834`, sabotagem C′). **Motivo:** `ts.Program` sobre `src/**` custaria segundos por execução da suíte e
+  exigiria a configuração de caminhos do `tsconfig` dentro do teste; a resolução por nome cobre o que um dev escreveria, e o
+  que só o checker resolve (`typeof`, `z.infer`, condicional) fica declarado no teste. A lente "leitura sem forma em qualquer
+  lugar de `src/`" não achou nada.
+- **Re-revisão 2 — 6 achados, 5 confirmados.** Import default, rename local reexportado, `namespace` do próprio arquivo e a
+  CHAVE ABERTA. **Escolha:** corrigir os seis, inclusive o refutado (barril com `export { default as X }`, que o cético julgou
+  implausível), porque o custo é uma linha e a regra fica coerente; e tratar TODA assinatura de índice e todo `Record`/tipo
+  mapeado de chave `string`/`number`/`symbol`/`PropertyKey` como apagamento, com qualquer valor. **Motivo:** medido com o
+  `tsc`, `{ id: string; [k: string]: string }` como linha deixa `r.empresa_id` compilar — é a mesma coluna ausente virando
+  valor silencioso que a trava existe para barrar. Os casos que atravessam arquivo usam módulos em memória (terceiro argumento
+  de `castsDeLeitura`), com caminhos sob a raiz para valerem igual no Windows e no Linux do CI.
+- **Re-revisão 3 — 4 achados, 2 confirmados.** Uma declaração PRIVADA de mesmo nome num módulo alheio escondia a que ele
+  reexporta (tipo e namespace). **Escolha:** de módulo alheio só vale declaração com `export` (ou de `.d.ts`). Os dois
+  refutados (`class` como tipo de linha; chave de template literal) **não** foram implementados — o cético não achou o padrão
+  em `src/**` e ninguém tipa linha do banco assim — e passaram a constar, por nome, do que a trava declara não resolver.
+  **Motivo do corte:** cada rodada achava formas mais raras da mesma família; o critério "padrão plausível, que alguém
+  escreveria para tipar uma linha" é o que faz a revisão convergir sem afrouxar o que importa.
+- **Re-revisão 4 — 1 achado, confirmado.** O `import('./mod').Nome` escrito no próprio argumento de tipo é um nó de AST
+  diferente (`ImportTypeNode`) e escapava de toda a resolução. **Escolha:** reusar a mesma cadeia (módulo → namespace →
+  declaração exportada), inclusive na chave de um `Record`. **Motivo:** é o atalho de quem não quer mexer no bloco de imports,
+  e o tipo do exemplo é o mesmo `ContextoFalha = Record<string, unknown>` que já era o caso positivo do teste.
+- **Re-revisão 5 — nenhum achado**, com a régua de plausibilidade explícita. Conferiu o que importa para a trava não virar
+  barulho: mapa vazio na varredura real de `src/**` (zero falso positivo), 80/80 casos de guarda, a declaração de cada tipo
+  nomeado que hoje chega aos paginadores (todos concretos) e a ausência de produtor de linhas fora de
+  `paginarTodos`/`paginarPorIds`. **Saldo das seis rodadas:** 12 achados julgados, 9 confirmados e corrigidos, 3 refutados.
+- **Onde a revisão parou, e por quê.** A régua que fez a série convergir é "padrão que alguém escreveria NESTE repositório para
+  tipar uma linha do banco": cada rodada achava formas mais raras da mesma família, e o valor de fechar uma forma que ninguém
+  escreve é menor que o custo de carregá-la no teste. O que ficou de fora está declarado por nome no cabeçalho da trava — é
+  auditável, não é silêncio.
+
+## 2026-09-15 · F58 · O que a revisão do lote 2 mudou
+
+- **A ordem de uma RPC virou lista de colunas.** `rel_saldo_colaborador` agrupa por item E filial (0118); ordenar só por `item_id`
+  repetia a chave para quem tem o mesmo item em duas filiais, e a paginação do conferidor pularia uma linha e repetiria outra com
+  `lidas = count` ainda batendo. As outras quatro RPCs paginadas tinham ordem total, conferida no corpo vivo.
+- **`payload` dos kits é `z.json()`.** A primeira versão exigia objeto, e um único kit com payload `null` derrubava a lista inteira
+  do wizard e de `/admin/kits` — a decisão F12·W1 é descartar só aquele kit. Quem valida o formato continua sendo
+  `kitPayloadSchema`, linha a linha.
+- **`z.custom<T>()` sem predicado é cast, e ganhou trava** (`sem-custom-sem-predicado.test.ts`). Havia dois: `termos_gerados.dados`
+  virou forma de LEITURA própria (`FORMA_DADOS_DO_TERMO`: objeto frouxo, campos de texto opcionais, sem os tetos de escrita — termo
+  antigo não pode derrubar a ficha), com teste que a amarra às chaves de `camposTermoSchema`; `eventos_admin.detalhe` virou `z.json()`.
+- **O "achado latente" do `Promise.all`** em `sugestoesDoCampoColaborador` não se confirmou: sabotado para `z.number()`, o `tsc`
+  recusou — a amarração confere ali.
+
+## 2026-09-15 · F58 · As frases de erro do banco: nomeadas e conferidas contra o SQL vivo, grafia por grafia
+
+- **Contexto.** A Frente D pede listas nomeadas (`CONSTRAINTS_TRADUZIDAS`, `MSG_SQL` "com as grafias com e sem acento", as
+  frases do motor), que todo casamento por texto de fora do `erros.ts` consuma as mesmas listas, e um teste contra os
+  corpos VIVOS e contra a réplica das migrations, sem caixa, em que "um texto que só existe em migration histórica
+  REPROVA".
+- **Medição.** `erros.ts` tinha **132** casamentos (132 literais distintos). Fora dele, **23** em 7 arquivos
+  (`versao-snapshot.ts`, `admin.ts`, `itens.ts`, `colaboradores.ts`, `dev.ts`, `kits.ts`, `tipos-item.ts`) — a ordem
+  nomeava 6 pontos em 3 arquivos. Contra o corpo vivo (`corpo-vigente.mjs`: 88 funções vivas, 209 textos de `raise`):
+  - **nenhum par com/sem acento existe inteiro no banco**: cada frase é escrita numa grafia só, e nem sempre a
+    acentuada — a máquina de estados (`0134`) escreve "invalida para ativo", "ultima movimentacao efetiva", "nao pode
+    ser estornada"; as guardas da `0132`, "não é o backup desta filial";
+  - **5 grafias mortas**: "saldo insuficiente", "liberação maior" e "reserva aberta" só existem em corpos HISTÓRICOS
+    (0015/0019/0024, substituídos pela doutrina Total/Estoque); "saldo negativo" e "liberacao maior" nunca estiveram em
+    SQL fora de comentário, e nenhuma das duas é gêmea de uma grafia viva;
+  - os **18** nomes de constraint/índice estão vivos (os 12 da ordem mais 6 que só casam fora do `erros.ts`:
+    `colaboradores_nome_chave_uidx`, `colaboradores_nome_nao_vazio`, `kits_modelos_nome_uidx`, `tipos_item_slug_key`,
+    `tipos_item_slug_formato`, `tipos_item_rotulo_nao_vazio`). Dois eram casados por PREFIXO (`lanc_item_estorna`,
+    `ativos_patrimonio_service_tag`), e o único nome vivo com cada prefixo é o `_uidx` inteiro.
+- **Escolha.**
+  1. Lista em `src/lib/supabase/erros-do-banco.ts` (módulo puro, na pasta da fronteira do banco; `versao-snapshot.ts`,
+     de `lib/relatorios`, também a consome): `MSG_SQL` (59 ramos, 112 grafias: 69 vivas e 43 gêmeas de acento de uma viva; 0 histórica, 0 sem fonte), `CONSTRAINTS_TRADUZIDAS` (18, nomes
+     inteiros e TIPADOS — `casaConstraint` não aceita nome fora da lista), `FRASES_DO_MOTOR` e `FRASES_DO_AUTH` (isentas
+     por nome). `casa` minusculiza, como o `erros.ts` sempre fez — nenhuma regra de comparação nova.
+  2. **As grafias gêmeas de acento FICAM**, como a ordem pede. O teste é **por grafia**: cada uma é VIVA, ou é a GÊMEA DE
+     ACENTO de uma grafia viva do mesmo ramo; a só HISTÓRICA reprova com mensagem própria, e a sem fonte que não é gêmea
+     de nada também. Todo ramo tem ao menos uma grafia viva. (A regra "algum casa" deixaria "saldo insuficiente" passar
+     só porque o ramo tem "estoque insuficiente" — foi o que a primeira versão, na mesa, deixou passar.)
+  3. **As 5 grafias mortas saíram** — nenhum ramo inteiro morreu; cada um tinha grafia viva ao lado. Decisão por item
+     no relatório.
+  4. A réplica de nomes aplica os comandos na ORDEM DO TEXTO. A `0091` apaga e recria o mesmo índice no mesmo arquivo; a
+     primeira versão da réplica, que aplicava "todos os create, depois todos os drop", deu os dois índices de identidade
+     do ativo como mortos. Há caso sintético guardando isso.
+  5. Trava por FORMA (`casamento-por-texto.test.ts`): `.includes/.startsWith/.endsWith/.indexOf/.match/.search` com
+     texto fixo (literal, template sem interpolação, regex, constante local de texto, elemento de lista literal) sobre
+     valor derivado de `.message/.details/.hint/.code` ou de parâmetro `mensagem/message/msg`, e `/regex/.test(msg)`.
+     Prévia sobre o `src` antes da troca: 132 + 23 achados, zero falso positivo.
+- **Motivo.** (2) é a letra da ordem e o menor desvio de comportamento: com as gêmeas e a mesma comparação, a tradução
+  de hoje não muda. (3) nenhum corpo vivo as emite, e o teste por grafia não as perdoaria. (1) nomes inteiros: é o nome
+  que o Postgres cita na violação.
+- **Prova de equivalência** (`docs/f58-evidencias/D-equivalencia-traducao.json`): `traduzErroBanco` da `main` × o novo,
+  sobre 735 mensagens × 11 SQLSTATEs = **8.085 casos** — os 132 literais antigos, os 209 textos de `raise` vivos,
+  as mensagens do motor para cada constraint, e as variantes em caixa alta e sem acento. **Divergem 220 casos, em 22
+  mensagens, e só estas:** as 5 grafias mortas e os 2 prefixos soltos (`lanc_item_estorna`, `ativos_patrimonio_service_tag`
+  — sozinhos ou citados numa violação), mais as variantes em caixa alta de cada um. São mensagens que o banco de hoje não
+  consegue emitir: nenhum `raise` vivo as escreve e nenhum nome vivo além do `_uidx` tem aqueles prefixos. **Nenhum dos
+  209 textos de `raise` vivos, nem suas variantes de caixa e de acento, mudou de tradução.**
+- **O que NÃO prova.** Mensagem montada em tempo de execução a partir de pedaços (`'Saldo ' || x`) entra na lista pelo
+  pedaço literal; o teste confere o pedaço, não a frase montada. E o corpo vivo é o das MIGRATIONS: objeto alterado à mão
+  num banco, fora da cadeia, fica invisível — é a trava de migrations (F46) e o gate de deriva (F47) que cobrem isso.

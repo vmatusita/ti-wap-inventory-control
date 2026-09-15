@@ -1,0 +1,229 @@
+{
+  "o_que_e": "A/B de TTFB intercalado F58 · Frente F — só tempo e status; nenhum id, nenhum valor.",
+  "metodo": {
+    "rodadas": 16,
+    "repeticoes_por_rodada": 3,
+    "aquecimento": 1,
+    "ordem": "alternada por rodada",
+    "agregacao": "mediana das medianas por rodada",
+    "controles": [
+      "/ajuda",
+      "/vercel.svg"
+    ],
+    "gate": "nenhuma rota acima de +10% normalizada por /ajuda"
+  },
+  "identidade": {
+    "A": {
+      "http": 200,
+      "versao": "1.62.0",
+      "commit": "indisponível"
+    },
+    "B": {
+      "http": 200,
+      "versao": "1.63.0",
+      "commit": "indisponível"
+    }
+  },
+  "inicio": "2026-09-15T23:35:38.652Z",
+  "fim": "2026-09-15T23:46:09.900Z",
+  "controles": {
+    "ajuda_razao_bruta": 1.005,
+    "vercel_svg_razao_bruta": 0.878
+  },
+  "falhas": [],
+  "rotas": [
+    {
+      "rota": "/vercel.svg (controle estático)|publico",
+      "controle": true,
+      "ttfb_mediana_a": 10.7,
+      "ttfb_mediana_b": 9.4,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 0.878,
+      "normalizada_por_ajuda": 0.873,
+      "normalizada_por_svg": 1,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/login|publico",
+      "controle": false,
+      "ttfb_mediana_a": 4.9,
+      "ttfb_mediana_b": 5.2,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.061,
+      "normalizada_por_ajuda": 1.056,
+      "normalizada_por_svg": 1.209,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/relatorios/acesso|publico",
+      "controle": false,
+      "ttfb_mediana_a": 15,
+      "ttfb_mediana_b": 16.2,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.08,
+      "normalizada_por_ajuda": 1.074,
+      "normalizada_por_svg": 1.23,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/login (com sessão — sonda do getUser do proxy)|operador",
+      "controle": false,
+      "ttfb_mediana_a": 43.2,
+      "ttfb_mediana_b": 43.2,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1,
+      "normalizada_por_ajuda": 0.995,
+      "normalizada_por_svg": 1.139,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/ (dashboard)|operador",
+      "controle": false,
+      "ttfb_mediana_a": 261.6,
+      "ttfb_mediana_b": 262.7,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.004,
+      "normalizada_por_ajuda": 0.999,
+      "normalizada_por_svg": 1.144,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/ativos|operador",
+      "controle": false,
+      "ttfb_mediana_a": 224.3,
+      "ttfb_mediana_b": 234.8,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.047,
+      "normalizada_por_ajuda": 1.041,
+      "normalizada_por_svg": 1.192,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/ativos/[id]|operador",
+      "controle": false,
+      "ttfb_mediana_a": 242.1,
+      "ttfb_mediana_b": 258.7,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.069,
+      "normalizada_por_ajuda": 1.063,
+      "normalizada_por_svg": 1.217,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/movimentacoes|operador",
+      "controle": false,
+      "ttfb_mediana_a": 212.1,
+      "ttfb_mediana_b": 212.8,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.004,
+      "normalizada_por_ajuda": 0.998,
+      "normalizada_por_svg": 1.143,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/movimentacoes/nova|operador",
+      "controle": false,
+      "ttfb_mediana_a": 216.7,
+      "ttfb_mediana_b": 217.9,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.006,
+      "normalizada_por_ajuda": 1,
+      "normalizada_por_svg": 1.145,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/itens|operador",
+      "controle": false,
+      "ttfb_mediana_a": 464.2,
+      "ttfb_mediana_b": 460.6,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 0.992,
+      "normalizada_por_ajuda": 0.987,
+      "normalizada_por_svg": 1.13,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/pendencias|operador",
+      "controle": false,
+      "ttfb_mediana_a": 263.9,
+      "ttfb_mediana_b": 260.3,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 0.987,
+      "normalizada_por_ajuda": 0.981,
+      "normalizada_por_svg": 1.124,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/ajuda|operador",
+      "controle": true,
+      "ttfb_mediana_a": 232.2,
+      "ttfb_mediana_b": 233.4,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.005,
+      "normalizada_por_ajuda": 1,
+      "normalizada_por_svg": 1.145,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/relatorios/geral|operador",
+      "controle": false,
+      "ttfb_mediana_a": 501.1,
+      "ttfb_mediana_b": 498.6,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 0.995,
+      "normalizada_por_ajuda": 0.99,
+      "normalizada_por_svg": 1.133,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/relatorios/[filial]|operador",
+      "controle": false,
+      "ttfb_mediana_a": 242.3,
+      "ttfb_mediana_b": 237.1,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 0.979,
+      "normalizada_por_ajuda": 0.973,
+      "normalizada_por_svg": 1.115,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/relatorios/gerados|operador",
+      "controle": false,
+      "ttfb_mediana_a": 241,
+      "ttfb_mediana_b": 240.7,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 0.999,
+      "normalizada_por_ajuda": 0.993,
+      "normalizada_por_svg": 1.137,
+      "acima_de_10pct": false
+    },
+    {
+      "rota": "/relatorios/gerados/[id]|operador",
+      "controle": false,
+      "ttfb_mediana_a": 236.5,
+      "ttfb_mediana_b": 236.9,
+      "rodadas_a": 16,
+      "rodadas_b": 16,
+      "razao_bruta": 1.002,
+      "normalizada_por_ajuda": 0.996,
+      "normalizada_por_svg": 1.141,
+      "acima_de_10pct": false
+    }
+  ],
+  "reprovadas": []
+}

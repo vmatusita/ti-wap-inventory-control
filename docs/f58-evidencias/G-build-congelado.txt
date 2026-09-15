@@ -1,4 +1,4 @@
-# F58 · `npm run build` no SHA de código CONGELADO 932665a — saída completa
+# F58 · `npm run build` no SHA de código CONGELADO 66b1571 — saída completa
 # 15/09/2026 · Next 16.2.12 (Turbopack) · Node v26.4.0
 
 
@@ -11,15 +11,15 @@
   · serverActions
 
   Creating an optimized production build ...
-✓ Compiled successfully in 25.4s
+✓ Compiled successfully in 17.6s
   Running TypeScript ...
-  Finished TypeScript in 35.2s ...
+  Finished TypeScript in 39.8s ...
   Collecting page data using 7 workers ...
   Generating static pages using 7 workers (0/32) ...
   Generating static pages using 7 workers (8/32) 
   Generating static pages using 7 workers (16/32) 
   Generating static pages using 7 workers (24/32) 
-✓ Generating static pages using 7 workers (32/32) in 1054ms
+✓ Generating static pages using 7 workers (32/32) in 920ms
   Finalizing page optimization ...
 
 Route (app)

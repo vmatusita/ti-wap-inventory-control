@@ -1,17 +1,16 @@
 # LEITURA
 # E1 é a sabotagem da ordem: tirar `colaborador` do alargamento da porta. O tsc recusa nos DOIS lugares que leem a
-#    coluna com a forma anulável — o call-site real (`relatorios/estoque.ts:123`) e a prova de tipo — e a diretiva
+#    coluna com a forma anulável — o call-site real (`relatorios/estoque.ts`) e a prova de tipo — e a diretiva
 #    `@ts-expect-error` (16) fica sem uso: a forma que supõe `colaborador` não-nulo passou a compilar, que é a mentira.
 # E2 é o "conserto" que calaria o call-site: a forma passa a dizer o que o gerador diz (`colaborador: s`). O tsc continua
 #    vermelho na prova de tipo, e o conferidor no ENSAIO acusa a mentira no dado: toda célula de `rel_estoque_asof` com
 #    ativo sem detentor reprova, só no caminho `[].colaborador`, código `invalid_type`; nenhum outro ponto muda, e
 #    lidas = count em todas as células. Células rotuladas por NÚMERO DE ORDEM; nenhum valor, id, slug ou nome.
 #    `itens.saldo-colaborador` fica NÃO PROVADO no ensaio por falta de célula (o ensaio não tem colaborador cadastrado) —
-#    é o estado do ensaio, não efeito da sabotagem; a matriz dele é provada em produção.
+#    é o estado do ensaio, não efeito da sabotagem; a grade de argumentos dele é provada em produção.
 # Restauração: sha256 dos dois arquivos igual antes e depois, e a worktree temporária limpa (última linha).
-
 # F58 · Sabotagem E — a mentira de retorno (rel_estoque_asof.colaborador)
-# gerado em 2026-09-15T21:48:39.358Z · worktree temporária em fece834 fix(f58): a trava de cast segue o nome do tipo até o que ele denota
+# gerado em 2026-09-15T23:26:46.165Z · worktree temporária em 66b1571 chore(f58): a saída do conferidor não usa palavra que é nome de filial
 # Alvo do conferidor: ENSAIO. A sabotagem não roda contra produção.
 
 ## E1 — `colaborador` fora de COLUNAS_DE_RETORNO_ANULAVEIS.rel_estoque_asof (src/lib/supabase/rpc.ts)
@@ -35,7 +34,7 @@ src/lib/supabase/linhas-tipos.test.ts(132,3): error TS2578: Unused '@ts-expect-e
 ## E2 no conferidor — rodada no ENSAIO com a forma sabotada
 comando: npx tsx scripts/formas/conferir.mts --alvo=ensaio (na worktree)
 código de saída: 1 (esperado: diferente de 0)
-[conferir] alvo ENSAIO · ref sgmvldiizsrjbxzzpmhh · HEAD fece834 (+ árvore com mudança em src/scripts — rodada NÃO vale como gate) · só leitura
+[conferir] alvo ENSAIO · ref sgmvldiizsrjbxzzpmhh · HEAD 66b1571 (+ árvore com mudança em src/scripts — rodada NÃO vale como gate) · só leitura
 [conferir] login ok
   ok      tipos-item.listar                                          lidas      7 · count      7 · recusadas 0
   ok      tipos-item.admin                                           lidas      7 · count      7 · recusadas 0
@@ -232,7 +231,7 @@ código de saída: 1 (esperado: diferente de 0)
   ok      itens.historico-export                                     lidas     35 · count     35 · recusadas 0
   ok      itens.lancamentos-saldo-apos                               lidas     35 · count     35 · recusadas 0
   ok      itens.ultimo-lancamento                                    lidas     35 · count     35 · recusadas 0
-  REPROVA itens.saldo-colaborador · (nenhuma célula)                 lidas      0 · count      — · recusadas 0 · NÃO PROVADO: a matriz não gerou célula no alvo (nenhuma filial ou pessoa para chamar)
+  REPROVA itens.saldo-colaborador · (nenhuma célula)                 lidas      0 · count      — · recusadas 0 · NÃO PROVADO: a grade de argumentos não gerou célula no alvo (nenhuma unidade ou pessoa para chamar)
   ok      itens.junto-do-ativo                                       lidas      5 · count      5 · recusadas 0
   ok      itens.acessorios-movimentacoes                             lidas     35 · count     35 · recusadas 0
   ok      kits.ativos                                                lidas      0 · count      0 · recusadas 0
@@ -278,6 +277,6 @@ código de saída: 1 (esperado: diferente de 0)
   ok      conflitos.backup-pendencias-item                           lidas     23 · count     23 · recusadas 0
   ok      conflitos.backup-termos-gerados                            lidas      2 · count      2 · recusadas 0
 [conferir] 12 descritor(es) sem linha no alvo (forma não exercitada aqui): conflitos.lados, admin.senhas-acesso, ativos.anotacoes, colaboradores.por-nome-chave, colaboradores.sugestao-cadastro, dev-destrutivo.backup-anotacoes, eventos-admin.listar, import-logs.backup-anotacoes, itens.saldo-colaborador, kits.ativos, kits.admin, conflitos.backup-anotacoes
-[conferir] 240 pontos · 89460 linhas · 3326 recusadas · 16 reprovados · C:/Users/VICTOR~1.MAT/AppData/Local/Temp/claude/C--Users-victor-matusita-ti-wap-inventory-control/a32f1dce-4789-4a9b-89e4-7db2dc50d032/scratchpad/f58/conferidor/ensaio-sabotagem-e.json
+[conferir] 240 pontos · 89460 linhas · 3326 recusadas · 16 reprovados · <saída da rodada, no scratchpad da sessão>
 
 sha256 antes = depois da restauração: true · worktree limpa: true

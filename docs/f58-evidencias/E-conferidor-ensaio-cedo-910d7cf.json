@@ -1,46 +1,20 @@
 {
   "o_que_e": "Conferidor de formas F58 · Frente E — só contagens e caminhos normalizados; nenhum valor.",
   "alvo": "ensaio",
-  "sha": "66b1571",
+  "sha": "910d7cf",
   "arvore_limpa_em_src_scripts": false,
-  "inicio": "2026-09-15T23:27:11.334Z",
-  "fim": "2026-09-15T23:27:56.060Z",
+  "inicio": "2026-09-15T19:10:09.874Z",
+  "fim": "2026-09-15T19:11:11.821Z",
   "totais": {
-    "pontos": 240,
-    "linhas_lidas": 89460,
-    "recusadas": 3326,
+    "pontos": 214,
+    "linhas_lidas": 78716,
+    "recusadas": 4851,
     "com_erro": 0,
-    "reprovados": 16
+    "reprovados": 2
   },
   "recibos_provados_pelo_sql_e_nao_chamados": [
     "dev.checagens-integridade",
-    "dev-destrutivo.previa-reset",
-    "conflitos.apagar",
-    "dev-destrutivo.apagar-ativo",
-    "dev-destrutivo.apagar-movimentacao",
-    "dev-destrutivo.apagar-item",
-    "dev-destrutivo.resetar-acervo",
-    "dev-destrutivo.resetar-itens",
-    "dev-destrutivo.forcar-estado",
-    "dev-destrutivo.forcar-saldo",
-    "devolucao-fornecedor.retorno",
-    "itens.lancar-itens-lote",
-    "movimentacoes.criar-com-itens",
-    "pendencias.resolver-com-lancamentos"
-  ],
-  "descritores_sem_linha_no_alvo": [
-    "conflitos.lados",
-    "admin.senhas-acesso",
-    "ativos.anotacoes",
-    "colaboradores.por-nome-chave",
-    "colaboradores.sugestao-cadastro",
-    "dev-destrutivo.backup-anotacoes",
-    "eventos-admin.listar",
-    "import-logs.backup-anotacoes",
-    "itens.saldo-colaborador",
-    "kits.ativos",
-    "kits.admin",
-    "conflitos.backup-anotacoes"
+    "dev-destrutivo.previa-reset"
   ],
   "pontos": [
     {
@@ -65,61 +39,37 @@
       "ponto": "relatorios.rel-estoque-asof · consolidado · data 1",
       "lidas": 1564,
       "count": 1564,
-      "aceitas": 254,
-      "recusadas": 1310,
+      "aceitas": 1564,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 1310
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · consolidado · data 2",
       "lidas": 1,
       "count": 1,
-      "aceitas": 0,
-      "recusadas": 1,
+      "aceitas": 1,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 1
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · consolidado · data 3",
       "lidas": 352,
       "count": 352,
-      "aceitas": 0,
-      "recusadas": 352,
+      "aceitas": 352,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 352
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #1 · data 1",
       "lidas": 1192,
       "count": 1192,
-      "aceitas": 221,
-      "recusadas": 971,
+      "aceitas": 1192,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 971
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #1 · data 2",
@@ -134,31 +84,19 @@
       "ponto": "relatorios.rel-estoque-asof · filial #1 · data 3",
       "lidas": 291,
       "count": 291,
-      "aceitas": 0,
-      "recusadas": 291,
+      "aceitas": 291,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 291
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #2 · data 1",
       "lidas": 130,
       "count": 130,
-      "aceitas": 6,
-      "recusadas": 124,
+      "aceitas": 130,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 124
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #2 · data 2",
@@ -173,31 +111,19 @@
       "ponto": "relatorios.rel-estoque-asof · filial #2 · data 3",
       "lidas": 21,
       "count": 21,
-      "aceitas": 0,
-      "recusadas": 21,
+      "aceitas": 21,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 21
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #3 · data 1",
       "lidas": 143,
       "count": 143,
-      "aceitas": 22,
-      "recusadas": 121,
+      "aceitas": 143,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 121
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #3 · data 2",
@@ -212,31 +138,19 @@
       "ponto": "relatorios.rel-estoque-asof · filial #3 · data 3",
       "lidas": 13,
       "count": 13,
-      "aceitas": 0,
-      "recusadas": 13,
+      "aceitas": 13,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 13
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #4 · data 1",
       "lidas": 44,
       "count": 44,
-      "aceitas": 1,
-      "recusadas": 43,
+      "aceitas": 44,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 43
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #4 · data 2",
@@ -251,76 +165,46 @@
       "ponto": "relatorios.rel-estoque-asof · filial #4 · data 3",
       "lidas": 4,
       "count": 4,
-      "aceitas": 0,
-      "recusadas": 4,
+      "aceitas": 4,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 4
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #5 · data 1",
       "lidas": 51,
       "count": 51,
-      "aceitas": 4,
-      "recusadas": 47,
+      "aceitas": 51,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 47
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #5 · data 2",
       "lidas": 1,
       "count": 1,
-      "aceitas": 0,
-      "recusadas": 1,
+      "aceitas": 1,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 1
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #5 · data 3",
       "lidas": 23,
       "count": 23,
-      "aceitas": 0,
-      "recusadas": 23,
+      "aceitas": 23,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 23
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #6 · data 1",
       "lidas": 4,
       "count": 4,
-      "aceitas": 0,
-      "recusadas": 4,
+      "aceitas": 4,
+      "recusadas": 0,
       "erros": [],
-      "problemas": [
-        {
-          "caminho": "[].colaborador",
-          "codigo": "invalid_type",
-          "ocorrencias": 4
-        }
-      ]
+      "problemas": []
     },
     {
       "ponto": "relatorios.rel-estoque-asof · filial #6 · data 2",
@@ -1897,16 +1781,6 @@
       "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
     },
     {
-      "ponto": "itens.saldo-colaborador · (nenhuma célula)",
-      "lidas": 0,
-      "count": null,
-      "aceitas": 0,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": [],
-      "nao_provado": "a grade de argumentos não gerou célula no alvo (nenhuma unidade ou pessoa para chamar)"
-    },
-    {
       "ponto": "itens.junto-do-ativo",
       "lidas": 5,
       "count": 5,
@@ -1984,27 +1858,33 @@
     },
     {
       "ponto": "movimentacoes.sugestao-colaborador",
-      "lidas": 1334,
-      "count": 1334,
+      "lidas": 3245,
+      "count": 3245,
       "aceitas": 1334,
-      "recusadas": 0,
+      "recusadas": 1911,
       "erros": [],
-      "problemas": [],
-      "filtro_do_call_site": [
-        "colaborador is not null"
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 1911
+        }
       ],
       "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
     },
     {
       "ponto": "movimentacoes.sugestao-setor",
-      "lidas": 305,
-      "count": 305,
+      "lidas": 3245,
+      "count": 3245,
       "aceitas": 305,
-      "recusadas": 0,
+      "recusadas": 2940,
       "erros": [],
-      "problemas": [],
-      "filtro_do_call_site": [
-        "setor is not null"
+      "problemas": [
+        {
+          "caminho": "[].setor",
+          "codigo": "invalid_type",
+          "ocorrencias": 2940
+        }
       ],
       "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
     },
@@ -2085,235 +1965,6 @@
       "lidas": 17,
       "count": 17,
       "aceitas": 17,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "auth.papel-atual · única",
-      "lidas": 1,
-      "count": 1,
-      "aceitas": 1,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "auth.perfil-operador",
-      "lidas": 5,
-      "count": 5,
-      "aceitas": 5,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": [],
-      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
-    },
-    {
-      "ponto": "dashboard.fila-pendencias",
-      "lidas": 132,
-      "count": 132,
-      "aceitas": 132,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "colaboradores.grupos-a-consolidar",
-      "lidas": 780,
-      "count": 780,
-      "aceitas": 780,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "itens.lancamento-para-estorno",
-      "lidas": 35,
-      "count": 35,
-      "aceitas": 35,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "movimentacoes.ativos-do-lote",
-      "lidas": 1606,
-      "count": 1606,
-      "aceitas": 1606,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "movimentacoes.itens-a-estornar",
-      "lidas": 35,
-      "count": 35,
-      "aceitas": 35,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "pendencias.tipos-para-ponte",
-      "lidas": 7,
-      "count": 7,
-      "aceitas": 7,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "pendencias.itens-para-ponte",
-      "lidas": 7,
-      "count": 7,
-      "aceitas": 7,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "pendencias.lancamentos-da-reabertura",
-      "lidas": 35,
-      "count": 35,
-      "aceitas": 35,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "relatorios.ultima-versao",
-      "lidas": 1,
-      "count": 1,
-      "aceitas": 1,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": [],
-      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
-    },
-    {
-      "ponto": "termos.cidades-das-filiais",
-      "lidas": 6,
-      "count": 6,
-      "aceitas": 6,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "termos.mov-para-termo",
-      "lidas": 3245,
-      "count": 3245,
-      "aceitas": 3245,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "termos.existentes-do-conjunto",
-      "lidas": 2,
-      "count": 2,
-      "aceitas": 2,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": [],
-      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
-    },
-    {
-      "ponto": "termos.url-termo",
-      "lidas": 2,
-      "count": 2,
-      "aceitas": 2,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": [],
-      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
-    },
-    {
-      "ponto": "termos.alvos-assinatura-lote",
-      "lidas": 1606,
-      "count": 1606,
-      "aceitas": 1606,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "termos.ativos-id",
-      "lidas": 1606,
-      "count": 1606,
-      "aceitas": 1606,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "ativos.mesma-identidade",
-      "lidas": 1606,
-      "count": 1606,
-      "aceitas": 1606,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "gerados.lista",
-      "lidas": 1,
-      "count": 1,
-      "aceitas": 1,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "gerados.detalhe",
-      "lidas": 1,
-      "count": 1,
-      "aceitas": 1,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "conflitos.backup-ativos",
-      "lidas": 1606,
-      "count": 1606,
-      "aceitas": 1606,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "conflitos.backup-movimentacoes",
-      "lidas": 3245,
-      "count": 3245,
-      "aceitas": 3245,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "conflitos.backup-anotacoes",
-      "lidas": 0,
-      "count": 0,
-      "aceitas": 0,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "conflitos.backup-pendencias-item",
-      "lidas": 23,
-      "count": 23,
-      "aceitas": 23,
-      "recusadas": 0,
-      "erros": [],
-      "problemas": []
-    },
-    {
-      "ponto": "conflitos.backup-termos-gerados",
-      "lidas": 2,
-      "count": 2,
-      "aceitas": 2,
       "recusadas": 0,
       "erros": [],
       "problemas": []

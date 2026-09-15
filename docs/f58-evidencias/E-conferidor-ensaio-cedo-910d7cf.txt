@@ -1,0 +1,101 @@
+# F58 · Conferidor de formas — rodada CEDO no ENSAIO (r2), SHA 910d7cf
+# alvo ensaio · HEAD 910d7cf · árvore limpa em src/scripts: false · 2026-09-15T19:10:09.874Z → 2026-09-15T19:11:11.821Z
+# só contagens e caminhos normalizados — nenhum valor, id, slug, e-mail ou patrimônio
+
+## Totais
+pontos ................ 214 (67 relações, 147 células de RPC)
+linhas lidas .......... 78716
+recusadas ............. 4851
+pontos com erro ....... 0
+lidas ≠ count exato ... 0
+reprovados ............ 2
+recibos provados pelo SQL e NÃO chamados: dev.checagens-integridade, dev-destrutivo.previa-reset
+ordem provada pela chave primária no banco (coluna fora do select): 14 relação(ões)
+
+## Reprovados
+- movimentacoes.sugestao-colaborador · lidas 3245 · count 3245 · recusadas 1911
+    [].colaborador invalid_type ×1911
+- movimentacoes.sugestao-setor · lidas 3245 · count 3245 · recusadas 2940
+    [].setor invalid_type ×2940
+
+## Relações, por ponto
+| ponto | lidas | count | recusadas |
+|---|---:|---:|---:|
+| tipos-item.listar | 7 | 7 | 0 |
+| tipos-item.admin | 7 | 7 | 0 |
+| relatorios.ultimas-movimentacoes | 3245 | 3245 | 0 |
+| relatorios.tabela-do-periodo | 3245 | 3245 | 0 |
+| relatorios.mov-itens-do-periodo | 35 | 35 | 0 |
+| conflitos.lados | 0 | 0 | 0 |
+| movimentacoes.linha-do-tempo | 3245 | 3245 | 0 |
+| admin.motivos | 13 | 13 | 0 |
+| admin.senhas-acesso | 0 | 0 | 0 |
+| ativos.lista | 1606 | 1606 | 0 |
+| ativos.ficha | 1606 | 1606 | 0 |
+| ativos.vinculo | 1606 | 1606 | 0 |
+| ativos.anotacoes | 0 | 0 | 0 |
+| ativos.resumo | 1606 | 1606 | 0 |
+| ativos.recentes-do-operador | 3245 | 3245 | 0 |
+| ativos.export | 1606 | 1606 | 0 |
+| colaboradores.fila-consolidacao | 780 | 780 | 0 |
+| colaboradores.resumo-consolidacao | 1 | 1 | 0 |
+| colaboradores.por-nome-chave | 0 | 0 | 0 |
+| colaboradores.sugestao-cadastro | 0 | 0 | 0 |
+| colaboradores.sugestao-movimentacoes | 3245 | 3245 | 0 |
+| colaboradores.sugestao-lancamentos | 35 | 35 | 0 |
+| compras.ultima-do-operador | 3245 | 3245 | 0 |
+| dev-destrutivo.candidatos | 1606 | 1606 | 0 |
+| dev-destrutivo.movimentacoes-do-ativo | 3245 | 3245 | 0 |
+| dev-destrutivo.termos-do-ativo | 2 | 2 | 0 |
+| dev-destrutivo.itens | 7 | 7 | 0 |
+| dev-destrutivo.backup-ativos | 1606 | 1606 | 0 |
+| dev-destrutivo.backup-movimentacoes | 3245 | 3245 | 0 |
+| dev-destrutivo.backup-anotacoes | 0 | 0 | 0 |
+| dev-destrutivo.backup-pendencias-item | 23 | 23 | 0 |
+| dev-destrutivo.backup-termos-gerados | 2 | 2 | 0 |
+| dev-destrutivo.backup-lancamentos-item | 35 | 35 | 0 |
+| eventos-admin.listar | 0 | 0 | 0 |
+| import-logs.par-com-patrimonio-em-outra-filial | 1606 | 1606 | 0 |
+| import-logs.par-sem-patrimonio-em-outra-filial | 1606 | 1606 | 0 |
+| import-logs.backup-ativos | 1606 | 1606 | 0 |
+| import-logs.backup-movimentacoes | 3245 | 3245 | 0 |
+| import-logs.backup-anotacoes | 0 | 0 | 0 |
+| import-logs.backup-termos-gerados | 2 | 2 | 0 |
+| import-logs.backup-pendencias-item | 23 | 23 | 0 |
+| import-logs.backup-lancamentos-item-desvinculados | 35 | 35 | 0 |
+| itens.ativos | 7 | 7 | 0 |
+| itens.admin | 7 | 7 | 0 |
+| itens.historico-lancamentos | 35 | 35 | 0 |
+| itens.historico-export | 35 | 35 | 0 |
+| itens.lancamentos-saldo-apos | 35 | 35 | 0 |
+| itens.ultimo-lancamento | 35 | 35 | 0 |
+| itens.junto-do-ativo | 5 | 5 | 0 |
+| itens.acessorios-movimentacoes | 35 | 35 | 0 |
+| kits.ativos | 0 | 0 | 0 |
+| kits.admin | 0 | 0 | 0 |
+| motivos.listar | 13 | 13 | 0 |
+| movimentacoes.envio-manutencao | 3245 | 3245 | 0 |
+| movimentacoes.ultima-do-usuario | 3245 | 3245 | 0 |
+| movimentacoes.para-duplicar | 3245 | 3245 | 0 |
+| movimentacoes.sugestao-colaborador | 3245 | 3245 | 1911 |
+| movimentacoes.sugestao-setor | 3245 | 3245 | 2940 |
+| movimentacoes.candidatas-duplicata | 3245 | 3245 | 0 |
+| movimentacoes.lista | 3245 | 3245 | 0 |
+| movimentacoes.lista-por-patrimonio | 3245 | 3245 | 0 |
+| pendencias-detalhe.fila | 132 | 132 | 0 |
+| pendencias-detalhe.service-tags | 1606 | 1606 | 0 |
+| pendencias-item.do-ativo | 23 | 23 | 0 |
+| termos.do-ativo | 2 | 2 | 0 |
+| vocabulario-import.categorias | 5 | 5 | 0 |
+| vocabulario-import.estados | 17 | 17 | 0 |
+
+## RPCs de leitura, por descritor (a grade de argumentos — células rotuladas por número de ordem)
+| descritor | células | células sem linha | linhas | recusadas | erros |
+|---|---:|---:|---:|---:|---:|
+| relatorios.rel-estoque-asof | 21 | 6 | 3834 | 0 | 0 |
+| relatorios.rel-saldo-itens | 21 | 0 | 147 | 0 | 0 |
+| relatorios.rel-mov-itens | 21 | 0 | 147 | 0 | 0 |
+| relatorios.rel-frescor-itens | 21 | 17 | 6 | 0 | 0 |
+| relatorios.rel-mov-por-mes | 21 | 9 | 96 | 0 | 0 |
+| relatorios.rel-por-motivo | 21 | 9 | 70 | 0 | 0 |
+| relatorios.rel-resumo | 21 | 9 | 192 | 0 | 0 |

@@ -273,9 +273,16 @@ migration, nenhuma sessão a desfazer.
 
 ## 10. SHA de código congelado
 
-**`932665a`** — `fix(f58): a trava de cast resolve o import inline no argumento de tipo`, 15/09/2026. É o último commit que toca
+**`66b1571`** — `chore(f58): a saída do conferidor não usa palavra que é nome de filial`, 15/09/2026. É o último commit que toca
 `src/**` ou `scripts/**`; a partir daqui só entram `docs/**` e o `CHANGELOG.md`. As rodadas que valem como gate (o conferidor em
 produção e no ensaio, o benchmark de lote, o A/B de TTFB e a varredura de evidências) são sobre ele, e a evidência guarda o SHA.
+
+**Por que o congelamento andou uma vez.** O primeiro SHA congelado foi `932665a`, e as rodadas rodaram sobre ele. A varredura de
+evidências (critério 32) então acusou ocorrência em 10 arquivos: **a mesma palavra comum da prosa do resumo do conferidor,
+homônima de um nome real de filial em produção**. Nenhum dado vazou — mas a régua da ordem é ZERO ocorrência, e afrouxar a
+varredura não é opção. As duas mensagens impressas passaram a dizer "grade de argumentos" (`66b1571`; o campo `matriz` do
+descritor, que é identificador de código, não mudou), e as rodadas finais foram REFEITAS sobre o SHA novo — a segunda das três
+rodadas finais que a ordem permite.
 
 Como se chegou nele: `bb79e67` fechou a versão 1.63.0; a **revisão adversarial** (quatro lentes em contexto fresco, um cético por
 achado) devolveu um achado confirmado — `acervoDosAtivos` lia cinco `select('*')` de backup com `paginarTodos<unknown>` —,

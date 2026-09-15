@@ -1,0 +1,110 @@
+{
+  "rotulo": "f58-bench-formas-congelado",
+  "o_que_e": "Custo do parse Zod por leitura de lote, linhas fictícias no volume do censo de produção (fator 1) e 10× (fator 10). Mediana e p95 de 21 rodadas após 5 de aquecimento.",
+  "node": "v26.4.0",
+  "zod": "4.5.4",
+  "volume_censo_producao": {
+    "ativos": 1620,
+    "movimentacoes": 3553,
+    "lancamentos": 142,
+    "termos": 106
+  },
+  "resultados": [
+    {
+      "leitura": "export de ativos (colunas explícitas + embed)",
+      "linhas": 1620,
+      "fator": 1,
+      "sem_parse_ms": {
+        "mediana": 0.01,
+        "p95": 0.24
+      },
+      "estrita_ms": {
+        "mediana": 1.89,
+        "p95": 2.4
+      },
+      "frouxa_ms": {
+        "mediana": 1.37,
+        "p95": 1.91
+      }
+    },
+    {
+      "leitura": "export de ativos (colunas explícitas + embed)",
+      "linhas": 16200,
+      "fator": 10,
+      "sem_parse_ms": {
+        "mediana": 0.08,
+        "p95": 0.2
+      },
+      "estrita_ms": {
+        "mediana": 14.27,
+        "p95": 17.98
+      },
+      "frouxa_ms": {
+        "mediana": 14.61,
+        "p95": 19.02
+      }
+    },
+    {
+      "leitura": "histórico/lista de movimentações (embeds + jsonb)",
+      "linhas": 3553,
+      "fator": 1,
+      "sem_parse_ms": {
+        "mediana": 0.04,
+        "p95": 0.08
+      },
+      "estrita_ms": {
+        "mediana": 2.56,
+        "p95": 3.96
+      },
+      "frouxa_ms": {
+        "mediana": 2.21,
+        "p95": 3.32
+      }
+    },
+    {
+      "leitura": "histórico/lista de movimentações (embeds + jsonb)",
+      "linhas": 35530,
+      "fator": 10,
+      "sem_parse_ms": {
+        "mediana": 0.16,
+        "p95": 0.4
+      },
+      "estrita_ms": {
+        "mediana": 23.24,
+        "p95": 32.8
+      },
+      "frouxa_ms": {
+        "mediana": 23.23,
+        "p95": 25.22
+      }
+    },
+    {
+      "leitura": "backup select(*) de ativos — frouxa com 3 colunas declaradas",
+      "linhas": 1620,
+      "fator": 1,
+      "sem_parse_ms": {
+        "mediana": 0.01,
+        "p95": 0.01
+      },
+      "estrita_ms": null,
+      "frouxa_ms": {
+        "mediana": 4.74,
+        "p95": 5.48
+      }
+    },
+    {
+      "leitura": "backup select(*) de ativos — frouxa com 3 colunas declaradas",
+      "linhas": 16200,
+      "fator": 10,
+      "sem_parse_ms": {
+        "mediana": 0.08,
+        "p95": 0.09
+      },
+      "estrita_ms": null,
+      "frouxa_ms": {
+        "mediana": 52.68,
+        "p95": 55.35
+      }
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+# F58 · Conferidor de formas — rodada no ENSAIO sobre o SHA CONGELADO 66b1571
+# alvo ensaio · HEAD 66b1571 · árvore limpa em src/scripts: true · 2026-09-15T23:24:08.036Z → 2026-09-15T23:25:09.251Z
+# só contagens e caminhos normalizados — nenhum valor, id, slug, e-mail ou patrimônio
+
+## Totais
+pontos ................ 240 (91 relações, 149 células de RPC)
+linhas lidas .......... 89460
+recusadas ............. 0
+pontos com erro ....... 0
+lidas ≠ count exato ... 0
+reprovados ............ 1
+recibos provados pelo SQL e NÃO chamados: dev.checagens-integridade, dev-destrutivo.previa-reset, conflitos.apagar, dev-destrutivo.apagar-ativo, dev-destrutivo.apagar-movimentacao, dev-destrutivo.apagar-item, dev-destrutivo.resetar-acervo, dev-destrutivo.resetar-itens, dev-destrutivo.forcar-estado, dev-destrutivo.forcar-saldo, devolucao-fornecedor.retorno, itens.lancar-itens-lote, movimentacoes.criar-com-itens, pendencias.resolver-com-lancamentos
+descritores sem linha no alvo (forma não exercitada aqui): conflitos.lados, admin.senhas-acesso, ativos.anotacoes, colaboradores.por-nome-chave, colaboradores.sugestao-cadastro, dev-destrutivo.backup-anotacoes, eventos-admin.listar, import-logs.backup-anotacoes, itens.saldo-colaborador, kits.ativos, kits.admin, conflitos.backup-anotacoes
+ordem provada pela chave primária no banco (coluna fora do select): 18 relação(ões)
+
+## Reprovados
+- itens.saldo-colaborador · (nenhuma célula) · lidas 0 · count — · recusadas 0
+    NÃO PROVADO: a grade de argumentos não gerou célula no alvo (nenhuma unidade ou pessoa para chamar)
+
+## Relações, por ponto
+| ponto | lidas | count | recusadas |
+|---|---:|---:|---:|
+| tipos-item.listar | 7 | 7 | 0 |
+| tipos-item.admin | 7 | 7 | 0 |
+| relatorios.ultimas-movimentacoes | 3245 | 3245 | 0 |
+| relatorios.tabela-do-periodo | 3245 | 3245 | 0 |
+| relatorios.mov-itens-do-periodo | 35 | 35 | 0 |
+| conflitos.lados | 0 | 0 | 0 |
+| movimentacoes.linha-do-tempo | 3245 | 3245 | 0 |
+| admin.motivos | 13 | 13 | 0 |
+| admin.senhas-acesso | 0 | 0 | 0 |
+| ativos.lista | 1606 | 1606 | 0 |
+| ativos.ficha | 1606 | 1606 | 0 |
+| ativos.vinculo | 1606 | 1606 | 0 |
+| ativos.anotacoes | 0 | 0 | 0 |
+| ativos.resumo | 1606 | 1606 | 0 |
+| ativos.recentes-do-operador | 3245 | 3245 | 0 |
+| ativos.export | 1606 | 1606 | 0 |
+| colaboradores.fila-consolidacao | 780 | 780 | 0 |
+| colaboradores.resumo-consolidacao | 1 | 1 | 0 |
+| colaboradores.por-nome-chave | 0 | 0 | 0 |
+| colaboradores.sugestao-cadastro | 0 | 0 | 0 |
+| colaboradores.sugestao-movimentacoes | 3245 | 3245 | 0 |
+| colaboradores.sugestao-lancamentos | 35 | 35 | 0 |
+| compras.ultima-do-operador | 3245 | 3245 | 0 |
+| dev-destrutivo.candidatos | 1606 | 1606 | 0 |
+| dev-destrutivo.movimentacoes-do-ativo | 3245 | 3245 | 0 |
+| dev-destrutivo.termos-do-ativo | 2 | 2 | 0 |
+| dev-destrutivo.itens | 7 | 7 | 0 |
+| dev-destrutivo.backup-ativos | 1606 | 1606 | 0 |
+| dev-destrutivo.backup-movimentacoes | 3245 | 3245 | 0 |
+| dev-destrutivo.backup-anotacoes | 0 | 0 | 0 |
+| dev-destrutivo.backup-pendencias-item | 23 | 23 | 0 |
+| dev-destrutivo.backup-termos-gerados | 2 | 2 | 0 |
+| dev-destrutivo.backup-lancamentos-item | 35 | 35 | 0 |
+| eventos-admin.listar | 0 | 0 | 0 |
+| import-logs.par-com-patrimonio-em-outra-filial | 1606 | 1606 | 0 |
+| import-logs.par-sem-patrimonio-em-outra-filial | 1606 | 1606 | 0 |
+| import-logs.backup-ativos | 1606 | 1606 | 0 |
+| import-logs.backup-movimentacoes | 3245 | 3245 | 0 |
+| import-logs.backup-anotacoes | 0 | 0 | 0 |
+| import-logs.backup-termos-gerados | 2 | 2 | 0 |
+| import-logs.backup-pendencias-item | 23 | 23 | 0 |
+| import-logs.backup-lancamentos-item-desvinculados | 35 | 35 | 0 |
+| itens.ativos | 7 | 7 | 0 |
+| itens.admin | 7 | 7 | 0 |
+| itens.historico-lancamentos | 35 | 35 | 0 |
+| itens.historico-export | 35 | 35 | 0 |
+| itens.lancamentos-saldo-apos | 35 | 35 | 0 |
+| itens.ultimo-lancamento | 35 | 35 | 0 |
+| itens.junto-do-ativo | 5 | 5 | 0 |
+| itens.acessorios-movimentacoes | 35 | 35 | 0 |
+| kits.ativos | 0 | 0 | 0 |
+| kits.admin | 0 | 0 | 0 |
+| motivos.listar | 13 | 13 | 0 |
+| movimentacoes.envio-manutencao | 3245 | 3245 | 0 |
+| movimentacoes.ultima-do-usuario | 3245 | 3245 | 0 |
+| movimentacoes.para-duplicar | 3245 | 3245 | 0 |
+| movimentacoes.sugestao-colaborador | 1334 | 1334 | 0 |
+| movimentacoes.sugestao-setor | 305 | 305 | 0 |
+| movimentacoes.candidatas-duplicata | 3245 | 3245 | 0 |
+| movimentacoes.lista | 3245 | 3245 | 0 |
+| movimentacoes.lista-por-patrimonio | 3245 | 3245 | 0 |
+| pendencias-detalhe.fila | 132 | 132 | 0 |
+| pendencias-detalhe.service-tags | 1606 | 1606 | 0 |
+| pendencias-item.do-ativo | 23 | 23 | 0 |
+| termos.do-ativo | 2 | 2 | 0 |
+| vocabulario-import.categorias | 5 | 5 | 0 |
+| vocabulario-import.estados | 17 | 17 | 0 |
+| auth.perfil-operador | 5 | 5 | 0 |
+| dashboard.fila-pendencias | 132 | 132 | 0 |
+| colaboradores.grupos-a-consolidar | 780 | 780 | 0 |
+| itens.lancamento-para-estorno | 35 | 35 | 0 |
+| movimentacoes.ativos-do-lote | 1606 | 1606 | 0 |
+| movimentacoes.itens-a-estornar | 35 | 35 | 0 |
+| pendencias.tipos-para-ponte | 7 | 7 | 0 |
+| pendencias.itens-para-ponte | 7 | 7 | 0 |
+| pendencias.lancamentos-da-reabertura | 35 | 35 | 0 |
+| relatorios.ultima-versao | 1 | 1 | 0 |
+| termos.cidades-das-filiais | 6 | 6 | 0 |
+| termos.mov-para-termo | 3245 | 3245 | 0 |
+| termos.existentes-do-conjunto | 2 | 2 | 0 |
+| termos.url-termo | 2 | 2 | 0 |
+| termos.alvos-assinatura-lote | 1606 | 1606 | 0 |
+| termos.ativos-id | 1606 | 1606 | 0 |
+| ativos.mesma-identidade | 1606 | 1606 | 0 |
+| gerados.lista | 1 | 1 | 0 |
+| gerados.detalhe | 1 | 1 | 0 |
+| conflitos.backup-ativos | 1606 | 1606 | 0 |
+| conflitos.backup-movimentacoes | 3245 | 3245 | 0 |
+| conflitos.backup-anotacoes | 0 | 0 | 0 |
+| conflitos.backup-pendencias-item | 23 | 23 | 0 |
+| conflitos.backup-termos-gerados | 2 | 2 | 0 |
+
+## RPCs de leitura, por descritor (a grade de argumentos — células rotuladas por número de ordem)
+| descritor | células | células sem linha | linhas | recusadas | erros |
+|---|---:|---:|---:|---:|---:|
+| relatorios.rel-estoque-asof | 21 | 6 | 3834 | 0 | 0 |
+| relatorios.rel-saldo-itens | 21 | 0 | 147 | 0 | 0 |
+| relatorios.rel-mov-itens | 21 | 0 | 147 | 0 | 0 |
+| relatorios.rel-frescor-itens | 21 | 17 | 6 | 0 | 0 |
+| relatorios.rel-mov-por-mes | 21 | 9 | 96 | 0 | 0 |
+| relatorios.rel-por-motivo | 21 | 9 | 70 | 0 | 0 |
+| relatorios.rel-resumo | 21 | 9 | 192 | 0 | 0 |
+| itens.saldo-colaborador | 1 | 1 | 0 | 0 | 0 |
+| auth.papel-atual | 1 | 0 | 1 | 0 | 0 |
