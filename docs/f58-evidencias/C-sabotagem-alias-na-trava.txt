@@ -84,3 +84,32 @@ código de saída: 1 (esperado: diferente de 0)
 ⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
 
 sha256 antes = depois da restauração: true
+
+================================================================================
+
+TERCEIRA RE-REVISÃO (sobre `92bb4fe`) — quatro achados, dois confirmados e dois refutados por
+implausibilidade (`class` como tipo de linha; chave de template literal), que passaram a constar do
+"O QUE ELA NÃO RESOLVE" no próprio teste. Os dois confirmados são a mesma falha: ao seguir um nome até
+um módulo ALHEIO, uma declaração PRIVADA de mesmo nome (`type Linha`, `namespace Grupo`) escondia a que
+o módulo de fato exporta por `export { Linha } from` — o compilador resolve para a reexportada.
+Correção: de módulo alheio só vale declaração com `export` (ou de `.d.ts`), para tipo e para namespace;
+e o namespace passou a seguir `import { Grupo }`, `export { Grupo } from` e `export * as Grupo from`.
+Casos de guarda: 5 novos entre arquivos — 75 no arquivo. Com o filtro desligado, 3 ficam vermelhos
+(os dois reexportados e o privado que apaga, que sem o filtro acusaria em falso).
+
+Saída real (15/09/2026):
+
+## Rodada 3 da re-revisão — o filtro "só o que o módulo exporta" desligado
+- tipo de módulo alheio aceito sem `export`
+- namespace de módulo alheio aceito sem `export`
+
+código de saída: 1 (esperado: diferente de 0)
+
+     × entre arquivos: tipo PRIVADO de mesmo nome não esconde o reexportado que apaga 8ms
+     × entre arquivos: tipo PRIVADO que apaga não vale fora do módulo 2ms
+     × entre arquivos: namespace PRIVADO de mesmo nome não esconde o reexportado 1ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 72 passed (75)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+sha256 antes = depois da restauração: true

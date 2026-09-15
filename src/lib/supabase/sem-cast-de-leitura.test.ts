@@ -315,8 +315,10 @@ export function castsDeLeitura(
 //  · pelo ESCOPO do ponto de uso — o mais interno vence; um parâmetro de tipo da função sombreia e é
 //    o repasse genérico (`paginarPorIds<Row>` → `paginarTodos<Row>`), conferido em quem fixa `Row`;
 //  · pelo `import` — nomeado, renomeado, DEFAULT e `* as` —, com `@/…` ou relativo, seguindo
-//    `export … from` de barril, `export { X as Y }` de declaração local e `export default`;
-//  · por `namespace`/`declare namespace` do próprio arquivo, inclusive aninhado (`A.B.Linha`);
+//    `export … from` de barril, `export { X as Y }` de declaração local e `export default`; de um
+//    módulo alheio só vale o que ele EXPORTA (um `type Linha` privado não esconde o `export { Linha } from`);
+//  · por `namespace`/`declare namespace` do próprio arquivo, inclusive aninhado (`A.B.Linha`), e pelo
+//    namespace que um módulo exporta ou reexporta (`import { Grupo }`, `export * as Grupo from`);
 //  · pelos argumentos de um alias genérico (`type Solta<T> = T` com `<unknown>`), por substituição;
 //  · por `extends` de interface e pelos utilitários (`Partial` apaga; `Pick`/`Omit`/`Readonly`/
 //    `Required`/`NonNullable` preservam o que o primeiro argumento apaga — de modo CONSERVADOR: um
@@ -325,7 +327,9 @@ export function castsDeLeitura(
 // qualquer `T`) ou um `Record` de chave `string`/`number`/`symbol`/`PropertyKey` deixa `r.empresa_id`
 // compilar com o tipo do valor, coluna presente ou não. `Record` de chaves FECHADAS só apaga pelo valor.
 // ⚠ O QUE ELA NÃO RESOLVE: o que só o checker sabe — `typeof x`, `z.infer<…>`, tipo condicional,
-// tipo de pacote de `node_modules` e o acesso indexado ao `Database` gerado (que é a linha EXATA).
+// tipo de pacote de `node_modules` e o acesso indexado ao `Database` gerado (que é a linha EXATA); e
+// duas formas que a terceira re-revisão julgou implausíveis para tipar linha do banco: `class` como
+// tipo da linha e chave de template literal (`${string}`, `Lowercase<string>`).
 // Nenhum desses aparece hoje como argumento de `paginarTodos`/`paginarPorIds`.
 
 type Substituicao = { no: ts.TypeNode; ctx: ContextoDeTipos }
@@ -382,8 +386,11 @@ function abrirModulo(especificador: string, ctx: ContextoDeTipos): ts.SourceFile
   return modulosAbertos.get(base) ?? null
 }
 
-const ehDefault = (s: ts.Statement): boolean =>
-  ts.canHaveModifiers(s) && !!ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
+const temModificador = (s: ts.Statement, tipo: ts.SyntaxKind): boolean =>
+  ts.canHaveModifiers(s) && !!ts.getModifiers(s)?.some((m) => m.kind === tipo)
+const ehDefault = (s: ts.Statement): boolean => temModificador(s, ts.SyntaxKind.DefaultKeyword)
+/** Visível de FORA do módulo: declarada com `export`, ou qualquer declaração de um `.d.ts`. */
+const visivelFora = (s: ts.Statement): boolean => s.getSourceFile().isDeclarationFile || temModificador(s, ts.SyntaxKind.ExportKeyword)
 
 /** As declarações de tipo com esse nome — `'default'` casa a declaração `export default interface`. */
 const declaracoesNoBloco = (instrucoes: readonly ts.Statement[], nome: string): DeclaracaoDeTipo[] =>
@@ -439,7 +446,8 @@ function exportado(nome: string, especificador: string, ctx: ContextoDeTipos, sa
   const sf = abrirModulo(especificador, ctx)
   if (!sf) return null
   const alvo: ContextoDeTipos = { ...ctx, sf, arquivo: sf.fileName }
-  const decls = declaracoesNoBloco(sf.statements, nome)
+  // só o que o módulo EXPORTA: um `type Linha` privado não esconde o `export { Linha } from` do mesmo arquivo
+  const decls = declaracoesNoBloco(sf.statements.filter(visivelFora), nome)
   if (decls.length > 0) return { tipo: 'declaracoes', decls, ctx: alvo }
   for (const st of sf.statements) {
     if (nome === 'default' && ts.isExportAssignment(st) && !st.isExportEquals && ts.isIdentifier(st.expression)) {
@@ -474,14 +482,7 @@ function recipienteDe(esquerda: ts.EntityName | ts.Expression, onde: ts.Node, ct
         if (corpo.length > 0) return { tipo: 'bloco', instrucoes: corpo, ctx }
       }
     }
-    for (const st of ctx.sf.statements) {
-      if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier)) continue
-      const nomeados = st.importClause?.namedBindings
-      if (nomeados && ts.isNamespaceImport(nomeados) && nomeados.name.text === esquerda.text) {
-        return { tipo: 'modulo', especificador: st.moduleSpecifier.text, ctx }
-      }
-    }
-    return null
+    return namespaceImportado(esquerda.text, ctx, saltos + 1)
   }
   const [dentro, membro] = ts.isQualifiedName(esquerda)
     ? [esquerda.left, esquerda.right.text]
@@ -495,9 +496,56 @@ function recipienteDe(esquerda: ts.EntityName | ts.Expression, onde: ts.Node, ct
     const corpo = corposDeNamespace(r.instrucoes, membro)
     return corpo.length > 0 ? { tipo: 'bloco', instrucoes: corpo, ctx: r.ctx } : null
   }
-  const sf = abrirModulo(r.especificador, r.ctx)
-  const corpo = sf ? corposDeNamespace(sf.statements, membro) : []
-  return sf && corpo.length > 0 ? { tipo: 'bloco', instrucoes: corpo, ctx: { ...r.ctx, sf, arquivo: sf.fileName } } : null
+  return namespaceExportado(membro, r.especificador, r.ctx, saltos + 1)
+}
+
+/** Um namespace que o arquivo importa: `import * as M from` (o módulo inteiro) ou `import { Grupo } from`. */
+function namespaceImportado(nome: string, ctx: ContextoDeTipos, saltos: number): Recipiente | null {
+  if (saltos > LIMITE_DE_SALTOS) return null
+  for (const st of ctx.sf.statements) {
+    if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier)) continue
+    const nomeados = st.importClause?.namedBindings
+    if (nomeados && ts.isNamespaceImport(nomeados) && nomeados.name.text === nome) {
+      return { tipo: 'modulo', especificador: st.moduleSpecifier.text, ctx }
+    }
+    const el = nomeados && ts.isNamedImports(nomeados) ? nomeados.elements.find((e) => e.name.text === nome) : undefined
+    if (el) return namespaceExportado((el.propertyName ?? el.name).text, st.moduleSpecifier.text, ctx, saltos + 1)
+  }
+  return null
+}
+
+/** O `namespace` que um módulo EXPORTA com esse nome — declarado com `export`, reexportado de outro módulo ou localmente. */
+function namespaceExportado(nome: string, especificador: string, ctx: ContextoDeTipos, saltos: number): Recipiente | null {
+  if (saltos > LIMITE_DE_SALTOS) return null
+  const sf = abrirModulo(especificador, ctx)
+  if (!sf) return null
+  const alvo: ContextoDeTipos = { ...ctx, sf, arquivo: sf.fileName }
+  const proprio = corposDeNamespace(sf.statements.filter(visivelFora), nome)
+  if (proprio.length > 0) return { tipo: 'bloco', instrucoes: proprio, ctx: alvo }
+  for (const st of sf.statements) {
+    if (!ts.isExportDeclaration(st)) continue
+    const clausula = st.exportClause
+    const de = st.moduleSpecifier && ts.isStringLiteral(st.moduleSpecifier) ? st.moduleSpecifier.text : null
+    if (clausula && ts.isNamespaceExport(clausula)) {
+      // `export * as Grupo from './x'`: o módulo inteiro faz o papel do namespace
+      if (de && clausula.name.text === nome) return { tipo: 'modulo', especificador: de, ctx: alvo }
+      continue
+    }
+    const el = clausula && ts.isNamedExports(clausula) ? clausula.elements.find((e) => e.name.text === nome) : undefined
+    const original = (el?.propertyName ?? el?.name)?.text
+    if (de) {
+      if (original) return namespaceExportado(original, de, alvo, saltos + 1)
+      if (!clausula) {
+        const r = namespaceExportado(nome, de, alvo, saltos + 1)
+        if (r) return r
+      }
+    } else if (original) {
+      const local = corposDeNamespace(sf.statements, original)
+      if (local.length > 0) return { tipo: 'bloco', instrucoes: local, ctx: alvo }
+      return namespaceImportado(original, alvo, saltos + 1)
+    }
+  }
+  return null
 }
 
 function noRecipiente(r: Recipiente, nome: string, saltos: number): Denotacao {
@@ -720,6 +768,12 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['namespace dentro de módulo importado por * as', 'import type * as M from "./tipos"\nasync function f(){ return paginarTodos<M.Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export namespace Grupo { export type Linha = unknown }' }, 1],
     ['import default de tipo CONCRETO', `import Linha from "./tipos"\n${PAGINA}`, { 'tipos.ts': 'export default interface Linha { id: string }' }, 0],
     ['`export *` não reexporta o default', `import { default as Linha } from "./barril"\n${PAGINA}`, { 'tipos.ts': 'export default interface Linha { id: string; extra?: string }', 'barril.ts': 'export * from "./tipos"' }, 0],
+    // terceira re-revisão: de módulo alheio só vale o que ele EXPORTA
+    ['tipo PRIVADO de mesmo nome não esconde o reexportado que apaga', `import type { Linha } from "./mod"\n${PAGINA}`, { 'real.ts': 'export type Linha = Record<string, unknown>', 'mod.ts': 'type Linha = { id: string }\nexport { Linha } from "./real"' }, 1],
+    ['tipo PRIVADO que apaga não vale fora do módulo', `import type { Linha } from "./mod"\n${PAGINA}`, { 'real.ts': 'export type Linha = { id: string }', 'mod.ts': 'type Linha = unknown\nexport { Linha } from "./real"' }, 0],
+    ['namespace PRIVADO de mesmo nome não esconde o reexportado', 'import type * as M from "./mod"\nasync function f(){ return paginarTodos<M.Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'real.ts': 'export namespace Grupo { export type Linha = Record<string, unknown> }', 'mod.ts': 'namespace Grupo { export type Linha = { id: string } }\nexport { Grupo } from "./real"' }, 1],
+    ['namespace importado por nome', 'import type { Grupo } from "./tipos"\nasync function f(){ return paginarTodos<Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export namespace Grupo { export type Linha = unknown }' }, 1],
+    ['`export * as Grupo from` faz o papel do namespace', 'import type { Grupo } from "./barril"\nasync function f(){ return paginarTodos<Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export type Linha = Record<string, unknown>', 'barril.ts': 'export * as Grupo from "./tipos"' }, 1],
   ])('entre arquivos: %s', (_nome, fonte, arquivos, esperado) => {
     const virtuais = Object.fromEntries(Object.entries(arquivos).map(([k, v]) => [VIRTUAL(k), v]))
     expect(castsDeLeitura(fonte, VIRTUAL('consumidor.ts'), virtuais)).toHaveLength(esperado)
