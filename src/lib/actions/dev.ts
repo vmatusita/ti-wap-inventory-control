@@ -7,6 +7,7 @@ import { exigirDev } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
+import { casa, FRASES_DO_AUTH } from '@/lib/supabase/erros-do-banco'
 import { emailDoUsuario, getEstadoUsuario, idsDeAdminsAtivos } from '@/lib/queries/admin'
 import { rodarChecagens, type Checagem } from '@/lib/queries/dev'
 import { chamarRpc } from '@/lib/supabase/rpc'
@@ -74,7 +75,7 @@ export async function alterarEmailUsuario(input: {
     const msg = r.error.message.toLowerCase()
     // O Auth responde com variações de "already been registered" quando o endereço está em
     // uso por OUTRA conta. Sem esta tradução, o dev veria a mensagem crua em inglês.
-    if (/already|registered|exists|duplicate/.test(msg)) {
+    if (casa(msg, FRASES_DO_AUTH.contaJaExisteOuDuplicada)) {
       return { ok: false, erro: 'Já existe uma conta com esse e-mail.' }
     }
     registrarFalha({ escopo: 'dev.alterar-email', erro: r.error, operador: aut.uid })

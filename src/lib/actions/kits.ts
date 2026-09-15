@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import { atualizarKitSchema, kitCatalogoSchema } from '@/lib/validators/kit'
 import { paraJson } from '@/lib/supabase/json'
 
@@ -37,8 +38,7 @@ const MSG_KIT_DUPLICADO = 'Já existe um kit com esse nome.'
 // chave é o uuid da PK, que não colide. Detectado pelo NOME do índice (0043) —
 // e por 'duplicate' como rede, igual ao `criarItem`.
 function ehNomeDuplicado(mensagem: string): boolean {
-  const m = mensagem.toLowerCase()
-  return m.includes('duplicate') || m.includes('kits_modelos_nome_uidx')
+  return casa(mensagem, FRASES_DO_MOTOR.duplicata) || casaConstraint(mensagem, 'kits_modelos_nome_uidx')
 }
 
 function revalidarKits() {

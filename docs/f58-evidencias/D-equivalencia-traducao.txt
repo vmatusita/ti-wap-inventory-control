@@ -1,0 +1,40 @@
+# F58 · Frente D — equivalência da tradução de erros: main × F58
+# traduzErroBanco do HEAD (98603cc, igual à main) × o erros.ts que consome src/lib/supabase/erros-do-banco.ts
+# gerado por scratchpad/f58/rascunhos/equivalencia-erros.mts; o JSON completo está em D-equivalencia-traducao.json
+
+corpus:
+  literais que o erros.ts antigo casava ....... 132
+  textos de raise nos corpos VIVOS ............ 209 (em 88 funções vivas)
+  + mensagens do motor para cada constraint, e variantes em CAIXA ALTA e SEM ACENTO de tudo
+  mensagens distintas ......................... 735
+  SQLSTATEs por mensagem ...................... 11 (nenhum, null, 23505, 23514, 23503, 42501, P0001, P0002, 22023, 40001, 57014)
+  casos comparados ............................ 8085
+
+divergências: 220 casos, em 22 mensagens — TODAS abaixo:
+  "saldo insuficiente"  (10 SQLSTATEs)
+  "saldo negativo"  (10 SQLSTATEs)
+  "liberação maior"  (10 SQLSTATEs)
+  "liberacao maior"  (10 SQLSTATEs)
+  "reserva aberta"  (10 SQLSTATEs)
+  "lanc_item_estorna"  (10 SQLSTATEs)
+  "ativos_patrimonio_service_tag"  (10 SQLSTATEs)
+  "duplicate key value violates unique constraint \"lanc_item_estorna\""  (10 SQLSTATEs)
+  "new row for relation \"x\" violates check constraint \"lanc_item_estorna\""  (10 SQLSTATEs)
+  "duplicate key value violates unique constraint \"ativos_patrimonio_service_tag\""  (10 SQLSTATEs)
+  "new row for relation \"x\" violates check constraint \"ativos_patrimonio_service_tag\""  (10 SQLSTATEs)
+  "SALDO INSUFICIENTE"  (10 SQLSTATEs)
+  "SALDO NEGATIVO"  (10 SQLSTATEs)
+  "LIBERAÇÃO MAIOR"  (10 SQLSTATEs)
+  "LIBERACAO MAIOR"  (10 SQLSTATEs)
+  "RESERVA ABERTA"  (10 SQLSTATEs)
+  "LANC_ITEM_ESTORNA"  (10 SQLSTATEs)
+  "ATIVOS_PATRIMONIO_SERVICE_TAG"  (10 SQLSTATEs)
+  "DUPLICATE KEY VALUE VIOLATES UNIQUE CONSTRAINT \"LANC_ITEM_ESTORNA\""  (10 SQLSTATEs)
+  "NEW ROW FOR RELATION \"X\" VIOLATES CHECK CONSTRAINT \"LANC_ITEM_ESTORNA\""  (10 SQLSTATEs)
+  "DUPLICATE KEY VALUE VIOLATES UNIQUE CONSTRAINT \"ATIVOS_PATRIMONIO_SERVICE_TAG\""  (10 SQLSTATEs)
+  "NEW ROW FOR RELATION \"X\" VIOLATES CHECK CONSTRAINT \"ATIVOS_PATRIMONIO_SERVICE_TAG\""  (10 SQLSTATEs)
+
+leitura: divergem só (a) as 5 grafias mortas que saíram de MSG_SQL — nenhum corpo vivo as escreve —
+e (b) os 2 PREFIXOS soltos (lanc_item_estorna, ativos_patrimonio_service_tag), que agora casam pelo nome
+INTEIRO do índice; o único nome vivo com cada prefixo é o _uidx, e a violação real cita o nome inteiro.
+Nenhum dos textos de raise vivos, nem suas variantes de caixa e de acento, mudou de tradução.

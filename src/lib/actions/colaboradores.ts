@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirPapel } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import {
   colaboradorInlineSchema,
   colaboradorSchema,
@@ -70,10 +71,10 @@ export type CriarColaboradorResult = ActionResult & {
  */
 function erroDeColaborador(mensagem: string, code?: string): string {
   const m = mensagem.toLowerCase()
-  if (m.includes('colaboradores_nome_chave_uidx') || m.includes('duplicate key')) {
+  if (casaConstraint(m, 'colaboradores_nome_chave_uidx') || casa(m, FRASES_DO_MOTOR.chaveDuplicada)) {
     return MSG_COLABORADOR_DUPLICADO
   }
-  if (m.includes('colaboradores_nome_nao_vazio')) {
+  if (casaConstraint(m, 'colaboradores_nome_nao_vazio')) {
     return 'Informe o nome do colaborador.'
   }
   return traduzErroBanco(mensagem, code)

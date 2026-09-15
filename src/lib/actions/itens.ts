@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import { hojeISO } from '@/lib/format'
 import {
   estornoLancamentoSchema,
@@ -536,7 +537,7 @@ export async function criarItem(input: {
     .select('id')
     .single()
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
@@ -711,7 +712,7 @@ export async function atualizarItem(input: {
     .update({ nome, grupo, ordem, ativo, estoque_minimo })
     .eq('id', id)
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
