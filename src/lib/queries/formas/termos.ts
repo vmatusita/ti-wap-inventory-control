@@ -1,5 +1,6 @@
 import 'server-only'
 import { z } from 'zod'
+import { ENUM } from '@/lib/supabase/enums'
 import { leituraDeRelacao } from '@/lib/supabase/leitura'
 
 // A forma da leitura de `queries/termos.ts` (F58 · Frente C · lote 2).
@@ -67,5 +68,105 @@ export const LEITURA_TERMOS_DO_ATIVO = leituraDeRelacao({
     // embed NÃO-nulo.
     autor: z.strictObject({ nome: sn }),
   }),
+  ordem: ['id'],
+})
+
+// ---------------------------------------------------------------------------
+// lote 3 — `actions/termos.ts`
+// ---------------------------------------------------------------------------
+
+const n = z.number()
+
+// `cidadesDasFiliais` — `filiais.nome`/`filiais.cidade` são not null (migration 0003).
+export const LEITURA_CIDADES_DAS_FILIAIS = leituraDeRelacao({
+  rotulo: 'termos.cidades-das-filiais',
+  origem: 'filiais',
+  select: 'id, nome, cidade',
+  forma: z.strictObject({ id: n, nome: s, cidade: s }),
+  ordem: ['id'],
+})
+
+// `prepararTermo` — as movimentações + o ativo/motivo do lote. Era um `select` montado por `+`
+// (`MOV_SELECT`, categoria 2 — select não-literal); vira UM literal só, mesmo texto. O embed
+// `ativo` sai NÃO-NULO (`movimentacoes.ativo_id` é not null, migration 0003 — o mesmo
+// precedente de `FILIAL_EMBED`/`RESUMO_SELECT` em `formas/ativos.ts`); o tipo à mão de antes
+// (`ativo: {…} | null`) supunha o mesmo par nulo do cast que existia aqui. `motivo_rel` segue
+// NULÁVEL (`movimentacoes.motivo` é anulável).
+export const MOV_SELECT_TERMO =
+  'id, tipo, motivo, colaborador, chamado, itens_faltantes, snapshot_anterior, data, termo_data, ativo:ativos!movimentacoes_ativo_id_fkey(id, categoria, marca, modelo, service_tag, patrimonio, colaborador_atual, telefone, imei, pulsus, filial_id), motivo_rel:motivos!movimentacoes_motivo_fkey(rotulo)'
+
+export const LEITURA_MOV_PARA_TERMO = leituraDeRelacao({
+  rotulo: 'termos.mov-para-termo',
+  origem: 'movimentacoes',
+  select: MOV_SELECT_TERMO,
+  forma: z.strictObject({
+    id: s,
+    tipo: ENUM.tipoMovimentacao,
+    motivo: sn,
+    colaborador: sn,
+    chamado: sn,
+    itens_faltantes: z.array(s).nullable(),
+    snapshot_anterior: z.looseObject({ colaborador: sn.optional() }).nullable(),
+    data: s,
+    termo_data: sn,
+    ativo: z.strictObject({
+      id: s,
+      categoria: ENUM.categoriaAtivo,
+      marca: sn,
+      modelo: sn,
+      service_tag: sn,
+      patrimonio: sn,
+      colaborador_atual: sn,
+      telefone: sn,
+      imei: sn,
+      pulsus: sn,
+      filial_id: n,
+    }),
+    motivo_rel: z.strictObject({ rotulo: s }).nullable(),
+  }),
+  ordem: ['id'],
+})
+
+// `prepararTermo` — termos já salvos para exatamente este conjunto de movimentações (edição).
+// `dados` reusa `FORMA_DADOS_DO_TERMO`; `tipo` continua `string` na forma (a coluna é texto com
+// CHECK, migration 0021) — quem estreita para `TermoTipo` é a própria action, com `ehTermoTipo`.
+export const LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO = leituraDeRelacao({
+  rotulo: 'termos.existentes-do-conjunto',
+  origem: 'termos_gerados',
+  select: 'tipo, dados',
+  forma: z.strictObject({ tipo: s, dados: FORMA_DADOS_DO_TERMO }),
+  ordem: ['id'],
+})
+
+// `urlTermo` — mesmo par (coluna texto + CHECK) de `LEITURA_TERMOS_DO_ATIVO`: `tipo` fica
+// `string` na forma, estreitado por `ehTermoTipo` na action, como em `queries/termos.ts`.
+export const LEITURA_URL_TERMO = leituraDeRelacao({
+  rotulo: 'termos.url-termo',
+  origem: 'termos_gerados',
+  select: 'arquivo_path, tipo, colaborador, dados',
+  forma: z.strictObject({
+    arquivo_path: s,
+    tipo: s,
+    colaborador: sn,
+    dados: FORMA_DADOS_DO_TERMO,
+  }),
+  ordem: ['id'],
+})
+
+// `confirmarAssinaturaLote` — os alvos do lote (para decidir quem ainda precisa ser
+// confirmado) e, mais abaixo, o `id` puro de quem o UPDATE de fato tocou.
+export const LEITURA_ALVOS_ASSINATURA_LOTE = leituraDeRelacao({
+  rotulo: 'termos.alvos-assinatura-lote',
+  origem: 'ativos',
+  select: 'id, filial_id, termo_assinado',
+  forma: z.strictObject({ id: s, filial_id: n, termo_assinado: ENUM.termoStatus.nullable() }),
+  ordem: ['id'],
+})
+
+export const LEITURA_ATIVOS_ID = leituraDeRelacao({
+  rotulo: 'termos.ativos-id',
+  origem: 'ativos',
+  select: 'id',
+  forma: z.strictObject({ id: s }),
   ordem: ['id'],
 })

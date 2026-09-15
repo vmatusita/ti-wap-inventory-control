@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { ENUM } from '@/lib/supabase/enums'
-import { leituraDeRelacao, leituraDeRpc } from '@/lib/supabase/leitura'
+import { leituraDeRelacao, leituraDeRpc, reciboDeRpc } from '@/lib/supabase/leitura'
 
 // As formas das leituras de `queries/itens.ts` (F58 · Frente C · lote 2).
 
@@ -194,4 +194,39 @@ export const LEITURA_ACESSORIOS_DAS_MOVIMENTACOES = leituraDeRelacao({
     }),
   }),
   ordem: ['id'],
+})
+
+// ---------------------------------------------------------------------------
+// lote 3 — `actions/itens.ts`
+// ---------------------------------------------------------------------------
+
+// `estornarLancamento` — o lançamento original a estornar.
+export const LEITURA_LANCAMENTO_PARA_ESTORNO = leituraDeRelacao({
+  rotulo: 'itens.lancamento-para-estorno',
+  origem: 'lancamentos_item',
+  select: 'id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id',
+  forma: z.strictObject({
+    id: s,
+    item_id: n,
+    filial_id: n,
+    tipo: ENUM.tipoLancamento,
+    quantidade: n,
+    chamado: sn,
+    observacao: sn,
+    estorna_id: sn,
+  }),
+  ordem: ['id'],
+})
+
+// `lancarItens` — o RECIBO de `lancar_itens_lote` (0126). Único `return jsonb_build_object(…)`
+// no corpo vigente, com estas três chaves; opcionais porque a action já as trata com `?? 0`.
+export const LEITURA_LANCAR_ITENS_LOTE = reciboDeRpc({
+  rotulo: 'itens.lancar-itens-lote',
+  rpc: 'lancar_itens_lote',
+  // Um só retorno (0126): toda chave é obrigatória.
+  forma: z.strictObject({
+    linhas: n,
+    regularizacoes: n,
+    unidades_regularizadas: n,
+  }),
 })

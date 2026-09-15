@@ -172,6 +172,26 @@ export const LEITURA_RECENTES_DO_OPERADOR = leituraDeRelacao({
 export const EXPORT_SELECT =
   'patrimonio, service_tag, hostname, categoria, marca, modelo, telefone, imei, pulsus, status, colaborador_atual, setor_atual, pendencia, filiais(slug, nome)'
 
+// ---------------------------------------------------------------------------
+// lote 3 — a identidade do ativo (`lib/ativos/identidade.ts::cadastrosComMesmaIdentidade`)
+// ---------------------------------------------------------------------------
+// `ativos.filial_id` é not null (migration 0003) → o embed `filiais` sai OBJETO NÃO-NULO,
+// mesmo precedente de `FILIAL_EMBED` acima — só que aqui o select pede só `nome`.
+
+export const LEITURA_MESMA_IDENTIDADE = leituraDeRelacao({
+  rotulo: 'ativos.mesma-identidade',
+  origem: 'ativos',
+  select: 'id, patrimonio, service_tag, filial_id, filiais(nome)',
+  forma: z.strictObject({
+    id: s,
+    patrimonio: sn,
+    service_tag: sn,
+    filial_id: n,
+    filiais: z.strictObject({ nome: s }),
+  }),
+  ordem: ['id'],
+})
+
 export const LEITURA_EXPORT_ATIVOS = leituraDeRelacao({
   rotulo: 'ativos.export',
   origem: 'ativos',

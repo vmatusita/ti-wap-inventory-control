@@ -17,7 +17,6 @@ import {
   MOTIVO_SEM_VINCULO_TEXTO,
   decidirVinculosDoLote,
   pessoaDaLinhaDeItem,
-  type SaldoDaPessoa,
 } from '@/lib/itens/vinculo-retorno'
 import { avisoDeRegularizacao, textoDaRegularizacao } from '@/lib/itens/regularizacao'
 // F49 — o teto do lote de `buscarResumoDeAtivosPorIds`. Reusa a constante que o
@@ -45,7 +44,13 @@ import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { saldosPorColaborador } from '@/lib/queries/itens'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { chamarRpc } from '@/lib/supabase/rpc'
-import type { StatusAtivo, TipoLancamento } from '@/lib/dominio'
+import type { StatusAtivo } from '@/lib/dominio'
+import { linhasOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_ATIVOS_DO_LOTE,
+  LEITURA_CRIAR_MOVIMENTACAO_COM_ITENS,
+  LEITURA_ITENS_DA_MOVIMENTACAO_A_ESTORNAR,
+} from '@/lib/queries/formas/movimentacoes'
 
 // Re-export dos tipos do CONTRATO §1.5 (OS-F10): o fluxo de movimentação roda em
 // Client Component e só pode importar deste módulo — `src/lib/queries/**` é
@@ -277,9 +282,9 @@ export async function registrarMovimentacoes(input: {
   }
 
   // Estado corrente de cada ativo (filial de origem + status atual).
-  const { data: ativosData, error: ativosErr } = await supabase
+  const { data: ativosBrutos, error: ativosErr } = await supabase
     .from('ativos')
-    .select('id, filial_id, status, colaborador_atual')
+    .select(LEITURA_ATIVOS_DO_LOTE.select)
     .in('id', idsDoLote)
   if (ativosErr) {
     return {
@@ -289,9 +294,18 @@ export async function registrarMovimentacoes(input: {
       erroGeral: traduzErroBanco(ativosErr.message, ativosErr.code),
     }
   }
-  const ativoPorId = new Map<string, AtivoBasico>(
-    (ativosData ?? []).map((a) => [a.id, a as AtivoBasico]),
-  )
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoAtivos = linhasOuFalha(ativosBrutos, LEITURA_ATIVOS_DO_LOTE.forma, LEITURA_ATIVOS_DO_LOTE.rotulo)
+  if (!lidoAtivos.ok) {
+    return {
+      ok: false,
+      criadas: 0,
+      resultados: [],
+      erroGeral: traduzErroBanco(lidoAtivos.erro.message),
+    }
+  }
+  const ativosData = lidoAtivos.linhas
+  const ativoPorId = new Map<string, AtivoBasico>(ativosData.map((a) => [a.id, a]))
 
   // Vínculo de escrita em TODAS as filiais tocadas pelo lote. Desde a F38 quem grava
   // `filial_id` é a RPC 0117, derivando-a do ativo lido SOB A TRAVA — e é esse valor
@@ -375,11 +389,14 @@ export async function registrarMovimentacoes(input: {
 
   const criadas = itens.length
   const rotasAtivos = new Set(itens.map((i) => i.ativo_id))
-  const devolvido = retorno as {
-    movimentacoes?: string[]
-    regularizacoes?: number
-    unidades_regularizadas?: number
-  } | null
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem
+  // números" — o `?? []`/`?? 0` abaixo já tratava dado ausente do mesmo jeito.
+  const lidoRetorno = valorOuFalha(
+    retorno,
+    LEITURA_CRIAR_MOVIMENTACAO_COM_ITENS.forma,
+    LEITURA_CRIAR_MOVIMENTACAO_COM_ITENS.rotulo,
+  )
+  const devolvido = lidoRetorno.ok ? lidoRetorno.valor : null
   const ids = devolvido?.movimentacoes ?? []
   // F41 — o que a RPC DE FATO gravou de acerto automático. Lido do retorno dela, na
   // mesma transação que gravou; contar aqui seria contar outra coisa.
@@ -538,7 +555,7 @@ async function montarItensJunto(
         })),
         {
           colaboradorId: pessoaId,
-          saldos: (lidos.mapa.get(pessoaId) ?? []) as SaldoDaPessoa[],
+          saldos: lidos.mapa.get(pessoaId) ?? [],
         },
       )
       for (const d of decididas) {
@@ -660,24 +677,31 @@ export async function estornarMovimentacao(input: {
   // função pura que o estorno avulso de item usa desde a F3B — e gravados pela RPC
   // na MESMA transação. Se algum não puder ser gravado, a RPC recusa o estorno
   // inteiro: nunca meio estorno.
-  const { data: itensDaMov, error: itensErr } = await supabase
+  const { data: itensDaMovBrutos, error: itensErr } = await supabase
     .from('lancamentos_item')
     // F41 — `regularizacao` entra na leitura porque `planejarEstorno` precisa dela
     // para redigir o inverso do ACERTO AUTOMÁTICO com o texto certo. A aritmética
     // não muda (ajuste positivo → ajuste negativo, como qualquer ajuste); o que
     // mudaria sem isto é o diário dizer "Estorno de ajuste" sobre um ajuste que o
     // operador nunca fez.
-    .select(
-      'id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id, regularizacao',
-    )
+    .select(LEITURA_ITENS_DA_MOVIMENTACAO_A_ESTORNAR.select)
     .eq('movimentacao_id', mov.id)
     .is('estorna_id', null)
   if (itensErr) return { ok: false, erro: traduzErroBanco(itensErr.message, itensErr.code) }
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoItensDaMov = linhasOuFalha(
+    itensDaMovBrutos,
+    LEITURA_ITENS_DA_MOVIMENTACAO_A_ESTORNAR.forma,
+    LEITURA_ITENS_DA_MOVIMENTACAO_A_ESTORNAR.rotulo,
+  )
+  if (!lidoItensDaMov.ok) {
+    return { ok: false, erro: traduzErroBanco(lidoItensDaMov.erro.message) }
+  }
 
-  const estornos = (itensDaMov ?? []).map((l) => {
+  const estornos = lidoItensDaMov.linhas.map((l) => {
     const plano = planejarEstorno(
       {
-        tipo: l.tipo as TipoLancamento,
+        tipo: l.tipo,
         quantidade: l.quantidade,
         chamado: l.chamado,
         observacao: l.observacao,
@@ -706,13 +730,16 @@ export async function estornarMovimentacao(input: {
   // desfazer a movimentação do equipamento. Sem saldo, o inverso vai SEM o vínculo:
   // repõe a prateleira do mesmo jeito e não inventa dívida negativa.
   const retornos = estornos.filter((e) => e.tipo === 'retorno' && e.colaborador_id)
+  // `retornos` continua tipado com `colaborador_id: string | null` (a mutação `d.ref.colaborador_id
+  // = d.colaboradorId` logo abaixo pode voltar a gravar `null`) — o filtro do `.filter` acima não
+  // reduz esse tipo. Os ids realmente presentes saem por um type guard, sem `as`.
+  const idsColaboradoresDosRetornos = retornos
+    .map((e) => e.colaborador_id)
+    .filter((id): id is string => id != null)
   if (retornos.length > 0) {
-    const lidos = await saldosPorColaborador(
-      supabase,
-      retornos.map((e) => e.colaborador_id as string),
-    )
+    const lidos = await saldosPorColaborador(supabase, idsColaboradoresDosRetornos)
     if (!lidos.ok) return { ok: false, erro: lidos.erro }
-    for (const pessoaId of new Set(retornos.map((e) => e.colaborador_id as string))) {
+    for (const pessoaId of new Set(idsColaboradoresDosRetornos)) {
       const doPessoa = retornos.filter((e) => e.colaborador_id === pessoaId)
       const decididas = decidirVinculosDoLote(
         doPessoa.map((e) => ({
@@ -721,7 +748,7 @@ export async function estornarMovimentacao(input: {
           filialId: e.filial_id,
           quantidade: e.quantidade,
         })),
-        { colaboradorId: pessoaId, saldos: (lidos.mapa.get(pessoaId) ?? []) as SaldoDaPessoa[] },
+        { colaboradorId: pessoaId, saldos: lidos.mapa.get(pessoaId) ?? [] },
       )
       for (const d of decididas) d.ref.colaborador_id = d.colaboradorId
     }

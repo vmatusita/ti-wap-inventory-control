@@ -31,7 +31,12 @@ import { estoquePorItem } from '@/lib/itens/repor'
 import { emUsoDoSaldo } from '@/lib/itens/lista'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
-import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
+import { decidirVinculoRetorno } from '@/lib/itens/vinculo-retorno'
+import { linhaOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_LANCAMENTO_PARA_ESTORNO,
+  LEITURA_LANCAR_ITENS_LOTE,
+} from '@/lib/queries/formas/itens'
 
 // F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
 //   · LANÇAMENTOS (`lancarItens`, `estornarLancamento`) mexem no saldo de uma FILIAL →
@@ -134,7 +139,7 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       .filter((x): x is string => !!x),
   )
   if (!lidos.ok) return { ok: false, resultados: [], erroGeral: lidos.erro }
-  const saldosPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
+  const saldosPorPessoa = lidos.mapa
   const consumido = new Map<string, number>()
 
   // F41 — o nome de cada item, para a justificativa do acerto automático (a RPC
@@ -270,7 +275,10 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
     revalidarItens()
     revalidatePath('/relatorios', 'layout')
   }
-  const reg = retorno as { regularizacoes?: number; unidades_regularizadas?: number } | null
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem
+  // números" — o `?? 0` abaixo já tratava `undefined` do mesmo jeito.
+  const lidoRetorno = valorOuFalha(retorno, LEITURA_LANCAR_ITENS_LOTE.forma, LEITURA_LANCAR_ITENS_LOTE.rotulo)
+  const reg = lidoRetorno.ok ? lidoRetorno.valor : null
   return {
     ok: true,
     resultados,
@@ -378,12 +386,20 @@ export async function estornarLancamento(input: {
   const cargo = await exigirPapel(supabase, 'operador')
   if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
-  const { data: orig, error: e1 } = await supabase
+  const { data: origBruto, error: e1 } = await supabase
     .from('lancamentos_item')
-    .select('id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id')
+    .select(LEITURA_LANCAMENTO_PARA_ESTORNO.select)
     .eq('id', parsed.data.lancamento_id)
     .maybeSingle()
   if (e1) return { ok: false, erro: traduzErroBanco(e1.message, e1.code) }
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoOrig = linhaOuFalha(
+    origBruto,
+    LEITURA_LANCAMENTO_PARA_ESTORNO.forma,
+    LEITURA_LANCAMENTO_PARA_ESTORNO.rotulo,
+  )
+  if (!lidoOrig.ok) return { ok: false, erro: traduzErroBanco(lidoOrig.erro.message) }
+  const orig = lidoOrig.linha
   if (!orig) return { ok: false, erro: 'Lançamento não encontrado.' }
   if (orig.estorna_id) {
     return { ok: false, erro: 'Um estorno não pode ser estornado.' }
@@ -403,7 +419,7 @@ export async function estornarLancamento(input: {
 
   const plano = planejarEstorno(
     {
-      tipo: orig.tipo as TipoLancamento,
+      tipo: orig.tipo,
       quantidade: orig.quantidade,
       chamado: orig.chamado,
       observacao: orig.observacao,

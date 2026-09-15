@@ -69,3 +69,23 @@ export const LEITURA_SUGESTAO_LANCAMENTOS = leituraDeRelacao({
   ordem: ['id'],
 })
 
+// ---------------------------------------------------------------------------
+// lote 3 — `actions/colaboradores.ts::consolidarColaboradores`
+// ---------------------------------------------------------------------------
+// Mesma view de `LEITURA_FILA_CONSOLIDACAO`, com um recorte menor de colunas — a action só
+// precisa da chave, da grafia a usar e da filial. `naoNulaNaView` reusa exatamente as mesmas
+// entradas do mapa (`colunas-de-view.ts`) que a fila já usa.
+
+export const LEITURA_GRUPOS_A_CONSOLIDAR = leituraDeRelacao({
+  rotulo: 'colaboradores.grupos-a-consolidar',
+  origem: 'v_colaboradores_textos',
+  select: 'nome_chave, grafia_exemplo, filial_id, ja_cadastrado',
+  forma: z.strictObject({
+    nome_chave: naoNulaNaView('v_colaboradores_textos', 'nome_chave', z.string()),
+    grafia_exemplo: naoNulaNaView('v_colaboradores_textos', 'grafia_exemplo', z.string()),
+    filial_id: naoNulaNaView('v_colaboradores_textos', 'filial_id', z.number()),
+    ja_cadastrado: naoNulaNaView('v_colaboradores_textos', 'ja_cadastrado', z.boolean()),
+  }),
+  ordem: ['nome_chave'],
+})
+

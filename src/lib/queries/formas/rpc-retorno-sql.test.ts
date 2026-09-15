@@ -72,12 +72,33 @@ export function retornoVivo(sqlBruto: string): Retorno {
     return { tipo: 'tabela', colunas: itensDePrimeiroNivel(lista).map((c) => c.split(' ')[0]) }
   }
   if (/\breturns jsonb\b/.test(cabecalho)) {
+    // Só conta como VARIANTE DO RETORNO o objeto que a função DEVOLVE:
+    //  (1) `return jsonb_build_object(…)`;
+    //  (2) o objeto atribuído a uma variável que aparece num `return <variável>;` — por `:=` ou por
+    //      `select jsonb_build_object(…) into <variável>`.
+    // A primeira versão contava QUALQUER `select jsonb_build_object` e `:=`, e pegava o backup interno
+    // que as ferramentas destrutivas gravam no evento (`select jsonb_build_object(…) into v_backup`) como
+    // se fosse retorno — o lote 3 teve de declarar todas as chaves opcionais para caber, e o recibo
+    // deixou de provar chave obrigatória.
     const variantes: string[][] = []
-    for (const m of sql.matchAll(/(?:\breturn|\bselect|:=)\s*jsonb_build_object\s*\(/g)) {
+    const chavesEm = (abre: number) =>
+      itensDePrimeiroNivel(entreParenteses(sql, abre))
+        .filter((_, i) => i % 2 === 0)
+        .map((a) => /^'([^']+)'$/.exec(a)?.[1] ?? `(não literal: ${a.slice(0, 30)})`)
+    for (const m of sql.matchAll(/\breturn\s+jsonb_build_object\s*\(/g)) variantes.push(chavesEm((m.index ?? 0) + m[0].length - 1))
+    const devolvidas = new Set(
+      [...sql.matchAll(/\breturn\s+([a-z_][a-z0-9_]*)\s*;/g)].map((m) => m[1]).filter((v) => !['null', 'query', 'next'].includes(v)),
+    )
+    for (const v of devolvidas) {
+      for (const m of sql.matchAll(new RegExp(String.raw`\b${v}\s*:=\s*jsonb_build_object\s*\(`, 'g'))) {
+        variantes.push(chavesEm((m.index ?? 0) + m[0].length - 1))
+      }
+    }
+    for (const m of sql.matchAll(/\bselect\s+jsonb_build_object\s*\(/g)) {
       const abre = (m.index ?? 0) + m[0].length - 1
-      const args = itensDePrimeiroNivel(entreParenteses(sql, abre))
-      const chaves = args.filter((_, i) => i % 2 === 0).map((a) => /^'([^']+)'$/.exec(a)?.[1] ?? `(não literal: ${a.slice(0, 30)})`)
-      variantes.push(chaves)
+      const fim = abre + entreParenteses(sql, abre).length + 2
+      const destino = /^\s*into\s+([a-z_][a-z0-9_]*)/.exec(sql.slice(fim))?.[1]
+      if (destino && devolvidas.has(destino)) variantes.push(chavesEm(abre))
     }
     return { tipo: 'jsonb', variantes }
   }
@@ -133,6 +154,18 @@ describe('a leitura do retorno vivo (guarda do próprio teste)', () => {
       "create function f() returns jsonb language plpgsql as $$ begin if x then return jsonb_build_object('alterado', false, 'id', v); end if; return jsonb_build_object('alterado', true, 'id', v, 'de', jsonb_build_object('z', 1)); end $$;",
     )
     expect(r).toEqual({ tipo: 'jsonb', variantes: [['alterado', 'id'], ['alterado', 'id', 'de']] })
+  })
+  it('o backup interno (`select jsonb_build_object(…) into v_backup`) NÃO é variante do retorno', () => {
+    const r = retornoVivo(
+      "create function f() returns jsonb language plpgsql as $$ declare v_backup jsonb; begin select jsonb_build_object('ativo', a) into v_backup from t; insert into e values (v_backup); return jsonb_build_object('ativo_id', 1, 'rotulo', 'x'); end $$;",
+    )
+    expect(r).toEqual({ tipo: 'jsonb', variantes: [['ativo_id', 'rotulo']] })
+  })
+  it('o objeto atribuído à variável DEVOLVIDA é variante — por `:=` e por `select … into`', () => {
+    const r = retornoVivo(
+      "create function f() returns jsonb language plpgsql as $$ declare v_res jsonb; v_outro jsonb; begin if x then v_res := jsonb_build_object('a', 1); else select jsonb_build_object('b', 2) into v_res; end if; v_outro := jsonb_build_object('c', 3); return v_res; end $$;",
+    )
+    expect(r).toEqual({ tipo: 'jsonb', variantes: [['a'], ['b']] })
   })
 })
 

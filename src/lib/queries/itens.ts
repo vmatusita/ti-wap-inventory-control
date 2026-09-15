@@ -10,6 +10,7 @@ import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import type { LancamentoParaSaldoApos } from '@/lib/itens/saldo-apos'
 import type { LancamentoDeAcessorio, TipoDeAcessorio } from '@/lib/termos/acessorios'
+import type { SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
 import { linhaOuFalha, linhasDe, linhasOuFalha } from '@/lib/supabase/linhas'
 import {
   LEITURA_ACESSORIOS_DAS_MOVIMENTACOES,
@@ -646,11 +647,17 @@ export const MSG_SALDO_INDISPONIVEL =
  *
  * As consultas são independentes entre si — vão em paralelo, nunca uma por vez.
  */
+// F58 — o Map devolve `SaldoDaPessoa[]` (não `SaldoDoColaborador[]`): quem chama esta função
+// (itens.ts, movimentacoes.ts, pendencias.ts) só usa `item_id`/`filial_id`/`com_a_pessoa` — os
+// dois campos de RÓTULO (`item`, `filial`) são só de `saldoDoColaborador` (singular, a leitura
+// que alimenta a TELA). Tipar a origem certa é o que deixa os chamadores lerem o Map sem `as`:
+// `SaldoDoColaborador` (mais campos) É atribuível a `SaldoDaPessoa` (menos campos) por
+// estrutura — nenhuma linha do corpo desta função muda.
 export async function saldosPorColaborador(
   supabase: Awaited<ReturnType<typeof createClient>>,
   ids: Iterable<string>,
 ): Promise<
-  { ok: true; mapa: Map<string, SaldoDoColaborador[]> } | { ok: false; erro: string }
+  { ok: true; mapa: Map<string, SaldoDaPessoa[]> } | { ok: false; erro: string }
 > {
   const distintos = [...new Set(ids)]
   if (distintos.length === 0) return { ok: true, mapa: new Map() }
@@ -659,7 +666,7 @@ export async function saldosPorColaborador(
     distintos.map((id) => chamarRpc(supabase, 'rel_saldo_colaborador', { p_colaborador: id })),
   )
 
-  const mapa = new Map<string, SaldoDoColaborador[]>()
+  const mapa = new Map<string, SaldoDaPessoa[]>()
   for (let i = 0; i < distintos.length; i++) {
     const { data, error } = respostas[i]
     if (error) {

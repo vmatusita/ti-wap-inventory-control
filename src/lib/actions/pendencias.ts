@@ -10,12 +10,8 @@ import {
   reabrirPendenciaItemSchema,
   resolverPendenciaItemSchema,
 } from '@/lib/validators/pendencia-item'
-import {
-  resolverItemDoSlug,
-  type ItemDoCatalogo,
-  type TipoParaPonte,
-} from '@/lib/itens/ponte-tipo-item'
-import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
+import { resolverItemDoSlug } from '@/lib/itens/ponte-tipo-item'
+import { decidirVinculoRetorno } from '@/lib/itens/vinculo-retorno'
 import { textoDaBaixa, textoDoRetornoDaPendencia } from '@/lib/pendencias/texto-baixa'
 import { textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
@@ -24,6 +20,13 @@ import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { hojeISO } from '@/lib/format'
 import type { TipoLancamento } from '@/lib/dominio'
+import { linhasOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_ITENS_PARA_PONTE,
+  LEITURA_LANCAMENTOS_DA_REABERTURA,
+  LEITURA_RESOLVER_PENDENCIAS_COM_LANCAMENTOS,
+  LEITURA_TIPOS_ITEM_PARA_PONTE,
+} from '@/lib/queries/formas/pendencias'
 
 // Resolve (encerra) 1..N pendências de item numa tacada — o caminho para zerar a
 // fila herdada com UMA justificativa (F18 §B2). Só toca as ABERTAS (`.eq('status',
@@ -111,8 +114,16 @@ export async function resolverPendenciaItem(input: {
   revalidatePath('/pendencias')
   for (const ativoId of lancamentos.ativos) revalidatePath(`/ativos/${ativoId}`)
   revalidatePath('/relatorios', 'layout')
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem
+  // lançamentos" — o `?? 0` de antes já tratava dado ausente do mesmo jeito, e o pior que
+  // acontece é a revalidação de `/itens` não disparar (a resolução em si já foi gravada).
+  const lidoResolucao = valorOuFalha(
+    data,
+    LEITURA_RESOLVER_PENDENCIAS_COM_LANCAMENTOS.forma,
+    LEITURA_RESOLVER_PENDENCIAS_COM_LANCAMENTOS.rotulo,
+  )
   // O desfecho mexeu no estoque (e, na baixa, no Total da TI).
-  if (((data as { lancamentos?: number } | null)?.lancamentos ?? 0) > 0) {
+  if ((lidoResolucao.ok ? (lidoResolucao.valor.lancamentos ?? 0) : 0) > 0) {
     revalidatePath('/itens')
   }
   return { ok: true }
@@ -169,15 +180,29 @@ async function montarLancamentosDaResolucao(
   const ativos = new Set<string>()
   if (args.alvos.length === 0) return { payload: [], ativos }
 
-  const [{ data: tipos, error: eTipos }, { data: itens, error: eItens }] = await Promise.all([
-    supabase.from('tipos_item').select('id, slug, rotulo'),
-    supabase.from('itens').select('id, nome, ativo, tipo_id'),
+  const [{ data: tiposBrutos, error: eTipos }, { data: itensBrutos, error: eItens }] = await Promise.all([
+    supabase.from('tipos_item').select(LEITURA_TIPOS_ITEM_PARA_PONTE.select),
+    supabase.from('itens').select(LEITURA_ITENS_PARA_PONTE.select),
   ])
   // Falha de leitura do CATÁLOGO não bloqueia (a doutrina da §E: resolver nunca
   // falha por causa do catálogo), mas também não pode ser invisível: sem estas
   // linhas, a pendência resolveria sem lançamento e ninguém saberia por quê.
   if (eTipos) registrarFalha({ escopo: 'pendencias.resolver-tipos-item', erro: eTipos })
   if (eItens) registrarFalha({ escopo: 'pendencias.resolver-catalogo-itens', erro: eItens })
+  // A forma errada segue o MESMO caminho do erro de banco acima: registra (dentro da porta) e
+  // segue com a lista vazia — resolver não pode falhar por causa do catálogo.
+  const lidoTipos = linhasOuFalha(
+    tiposBrutos,
+    LEITURA_TIPOS_ITEM_PARA_PONTE.forma,
+    LEITURA_TIPOS_ITEM_PARA_PONTE.rotulo,
+  )
+  const tipos = lidoTipos.ok ? lidoTipos.linhas : []
+  const lidoItens = linhasOuFalha(
+    itensBrutos,
+    LEITURA_ITENS_PARA_PONTE.forma,
+    LEITURA_ITENS_PARA_PONTE.rotulo,
+  )
+  const itens = lidoItens.ok ? lidoItens.linhas : []
 
   const vinculos = await resolverColaboradoresPorNome(
     supabase,
@@ -194,18 +219,14 @@ async function montarLancamentosDaResolucao(
       .filter((x): x is string => !!x),
   )
   if (!lidos.ok) return { payload: [], ativos, erro: lidos.erro }
-  const saldoPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
+  const saldoPorPessoa = lidos.mapa
 
   const consumido = new Map<string, number>()
   const payload: LancamentoDaResolucao[] = []
 
   for (const p of args.alvos) {
     ativos.add(p.ativo_id)
-    const r = resolverItemDoSlug(
-      (itens ?? []) as ItemDoCatalogo[],
-      (tipos ?? []) as TipoParaPonte[],
-      p.item,
-    )
+    const r = resolverItemDoSlug(itens, tipos, p.item)
     if (r.situacao !== 'resolvido') continue // sem item: a pendência resolve mesmo assim
 
     const pessoaId = vinculos.get(chaveColaborador(p.colaborador)) ?? null
@@ -337,14 +358,21 @@ export async function reabrirPendenciaItem(input: {
   // lançamento de pé, e recusa a transação inteira se ficou. Nunca reabre deixando
   // lançamento órfão — e essa garantia é do BANCO, não da boa-fé desta função.
   const idsAlvo = alvosResolvidos.map((p) => p.id)
-  const { data: lancDaPendencia, error: eLanc } = await supabase
+  const { data: lancDaPendenciaBrutos, error: eLanc } = await supabase
     .from('lancamentos_item')
-    .select(
-      'id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id, pendencia_item_id',
-    )
+    .select(LEITURA_LANCAMENTOS_DA_REABERTURA.select)
     .in('pendencia_item_id', idsAlvo)
     .is('estorna_id', null)
   if (eLanc) return { ok: false, erro: traduzErroBanco(eLanc.message, eLanc.code) }
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoLancDaPendencia = linhasOuFalha(
+    lancDaPendenciaBrutos,
+    LEITURA_LANCAMENTOS_DA_REABERTURA.forma,
+    LEITURA_LANCAMENTOS_DA_REABERTURA.rotulo,
+  )
+  if (!lidoLancDaPendencia.ok) {
+    return { ok: false, erro: traduzErroBanco(lidoLancDaPendencia.erro.message) }
+  }
 
   // F58 — mesma forma honesta de `LancamentoDaResolucao`: `type` (não `interface`)
   // com campos já `JsonSerializavel`, para a porta aceitar sem cast.
@@ -360,10 +388,10 @@ export async function reabrirPendenciaItem(input: {
     colaborador: string | null
     colaborador_id: string | null
   }
-  const estornos: EstornoDaReabertura[] = (lancDaPendencia ?? []).map((l) => {
+  const estornos: EstornoDaReabertura[] = lidoLancDaPendencia.linhas.map((l) => {
     const plano = planejarEstorno(
       {
-        tipo: l.tipo as TipoLancamento,
+        tipo: l.tipo,
         quantidade: l.quantidade,
         chamado: l.chamado,
         observacao: l.observacao,

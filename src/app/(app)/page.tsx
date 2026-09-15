@@ -29,6 +29,8 @@ import { EstadoVazio } from '@/components/layout/estado-vazio'
 import { cn } from '@/lib/utils'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { registrarFalha } from '@/lib/observabilidade'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_FILA_PENDENCIAS_DASHBOARD } from '@/lib/queries/formas/dashboard'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 export const metadata = {
@@ -88,8 +90,10 @@ const LINKS_KPI: LinksKpi = {
 }
 
 type PendenciaHome = {
-  id: string | null
-  ordem: string | null
+  // F58 — `id`/`ordem` são não-nulos NA VIEW (colunas-de-view.ts): o tipo à mão dizia
+  // `string | null` para os dois, supondo o mesmo que o cast de antes.
+  id: string
+  ordem: string
   patrimonio: string | null
   categoria: CategoriaAtivo | null
   filial: string | null
@@ -124,9 +128,7 @@ export default async function DashboardPage() {
     .then((fs) => efetivar(recorteDe(operador), selecaoDeUnidadesPorSlug(undefined, operador, fs)))
     .catch(() => efetivar(recorteDe(operador), { familia: 'slug', modo: 'todas' }))
   const filaPendencias = recortarPorUnidade(
-    client
-      .from('v_fila_pendencias')
-      .select('id, ordem, patrimonio, categoria, filial, pendencia'),
+    client.from('v_fila_pendencias').select(LEITURA_FILA_PENDENCIAS_DASHBOARD.select),
     'filial',
     unidadesDoOperador,
   )
@@ -162,15 +164,26 @@ export default async function DashboardPage() {
   // `v_fila_pendencias` (RLS, view recriada, timeout) afirmaria ao operador
   // exatamente o contrário da verdade. Registra no servidor e a UI diz que não
   // conseguiu ler — o resto do dashboard continua de pé.
-  const pendenciasErro = pendenciasRes.error
-  if (pendenciasErro) {
+  const erroBancoPendencias = pendenciasRes.error
+  if (erroBancoPendencias) {
     registrarFalha({
       escopo: 'dashboard.fila-pendencias',
-      erro: pendenciasErro,
+      erro: erroBancoPendencias,
       operador: operador?.id ?? null,
     })
   }
-  const pendencias = (pendenciasRes.data ?? []) as PendenciaHome[]
+  // A forma errada segue o MESMO caminho do erro de banco, logo acima (registrarFalha já
+  // acontece dentro da porta): as duas viram o mesmo aviso "não foi possível ler".
+  const lidoPendencias = erroBancoPendencias
+    ? null
+    : linhasOuFalha(
+        pendenciasRes.data,
+        LEITURA_FILA_PENDENCIAS_DASHBOARD.forma,
+        LEITURA_FILA_PENDENCIAS_DASHBOARD.rotulo,
+      )
+  const pendenciasErro = !!erroBancoPendencias || (lidoPendencias !== null && !lidoPendencias.ok)
+  const pendencias: PendenciaHome[] =
+    lidoPendencias && lidoPendencias.ok ? lidoPendencias.linhas : []
 
   // Item DESATIVADO que ainda tem saldo aparece na RPC e não no catálogo ativo:
   // fica sem mínimo no mapa e nunca alerta (repor.ts). O card só existe quando

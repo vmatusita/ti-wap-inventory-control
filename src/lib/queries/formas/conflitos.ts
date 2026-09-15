@@ -2,7 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { naoNulaNaView } from '@/lib/supabase/colunas-de-view'
 import { ENUM } from '@/lib/supabase/enums'
-import { leituraDeRelacao } from '@/lib/supabase/leitura'
+import { leituraDeRelacao, reciboDeRpc } from '@/lib/supabase/leitura'
 
 // As FORMAS da mesa de conflitos entre filiais (F58 · Frente C).
 //
@@ -49,4 +49,28 @@ export const LEITURA_LADOS_DE_CONFLITO = leituraDeRelacao({
     tem_historico_real: z.boolean().nullable(),
   }),
   ordem: ['chave', 'ativo_id'],
+})
+
+// ---------------------------------------------------------------------------
+// lote 3 — o RECIBO de `apagar_ativos_conflito_filiais` (`actions/conflitos.ts::apagarConflito`)
+// ---------------------------------------------------------------------------
+// RPC que ESCREVE: a forma é provada contra o CORPO VIVO (migration 0132, o `create or
+// replace` mais recente), não chamada pelo conferidor. Um único `return jsonb_build_object(…)`
+// no corpo, com estas oito chaves — todas opcionais na forma porque a action já trata cada uma
+// com `?? default` (o tipo à mão de antes já as declarava assim).
+
+export const LEITURA_APAGAR_CONFLITO = reciboDeRpc({
+  rotulo: 'conflitos.apagar',
+  rpc: 'apagar_ativos_conflito_filiais',
+  // Um só retorno no corpo vivo (0132): toda chave é obrigatória.
+  forma: z.strictObject({
+    ativos: z.number(),
+    movimentacoes: z.number(),
+    anotacoes: z.number(),
+    pendencias_item: z.number(),
+    termos: z.number(),
+    ponteiros_anulados: z.number(),
+    arquivos_termos: z.array(z.string()),
+    selecionados: z.json(),
+  }),
 })

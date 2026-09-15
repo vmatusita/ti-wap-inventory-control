@@ -20,6 +20,8 @@ import {
   saldoDoColaborador,
   type SaldoDoColaborador as SaldoDoColaboradorQuery,
 } from '@/lib/queries/itens'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_GRUPOS_A_CONSOLIDAR } from '@/lib/queries/formas/colaboradores'
 
 // Re-export no ALIAS INLINE (a forma segura — ver o comentário longo em
 // actions/movimentacoes.ts sobre o defeito B1+B2 da F13).
@@ -260,21 +262,24 @@ export async function consolidarColaboradores(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const { data: grupos, error: erroFila } = await supabase
+  const { data: gruposBrutos, error: erroFila } = await supabase
     .from('v_colaboradores_textos')
-    .select('nome_chave, grafia_exemplo, filial_id, ja_cadastrado')
+    .select(LEITURA_GRUPOS_A_CONSOLIDAR.select)
     .in('nome_chave', parsed.data.chaves)
   if (erroFila) {
     return { ok: false, erro: traduzErroBanco(erroFila.message, erroFila.code) }
   }
-
-  type Grupo = {
-    nome_chave: string | null
-    grafia_exemplo: string | null
-    filial_id: number | null
-    ja_cadastrado: boolean | null
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoGrupos = linhasOuFalha(
+    gruposBrutos,
+    LEITURA_GRUPOS_A_CONSOLIDAR.forma,
+    LEITURA_GRUPOS_A_CONSOLIDAR.rotulo,
+  )
+  if (!lidoGrupos.ok) {
+    return { ok: false, erro: traduzErroBanco(lidoGrupos.erro.message) }
   }
-  const aCriar = ((grupos ?? []) as Grupo[]).filter(
+
+  const aCriar = lidoGrupos.linhas.filter(
     (g) => g.nome_chave && g.grafia_exemplo && !g.ja_cadastrado,
   )
   const jaExistiam = parsed.data.chaves.length - aCriar.length
@@ -295,7 +300,7 @@ export async function consolidarColaboradores(input: {
     .from('colaboradores')
     .upsert(
       aCriar.map((g) => ({
-        nome: (g.grafia_exemplo as string).trim(),
+        nome: g.grafia_exemplo.trim(),
         filial_id: g.filial_id,
         criado_por: aut.uid,
       })),

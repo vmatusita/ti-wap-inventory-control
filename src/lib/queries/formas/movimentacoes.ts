@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { ENUM } from '@/lib/supabase/enums'
-import { leituraDeRelacao } from '@/lib/supabase/leitura'
+import { leituraDeRelacao, reciboDeRpc } from '@/lib/supabase/leitura'
 
 // As FORMAS das leituras de `queries/movimentacoes.ts` (F58 · Frente C).
 
@@ -209,4 +209,59 @@ export const LEITURA_LISTA_MOVIMENTACOES_POR_PATRIMONIO = leituraDeRelacao({
   select: `${LISTA_COLS}, ativos!inner(${LISTA_ATIVO_EMBED_COLS}), ${LISTA_AUTOR_EMBED}, ${LISTA_FILIAL_EMBED}`,
   forma: FORMA_LISTA_MOVIMENTACAO,
   ordem: ['id'],
+})
+
+// ---------------------------------------------------------------------------
+// lote 3 — `actions/movimentacoes.ts`
+// ---------------------------------------------------------------------------
+
+// `registrarMovimentacoes` — o estado corrente de cada ativo do lote (filial de origem +
+// status + detentor atual, para a regra §C.3 do vínculo).
+export const LEITURA_ATIVOS_DO_LOTE = leituraDeRelacao({
+  rotulo: 'movimentacoes.ativos-do-lote',
+  origem: 'ativos',
+  select: 'id, filial_id, status, colaborador_atual',
+  forma: z.strictObject({
+    id: s,
+    filial_id: n,
+    status: ENUM.statusAtivo,
+    colaborador_atual: sn,
+  }),
+  ordem: ['id'],
+})
+
+// `estornarMovimentacao` — os lançamentos de item da movimentação a estornar.
+export const LEITURA_ITENS_DA_MOVIMENTACAO_A_ESTORNAR = leituraDeRelacao({
+  rotulo: 'movimentacoes.itens-a-estornar',
+  origem: 'lancamentos_item',
+  select:
+    'id, item_id, filial_id, tipo, quantidade, chamado, observacao, colaborador, colaborador_id, regularizacao',
+  forma: z.strictObject({
+    id: s,
+    item_id: n,
+    filial_id: n,
+    tipo: ENUM.tipoLancamento,
+    quantidade: n,
+    chamado: sn,
+    observacao: sn,
+    colaborador: sn,
+    colaborador_id: sn,
+    regularizacao: z.boolean(),
+  }),
+  ordem: ['id'],
+})
+
+// `registrarMovimentacoes` — o RECIBO de `criar_movimentacao_com_itens` (0126). Único
+// `return jsonb_build_object(…)` no corpo vigente; `itens` sai sempre (mesmo lote sem item
+// junto — a RPC devolve 0), mas segue opcional aqui pela mesma folga das demais chaves.
+export const LEITURA_CRIAR_MOVIMENTACAO_COM_ITENS = reciboDeRpc({
+  rotulo: 'movimentacoes.criar-com-itens',
+  rpc: 'criar_movimentacao_com_itens',
+  // Um só retorno (0126): toda chave é obrigatória.
+  forma: z.strictObject({
+    movimentacoes: z.array(s),
+    itens: n,
+    regularizacoes: n,
+    unidades_regularizadas: n,
+  }),
 })

@@ -1,5 +1,6 @@
 'use server'
 
+import type { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -34,6 +35,15 @@ import {
   raizDoBackupEmArquivo,
 } from '@/lib/storage/copiar-antes-de-remover'
 import { chamarRpc } from '@/lib/supabase/rpc'
+import { valorOuFalha } from '@/lib/supabase/linhas'
+import {
+  FORMA_RESETAR_BLOCO,
+  LEITURA_APAGAR_ATIVO,
+  LEITURA_APAGAR_ITEM,
+  LEITURA_APAGAR_MOVIMENTACAO,
+  LEITURA_FORCAR_ESTADO,
+  LEITURA_FORCAR_SALDO,
+} from '@/lib/queries/formas/dev-destrutivo'
 
 // Server Actions da ZONA DESTRUTIVA da /dev (F23) — apagar, resetar e forçar.
 //
@@ -217,7 +227,10 @@ export async function apagarAtivo(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { arquivos_termos?: string[]; movimentacoes?: number; termos?: number }
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem
+  // números/sem arquivos" — o `?? 0`/`?? []` abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_APAGAR_ATIVO.forma, LEITURA_APAGAR_ATIVO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_APAGAR_ATIVO.forma>> = lidoR.ok ? lidoR.valor : {}
   // F54 — a raiz das cópias é `ativo/<id>`. Esta action NÃO tem backup em arquivo (o dela
   // é jsonb inline no evento `ativo_apagado`, escrito pela RPC na mesma transação), então
   // a âncora é o próprio id do ativo — que a RPC já grava em `detalhe->>'ativo_id'`. É por
@@ -275,7 +288,10 @@ export async function apagarMovimentacao(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { status_restaurado?: string | null }
+  // A escrita já aconteceu: forma errada degrada para "sem status restaurado" — o `?? null`
+  // abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_APAGAR_MOVIMENTACAO.forma, LEITURA_APAGAR_MOVIMENTACAO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_APAGAR_MOVIMENTACAO.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ACERVO)
   return { ok: true, dados: { statusRestaurado: r.status_restaurado ?? null } }
 }
@@ -318,7 +334,10 @@ export async function apagarItem(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { lancamentos?: number }
+  // A escrita já aconteceu: forma errada degrada para "sem contagem" — o `?? 0` abaixo já
+  // tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_APAGAR_ITEM.forma, LEITURA_APAGAR_ITEM.rotulo)
+  const r: Partial<z.output<typeof LEITURA_APAGAR_ITEM.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ITENS)
   return { ok: true, dados: { lancamentos: r.lancamentos ?? 0 } }
 }
@@ -413,7 +432,11 @@ export async function resetarBloco(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as Record<string, unknown> & { arquivos_termos?: string[] }
+  // A escrita já aconteceu: forma errada degrada para "sem números" — a action já espalhava o
+  // objeto inteiro (`{ ...r, backup_path }`) sem exigir campo nenhum. `rpc` decide qual das
+  // duas RPCs rodou, mas as duas têm a MESMA forma (`FORMA_RESETAR_BLOCO`, a união das chaves).
+  const lidoR = valorOuFalha(data, FORMA_RESETAR_BLOCO, `dev-destrutivo.resetar-${bloco}`)
+  const r: Partial<z.output<typeof FORMA_RESETAR_BLOCO>> = lidoR.ok ? lidoR.valor : {}
   // F54 — a raiz das cópias é o caminho do JSON do backup sem a extensão. O JSON já subiu
   // (antes da RPC, como manda a autoproteção), e a lista de `.docx` só existe agora, no
   // retorno dela — por isso o JSON não pode listar as cópias, e o caminho é derivado.
@@ -454,7 +477,10 @@ export async function forcarEstado(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { alterado?: boolean; de?: string; para?: string }
+  // A escrita já aconteceu: forma errada degrada para "não alterado" — o `?? false`/`?? null`
+  // abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_FORCAR_ESTADO.forma, LEITURA_FORCAR_ESTADO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_FORCAR_ESTADO.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ACERVO)
   return {
     ok: true,
@@ -490,7 +516,10 @@ export async function forcarSaldo(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { alterado?: boolean; de?: number; para?: number; delta?: number }
+  // A escrita já aconteceu: forma errada degrada para "não alterado" — o `?? false`/`?? null`
+  // abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_FORCAR_SALDO.forma, LEITURA_FORCAR_SALDO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_FORCAR_SALDO.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ITENS)
   return {
     ok: true,

@@ -176,3 +176,22 @@ export const LEITURA_MOV_ITENS_DO_PERIODO = leituraDeRelacao({
   }),
   ordem: ['id'],
 })
+
+// ---------------------------------------------------------------------------
+// lote 3 — `actions/relatorios.ts::lerUltimaVersao` (a versão vigente de um período×filial)
+// ---------------------------------------------------------------------------
+// `relatorios_gerados.gerado_por` é not null (migration 0010) → o embed `autor` sai OBJETO
+// NÃO-NULO — o tipo à mão de antes (`autor: {…} | null`) supunha o mesmo par nulo do
+// `data as unknown as {…}` que existia aqui.
+
+export const LEITURA_ULTIMA_VERSAO_RELATORIO = leituraDeRelacao({
+  rotulo: 'relatorios.ultima-versao',
+  origem: 'relatorios_gerados',
+  select: 'versao, gerado_em, autor:profiles!relatorios_gerados_gerado_por_fkey(nome)',
+  forma: z.strictObject({
+    versao: n,
+    gerado_em: s,
+    autor: z.strictObject({ nome: sn }),
+  }),
+  ordem: ['id'],
+})

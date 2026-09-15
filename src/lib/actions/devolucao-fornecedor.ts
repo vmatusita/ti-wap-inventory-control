@@ -16,6 +16,8 @@ import {
 import { buscarAtivoResumo } from '@/lib/queries/ativos'
 import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
 import { chamarRpc } from '@/lib/supabase/rpc'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_DEVOLVER_AO_FORNECEDOR } from '@/lib/queries/formas/devolucao-fornecedor'
 
 export type DevolverFornecedorResult = {
   ok: boolean
@@ -126,9 +128,10 @@ export async function devolverAoFornecedor(
     return { ok: false, erroGeral: traduzErroBanco(error.message, error.code) }
   }
 
-  const linha = (res ?? [])[0] as
-    | { mov_id: string; substituto_id: string | null; substituto_mov_id: string | null }
-    | undefined
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem linha"
+  // — o MESMO desfecho silencioso de antes, quando `res` vinha vazio ou malformado.
+  const lidoRes = linhasOuFalha(res, LEITURA_DEVOLVER_AO_FORNECEDOR.forma, LEITURA_DEVOLVER_AO_FORNECEDOR.rotulo)
+  const linha = lidoRes.ok ? lidoRes.linhas[0] : undefined
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${dados.ativo_id}`)
