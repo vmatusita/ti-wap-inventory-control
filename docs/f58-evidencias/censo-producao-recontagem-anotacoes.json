@@ -1,0 +1,25 @@
+{
+  "o_que_e": "Censo F58 · Frente A — linhas e nulos por coluna do que src/** lê. Só nomes e números; nenhum valor.",
+  "alvo": "producao",
+  "inicio": "2026-09-15T15:33:35.235Z",
+  "fim": "2026-09-15T15:33:35.895Z",
+  "total_linhas_relacoes": 16,
+  "relacoes": [
+    {
+      "relacao": "anotacoes",
+      "tipo": "tabela",
+      "lida_por_arquivos": 7,
+      "colunas": 5,
+      "metodo": "count exato (HEAD)",
+      "linhas": 16,
+      "nulos": {
+        "criado_por": 0,
+        "created_at": 0,
+        "id": 0,
+        "ativo_id": 0,
+        "texto": 0
+      }
+    }
+  ],
+  "rpcs": []
+}

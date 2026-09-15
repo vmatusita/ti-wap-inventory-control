@@ -4,8 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import { atualizarKitSchema, kitCatalogoSchema } from '@/lib/validators/kit'
-import type { Json } from '@/lib/types/database'
+import { paraJson } from '@/lib/supabase/json'
 
 // Escritas dos KITS DE MOVIMENTAÇÃO (F12 · M12 / F5 §5.9) — padrão do CRUD de
 // catálogo de itens (actions/itens.ts): re-valida com Zod no servidor (o schema do
@@ -37,8 +38,7 @@ const MSG_KIT_DUPLICADO = 'Já existe um kit com esse nome.'
 // chave é o uuid da PK, que não colide. Detectado pelo NOME do índice (0043) —
 // e por 'duplicate' como rede, igual ao `criarItem`.
 function ehNomeDuplicado(mensagem: string): boolean {
-  const m = mensagem.toLowerCase()
-  return m.includes('duplicate') || m.includes('kits_modelos_nome_uidx')
+  return casa(mensagem, FRASES_DO_MOTOR.duplicata) || casaConstraint(mensagem, 'kits_modelos_nome_uidx')
 }
 
 function revalidarKits() {
@@ -65,7 +65,7 @@ export async function criarKit(input: {
       nome: parsed.data.nome,
       // Grava o payload JÁ NORMALIZADO pelo Zod (campos vazios viram ausentes,
       // texto trimado) — nunca o objeto cru do formulário.
-      payload: parsed.data.payload as unknown as Json,
+      payload: paraJson(parsed.data.payload),
       criado_por: aut.uid,
     })
     .select('id')
@@ -99,7 +99,7 @@ export async function atualizarKit(input: {
   // NÃO se atualiza — é o autor original.
   const { error } = await supabase
     .from('kits_modelos')
-    .update({ nome, payload: payload as unknown as Json, ativo })
+    .update({ nome, payload: paraJson(payload), ativo })
     .eq('id', id)
   if (error) {
     if (ehNomeDuplicado(error.message)) return { ok: false, erro: MSG_KIT_DUPLICADO }

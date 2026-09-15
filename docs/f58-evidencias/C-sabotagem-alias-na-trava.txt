@@ -1,0 +1,144 @@
+F58 · Frente G — re-revisão focada: o apagamento da linha atrás de um NOME
+================================================================================
+
+O ACHADO (re-revisão, confirmado pelo cético). A regra da revisão adversarial que acusa
+`paginarTodos<unknown>`/`paginarPorIds<Record<string, unknown>>` olhava só a SINTAXE escrita no
+argumento de tipo. `type Linha = unknown` (ou `interface Linha { extra?: string }`, ou
+`type Linha = Record<string, unknown>`) declarado à parte e passado como `paginarTodos<Linha>`
+apagava a linha do mesmo jeito, com `src/lib/supabase/sem-cast-de-leitura.test.ts` verde.
+Nenhum ponto de `src/**` usava a indireção (16 chamadas conferidas); o buraco era latente.
+
+A CORREÇÃO. `apagaALinha` passou a resolver o nome para o que ele denota, sem `ts.Program`:
+escopo do ponto de uso (o mais interno vence; parâmetro de tipo da função sombreia = repasse
+genérico), `import` nomeado/renomeado/namespace com `@/` e relativo, `export … from` de barril,
+substituição de argumento e default de alias genérico, `extends` de interface e utilitários
+(`Partial` apaga; `Pick`/`Omit`/`Readonly`/`Required`/`NonNullable` preservam, de modo conservador).
+Casos de guarda: 14 novos que CASAM e 7 novos que NÃO casam (52 no arquivo).
+
+A SABOTAGEM. Com a resolução do nome desligada (uma linha `return false` logo depois de
+`denotar`, a regra de antes), o próprio arquivo de teste fica vermelho exatamente nos casos que
+dependem do nome. Os dois novos casos que continuam verdes não dependem de nome: a assinatura de
+índice `{ [k: string]: unknown }` escrita no argumento e o `Partial<…>` — os dois se decidem pela
+sintaxe. Os sete casos "não casa" seguem verdes com e sem a sabotagem (a sabotagem só pode
+esconder achado, não criar).
+
+Saída real (`npx vitest run src/lib/supabase/sem-cast-de-leitura.test.ts`, 15/09/2026, com a
+sabotagem aplicada; linhas de sucesso das outras guardas omitidas):
+
+     × casa: alias no módulo para unknown 7ms
+     × casa: interface com propriedade opcional 1ms
+     × casa: alias para Record<string, unknown> DENTRO da função 1ms
+     × casa: declarado DEPOIS do uso (tipo sobe no escopo) 1ms
+     × casa: cadeia de aliases com opcional no fundo 1ms
+     × casa: alias genérico com argumento que apaga 1ms
+     × casa: alias genérico com DEFAULT que apaga 1ms
+     × casa: interface que herda opcional 1ms
+     × casa: Pick de tipo que apaga 1ms
+     × casa: tipo IMPORTADO que apaga (Record<string, unknown> de verdade no repositório) 3ms
+     × casa: tipo importado por namespace 1ms
+     × casa: tipo importado com rename 2ms
+ Test Files  1 failed (1)
+      Tests  12 failed | 40 passed (52)
+
+Sem a sabotagem (código restaurado): Test Files 1 passed (1) · Tests 52 passed (52).
+O "tipo importado que apaga" usa um tipo REAL do repositório, `ContextoFalha =
+Record<string, unknown>` de `src/lib/observabilidade-linha.ts` — nenhum dado, só o nome do tipo.
+
+================================================================================
+
+SEGUNDA RE-REVISÃO (sobre `fece834`) — seis achados, cinco confirmados pelo cético e um refutado
+por implausibilidade (barril que reexporta um `export default`), corrigidos os seis:
+  · import DEFAULT (`import Linha from`) e `export default` não eram seguidos;
+  · `export { Oculto as Row }` de declaração LOCAL só era procurado em import;
+  · `namespace X {}`/`declare namespace A.B {}` do próprio arquivo não eram vistos;
+  · assinatura de índice e `Record`/tipo mapeado decidiam o apagamento só por `unknown`/`any` escritos —
+    e a CHAVE ABERTA apaga com qualquer valor: `[k: string]: string` deixa `r.empresa_id` compilar.
+Casos de guarda: 8 novos que casam, 2 que não casam e 8 entre arquivos (módulos em memória) — 70 no arquivo.
+Com as cinco regras novas desligadas de uma vez, 10 ficam vermelhos. Os que continuam verdes se decidem
+por caminho que a sabotagem não tocou: o valor do `Record` por alias, o barril com `default as`, o
+`export *` e o `namespace` dentro de módulo de `import * as`.
+
+Saída real (15/09/2026):
+
+## Rodada 2 da re-revisão — as cinco regras novas desligadas de uma vez
+- import default ignorado
+- assinatura de índice só com `unknown`/`any` escritos
+- chave de `Record`/tipo mapeado nunca aberta
+- namespace do próprio arquivo ignorado
+- rename local reexportado só procurado em import
+
+código de saída: 1 (esperado: diferente de 0)
+
+     × casa: namespace local 7ms
+     × casa: declare namespace aninhado 1ms
+     × casa: assinatura de índice com união que esconde unknown 1ms
+     × casa: assinatura de índice com valor CONCRETO (qualquer coluna passa) 1ms
+     × casa: Record de chave aberta com valor concreto 1ms
+     × casa: Record com a chave aberta atrás de alias 1ms
+     × casa: tipo mapeado sobre string 1ms
+     × entre arquivos: import DEFAULT de interface com opcional 1ms
+     × entre arquivos: `export default Nome` de interface com opcional 1ms
+     × entre arquivos: rename de declaração LOCAL reexportado 1ms
+ Test Files  1 failed (1)
+      Tests  10 failed | 60 passed (70)
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+sha256 antes = depois da restauração: true
+
+================================================================================
+
+TERCEIRA RE-REVISÃO (sobre `92bb4fe`) — quatro achados, dois confirmados e dois refutados por
+implausibilidade (`class` como tipo de linha; chave de template literal), que passaram a constar do
+"O QUE ELA NÃO RESOLVE" no próprio teste. Os dois confirmados são a mesma falha: ao seguir um nome até
+um módulo ALHEIO, uma declaração PRIVADA de mesmo nome (`type Linha`, `namespace Grupo`) escondia a que
+o módulo de fato exporta por `export { Linha } from` — o compilador resolve para a reexportada.
+Correção: de módulo alheio só vale declaração com `export` (ou de `.d.ts`), para tipo e para namespace;
+e o namespace passou a seguir `import { Grupo }`, `export { Grupo } from` e `export * as Grupo from`.
+Casos de guarda: 5 novos entre arquivos — 75 no arquivo. Com o filtro desligado, 3 ficam vermelhos
+(os dois reexportados e o privado que apaga, que sem o filtro acusaria em falso).
+
+Saída real (15/09/2026):
+
+## Rodada 3 da re-revisão — o filtro "só o que o módulo exporta" desligado
+- tipo de módulo alheio aceito sem `export`
+- namespace de módulo alheio aceito sem `export`
+
+código de saída: 1 (esperado: diferente de 0)
+
+     × entre arquivos: tipo PRIVADO de mesmo nome não esconde o reexportado que apaga 8ms
+     × entre arquivos: tipo PRIVADO que apaga não vale fora do módulo 2ms
+     × entre arquivos: namespace PRIVADO de mesmo nome não esconde o reexportado 1ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 72 passed (75)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+sha256 antes = depois da restauração: true
+
+================================================================================
+
+QUARTA RE-REVISÃO (sobre `cfa5ef7`) — um achado, confirmado: `import("./mod").Nome` escrito no próprio
+argumento de tipo é outro nó de AST (`ImportTypeNode`) e não chegava a nenhuma das resoluções — o atalho
+de quem não quer mexer no bloco de imports. O cético provou com o `tsc` que a coluna ausente compila, e o
+tipo do exemplo é o mesmo `ContextoFalha = Record<string, unknown>` que já era o caso positivo do teste.
+A mesma lente conferiu que a correção da rodada 3 não criou falso negativo (`export { Linha }` local,
+`export default interface`, `.d.ts`) nem falso positivo em `src/**`.
+Correção: o `import(…)` inline percorre a mesma cadeia (módulo → namespace → declaração exportada),
+inclusive `import("./mod").Grupo.Nome` e na CHAVE de um `Record`. 5 casos de guarda novos — 80 no arquivo.
+Com os dois ramos desligados, 3 ficam vermelhos.
+
+Saída real (15/09/2026):
+
+## Rodada 4 da re-revisão — o `import(…)` inline desligado
+- `import(…)` inline ignorado no argumento
+- `import(…)` inline ignorado na chave
+
+código de saída: 1 (esperado: diferente de 0)
+
+     × casa: tipo importado INLINE, sem mexer no bloco de imports 9ms
+     × entre arquivos: import inline até um namespace exportado 1ms
+     × entre arquivos: import inline na CHAVE de um Record 1ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 77 passed (80)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+sha256 antes = depois da restauração: true

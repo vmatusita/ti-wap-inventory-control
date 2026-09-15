@@ -2,6 +2,8 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import { ehUuid } from '@/lib/url-params'
+import { linhaOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_ULTIMA_COMPRA_DO_OPERADOR } from '@/lib/queries/formas/compras'
 
 // Leituras da COMPRA (F10 — A4 memória do acervo, A6 duplicar/repetir).
 // Nada aqui escreve: a entrada de equipamento continua sendo `registrarCompra`.
@@ -282,11 +284,6 @@ export async function dadosParaDuplicarCompra(
   return montarInicial(data, compra?.filial_id ?? data.filial_id, data.patrimonio)
 }
 
-type UltimaCompraRow = {
-  filial_id: number | null
-  ativos: (CamposDoAtivo & { patrimonio: string | null }) | null
-}
-
 // A6 — última compra registrada POR ESTE operador (mesmo caminho de dados do
 // "Repetir última" da movimentação: `movimentacoes` por `criado_por`, mais
 // recente primeiro, com embed do ativo).
@@ -296,7 +293,7 @@ export async function ultimaCompraDoOperador(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select(`filial_id, ativos(patrimonio, ${CAMPOS_DO_ATIVO})`)
+    .select(LEITURA_ULTIMA_COMPRA_DO_OPERADOR.select)
     .eq('criado_por', operadorId)
     .eq('tipo', 'compra')
     .order('created_at', { ascending: false })
@@ -304,9 +301,16 @@ export async function ultimaCompraDoOperador(
     .maybeSingle()
 
   // Degrada para "sem última compra": é pré-preenchimento, não pode derrubar a
-  // tela de cadastro.
+  // tela de cadastro. Forma errada segue o MESMO caminho — o `registrarFalha`
+  // já acontece dentro da porta.
   if (error) return null
-  const row = (data as unknown as UltimaCompraRow | null) ?? null
+  const r = linhaOuFalha(
+    data,
+    LEITURA_ULTIMA_COMPRA_DO_OPERADOR.forma,
+    LEITURA_ULTIMA_COMPRA_DO_OPERADOR.rotulo,
+  )
+  if (!r.ok) return null
+  const row = r.linha
   if (!row?.ativos) return null
   return montarInicial(row.ativos, row.filial_id, row.ativos.patrimonio)
 }

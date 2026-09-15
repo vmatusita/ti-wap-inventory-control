@@ -1,0 +1,77 @@
+# F58 · Sabotagem A — a porta única de RPC (rpc-unica-porta.test.ts)
+# gerado por sabotagem real em 2026-09-15T16:13:06.921Z · HEAD f2531e3 (árvore da Frente B, antes do commit)
+
+## A1 — um `.rpc(` direto numa query
+arquivo sabotado: src/lib/queries/tipos-item.ts
+comando: npx vitest run src/lib/supabase/rpc-unica-porta.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true (4dc737d2763a3f5a…)
+
+ ❯ |puro| src/lib/supabase/rpc-unica-porta.test.ts (20 tests | 1 failed) 19ms
+     × zero uso de rpc fora de src/lib/supabase/rpc.ts 6ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/rpc-unica-porta.test.ts > src/**: nenhuma chamada de RPC fora da porta > zero uso de rpc fora de src/lib/supabase/rpc.ts
+AssertionError: Chamada de RPC por fora da porta. Use `chamarRpc(client, nome, args)` de @/lib/supabase/rpc — é lá que o null de domínio dos argumentos e o null dos retornos se corrigem (mapas nominais travados contra o SQL vivo em rpc-mapas-sql.test.ts).: expected [ Array(1) ] to deeply equal []
+- Expected
++ Received
++   "src/lib/queries/tipos-item.ts:87 (.rpc)",
+ ❯ src/lib/supabase/rpc-unica-porta.test.ts:162:7
+
+## A2 — o mesmo com acesso indexado `['rpc'](`
+arquivo sabotado: src/lib/queries/tipos-item.ts
+comando: npx vitest run src/lib/supabase/rpc-unica-porta.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true (4dc737d2763a3f5a…)
+
+ ❯ |puro| src/lib/supabase/rpc-unica-porta.test.ts (20 tests | 1 failed) 16ms
+     × zero uso de rpc fora de src/lib/supabase/rpc.ts 7ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/rpc-unica-porta.test.ts > src/**: nenhuma chamada de RPC fora da porta > zero uso de rpc fora de src/lib/supabase/rpc.ts
+AssertionError: Chamada de RPC por fora da porta. Use `chamarRpc(client, nome, args)` de @/lib/supabase/rpc — é lá que o null de domínio dos argumentos e o null dos retornos se corrigem (mapas nominais travados contra o SQL vivo em rpc-mapas-sql.test.ts).: expected [ Array(1) ] to deeply equal []
+- Expected
++ Received
++   "src/lib/queries/tipos-item.ts:87 (['rpc'])",
+ ❯ src/lib/supabase/rpc-unica-porta.test.ts:162:7
+
+## A3 — o mesmo com `rpc` desestruturado
+arquivo sabotado: src/lib/queries/tipos-item.ts
+comando: npx vitest run src/lib/supabase/rpc-unica-porta.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true (4dc737d2763a3f5a…)
+
+ ❯ |puro| src/lib/supabase/rpc-unica-porta.test.ts (20 tests | 1 failed) 18ms
+     × zero uso de rpc fora de src/lib/supabase/rpc.ts 7ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/rpc-unica-porta.test.ts > src/**: nenhuma chamada de RPC fora da porta > zero uso de rpc fora de src/lib/supabase/rpc.ts
+AssertionError: Chamada de RPC por fora da porta. Use `chamarRpc(client, nome, args)` de @/lib/supabase/rpc — é lá que o null de domínio dos argumentos e o null dos retornos se corrigem (mapas nominais travados contra o SQL vivo em rpc-mapas-sql.test.ts).: expected [ Array(1) ] to deeply equal []
+- Expected
++ Received
++   "src/lib/queries/tipos-item.ts:87 ({ rpc })",
+ ❯ src/lib/supabase/rpc-unica-porta.test.ts:162:7
+
+## A4 — tirar `scripts/reset.ts` da isenção sem migrá-lo
+arquivo sabotado: src/lib/supabase/rpc-unica-porta.test.ts
+comando: npx vitest run src/lib/supabase/rpc-unica-porta.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true (e85a8c1713e32a16…)
+
+ ❯ |puro| src/lib/supabase/rpc-unica-porta.test.ts (20 tests | 1 failed) 17ms
+     × nenhum script NOVO chama RPC sem a porta 7ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 passed (20)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/rpc-unica-porta.test.ts > scripts/**: só as isenções nominais > nenhum script NOVO chama RPC sem a porta
+AssertionError: Script chamando RPC sem a porta: importe `chamarRpc` de src/lib/supabase/rpc (relativo) ou, se o client não puder ser tipado, acrescente a isenção com o motivo escrito.: expected [ 'scripts/reset.ts:56' ] to deeply equal []
+- Expected
++ Received
++   "scripts/reset.ts:56",
+ ❯ src/lib/supabase/rpc-unica-porta.test.ts:173:7
+    171|       'Script chamando RPC sem a porta: importe `chamarRpc` de src/lib…
+    172|         'não puder ser tipado, acrescente a isenção com o motivo escri…
+

@@ -20,7 +20,9 @@ import {
   type DbClient,
 } from '@/lib/queries/relatorios'
 import { dataRealSchema } from '@/lib/validators/data'
-import type { Json } from '@/lib/types/database'
+import { paraJson } from '@/lib/supabase/json'
+import { linhaOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_ULTIMA_VERSAO_RELATORIO } from '@/lib/queries/formas/relatorios'
 
 const periodoSchema = z.object({
   filialSlug: z.string().min(1),
@@ -143,7 +145,7 @@ export async function gerarRelatorio(input: {
         periodo_ate: ate,
         filial_id: filialId,
         versao: proxima,
-        dados: snapshot as unknown as Json,
+        dados: paraJson(snapshot),
         gerado_por: aut.uid,
         observacao: obs,
       })
@@ -182,7 +184,9 @@ export async function gerarRelatorio(input: {
 type LeituraVersao =
   | {
       ok: true
-      ultima: { versao: number; gerado_em: string; autor: { nome: string | null } | null } | null
+      // F58 — `relatorios_gerados.gerado_por` é not null (migration 0010): o embed `autor`
+      // sai OBJETO NÃO-NULO. O tipo à mão de antes dizia `{ nome } | null`.
+      ultima: { versao: number; gerado_em: string; autor: { nome: string | null } } | null
     }
   | { ok: false }
 
@@ -194,7 +198,7 @@ async function lerUltimaVersao(
 ): Promise<LeituraVersao> {
   let q = client
     .from('relatorios_gerados')
-    .select('versao, gerado_em, autor:profiles!relatorios_gerados_gerado_por_fkey(nome)')
+    .select(LEITURA_ULTIMA_VERSAO_RELATORIO.select)
     .eq('periodo_de', de)
     .eq('periodo_ate', ate)
   q = filialId === null ? q.is('filial_id', null) : q.eq('filial_id', filialId)
@@ -206,15 +210,15 @@ async function lerUltimaVersao(
     registrarFalha({ escopo: 'relatorios.versao-vigente', erro: error })
     return { ok: false }
   }
-  return {
-    ok: true,
-    ultima:
-      (data as unknown as {
-        versao: number
-        gerado_em: string
-        autor: { nome: string | null } | null
-      } | null) ?? null,
-  }
+  // A forma errada segue o MESMO caminho do erro de banco acima (registrarFalha já aconteceu
+  // dentro da porta) — "não deu para saber", nunca "não há versão nenhuma".
+  const lido = linhaOuFalha(
+    data,
+    LEITURA_ULTIMA_VERSAO_RELATORIO.forma,
+    LEITURA_ULTIMA_VERSAO_RELATORIO.rotulo,
+  )
+  if (!lido.ok) return { ok: false }
+  return { ok: true, ultima: lido.linha }
 }
 
 // F29/REL-04a — consulta LEVE que responde "este período já tem snapshot?" enquanto

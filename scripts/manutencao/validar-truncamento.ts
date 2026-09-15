@@ -21,7 +21,7 @@ import { loadEnvLocal } from '../env-guard'
 import { lerEstadoAtivos } from '../../src/lib/queries/relatorios/estoque'
 import { periodoAnterior, semanaUtilCorrente } from '../../src/lib/relatorios/periodo'
 import { hojeISO } from '../../src/lib/format'
-import { filialParaRpc } from '../../src/lib/queries/rpc-filial'
+import { chamarRpc } from '../../src/lib/supabase/rpc'
 import type { DbClient } from '../../src/lib/queries/relatorios/comum'
 
 loadEnvLocal()
@@ -83,13 +83,13 @@ async function contarAsofBruto(filialId: number | null, data: string): Promise<n
   let from = 0
   let primeiraPagina: number | null = null
   for (;;) {
-    const { data: pag, error } = await client
-      // `filialParaRpc` preserva o NULL (= consolidado). Passar `undefined`
-      // OMITE o argumento do payload, e o PostgREST não acha a sobrecarga.
-      .rpc('rel_estoque_asof', {
-        p_filial: filialParaRpc(filialId),
-        p_data: data,
-      })
+    // `p_filial: filialId` preserva o NULL (= consolidado) — a porta aceita null aqui
+    // por `RECORTE_DO_RELATORIO` (src/lib/supabase/rpc.ts). Passar `undefined`
+    // OMITE o argumento do payload, e o PostgREST não acha a sobrecarga.
+    const { data: pag, error } = await chamarRpc(client, 'rel_estoque_asof', {
+      p_filial: filialId,
+      p_data: data,
+    })
       .order('ativo_id', { ascending: true })
       .range(from, from + PAGINA - 1)
     if (error) throw new Error(`RPC as-of falhou: ${error.message}`)

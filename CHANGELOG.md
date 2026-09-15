@@ -6,6 +6,36 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 15/09/2026 — F58 · A fronteira tipada do banco ✅
+
+**v1.63.0** · **sem migration** · Fase invisível ao operador. O TypeScript voltou a conferir o que sai do banco: uma porta
+única para as RPCs (`src/lib/supabase/rpc.ts`), a leitura amarrada ao `select` e conferida em execução
+(`src/lib/supabase/linhas.ts`), e as frases de erro nomeadas e conferidas contra o SQL vivo
+(`src/lib/supabase/erros-do-banco.ts`). Ata completa em [`docs/DECISOES.md`](docs/DECISOES.md); relatório, com o roteiro de
+conferência do Johnny no topo, em [`docs/RELATORIO-F58.md`](docs/RELATORIO-F58.md).
+
+- ✅ **Uma porta só para as RPCs.** `chamarRpc(client, nome, args)` devolve o builder (`.single()`, `.order().range()` e os
+  `Promise.all` continuam); os argumentos que aceitam `null` como valor de domínio vêm de um mapa nominal com a evidência no
+  corpo vivo (`ARGUMENTOS_ANULAVEIS` — trocar o `p_filial` pela lista de filiais é uma linha), e os retornos que o gerador tipa não-nulos e
+  o SQL devolve nulos foram alargados na porta. **38 chamadas** fora da porta → **0**; **15** `as unknown as Json` → **0**.
+  Trava por AST nas três grafias; scripts com isenção nominal.
+- ✅ **A leitura amarrada ao `select`.** `linhasDe`/`linhaDe`/`valorDe` exigem um schema Zod cujo tipo casa coluna a coluna com o
+  que o `select` literal infere — coluna a mais, a menos ou trocada não compila, e `empresa_id` lido sem estar no `select` é
+  `@ts-expect-error` com teste. Forma errada LANÇA pelo caminho de falha que a leitura já tinha (decisão i), com
+  `registrarFalha` e sem valor de linha no erro. `select('*')` de backup é frouxo (a coluna desconhecida chega ao arquivo);
+  colunas explícitas, estritas. **Casts de leitura: 100 → 0**, em quatro lotes, com a trava por AST congelada até esvaziar.
+  O snapshot dos relatórios gerados é uma forma frouxa e histórica (v1 e v2).
+- ✅ **As frases de erro conferidas contra o SQL vivo.** 59 ramos (112 grafias com e sem acento), 18 nomes de constraint e as
+  frases do motor e do Auth numa lista nomeada; os 132 casamentos do `erros.ts` e os 23 de fora dele consomem a lista, e texto
+  solto fora dela não passa (trava por forma). Cada grafia tem de estar no corpo VIVO de uma função — frase só histórica
+  reprova. Saíram 5 grafias mortas; equivalência antes×depois provada em 8.085 casos. A lição do enum foi para o
+  `RUNBOOK-BANCO.md`.
+- ✅ **A prova contra o dado real** (decisão ii). `scripts/formas/conferir.mts` passou cada forma do catálogo pelas linhas de
+  produção, só leitura: na rodada dos quatro lotes, **259 pontos, 93.391 linhas, 0 recusa, 0 erro**, inclusive os 13 relatórios
+  gerados. As rodadas no SHA congelado e o A/B de TTFB estão no relatório.
+
+---
+
 ## 14/09/2026 — F57 · Os quatro significados de filial, e o fim do fail-open ✅
 
 **v1.62.0** · **sem migration** · Fase quase invisível ao operador: a única mudança de tela é a recusa de filial

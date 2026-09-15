@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { type ActionResult } from '@/lib/actions/erros'
@@ -59,7 +60,7 @@ export async function entrarComSenha(
   // Rate-limit PERSISTENTE (§3.9.1): contador atômico no Postgres, compartilhado
   // entre instâncias. Falha ABERTO se a RPC der erro — a senha é a barreira real,
   // não travamos o acesso por um hiccup de infra.
-  const { data: excedeu } = await admin.rpc('registrar_tentativa_senha', {
+  const { data: excedeu } = await chamarRpc(admin, 'registrar_tentativa_senha', {
     p_ip: ipCliente(h),
   })
   if (excedeu) {

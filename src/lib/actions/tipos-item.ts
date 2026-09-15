@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import {
   tipoItemSchema,
   atualizarTipoItemSchema,
@@ -29,13 +30,13 @@ function revalidarTipos() {
 
 function erroDeTipo(mensagem: string, code?: string): string {
   const m = mensagem.toLowerCase()
-  if (m.includes('tipos_item_slug_key') || m.includes('duplicate key')) {
+  if (casaConstraint(m, 'tipos_item_slug_key') || casa(m, FRASES_DO_MOTOR.chaveDuplicada)) {
     return MSG_TIPO_DUPLICADO
   }
-  if (m.includes('tipos_item_slug_formato')) {
+  if (casaConstraint(m, 'tipos_item_slug_formato')) {
     return 'Código inválido: use minúsculas sem acento, começando por letra (ex.: fone_bluetooth).'
   }
-  if (m.includes('tipos_item_rotulo_nao_vazio')) {
+  if (casaConstraint(m, 'tipos_item_rotulo_nao_vazio')) {
     return 'Informe o nome que aparece na tela.'
   }
   return traduzErroBanco(mensagem, code)

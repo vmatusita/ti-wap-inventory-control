@@ -15,7 +15,9 @@ import {
 } from '@/lib/ativos/identidade'
 import { buscarAtivoResumo } from '@/lib/queries/ativos'
 import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
-import type { Json } from '@/lib/types/database'
+import { chamarRpc } from '@/lib/supabase/rpc'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_DEVOLVER_AO_FORNECEDOR } from '@/lib/queries/formas/devolucao-fornecedor'
 
 export type DevolverFornecedorResult = {
   ok: boolean
@@ -115,10 +117,10 @@ export async function devolverAoFornecedor(
       }
     : null
 
-  const { data: res, error } = await supabase.rpc('devolver_ao_fornecedor', {
+  const { data: res, error } = await chamarRpc(supabase, 'devolver_ao_fornecedor', {
     p_ativo_id: dados.ativo_id,
-    p_mov: p_mov as unknown as Json,
-    p_substituto: p_substituto as unknown as Json,
+    p_mov,
+    p_substituto,
     p_criado_por: aut.uid,
   })
 
@@ -126,9 +128,10 @@ export async function devolverAoFornecedor(
     return { ok: false, erroGeral: traduzErroBanco(error.message, error.code) }
   }
 
-  const linha = (res ?? [])[0] as
-    | { mov_id: string; substituto_id: string | null; substituto_mov_id: string | null }
-    | undefined
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem linha"
+  // — o MESMO desfecho silencioso de antes, quando `res` vinha vazio ou malformado.
+  const lidoRes = linhasOuFalha(res, LEITURA_DEVOLVER_AO_FORNECEDOR.forma, LEITURA_DEVOLVER_AO_FORNECEDOR.rotulo)
+  const linha = lidoRes.ok ? lidoRes.linhas[0] : undefined
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${dados.ativo_id}`)

@@ -18,6 +18,8 @@ import { listarFiliaisParaVinculo } from '@/lib/queries/admin'
 import type { ResultadoExportCsv } from '@/lib/actions/exportar'
 import type { Json } from '@/lib/types/database'
 import { registrarFalha } from '@/lib/observabilidade'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_EVENTOS_ADMIN } from '@/lib/queries/formas/eventos-admin'
 
 // Export CSV da TRILHA DE AUDITORIA — só do cargo Desenvolvedor (F22).
 //
@@ -55,15 +57,6 @@ type LinhaAuditoria = {
   alvo: string | null
   detalhe: Json | null
   autorNome: string | null
-}
-
-type RawLinha = {
-  id: string
-  quando: string
-  acao: string
-  alvo: string | null
-  detalhe: Json | null
-  autor: { nome: string | null } | null
 }
 
 const VAZIO: ResultadoExportCsv = {
@@ -113,10 +106,7 @@ async function lerTrilha(
     // custa uma varredura a cada request.
     let q = supabase
       .from('eventos_admin')
-      .select(
-        'id, quando, acao, alvo, detalhe, autor:profiles!eventos_admin_autor_fkey(nome)',
-        volta === 0 ? { count: 'exact' } : undefined,
-      )
+      .select(LEITURA_EVENTOS_ADMIN.select, volta === 0 ? { count: 'exact' } : undefined)
     // Os MESMOS recortes da tela — se o arquivo trouxesse outro conjunto de linhas, o
     // export deixaria de ser "o que estou vendo" e viraria uma segunda verdade.
     if (f.acao) q = q.eq('acao', f.acao)
@@ -136,7 +126,7 @@ async function lerTrilha(
     if (error) throw new Error(`Falha ao exportar a auditoria: ${error.message}`)
     total = count ?? total
 
-    const bloco = (data ?? []) as unknown as RawLinha[]
+    const bloco = linhasDe(data, LEITURA_EVENTOS_ADMIN.forma, LEITURA_EVENTOS_ADMIN.rotulo)
     for (const l of bloco) {
       linhas.push({
         quando: l.quando,

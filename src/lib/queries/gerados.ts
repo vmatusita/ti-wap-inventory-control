@@ -7,6 +7,11 @@ import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 // A chave da unicidade de versão mora no módulo puro desde a F57, travada contra o SQL
 // (`relatorios/chave-versao-sql.test.ts`).
 import { chaveVersao } from '@/lib/relatorios/versao-snapshot'
+import { linhaDe, linhasDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_DETALHE_RELATORIO_GERADO,
+  LEITURA_LISTA_RELATORIOS_GERADOS,
+} from '@/lib/queries/formas/relatorios-gerados'
 
 // Histórico e leitura dos relatórios GERADOS (snapshots — spec §7.1 / OS-F3 3.8).
 // Recebe o client resolvido (operador OU visualizador por senha) — ambos leem.
@@ -38,23 +43,6 @@ export type PaginaRelatoriosGerados = {
   page: number
   pageSize: number
 }
-
-type RawLista = {
-  id: string
-  periodo_de: string
-  periodo_ate: string
-  filial_id: number | null
-  versao: number
-  gerado_em: string
-  observacao: string | null
-  filial: { nome: string; slug: string } | null
-  autor: { nome: string | null } | null
-}
-
-const LISTA_SELECT =
-  'id, periodo_de, periodo_ate, filial_id, versao, gerado_em, observacao, ' +
-  'filial:filiais!relatorios_gerados_filial_id_fkey(nome, slug), ' +
-  'autor:profiles!relatorios_gerados_gerado_por_fkey(nome)'
 
 // Faixa pedida além do fim do resultado: o PostgREST responde 416 com este código em vez de
 // uma lista vazia. Mesmo tratamento das outras listas paginadas (ativos, movimentacoes,
@@ -119,7 +107,7 @@ export async function listarRelatoriosGerados(
   const consulta = (head = false) => {
     let q = client
       .from('relatorios_gerados')
-      .select(LISTA_SELECT, { count: 'exact', head })
+      .select(LEITURA_LISTA_RELATORIOS_GERADOS.select, { count: 'exact', head })
     if (filtroFilial) {
       const { consolidado, ids } = filtroFilial
       // ⚠ `.is('filial_id', null)` e `.in('filial_id', […])` na MESMA coluna se
@@ -159,7 +147,7 @@ export async function listarRelatoriosGerados(
   }
 
   if (error) throw new Error(`Falha ao listar relatórios gerados: ${error.message}`)
-  const rows = (data ?? []) as unknown as RawLista[]
+  const rows = linhasDe(data, LEITURA_LISTA_RELATORIOS_GERADOS.forma, LEITURA_LISTA_RELATORIOS_GERADOS.rotulo)
 
   // F29/REL-05b — a badge "superada" é EXATA, não uma aproximação sobre a página.
   // Com paginação, calcular o máximo só entre as linhas carregadas erraria toda vez
@@ -195,7 +183,7 @@ export async function listarRelatoriosGerados(
     gerado_em: r.gerado_em,
     filialNome: r.filial?.nome ?? 'Consolidado',
     filialSlug: r.filial?.slug ?? null,
-    autorNome: r.autor?.nome ?? null,
+    autorNome: r.autor.nome,
     temObservacao: !!(r.observacao && r.observacao.trim()),
     superada:
       (maxPorChave.get(chaveVersao(r.periodo_de, r.periodo_ate, r.filial_id)) ?? r.versao) >
@@ -264,17 +252,6 @@ export type RelatorioGeradoDetalhe = {
   versaoMaisNova: { id: string; versao: number } | null
 }
 
-type RawDetalhe = {
-  id: string
-  periodo_de: string
-  periodo_ate: string
-  filial_id: number | null
-  versao: number
-  gerado_em: string
-  dados: unknown
-  autor: { nome: string | null } | null
-}
-
 export async function buscarRelatorioGerado(
   client: DbClient,
   id: string,
@@ -287,16 +264,13 @@ export async function buscarRelatorioGerado(
 
   const { data, error } = await client
     .from('relatorios_gerados')
-    .select(
-      'id, periodo_de, periodo_ate, filial_id, versao, gerado_em, dados, ' +
-        'autor:profiles!relatorios_gerados_gerado_por_fkey(nome)',
-    )
+    .select(LEITURA_DETALHE_RELATORIO_GERADO.select)
     .eq('id', id)
     .maybeSingle()
 
   if (error) throw new Error(`Falha ao abrir o relatório: ${error.message}`)
-  if (!data) return null
-  const r = data as unknown as RawDetalhe
+  const r = linhaDe(data, LEITURA_DETALHE_RELATORIO_GERADO.forma, LEITURA_DETALHE_RELATORIO_GERADO.rotulo)
+  if (!r) return null
 
   // Existe versão mais nova do MESMO (período, filial)? (o fim da errata — 3.8.5)
   let versaoQuery = client
@@ -326,8 +300,8 @@ export async function buscarRelatorioGerado(
     versao: r.versao,
     gerado_em: r.gerado_em,
     filialId: r.filial_id,
-    autorNome: r.autor?.nome ?? null,
-    snapshot: r.dados as AnySnapshot,
+    autorNome: r.autor.nome,
+    snapshot: r.dados,
     versaoMaisNova: novas ? { id: novas.id, versao: novas.versao } : null,
   }
 }

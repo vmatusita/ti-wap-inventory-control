@@ -1,5 +1,6 @@
 import { formatDate, ouTraco } from '@/lib/format'
 import { SLUG_CONSOLIDADO } from '@/lib/unidades/slugs'
+import { casa, casaConstraint, FRASES_DO_MOTOR, TABELAS_CITADAS_EM_ERRO } from '@/lib/supabase/erros-do-banco'
 
 // F29/REL-04 — o que o operador precisa saber ANTES de congelar um snapshot, e o
 // que o sistema faz quando dois operadores clicam ao mesmo tempo. Funções PURAS
@@ -41,8 +42,8 @@ export function ehViolacaoDeVersao(
   if (code === '23505') return true
   const m = (message ?? '').toLowerCase()
   return (
-    m.includes('relatorios_gerados_periodo_filial_versao_uidx') ||
-    (m.includes('duplicate key') && m.includes('relatorios_gerados'))
+    casaConstraint(m, 'relatorios_gerados_periodo_filial_versao_uidx') ||
+    (casa(m, FRASES_DO_MOTOR.chaveDuplicada) && m.includes(TABELAS_CITADAS_EM_ERRO.snapshotDeRelatorio))
   )
 }
 

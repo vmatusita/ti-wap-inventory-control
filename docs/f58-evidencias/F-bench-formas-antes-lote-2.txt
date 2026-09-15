@@ -1,0 +1,24 @@
+# F58 · Frente F — o custo do parse Zod nas leituras de LOTE, ANTES do lote 2
+# comando: npx tsx scripts/perf/bench-formas.mts --rotulo=f58-bench-formas-antes-lote-2 --saida=docs/perf/f58-bench-formas-antes-lote-2.json
+# HEAD db1c438 (lote 1 commitado) · Node da mesa · Zod 4.5.4 · linhas FICTÍCIAS (WAP0001234, "Fulano") no volume
+# do censo de produção (ativos 1.620 · movimentações 3.553) e em 10× · mediana de 21 rodadas após 5 de aquecimento.
+# Nada fala com banco. JSON completo (com p95): docs/perf/f58-bench-formas-antes-lote-2.json
+
+| leitura | linhas | sem parse (ms) | estrita (ms) | frouxa (ms) |
+|---|---:|---:|---:|---:|
+| export de ativos (colunas explícitas + embed) | 1620 | 0.03 | 1.97 | 1.49 |
+| export de ativos (colunas explícitas + embed) | 16200 | 0.16 | 15.33 | 14.97 |
+| histórico/lista de movimentações (embeds + jsonb) | 3553 | 0.04 | 2.47 | 2.63 |
+| histórico/lista de movimentações (embeds + jsonb) | 35530 | 0.2 | 23.43 | 23.08 |
+| backup select(*) de ativos — frouxa com 3 colunas declaradas | 1620 | 0.01 | — | 4.86 |
+| backup select(*) de ativos — frouxa com 3 colunas declaradas | 16200 | 0.08 | — | 49.94 |
+
+# LEITURA
+# · Estrita e frouxa custam o MESMO nas leituras com colunas explícitas (diferença < 0,5 ms no volume de produção,
+#   < 0,4 ms em 10×): ~1,2–1,5 µs por linha de 30 colunas com embed. O modo não é questão de custo.
+# · A frouxa com poucas colunas declaradas é MAIS cara que a estrita completa (~3 µs/linha): ela copia as chaves que
+#   não declara. No maior backup de hoje (~3,5 mil linhas) são ~10 ms — contra centenas de ms de rede e de upload.
+#
+# DECISÃO 5 (fechada por este número): leitura de LOTE com colunas explícitas → ESTRITA (a que acusa coluna
+# inesperada, sem custo a mais); select('*') de backup/export → FROUXA, por obrigação de preservar coluna
+# desconhecida (fato 12), não por desempenho; o jsonb do snapshot → frouxo (formas históricas).

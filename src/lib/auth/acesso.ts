@@ -4,11 +4,14 @@ import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
 import { lerSessaoView, VIEW_COOKIE_NAME } from '@/lib/auth/senha-sessao'
 import { PAPEL_ROTULO, eAdmin, escopoDeEscrita, papelAtende } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { Database } from '@/lib/types/database'
+import { linhaOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_PAPEL_ATUAL, LEITURA_PERFIL_OPERADOR } from '@/lib/queries/formas/auth'
 
 export type DbClient = SupabaseClient<Database>
 
@@ -107,14 +110,18 @@ export async function papelAtual(supabase: DbClient): Promise<PapelUsuario | nul
 type LeituraPapel = { ok: true; papel: PapelUsuario | null } | { ok: false }
 
 async function lerPapel(supabase: DbClient): Promise<LeituraPapel> {
-  const { data, error } = await supabase.rpc('papel_atual')
+  const { data, error } = await chamarRpc(supabase, 'papel_atual')
   if (error) {
     // Logado ALTO: é assim que se descobre que o banco caiu, em vez de ler o sintoma como
     // "todo mundo foi desativado".
     registrarFalha({ escopo: 'acesso.papel-atual', erro: error })
     return { ok: false }
   }
-  return { ok: true, papel: (data as PapelUsuario | null) ?? null }
+  // A forma errada é "não deu para saber" — o MESMO caminho do erro de banco acima (o
+  // registrarFalha já aconteceu dentro da porta). `null` continua sendo "sem cargo".
+  const lido = valorOuFalha(data, LEITURA_PAPEL_ATUAL.forma, LEITURA_PAPEL_ATUAL.rotulo)
+  if (!lido.ok) return { ok: false }
+  return { ok: true, papel: lido.valor }
 }
 
 // Espelho de `pode_escrever_filial(fid)` do banco (migration 0062). Mesma razão de cima:
@@ -136,7 +143,7 @@ async function lerVinculo(
   supabase: DbClient,
   filialId: number,
 ): Promise<LeituraVinculo> {
-  const { data, error } = await supabase.rpc('pode_escrever_filial', { fid: filialId })
+  const { data, error } = await chamarRpc(supabase, 'pode_escrever_filial', { fid: filialId })
   if (error) {
     registrarFalha({ escopo: 'acesso.pode-escrever-filial', erro: error, ctx: { filialId } })
     return { ok: false }
@@ -170,9 +177,9 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: perfil, error: erroPerfil } = await supabase
+  const { data: perfilBruto, error: erroPerfil } = await supabase
     .from('profiles')
-    .select('nome, papel, ativo, excluido_em')
+    .select(LEITURA_PERFIL_OPERADOR.select)
     .eq('id', user.id)
     .maybeSingle()
 
@@ -187,6 +194,12 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
     return null
   }
 
+  // A forma errada fecha pelo MESMO caminho do erro de banco acima (registrarFalha já
+  // aconteceu dentro da porta) — nenhum `catch` novo, e o mesmo "return null" de sempre.
+  const lidoPerfil = linhaOuFalha(perfilBruto, LEITURA_PERFIL_OPERADOR.forma, LEITURA_PERFIL_OPERADOR.rotulo)
+  if (!lidoPerfil.ok) return null
+  const perfil = lidoPerfil.linha
+
   // Sem perfil (não deveria acontecer — o trigger cria), DESATIVADO ou APAGADO: fecha.
   // F22: `apagar_usuario` (0074) grava `excluido_em` E `ativo = false`, então o segundo
   // teste já bastaria hoje. O terceiro é cinto e suspensório para o estado híbrido —
@@ -194,7 +207,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
   // no banco já o fecha (0073), e aqui a leitura é direta em `profiles`, sem passar por ela.
   if (!perfil || !perfil.ativo || perfil.excluido_em) return null
 
-  const papel = perfil.papel as PapelUsuario
+  const papel = perfil.papel
 
   // Filiais de escrita: admin recebe todas as ATIVAS; operador, as vinculadas; consulta,
   // nenhuma. As duas leituras são baratas (tabelas de dezenas de linhas) e valem por

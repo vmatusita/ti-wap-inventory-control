@@ -1,0 +1,43 @@
+# F58 · Sabotagem G — o erro enumerável
+# gerado em 2026-09-15T18:59:44.426Z · HEAD 98603cc (árvore com a Frente D ainda não commitada)
+
+## G1 — 'saldo insuficiente' de volta ao ramo estoqueInsuficiente (a frase existe nas migrations 0015/0019/0024, mas só em corpo HISTÓRICO)
+arquivo sabotado: src/lib/supabase/erros-do-banco.ts
+teste: src/lib/supabase/erros-do-banco-sql.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × estoqueInsuficiente · "saldo insuficiente" 34ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 263 passed (264)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/erros-do-banco-sql.test.ts > MSG_SQL contra o corpo VIVO > estoqueInsuficiente · "saldo insuficiente"
+AssertionError: MSG_SQL.estoqueInsuficiente: "saldo insuficiente" só existe num corpo HISTÓRICO — a migration que substituiu a função reescreveu a mensagem, e esta grafia morreu. Apague-a ou troque pela frase nova.: expected false to be true // Object.is equality
+
+## G2 — um `m.includes('texto solto')` no erros.ts
+arquivo sabotado: src/lib/actions/erros.ts
+teste: src/lib/supabase/casamento-por-texto.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × zero 25ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/casamento-por-texto.test.ts > nenhum casamento de erro por texto solto fora de erros-do-banco.ts > zero
+AssertionError: Casamento de mensagem de erro por texto solto: nomeie a frase em src/lib/supabase/erros-do-banco.ts (MSG_SQL, CONSTRAINTS_TRADUZIDAS, FRASES_DO_MOTOR ou FRASES_DO_AUTH) e case por `casa`/`casaConstraint` — é assim que erros-do-banco-sql.test.ts a confere contra o SQL vivo.: expected [ Array(1) ] to deeply equal []
+
+## G3 — o índice lanc_item_estorna_uidx trocado pelo PREFIXO que o erros.ts casava até a F58
+arquivo sabotado: src/lib/supabase/erros-do-banco.ts
+teste: src/lib/supabase/erros-do-banco-sql.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × lanc_item_estorna 35ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 262 passed (263)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/erros-do-banco-sql.test.ts > CONSTRAINTS_TRADUZIDAS — cada nome existe no esquema vivo > lanc_item_estorna
+AssertionError: lanc_item_estorna não existe no esquema que as migrations produzem hoje: expected false to be true // Object.is equality
+    209|     expect(NOMES_VIVOS.has(nome), `${nome} não existe no esquema que a…
+

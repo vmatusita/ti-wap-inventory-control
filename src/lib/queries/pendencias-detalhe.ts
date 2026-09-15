@@ -1,4 +1,5 @@
 import 'server-only'
+import type { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { registrarFalha } from '@/lib/observabilidade'
 import { type CategoriaAtivo } from '@/lib/dominio'
@@ -15,6 +16,8 @@ import {
   TEXTO_TERMO_PENDENTE,
   TEXTO_TRIAGEM_PARADA,
 } from '@/lib/pendencias/filtro'
+import { linhasDe, linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_FILA_PENDENCIAS, LEITURA_SERVICE_TAGS_PENDENCIAS } from '@/lib/queries/formas/pendencias-detalhe'
 
 // Lista detalhada de pendências para a página interna /pendencias (só operador —
 // F6A/A5). Lê a v_pendencias ESTENDIDA (0028). Roda sob o client do operador
@@ -135,30 +138,13 @@ export async function contarPendenciasAbertas(
   return count ?? 0
 }
 
-const PENDENCIA_SELECT =
-  'id, ordem, pendencia_item_id, item, patrimonio, categoria, filial, filial_nome, pendencia, colaborador_atual, setor_atual, marca, modelo, desde'
-
-type RowPendencia = {
-  id: string | null
-  ordem: string | null
-  pendencia_item_id: string | null
-  item: string | null
-  patrimonio: string | null
-  categoria: CategoriaAtivo | null
-  filial: string | null
-  filial_nome: string | null
-  pendencia: string | null
-  colaborador_atual: string | null
-  setor_atual: string | null
-  marca: string | null
-  modelo: string | null
-  desde: string | null
-}
+/** A linha da fila já conferida pela forma (`id`/`ordem` sem `null` — ver `naoNulaNaView`). */
+type RowPendencia = z.infer<typeof LEITURA_FILA_PENDENCIAS.forma>
 
 function mapearPendencia(r: RowPendencia): PendenciaDetalhe {
   return {
-    id: r.id as string,
-    ordem: (r.ordem ?? r.id) as string,
+    id: r.id,
+    ordem: r.ordem,
     pendenciaItemId: r.pendencia_item_id,
     item: r.item,
     patrimonio: r.patrimonio,
@@ -187,12 +173,19 @@ async function buscarServiceTags(
   ids: readonly string[],
 ): Promise<Map<string, string | null>> {
   if (ids.length === 0) return new Map()
-  const { data, error } = await client.from('ativos').select('id, service_tag').in('id', ids)
+  const { data, error } = await client
+    .from('ativos')
+    .select(LEITURA_SERVICE_TAGS_PENDENCIAS.select)
+    .in('id', ids)
   if (error) {
     registrarFalha({ escopo: 'pendencias.buscar-service-tags', erro: error })
     return new Map()
   }
-  return new Map((data ?? []).map((a) => [a.id as string, a.service_tag as string | null]))
+  // A forma errada segue o MESMO caminho de falha do erro de banco, logo acima: a correção
+  // de patrimônio abre sem a service tag em vez de derrubar a fila.
+  const r = linhasOuFalha(data, LEITURA_SERVICE_TAGS_PENDENCIAS.forma, LEITURA_SERVICE_TAGS_PENDENCIAS.rotulo)
+  if (!r.ok) return new Map()
+  return new Map(r.linhas.map((a) => [a.id, a.service_tag]))
 }
 
 // Query base (filtros + ordem, sem faixa). Fonte única da semântica de filtro:
@@ -202,7 +195,7 @@ async function buscarServiceTags(
 function queryPendencias(client: DbClient, opts: FiltrosPendencias, head = false) {
   let query = client
     .from('v_fila_pendencias')
-    .select(PENDENCIA_SELECT, { count: 'exact', head })
+    .select(LEITURA_FILA_PENDENCIAS.select, { count: 'exact', head })
     .order('desde', { ascending: true, nullsFirst: false })
     // Desempate por `ordem` (F10 · T5 → F18): `desde` empata (medido no ensaio: até
     // 2 linhas no mesmo instante) e ordenação sem critério único NÃO é estável entre
@@ -274,7 +267,7 @@ export async function listarPendencias(
 
   if (error) throw new Error(`Falha ao listar pendências: ${error.message}`)
 
-  const rows = (data ?? []).map(mapearPendencia)
+  const rows = linhasDe(data, LEITURA_FILA_PENDENCIAS.forma, LEITURA_FILA_PENDENCIAS.rotulo).map(mapearPendencia)
 
   // F28/PND-01 — só o balde 'patrimonio' precisa da service tag (o diálogo embutido
   // na linha). Uma leitura extra, restrita aos ids desta PÁGINA (no máximo PAGE_SIZE).
@@ -312,7 +305,7 @@ export async function listarPendenciasParaExport(
     )
     if (error) throw new Error(`Falha ao exportar pendências: ${error.message}`)
     total = count ?? total
-    const recebidas = data ?? []
+    const recebidas = linhasDe(data, LEITURA_FILA_PENDENCIAS.forma, LEITURA_FILA_PENDENCIAS.rotulo)
     for (const r of recebidas) linhas.push(mapearPendencia(r))
     if (recebidas.length === 0 || linhas.length >= total) break
   }

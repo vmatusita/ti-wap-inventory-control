@@ -1,0 +1,25 @@
+# F58 · Sabotagem B — o mapa de argumentos anuláveis (rpc-mapas-sql.test.ts e tsc)
+# gerado por sabotagem real em 2026-09-15T16:13:06.984Z · HEAD f2531e3 (árvore da Frente B, antes do commit)
+
+## B1 — pôr no mapa `resetar_acervo.p_contagens`, cujo corpo vivo tem `if p_contagens is null or jsonb_typeof(p_contagens) <> 'object' then raise` (recusa, não domínio)
+arquivo sabotado: src/lib/supabase/rpc.ts
+comando: npx vitest run src/lib/supabase/rpc-mapas-sql.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true (39e3e39a22c9166f…)
+
+     × resetar_acervo.p_contagens 9ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 27 passed (28)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/rpc-mapas-sql.test.ts > ARGUMENTOS_ANULAVEIS — cada entrada tem respaldo no corpo vivo > resetar_acervo.p_contagens
+AssertionError: resetar_acervo.p_contagens (0089_reset_backup_do_recorte.sql): toda ocorrência da evidência está num comando com `raise` — é recusa, não domínio: expected false to be true // Object.is equality
+
+## B2 — tirar `rel_resumo` do mapa (o consolidado deixa de ser NULL de domínio)
+arquivo sabotado: src/lib/supabase/rpc.ts
+comando: npx tsc --noEmit
+código de saída: 2 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true (39e3e39a22c9166f…)
+
+src/lib/queries/relatorios/movimentacoes.ts(120,5): error TS2322: Type 'number | null' is not assignable to type 'number'.
+  Type 'null' is not assignable to type 'number'.
+

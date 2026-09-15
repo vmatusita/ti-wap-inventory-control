@@ -26,7 +26,15 @@ import type {
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { modeloDe, paginarTodos, type DbClient } from './comum'
-import { filialParaRpc } from '@/lib/queries/rpc-filial'
+import { chamarRpc } from '@/lib/supabase/rpc'
+import { linhasDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_REL_MOV_POR_MES,
+  LEITURA_REL_POR_MOTIVO,
+  LEITURA_REL_RESUMO,
+  LEITURA_TABELA_DO_PERIODO,
+  LEITURA_ULTIMAS_MOVIMENTACOES,
+} from '@/lib/queries/formas/relatorios'
 
 // Agregações sobre a tabela `movimentacoes` no período (OS-F3 3.6): a série
 // adaptativa, saídas/devoluções por motivo, o resumo no formato do e-mail, as
@@ -43,13 +51,13 @@ async function serieMensal(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<SerieMovimentacoes> {
-  const { data, error } = await client.rpc('rel_mov_por_mes', {
-    p_filial: filialParaRpc(filialId),
+  const { data, error } = await chamarRpc(client, 'rel_mov_por_mes', {
+    p_filial: filialId,
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
   if (error) throw new Error(`Falha nas movimentações por mês: ${error.message}`)
-  return montarSerieMensal(data ?? [], periodo)
+  return montarSerieMensal(linhasDe(data, LEITURA_REL_MOV_POR_MES.forma, LEITURA_REL_MOV_POR_MES.rotulo), periodo)
 }
 
 // Dia/semana: baldes calculados a partir das linhas cruas (data, tipo). A janela
@@ -95,15 +103,16 @@ export async function getPorMotivo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<PorMotivo> {
-  const { data, error } = await client.rpc('rel_por_motivo', {
-    p_filial: filialParaRpc(filialId),
+  const { data, error } = await chamarRpc(client, 'rel_por_motivo', {
+    p_filial: filialId,
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
   if (error) throw new Error(`Falha em saídas/devoluções por motivo: ${error.message}`)
+  const linhas = linhasDe(data, LEITURA_REL_POR_MOTIVO.forma, LEITURA_REL_POR_MOTIVO.rotulo)
 
   const filtra = (tipo: 'saida' | 'devolucao') =>
-    (data ?? [])
+    linhas
       .filter((d) => d.tipo === tipo)
       .map((d) => ({ motivo: d.motivo, total: Number(d.total) }))
       .sort((a, b) => b.total - a.total)
@@ -116,13 +125,13 @@ export async function getResumoPeriodo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<ResumoPeriodo> {
-  const { data, error } = await client.rpc('rel_resumo', {
-    p_filial: filialParaRpc(filialId),
+  const { data, error } = await chamarRpc(client, 'rel_resumo', {
+    p_filial: filialId,
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
   if (error) throw new Error(`Falha ao montar o resumo: ${error.message}`)
-  const rows = data ?? []
+  const rows = linhasDe(data, LEITURA_REL_RESUMO.forma, LEITURA_REL_RESUMO.rotulo)
 
   function construir(tipo: 'saida' | 'devolucao'): ResumoTipo {
     const porFilial = new Map<string, ResumoFilial>()
@@ -156,17 +165,12 @@ export async function getResumoPeriodo(
   }
 }
 
-// ---- Fragmento base dos selects de movimentação (últimas + tabelas) ----
-// MOV_SELECT (últimas) e TAB_SELECT (tabelas detalhadas) compartilham as colunas
-// diretas + os embeds de ativo/filial; TAB_SELECT acrescenta motivo/termo/itens
-// faltantes + destino + rótulo do motivo. Fonte única para não divergirem.
-const MOV_COLS = 'id, data, tipo, chamado, observacao, colaborador, setor'
-// F16/T3: `id` do ativo entra no embed para o patrimônio da tabela virar link p/
-// a ficha (`/ativos/[id]`). Inócuo para as "últimas movimentações" (v1), que
-// ignoram o campo em `mapMovRows`.
-const ATIVO_EMBED =
-  'ativo:ativos!movimentacoes_ativo_id_fkey(id, patrimonio, marca, modelo, categoria)'
-const FILIAL_EMBED = 'filial:filiais!movimentacoes_filial_id_fkey(nome)'
+// ---- Os selects de movimentação (últimas + tabelas) ----
+// MOV_SELECT (últimas) e TAB_SELECT (tabelas detalhadas) compartilham as colunas diretas + os
+// embeds de ativo/filial; desde a F58 os dois moram em `queries/formas/relatorios.ts`, como
+// LITERAIS (o TAB_SELECT era montado por `+` e a inferência do supabase-js caía), junto das formas
+// que conferem as linhas. F16/T3: `id` do ativo entra no embed para o patrimônio da tabela virar
+// link p/ a ficha (`/ativos/[id]`); as "últimas movimentações" ignoram o campo em `mapMovRows`.
 
 type RawMovBase = {
   id: string
@@ -178,7 +182,10 @@ type RawMovBase = {
   setor: string | null
   ativo: {
     id: string
-    patrimonio: string
+    // F58: `ativos.patrimonio` perdeu o `not null` na migration 0034 (ativo sem plaqueta); o
+    // tipo à mão dizia `string`, e o cast de `mapMovRows` escondia isso. Os consumidores já
+    // tratavam o nulo com `?? '—'`.
+    patrimonio: string | null
     marca: string | null
     modelo: string | null
     categoria: CategoriaAtivo
@@ -190,10 +197,7 @@ type RawMovBase = {
 
 type RawMovRow = RawMovBase
 
-const MOV_SELECT = `${MOV_COLS}, ${ATIVO_EMBED}, ${FILIAL_EMBED}`
-
-function mapMovRows(data: unknown): MovimentacaoRelatorio[] {
-  const rows = (data ?? []) as RawMovRow[]
+function mapMovRows(rows: readonly RawMovRow[]): MovimentacaoRelatorio[] {
   return rows.map((r) => ({
     id: r.id,
     data: r.data,
@@ -216,7 +220,7 @@ export async function getUltimasMovimentacoes(
 ): Promise<MovimentacaoRelatorio[]> {
   let q = client
     .from('movimentacoes')
-    .select(MOV_SELECT)
+    .select(LEITURA_ULTIMAS_MOVIMENTACOES.select)
     .gte('data', periodo.de)
     .lte('data', periodo.ate)
     // F6A-A1: exclui as compras sintéticas de abertura da carga go-live. .neq
@@ -254,7 +258,7 @@ export async function getUltimasMovimentacoes(
 
   const { data, error } = await q
   if (error) throw new Error(`Falha ao listar movimentações: ${error.message}`)
-  return mapMovRows(data)
+  return mapMovRows(linhasDe(data, LEITURA_ULTIMAS_MOVIMENTACOES.forma, LEITURA_ULTIMAS_MOVIMENTACOES.rotulo))
 }
 
 // ---- Tabelas detalhadas do período (§4.4). Paginadas com desempate por id. ----
@@ -267,12 +271,6 @@ type RawTabelaRow = RawMovBase & {
   motivoRotulo: { rotulo: string } | null
 }
 
-const TAB_SELECT =
-  `${MOV_COLS}, motivo, termo_assinado, itens_faltantes, ` +
-  `${ATIVO_EMBED}, ${FILIAL_EMBED}, ` +
-  'destino:filiais!movimentacoes_filial_destino_id_fkey(nome), ' +
-  'motivoRotulo:motivos!movimentacoes_motivo_fkey(rotulo)'
-
 async function buscarLinhasPeriodo(
   client: DbClient,
   filialId: number | null,
@@ -280,12 +278,12 @@ async function buscarLinhasPeriodo(
   tipos: TipoMovimentacao[],
   incluirDestino = false,
 ): Promise<RawTabelaRow[]> {
-  return paginarTodos<RawTabelaRow>(
+  const brutas = await paginarTodos(
     'Falha ao montar tabela do período',
     (from, to) => {
       let q = client
         .from('movimentacoes')
-        .select(TAB_SELECT)
+        .select(LEITURA_TABELA_DO_PERIODO.select)
         .in('tipo', tipos)
         .gte('data', periodo.de)
         .lte('data', periodo.ate)
@@ -315,6 +313,7 @@ async function buscarLinhasPeriodo(
         .range(from, to)
     },
   )
+  return linhasDe(brutas, LEITURA_TABELA_DO_PERIODO.forma, LEITURA_TABELA_DO_PERIODO.rotulo)
 }
 
 // F16/T1 — quais movimentações do período FORAM estornadas, e quando. Sem coluna

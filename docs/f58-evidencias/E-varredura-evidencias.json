@@ -1,0 +1,314 @@
+{
+  "gerado_em": "2026-09-15T23:28:57.832Z",
+  "arquivos": 38,
+  "filiais_lidas": 6,
+  "termos_de_filial_comparados": 9,
+  "termos_curtos_fora_da_comparacao": 0,
+  "arquivos_com_ocorrencia": 0,
+  "por_arquivo": [
+    {
+      "arquivo": "docs/f58-evidencias/A-censo-ensaio.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/A-censo-producao-recontagem-anotacoes.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/A-censo-producao.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/A-linha-de-base-ttfb-main-local.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 1
+    },
+    {
+      "arquivo": "docs/f58-evidencias/A-sabotagem-porta-unica.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/B-sabotagem-mapa-de-anulaveis.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/C-casts-de-leitura-antes.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/C-controle-positivo-amarracao.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/C-sabotagem-alias-na-trava.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/C-sabotagem-cast-de-leitura.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/censo-ensaio.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/censo-producao-recontagem-anotacoes.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/censo-producao.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/D-casamentos-por-texto-antes.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/D-equivalencia-traducao.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/D-equivalencia-traducao.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/D-sabotagem-backup-frouxo.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/D-traducoes-mortas.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-ensaio-cedo-910d7cf.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-ensaio-cedo-910d7cf.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-ensaio-congelado.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-ensaio-congelado.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-ensaio-r3-0312ea1.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-ensaio-r3-0312ea1.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-producao-cedo-910d7cf.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-producao-cedo-910d7cf.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-producao-cedo2-465728e.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-producao-cedo2-465728e.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-producao-congelado.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-conferidor-producao-congelado.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-sabotagem-mentira-de-retorno-conferidor.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-sabotagem-mentira-de-retorno.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-sabotagem-precondicao-nao-nulas.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/E-varredura-evidencias.json",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/F-bench-formas-antes-lote-2.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 1
+    },
+    {
+      "arquivo": "docs/f58-evidencias/F-sabotagem-valor-no-erro.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 7
+    },
+    {
+      "arquivo": "docs/f58-evidencias/G-build-congelado.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/G-sabotagem-erro-enumeravel.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    }
+  ]
+}

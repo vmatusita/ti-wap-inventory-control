@@ -1,5 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_PENDENCIAS_ITEM_DO_ATIVO } from '@/lib/queries/formas/pendencias-item'
 
 // Pendências de item de UM ativo, para a ficha (F18 §B3): abertas em destaque,
 // resolvidas como auditoria (desfecho/quem/quando). A resolvida NÃO some da ficha —
@@ -23,9 +25,7 @@ export async function listarPendenciasItemDoAtivo(
   const client = await createClient()
   const { data, error } = await client
     .from('v_pendencias_item')
-    .select(
-      'id, item, colaborador, desde, status, desfecho, observacao, resolvida_em, resolvida_por_nome',
-    )
+    .select(LEITURA_PENDENCIAS_ITEM_DO_ATIVO.select)
     .eq('ativo_id', ativoId)
     // 'aberta' < 'resolvida' (alfabética) → abertas primeiro; depois as resolvidas
     // mais recentes; desempate estável pela data da devolução.
@@ -35,12 +35,12 @@ export async function listarPendenciasItemDoAtivo(
 
   if (error) throw new Error(`Falha ao listar pendências de item do ativo: ${error.message}`)
 
-  return (data ?? []).map((r) => ({
-    id: r.id as string,
-    item: r.item as string,
+  return linhasDe(data, LEITURA_PENDENCIAS_ITEM_DO_ATIVO.forma, LEITURA_PENDENCIAS_ITEM_DO_ATIVO.rotulo).map((r) => ({
+    id: r.id,
+    item: r.item,
     colaborador: r.colaborador,
     desde: r.desde,
-    status: r.status as string,
+    status: r.status,
     desfecho: r.desfecho,
     observacao: r.observacao,
     resolvidaEm: r.resolvida_em,

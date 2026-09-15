@@ -158,7 +158,9 @@ const SUPERFICIE: Record<string, string> = {
 // Cada motivo é MEDIDO (quem chama, de onde), nunca "não é de relatório" como
 // categoria: categoria envelhece sozinha, call-site medido não. A prova estrutural
 // que sustenta as cinco: a superfície inteira importa de `@/lib/queries/` apenas
-// `filiais`, `relatorios` e `rpc-filial` — nenhum arquivo desta lista.
+// `filiais` e `relatorios` (a RPC vem de `chamarRpc`, `@/lib/supabase/rpc` — fora de
+// `@/lib/queries/` desde a F58 · Frente B, que apagou `rpc-filial.ts`) — nenhum
+// arquivo desta lista.
 //
 // ⚠ Se um destes passar a ser chamado com `acesso.client`, ele muda de lista — não
 // se apaga a entrada. A pergunta que a exceção responde é "quem o chama, e com que
@@ -232,31 +234,74 @@ const RPCS: Record<string, string> = {
 // aspa, ignore" para a outra).
 type Chamada = { receptor: string; argumento: string; literal: string | null }
 
+/**
+ * Consome UM argumento de uma chamada, a partir do índice `inicio` (logo após `(` ou
+ * depois da vírgula de um argumento anterior): até a vírgula ou o parêntese/colchete/
+ * chave do NÍVEL de topo, ou uma quebra de linha (a mesma régua de sempre — chamadas
+ * de UMA linha só). Devolve o texto (já `trim`ado) e o índice onde parou, para quem
+ * chama decidir se o próximo caractere é `,` (há mais um argumento) ou não.
+ */
+function umArgumento(fonte: string, inicio: number): { texto: string; fim: number } {
+  let i = inicio
+  let prof = 0
+  let arg = ''
+  while (i < fonte.length) {
+    const c = fonte[i]
+    if (c === '(' || c === '[' || c === '{') prof++
+    else if (c === ')' && prof === 0) break
+    else if (c === ')' || c === ']' || c === '}') prof--
+    else if (c === ',' && prof === 0) break
+    else if (c === '\n') break
+    arg += c
+    i++
+  }
+  return { texto: arg.trim(), fim: i }
+}
+
+/** Literal PURO: a string inteira é uma constante entre aspas. `'ativos' + '_x'`
+ *  não é — e é exatamente o caso que passava por literal antes. */
+function literalPuro(argumento: string): string | null {
+  const puro = /^'([^']*)'$/.exec(argumento)
+  return puro ? puro[1] : null
+}
+
 function chamadasDe(fonte: string, metodo: 'from' | 'rpc'): Chamada[] {
   const re = new RegExp(`([A-Za-z0-9_$]*)\\.${metodo}\\(`, 'g')
   const achadas: Chamada[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(fonte))) {
-    // O primeiro argumento: até a vírgula ou o parêntese do NÍVEL de topo.
-    let i = re.lastIndex
-    let prof = 0
-    let arg = ''
-    while (i < fonte.length) {
-      const c = fonte[i]
-      if (c === '(' || c === '[' || c === '{') prof++
-      else if (c === ')' && prof === 0) break
-      else if (c === ')' || c === ']' || c === '}') prof--
-      else if (c === ',' && prof === 0) break
-      else if (c === '\n') break
-      arg += c
-      i++
-    }
-    const argumento = arg.trim()
-    // Literal PURO: a string inteira é uma constante entre aspas. `'ativos' + '_x'`
-    // não é — e é exatamente o caso que passava por literal antes.
-    const puro = /^'([^']*)'$/.exec(argumento)
-    achadas.push({ receptor: m[1], argumento, literal: puro ? puro[1] : null })
+    const { texto: argumento } = umArgumento(fonte, re.lastIndex)
+    achadas.push({ receptor: m[1], argumento, literal: literalPuro(argumento) })
   }
+
+  // A PORTA ÚNICA de RPC (F58 · Frente B, `src/lib/supabase/rpc.ts`): depois dela
+  // `src/**` não chama mais `client.rpc('nome', …)` — chama `chamarRpc(client, 'nome',
+  // …)`, o CLIENT como 1º argumento e o NOME como 2º. Sem ensinar este detector à
+  // segunda forma, a lista branca de RPCs ficaria CEGA para toda superfície migrada —
+  // exatamente o caminho que `queries/relatorios/estoque.ts`/`itens.ts`/`movimentacoes.ts`
+  // percorreram. `.rpc(` continua reconhecido acima (scripts e a própria porta ainda o
+  // usam) — as duas formas coexistem.
+  if (metodo === 'rpc') {
+    const reChamarRpc = /\bchamarRpc\(/g
+    while (reChamarRpc.exec(fonte)) {
+      // 1º argumento — o CLIENT. Descartado; só para achar onde ele termina. Uma
+      // vírgula de TOPO dentro dele (`chamarRpc(a, b, 'nome')`) não é o caso real —
+      // o client é sempre uma única expressão — mas se acontecer o 2º "argumento"
+      // lido a seguir seria só o resto do primeiro, e como ele não bate um literal
+      // puro de nome de RPC plausível, cai em não-literal (reprova), nunca em
+      // falso-positivo silencioso.
+      const primeiro = umArgumento(fonte, reChamarRpc.lastIndex)
+      if (fonte[primeiro.fim] !== ',') continue // `chamarRpc(x)` sem nome — nada a ler
+      // 2º argumento — o NOME da RPC. Mesma régua de `.rpc('nome', …)`.
+      const segundo = umArgumento(fonte, primeiro.fim + 1)
+      achadas.push({
+        receptor: 'chamarRpc',
+        argumento: segundo.texto,
+        literal: literalPuro(segundo.texto),
+      })
+    }
+  }
+
   return achadas
 }
 
@@ -351,6 +396,52 @@ describe('fronteira do viewer (A5): queries de relatório não tocam tabelas sen
     expect(chamadasLiterais("client.rpc('rel_resumo', { p: 1 })", 'rpc')).toEqual(['rel_resumo'])
     expect(chamadasNaoLiterais("client.rpc('rel_resumo', { p: 1 })", 'rpc')).toEqual([])
     expect(chamadasNaoLiterais("client.rpc('rel' + '_oculto', {})", 'rpc').length).toBe(1)
+  })
+
+  // F58 · Frente B — a PORTA ÚNICA de RPC: `src/**` passou a chamar `chamarRpc(client,
+  // 'nome', …)` em vez de `client.rpc('nome', …)`. O detector precisa reconhecer as
+  // DUAS formas, e continuar recusando a segunda quando o nome não é literal puro —
+  // as mesmas três fugas (variável, template, concatenação) que já valiam para `.rpc(`.
+  it('a lista branca enxerga `chamarRpc(client, \'nome\', …)`, a forma da porta única', () => {
+    expect(
+      chamadasLiterais("chamarRpc(client, 'rel_resumo', { p_filial: null })", 'rpc'),
+    ).toEqual(['rel_resumo'])
+    expect(
+      chamadasNaoLiterais("chamarRpc(client, 'rel_resumo', { p_filial: null })", 'rpc'),
+    ).toEqual([])
+
+    // Variável: o nome não está escrito na fonte — não há como saber qual RPC é sem
+    // rodar o programa, então a lista branca não pode confiar nela.
+    const porVariavel = 'chamarRpc(client, nomeDaRpc, { p_filial: null })'
+    expect(chamadasLiterais(porVariavel, 'rpc'), 'variável foi lida como literal').toEqual([])
+    expect(chamadasNaoLiterais(porVariavel, 'rpc').length, 'variável não foi acusada').toBe(1)
+
+    // Template string: o nome pode variar em runtime, mesmo risco da variável. O texto
+    // é FONTE SINTÉTICA (nunca interpolado/executado) — daí ser uma string comum, não
+    // um template literal de verdade.
+    const porTemplate = 'chamarRpc(client, `rel_${sufixo}`, {})'
+    expect(chamadasLiterais(porTemplate, 'rpc'), 'template foi lido como literal').toEqual([])
+    expect(chamadasNaoLiterais(porTemplate, 'rpc').length, 'template não foi acusado').toBe(1)
+
+    // Concatenação: o mesmo vetor que já valia para `.rpc(` — literal de verdade +
+    // sufixo NÃO é o literal de verdade.
+    const porConcatenacao = "chamarRpc(client, 'rel' + '_oculto', {})"
+    expect(
+      chamadasLiterais(porConcatenacao, 'rpc'),
+      'concatenação foi lida como literal',
+    ).toEqual([])
+    expect(
+      chamadasNaoLiterais(porConcatenacao, 'rpc').length,
+      'concatenação não foi acusada',
+    ).toBe(1)
+
+    // Chamada de UM argumento só (`chamarRpc(client)`) — não é uma chamada de RPC
+    // nomeada, e não pode virar falso-positivo nem quebrar o detector.
+    expect(chamadasLiterais('chamarRpc(client)', 'rpc')).toEqual([])
+    expect(chamadasNaoLiterais('chamarRpc(client)', 'rpc')).toEqual([])
+
+    // `chamarRpc(` não é confundida com `.rpc(` nem some da varredura por `from`.
+    expect(chamadasLiterais("chamarRpc(client, 'rel_resumo', {})", 'from')).toEqual([])
   })
 
   it('a trava de apelido pega as TRÊS formas de guardar o client', () => {

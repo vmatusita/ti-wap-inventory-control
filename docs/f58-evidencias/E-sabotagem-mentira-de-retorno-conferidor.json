@@ -1,0 +1,2322 @@
+{
+  "o_que_e": "Conferidor de formas F58 · Frente E — só contagens e caminhos normalizados; nenhum valor.",
+  "alvo": "ensaio",
+  "sha": "66b1571",
+  "arvore_limpa_em_src_scripts": false,
+  "inicio": "2026-09-15T23:27:11.334Z",
+  "fim": "2026-09-15T23:27:56.060Z",
+  "totais": {
+    "pontos": 240,
+    "linhas_lidas": 89460,
+    "recusadas": 3326,
+    "com_erro": 0,
+    "reprovados": 16
+  },
+  "recibos_provados_pelo_sql_e_nao_chamados": [
+    "dev.checagens-integridade",
+    "dev-destrutivo.previa-reset",
+    "conflitos.apagar",
+    "dev-destrutivo.apagar-ativo",
+    "dev-destrutivo.apagar-movimentacao",
+    "dev-destrutivo.apagar-item",
+    "dev-destrutivo.resetar-acervo",
+    "dev-destrutivo.resetar-itens",
+    "dev-destrutivo.forcar-estado",
+    "dev-destrutivo.forcar-saldo",
+    "devolucao-fornecedor.retorno",
+    "itens.lancar-itens-lote",
+    "movimentacoes.criar-com-itens",
+    "pendencias.resolver-com-lancamentos"
+  ],
+  "descritores_sem_linha_no_alvo": [
+    "conflitos.lados",
+    "admin.senhas-acesso",
+    "ativos.anotacoes",
+    "colaboradores.por-nome-chave",
+    "colaboradores.sugestao-cadastro",
+    "dev-destrutivo.backup-anotacoes",
+    "eventos-admin.listar",
+    "import-logs.backup-anotacoes",
+    "itens.saldo-colaborador",
+    "kits.ativos",
+    "kits.admin",
+    "conflitos.backup-anotacoes"
+  ],
+  "pontos": [
+    {
+      "ponto": "tipos-item.listar",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "tipos-item.admin",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · consolidado · data 1",
+      "lidas": 1564,
+      "count": 1564,
+      "aceitas": 254,
+      "recusadas": 1310,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 1310
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · consolidado · data 2",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 0,
+      "recusadas": 1,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 1
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · consolidado · data 3",
+      "lidas": 352,
+      "count": 352,
+      "aceitas": 0,
+      "recusadas": 352,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 352
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #1 · data 1",
+      "lidas": 1192,
+      "count": 1192,
+      "aceitas": 221,
+      "recusadas": 971,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 971
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #1 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #1 · data 3",
+      "lidas": 291,
+      "count": 291,
+      "aceitas": 0,
+      "recusadas": 291,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 291
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #2 · data 1",
+      "lidas": 130,
+      "count": 130,
+      "aceitas": 6,
+      "recusadas": 124,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 124
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #2 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #2 · data 3",
+      "lidas": 21,
+      "count": 21,
+      "aceitas": 0,
+      "recusadas": 21,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 21
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #3 · data 1",
+      "lidas": 143,
+      "count": 143,
+      "aceitas": 22,
+      "recusadas": 121,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 121
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #3 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #3 · data 3",
+      "lidas": 13,
+      "count": 13,
+      "aceitas": 0,
+      "recusadas": 13,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 13
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #4 · data 1",
+      "lidas": 44,
+      "count": 44,
+      "aceitas": 1,
+      "recusadas": 43,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 43
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #4 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #4 · data 3",
+      "lidas": 4,
+      "count": 4,
+      "aceitas": 0,
+      "recusadas": 4,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 4
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #5 · data 1",
+      "lidas": 51,
+      "count": 51,
+      "aceitas": 4,
+      "recusadas": 47,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 47
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #5 · data 2",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 0,
+      "recusadas": 1,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 1
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #5 · data 3",
+      "lidas": 23,
+      "count": 23,
+      "aceitas": 0,
+      "recusadas": 23,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 23
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #6 · data 1",
+      "lidas": 4,
+      "count": 4,
+      "aceitas": 0,
+      "recusadas": 4,
+      "erros": [],
+      "problemas": [
+        {
+          "caminho": "[].colaborador",
+          "codigo": "invalid_type",
+          "ocorrencias": 4
+        }
+      ]
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #6 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-estoque-asof · filial #6 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · consolidado · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · consolidado · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · consolidado · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #1 · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #1 · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #1 · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #2 · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #2 · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #2 · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #3 · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #3 · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #3 · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #4 · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #4 · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #4 · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #5 · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #5 · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #5 · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #6 · data 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #6 · data 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-saldo-itens · filial #6 · data 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · consolidado · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · consolidado · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · consolidado · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #1 · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #1 · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #1 · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #2 · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #2 · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #2 · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #3 · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #3 · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #3 · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #4 · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #4 · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #4 · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #5 · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #5 · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #5 · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #6 · janela 1",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #6 · janela 2",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-itens · filial #6 · janela 3",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · consolidado · data 1",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · consolidado · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · consolidado · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #1 · data 1",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #1 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #1 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #2 · data 1",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #2 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #2 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #3 · data 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #3 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #3 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #4 · data 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #4 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #4 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #5 · data 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #5 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #5 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #6 · data 1",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #6 · data 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-frescor-itens · filial #6 · data 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · consolidado · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · consolidado · janela 2",
+      "lidas": 15,
+      "count": 15,
+      "aceitas": 15,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · consolidado · janela 3",
+      "lidas": 15,
+      "count": 15,
+      "aceitas": 15,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #1 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #1 · janela 2",
+      "lidas": 15,
+      "count": 15,
+      "aceitas": 15,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #1 · janela 3",
+      "lidas": 15,
+      "count": 15,
+      "aceitas": 15,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #2 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #2 · janela 2",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #2 · janela 3",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #3 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #3 · janela 2",
+      "lidas": 11,
+      "count": 11,
+      "aceitas": 11,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #3 · janela 3",
+      "lidas": 11,
+      "count": 11,
+      "aceitas": 11,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #4 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #4 · janela 2",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #4 · janela 3",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #5 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #5 · janela 2",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #5 · janela 3",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #6 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #6 · janela 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-mov-por-mes · filial #6 · janela 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · consolidado · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · consolidado · janela 2",
+      "lidas": 12,
+      "count": 12,
+      "aceitas": 12,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · consolidado · janela 3",
+      "lidas": 12,
+      "count": 12,
+      "aceitas": 12,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #1 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #1 · janela 2",
+      "lidas": 12,
+      "count": 12,
+      "aceitas": 12,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #1 · janela 3",
+      "lidas": 12,
+      "count": 12,
+      "aceitas": 12,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #2 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #2 · janela 2",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #2 · janela 3",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #3 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #3 · janela 2",
+      "lidas": 4,
+      "count": 4,
+      "aceitas": 4,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #3 · janela 3",
+      "lidas": 4,
+      "count": 4,
+      "aceitas": 4,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #4 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #4 · janela 2",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #4 · janela 3",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #5 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #5 · janela 2",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #5 · janela 3",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #6 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #6 · janela 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-por-motivo · filial #6 · janela 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · consolidado · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · consolidado · janela 2",
+      "lidas": 48,
+      "count": 48,
+      "aceitas": 48,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · consolidado · janela 3",
+      "lidas": 48,
+      "count": 48,
+      "aceitas": 48,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #1 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #1 · janela 2",
+      "lidas": 24,
+      "count": 24,
+      "aceitas": 24,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #1 · janela 3",
+      "lidas": 24,
+      "count": 24,
+      "aceitas": 24,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #2 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #2 · janela 2",
+      "lidas": 5,
+      "count": 5,
+      "aceitas": 5,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #2 · janela 3",
+      "lidas": 5,
+      "count": 5,
+      "aceitas": 5,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #3 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #3 · janela 2",
+      "lidas": 12,
+      "count": 12,
+      "aceitas": 12,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #3 · janela 3",
+      "lidas": 12,
+      "count": 12,
+      "aceitas": 12,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #4 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #4 · janela 2",
+      "lidas": 4,
+      "count": 4,
+      "aceitas": 4,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #4 · janela 3",
+      "lidas": 4,
+      "count": 4,
+      "aceitas": 4,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #5 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #5 · janela 2",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #5 · janela 3",
+      "lidas": 3,
+      "count": 3,
+      "aceitas": 3,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #6 · janela 1",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #6 · janela 2",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.rel-resumo · filial #6 · janela 3",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.ultimas-movimentacoes",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.tabela-do-periodo",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.mov-itens-do-periodo",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "conflitos.lados",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "movimentacoes.linha-do-tempo",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "admin.motivos",
+      "lidas": 13,
+      "count": 13,
+      "aceitas": 13,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "admin.senhas-acesso",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.lista",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.ficha",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.vinculo",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.anotacoes",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.resumo",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.recentes-do-operador",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "ativos.export",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "colaboradores.fila-consolidacao",
+      "lidas": 780,
+      "count": 780,
+      "aceitas": 780,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "colaboradores.resumo-consolidacao",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "colaboradores.por-nome-chave",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "colaboradores.sugestao-cadastro",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "colaboradores.sugestao-movimentacoes",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "colaboradores.sugestao-lancamentos",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "compras.ultima-do-operador",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "dev-destrutivo.candidatos",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.movimentacoes-do-ativo",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.termos-do-ativo",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.itens",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.backup-ativos",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.backup-movimentacoes",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.backup-anotacoes",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.backup-pendencias-item",
+      "lidas": 23,
+      "count": 23,
+      "aceitas": 23,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.backup-termos-gerados",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "dev-destrutivo.backup-lancamentos-item",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "eventos-admin.listar",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "import-logs.par-com-patrimonio-em-outra-filial",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "import-logs.par-sem-patrimonio-em-outra-filial",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "import-logs.backup-ativos",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "import-logs.backup-movimentacoes",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "import-logs.backup-anotacoes",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "import-logs.backup-termos-gerados",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "import-logs.backup-pendencias-item",
+      "lidas": 23,
+      "count": 23,
+      "aceitas": 23,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "import-logs.backup-lancamentos-item-desvinculados",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.ativos",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.admin",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.historico-lancamentos",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.historico-export",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.lancamentos-saldo-apos",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.ultimo-lancamento",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "itens.saldo-colaborador · (nenhuma célula)",
+      "lidas": 0,
+      "count": null,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "nao_provado": "a grade de argumentos não gerou célula no alvo (nenhuma unidade ou pessoa para chamar)"
+    },
+    {
+      "ponto": "itens.junto-do-ativo",
+      "lidas": 5,
+      "count": 5,
+      "aceitas": 5,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.acessorios-movimentacoes",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "kits.ativos",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "kits.admin",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "motivos.listar",
+      "lidas": 13,
+      "count": 13,
+      "aceitas": 13,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "movimentacoes.envio-manutencao",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "movimentacoes.ultima-do-usuario",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "movimentacoes.para-duplicar",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "movimentacoes.sugestao-colaborador",
+      "lidas": 1334,
+      "count": 1334,
+      "aceitas": 1334,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "filtro_do_call_site": [
+        "colaborador is not null"
+      ],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "movimentacoes.sugestao-setor",
+      "lidas": 305,
+      "count": 305,
+      "aceitas": 305,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "filtro_do_call_site": [
+        "setor is not null"
+      ],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "movimentacoes.candidatas-duplicata",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "movimentacoes.lista",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "movimentacoes.lista-por-patrimonio",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "pendencias-detalhe.fila",
+      "lidas": 132,
+      "count": 132,
+      "aceitas": 132,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "pendencias-detalhe.service-tags",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "pendencias-item.do-ativo",
+      "lidas": 23,
+      "count": 23,
+      "aceitas": 23,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "termos.do-ativo",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "vocabulario-import.categorias",
+      "lidas": 5,
+      "count": 5,
+      "aceitas": 5,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "vocabulario-import.estados",
+      "lidas": 17,
+      "count": 17,
+      "aceitas": 17,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "auth.papel-atual · única",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "auth.perfil-operador",
+      "lidas": 5,
+      "count": 5,
+      "aceitas": 5,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "dashboard.fila-pendencias",
+      "lidas": 132,
+      "count": 132,
+      "aceitas": 132,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "colaboradores.grupos-a-consolidar",
+      "lidas": 780,
+      "count": 780,
+      "aceitas": 780,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "itens.lancamento-para-estorno",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "movimentacoes.ativos-do-lote",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "movimentacoes.itens-a-estornar",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "pendencias.tipos-para-ponte",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "pendencias.itens-para-ponte",
+      "lidas": 7,
+      "count": 7,
+      "aceitas": 7,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "pendencias.lancamentos-da-reabertura",
+      "lidas": 35,
+      "count": 35,
+      "aceitas": 35,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "relatorios.ultima-versao",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "termos.cidades-das-filiais",
+      "lidas": 6,
+      "count": 6,
+      "aceitas": 6,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "termos.mov-para-termo",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "termos.existentes-do-conjunto",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "termos.url-termo",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": [],
+      "ordem_provada": "pela chave primária no banco (coluna de ordem fora do select)"
+    },
+    {
+      "ponto": "termos.alvos-assinatura-lote",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "termos.ativos-id",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "ativos.mesma-identidade",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "gerados.lista",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "gerados.detalhe",
+      "lidas": 1,
+      "count": 1,
+      "aceitas": 1,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "conflitos.backup-ativos",
+      "lidas": 1606,
+      "count": 1606,
+      "aceitas": 1606,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "conflitos.backup-movimentacoes",
+      "lidas": 3245,
+      "count": 3245,
+      "aceitas": 3245,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "conflitos.backup-anotacoes",
+      "lidas": 0,
+      "count": 0,
+      "aceitas": 0,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "conflitos.backup-pendencias-item",
+      "lidas": 23,
+      "count": 23,
+      "aceitas": 23,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    },
+    {
+      "ponto": "conflitos.backup-termos-gerados",
+      "lidas": 2,
+      "count": 2,
+      "aceitas": 2,
+      "recusadas": 0,
+      "erros": [],
+      "problemas": []
+    }
+  ]
+}

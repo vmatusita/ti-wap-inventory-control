@@ -1,0 +1,52 @@
+[medir-local] app      http://localhost:3100
+[medir-local] banco    ENSAIO · ref sgmvldiizsrjbxzzpmhh (SMOKE_* esvaziado no processo filho)
+[medir-local] persona  seed.consulta@wap.ind.br (senha: constante do seed, não impressa)
+[medir-local] saude    HTTP 200 · versao 1.62.0 · banco ok
+[medir-local] login    ok (sessão de ensaio)
+---------------------------------------------------------------
+Harness de performance · F33 · rótulo "f58-linha-de-base-main-local"
+Alvo: http://localhost:3100
+Método: 2 passada(s) de aquecimento + 15 rodadas round-robin
+---------------------------------------------------------------
+Rotas medidas: 16
+
+  aquecimento 1/2 concluído
+  aquecimento 2/2 concluído
+  rodada 1/15 concluída
+  rodada 2/15 concluída
+  rodada 3/15 concluída
+  rodada 4/15 concluída
+  rodada 5/15 concluída
+  rodada 6/15 concluída
+  rodada 7/15 concluída
+  rodada 8/15 concluída
+  rodada 9/15 concluída
+  rodada 10/15 concluída
+  rodada 11/15 concluída
+  rodada 12/15 concluída
+  rodada 13/15 concluída
+  rodada 14/15 concluída
+  rodada 15/15 concluída
+  sessão encerrada (signOut).
+
+| Rota | Sessão | HTTP | TTFB mediana | TTFB p95 | Total mediana | Total p95 | HTML (bytes) | n |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| `/vercel.svg (controle estático)` | publico | 200 | 13.9 | 20.3 | 14 | 20.5 | 128 | 15 |
+| `/login` | publico | 200 | 6.9 | 14.9 | 7.6 | 18.2 | 15.213 | 15 |
+| `/relatorios/acesso` | publico | 200 | 18.4 | 31.8 | 21.3 | 39.8 | 32.907 | 15 |
+| `/login (com sessão — sonda do getUser do proxy)` | operador | 200 | 48.2 | 68.6 | 48.9 | 69.5 | 15.213 | 15 |
+| `/ (dashboard)` | operador | 200 | 244.3 | 327.1 | 287.3 | 399.7 | 103.743 | 15 |
+| `/ativos` | operador | 200 | 232.2 | 310.7 | 238.4 | 325.5 | 345.150 | 15 |
+| `/ativos/[id]` | operador | 200 | 249.1 | 337.5 | 256.6 | 352 | 123.370 | 15 |
+| `/movimentacoes` | operador | 200 | 213.5 | 238.1 | 241.2 | 295.9 | 341.320 | 15 |
+| `/movimentacoes/nova` | operador | 200 | 201.1 | 226.8 | 206.4 | 233.9 | 92.197 | 15 |
+| `/itens` | operador | 200 | 423.6 | 466.9 | 434.4 | 480.1 | 175.969 | 15 |
+| `/pendencias` | operador | 200 | 275 | 307.5 | 294.3 | 343 | 213.124 | 15 |
+| `/ajuda` | operador | 200 | 230.3 | 248.5 | 238.4 | 259.6 | 145.422 | 15 |
+| `/relatorios/geral` | operador | 200 | 471.9 | 619 | 703 | 867.6 | 401.122 | 15 |
+| `/relatorios/[filial]` | operador | 200 | 235.6 | 243.6 | 676 | 913.1 | 358.814 | 15 |
+| `/relatorios/gerados` | operador | 200 | 225.8 | 408.6 | 232 | 503.3 | 106.654 | 15 |
+| `/relatorios/gerados/[id]` | operador | 200 | 244.7 | 297.5 | 272.4 | 486.8 | 379.937 | 15 |
+
+JSON gravado em .\docs\perf\f58-linha-de-base-main-local.json
+exit=0

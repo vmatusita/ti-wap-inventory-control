@@ -1,0 +1,39 @@
+# F58 · Frente D — as traduções mortas, cada uma com a decisão
+# Medido contra o corpo VIVO das funções (scripts/db/corpo-vigente.mjs: o último create [or replace] de cada
+# assinatura, sem comentários, sem caixa) e contra TODOS os corpos já escritos (os históricos).
+# Fonte: scratchpad/f58/rascunhos/listas-vivas.mts e veredictos.mts.
+
+## Os 132 literais do erros.ts antigo, e os 23 de fora dele
+
+- Ramos de tradução: 59. Nenhum ramo INTEIRO estava morto: todo ramo tinha ao menos uma grafia viva.
+- Constraints e índices citados por nome: 18 (os 12 da ordem + 6 que só casam fora do erros.ts), todos vivos
+  na réplica das migrations aplicada na ordem do texto.
+- Nenhum par com/sem acento existe INTEIRO no banco: cada frase é escrita numa grafia só, e nem sempre a
+  acentuada (a máquina de estados, 0134, escreve "invalida para ativo").
+
+## As 5 grafias mortas — SAÍRAM de MSG_SQL (e, portanto, do erros.ts)
+
+| ramo                       | grafia             | onde vive                                   | decisão |
+|----------------------------|--------------------|---------------------------------------------|---------|
+| estoqueInsuficiente        | "saldo insuficiente" | só corpos HISTÓRICOS: 0015, 0019, 0024     | removida — o ramo segue com "estoque insuficiente" (0118) |
+| estoqueInsuficiente        | "saldo negativo"   | nenhum SQL fora de comentário                | removida — nunca foi escrita por função |
+| devolucaoMaiorQueReserva   | "liberação maior"  | só corpos HISTÓRICOS: 0015, 0019, 0024       | removida — o ramo segue com "devolução maior" e "atrelado aberto" (0118) |
+| devolucaoMaiorQueReserva   | "liberacao maior"  | nenhum SQL; e sua gêmea acentuada está morta | removida |
+| devolucaoMaiorQueReserva   | "reserva aberta"   | só corpos HISTÓRICOS: 0015, 0019, 0024       | removida |
+
+Motivo: nenhum corpo vivo as emite, então apagar não muda comportamento para mensagem que o banco de hoje
+consegue escrever (prova: D-equivalencia-traducao.txt). E o teste por grafia (erros-do-banco-sql.test.ts)
+reprova frase só histórica — a sabotagem G1 devolve "saldo insuficiente" ao ramo e fica vermelha.
+
+## Os 2 casamentos por PREFIXO — viraram nome INTEIRO
+
+| antes (prefixo)                  | depois (nome vivo)                   | por quê |
+|----------------------------------|--------------------------------------|---------|
+| `lanc_item_estorna`              | `lanc_item_estorna_uidx` (0015)      | único nome vivo com o prefixo; a violação 23505 cita o nome inteiro |
+| `ativos_patrimonio_service_tag`  | `ativos_patrimonio_service_tag_uidx` (0003 → 0091, mesmo nome) | idem |
+
+## As 43 grafias gêmeas de acento — FICAM
+
+Não existem em SQL nenhum, e cada uma é a gêmea de acento de uma grafia VIVA do mesmo ramo — a regra da ordem
+("cada ramo com as suas grafias com e sem acento", F22). O teste as aceita só nessa condição: gêmea cuja
+parceira viva sumir passa a reprovar como "sem fonte".

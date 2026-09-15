@@ -100,12 +100,19 @@ const CAP_PAGINACAO = 100_000
 // de fixar `teto`, em vez de já testar `rows.length < teto` nela). Página
 // vazia continua encerrando a leitura — é o caso em que o total é múltiplo
 // exato do teto observado, e nenhuma página fica curta para avisar.
+//
+// ⚠ F58 — A LINHA É INFERIDA DO BUILDER, NÃO DECLARADA. Até a F58 `fazPagina` devolvia
+// `{ data: unknown }` e esta função fazia `(data ?? []) as Row[]`: um cast só, aqui dentro, que
+// apagava o tipo do `select` para as ~33 leituras em lote que passam por ela — quem chamava
+// `paginarTodos<X>` escrevia QUALQUER `X`, e uma coluna ausente do `select` virava `undefined`
+// silencioso. Agora `Row` sai do tipo que o supabase-js infere do `select` literal, e um `<X>`
+// explícito no chamador só compila se a linha real couber nele.
 export async function paginarTodos<Row>(
   rotuloErro: string,
   fazPagina: (
     from: number,
     to: number,
-  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  ) => PromiseLike<{ data: readonly Row[] | null; error: { message: string } | null }>,
 ): Promise<Row[]> {
   const acc: Row[] = []
   let from = 0
@@ -116,7 +123,7 @@ export async function paginarTodos<Row>(
   for (;;) {
     const { data, error } = await fazPagina(from, from + PAGINA - 1)
     if (error) throw new Error(`${rotuloErro}: ${error.message}`)
-    const rows = (data ?? []) as Row[]
+    const rows = data ?? []
     if (rows.length === 0) break
     acc.push(...rows)
     from += rows.length
@@ -245,7 +252,7 @@ export async function paginarPorIds<Row>(
     lote: string[],
     from: number,
     to: number,
-  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  ) => PromiseLike<{ data: readonly Row[] | null; error: { message: string } | null }>,
 ): Promise<Row[]> {
   if (ids.length === 0) return []
   const lotes: string[][] = []

@@ -32,6 +32,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/types/database'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_MESMA_IDENTIDADE } from '@/lib/queries/formas/ativos'
 
 // ---------------------------------------------------------------------------
 // As chaves — funções puras
@@ -111,8 +113,6 @@ export type ResultadoDaIdentidade =
     }
   | { readonly ok: false; readonly erro: { readonly message: string; readonly code?: string } }
 
-const SELECT_IDENTIDADE = 'id, patrimonio, service_tag, filial_id, filiais(nome)'
-
 /**
  * Os cadastros do acervo que já têm a identidade de cada par pedido.
  *
@@ -147,7 +147,7 @@ export async function cadastrosComMesmaIdentidade(
   if (pedidas.size === 0) return { ok: true, porChave }
 
   const base = () => {
-    let q = client.from('ativos').select(SELECT_IDENTIDADE)
+    let q = client.from('ativos').select(LEITURA_MESMA_IDENTIDADE.select)
     if (opcoes.excetoAtivoId) q = q.neq('id', opcoes.excetoAtivoId)
     if (opcoes.alcance.alcance === 'unidade') q = q.eq('filial_id', opcoes.alcance.unidadeId)
     return q
@@ -165,14 +165,24 @@ export async function cadastrosComMesmaIdentidade(
     if (resposta.error) {
       return { ok: false, erro: { message: resposta.error.message, code: resposta.error.code } }
     }
-    for (const a of resposta.data ?? []) {
+    // A forma errada segue o MESMO caminho do erro de banco, logo acima: o mesmo par
+    // { message, code } (ErroDeForma tem `code = 'F58_FORMA'`).
+    const lido = linhasOuFalha(
+      resposta.data,
+      LEITURA_MESMA_IDENTIDADE.forma,
+      LEITURA_MESMA_IDENTIDADE.rotulo,
+    )
+    if (!lido.ok) {
+      return { ok: false, erro: { message: lido.erro.message, code: lido.erro.code } }
+    }
+    for (const a of lido.linhas) {
       const chave = chaveDeIdentidadeSemUnidade(a.patrimonio, a.service_tag)
       if (chave === null || !pedidas.has(chave)) continue
       const lista = porChave.get(chave) ?? []
       lista.push({
         ativoId: a.id,
         filialId: a.filial_id,
-        filialNome: (a.filiais as { nome: string } | null)?.nome ?? null,
+        filialNome: a.filiais.nome,
       })
       porChave.set(chave, lista)
     }

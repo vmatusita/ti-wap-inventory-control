@@ -2,6 +2,8 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/types/database'
+import { linhasDe } from '@/lib/supabase/linhas'
+import { LEITURA_TIPOS_ITEM, LEITURA_TIPOS_ITEM_ADMIN } from '@/lib/queries/formas/tipos-item'
 
 // Leituras do catálogo de TIPOS de item (F37 · D7). Rota só do operador — client do
 // servidor com a sessão dele (RLS `authenticated`), como o resto de src/lib/queries.
@@ -24,12 +26,12 @@ export async function listarTiposItemAtivos(): Promise<TipoItem[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tipos_item')
-    .select('id, slug, rotulo, ativo, ordem')
+    .select(LEITURA_TIPOS_ITEM.select)
     .eq('ativo', true)
     .order('ordem', { ascending: true })
     .order('rotulo', { ascending: true })
   if (error) throw new Error(`Falha ao listar tipos de item: ${error.message}`)
-  return (data ?? []) as TipoItem[]
+  return linhasDe(data, LEITURA_TIPOS_ITEM.forma, LEITURA_TIPOS_ITEM.rotulo)
 }
 
 /**
@@ -55,11 +57,11 @@ export async function listarTiposItem(
   const supabase = client ?? (await createClient())
   const { data, error } = await supabase
     .from('tipos_item')
-    .select('id, slug, rotulo, ativo, ordem')
+    .select(LEITURA_TIPOS_ITEM.select)
     .order('ordem', { ascending: true })
     .order('rotulo', { ascending: true })
   if (error) throw new Error(`Falha ao listar tipos de item: ${error.message}`)
-  return (data ?? []) as TipoItem[]
+  return linhasDe(data, LEITURA_TIPOS_ITEM.forma, LEITURA_TIPOS_ITEM.rotulo)
 }
 
 /** Catálogo inteiro (ativos e inativos) + quantos itens usam cada tipo. */
@@ -67,12 +69,11 @@ export async function listarTiposItemAdmin(): Promise<TipoItemAdmin[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tipos_item')
-    .select('id, slug, rotulo, ativo, ordem, itens(count)')
+    .select(LEITURA_TIPOS_ITEM_ADMIN.select)
     .order('ordem', { ascending: true })
     .order('rotulo', { ascending: true })
   if (error) throw new Error(`Falha ao listar tipos de item: ${error.message}`)
-  type Row = TipoItem & { itens: { count: number }[] }
-  return ((data ?? []) as Row[]).map((r) => ({
+  return linhasDe(data, LEITURA_TIPOS_ITEM_ADMIN.forma, LEITURA_TIPOS_ITEM_ADMIN.rotulo).map((r) => ({
     id: r.id,
     slug: r.slug,
     rotulo: r.rotulo,

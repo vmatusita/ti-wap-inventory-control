@@ -1,5 +1,6 @@
 'use server'
 
+import type { z } from 'zod'
 import { createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
@@ -13,8 +14,11 @@ import {
 } from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
+import { valorOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_APAGAR_CONFLITO } from '@/lib/queries/formas/conflitos'
 // `import type` é permitido num módulo 'use server' — a regra da F13 proíbe EXPORTAR o que
 // não é função async, não importar. O que nunca pode aparecer aqui é um `export type`.
 import type { LadoConflito } from '@/lib/pendencias/conflitos'
@@ -278,14 +282,14 @@ export async function apagarConflito(input: {
   }
 
   // ---- a RPC (a trava de verdade) ----
-  const { data, error } = await supabase.rpc('apagar_ativos_conflito_filiais', {
+  // `p_backup_path = null` é "sem arquivo" (abaixo do cap não há backup em arquivo — o
+  // backup vai em jsonb no próprio evento) — a porta aceita null aqui pelo mapa da RPC
+  // (src/lib/supabase/rpc.ts).
+  const { data, error } = await chamarRpc(supabase, 'apagar_ativos_conflito_filiais', {
     p_ativos: ativoIds,
     p_confirmacao: parsed.data.confirmacao,
     p_justificativa: parsed.data.justificativa,
-    // ⚠ `supabase gen types` declara TODO parâmetro de RPC como não-anulável, mas aqui NULL
-    // é valor de domínio (abaixo do cap não há arquivo de backup — o backup vai em jsonb
-    // no próprio evento). Mesmo contorno que `resetarBloco` usa para o alcance global.
-    p_backup_path: backupPath as unknown as string,
+    p_backup_path: backupPath,
   })
   if (error) {
     registrarFalha({
@@ -300,12 +304,11 @@ export async function apagarConflito(input: {
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
   }
 
-  const ret = (data ?? {}) as {
-    ativos?: number
-    movimentacoes?: number
-    termos?: number
-    arquivos_termos?: string[]
-  }
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada aqui degrada para "sem
+  // números" (mesmo `?? default` que cada leitura de `ret` já faz abaixo) — nunca dizer que a
+  // exclusão não aconteceu depois que ela aconteceu.
+  const lidoRet = valorOuFalha(data, LEITURA_APAGAR_CONFLITO.forma, LEITURA_APAGAR_CONFLITO.rotulo)
+  const ret: Partial<z.output<typeof LEITURA_APAGAR_CONFLITO.forma>> = lidoRet.ok ? lidoRet.valor : {}
 
   // ---- limpeza dos .docx, DEPOIS do commit ----
   // F54 — a raiz das cópias é `conflito/<digest>`, IGUAL acima e abaixo do teto de 25.

@@ -1,5 +1,6 @@
 'use server'
 
+import type { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -33,6 +34,16 @@ import {
   raizDoAtivo,
   raizDoBackupEmArquivo,
 } from '@/lib/storage/copiar-antes-de-remover'
+import { chamarRpc } from '@/lib/supabase/rpc'
+import { valorOuFalha } from '@/lib/supabase/linhas'
+import {
+  FORMA_RESETAR_BLOCO,
+  LEITURA_APAGAR_ATIVO,
+  LEITURA_APAGAR_ITEM,
+  LEITURA_APAGAR_MOVIMENTACAO,
+  LEITURA_FORCAR_ESTADO,
+  LEITURA_FORCAR_SALDO,
+} from '@/lib/queries/formas/dev-destrutivo'
 
 // Server Actions da ZONA DESTRUTIVA da /dev (F23) — apagar, resetar e forçar.
 //
@@ -209,14 +220,17 @@ export async function apagarAtivo(input: {
     }
   }
 
-  const { data, error } = await supabase.rpc('apagar_ativo', {
+  const { data, error } = await chamarRpc(supabase, 'apagar_ativo', {
     p_ativo: ativoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { arquivos_termos?: string[]; movimentacoes?: number; termos?: number }
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem
+  // números/sem arquivos" — o `?? 0`/`?? []` abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_APAGAR_ATIVO.forma, LEITURA_APAGAR_ATIVO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_APAGAR_ATIVO.forma>> = lidoR.ok ? lidoR.valor : {}
   // F54 — a raiz das cópias é `ativo/<id>`. Esta action NÃO tem backup em arquivo (o dela
   // é jsonb inline no evento `ativo_apagado`, escrito pela RPC na mesma transação), então
   // a âncora é o próprio id do ativo — que a RPC já grava em `detalhe->>'ativo_id'`. É por
@@ -267,14 +281,17 @@ export async function apagarMovimentacao(input: {
   })
   if (recusa) return { ok: false, erro: recusa }
 
-  const { data, error } = await supabase.rpc('apagar_movimentacao', {
+  const { data, error } = await chamarRpc(supabase, 'apagar_movimentacao', {
     p_mov: movimentacaoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { status_restaurado?: string | null }
+  // A escrita já aconteceu: forma errada degrada para "sem status restaurado" — o `?? null`
+  // abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_APAGAR_MOVIMENTACAO.forma, LEITURA_APAGAR_MOVIMENTACAO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_APAGAR_MOVIMENTACAO.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ACERVO)
   return { ok: true, dados: { statusRestaurado: r.status_restaurado ?? null } }
 }
@@ -310,14 +327,17 @@ export async function apagarItem(input: {
   })
   if (recusa) return { ok: false, erro: recusa }
 
-  const { data, error } = await supabase.rpc('apagar_item', {
+  const { data, error } = await chamarRpc(supabase, 'apagar_item', {
     p_item: itemId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { lancamentos?: number }
+  // A escrita já aconteceu: forma errada degrada para "sem contagem" — o `?? 0` abaixo já
+  // tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_APAGAR_ITEM.forma, LEITURA_APAGAR_ITEM.rotulo)
+  const r: Partial<z.output<typeof LEITURA_APAGAR_ITEM.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ITENS)
   return { ok: true, dados: { lancamentos: r.lancamentos ?? 0 } }
 }
@@ -397,12 +417,14 @@ export async function resetarBloco(input: {
     }
   }
 
-  const rpc = bloco === 'acervo' ? 'resetar_acervo' : 'resetar_itens'
-  // ⚠ `p_filial as unknown as number`: `supabase gen types` declara todo parâmetro de RPC como
-  // não-anulável, e aqui NULL é um valor de domínio — o alcance GLOBAL. As duas RPCs tratam
-  // `p_filial is null` em cada recorte (migration 0083).
-  const { data, error } = await supabase.rpc(rpc, {
-    p_filial: filialId as unknown as number,
+  // Tipado explicitamente: a porta exige `N extends NomeRpc`, e o tipo inferido de um
+  // ternário entre dois literais widened para `string` sem essa anotação.
+  const rpc: 'resetar_acervo' | 'resetar_itens' =
+    bloco === 'acervo' ? 'resetar_acervo' : 'resetar_itens'
+  // `p_filial = null` é o alcance GLOBAL, valor de domínio — a porta aceita null aqui por
+  // `ALCANCE_DO_RESET` (src/lib/supabase/rpc.ts).
+  const { data, error } = await chamarRpc(supabase, rpc, {
+    p_filial: filialId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
     p_backup_path: backupPath,
@@ -410,7 +432,11 @@ export async function resetarBloco(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as Record<string, unknown> & { arquivos_termos?: string[] }
+  // A escrita já aconteceu: forma errada degrada para "sem números" — a action já espalhava o
+  // objeto inteiro (`{ ...r, backup_path }`) sem exigir campo nenhum. `rpc` decide qual das
+  // duas RPCs rodou, mas as duas têm a MESMA forma (`FORMA_RESETAR_BLOCO`, a união das chaves).
+  const lidoR = valorOuFalha(data, FORMA_RESETAR_BLOCO, `dev-destrutivo.resetar-${bloco}`)
+  const r: Partial<z.output<typeof FORMA_RESETAR_BLOCO>> = lidoR.ok ? lidoR.valor : {}
   // F54 — a raiz das cópias é o caminho do JSON do backup sem a extensão. O JSON já subiu
   // (antes da RPC, como manda a autoproteção), e a lista de `.docx` só existe agora, no
   // retorno dela — por isso o JSON não pode listar as cópias, e o caminho é derivado.
@@ -444,14 +470,17 @@ export async function forcarEstado(input: {
   }
   const { ativoId, status, justificativa } = parsed.data
 
-  const { data, error } = await supabase.rpc('forcar_estado_ativo', {
+  const { data, error } = await chamarRpc(supabase, 'forcar_estado_ativo', {
     p_ativo: ativoId,
     p_status: status,
     p_justificativa: justificativa,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { alterado?: boolean; de?: string; para?: string }
+  // A escrita já aconteceu: forma errada degrada para "não alterado" — o `?? false`/`?? null`
+  // abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_FORCAR_ESTADO.forma, LEITURA_FORCAR_ESTADO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_FORCAR_ESTADO.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ACERVO)
   return {
     ok: true,
@@ -479,7 +508,7 @@ export async function forcarSaldo(input: {
   }
   const { itemId, filialId, saldoAlvo, justificativa } = parsed.data
 
-  const { data, error } = await supabase.rpc('forcar_saldo_item', {
+  const { data, error } = await chamarRpc(supabase, 'forcar_saldo_item', {
     p_item: itemId,
     p_filial: filialId,
     p_saldo_alvo: saldoAlvo,
@@ -487,7 +516,10 @@ export async function forcarSaldo(input: {
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
-  const r = (data ?? {}) as { alterado?: boolean; de?: number; para?: number; delta?: number }
+  // A escrita já aconteceu: forma errada degrada para "não alterado" — o `?? false`/`?? null`
+  // abaixo já tratava dado ausente do mesmo jeito.
+  const lidoR = valorOuFalha(data, LEITURA_FORCAR_SALDO.forma, LEITURA_FORCAR_SALDO.rotulo)
+  const r: Partial<z.output<typeof LEITURA_FORCAR_SALDO.forma>> = lidoR.ok ? lidoR.valor : {}
   revalidar(ROTAS_ITENS)
   return {
     ok: true,

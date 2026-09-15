@@ -1,0 +1,143 @@
+{
+  "literais_do_erros_antigo": 132,
+  "textos_de_raise_vivos": 209,
+  "funcoes_vivas": 88,
+  "mensagens_no_corpus": 735,
+  "codes": 11,
+  "casos": 8085,
+  "divergencias": 220,
+  "mensagens_divergentes": [
+    {
+      "mensagem": "saldo insuficiente",
+      "codes": 10,
+      "antes": "Estoque insuficiente: a operação deixaria o item com estoque negativo na pratele",
+      "depois": "saldo insuficiente"
+    },
+    {
+      "mensagem": "saldo negativo",
+      "codes": 10,
+      "antes": "Estoque insuficiente: a operação deixaria o item com estoque negativo na pratele",
+      "depois": "saldo negativo"
+    },
+    {
+      "mensagem": "liberação maior",
+      "codes": 10,
+      "antes": "A devolução é maior que a quantidade reservada para o chamado.",
+      "depois": "liberação maior"
+    },
+    {
+      "mensagem": "liberacao maior",
+      "codes": 10,
+      "antes": "A devolução é maior que a quantidade reservada para o chamado.",
+      "depois": "liberacao maior"
+    },
+    {
+      "mensagem": "reserva aberta",
+      "codes": 10,
+      "antes": "A devolução é maior que a quantidade reservada para o chamado.",
+      "depois": "reserva aberta"
+    },
+    {
+      "mensagem": "lanc_item_estorna",
+      "codes": 10,
+      "antes": "Este lançamento já foi estornado.",
+      "depois": "lanc_item_estorna"
+    },
+    {
+      "mensagem": "ativos_patrimonio_service_tag",
+      "codes": 10,
+      "antes": "Já existe um ativo com esse patrimônio e service tag nesta filial.",
+      "depois": "ativos_patrimonio_service_tag"
+    },
+    {
+      "mensagem": "duplicate key value violates unique constraint \"lanc_item_estorna\"",
+      "codes": 10,
+      "antes": "Este lançamento já foi estornado.",
+      "depois": "Já existe um registro com esses dados. Atualize a página e tente de novo."
+    },
+    {
+      "mensagem": "new row for relation \"x\" violates check constraint \"lanc_item_estorna\"",
+      "codes": 10,
+      "antes": "Este lançamento já foi estornado.",
+      "depois": "new row for relation \"x\" violates check constraint \"lanc_item_estorna\""
+    },
+    {
+      "mensagem": "duplicate key value violates unique constraint \"ativos_patrimonio_service_tag\"",
+      "codes": 10,
+      "antes": "Já existe um ativo com esse patrimônio e service tag nesta filial.",
+      "depois": "Já existe um registro com esses dados. Atualize a página e tente de novo."
+    },
+    {
+      "mensagem": "new row for relation \"x\" violates check constraint \"ativos_patrimonio_service_tag\"",
+      "codes": 10,
+      "antes": "Já existe um ativo com esse patrimônio e service tag nesta filial.",
+      "depois": "new row for relation \"x\" violates check constraint \"ativos_patrimonio_service_ta"
+    },
+    {
+      "mensagem": "SALDO INSUFICIENTE",
+      "codes": 10,
+      "antes": "Estoque insuficiente: a operação deixaria o item com estoque negativo na pratele",
+      "depois": "SALDO INSUFICIENTE"
+    },
+    {
+      "mensagem": "SALDO NEGATIVO",
+      "codes": 10,
+      "antes": "Estoque insuficiente: a operação deixaria o item com estoque negativo na pratele",
+      "depois": "SALDO NEGATIVO"
+    },
+    {
+      "mensagem": "LIBERAÇÃO MAIOR",
+      "codes": 10,
+      "antes": "A devolução é maior que a quantidade reservada para o chamado.",
+      "depois": "LIBERAÇÃO MAIOR"
+    },
+    {
+      "mensagem": "LIBERACAO MAIOR",
+      "codes": 10,
+      "antes": "A devolução é maior que a quantidade reservada para o chamado.",
+      "depois": "LIBERACAO MAIOR"
+    },
+    {
+      "mensagem": "RESERVA ABERTA",
+      "codes": 10,
+      "antes": "A devolução é maior que a quantidade reservada para o chamado.",
+      "depois": "RESERVA ABERTA"
+    },
+    {
+      "mensagem": "LANC_ITEM_ESTORNA",
+      "codes": 10,
+      "antes": "Este lançamento já foi estornado.",
+      "depois": "LANC_ITEM_ESTORNA"
+    },
+    {
+      "mensagem": "ATIVOS_PATRIMONIO_SERVICE_TAG",
+      "codes": 10,
+      "antes": "Já existe um ativo com esse patrimônio e service tag nesta filial.",
+      "depois": "ATIVOS_PATRIMONIO_SERVICE_TAG"
+    },
+    {
+      "mensagem": "DUPLICATE KEY VALUE VIOLATES UNIQUE CONSTRAINT \"LANC_ITEM_ESTORNA\"",
+      "codes": 10,
+      "antes": "Este lançamento já foi estornado.",
+      "depois": "Já existe um registro com esses dados. Atualize a página e tente de novo."
+    },
+    {
+      "mensagem": "NEW ROW FOR RELATION \"X\" VIOLATES CHECK CONSTRAINT \"LANC_ITEM_ESTORNA\"",
+      "codes": 10,
+      "antes": "Este lançamento já foi estornado.",
+      "depois": "NEW ROW FOR RELATION \"X\" VIOLATES CHECK CONSTRAINT \"LANC_ITEM_ESTORNA\""
+    },
+    {
+      "mensagem": "DUPLICATE KEY VALUE VIOLATES UNIQUE CONSTRAINT \"ATIVOS_PATRIMONIO_SERVICE_TAG\"",
+      "codes": 10,
+      "antes": "Já existe um ativo com esse patrimônio e service tag nesta filial.",
+      "depois": "Já existe um registro com esses dados. Atualize a página e tente de novo."
+    },
+    {
+      "mensagem": "NEW ROW FOR RELATION \"X\" VIOLATES CHECK CONSTRAINT \"ATIVOS_PATRIMONIO_SERVICE_TAG\"",
+      "codes": 10,
+      "antes": "Já existe um ativo com esse patrimônio e service tag nesta filial.",
+      "depois": "NEW ROW FOR RELATION \"X\" VIOLATES CHECK CONSTRAINT \"ATIVOS_PATRIMONIO_SERVICE_TA"
+    }
+  ]
+}

@@ -282,8 +282,13 @@ describe('backup v2 do import × scripts/db/restaurar.mjs — as chaves batem (F
     )
     expect(corpoAplicarImportCompleto).toContain('ponteiros_perdidos: desvinculos.ponteirosPerdidos')
     // Lidas ANTES da RPC (senão os elos já estariam nulos — a pré-imagem se perderia).
+    // F58 · Frente B — `client.rpc('importar_ativos_substituir', …)` virou
+    // `chamarRpc(client, 'importar_ativos_substituir', …)` (a PORTA ÚNICA); a prova
+    // continua sendo a ORDEM, só a grafia da chamada mudou.
     const posLeitura = corpoAplicarImportCompleto.indexOf('exportarDesvinculosFk(')
-    const posRpc = corpoAplicarImportCompleto.indexOf("client.rpc('importar_ativos_substituir'")
+    const posRpc = corpoAplicarImportCompleto.indexOf(
+      "chamarRpc(client, 'importar_ativos_substituir'",
+    )
     expect(posLeitura).toBeGreaterThan(-1)
     expect(posRpc).toBeGreaterThan(-1)
     expect(posLeitura).toBeLessThan(posRpc)

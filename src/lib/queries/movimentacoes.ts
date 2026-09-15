@@ -9,7 +9,6 @@ import type {
 import { canonicalizarPatrimonio, patrimoniosRepetidos } from '@/lib/patrimonio'
 import {
   patrimoniosDuplicados,
-  RESUMO_SELECT,
   resumoDe,
   type AtivoResumo,
   type RawAtivoResumo,
@@ -21,6 +20,19 @@ import {
   MIN_PREFIXO_SUGESTAO,
   prefixoSeguro,
 } from '@/lib/busca/prefixo'
+import { linhaDe, linhaOuFalha, linhasDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_CANDIDATAS_DUPLICATA,
+  LEITURA_ENVIO_MANUTENCAO,
+  LEITURA_LINHA_DO_TEMPO,
+  LEITURA_LISTA_MOVIMENTACOES,
+  LEITURA_LISTA_MOVIMENTACOES_POR_PATRIMONIO,
+  LEITURA_MOV_PARA_DUPLICAR,
+  LEITURA_SUGESTAO_COLABORADOR_MOV,
+  LEITURA_SUGESTAO_SETOR_MOV,
+  LEITURA_ULTIMA_MOV_DO_USUARIO,
+} from '@/lib/queries/formas/movimentacoes'
+import { LEITURA_RECENTES_DO_OPERADOR } from '@/lib/queries/formas/ativos'
 
 // Estado do ativo ANTES da movimentacao (usado no dialog de estorno — o ativo
 // volta a este estado). Gravado pelo trigger em `snapshot_anterior` (jsonb).
@@ -56,39 +68,10 @@ export type MovimentacaoTimeline = {
   filial_destino_nome: string | null
 }
 
-type AutorEmbed = { nome: string | null } | null
-type FilialEmbed = { nome: string } | null
-
-// O select usa hints de FK (`!fkname`) e aliases de embed; o type-checker do
-// supabase-js nao infere esse formato, entao tipamos a linha crua e fazemos o
-// cast explicito. Os nomes de coluna sao verificados em runtime pelo banco.
-type RawTimelineRow = {
-  id: string
-  tipo: MovimentacaoTimeline['tipo']
-  motivo: string | null
-  data: string
-  colaborador: string | null
-  setor: string | null
-  chamado: string | null
-  chamado_fornecedor: string | null
-  status_anterior: StatusAtivo | null
-  status_resultante: StatusAtivo | null
-  itens_faltantes: string[] | null
-  observacao: string | null
-  estorno_de: string | null
-  snapshot_anterior: SnapshotAnterior | null
-  created_at: string
-  forcado: boolean
-  autor: AutorEmbed
-  origem: FilialEmbed
-  destino: FilialEmbed
-}
-
-const TIMELINE_SELECT =
-  'id, tipo, motivo, data, colaborador, setor, chamado, chamado_fornecedor, status_anterior, status_resultante, itens_faltantes, observacao, estorno_de, snapshot_anterior, created_at, forcado, ' +
-  'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
-  'origem:filiais!movimentacoes_filial_id_fkey(nome), ' +
-  'destino:filiais!movimentacoes_filial_destino_id_fkey(nome)'
+// F58: o select da linha do tempo e a forma dela moram em `queries/formas/movimentacoes.ts`
+// (LEITURA_LINHA_DO_TEMPO), como LITERAL. O comentário que ficava aqui dizia que o supabase-js não
+// inferia hints de FK e aliases de embed — ele infere, quando o texto é literal; o que quebrava a
+// inferência era a concatenação por `+`.
 
 // Linha do tempo do ativo. Ordenada por created_at desc, com `ordem` como
 // desempate exato — o empate de created_at e ROTINA (lote e import gravam N
@@ -110,17 +93,18 @@ export async function listarMovimentacoesDoAtivo(
   // linha do tempo faltando história, sem aviso nenhum. Desempate por `ordem`
   // porque `created_at` empata quando um lote grava tudo na mesma transação,
   // e ordenação com empate não pagina — `ordem` é o único total (F53).
-  const rows = await paginarTodos<RawTimelineRow>(
+  const brutas = await paginarTodos(
     'Falha ao carregar a linha do tempo',
     (from, to) =>
       supabase
         .from('movimentacoes')
-        .select(TIMELINE_SELECT)
+        .select(LEITURA_LINHA_DO_TEMPO.select)
         .eq('ativo_id', ativoId)
         .order('created_at', { ascending: false })
         .order('ordem', { ascending: false })
         .range(from, to),
   )
+  const rows = linhasDe(brutas, LEITURA_LINHA_DO_TEMPO.forma, LEITURA_LINHA_DO_TEMPO.rotulo)
   return rows.map((r) => {
     const autor = r.autor
     const origem = r.origem
@@ -139,7 +123,15 @@ export async function listarMovimentacoesDoAtivo(
       itens_faltantes: r.itens_faltantes,
       observacao: r.observacao,
       estorno_de: r.estorno_de,
-      snapshot_anterior: (r.snapshot_anterior as SnapshotAnterior | null) ?? null,
+      // O retrato conferido pela forma frouxa; uma chave AUSENTE num retrato antigo vira `null`.
+      snapshot_anterior: r.snapshot_anterior
+        ? {
+            status: r.snapshot_anterior.status ?? null,
+            colaborador: r.snapshot_anterior.colaborador ?? null,
+            setor: r.snapshot_anterior.setor ?? null,
+            filial_id: r.snapshot_anterior.filial_id ?? null,
+          }
+        : null,
       created_at: r.created_at,
       forcado: r.forcado === true,
       autor_nome: autor?.nome ?? null,
@@ -166,7 +158,7 @@ export async function ultimoEnvioManutencao(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select('chamado, chamado_fornecedor')
+    .select(LEITURA_ENVIO_MANUTENCAO.select)
     .eq('ativo_id', ativoId)
     .eq('tipo', 'envio_manutencao')
     .order('created_at', { ascending: false })
@@ -175,7 +167,7 @@ export async function ultimoEnvioManutencao(
     .maybeSingle()
   if (error)
     throw new Error(`Falha ao buscar o envio de manutenção: ${error.message}`)
-  return (data as ChamadosManutencao | null) ?? null
+  return linhaDe(data, LEITURA_ENVIO_MANUTENCAO.forma, LEITURA_ENVIO_MANUTENCAO.rotulo)
 }
 
 // "Repetir ultima" (OS-F2 3.7.3): pre-preenche tipo/motivo/colaborador/setor/
@@ -200,7 +192,7 @@ export async function ultimaMovimentacaoDoUsuario(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select('tipo, motivo, colaborador, setor, chamado, termo_assinado, termo_data')
+    .select(LEITURA_ULTIMA_MOV_DO_USUARIO.select)
     .eq('criado_por', userId)
     .neq('tipo', 'estorno')
     .neq('tipo', 'compra')
@@ -211,7 +203,9 @@ export async function ultimaMovimentacaoDoUsuario(
     .maybeSingle()
 
   if (error) return null
-  return (data as UltimaMovimentacaoUsuario | null) ?? null
+  // A forma errada segue o MESMO caminho de falha: degrada para `null`, sem lançar.
+  const r = linhaOuFalha(data, LEITURA_ULTIMA_MOV_DO_USUARIO.forma, LEITURA_ULTIMA_MOV_DO_USUARIO.rotulo)
+  return r.ok ? r.linha : null
 }
 
 // "Duplicar" (OS-F2 3.7.4): abre /movimentacoes/nova pre-preenchida com aquela
@@ -236,14 +230,12 @@ export async function buscarMovimentacaoParaDuplicar(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select(
-      'ativo_id, tipo, motivo, colaborador, setor, chamado, termo_assinado, termo_data, observacao, filial_destino_id, itens_faltantes',
-    )
+    .select(LEITURA_MOV_PARA_DUPLICAR.select)
     .eq('id', id)
     .maybeSingle()
 
   if (error) throw new Error(`Falha ao carregar movimentação: ${error.message}`)
-  return (data as MovimentacaoParaDuplicar | null) ?? null
+  return linhaDe(data, LEITURA_MOV_PARA_DUPLICAR.forma, LEITURA_MOV_PARA_DUPLICAR.rotulo)
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +261,7 @@ export async function ultimosAtivosMovimentadosDoOperador(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select(`ativo_id, ativos(${RESUMO_SELECT})`)
+    .select(LEITURA_RECENTES_DO_OPERADOR.select)
     .eq('criado_por', operadorId)
     .neq('tipo', 'estorno')
     .neq('tipo', 'compra')
@@ -281,11 +273,11 @@ export async function ultimosAtivosMovimentadosDoOperador(
   if (error)
     throw new Error(`Falha ao carregar movimentações recentes: ${error.message}`)
 
-  type Row = { ativo_id: string; ativos: RawAtivoResumo | null }
+  const linhas = linhasDe(data, LEITURA_RECENTES_DO_OPERADOR.forma, LEITURA_RECENTES_DO_OPERADOR.rotulo)
   const vistos = new Set<string>()
   const rows: RawAtivoResumo[] = []
-  for (const r of (data ?? []) as unknown as Row[]) {
-    if (!r.ativos || vistos.has(r.ativo_id)) continue
+  for (const r of linhas) {
+    if (vistos.has(r.ativo_id)) continue
     vistos.add(r.ativo_id)
     rows.push(r.ativos)
     if (rows.length >= limite) break
@@ -320,27 +312,56 @@ const MAX_SUGESTOES = 10
 // viraram uma só em `busca/prefixo.ts`: o conjunto neutralizado é regra de
 // segurança do ILIKE, e manter duas listas era garantir que um dia elas divergiriam.
 
+async function sugestoesDeColaborador(termo: string): Promise<string[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('movimentacoes')
+    .select(LEITURA_SUGESTAO_COLABORADOR_MOV.select)
+    .not('colaborador', 'is', null)
+    .ilike('colaborador', `${termo}%`)
+    .limit(LINHAS_SUGESTAO)
+  if (error) throw new Error(`Falha ao carregar sugestões: ${error.message}`)
+  return linhasDe(
+    data,
+    LEITURA_SUGESTAO_COLABORADOR_MOV.forma,
+    LEITURA_SUGESTAO_COLABORADOR_MOV.rotulo,
+  ).map((r) => r.colaborador)
+}
+
+async function sugestoesDeSetor(termo: string): Promise<string[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('movimentacoes')
+    .select(LEITURA_SUGESTAO_SETOR_MOV.select)
+    .not('setor', 'is', null)
+    .ilike('setor', `${termo}%`)
+    .limit(LINHAS_SUGESTAO)
+  if (error) throw new Error(`Falha ao carregar sugestões: ${error.message}`)
+  return linhasDe(data, LEITURA_SUGESTAO_SETOR_MOV.forma, LEITURA_SUGESTAO_SETOR_MOV.rotulo).map(
+    (r) => r.setor,
+  )
+}
+
+// F58 — o nome da coluna tem de ficar LITERAL em cada `.select(…)` (o `coluna` de antes era
+// passado direto, e um parâmetro não é literal para o supabase-js inferir a linha); daí as
+// duas funções acima, uma por coluna, cada uma com o descritor próprio de
+// `formas/movimentacoes.ts`. Esta continua sendo a única chamada pelos dois nomes públicos
+// (`sugestoesSetores`…) — o dedup e o corte abaixo são a MESMA lógica de antes.
 async function sugestoesDeColuna(
   coluna: 'colaborador' | 'setor',
   prefixo: string,
 ): Promise<string[]> {
   const termo = prefixoSeguro(prefixo)
   if (termo.length < MIN_PREFIXO_SUGESTAO) return []
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('movimentacoes')
-    .select(coluna)
-    .not(coluna, 'is', null)
-    .ilike(coluna, `${termo}%`)
-    .limit(LINHAS_SUGESTAO)
 
-  if (error) throw new Error(`Falha ao carregar sugestões: ${error.message}`)
+  const valoresBrutos =
+    coluna === 'colaborador' ? await sugestoesDeColaborador(termo) : await sugestoesDeSetor(termo)
 
   // Dedup case-insensitive preservando a 1ª grafia vista; ordem alfabética
   // (pt-BR, para acento não jogar tudo para o fim).
   const porChave = new Map<string, string>()
-  for (const linha of (data ?? []) as Record<string, string | null>[]) {
-    const valor = linha[coluna]?.trim()
+  for (const bruto of valoresBrutos) {
+    const valor = bruto?.trim()
     if (!valor) continue
     const chave = valor.toLocaleLowerCase('pt-BR')
     if (!porChave.has(chave)) porChave.set(chave, valor)
@@ -394,7 +415,7 @@ export async function possiveisDuplicatasDoDia(
   // cobre ativo_id + data); o casamento exato da TRINCA é feito em código.
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select('id, ativo_id, tipo, data, ativos(patrimonio)')
+    .select(LEITURA_CANDIDATAS_DUPLICATA.select)
     .in('ativo_id', ativoIds)
     .in('tipo', tipos)
     .in('data', datas)
@@ -402,18 +423,12 @@ export async function possiveisDuplicatasDoDia(
   if (error)
     throw new Error(`Falha ao checar duplicatas do dia: ${error.message}`)
 
-  type Row = {
-    id: string
-    ativo_id: string
-    tipo: TipoMovimentacao
-    data: string
-    ativos: { patrimonio: string | null } | null
-  }
   const chaveDoPar = (p: { ativoId: string; tipo: string; data: string }) =>
     `${p.ativoId}|${p.tipo}|${p.data}`
   const pedidas = new Set(pares.map(chaveDoPar))
 
-  const candidatas = ((data ?? []) as unknown as Row[]).filter((r) =>
+  const linhas = linhasDe(data, LEITURA_CANDIDATAS_DUPLICATA.forma, LEITURA_CANDIDATAS_DUPLICATA.rotulo)
+  const candidatas = linhas.filter((r) =>
     pedidas.has(chaveDoPar({ ativoId: r.ativo_id, tipo: r.tipo, data: r.data })),
   )
   if (candidatas.length === 0) return []
@@ -599,43 +614,18 @@ export function patrimoniosAmbiguosNaPagina(
   return patrimoniosRepetidos([...porAtivo.values()])
 }
 
-type RawListaRow = {
-  id: string
-  tipo: TipoMovimentacao
-  data: string
-  created_at: string
-  colaborador: string | null
-  setor: string | null
-  observacao: string | null
-  ativo_id: string
-  ativos: {
-    patrimonio: string | null
-    service_tag: string | null
-    categoria: CategoriaAtivo
-    marca: string | null
-    modelo: string | null
-  } | null
-  autor: AutorEmbed
-  filial: FilialEmbed
-}
-
-const LISTA_COLUNAS =
-  'id, tipo, data, created_at, colaborador, setor, observacao, ativo_id'
-
+// F58 — o select da lista mora em `formas/movimentacoes.ts`, como DOIS literais
+// (`LEITURA_LISTA_MOVIMENTACOES`/`LEITURA_LISTA_MOVIMENTACOES_POR_PATRIMONIO`, mesma forma de
+// linha — o `!inner` não muda a nulabilidade do embed, `ativo_id` já é not null; só muda a
+// semântica do filtro por patrimônio). O comentário que ficava aqui (`listaSelect` montado por
+// `+`) dizia que o supabase-js não inferia a linha assim — ele infere, quando o texto é literal.
+//
 // `!inner` transforma o embed do ativo em INNER JOIN. É PRECISO quando há filtro
 // por patrimônio: sem ele o embed é LEFT JOIN e o `.eq('ativos.patrimonio', …)`
 // apenas ZERA o objeto embutido — as linhas continuam todas na resposta. Medido
 // no Supabase de DEV (22/07/2026): com `!inner`, count = 5; sem `!inner`, mesmo
 // filtro, count = 3.066 (= a base inteira). Primeiro uso de `!inner` no projeto.
 // Sem filtro, mantemos o LEFT JOIN (nenhuma movimentação some por causa do join).
-function listaSelect(inner: boolean): string {
-  return (
-    `${LISTA_COLUNAS}, ` +
-    `ativos${inner ? '!inner' : ''}(patrimonio, service_tag, categoria, marca, modelo), ` +
-    'autor:profiles!movimentacoes_criado_por_fkey(nome), ' +
-    'filial:filiais!movimentacoes_filial_id_fkey(nome)'
-  )
-}
 
 // Query base (select + filtros + ordem, SEM faixa). Devolve uma query NOVA a
 // cada chamada: o builder do postgrest-js é mutável e não se reexecuta com
@@ -654,12 +644,12 @@ function queryLista(
   busca: BuscaMovimentacao,
   head = false,
 ) {
-  let q = supabase
-    .from('movimentacoes')
-    .select(listaSelect(busca?.campo === 'patrimonio'), {
-      count: 'exact',
-      head,
-    })
+  const porPatrimonio = busca?.campo === 'patrimonio'
+  let q = porPatrimonio
+    ? supabase
+        .from('movimentacoes')
+        .select(LEITURA_LISTA_MOVIMENTACOES_POR_PATRIMONIO.select, { count: 'exact', head })
+    : supabase.from('movimentacoes').select(LEITURA_LISTA_MOVIMENTACOES.select, { count: 'exact', head })
 
   if (params.de) q = q.gte('data', params.de)
   if (params.ate) q = q.lte('data', params.ate)
@@ -733,7 +723,8 @@ export async function listarMovimentacoes(
   if (error)
     throw new Error(`Falha ao listar movimentações: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as RawListaRow[]
+  const descritorLista = busca?.campo === 'patrimonio' ? LEITURA_LISTA_MOVIMENTACOES_POR_PATRIMONIO : LEITURA_LISTA_MOVIMENTACOES
+  const rows = linhasDe(data, descritorLista.forma, descritorLista.rotulo)
 
   // 2ª consulta FIXA (nunca N+1) — espelha `getHistoricoLancamentos`: quais
   // destas linhas já foram estornadas? Não existe coluna `estornada`; o estorno é

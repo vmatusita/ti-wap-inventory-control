@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.63.0',
+    data: '2026-09-15',
+    fase: 'F58',
+    titulo: 'O que as telas leem passou a ser conferido na chegada',
+    mudancas: [
+      'Nenhuma tela mudou nesta versão. O que mudou é por dentro: tudo o que as telas leem passou a ser conferido na chegada, coluna por coluna, contra o formato que a tela espera. Se um dia uma leitura voltar diferente, a tela mostra o aviso de erro que já existe e o problema fica registrado com o nome da leitura — em vez de aparecer um número errado ou um campo vazio sem explicação.',
+      'As explicações em português que aparecem quando o sistema recusa uma operação — "Estoque insuficiente", "Só a última movimentação do ativo pode ser estornada" e as demais — passaram a ser conferidas, uma a uma, contra o texto que o sistema de fato escreve. Se alguma deixar de bater numa mudança futura, os testes param antes de a mudança chegar ao ar, e a tela não volta a mostrar "Não foi possível concluir a operação" no lugar da explicação certa.',
+      'Antes de chegar ao ar, a conferência foi feita contra os dados de verdade: todas as listas, todos os relatórios e todos os relatórios gerados foram lidos, e nenhum registro saiu do formato esperado.',
+      'É a proteção que precisa estar no lugar antes de o sistema atender mais de uma empresa: a mudança que vem a seguir mexe em quase todas as leituras, e agora cada uma delas é conferida.',
+    ],
+  },
+  {
     versao: '1.62.0',
     data: '2026-09-14',
     fase: 'F57',

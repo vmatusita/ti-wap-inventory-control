@@ -1,0 +1,6 @@
+[censo] alvo PRODUCAO · ref pbtjcalbmepmrqzprusb · só leitura
+[censo] login ok
+[censo] 1 relações lidas por src/** — contando…
+[censo] gravado em docs/f58-evidencias/censo-producao-recontagem-anotacoes.json
+  tabela anotacoes                               16  count exato (HEAD)
+[censo] total de linhas nas relações: 16

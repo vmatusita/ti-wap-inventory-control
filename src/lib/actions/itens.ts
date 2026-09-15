@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import { hojeISO } from '@/lib/format'
 import {
   estornoLancamentoSchema,
@@ -19,7 +20,7 @@ import {
   type TransferenciaItemInput,
 } from '@/lib/validators/item'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
-import type { Json } from '@/lib/types/database'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { chaveItem } from '@/lib/itens/chave'
 import { avisoDeRegularizacao, textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { planejarEstorno } from '@/lib/itens/estorno'
@@ -30,7 +31,12 @@ import { estoquePorItem } from '@/lib/itens/repor'
 import { emUsoDoSaldo } from '@/lib/itens/lista'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
-import { decidirVinculoRetorno, type SaldoDaPessoa } from '@/lib/itens/vinculo-retorno'
+import { decidirVinculoRetorno } from '@/lib/itens/vinculo-retorno'
+import { linhaOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_LANCAMENTO_PARA_ESTORNO,
+  LEITURA_LANCAR_ITENS_LOTE,
+} from '@/lib/queries/formas/itens'
 
 // F21 — este arquivo tem DOIS regimes de permissão, e é de propósito:
 //   · LANÇAMENTOS (`lancarItens`, `estornarLancamento`) mexem no saldo de uma FILIAL →
@@ -133,7 +139,7 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
       .filter((x): x is string => !!x),
   )
   if (!lidos.ok) return { ok: false, resultados: [], erroGeral: lidos.erro }
-  const saldosPorPessoa = lidos.mapa as Map<string, SaldoDaPessoa[]>
+  const saldosPorPessoa = lidos.mapa
   const consumido = new Map<string, number>()
 
   // F41 — o nome de cada item, para a justificativa do acerto automático (a RPC
@@ -151,7 +157,21 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
     else for (const i of cat ?? []) nomesDeItem.set(i.id, i.nome)
   }
 
-  const payload: Record<string, unknown>[] = []
+  // F58 — forma HONESTA do que vai em `p_linhas` (jsonb): `type` (não `interface` —
+  // ver a armadilha em src/lib/supabase/json.ts), campos já `JsonSerializavel`.
+  type LinhaLancamentoPayload = {
+    item_id: number
+    filial_id: number
+    tipo: TipoLancamento
+    quantidade: number
+    chamado: string | null
+    colaborador: string | null
+    colaborador_id: string | null
+    data: string
+    observacao: string | null
+    observacao_regularizacao: string
+  }
+  const payload: LinhaLancamentoPayload[] = []
 
   for (const v of linhas) {
     const pessoaId = vinculos.get(chaveColaborador(v.colaborador)) ?? null
@@ -221,8 +241,8 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   // linha culpada em `detail` (f41_linha=N), e é ela que fica marcada. As outras
   // não vão como "ok" (não foram gravadas) nem como "erro" (não é culpa delas):
   // vão com o texto de que nada foi gravado.
-  const { data: retorno, error: erroRpc } = await supabase.rpc('lancar_itens_lote', {
-    p_linhas: payload as unknown as Json,
+  const { data: retorno, error: erroRpc } = await chamarRpc(supabase, 'lancar_itens_lote', {
+    p_linhas: payload,
     p_criado_por: uid,
   })
 
@@ -255,7 +275,10 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
     revalidarItens()
     revalidatePath('/relatorios', 'layout')
   }
-  const reg = retorno as { regularizacoes?: number; unidades_regularizadas?: number } | null
+  // A escrita já aconteceu (a RPC não devolveu erro): forma errada degrada para "sem
+  // números" — o `?? 0` abaixo já tratava `undefined` do mesmo jeito.
+  const lidoRetorno = valorOuFalha(retorno, LEITURA_LANCAR_ITENS_LOTE.forma, LEITURA_LANCAR_ITENS_LOTE.rotulo)
+  const reg = lidoRetorno.ok ? lidoRetorno.valor : null
   return {
     ok: true,
     resultados,
@@ -326,7 +349,7 @@ export async function transferirItens(
 
   const obs = observacoesDaTransferencia(origem.nome, destino.nome, observacao)
 
-  const { error } = await supabase.rpc('transferir_item', {
+  const { error } = await chamarRpc(supabase, 'transferir_item', {
     p_origem: origem_id,
     p_destino: destino_id,
     p_itens: linhas.map((l) => ({ item_id: l.item_id, quantidade: l.quantidade })),
@@ -363,12 +386,20 @@ export async function estornarLancamento(input: {
   const cargo = await exigirPapel(supabase, 'operador')
   if (!cargo.ok) return { ok: false, erro: cargo.erro }
 
-  const { data: orig, error: e1 } = await supabase
+  const { data: origBruto, error: e1 } = await supabase
     .from('lancamentos_item')
-    .select('id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id')
+    .select(LEITURA_LANCAMENTO_PARA_ESTORNO.select)
     .eq('id', parsed.data.lancamento_id)
     .maybeSingle()
   if (e1) return { ok: false, erro: traduzErroBanco(e1.message, e1.code) }
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoOrig = linhaOuFalha(
+    origBruto,
+    LEITURA_LANCAMENTO_PARA_ESTORNO.forma,
+    LEITURA_LANCAMENTO_PARA_ESTORNO.rotulo,
+  )
+  if (!lidoOrig.ok) return { ok: false, erro: traduzErroBanco(lidoOrig.erro.message) }
+  const orig = lidoOrig.linha
   if (!orig) return { ok: false, erro: 'Lançamento não encontrado.' }
   if (orig.estorna_id) {
     return { ok: false, erro: 'Um estorno não pode ser estornado.' }
@@ -388,7 +419,7 @@ export async function estornarLancamento(input: {
 
   const plano = planejarEstorno(
     {
-      tipo: orig.tipo as TipoLancamento,
+      tipo: orig.tipo,
       quantidade: orig.quantidade,
       chamado: orig.chamado,
       observacao: orig.observacao,
@@ -522,7 +553,7 @@ export async function criarItem(input: {
     .select('id')
     .single()
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
@@ -697,7 +728,7 @@ export async function atualizarItem(input: {
     .update({ nome, grupo, ordem, ativo, estoque_minimo })
     .eq('id', id)
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate') || error.message.includes('itens_nome_uidx')) {
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }

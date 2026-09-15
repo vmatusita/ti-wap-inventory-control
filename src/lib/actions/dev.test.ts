@@ -89,10 +89,13 @@ describe('apagar conta — a sequência de falha segura', () => {
     // A ordem é o que torna a falha segura: a RPC corta leitura e escrita (0073) e só então a
     // conta de login é removida. Invertida, uma falha na RPC deixaria um perfil VIVO sem conta
     // de login — o pior dos dois estados, e sem nenhum erro visível.
+    // F58 · Frente B — `supabase.rpc('apagar_usuario', …)` virou `chamarRpc(supabase,
+    // 'apagar_usuario', …)` (`supabase` é o client de SESSÃO em escopo em `apagarUsuario`);
+    // a prova é a MESMA ordem, só a grafia da chamada mudou.
     const corpo = corpoDe('apagarUsuario').replace(/\s+/g, '')
-    const rpc = corpo.indexOf(".rpc('apagar_usuario'")
+    const rpc = corpo.indexOf("chamarRpc(supabase,'apagar_usuario'")
     const auth = corpo.indexOf('deleteUser(')
-    expect(rpc, 'a RPC apagar_usuario não é chamada').toBeGreaterThan(-1)
+    expect(rpc, 'a RPC apagar_usuario não é chamada pela porta').toBeGreaterThan(-1)
     expect(auth, 'a conta do Auth não é removida').toBeGreaterThan(-1)
     expect(rpc).toBeLessThan(auth)
   })
@@ -110,10 +113,16 @@ describe('as RPCs de gestão são chamadas com o client de SESSÃO', () => {
   // `auth.uid()` chega preenchido. Pelo service role ele seria nulo e a decisão voltaria a ser
   // do `if` da action.
   it.each(['apagar_usuario', 'encerrar_sessoes_usuario'])('%s', (rpc) => {
-    expect(SEM_ESPACO, `${rpc} não é chamada`).toContain(`.rpc('${rpc}'`)
+    // F58 · Frente B — a PORTA ÚNICA: `chamarRpc(supabase, 'nome', …)` no lugar de
+    // `supabase.rpc('nome', …)`.
+    expect(SEM_ESPACO, `${rpc} não é chamada pela porta`).toContain(`chamarRpc(supabase,'${rpc}'`)
     expect(SEM_ESPACO, `${rpc} chamada pelo client administrativo`).not.toContain(
-      `admin.rpc('${rpc}'`,
+      `chamarRpc(admin,'${rpc}'`,
     )
+  })
+
+  it('nenhuma chamada de RPC deste arquivo usa `.rpc(` direto, fora da porta', () => {
+    expect(CODIGO).not.toMatch(/\.rpc\(/)
   })
 })
 

@@ -20,6 +20,7 @@ import { dataOpcionalSchema } from '@/lib/validators/data'
 import type { CategoriaAtivo } from '@/lib/dominio'
 import {
   TERMO_ARQUIVO,
+  ehTermoTipo,
   familiaDoTipo,
   type FamiliaTermo,
   type TermoTipo,
@@ -48,6 +49,15 @@ import {
   LIMITE_OUTROS_COMPONENTES,
   type CamposTermo,
 } from '@/lib/validators/termo'
+import { linhaOuFalha, linhasOuFalha } from '@/lib/supabase/linhas'
+import {
+  LEITURA_ALVOS_ASSINATURA_LOTE,
+  LEITURA_ATIVOS_ID,
+  LEITURA_CIDADES_DAS_FILIAIS,
+  LEITURA_MOV_PARA_TERMO,
+  LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO,
+  LEITURA_URL_TERMO,
+} from '@/lib/queries/formas/termos'
 
 const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -108,41 +118,11 @@ export type PreparacaoTermo = {
   existentes: { tipo: TermoTipo; dados: CamposTermo & { data?: string } }[]
 }
 
-type MovRow = {
-  id: string
-  tipo: string
-  motivo: string | null
-  colaborador: string | null
-  chamado: string | null
-  itens_faltantes: string[] | null
-  snapshot_anterior: { colaborador?: string | null } | null
-  // MOV-09 — a data da PRÓPRIA movimentação (pode ser retroativa, chips
-  // Hoje/Ontem) e o termo_data que o operador já tenha informado nela: as duas
-  // alimentam o pré-preenchimento de `data` do dialog, abaixo.
-  data: string
-  termo_data: string | null
-  ativo: {
-    id: string
-    categoria: CategoriaAtivo
-    marca: string | null
-    modelo: string | null
-    service_tag: string | null
-    patrimonio: string | null
-    colaborador_atual: string | null
-    // F25 — campos próprios do celular (migration 0101): pré-preenchem o termo.
-    telefone: string | null
-    imei: string | null
-    pulsus: string | null
-    // F25 — a filial CORRENTE do ativo é de onde sai a cidade da assinatura.
-    filial_id: number
-  } | null
-  motivo_rel: { rotulo: string } | null
-}
-
-const MOV_SELECT =
-  'id, tipo, motivo, colaborador, chamado, itens_faltantes, snapshot_anterior, data, termo_data, ' +
-  'ativo:ativos!movimentacoes_ativo_id_fkey(id, categoria, marca, modelo, service_tag, patrimonio, colaborador_atual, telefone, imei, pulsus, filial_id), ' +
-  'motivo_rel:motivos!movimentacoes_motivo_fkey(rotulo)'
+// F58 — o select e a forma moram em `queries/formas/termos.ts` (`LEITURA_MOV_PARA_TERMO`),
+// como LITERAL (era montado por `+`, categoria 2 — select não-literal). `ativo` sai NÃO-NULO
+// (`movimentacoes.ativo_id` é not null, migration 0003) — o tipo à mão de antes (`ativo: {…} |
+// null`) supunha o mesmo par nulo do `data as unknown as MovRow[]` que existia aqui.
+type MovRow = z.infer<typeof LEITURA_MOV_PARA_TERMO.forma>
 
 // A cidade que assina, pela filial CORRENTE do ativo (F25 · migration 0102).
 //
@@ -158,8 +138,12 @@ async function cidadesDasFiliais(
 ): Promise<Map<number, CidadeDaFilial>> {
   const ids = [...new Set(filialIds)]
   if (ids.length === 0) return new Map()
-  const { data } = await supabase.from('filiais').select('id, nome, cidade').in('id', ids)
-  return new Map(((data ?? []) as CidadeDaFilial[]).map((f) => [f.id, f]))
+  const { data } = await supabase.from('filiais').select(LEITURA_CIDADES_DAS_FILIAIS.select).in('id', ids)
+  // Caminho de falha ENGOLIDO, como já era: o `error` do Supabase já era descartado aqui — a
+  // forma errada segue o MESMO caminho, degradando para mapa vazio (nenhuma cidade sugerida).
+  const lido = linhasOuFalha(data, LEITURA_CIDADES_DAS_FILIAIS.forma, LEITURA_CIDADES_DAS_FILIAIS.rotulo)
+  const linhas = lido.ok ? lido.linhas : []
+  return new Map(linhas.map((f) => [f.id, f]))
 }
 
 function falhaPrep(erro: string): PreparacaoTermo {
@@ -207,11 +191,14 @@ export async function prepararTermo(input: {
   // logo abaixo (`.sort()`), pelo mesmo motivo.
   const { data, error } = await supabase
     .from('movimentacoes')
-    .select(MOV_SELECT)
+    .select(LEITURA_MOV_PARA_TERMO.select)
     .in('id', movimentacaoIds)
     .order('id')
   if (error) return falhaPrep(traduzErroBanco(error.message, error.code))
-  const movs = (data ?? []) as unknown as MovRow[]
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoMovs = linhasOuFalha(data, LEITURA_MOV_PARA_TERMO.forma, LEITURA_MOV_PARA_TERMO.rotulo)
+  if (!lidoMovs.ok) return falhaPrep(traduzErroBanco(lidoMovs.erro.message))
+  const movs = lidoMovs.linhas
   if (movs.length === 0) return falhaPrep('Movimentação não encontrada.')
 
   const hoje = hojeISO()
@@ -230,12 +217,22 @@ export async function prepararTermo(input: {
 
   // Termos já salvos para EXATAMENTE este conjunto (edição / troca de variante).
   const sortedIds = [...movimentacaoIds].sort()
-  const { data: existRows } = await supabase
+  const { data: existRowsBrutos } = await supabase
     .from('termos_gerados')
-    .select('tipo, dados')
+    .select(LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO.select)
     .contains('movimentacao_ids', sortedIds)
     .containedBy('movimentacao_ids', sortedIds)
-  const existentes = ((existRows ?? []) as { tipo: TermoTipo; dados: CamposTermo & { data?: string } }[])
+  // Caminho de falha ENGOLIDO, como já era (o `error` do Supabase já era descartado aqui): a
+  // forma errada degrada para lista vazia, do mesmo jeito. `ehTermoTipo` estreita `tipo` (a
+  // coluna é texto com CHECK, migration 0021) — um slug fora do domínio só sairia de uma falha
+  // de integridade, e a linha simplesmente não entra em `existentes` (nunca bloqueia o dialog).
+  const lidoExistRows = linhasOuFalha(
+    existRowsBrutos,
+    LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO.forma,
+    LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO.rotulo,
+  )
+  const existentes = (lidoExistRows.ok ? lidoExistRows.linhas : [])
+    .filter((r): r is typeof r & { tipo: TermoTipo } => ehTermoTipo(r.tipo))
     .filter((r) => familiaDoTipo(r.tipo) === familia)
 
   const avisos: string[] = []
@@ -660,24 +657,27 @@ export async function urlTermo(input: {
 
   // `dados` (jsonb com os CamposTermo salvos na geração) entra no select porque é
   // dele que saem os patrimônios do nome do arquivo.
-  const { data: linha, error } = await supabase
+  const { data: linhaBruta, error } = await supabase
     .from('termos_gerados')
-    .select('arquivo_path, tipo, colaborador, dados')
+    .select(LEITURA_URL_TERMO.select)
     .eq('id', input.id)
     .maybeSingle()
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoLinha = linhaOuFalha(linhaBruta, LEITURA_URL_TERMO.forma, LEITURA_URL_TERMO.rotulo)
+  if (!lidoLinha.ok) return { ok: false, erro: traduzErroBanco(lidoLinha.erro.message) }
+  const linha = lidoLinha.linha
   if (!linha) return { ok: false, erro: 'Termo não encontrado.' }
-  // O gerador tipa jsonb como `Json` — mesmo cast de `src/lib/queries/termos.ts`.
-  const row = linha as unknown as {
-    arquivo_path: string
-    tipo: TermoTipo
-    colaborador: string | null
-    dados: (CamposTermo & { data?: string }) | null
+  // `termos_gerados.tipo` é texto com CHECK (migration 0021) — estreitado por `ehTermoTipo`,
+  // como em `queries/termos.ts`: um slug fora do domínio é falha de integridade, nunca o
+  // caminho normal (o guard só dispara se a lista do código e o CHECK divergirem).
+  if (!ehTermoTipo(linha.tipo)) {
+    throw new Error(`Termo com tipo fora do domínio esperado: "${linha.tipo}" (id ${input.id}).`)
   }
 
   const { data: signed, error: sErr } = await supabase.storage
     .from('termos')
-    .createSignedUrl(row.arquivo_path, 600)
+    .createSignedUrl(linha.arquivo_path, 600)
   if (sErr || !signed) return { ok: false, erro: 'Falha ao gerar o link do arquivo.' }
 
   return {
@@ -687,9 +687,9 @@ export async function urlTermo(input: {
     // termo antigo também passa a baixar no padrão novo, sem tocar banco nem
     // Storage. A coluna `colaborador` é a rede de segurança de uma linha cujo
     // jsonb não trouxe o nome (a função degrada omitindo o segmento).
-    nomeArquivo: nomeArquivoTermo(row.tipo, {
-      ...row.dados,
-      colaborador: row.dados?.colaborador ?? row.colaborador ?? undefined,
+    nomeArquivo: nomeArquivoTermo(linha.tipo, {
+      ...linha.dados,
+      colaborador: linha.dados?.colaborador ?? linha.colaborador ?? undefined,
     }),
   }
 }
@@ -879,42 +879,58 @@ export async function confirmarAssinaturaLote(input: {
   // filiais alvo ANTES e exige escrita em TODAS, como `resolverPendenciaItem`
   // já faz: confirmar só a parte permitida deixaria o lote meio confirmado,
   // em silêncio, com uma data cobrindo o que não foi tocado.
-  const { data: alvos, error: eAlvos } = await supabase
+  const { data: alvosBrutos, error: eAlvos } = await supabase
     .from('ativos')
-    .select('id, filial_id, termo_assinado')
+    .select(LEITURA_ALVOS_ASSINATURA_LOTE.select)
     .in('id', ids)
   if (eAlvos) return { ok: false, erro: traduzErroBanco(eAlvos.message, eAlvos.code) }
+  // A forma errada segue o MESMO caminho do erro de banco acima.
+  const lidoAlvos = linhasOuFalha(
+    alvosBrutos,
+    LEITURA_ALVOS_ASSINATURA_LOTE.forma,
+    LEITURA_ALVOS_ASSINATURA_LOTE.rotulo,
+  )
+  if (!lidoAlvos.ok) return { ok: false, erro: traduzErroBanco(lidoAlvos.erro.message) }
+  const alvos = lidoAlvos.linhas
 
   // Nenhum alvo (ids inexistentes) não é erro — idempotente de propósito, como
   // a resolução em lote de itens. O cargo de escrita segue exigido de qualquer
   // forma (a action é alcançável pela rede por si só).
   const aut =
-    alvos && alvos.length > 0
-      ? await exigirEscritaEm(supabase, alvos.map((a) => a.filial_id))
-      : cargo
+    alvos.length > 0 ? await exigirEscritaEm(supabase, alvos.map((a) => a.filial_id)) : cargo
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
   // Idempotente (como a individual): só os que AINDA NÃO estão 'sim' entram no
   // update — reenviar o lote não sobrescreve quem já foi confirmado por outra
   // via. `pendentesIds` é calculado ANTES do update para separar "confirmado
   // agora" de "já estava assinado" mesmo que o UPDATE afete 0 linhas.
-  const pendentesIds = (alvos ?? [])
-    .filter((a) => a.termo_assinado !== 'sim')
-    .map((a) => a.id as string)
+  const pendentesIds = alvos.filter((a) => a.termo_assinado !== 'sim').map((a) => a.id)
 
   if (pendentesIds.length === 0) {
     return { ok: true, confirmados: 0, ignorados: ids.length }
   }
 
-  const { data: atualizados, error: eUpd } = await supabase
+  const { data: atualizadosBrutos, error: eUpd } = await supabase
     .from('ativos')
     .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
     .in('id', pendentesIds)
     .neq('termo_assinado', 'sim')
-    .select('id')
+    .select(LEITURA_ATIVOS_ID.select)
   if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
-
-  const idsConfirmados = [...new Set((atualizados ?? []).map((a) => a.id as string))]
+  // `update(...).select(...)` é UM `UPDATE … RETURNING`: quando a forma do retorno é conferida, a
+  // confirmação JÁ COMMITOU. Forma errada aqui não pode dizer ao operador que a confirmação não
+  // aconteceu, nem pular a anotação e a revalidação — degrada para os `pendentesIds` (todos
+  // elegíveis pelo mesmo filtro do UPDATE) e segue, como as outras escritas da F58 fazem com o
+  // recibo; o `registrarFalha` da forma já aconteceu dentro da porta. (Revisão do lote 3: a
+  // primeira versão devolvia `{ ok: false }` depois do fato.)
+  const lidoAtualizados = linhasOuFalha(
+    atualizadosBrutos,
+    LEITURA_ATIVOS_ID.forma,
+    LEITURA_ATIVOS_ID.rotulo,
+  )
+  const idsConfirmados = lidoAtualizados.ok
+    ? [...new Set(lidoAtualizados.linhas.map((a) => a.id))]
+    : pendentesIds
 
   // Uma anotação POR ATIVO, mesmo texto/formato da confirmação individual — o
   // rastro de "quem confirmou / quando" é a `anotacoes` (imutável), como o

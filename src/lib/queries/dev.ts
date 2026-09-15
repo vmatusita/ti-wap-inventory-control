@@ -1,12 +1,14 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { exigirDev } from '@/lib/auth/acesso'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
 import type { DbClient } from '@/lib/auth/acesso'
+import { linhasOuFalha } from '@/lib/supabase/linhas'
+import { LEITURA_CHECAGENS_INTEGRIDADE } from '@/lib/queries/formas/dev'
 import {
   juntarCatalogoComResultados,
   type ChecagemResolvida,
-  type ResultadoChecagemRpc,
 } from '@/lib/validators/dev-integridade'
 
 // Leituras da área /dev (F22) — TODAS guardadas por `exigirDev()`.
@@ -101,7 +103,7 @@ export async function getDiagnostico(migracaoNoRepo: string): Promise<Diagnostic
   // alcance do PostgREST — daí a RPC dedicada (0077). Pelo client de SESSÃO: a guarda interna
   // dela é `e_dev()`, que o service role nunca satisfaz (ver `sessaoDeDev`).
   let migracaoNoBanco = 'indisponível'
-  const { data, error } = await supabase.rpc('ultima_migracao_aplicada')
+  const { data, error } = await chamarRpc(supabase, 'ultima_migracao_aplicada')
   if (error) registrarFalha({ escopo: 'dev.ultima-migracao', erro: error })
   if (!error && typeof data === 'string' && data.length > 0) migracaoNoBanco = data
 
@@ -273,10 +275,17 @@ export async function rodarChecagens(): Promise<Checagem[]> {
   // (ver `sessaoDeDev`). Com o client errado, todas voltavam "não executadas" para sempre.
   const supabase = await sessaoDeDev()
 
-  const { data, error } = await supabase.rpc('dev_checagens_integridade')
+  const { data, error } = await chamarRpc(supabase, 'dev_checagens_integridade')
   if (error) {
     registrarFalha({ escopo: 'dev.checagens-integridade', erro: error })
     return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: error.message }))
+  }
+
+  // A forma errada segue o MESMO caminho de falha que o erro de banco, logo acima: a tela de
+  // diagnóstico não pode cair por causa das checagens — cada uma aparece como "não executada".
+  const r = linhasOuFalha(data, LEITURA_CHECAGENS_INTEGRIDADE.forma, LEITURA_CHECAGENS_INTEGRIDADE.rotulo)
+  if (!r.ok) {
+    return CHECAGENS.map((c) => ({ ...c, achados: null, amostra: [], erro: r.erro.message }))
   }
 
   // A RPC devolve [{ chave, total, amostra }]. A junção mora em `juntarCatalogoComResultados`
@@ -285,5 +294,5 @@ export async function rodarChecagens(): Promise<Checagem[]> {
   // ao final, anexa qualquer chave que a RPC devolva e o catálogo NÃO conheça, rotulada pela
   // própria chave (REDE PERMANENTE — ver o comentário acima de `CHECAGENS`). Assim um
   // descompasso entre este arquivo e a migration fica sempre visível, nunca silencioso.
-  return juntarCatalogoComResultados(CHECAGENS, (data ?? []) as ResultadoChecagemRpc[])
+  return juntarCatalogoComResultados(CHECAGENS, r.linhas)
 }

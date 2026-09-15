@@ -11,6 +11,8 @@ import type { PapelUsuario } from '@/lib/auth/papeis'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { casa, casaConstraint, FRASES_DO_AUTH, FRASES_DO_MOTOR, MSG_SQL } from '@/lib/supabase/erros-do-banco'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { DOMINIOS_OPERADOR, DOMINIOS_TEXTO } from '@/lib/auth/dominios-email'
 import { getSaldosItens } from '@/lib/queries/itens'
 import {
@@ -200,7 +202,7 @@ export async function convidarUsuario(input: {
   // 2) Já existe conta → link de RECUPERAÇÃO (mesma tela de definir senha).
   //    Cobre "já convidei mas a pessoa não terminou" e "quero reenviar o acesso".
   const jaExiste =
-    !!convite.error && /already|registered|exists|been registered/i.test(convite.error.message)
+    !!convite.error && casa(convite.error.message, FRASES_DO_AUTH.contaJaExiste)
 
   if (jaExiste) {
     const r = await gerarLinkDeRecuperacao(admin, origem, email, aut.uid)
@@ -210,7 +212,7 @@ export async function convidarUsuario(input: {
   // 3) Erro real. O trigger do banco barra e-mail fora do domínio (defesa final).
   const msg = (convite.error?.message ?? '').toLowerCase()
   const citaDominio = DOMINIOS_OPERADOR.some((d) => msg.includes(d.slice(1)))
-  if (citaDominio || msg.includes('restrito')) {
+  if (citaDominio || casa(msg, MSG_SQL.dominioRestrito)) {
     return { ok: false, erro: `Só e-mails ${DOMINIOS_TEXTO} podem ser convidados.` }
   }
   return { ok: false, erro: 'Não foi possível gerar o link de convite. Tente de novo.' }
@@ -345,7 +347,7 @@ type GravacaoCargo = {
 // A RPC levanta P0002 com "Usuário não encontrado" quando o perfil ainda não existe. A
 // tradução genérica não diria o que o admin precisa ouvir nesse caso específico.
 function traduzErroDeGestao(mensagem: string, codigo?: string): string {
-  if (/n[ãa]o encontrad/i.test(mensagem)) {
+  if (casa(mensagem, MSG_SQL.naoEncontrado)) {
     return 'Este usuário ainda não tem perfil no sistema (ele aparece depois do primeiro acesso).'
   }
   return traduzErroBanco(mensagem, codigo)
@@ -357,7 +359,7 @@ async function aplicarCargoEVinculos(
   papel: PapelUsuario,
   filiais: readonly number[],
 ): Promise<GravacaoCargo> {
-  const { error: erroPapel } = await supabase.rpc('definir_papel_usuario', {
+  const { error: erroPapel } = await chamarRpc(supabase, 'definir_papel_usuario', {
     p_alvo: usuarioId,
     p_papel: papel,
   })
@@ -377,7 +379,7 @@ async function aplicarCargoEVinculos(
   // banco (`pode_escrever_filial` ignora vínculo de nível admin e fecha para consulta), mas a
   // coluna "Filiais de escrita" passaria a exibir vínculo que não vale nada — e um dia
   // alguém acreditaria nela.
-  const { error: erroVinculos } = await supabase.rpc('definir_vinculos_usuario', {
+  const { error: erroVinculos } = await chamarRpc(supabase, 'definir_vinculos_usuario', {
     p_alvo: usuarioId,
     p_filiais: [...filiais],
   })
@@ -540,7 +542,7 @@ export async function definirStatusUsuario(input: {
   //
   // F22: pela RPC (client de SESSÃO), não mais pelo service role — ver o comentário longo em
   // `aplicarCargoEVinculos`. É o que faz a proteção do dev valer também aqui, no banco.
-  const { error: erroStatus } = await supabase.rpc('definir_status_usuario', {
+  const { error: erroStatus } = await chamarRpc(supabase, 'definir_status_usuario', {
     p_alvo: usuarioId,
     p_ativo: ativo,
   })
@@ -607,7 +609,7 @@ export async function criarFilial(input: {
 
   const { error } = await client.from('filiais').insert(parsed.data)
   if (error) {
-    if (error.message.toLowerCase().includes('filiais_slug_key')) {
+    if (casaConstraint(error.message, 'filiais_slug_key')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
@@ -701,7 +703,7 @@ export async function atualizarFilial(input: {
 
   const { error } = await client.from('filiais').update(patch).eq('id', id)
   if (error) {
-    if (error.message.toLowerCase().includes('filiais_slug_key')) {
+    if (casaConstraint(error.message, 'filiais_slug_key')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
@@ -729,7 +731,7 @@ export async function criarMotivo(input: {
 
   const { error } = await client.from('motivos').insert(parsed.data)
   if (error) {
-    if (error.message.toLowerCase().includes('duplicate')) {
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata)) {
       return { ok: false, erro: 'Já existe um motivo com esse código.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }

@@ -1,0 +1,32 @@
+# F58 · A pré-condição de filtro do descritor (naoNulas) — catalogo.test.ts, checagem 3
+# gerado em 2026-09-15T20:20:26.097Z · HEAD 7b109a5 (árvore com a mudança ainda não commitada)
+#
+# Achado da rodada cedo do conferidor em produção: as sugestões de colaborador e setor recusaram 2.093 e 3.247 linhas
+# porque a forma não-nula só valia com o filtro .not(col, 'is', null) do call-site, que o descritor não declarava.
+
+## (b) tirar naoNulas: ['colaborador'] da sugestão — o call-site segue filtrando a coluna que a forma declara não-nula
+arquivo sabotado: src/lib/queries/formas/movimentacoes.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × LEITURA_SUGESTAO_COLABORADOR_MOV: a pré-condição `naoNulas` bate com o `.not(…, "is", null)` do call-site 16ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 216 passed (217)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/queries/formas/catalogo.test.ts > o catálogo de formas > LEITURA_SUGESTAO_COLABORADOR_MOV: a pré-condição `naoNulas` bate com o `.not(…, "is", null)` do call-site
+AssertionError: LEITURA_SUGESTAO_COLABORADOR_MOV: a forma declara 'colaborador' não-nula e o arquivo filtra .not('colaborador', 'is', null), mas o descritor não declara naoNulas — o conferidor leria os nulos que o call-site descarta: expected true to be false // Object.is equality
+
+## (a) declarar naoNulas: ['colaborador', 'chamado'] na sugestão — o arquivo do call-site nunca filtra chamado
+arquivo sabotado: src/lib/queries/formas/movimentacoes.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × LEITURA_SUGESTAO_COLABORADOR_MOV: a pré-condição `naoNulas` bate com o `.not(…, "is", null)` do call-site 33ms
+ Test Files  1 failed (1)
+      Tests  1 failed | 216 passed (217)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/queries/formas/catalogo.test.ts > o catálogo de formas > LEITURA_SUGESTAO_COLABORADOR_MOV: a pré-condição `naoNulas` bate com o `.not(…, "is", null)` do call-site
+AssertionError: LEITURA_SUGESTAO_COLABORADOR_MOV: declara naoNulas 'chamado', mas o arquivo não filtra .not('chamado', 'is', null): expected [ 'src/lib/queries/movimentacoes.ts' ] to deeply equal []
+    107|     for (const col of d.naoNulas ?? []) {
+    109|       expect(semFiltro, `${nome}: declara naoNulas '${col}', mas o arq…
+

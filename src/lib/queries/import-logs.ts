@@ -8,6 +8,17 @@ import {
   escopoDoImportLog,
   pertenceAoEscopo,
 } from '@/lib/escopo/pertencimento'
+import { linhasDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_BACKUP_ANOTACOES_IMPORT,
+  LEITURA_BACKUP_ATIVOS_IMPORT,
+  LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT,
+  LEITURA_BACKUP_MOVIMENTACOES_IMPORT,
+  LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT,
+  LEITURA_BACKUP_TERMOS_GERADOS_IMPORT,
+  LEITURA_PAR_COM_PATRIMONIO_EM_OUTRA_FILIAL,
+  LEITURA_PAR_SEM_PATRIMONIO_EM_OUTRA_FILIAL,
+} from '@/lib/queries/formas/import-logs'
 
 // Leituras da tela admin/importar (OS-F7 / W3): custo da substituição por filial,
 // histórico de imports e export do acervo para o backup pré-import. Todas recebem
@@ -223,17 +234,20 @@ export async function paresEmOutrasFiliais(
   for (const lote of emLotes(unicos)) {
     const { data, error } = await client
       .from('ativos')
-      .select('patrimonio, service_tag, filiais(nome)')
+      .select(LEITURA_PAR_COM_PATRIMONIO_EM_OUTRA_FILIAL.select)
       .in('patrimonio', lote)
       .neq('filial_id', filialId)
     if (error) throw new Error(`Falha ao conferir patrimônios em outras filiais: ${error.message}`)
-    for (const a of data ?? []) {
-      const nome = (a.filiais as { nome: string } | null)?.nome
-      if (!nome) continue
+    const linhas = linhasDe(
+      data,
+      LEITURA_PAR_COM_PATRIMONIO_EM_OUTRA_FILIAL.forma,
+      LEITURA_PAR_COM_PATRIMONIO_EM_OUTRA_FILIAL.rotulo,
+    )
+    for (const a of linhas) {
       // `.in('patrimonio', …)` nunca traz null/vazio; o guard é defensivo e satisfaz o
       // tipo (F7E deixou `ativos.patrimonio` nullable) sem depender do estado do W4.
       if (!a.patrimonio) continue
-      mapa.set(chavePatrimonio(a.patrimonio, a.service_tag), nome)
+      mapa.set(chavePatrimonio(a.patrimonio, a.service_tag), a.filiais.nome)
     }
   }
 
@@ -243,7 +257,7 @@ export async function paresEmOutrasFiliais(
   for (const lote of emLotes(tags)) {
     const { data, error } = await client
       .from('ativos')
-      .select('service_tag, filiais(nome)')
+      .select(LEITURA_PAR_SEM_PATRIMONIO_EM_OUTRA_FILIAL.select)
       .is('patrimonio', null)
       .in('service_tag', lote)
       .neq('filial_id', filialId)
@@ -252,11 +266,14 @@ export async function paresEmOutrasFiliais(
         `Falha ao conferir service tags sem patrimônio em outras filiais: ${error.message}`,
       )
     }
-    for (const a of data ?? []) {
-      const nome = (a.filiais as { nome: string } | null)?.nome
-      if (!nome) continue
+    const linhas = linhasDe(
+      data,
+      LEITURA_PAR_SEM_PATRIMONIO_EM_OUTRA_FILIAL.forma,
+      LEITURA_PAR_SEM_PATRIMONIO_EM_OUTRA_FILIAL.rotulo,
+    )
+    for (const a of linhas) {
       if (!a.service_tag) continue // o filtro já exclui, mas o tipo é nullable
-      mapa.set(`${SEM_PATRIMONIO}::${a.service_tag}`, nome)
+      mapa.set(`${SEM_PATRIMONIO}::${a.service_tag}`, a.filiais.nome)
     }
   }
 
@@ -344,27 +361,34 @@ export async function exportarAcervoFilial(
   // Todas as leituras do backup são paginadas: o corte de 1.000 do PostgREST deixaria
   // o backup INCOMPLETO na Matriz (1.217 ativos) — e um backup que não bate com o que
   // será apagado é pior que não ter backup. `order('id')` estável entre as páginas.
-  const ativos = await paginarTodos<Row<'ativos'>>(
+  //
+  // F58 — `select('*')` FROUXA (regra 8 do lote 2): a coluna que `LEITURA_BACKUP_*` não
+  // declara chega ao backup igual, pelo `catchall` de `z.looseObject`.
+  const ativosBrutos = await paginarTodos(
     'Falha ao exportar ativos',
-    (from, to) => client.from('ativos').select('*').eq('filial_id', filialId).order('id').range(from, to),
+    (from, to) =>
+      client.from('ativos').select(LEITURA_BACKUP_ATIVOS_IMPORT.select).eq('filial_id', filialId).order('id').range(from, to),
   )
+  const ativos = linhasDe(ativosBrutos, LEITURA_BACKUP_ATIVOS_IMPORT.forma, LEITURA_BACKUP_ATIVOS_IMPORT.rotulo)
 
   const movimentacoes: Row<'movimentacoes'>[] = []
   for (const lote of emLotes(ids)) {
-    const parte = await paginarTodos<Row<'movimentacoes'>>(
+    const brutas = await paginarTodos(
       'Falha ao exportar movimentações',
-      (from, to) => client.from('movimentacoes').select('*').in('ativo_id', lote).order('id').range(from, to),
+      (from, to) =>
+        client.from('movimentacoes').select(LEITURA_BACKUP_MOVIMENTACOES_IMPORT.select).in('ativo_id', lote).order('id').range(from, to),
     )
-    movimentacoes.push(...parte)
+    movimentacoes.push(...linhasDe(brutas, LEITURA_BACKUP_MOVIMENTACOES_IMPORT.forma, LEITURA_BACKUP_MOVIMENTACOES_IMPORT.rotulo))
   }
 
   const anotacoes: Row<'anotacoes'>[] = []
   for (const lote of emLotes(ids)) {
-    const parte = await paginarTodos<Row<'anotacoes'>>(
+    const brutas = await paginarTodos(
       'Falha ao exportar anotações',
-      (from, to) => client.from('anotacoes').select('*').in('ativo_id', lote).order('id').range(from, to),
+      (from, to) =>
+        client.from('anotacoes').select(LEITURA_BACKUP_ANOTACOES_IMPORT.select).in('ativo_id', lote).order('id').range(from, to),
     )
-    anotacoes.push(...parte)
+    anotacoes.push(...linhasDe(brutas, LEITURA_BACKUP_ANOTACOES_IMPORT.forma, LEITURA_BACKUP_ANOTACOES_IMPORT.rotulo))
   }
 
   // Termos: `ativo_ids uuid[]`, sem FK — a régua é a mesma da RPC. O recorte é do BANCO
@@ -393,11 +417,12 @@ export async function exportarAcervoFilial(
   // defeito apareceria meses depois, no único momento em que o backup precisa funcionar.
   const porId = new Map<string, Row<'termos_gerados'>>()
   for (const lote of emLotes(ids)) {
-    const parte = await paginarTodos<Row<'termos_gerados'>>(
+    const brutos = await paginarTodos(
       'Falha ao exportar termos',
       (from, to) =>
-        client.from('termos_gerados').select('*').overlaps('ativo_ids', lote).order('id').range(from, to),
+        client.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.select).overlaps('ativo_ids', lote).order('id').range(from, to),
     )
+    const parte = linhasDe(brutos, LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.forma, LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.rotulo)
     for (const t of parte) porId.set(t.id, t)
   }
   const termos_gerados = [...porId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
@@ -449,11 +474,14 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
 
   const pendenciasItem: Row<'pendencias_item'>[] = []
   for (const lote of emLotes(ids)) {
-    const parte = await paginarTodos<Row<'pendencias_item'>>(
+    const brutas = await paginarTodos(
       'Falha ao exportar pendências de item',
-      (from, to) => client.from('pendencias_item').select('*').in('ativo_id', lote).order('id').range(from, to),
+      (from, to) =>
+        client.from('pendencias_item').select(LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.select).in('ativo_id', lote).order('id').range(from, to),
     )
-    pendenciasItem.push(...parte)
+    pendenciasItem.push(
+      ...linhasDe(brutas, LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.forma, LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.rotulo),
+    )
   }
 
   const [movIds, pendIds] = await Promise.all([
@@ -463,28 +491,38 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
 
   const porIdLanc = new Map<string, LancamentoDesvinculado>()
   for (const lote of emLotes(movIds)) {
-    const parte = await paginarTodos<LancamentoDesvinculado>(
+    const brutos = await paginarTodos(
       'Falha ao exportar lançamentos presos a movimentação',
       (from, to) =>
         client
           .from('lancamentos_item')
-          .select('id, movimentacao_id, pendencia_item_id')
+          .select(LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.select)
           .in('movimentacao_id', lote)
           .order('id')
           .range(from, to),
     )
+    const parte = linhasDe(
+      brutos,
+      LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.forma,
+      LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.rotulo,
+    )
     for (const l of parte) porIdLanc.set(l.id, l)
   }
   for (const lote of emLotes(pendIds)) {
-    const parte = await paginarTodos<LancamentoDesvinculado>(
+    const brutos = await paginarTodos(
       'Falha ao exportar lançamentos presos a pendência',
       (from, to) =>
         client
           .from('lancamentos_item')
-          .select('id, movimentacao_id, pendencia_item_id')
+          .select(LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.select)
           .in('pendencia_item_id', lote)
           .order('id')
           .range(from, to),
+    )
+    const parte = linhasDe(
+      brutos,
+      LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.forma,
+      LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.rotulo,
     )
     for (const l of parte) porIdLanc.set(l.id, l)
   }
@@ -496,17 +534,18 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
   if (ids.length > 0) {
     const porIdAtivo = new Map<string, Row<'ativos'>>()
     for (const lote of emLotes(ids)) {
-      const parte = await paginarTodos<Row<'ativos'>>(
+      const brutos = await paginarTodos(
         'Falha ao exportar ativos que apontam para o acervo',
         (from, to) =>
           client
             .from('ativos')
-            .select('*')
+            .select(LEITURA_BACKUP_ATIVOS_IMPORT.select)
             .in('substitui_ativo_id', lote)
             .neq('filial_id', filialId)
             .order('id')
             .range(from, to),
       )
+      const parte = linhasDe(brutos, LEITURA_BACKUP_ATIVOS_IMPORT.forma, LEITURA_BACKUP_ATIVOS_IMPORT.rotulo)
       for (const a of parte) porIdAtivo.set(a.id, a)
     }
     ponteirosPerdidos.push(

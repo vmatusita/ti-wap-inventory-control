@@ -14,6 +14,15 @@ import { patrimoniosRepetidos } from '@/lib/patrimonio'
 import type { UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import type { Tables } from '@/lib/types/database'
+import { linhaDe, linhasDe } from '@/lib/supabase/linhas'
+import {
+  LEITURA_ANOTACOES_ATIVO,
+  LEITURA_EXPORT_ATIVOS,
+  LEITURA_FICHA_ATIVO,
+  LEITURA_LISTA_ATIVOS,
+  LEITURA_RESUMO_ATIVO,
+  LEITURA_VINCULO_ATIVO,
+} from '@/lib/queries/formas/ativos'
 
 // Tamanho de página padrão da lista. Desde a F11/T7 o operador pode trocar por
 // `?pp=` (25/50/100) — este continua sendo o valor de quem não mexe em nada.
@@ -160,10 +169,7 @@ function queryLista(
 ) {
   let query = supabase
     .from('ativos')
-    .select(
-      'id, patrimonio, service_tag, categoria, marca, modelo, status, colaborador_atual, updated_at, pendencia, filiais(slug, nome)',
-      { count: 'exact', head },
-    )
+    .select(LEITURA_LISTA_ATIVOS.select, { count: 'exact', head })
 
   query = aplicarFiltrosAtivos(query, params)
   if (params.ordenacao) {
@@ -232,22 +238,19 @@ export async function listarAtivos(
 
   if (error) throw new Error(`Falha ao listar ativos: ${error.message}`)
 
-  const rows: AtivoLista[] = (data ?? []).map((r) => {
-    const filial = r.filiais as FilialEmbed
-    return {
-      id: r.id,
-      patrimonio: r.patrimonio,
-      service_tag: r.service_tag,
-      categoria: r.categoria,
-      marca: r.marca,
-      modelo: r.modelo,
-      status: r.status,
-      colaborador_atual: r.colaborador_atual,
-      filial_nome: filial?.nome ?? '—',
-      updated_at: r.updated_at,
-      pendencia: r.pendencia,
-    }
-  })
+  const rows: AtivoLista[] = linhasDe(data, LEITURA_LISTA_ATIVOS.forma, LEITURA_LISTA_ATIVOS.rotulo).map((r) => ({
+    id: r.id,
+    patrimonio: r.patrimonio,
+    service_tag: r.service_tag,
+    categoria: r.categoria,
+    marca: r.marca,
+    modelo: r.modelo,
+    status: r.status,
+    colaborador_atual: r.colaborador_atual,
+    filial_nome: r.filiais.nome,
+    updated_at: r.updated_at,
+    pendencia: r.pendencia,
+  }))
 
   // Patrimônios null (ativos sem plaqueta) não entram na conta de duplicidade.
   const patrimoniosDuplicados = patrimoniosRepetidos(
@@ -275,19 +278,19 @@ export async function buscarAtivoPorId(id: string): Promise<AtivoFicha | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('ativos')
-    .select('*, filiais(slug, nome)')
+    .select(LEITURA_FICHA_ATIVO.select)
     .eq('id', id)
     .maybeSingle()
 
   if (error) throw new Error(`Falha ao buscar ativo: ${error.message}`)
-  if (!data) return null
+  const linha = linhaDe(data, LEITURA_FICHA_ATIVO.forma, LEITURA_FICHA_ATIVO.rotulo)
+  if (!linha) return null
 
-  const { filiais, ...ativo } = data
-  const filial = filiais as FilialEmbed
+  const { filiais, ...ativo } = linha
   return {
-    ...(ativo as Tables<'ativos'>),
-    filial_nome: filial?.nome ?? '—',
-    filial_slug: filial?.slug ?? '',
+    ...ativo,
+    filial_nome: filiais.nome,
+    filial_slug: filiais.slug,
   }
 }
 
@@ -302,11 +305,11 @@ export async function buscarVinculoAtivo(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('ativos')
-    .select('id, patrimonio')
+    .select(LEITURA_VINCULO_ATIVO.select)
     .eq('id', ativoId)
     .maybeSingle()
   if (error) throw new Error(`Falha ao buscar ativo vinculado: ${error.message}`)
-  return (data as VinculoAtivo | null) ?? null
+  return linhaDe(data, LEITURA_VINCULO_ATIVO.forma, LEITURA_VINCULO_ATIVO.rotulo)
 }
 
 // Quem SUBSTITUIU este ativo (o novo aponta para ESTE via substitui_ativo_id).
@@ -316,13 +319,13 @@ export async function buscarSubstitutoDe(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('ativos')
-    .select('id, patrimonio')
+    .select(LEITURA_VINCULO_ATIVO.select)
     .eq('substitui_ativo_id', ativoId)
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle()
   if (error) throw new Error(`Falha ao buscar substituto: ${error.message}`)
-  return (data as VinculoAtivo | null) ?? null
+  return linhaDe(data, LEITURA_VINCULO_ATIVO.forma, LEITURA_VINCULO_ATIVO.rotulo)
 }
 
 // Anotação avulsa na linha do tempo (F3B). Imutável, com autor + data/hora.
@@ -339,20 +342,14 @@ export async function listarAnotacoesDoAtivo(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('anotacoes')
-    .select('id, texto, created_at, autor:profiles!anotacoes_criado_por_fkey(nome)')
+    .select(LEITURA_ANOTACOES_ATIVO.select)
     .eq('ativo_id', ativoId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(`Falha ao carregar anotações: ${error.message}`)
-  type Row = {
-    id: string
-    texto: string
-    created_at: string
-    autor: { nome: string | null } | null
-  }
-  return ((data ?? []) as unknown as Row[]).map((r) => ({
+  return linhasDe(data, LEITURA_ANOTACOES_ATIVO.forma, LEITURA_ANOTACOES_ATIVO.rotulo).map((r) => ({
     id: r.id,
     texto: r.texto,
-    autor_nome: r.autor?.nome ?? null,
+    autor_nome: r.autor.nome,
     created_at: r.created_at,
   }))
 }
@@ -476,7 +473,7 @@ export async function buscarAtivosParaCombobox(
   if (palavras.join('').length < 2) return []
   const supabase = await createClient()
 
-  let query = supabase.from('ativos').select(RESUMO_SELECT)
+  let query = supabase.from('ativos').select(LEITURA_RESUMO_ATIVO.select)
   for (const palavra of palavras) {
     query = query.or(
       `patrimonio.ilike.%${palavra}%,colaborador_atual.ilike.%${palavra}%,marca.ilike.%${palavra}%,modelo.ilike.%${palavra}%,service_tag.ilike.%${palavra}%,hostname.ilike.%${palavra}%`,
@@ -488,7 +485,7 @@ export async function buscarAtivosParaCombobox(
     .limit(12)
 
   if (error) throw new Error(`Falha na busca de ativos: ${error.message}`)
-  const rows = (data ?? []) as unknown as Parameters<typeof resumoDe>[0][]
+  const rows = linhasDe(data, LEITURA_RESUMO_ATIVO.forma, LEITURA_RESUMO_ATIVO.rotulo)
   const dups = await patrimoniosDuplicados(
     supabase,
     rows.map((r) => r.patrimonio).filter((p): p is string => p !== null),
@@ -521,31 +518,11 @@ export type LinhaExportAtivo = {
   pendencia: string | null
 }
 
-const EXPORT_SELECT =
-  'patrimonio, service_tag, hostname, categoria, marca, modelo, telefone, imei, pulsus, status, colaborador_atual, setor_atual, pendencia, filiais(slug, nome)'
-
 // Tamanho do bloco de leitura. O Max Rows do PostgREST (default 1.000 no
 // Supabase) corta requests maiores EM SILÊNCIO — pedir 5.000 de uma vez devolve
 // 1.000 sem erro nenhum. Verificado em DEV: nenhum `pgrst.db_max_rows` nos
 // papéis (`pg_db_role_setting`), ou seja, vale o default do serviço.
 const BLOCO_EXPORT = 1000
-
-type RawExportRow = {
-  patrimonio: string | null
-  service_tag: string | null
-  hostname: string | null
-  categoria: CategoriaAtivo
-  marca: string | null
-  modelo: string | null
-  telefone: string | null
-  imei: string | null
-  pulsus: string | null
-  status: StatusAtivo
-  colaborador_atual: string | null
-  setor_atual: string | null
-  pendencia: string | null
-  filiais: FilialEmbed
-}
 
 // Leitura em blocos p/ o export CSV (F10/T5). Mesmos filtros e ordem de
 // `listarAtivos` (`aplicarFiltrosAtivos` é a fonte única dos filtros), sem
@@ -574,7 +551,7 @@ export async function listarAtivosParaExport(
     // contagem exata custa uma varredura a cada request.
     let query = supabase
       .from('ativos')
-      .select(EXPORT_SELECT, offset === 0 ? { count: 'exact' } : undefined)
+      .select(LEITURA_EXPORT_ATIVOS.select, offset === 0 ? { count: 'exact' } : undefined)
     query = aplicarFiltrosAtivos(query, params)
     // `updated_at` sozinho não é único: sem desempate estável, o bloco 2 pode
     // repetir/pular linhas do bloco 1. `id` é a chave primária — refina a ordem
@@ -587,7 +564,7 @@ export async function listarAtivosParaExport(
     if (error) throw new Error(`Falha ao exportar ativos: ${error.message}`)
     total = count ?? total
 
-    const bloco = (data ?? []) as unknown as RawExportRow[]
+    const bloco = linhasDe(data, LEITURA_EXPORT_ATIVOS.forma, LEITURA_EXPORT_ATIVOS.rotulo)
     for (const r of bloco) {
       linhas.push({
         patrimonio: r.patrimonio,
@@ -599,7 +576,7 @@ export async function listarAtivosParaExport(
         telefone: r.telefone,
         imei: r.imei,
         pulsus: r.pulsus,
-        filial_nome: r.filiais?.nome ?? '—',
+        filial_nome: r.filiais.nome,
         status: r.status,
         colaborador_atual: r.colaborador_atual,
         setor_atual: r.setor_atual,
@@ -631,11 +608,11 @@ export async function buscarAtivosResumoPorIds(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('ativos')
-    .select(RESUMO_SELECT)
+    .select(LEITURA_RESUMO_ATIVO.select)
     .in('id', unicos)
   if (error) throw new Error(`Falha ao buscar ativos: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as RawAtivoResumo[]
+  const rows = linhasDe(data, LEITURA_RESUMO_ATIVO.forma, LEITURA_RESUMO_ATIVO.rotulo)
   const dups = await patrimoniosDuplicados(
     supabase,
     rows.map((r) => r.patrimonio).filter((p): p is string => p !== null),
@@ -664,12 +641,12 @@ export async function buscarAtivosPorPatrimonios(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('ativos')
-    .select(RESUMO_SELECT)
+    .select(LEITURA_RESUMO_ATIVO.select)
     .in('patrimonio', unicos)
     .order('patrimonio', { ascending: true, nullsFirst: false })
   if (error) throw new Error(`Falha ao buscar ativos: ${error.message}`)
 
-  const rows = (data ?? []) as unknown as RawAtivoResumo[]
+  const rows = linhasDe(data, LEITURA_RESUMO_ATIVO.forma, LEITURA_RESUMO_ATIVO.rotulo)
   // Duplicidade calculada sobre o próprio resultado: aqui vieram TODOS os
   // ativos de cada patrimônio pedido, então repetição no resultado == patrimônio
   // duplicado no acervo (sem uma 2ª ida ao banco).
@@ -686,12 +663,12 @@ export async function buscarAtivoResumo(id: string): Promise<AtivoResumo | null>
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('ativos')
-    .select(RESUMO_SELECT)
+    .select(LEITURA_RESUMO_ATIVO.select)
     .eq('id', id)
     .maybeSingle()
   if (error) throw new Error(`Falha ao buscar ativo: ${error.message}`)
-  if (!data) return null
-  const row = data as unknown as Parameters<typeof resumoDe>[0]
+  const row = linhaDe(data, LEITURA_RESUMO_ATIVO.forma, LEITURA_RESUMO_ATIVO.rotulo)
+  if (!row) return null
   const dups = await patrimoniosDuplicados(
     supabase,
     row.patrimonio !== null ? [row.patrimonio] : [],

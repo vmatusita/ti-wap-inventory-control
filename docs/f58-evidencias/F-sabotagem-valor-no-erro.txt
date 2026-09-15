@@ -1,0 +1,69 @@
+# F58 · Sabotagem F — valor de linha no erro de forma (linhas-sem-valor.test.ts)
+# gerado em 2026-09-15T18:48:28.293Z · HEAD 98603cc
+#
+# As sentinelas do teste são fictícias (patrimônio WAP0009876, e-mail e uuid inventados). Cada variante
+# leva valor da linha para um lugar diferente do erro; o teste tem de acusar as três.
+
+## F1 — reportInput ligado e issue.input levado aos problemas
+arquivo(s) sabotado(s): src/lib/supabase/forma.ts
+teste: src/lib/supabase/linhas-sem-valor.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × coluna com tipo errado: mensagem, erro serializado e log sem valor 19ms
+     × jsonb com chave DINÂMICA (record): o caminho leva <chave>, nunca a chave 5ms
+     × valor fora do enum e e-mail em coluna errada: nenhum valor na saída 3ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 6 passed (9)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > coluna com tipo errado: mensagem, erro serializado e log sem valor
+AssertionError: vazou "424242": expected 'Forma inesperada em "prova.sem-valor"…' not to contain '424242'
+     60|   for (const s of SENTINELAS) expect(tudo, `vazou "${s}"`).not.toConta…
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > jsonb com chave DINÂMICA (record): o caminho leva <chave>, nunca a chave
+AssertionError: vazou "Nome Sentinela da Silva": expected 'Forma inesperada em "prova.record": 1…' not to contain 'Nome Sentinela da Silva'
+     60|   for (const s of SENTINELAS) expect(tudo, `vazou "${s}"`).not.toConta…
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > valor fora do enum e e-mail em coluna errada: nenhum valor na saída
+AssertionError: vazou "fulano.sentinela@wap.ind.br": expected 'Forma inesperada em "prova.enum": 1 d…' not to contain 'fulano.sentinela@wap.ind.br'
+     60|   for (const s of SENTINELAS) expect(tudo, `vazou "${s}"`).not.toConta…
+
+## F2 — o valor da linha interpolado no código do problema (que vai para a mensagem)
+arquivo(s) sabotado(s): src/lib/supabase/forma.ts
+teste: src/lib/supabase/linhas-sem-valor.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × coluna com tipo errado: mensagem, erro serializado e log sem valor 36ms
+     × jsonb com chave DINÂMICA (record): o caminho leva <chave>, nunca a chave 10ms
+     × chave DESCONHECIDA num objeto estrito: a issue leva a contagem, não o nome 4ms
+     × valor fora do enum e e-mail em coluna errada: nenhum valor na saída 4ms
+ Test Files  1 failed (1)
+      Tests  4 failed | 5 passed (9)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > coluna com tipo errado: mensagem, erro serializado e log sem valor
+AssertionError: vazou "11111111-2222-4333-8444-555555555555": expected 'Forma inesperada em "prova.sem-valor"…' not to contain '11111111-2222-4333-8444-555555555555'
+     60|   for (const s of SENTINELAS) expect(tudo, `vazou "${s}"`).not.toConta…
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > jsonb com chave DINÂMICA (record): o caminho leva <chave>, nunca a chave
+AssertionError: vazou "CHAVE_SENTINELA_DE_ITEM": expected 'Forma inesperada em "prova.record": 1…' not to contain 'CHAVE_SENTINELA_DE_ITEM'
+     60|   for (const s of SENTINELAS) expect(tudo, `vazou "${s}"`).not.toConta…
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > chave DESCONHECIDA num objeto estrito: a issue leva a contagem, não o nome
+AssertionError: expected undefined to be 2 // Object.is equality
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > valor fora do enum e e-mail em coluna errada: nenhum valor na saída
+AssertionError: vazou "fulano.sentinela@wap.ind.br": expected 'Forma inesperada em "prova.enum": 1 d…' not to contain 'fulano.sentinela@wap.ind.br'
+     60|   for (const s of SENTINELAS) expect(tudo, `vazou "${s}"`).not.toConta…
+
+## F3 — a chave dinâmica do record crua no caminho do campo
+arquivo(s) sabotado(s): src/lib/supabase/forma.ts
+teste: src/lib/supabase/linhas-sem-valor.test.ts
+código de saída: 1 (esperado: diferente de 0)
+sha256 antes = depois da restauração: true
+
+     × jsonb com chave DINÂMICA (record): o caminho leva <chave>, nunca a chave 6ms
+     × ["mapa","CHAVE_SENTINELA_DE_ITEM","total"] → mapa.<chave>.total 1ms
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 passed (9)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > o erro de forma não carrega valor de linha > jsonb com chave DINÂMICA (record): o caminho leva <chave>, nunca a chave
+AssertionError: expected 'contagens.CHAVE_SENTINELA_DE_ITEM' to be 'contagens.<chave>' // Object.is equality
+ FAIL  |puro| src/lib/supabase/linhas-sem-valor.test.ts > a normalização do caminho > ["mapa","CHAVE_SENTINELA_DE_ITEM","total"] → mapa.<chave>.total
+AssertionError: expected 'mapa.CHAVE_SENTINELA_DE_ITEM.total' to be 'mapa.<chave>.total' // Object.is equality
+
