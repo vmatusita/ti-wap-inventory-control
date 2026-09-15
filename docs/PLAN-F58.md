@@ -158,7 +158,7 @@ Caminho normalizado andando pelo schema: chave declarada → nome; chave de `z.r
 | retorno `jsonb` de RPC que escreve | estrito com variantes (união) onde o corpo tem mais de um `return` | provado pelo SQL, nunca chamado |
 | coluna `jsonb` (snapshot de `gerados.ts`) | **frouxo**, aceitando `SnapshotRelatorio | SnapshotRelatorioV2` | a forma antiga TEM de passar |
 | `select('*')` de backup/export | **frouxo OBRIGATÓRIO** | coluna que o schema não conhece tem de chegar ao backup |
-| leitura de LOTE com colunas explícitas | **decide o benchmark** (Frente F, antes do lote 2) | critério de custo da ficha |
+| leitura de LOTE com colunas explícitas | **estrito** — decidido pelo benchmark de 15/09, antes do lote 2 | estrita e frouxa custam o mesmo (~1,2–1,5 µs/linha; 1,97 × 1,49 ms no export de 1.620 ativos, 2,47 × 2,63 ms nas 3.553 movimentações); a frouxa com poucas colunas é a MAIS cara (~3 µs/linha). `docs/f58-evidencias/F-bench-formas-antes-lote-2.txt` |
 
 Onde moram: `src/lib/queries/formas/‹área›.ts` — **com** `import 'server-only'` (a catraca da F49 continua valendo: select e nome
 de coluna não vão para o bundle do cliente). Cada leitura é um descritor `{ rotulo, origem | rpc, select, forma, ordem }`; a
