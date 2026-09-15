@@ -1,0 +1,283 @@
+# LEITURA
+# E1 é a sabotagem da ordem: tirar `colaborador` do alargamento da porta. O tsc recusa nos DOIS lugares que leem a
+#    coluna com a forma anulável — o call-site real (`relatorios/estoque.ts:123`) e a prova de tipo — e a diretiva
+#    `@ts-expect-error` (16) fica sem uso: a forma que supõe `colaborador` não-nulo passou a compilar, que é a mentira.
+# E2 é o "conserto" que calaria o call-site: a forma passa a dizer o que o gerador diz (`colaborador: s`). O tsc continua
+#    vermelho na prova de tipo, e o conferidor no ENSAIO acusa a mentira no dado: toda célula de `rel_estoque_asof` com
+#    ativo sem detentor reprova, só no caminho `[].colaborador`, código `invalid_type`; nenhum outro ponto muda, e
+#    lidas = count em todas as células. Células rotuladas por NÚMERO DE ORDEM; nenhum valor, id, slug ou nome.
+#    `itens.saldo-colaborador` fica NÃO PROVADO no ensaio por falta de célula (o ensaio não tem colaborador cadastrado) —
+#    é o estado do ensaio, não efeito da sabotagem; a matriz dele é provada em produção.
+# Restauração: sha256 dos dois arquivos igual antes e depois, e a worktree temporária limpa (última linha).
+
+# F58 · Sabotagem E — a mentira de retorno (rel_estoque_asof.colaborador)
+# gerado em 2026-09-15T21:48:39.358Z · worktree temporária em fece834 fix(f58): a trava de cast segue o nome do tipo até o que ele denota
+# Alvo do conferidor: ENSAIO. A sabotagem não roda contra produção.
+
+## E1 — `colaborador` fora de COLUNAS_DE_RETORNO_ANULAVEIS.rel_estoque_asof (src/lib/supabase/rpc.ts)
+comando: npx tsc --noEmit (na worktree)
+código de saída: 2 (esperado: diferente de 0)
+
+src/lib/queries/relatorios/estoque.ts(123,35): error TS2345: Argument of type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; marca: ZodNullable<...>; ... 4 more ...; setor: ZodNullable<...>; }, $strict>' is not assignable to parameter of type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; ... 5 more ...; setor: ZodNullable<...>; }, $strict> & Recusa<...>'.
+  Property ''⛔ forma recusada pela F58'' is missing in type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; marca: ZodNullable<...>; ... 4 more ...; setor: ZodNullable<...>; }, $strict>' but required in type 'Recusa<"o tipo destas colunas diverge do select: colaborador">'.
+src/lib/supabase/linhas-tipos.test.ts(130,18): error TS2345: Argument of type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; marca: ZodNullable<...>; ... 4 more ...; setor: ZodNullable<...>; }, $strict>' is not assignable to parameter of type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; ... 5 more ...; setor: ZodNullable<...>; }, $strict> & Recusa<...>'.
+  Property ''⛔ forma recusada pela F58'' is missing in type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; marca: ZodNullable<...>; ... 4 more ...; setor: ZodNullable<...>; }, $strict>' but required in type 'Recusa<"o tipo destas colunas diverge do select: colaborador">'.
+src/lib/supabase/linhas-tipos.test.ts(132,3): error TS2578: Unused '@ts-expect-error' directive.
+
+## E2 — E1 + a forma LEITURA_REL_ESTOQUE_ASOF com `colaborador: s` (o que o gerador afirma)
+comando: npx tsc --noEmit (na worktree)
+código de saída: 2 (esperado: diferente de 0)
+
+src/lib/supabase/linhas-tipos.test.ts(130,18): error TS2345: Argument of type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; marca: ZodNullable<...>; ... 4 more ...; setor: ZodNullable<...>; }, $strict>' is not assignable to parameter of type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; ... 5 more ...; setor: ZodNullable<...>; }, $strict> & Recusa<...>'.
+  Property ''⛔ forma recusada pela F58'' is missing in type 'ZodObject<{ ativo_id: ZodString; categoria: ZodEnum<{ notebook: "notebook"; desktop: "desktop"; monitor: "monitor"; celular: "celular"; tablet: "tablet"; outro: "outro"; }>; marca: ZodNullable<...>; ... 4 more ...; setor: ZodNullable<...>; }, $strict>' but required in type 'Recusa<"o tipo destas colunas diverge do select: colaborador">'.
+src/lib/supabase/linhas-tipos.test.ts(132,3): error TS2578: Unused '@ts-expect-error' directive.
+
+## E2 no conferidor — rodada no ENSAIO com a forma sabotada
+comando: npx tsx scripts/formas/conferir.mts --alvo=ensaio (na worktree)
+código de saída: 1 (esperado: diferente de 0)
+[conferir] alvo ENSAIO · ref sgmvldiizsrjbxzzpmhh · HEAD fece834 (+ árvore com mudança em src/scripts — rodada NÃO vale como gate) · só leitura
+[conferir] login ok
+  ok      tipos-item.listar                                          lidas      7 · count      7 · recusadas 0
+  ok      tipos-item.admin                                           lidas      7 · count      7 · recusadas 0
+  REPROVA relatorios.rel-estoque-asof · consolidado · data 1         lidas   1564 · count   1564 · recusadas 1310 · [].colaborador invalid_type×1310
+  REPROVA relatorios.rel-estoque-asof · consolidado · data 2         lidas      1 · count      1 · recusadas 1 · [].colaborador invalid_type×1
+  REPROVA relatorios.rel-estoque-asof · consolidado · data 3         lidas    352 · count    352 · recusadas 352 · [].colaborador invalid_type×352
+  REPROVA relatorios.rel-estoque-asof · filial #1 · data 1           lidas   1192 · count   1192 · recusadas 971 · [].colaborador invalid_type×971
+  ok      relatorios.rel-estoque-asof · filial #1 · data 2           lidas      0 · count      0 · recusadas 0
+  REPROVA relatorios.rel-estoque-asof · filial #1 · data 3           lidas    291 · count    291 · recusadas 291 · [].colaborador invalid_type×291
+  REPROVA relatorios.rel-estoque-asof · filial #2 · data 1           lidas    130 · count    130 · recusadas 124 · [].colaborador invalid_type×124
+  ok      relatorios.rel-estoque-asof · filial #2 · data 2           lidas      0 · count      0 · recusadas 0
+  REPROVA relatorios.rel-estoque-asof · filial #2 · data 3           lidas     21 · count     21 · recusadas 21 · [].colaborador invalid_type×21
+  REPROVA relatorios.rel-estoque-asof · filial #3 · data 1           lidas    143 · count    143 · recusadas 121 · [].colaborador invalid_type×121
+  ok      relatorios.rel-estoque-asof · filial #3 · data 2           lidas      0 · count      0 · recusadas 0
+  REPROVA relatorios.rel-estoque-asof · filial #3 · data 3           lidas     13 · count     13 · recusadas 13 · [].colaborador invalid_type×13
+  REPROVA relatorios.rel-estoque-asof · filial #4 · data 1           lidas     44 · count     44 · recusadas 43 · [].colaborador invalid_type×43
+  ok      relatorios.rel-estoque-asof · filial #4 · data 2           lidas      0 · count      0 · recusadas 0
+  REPROVA relatorios.rel-estoque-asof · filial #4 · data 3           lidas      4 · count      4 · recusadas 4 · [].colaborador invalid_type×4
+  REPROVA relatorios.rel-estoque-asof · filial #5 · data 1           lidas     51 · count     51 · recusadas 47 · [].colaborador invalid_type×47
+  REPROVA relatorios.rel-estoque-asof · filial #5 · data 2           lidas      1 · count      1 · recusadas 1 · [].colaborador invalid_type×1
+  REPROVA relatorios.rel-estoque-asof · filial #5 · data 3           lidas     23 · count     23 · recusadas 23 · [].colaborador invalid_type×23
+  REPROVA relatorios.rel-estoque-asof · filial #6 · data 1           lidas      4 · count      4 · recusadas 4 · [].colaborador invalid_type×4
+  ok      relatorios.rel-estoque-asof · filial #6 · data 2           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-estoque-asof · filial #6 · data 3           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-saldo-itens · consolidado · data 1          lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · consolidado · data 2          lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · consolidado · data 3          lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #1 · data 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #1 · data 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #1 · data 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #2 · data 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #2 · data 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #2 · data 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #3 · data 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #3 · data 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #3 · data 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #4 · data 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #4 · data 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #4 · data 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #5 · data 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #5 · data 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #5 · data 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #6 · data 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #6 · data 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-saldo-itens · filial #6 · data 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · consolidado · janela 1          lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · consolidado · janela 2          lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · consolidado · janela 3          lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #1 · janela 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #1 · janela 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #1 · janela 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #2 · janela 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #2 · janela 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #2 · janela 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #3 · janela 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #3 · janela 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #3 · janela 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #4 · janela 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #4 · janela 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #4 · janela 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #5 · janela 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #5 · janela 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #5 · janela 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #6 · janela 1            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #6 · janela 2            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-mov-itens · filial #6 · janela 3            lidas      7 · count      7 · recusadas 0
+  ok      relatorios.rel-frescor-itens · consolidado · data 1        lidas      2 · count      2 · recusadas 0
+  ok      relatorios.rel-frescor-itens · consolidado · data 2        lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · consolidado · data 3        lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #1 · data 1          lidas      2 · count      2 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #1 · data 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #1 · data 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #2 · data 1          lidas      1 · count      1 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #2 · data 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #2 · data 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #3 · data 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #3 · data 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #3 · data 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #4 · data 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #4 · data 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #4 · data 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #5 · data 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #5 · data 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #5 · data 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #6 · data 1          lidas      1 · count      1 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #6 · data 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-frescor-itens · filial #6 · data 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · consolidado · janela 1        lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · consolidado · janela 2        lidas     15 · count     15 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · consolidado · janela 3        lidas     15 · count     15 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #1 · janela 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #1 · janela 2          lidas     15 · count     15 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #1 · janela 3          lidas     15 · count     15 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #2 · janela 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #2 · janela 2          lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #2 · janela 3          lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #3 · janela 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #3 · janela 2          lidas     11 · count     11 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #3 · janela 3          lidas     11 · count     11 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #4 · janela 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #4 · janela 2          lidas      2 · count      2 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #4 · janela 3          lidas      2 · count      2 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #5 · janela 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #5 · janela 2          lidas      2 · count      2 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #5 · janela 3          lidas      2 · count      2 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #6 · janela 1          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #6 · janela 2          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-mov-por-mes · filial #6 · janela 3          lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · consolidado · janela 1         lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · consolidado · janela 2         lidas     12 · count     12 · recusadas 0
+  ok      relatorios.rel-por-motivo · consolidado · janela 3         lidas     12 · count     12 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #1 · janela 1           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #1 · janela 2           lidas     12 · count     12 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #1 · janela 3           lidas     12 · count     12 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #2 · janela 1           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #2 · janela 2           lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #2 · janela 3           lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #3 · janela 1           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #3 · janela 2           lidas      4 · count      4 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #3 · janela 3           lidas      4 · count      4 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #4 · janela 1           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #4 · janela 2           lidas      1 · count      1 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #4 · janela 3           lidas      1 · count      1 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #5 · janela 1           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #5 · janela 2           lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #5 · janela 3           lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #6 · janela 1           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #6 · janela 2           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-por-motivo · filial #6 · janela 3           lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · consolidado · janela 1             lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · consolidado · janela 2             lidas     48 · count     48 · recusadas 0
+  ok      relatorios.rel-resumo · consolidado · janela 3             lidas     48 · count     48 · recusadas 0
+  ok      relatorios.rel-resumo · filial #1 · janela 1               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #1 · janela 2               lidas     24 · count     24 · recusadas 0
+  ok      relatorios.rel-resumo · filial #1 · janela 3               lidas     24 · count     24 · recusadas 0
+  ok      relatorios.rel-resumo · filial #2 · janela 1               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #2 · janela 2               lidas      5 · count      5 · recusadas 0
+  ok      relatorios.rel-resumo · filial #2 · janela 3               lidas      5 · count      5 · recusadas 0
+  ok      relatorios.rel-resumo · filial #3 · janela 1               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #3 · janela 2               lidas     12 · count     12 · recusadas 0
+  ok      relatorios.rel-resumo · filial #3 · janela 3               lidas     12 · count     12 · recusadas 0
+  ok      relatorios.rel-resumo · filial #4 · janela 1               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #4 · janela 2               lidas      4 · count      4 · recusadas 0
+  ok      relatorios.rel-resumo · filial #4 · janela 3               lidas      4 · count      4 · recusadas 0
+  ok      relatorios.rel-resumo · filial #5 · janela 1               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #5 · janela 2               lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-resumo · filial #5 · janela 3               lidas      3 · count      3 · recusadas 0
+  ok      relatorios.rel-resumo · filial #6 · janela 1               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #6 · janela 2               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.rel-resumo · filial #6 · janela 3               lidas      0 · count      0 · recusadas 0
+  ok      relatorios.ultimas-movimentacoes                           lidas   3245 · count   3245 · recusadas 0
+  ok      relatorios.tabela-do-periodo                               lidas   3245 · count   3245 · recusadas 0
+  ok      relatorios.mov-itens-do-periodo                            lidas     35 · count     35 · recusadas 0
+  ok      conflitos.lados                                            lidas      0 · count      0 · recusadas 0
+  ok      movimentacoes.linha-do-tempo                               lidas   3245 · count   3245 · recusadas 0
+  ok      admin.motivos                                              lidas     13 · count     13 · recusadas 0
+  ok      admin.senhas-acesso                                        lidas      0 · count      0 · recusadas 0
+  ok      ativos.lista                                               lidas   1606 · count   1606 · recusadas 0
+  ok      ativos.ficha                                               lidas   1606 · count   1606 · recusadas 0
+  ok      ativos.vinculo                                             lidas   1606 · count   1606 · recusadas 0
+  ok      ativos.anotacoes                                           lidas      0 · count      0 · recusadas 0
+  ok      ativos.resumo                                              lidas   1606 · count   1606 · recusadas 0
+  ok      ativos.recentes-do-operador                                lidas   3245 · count   3245 · recusadas 0
+  ok      ativos.export                                              lidas   1606 · count   1606 · recusadas 0
+  ok      colaboradores.fila-consolidacao                            lidas    780 · count    780 · recusadas 0
+  ok      colaboradores.resumo-consolidacao                          lidas      1 · count      1 · recusadas 0
+  ok      colaboradores.por-nome-chave                               lidas      0 · count      0 · recusadas 0
+  ok      colaboradores.sugestao-cadastro                            lidas      0 · count      0 · recusadas 0
+  ok      colaboradores.sugestao-movimentacoes                       lidas   3245 · count   3245 · recusadas 0
+  ok      colaboradores.sugestao-lancamentos                         lidas     35 · count     35 · recusadas 0
+  ok      compras.ultima-do-operador                                 lidas   3245 · count   3245 · recusadas 0
+  ok      dev-destrutivo.candidatos                                  lidas   1606 · count   1606 · recusadas 0
+  ok      dev-destrutivo.movimentacoes-do-ativo                      lidas   3245 · count   3245 · recusadas 0
+  ok      dev-destrutivo.termos-do-ativo                             lidas      2 · count      2 · recusadas 0
+  ok      dev-destrutivo.itens                                       lidas      7 · count      7 · recusadas 0
+  ok      dev-destrutivo.backup-ativos                               lidas   1606 · count   1606 · recusadas 0
+  ok      dev-destrutivo.backup-movimentacoes                        lidas   3245 · count   3245 · recusadas 0
+  ok      dev-destrutivo.backup-anotacoes                            lidas      0 · count      0 · recusadas 0
+  ok      dev-destrutivo.backup-pendencias-item                      lidas     23 · count     23 · recusadas 0
+  ok      dev-destrutivo.backup-termos-gerados                       lidas      2 · count      2 · recusadas 0
+  ok      dev-destrutivo.backup-lancamentos-item                     lidas     35 · count     35 · recusadas 0
+  ok      eventos-admin.listar                                       lidas      0 · count      0 · recusadas 0
+  ok      import-logs.par-com-patrimonio-em-outra-filial             lidas   1606 · count   1606 · recusadas 0
+  ok      import-logs.par-sem-patrimonio-em-outra-filial             lidas   1606 · count   1606 · recusadas 0
+  ok      import-logs.backup-ativos                                  lidas   1606 · count   1606 · recusadas 0
+  ok      import-logs.backup-movimentacoes                           lidas   3245 · count   3245 · recusadas 0
+  ok      import-logs.backup-anotacoes                               lidas      0 · count      0 · recusadas 0
+  ok      import-logs.backup-termos-gerados                          lidas      2 · count      2 · recusadas 0
+  ok      import-logs.backup-pendencias-item                         lidas     23 · count     23 · recusadas 0
+  ok      import-logs.backup-lancamentos-item-desvinculados          lidas     35 · count     35 · recusadas 0
+  ok      itens.ativos                                               lidas      7 · count      7 · recusadas 0
+  ok      itens.admin                                                lidas      7 · count      7 · recusadas 0
+  ok      itens.historico-lancamentos                                lidas     35 · count     35 · recusadas 0
+  ok      itens.historico-export                                     lidas     35 · count     35 · recusadas 0
+  ok      itens.lancamentos-saldo-apos                               lidas     35 · count     35 · recusadas 0
+  ok      itens.ultimo-lancamento                                    lidas     35 · count     35 · recusadas 0
+  REPROVA itens.saldo-colaborador · (nenhuma célula)                 lidas      0 · count      — · recusadas 0 · NÃO PROVADO: a matriz não gerou célula no alvo (nenhuma filial ou pessoa para chamar)
+  ok      itens.junto-do-ativo                                       lidas      5 · count      5 · recusadas 0
+  ok      itens.acessorios-movimentacoes                             lidas     35 · count     35 · recusadas 0
+  ok      kits.ativos                                                lidas      0 · count      0 · recusadas 0
+  ok      kits.admin                                                 lidas      0 · count      0 · recusadas 0
+  ok      motivos.listar                                             lidas     13 · count     13 · recusadas 0
+  ok      movimentacoes.envio-manutencao                             lidas   3245 · count   3245 · recusadas 0
+  ok      movimentacoes.ultima-do-usuario                            lidas   3245 · count   3245 · recusadas 0
+  ok      movimentacoes.para-duplicar                                lidas   3245 · count   3245 · recusadas 0
+  ok      movimentacoes.sugestao-colaborador                         lidas   1334 · count   1334 · recusadas 0
+  ok      movimentacoes.sugestao-setor                               lidas    305 · count    305 · recusadas 0
+  ok      movimentacoes.candidatas-duplicata                         lidas   3245 · count   3245 · recusadas 0
+  ok      movimentacoes.lista                                        lidas   3245 · count   3245 · recusadas 0
+  ok      movimentacoes.lista-por-patrimonio                         lidas   3245 · count   3245 · recusadas 0
+  ok      pendencias-detalhe.fila                                    lidas    132 · count    132 · recusadas 0
+  ok      pendencias-detalhe.service-tags                            lidas   1606 · count   1606 · recusadas 0
+  ok      pendencias-item.do-ativo                                   lidas     23 · count     23 · recusadas 0
+  ok      termos.do-ativo                                            lidas      2 · count      2 · recusadas 0
+  ok      vocabulario-import.categorias                              lidas      5 · count      5 · recusadas 0
+  ok      vocabulario-import.estados                                 lidas     17 · count     17 · recusadas 0
+  ok      auth.papel-atual · única                                   lidas      1 · count      1 · recusadas 0
+  ok      auth.perfil-operador                                       lidas      5 · count      5 · recusadas 0
+  ok      dashboard.fila-pendencias                                  lidas    132 · count    132 · recusadas 0
+  ok      colaboradores.grupos-a-consolidar                          lidas    780 · count    780 · recusadas 0
+  ok      itens.lancamento-para-estorno                              lidas     35 · count     35 · recusadas 0
+  ok      movimentacoes.ativos-do-lote                               lidas   1606 · count   1606 · recusadas 0
+  ok      movimentacoes.itens-a-estornar                             lidas     35 · count     35 · recusadas 0
+  ok      pendencias.tipos-para-ponte                                lidas      7 · count      7 · recusadas 0
+  ok      pendencias.itens-para-ponte                                lidas      7 · count      7 · recusadas 0
+  ok      pendencias.lancamentos-da-reabertura                       lidas     35 · count     35 · recusadas 0
+  ok      relatorios.ultima-versao                                   lidas      1 · count      1 · recusadas 0
+  ok      termos.cidades-das-filiais                                 lidas      6 · count      6 · recusadas 0
+  ok      termos.mov-para-termo                                      lidas   3245 · count   3245 · recusadas 0
+  ok      termos.existentes-do-conjunto                              lidas      2 · count      2 · recusadas 0
+  ok      termos.url-termo                                           lidas      2 · count      2 · recusadas 0
+  ok      termos.alvos-assinatura-lote                               lidas   1606 · count   1606 · recusadas 0
+  ok      termos.ativos-id                                           lidas   1606 · count   1606 · recusadas 0
+  ok      ativos.mesma-identidade                                    lidas   1606 · count   1606 · recusadas 0
+  ok      gerados.lista                                              lidas      1 · count      1 · recusadas 0
+  ok      gerados.detalhe                                            lidas      1 · count      1 · recusadas 0
+  ok      conflitos.backup-ativos                                    lidas   1606 · count   1606 · recusadas 0
+  ok      conflitos.backup-movimentacoes                             lidas   3245 · count   3245 · recusadas 0
+  ok      conflitos.backup-anotacoes                                 lidas      0 · count      0 · recusadas 0
+  ok      conflitos.backup-pendencias-item                           lidas     23 · count     23 · recusadas 0
+  ok      conflitos.backup-termos-gerados                            lidas      2 · count      2 · recusadas 0
+[conferir] 12 descritor(es) sem linha no alvo (forma não exercitada aqui): conflitos.lados, admin.senhas-acesso, ativos.anotacoes, colaboradores.por-nome-chave, colaboradores.sugestao-cadastro, dev-destrutivo.backup-anotacoes, eventos-admin.listar, import-logs.backup-anotacoes, itens.saldo-colaborador, kits.ativos, kits.admin, conflitos.backup-anotacoes
+[conferir] 240 pontos · 89460 linhas · 3326 recusadas · 16 reprovados · C:/Users/VICTOR~1.MAT/AppData/Local/Temp/claude/C--Users-victor-matusita-ti-wap-inventory-control/a32f1dce-4789-4a9b-89e4-7db2dc50d032/scratchpad/f58/conferidor/ensaio-sabotagem-e.json
+
+sha256 antes = depois da restauração: true · worktree limpa: true
