@@ -113,3 +113,32 @@ código de saída: 1 (esperado: diferente de 0)
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
 
 sha256 antes = depois da restauração: true
+
+================================================================================
+
+QUARTA RE-REVISÃO (sobre `cfa5ef7`) — um achado, confirmado: `import("./mod").Nome` escrito no próprio
+argumento de tipo é outro nó de AST (`ImportTypeNode`) e não chegava a nenhuma das resoluções — o atalho
+de quem não quer mexer no bloco de imports. O cético provou com o `tsc` que a coluna ausente compila, e o
+tipo do exemplo é o mesmo `ContextoFalha = Record<string, unknown>` que já era o caso positivo do teste.
+A mesma lente conferiu que a correção da rodada 3 não criou falso negativo (`export { Linha }` local,
+`export default interface`, `.d.ts`) nem falso positivo em `src/**`.
+Correção: o `import(…)` inline percorre a mesma cadeia (módulo → namespace → declaração exportada),
+inclusive `import("./mod").Grupo.Nome` e na CHAVE de um `Record`. 5 casos de guarda novos — 80 no arquivo.
+Com os dois ramos desligados, 3 ficam vermelhos.
+
+Saída real (15/09/2026):
+
+## Rodada 4 da re-revisão — o `import(…)` inline desligado
+- `import(…)` inline ignorado no argumento
+- `import(…)` inline ignorado na chave
+
+código de saída: 1 (esperado: diferente de 0)
+
+     × casa: tipo importado INLINE, sem mexer no bloco de imports 9ms
+     × entre arquivos: import inline até um namespace exportado 1ms
+     × entre arquivos: import inline na CHAVE de um Record 1ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 77 passed (80)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+sha256 antes = depois da restauração: true

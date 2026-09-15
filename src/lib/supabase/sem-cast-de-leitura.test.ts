@@ -319,6 +319,8 @@ export function castsDeLeitura(
 //    módulo alheio só vale o que ele EXPORTA (um `type Linha` privado não esconde o `export { Linha } from`);
 //  · por `namespace`/`declare namespace` do próprio arquivo, inclusive aninhado (`A.B.Linha`), e pelo
 //    namespace que um módulo exporta ou reexporta (`import { Grupo }`, `export * as Grupo from`);
+//  · pelo `import('./mod').Nome` escrito no próprio argumento (o atalho de quem não quer mexer no
+//    bloco de imports), inclusive `import('./mod').Grupo.Nome`;
 //  · pelos argumentos de um alias genérico (`type Solta<T> = T` com `<unknown>`), por substituição;
 //  · por `extends` de interface e pelos utilitários (`Partial` apaga; `Pick`/`Omit`/`Readonly`/
 //    `Required`/`NonNullable` preservam o que o primeiro argumento apaga — de modo CONSERVADOR: um
@@ -560,6 +562,10 @@ function chaveAberta(t: ts.TypeNode, ctx: ContextoDeTipos, saltos: number): bool
   if (ehApagador(t) || [ts.SyntaxKind.StringKeyword, ts.SyntaxKind.NumberKeyword, ts.SyntaxKind.SymbolKeyword].includes(t.kind)) return true
   if (ts.isParenthesizedTypeNode(t)) return chaveAberta(t.type, ctx, saltos)
   if (ts.isUnionTypeNode(t)) return t.types.some((x) => chaveAberta(x, ctx, saltos))
+  if (ts.isImportTypeNode(t)) {
+    const d = denotarImportado(t, ctx, saltos)
+    return !!d && d.tipo === 'declaracoes' && d.decls.some((decl) => ts.isTypeAliasDeclaration(decl) && chaveAberta(decl.type, d.ctx, saltos + 1))
+  }
   if (!ts.isTypeReferenceNode(t) || !ts.isIdentifier(t.typeName)) return false
   if (t.typeName.text === 'PropertyKey') return true
   const d = denotar(t.typeName.text, t, ctx, saltos)
@@ -595,6 +601,41 @@ function referenciaApaga(
   } else {
     d = denotar(nome, onde, ctx, saltos)
   }
+  return denotacaoApaga(d, argumentos, ctx, saltos)
+}
+
+/** `import('./mod').Nome` escrito no próprio argumento: a mesma resolução do `import` no topo do arquivo. */
+function denotarImportado(t: ts.ImportTypeNode, ctx: ContextoDeTipos, saltos: number): Denotacao {
+  if (saltos > LIMITE_DE_SALTOS) return null
+  const especificador = ts.isLiteralTypeNode(t.argument) && ts.isStringLiteral(t.argument.literal) ? t.argument.literal.text : null
+  if (!especificador || !t.qualifier) return null
+  if (ts.isIdentifier(t.qualifier)) return exportado(t.qualifier.text, especificador, ctx, saltos + 1)
+  // `import('./mod').Grupo.Nome`: o módulo faz o papel do recipiente da esquerda
+  const partes: string[] = []
+  for (let e: ts.EntityName = t.qualifier; ; ) {
+    if (ts.isIdentifier(e)) {
+      partes.unshift(e.text)
+      break
+    }
+    partes.unshift(e.right.text)
+    e = e.left
+  }
+  const nome = partes.pop() ?? ''
+  let atual: Recipiente | null = { tipo: 'modulo', especificador, ctx }
+  for (const parte of partes) {
+    if (!atual) return null
+    if (atual.tipo === 'modulo') {
+      atual = namespaceExportado(parte, atual.especificador, atual.ctx, saltos + 1)
+    } else {
+      const corpo = corposDeNamespace(atual.instrucoes, parte)
+      atual = corpo.length > 0 ? { tipo: 'bloco', instrucoes: corpo, ctx: atual.ctx } : null
+    }
+  }
+  return atual ? noRecipiente(atual, nome, saltos + 1) : null
+}
+
+/** O que a denotação apaga, com os argumentos do uso: o parâmetro de tipo substituído, ou as declarações. */
+function denotacaoApaga(d: Denotacao, argumentos: readonly ts.TypeNode[] | undefined, ctx: ContextoDeTipos, saltos: number): boolean {
   if (!d) return false
   if (d.tipo === 'parametro') {
     const sub = ctx.subst.get(d.param)
@@ -638,6 +679,8 @@ function apagaALinha(t: ts.TypeNode, ctx: ContextoDeTipos, saltos = 0): boolean 
     return opcional || (!!restricao && chaveAberta(restricao, ctx, saltos + 1)) || (!!t.type && apagaALinha(t.type, ctx, saltos + 1))
   }
   if (ts.isIntersectionTypeNode(t) || ts.isUnionTypeNode(t)) return t.types.some((x) => apagaALinha(x, ctx, saltos))
+  // `import('./mod').Nome` inline: outro nó, a MESMA resolução (quarta re-revisão)
+  if (ts.isImportTypeNode(t)) return denotacaoApaga(denotarImportado(t, ctx, saltos), t.typeArguments, ctx, saltos)
   if (!ts.isTypeReferenceNode(t)) return false
   const { typeName } = t
   return ts.isIdentifier(typeName)
@@ -720,6 +763,7 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['tipo IMPORTADO que apaga (Record<string, unknown> de verdade no repositório)', 'import type { ContextoFalha } from "@/lib/observabilidade-linha"\nasync function f(){ return paginarTodos<ContextoFalha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
     ['tipo importado por namespace', 'import type * as O from "@/lib/observabilidade-linha"\nasync function f(){ return paginarTodos<O.ContextoFalha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
     ['tipo importado com rename', 'import type { ContextoFalha as Linha } from "@/lib/observabilidade-linha"\nasync function f(){ return paginarPorIds<Linha>("x", ids, (l, a, b) => c.from("t").select("*").in("id", l).range(a, b)) }', 1],
+    ['tipo importado INLINE, sem mexer no bloco de imports', 'async function f(){ return paginarTodos<import("@/lib/observabilidade-linha").ContextoFalha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
     // segunda re-revisão da F58: namespace local e CHAVE ABERTA
     ['namespace local', 'namespace X { export type Linha = unknown }\nasync function f(){ return paginarTodos<X.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
     ['declare namespace aninhado', 'declare namespace A.B { type Linha = Record<string, unknown> }\nasync function f(){ return paginarTodos<A.B.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', 1],
@@ -752,6 +796,7 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['Readonly de tipo concreto', 'type Linha = { id: string; nome: string }\nasync function f(){ return paginarTodos<Readonly<Linha>>("x", (a, b) => c.from("t").select("id, nome").range(a, b)) }'],
     ['Record de chaves FECHADAS com valor concreto', 'async function f(){ return paginarTodos<Record<"id" | "nome", string>>("x", (a, b) => c.from("t").select("id, nome").range(a, b)) }'],
     ['namespace local com tipo concreto', 'namespace X { export type Linha = { id: string } }\nasync function f(){ return paginarTodos<X.Linha>("x", (a, b) => c.from("t").select("id").range(a, b)) }'],
+    ['tipo importado INLINE, concreto', 'async function f(){ return paginarTodos<import("@/lib/relatorios/serie").LinhaSerieCurta>("x", (a, b) => c.from("t").select("data, tipo").range(a, b)) }'],
   ])('não casa: %s', (_nome, fonte) => {
     expect(castsDeLeitura(fonte)).toEqual([])
   })
@@ -774,6 +819,10 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['namespace PRIVADO de mesmo nome não esconde o reexportado', 'import type * as M from "./mod"\nasync function f(){ return paginarTodos<M.Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'real.ts': 'export namespace Grupo { export type Linha = Record<string, unknown> }', 'mod.ts': 'namespace Grupo { export type Linha = { id: string } }\nexport { Grupo } from "./real"' }, 1],
     ['namespace importado por nome', 'import type { Grupo } from "./tipos"\nasync function f(){ return paginarTodos<Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export namespace Grupo { export type Linha = unknown }' }, 1],
     ['`export * as Grupo from` faz o papel do namespace', 'import type { Grupo } from "./barril"\nasync function f(){ return paginarTodos<Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export type Linha = Record<string, unknown>', 'barril.ts': 'export * as Grupo from "./tipos"' }, 1],
+    // quarta re-revisão: o `import('…')` inline percorre a mesma cadeia
+    ['import inline até um namespace exportado', 'async function f(){ return paginarTodos<import("./tipos").Grupo.Linha>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export namespace Grupo { export type Linha = unknown }' }, 1],
+    ['import inline na CHAVE de um Record', 'async function f(){ return paginarTodos<Record<import("./tipos").Chave, string>>("x", (a, b) => c.from("t").select("*").range(a, b)) }', { 'tipos.ts': 'export type Chave = string' }, 1],
+    ['o tipo PRIVADO do módulo não é o que o import traz', `import type { Linha } from "./mod"\n${PAGINA}`, { 'mod.ts': 'type Oculto = unknown\nexport type Linha = { id: string }' }, 0],
   ])('entre arquivos: %s', (_nome, fonte, arquivos, esperado) => {
     const virtuais = Object.fromEntries(Object.entries(arquivos).map(([k, v]) => [VIRTUAL(k), v]))
     expect(castsDeLeitura(fonte, VIRTUAL('consumidor.ts'), virtuais)).toHaveLength(esperado)
