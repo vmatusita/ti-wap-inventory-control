@@ -1,6 +1,6 @@
 # Relatório F58 — A fronteira tipada do banco
 
-**v1.63.0** · **sem migration** · 15/09/2026 · SHA de código congelado **`66b1571`** · branch `f58-fronteira-tipada-do-banco` · código [PR #47](https://github.com/vmatusita/ti-wap-inventory-control/pull/47), mergeado em `ac92273`
+**v1.63.0** · **sem migration** · 15/09/2026 · SHA de código congelado **`66b1571`** · branch `f58-fronteira-tipada-do-banco` · código [PR #47](https://github.com/vmatusita/ti-wap-inventory-control/pull/47), mergeado em `ac92273` · documentação [PR #49](https://github.com/vmatusita/ti-wap-inventory-control/pull/49)
 
 > Até aqui o TypeScript parava de conferir exatamente onde o dado entra: um `.rpc(` que aceitava `null` onde o SQL não
 > aceita (e recusava onde aceita), um `(data ?? []) as X[]` que apagava o tipo que o `select` infere — 100 pontos —, e
@@ -567,7 +567,7 @@ antigo, a visão de uma filial numa data passada, o CSV de ativos e a ficha de u
 | 27 | 1.63.0 no `package.json`, `CHANGELOG.md` e `registry.ts`; tag no merge do PR de documentação | ✅ versão em `bb79e67` · ⏳ tag | a tag anotada `v1.63.0` vai no merge do PR de documentação |
 | 28 | ata datada em `docs/DECISOES.md` | ✅ | quatro atas de 15/09/2026: as nove decisões, a revisão do lote 2, as frases de erro do banco e o que as revisões adversariais mudaram |
 | 29 | `docs/RELATORIO-F58.md` no padrão, roteiro no topo | ✅ | este arquivo |
-| 30 | PRs de código e de documentação mergeados com os checks verdes | ✅ código · ⏳ documentação | #47 mergeado em `ac92273` com `verificar` (2m48s) e `banco-sem-docker` (1m43s) verdes; o PR de documentação fecha a fase |
+| 30 | PRs de código e de documentação mergeados com os checks verdes | ✅ código · ⏳ documentação | #47 mergeado em `ac92273` com `verificar` (2m48s) e `banco-sem-docker` (1m43s) verdes; o #49 é este, e o merge dele é o commit final da fase — onde vai a tag `v1.63.0` |
 | 31 | `ARQUITETURA.md` §10 e `README.md` citam a porta, `linhas.ts`, as listas de erro e o conferidor | ✅ | `1348518`: as linhas novas citam `chamarRpc`, `linhas.ts`/`linhasDe`, `erros-do-banco`, `conferir.mts` |
 | 32 | nenhum dado real em teste, fixture, evidência, log ou saída | ✅ na 3ª passada | `E-varredura-evidencias.json`: **38 arquivos, 0 com ocorrência**, 9 termos de filial comparados (nome e slug de produção, em memória, nunca gravados). As duas passadas anteriores acusaram — homônimo na prosa do resumo e um caminho absoluto cujo diretório de sessão é um UUID —, e as duas causas foram corrigidas (§2.2, itens 15 e 16), não silenciadas |
 | 33 | estado de repouso declarado | ✅ | §11 |
