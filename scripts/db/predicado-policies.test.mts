@@ -38,6 +38,10 @@ describe('1. léxico — comentário não é código, literal não é comando', 
     ])
   })
 
+  it('E-string decodifica os escapes que o Postgres decodifica (hex, octal, unicode, \\n)', () => {
+    expect(lexar("E'a\\x41\\101\\u0041\\n\\'b'").tokens[0].v).toBe("aAAA\n'b")
+  })
+
   it('literal que não fecha LANÇA (não vira texto solto)', () => {
     expect(() => lexar("select 'aberto")).toThrow(/não fecha/)
   })
@@ -111,6 +115,12 @@ describe('2. replay — na ORDEM do texto, com drop, rename e as formas de alter
     ['o execute de uma variável', "do $$ declare v text := 'select 1'; begin execute v; end $$;"],
     ['a concatenação depois do literal', "do $$ begin execute 'alter table ' || quote_ident('t') || ' enable row level security'; end $$;"],
     ['o %s no formato', "do $$ begin execute format('create index %s on t (x)', 'i'); end $$;"],
+    // re-revisão adversarial: a palavra escondida por escape de E-string, U&'…' e $tag$ interno
+    ['o escape hexadecimal de E-string', "do $$ begin execute E'drop poli\\x63y \"p\" on public.t'; end $$;"],
+    ['o escape octal de E-string', "do $$ begin execute E'drop poli\\143y \"p\" on public.t'; end $$;"],
+    ['o escape unicode de E-string', "do $$ begin execute E'drop poli\\u0063y \"p\" on public.t'; end $$;"],
+    ["o literal U&'…'", "do $$ begin execute U&'drop poli\\0063y \"p\" on public.t'; end $$;"],
+    ['o $tag$ dentro do corpo', 'do $$ begin execute $q$drop policy p on t$q$; end $$;'],
   ])('FALHA FECHADA — execute dinâmico que a trava não lê reprova: %s (revisão adversarial da F59)', (_nome, sql) => {
     const r = replayPolicies([mig(sql, '0201_laco.sql')])
     expect(r.falhas.length).toBeGreaterThan(0)

@@ -318,6 +318,24 @@ const FUNCOES_PERMITIDAS = new Set([
   'jsonb_path_query_array', 'jsonb_path_query_first', 'jsonb_path_exists',
   'coalesce', 'array_length', 'format', 'count', 'unnest',
 ])
+/**
+ * Os ÚNICOS `execute` que um comando do modelo tem — o texto exato, espaço normalizado.
+ * Re-revisão adversarial da F59: conferir só o prefixo (`format('select`) deixava passar
+ * `execute format('select * into sombra from …')`, que cria tabela sem palavra proibida.
+ */
+const EXECUTES_PERMITIDOS = new Set(
+  [
+    "execute format('select count(*) from public.%I', v_tabela) into v_total;",
+    "execute format('select count(*) from public.%I t where public.pode_escrever_filial(t.filial_id)', v_tabela) into v_esperado;",
+    "execute format('select count(*) from public.%I', v_tabela) into v_negativo;",
+    `execute '${EXPLAIN}' || v_sql[v_k] into v_plano;`,
+    "execute format('select count(*) from public.%I', 'ativos') into v_total;",
+    `execute '${EXPLAIN}' || v_caso.consulta into v_plano;`,
+  ].map((s) => s.replace(/\s+/g, ' ')),
+)
+/** Palavras que não podem aparecer no SQL DENTRO dos literais (o que o `execute` roda). */
+const PROIBIDAS_EM_LITERAL = ['into', 'for', 'share', 'nowait']
+
 /** Palavras que abrem parêntese sem serem chamada de função. */
 const ABREM_PARENTESE = new Set([
   'if', 'elsif', 'or', 'and', 'not', 'in', 'any', 'all', 'some', 'exists', 'array', 'values', 'explain',
@@ -344,6 +362,9 @@ function palavrasDeCodigo(sql, profundidade = 0) {
   tk.forEach((t, i) => {
     if (t.tipo === 'ident' || t.tipo === 'qident') {
       palavras.push(t.v)
+      if (profundidade > 0 && PROIBIDAS_EM_LITERAL.includes(t.v)) {
+        recusar(`palavra "${t.v}" no SQL de dentro de um literal — o que o execute roda é só leitura, sem into/for.`)
+      }
       const abre = tk[i + 1]?.tipo === 'punct' && tk[i + 1].v === '('
       const depoisDeAs = tk[i - 1]?.tipo === 'ident' && tk[i - 1].v === 'as'
       if (abre && !depoisDeAs && !(t.tipo === 'ident' && ABREM_PARENTESE.has(t.v))) chamadas.push(t.v)
@@ -400,13 +421,11 @@ export function validarComando(sql) {
   if (chamadasSetConfig !== [...semComentario.matchAll(/set_config\(\s*'[^']+'\s*,/g)].length) {
     recusar('set_config com nome de parâmetro que não é literal.')
   }
-  for (const m of semComentario.matchAll(/\bexecute\s+(\S+)/g)) {
-    const ok = m[1] === `'${EXPLAIN.split(' ')[0]}` || m[1].startsWith("format('select")
-    if (!ok) recusar(`execute fora do modelo: "execute ${m[1]}".`)
+  const executes = [...semComentario.matchAll(/\bexecute\b[\s\S]*?;/g)].map((m) => m[0].replace(/\s+/g, ' '))
+  for (const e of executes) {
+    if (!EXECUTES_PERMITIDOS.has(e)) recusar(`execute fora do modelo: "${e.slice(0, 120)}".`)
   }
-  if (palavras.filter((p) => p === 'execute').length !== [...semComentario.matchAll(/\bexecute\s+(\S+)/g)].length) {
-    recusar('execute fora do modelo.')
-  }
+  if (palavras.filter((p) => p === 'execute').length !== executes.length) recusar('execute fora do modelo.')
   return sql
 }
 

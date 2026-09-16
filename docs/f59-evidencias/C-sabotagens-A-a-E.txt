@@ -84,3 +84,8 @@
 ## E.4 controle: o execute inofensivo da 0124 (format com %I/%L) continua passando
    SQL: do $$ begin   execute format('alter database %I set timezone = %L', current_database(), 'America/Sao_Paulo'); end $$;
    → VERDE
+
+## E.5 a palavra escondida por escape hexadecimal de E-string — E'drop poli\x63y …' (achado da re-revisão)
+   SQL: do $$ begin   execute E'drop poli\x63y "leitura operador" on public.ativos'; end $$;
+   → VERMELHO
+   · falha fechada 0160_escape_hex.sql:3 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration

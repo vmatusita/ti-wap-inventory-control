@@ -58,6 +58,11 @@ describe('2. o comando, contra o modelo fechado', () => {
     ['função dentro do SQL que o execute roda', VALIDO.replace("'select id, patrimonio", "'select pg_sleep(1), id, patrimonio")],
     ['transaction_read_only reaberto', VALIDO.replace('  -- 5. a medição', "  perform set_config('transaction_read_only', 'off', true);\n  -- 5. a medição")],
     ['troca de papel duas vezes', VALIDO.replace('  -- 5. a medição', "  perform set_config('role', 'authenticated', true);\n  -- 5. a medição")],
+    // re-revisão adversarial da F59: select into (cria tabela sem palavra proibida) e o prefixo que enganava
+    ['select into escondido num execute format', VALIDO.replace('  -- 5. a medição', "  execute format('select * into sombra from public.ativos');\n  -- 5. a medição")],
+    ['select into no SQL de uma forma', VALIDO.replace("'select id, patrimonio", "'select id into sombra, patrimonio")],
+    ['for share no SQL de uma forma', VALIDO.replace("from public.ativos'", "from public.ativos for share'")],
+    ['execute com o prefixo certo e o resto trocado', VALIDO.replace("execute format('select count(*) from public.%I', v_tabela) into v_total;", "execute format('select count(*) from public.%I', 'movimentacoes') into v_total;")],
   ])('%s → recusa', (_nome, sql) => {
     expect(() => validarComando(sql)).toThrow(/RECUSADO/)
   })

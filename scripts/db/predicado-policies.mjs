@@ -206,7 +206,19 @@ function lerLiteral(sql, abre, escape, base) {
     if (j >= sql.length) throw new ErroDeLeitura(`literal não fecha (posição ${base + abre})`)
     const c = sql[j]
     if (escape && c === '\\') {
-      v += sql[j + 1] ?? ''
+      // Os escapes que o Postgres DECODIFICA numa E-string (revisão adversarial da F59:
+      // `E'drop poli\x63y …'` escondia a palavra de quem só copiava o caractere seguinte).
+      const resto = sql.slice(j + 1, j + 10)
+      const esc =
+        /^x([0-9A-Fa-f]{1,2})/.exec(resto) ?? /^([0-7]{1,3})/.exec(resto) ?? /^u([0-9A-Fa-f]{4})/.exec(resto) ?? /^U([0-9A-Fa-f]{8})/.exec(resto)
+      if (esc) {
+        const base16 = esc[0][0] === 'x' || esc[0][0] === 'u' || esc[0][0] === 'U'
+        v += String.fromCodePoint(parseInt(esc[1], base16 ? 16 : 8))
+        j += 1 + esc[0].length
+        continue
+      }
+      const simples = { b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' }[sql[j + 1]]
+      v += simples ?? sql[j + 1] ?? ''
       j += 2
       continue
     }
@@ -387,7 +399,16 @@ export function executesSuspeitos(corpo) {
 
   const codigo = corpo.split('')
   for (const [a, b] of lexado.comentarios) for (let k = a; k < b; k++) codigo[k] = ' '
-  if (codigo.join('').toLowerCase().replace(/['"\s|]/g, '').includes('policy')) {
+  // O texto do corpo E o valor DECODIFICADO de cada literal (a E-string com `\x63` só vira
+  // "c" depois de decodificada). `U&'…'` tem escape próprio: falha fechada, sem decodificar.
+  const decodificados = tk.filter((t) => t.tipo === 'str' || t.tipo === 'dollar').map((t) => t.v).join('')
+  if (/\bu&'/i.test(codigo.join(''))) {
+    achados.push({
+      pos: execs[0][0].ini,
+      motivo: 'corpo com "execute" e literal U&\'…\' (escape unicode) — a trava não o decodifica; escreva o literal sem escape',
+    })
+  }
+  if ((codigo.join('') + decodificados).toLowerCase().replace(/['"\s|]/g, '').includes('policy')) {
     achados.push({
       pos: execs[0][0].ini,
       motivo:
