@@ -1,0 +1,2346 @@
+{
+  "rotulo": "f60-itens-ensaio",
+  "alvo": "ensaio",
+  "canal": "MCP da Supabase (execute_sql), um comando por vez na ordem da fila",
+  "sha_codigo": "067802fcb6ba56ea73f8fb4403a535c1d0e35bee",
+  "gerado_em": "2026-09-16T22:30:49.537Z",
+  "metodo": "formas 1–4 com plano GENÉRICO (prepare + plan_cache_mode = force_generic_plan), como authenticated com as claims de um perfil admin/dev escolhido no banco, transaction_read_only = on; 1 aquecimento + N=7 amostras intercaladas; explain (analyze, buffers, format json); mediana e p95 por posto mais próximo (com N=7 o p95 é a maior amostra); buffers do nó raiz; o bloco termina em raise exception. Forma 6 como postgres, INSERT individual no par quente, também desfeito pela exceção. População com o trigger valida_lancamento_item LIGADO (nenhuma DDL), created_at espalhado por 365 dias a partir da âncora.",
+  "parametros": {
+    "lancamentos": 50000,
+    "patamares": [
+      10000,
+      50000
+    ],
+    "bloco": 5000,
+    "itens": 200,
+    "cadaQuente": 20,
+    "frio": 250,
+    "caudaQuente": 50,
+    "janelaDias": 365,
+    "n": 7,
+    "ancora": "2026-09-16T00:00:00Z",
+    "passo": 630
+  },
+  "postgres": "17.6",
+  "pendencias": [],
+  "estado_antes": {
+    "rotulo": "desenvolvimento",
+    "lancamentos_total": 35,
+    "lancamentos_marcados": 0,
+    "itens_marcados": 0,
+    "banco_bytes": 66202771,
+    "lancamentos_item_bytes": 43843584,
+    "lancamentos_item_heap_bytes": 8192,
+    "lanc_item_created_idx_bytes": 3342336,
+    "indice_candidato_existe": false,
+    "filiais_ativas": 6,
+    "perfis_candidatos": 2,
+    "perfis_admin_ativos": 1
+  },
+  "itens": {
+    "inseridos": 200,
+    "ms": 42
+  },
+  "populacao": {
+    "blocos": [
+      {
+        "de": 1,
+        "ate": 5000,
+        "inseridas": 5000,
+        "ms": 1775.8
+      },
+      {
+        "de": 5001,
+        "ate": 10000,
+        "inseridas": 5000,
+        "ms": 556.3
+      },
+      {
+        "de": 10001,
+        "ate": 15000,
+        "inseridas": 5000,
+        "ms": 758.5
+      },
+      {
+        "de": 15001,
+        "ate": 20000,
+        "inseridas": 5000,
+        "ms": 820.8
+      },
+      {
+        "de": 20001,
+        "ate": 25000,
+        "inseridas": 5000,
+        "ms": 946.3
+      },
+      {
+        "de": 25001,
+        "ate": 30000,
+        "inseridas": 5000,
+        "ms": 1063
+      },
+      {
+        "de": 30001,
+        "ate": 35000,
+        "inseridas": 5000,
+        "ms": 1148.3
+      },
+      {
+        "de": 35001,
+        "ate": 40000,
+        "inseridas": 5000,
+        "ms": 1307.6
+      },
+      {
+        "de": 40001,
+        "ate": 45000,
+        "inseridas": 5000,
+        "ms": 1415.5
+      },
+      {
+        "de": 45001,
+        "ate": 50000,
+        "inseridas": 5000,
+        "ms": 1501.1
+      }
+    ],
+    "inseridas": 50000,
+    "ms_total": 11293,
+    "ms_bloco_mais_lento": 1775.8
+  },
+  "patamares": [
+    {
+      "patamar": 10000,
+      "papel_na_medicao": "authenticated",
+      "contexto": {
+        "reltuples": 10035,
+        "banco_bytes": 68045971,
+        "autores_distintos": 4,
+        "lancamentos_total": 10035,
+        "linhas_autor_frio": 250,
+        "linhas_par_quente": 500,
+        "linhas_autor_quente": 3254,
+        "linhas_duas_filiais": 3699,
+        "n_mod_since_analyze": 0,
+        "lancamentos_marcados": 10000,
+        "lancamentos_item_bytes": 45662208,
+        "indice_candidato_existe": false,
+        "lanc_item_created_idx_bytes": 3342336,
+        "lancamentos_item_heap_bytes": 1679360,
+        "linhas_autor_sem_lancamento": 0,
+        "linhas_mais_novas_que_o_ultimo_do_frio": 9785
+      },
+      "assinaturas": {
+        "rel_mov_itens_velha": true,
+        "rel_mov_itens_filiais": false,
+        "rel_saldo_itens_velha": true,
+        "rel_saldo_itens_filiais": false
+      },
+      "planos_preparados": {
+        "f60i_ultimo": {
+          "genericos": 24,
+          "custom": 0
+        },
+        "f60i_pagina_item": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_pagina_todas": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_contagem_item": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_contagem_todas": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_pagina_filiais": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_contagem_filiais": {
+          "genericos": 8,
+          "custom": 0
+        }
+      },
+      "formas": [
+        {
+          "forma": "1a_contagem_todas",
+          "tela": "/itens/historico",
+          "descricao": "count exact, recorte todas",
+          "execucao_ms": {
+            "mediana": 1.773,
+            "p95": 1.849,
+            "min": 1.76,
+            "max": 1.849,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.003,
+            "p95": 0.004,
+            "min": 0.003,
+            "max": 0.004,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 22,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Aggregate",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 22,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Index Only Scan",
+              "alvo": "lanc_item_colaborador_idx",
+              "linhas": 10035,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 22,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "1b_pagina_todas",
+          "tela": "/itens/historico",
+          "descricao": "página 1 com os embeds, recorte todas",
+          "execucao_ms": {
+            "mediana": 0.7,
+            "p95": 0.747,
+            "min": 0.664,
+            "max": 0.747,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.01,
+            "p95": 0.011,
+            "min": 0.009,
+            "max": 0.011,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 29,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 20,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 22,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 17,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 13,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "itens_pkey",
+              "linhas": 1,
+              "loops": 6,
+              "removidas_pelo_filtro": 0,
+              "hit": 13,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "filiais_pkey",
+              "linhas": 1,
+              "loops": 2,
+              "removidas_pelo_filtro": 0,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 7,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "profiles_pkey",
+              "linhas": 1,
+              "loops": 3,
+              "removidas_pelo_filtro": 0,
+              "hit": 7,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "2a_contagem_duas_filiais",
+          "tela": "/itens/historico",
+          "descricao": "count exact, filial_id = any (duas filiais)",
+          "execucao_ms": {
+            "mediana": 0.947,
+            "p95": 1.02,
+            "min": 0.933,
+            "max": 1.02,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.008,
+            "p95": 0.009,
+            "min": 0.008,
+            "max": 0.009,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 22,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Aggregate",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 22,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Index Only Scan",
+              "alvo": "lanc_item_colaborador_idx",
+              "linhas": 3699,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 22,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "2b_pagina_duas_filiais",
+          "tela": "/itens/historico",
+          "descricao": "página 1 com os embeds, duas filiais",
+          "execucao_ms": {
+            "mediana": 0.585,
+            "p95": 0.857,
+            "min": 0.559,
+            "max": 0.857,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.013,
+            "p95": 0.014,
+            "min": 0.012,
+            "max": 0.014,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 29,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 20,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 22,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 17,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 13,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "itens_pkey",
+              "linhas": 1,
+              "loops": 6,
+              "removidas_pelo_filtro": 0,
+              "hit": 13,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "filiais_pkey",
+              "linhas": 1,
+              "loops": 2,
+              "removidas_pelo_filtro": 0,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 7,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "profiles_pkey",
+              "linhas": 1,
+              "loops": 3,
+              "removidas_pelo_filtro": 0,
+              "hit": 7,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "3a_contagem_item_quente",
+          "tela": "/itens/historico",
+          "descricao": "count exact, 1 item + 1 filial (o par quente)",
+          "execucao_ms": {
+            "mediana": 0.237,
+            "p95": 0.276,
+            "min": 0.225,
+            "max": 0.276,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.012,
+            "p95": 0.013,
+            "min": 0.011,
+            "max": 0.013,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 5,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Aggregate",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Index Only Scan",
+              "alvo": "lanc_item_chamado_idx",
+              "linhas": 500,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 5,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "3b_pagina_item_quente_ordem_data",
+          "tela": "/itens/historico",
+          "descricao": "página 1, 1 item + 1 filial, ordem por data (Saldo após)",
+          "execucao_ms": {
+            "mediana": 1.491,
+            "p95": 1.546,
+            "min": 1.465,
+            "max": 1.546,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.016,
+            "p95": 0.017,
+            "min": 0.015,
+            "max": 0.017,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 215,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 20,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 215,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Sort",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 215,
+              "read": 0
+            },
+            {
+              "no": "Hash Join",
+              "alvo": null,
+              "linhas": 500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 215,
+              "read": 0
+            },
+            {
+              "no": "Hash Join",
+              "alvo": null,
+              "linhas": 500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 213,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 211,
+              "read": 0
+            },
+            {
+              "no": "Bitmap Heap Scan",
+              "alvo": "lancamentos_item",
+              "linhas": 500,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 208,
+              "read": 0
+            },
+            {
+              "no": "Bitmap Index Scan",
+              "alvo": "lanc_item_chamado_idx",
+              "linhas": 500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 3,
+              "read": 0
+            },
+            {
+              "no": "Materialize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 500,
+              "removidas_pelo_filtro": null,
+              "hit": 3,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "itens_pkey",
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 3,
+              "read": 0
+            },
+            {
+              "no": "Hash",
+              "alvo": null,
+              "linhas": 6,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 2,
+              "read": 0
+            },
+            {
+              "no": "Seq Scan",
+              "alvo": "filiais",
+              "linhas": 6,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 2,
+              "read": 0
+            },
+            {
+              "no": "Hash",
+              "alvo": null,
+              "linhas": 5,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 2,
+              "read": 0
+            },
+            {
+              "no": "Seq Scan",
+              "alvo": "profiles",
+              "linhas": 5,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 2,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "4a_ultimo_autor_quente",
+          "tela": "/itens",
+          "descricao": "getUltimoLancamento — o último lançamento é o mais recente",
+          "execucao_ms": {
+            "mediana": 0.169,
+            "p95": 0.206,
+            "min": 0.165,
+            "max": 0.206,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.007,
+            "p95": 0.008,
+            "min": 0.007,
+            "max": 0.008,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 4,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 2,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 4,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "4b_ultimo_autor_frio",
+          "tela": "/itens",
+          "descricao": "getUltimoLancamento — o autor só escreveu no começo da ordem",
+          "execucao_ms": {
+            "mediana": 2.158,
+            "p95": 2.225,
+            "min": 2.115,
+            "max": 2.225,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.005,
+            "p95": 0.006,
+            "min": 0.004,
+            "max": 0.006,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 251,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 251,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 251,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 2,
+              "loops": 1,
+              "removidas_pelo_filtro": 9785,
+              "hit": 251,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "4c_ultimo_autor_sem_lancamento",
+          "tela": "/itens",
+          "descricao": "getUltimoLancamento — autor sem lançamento nenhum",
+          "execucao_ms": {
+            "mediana": 2.189,
+            "p95": 2.32,
+            "min": 2.18,
+            "max": 2.32,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.006,
+            "p95": 0.008,
+            "min": 0.006,
+            "max": 0.008,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 258,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 0,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 0,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 258,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 0,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 258,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 0,
+              "loops": 1,
+              "removidas_pelo_filtro": 10035,
+              "hit": 258,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "5a_itens_saldo_consolidado",
+          "tela": "/itens",
+          "descricao": "RPC de saldo, consolidado (todas as filiais)",
+          "execucao_ms": {
+            "mediana": 9.642,
+            "p95": 9.953,
+            "min": 9.548,
+            "max": 9.953,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.017,
+            "p95": 0.019,
+            "min": 0.016,
+            "max": 0.019,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 211,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 207,
+          "nos": [
+            {
+              "no": "Function Scan",
+              "alvo": null,
+              "linhas": 207,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 211,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "5b_itens_saldo_uma_filial",
+          "tela": "/itens",
+          "descricao": "RPC de saldo, uma filial",
+          "execucao_ms": {
+            "mediana": 4.423,
+            "p95": 4.514,
+            "min": 4.393,
+            "max": 4.514,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.031,
+            "p95": 0.039,
+            "min": 0.03,
+            "max": 0.039,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 211,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 207,
+          "nos": [
+            {
+              "no": "Function Scan",
+              "alvo": null,
+              "linhas": 207,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 211,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "5c_relatorio_mov_itens_30_dias",
+          "tela": "relatório",
+          "descricao": "RPC de movimento de itens, consolidado, 30 dias",
+          "execucao_ms": {
+            "mediana": 2.201,
+            "p95": 2.303,
+            "min": 2.139,
+            "max": 2.303,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.024,
+            "p95": 0.026,
+            "min": 0.021,
+            "max": 0.026,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 232,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 207,
+          "nos": [
+            {
+              "no": "Function Scan",
+              "alvo": null,
+              "linhas": 207,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 232,
+              "read": 0
+            }
+          ]
+        }
+      ],
+      "escrita": {
+        "forma": "6_insert_trigger_par_quente",
+        "tela": "/itens (lançar)",
+        "descricao": "EXPLAIN ANALYZE de um INSERT individual no par quente (trigger valida_lancamento_item ligado), como postgres; o bloco termina em exceção e nada fica gravado",
+        "papel_na_medicao": "postgres",
+        "linhas_par_quente": 500,
+        "execucao_ms": {
+          "mediana": 1.118,
+          "p95": 1.503,
+          "min": 0.817,
+          "max": 1.503,
+          "n": 7
+        },
+        "planejamento_ms": {
+          "mediana": 0.015,
+          "p95": 0.017,
+          "min": 0.015,
+          "max": 0.017,
+          "n": 7
+        },
+        "buffers_raiz": {
+          "hit_mediana": 230,
+          "read_mediana": 0
+        },
+        "trigger_ms": {
+          "mediana": 0.819,
+          "p95": 1.103,
+          "min": 0.494,
+          "max": 1.103,
+          "n": 7
+        },
+        "nos": [
+          "ModifyTable lancamentos_item",
+          "Result"
+        ]
+      }
+    },
+    {
+      "patamar": 50000,
+      "papel_na_medicao": "authenticated",
+      "contexto": {
+        "reltuples": 50035,
+        "banco_bytes": 75099283,
+        "autores_distintos": 4,
+        "lancamentos_total": 50035,
+        "linhas_autor_frio": 250,
+        "linhas_par_quente": 2500,
+        "linhas_autor_quente": 16628,
+        "linhas_duas_filiais": 18366,
+        "n_mod_since_analyze": 0,
+        "lancamentos_marcados": 50000,
+        "lancamentos_item_bytes": 52715520,
+        "indice_candidato_existe": false,
+        "lanc_item_created_idx_bytes": 3342336,
+        "lancamentos_item_heap_bytes": 8372224,
+        "linhas_autor_sem_lancamento": 0,
+        "linhas_mais_novas_que_o_ultimo_do_frio": 49785
+      },
+      "assinaturas": {
+        "rel_mov_itens_velha": true,
+        "rel_mov_itens_filiais": false,
+        "rel_saldo_itens_velha": true,
+        "rel_saldo_itens_filiais": false
+      },
+      "planos_preparados": {
+        "f60i_ultimo": {
+          "genericos": 24,
+          "custom": 0
+        },
+        "f60i_pagina_item": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_pagina_todas": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_contagem_item": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_contagem_todas": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_pagina_filiais": {
+          "genericos": 8,
+          "custom": 0
+        },
+        "f60i_contagem_filiais": {
+          "genericos": 8,
+          "custom": 0
+        }
+      },
+      "formas": [
+        {
+          "forma": "1a_contagem_todas",
+          "tela": "/itens/historico",
+          "descricao": "count exact, recorte todas",
+          "execucao_ms": {
+            "mediana": 7.859,
+            "p95": 8.237,
+            "min": 7.775,
+            "max": 8.237,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.003,
+            "p95": 0.004,
+            "min": 0.003,
+            "max": 0.004,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 69,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Aggregate",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 69,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Index Only Scan",
+              "alvo": "lanc_item_colaborador_idx",
+              "linhas": 50035,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 69,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "1b_pagina_todas",
+          "tela": "/itens/historico",
+          "descricao": "página 1 com os embeds, recorte todas",
+          "execucao_ms": {
+            "mediana": 0.687,
+            "p95": 0.704,
+            "min": 0.652,
+            "max": 0.704,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.011,
+            "p95": 0.012,
+            "min": 0.009,
+            "max": 0.012,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 32,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 20,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 32,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 32,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 32,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 29,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 16,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 11,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "itens_pkey",
+              "linhas": 1,
+              "loops": 5,
+              "removidas_pelo_filtro": 0,
+              "hit": 11,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 13,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "filiais_pkey",
+              "linhas": 1,
+              "loops": 6,
+              "removidas_pelo_filtro": 0,
+              "hit": 13,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 3,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "profiles_pkey",
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 3,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "2a_contagem_duas_filiais",
+          "tela": "/itens/historico",
+          "descricao": "count exact, filial_id = any (duas filiais)",
+          "execucao_ms": {
+            "mediana": 3.418,
+            "p95": 3.541,
+            "min": 3.345,
+            "max": 3.541,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.009,
+            "p95": 0.01,
+            "min": 0.008,
+            "max": 0.01,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 69,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Aggregate",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 69,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Index Only Scan",
+              "alvo": "lanc_item_colaborador_idx",
+              "linhas": 18366,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 69,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "2b_pagina_duas_filiais",
+          "tela": "/itens/historico",
+          "descricao": "página 1 com os embeds, duas filiais",
+          "execucao_ms": {
+            "mediana": 0.62,
+            "p95": 0.644,
+            "min": 0.597,
+            "max": 0.644,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.016,
+            "p95": 0.017,
+            "min": 0.015,
+            "max": 0.017,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 40,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 20,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 40,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 40,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 40,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 33,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 28,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 21,
+              "loops": 1,
+              "removidas_pelo_filtro": 36,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 23,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "itens_pkey",
+              "linhas": 1,
+              "loops": 11,
+              "removidas_pelo_filtro": 0,
+              "hit": 23,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "filiais_pkey",
+              "linhas": 1,
+              "loops": 2,
+              "removidas_pelo_filtro": 0,
+              "hit": 5,
+              "read": 0
+            },
+            {
+              "no": "Memoize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 21,
+              "removidas_pelo_filtro": null,
+              "hit": 7,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "profiles_pkey",
+              "linhas": 1,
+              "loops": 3,
+              "removidas_pelo_filtro": 0,
+              "hit": 7,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "3a_contagem_item_quente",
+          "tela": "/itens/historico",
+          "descricao": "count exact, 1 item + 1 filial (o par quente)",
+          "execucao_ms": {
+            "mediana": 0.537,
+            "p95": 0.572,
+            "min": 0.522,
+            "max": 0.572,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.013,
+            "p95": 0.013,
+            "min": 0.011,
+            "max": 0.013,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 7,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Aggregate",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 7,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Index Only Scan",
+              "alvo": "lanc_item_chamado_idx",
+              "linhas": 2500,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 7,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "3b_pagina_item_quente_ordem_data",
+          "tela": "/itens/historico",
+          "descricao": "página 1, 1 item + 1 filial, ordem por data (Saldo após)",
+          "execucao_ms": {
+            "mediana": 5.328,
+            "p95": 5.464,
+            "min": 5.298,
+            "max": 5.464,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.017,
+            "p95": 0.018,
+            "min": 0.016,
+            "max": 0.018,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1033,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 20,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1033,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Sort",
+              "alvo": null,
+              "linhas": 20,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1033,
+              "read": 0
+            },
+            {
+              "no": "Hash Join",
+              "alvo": null,
+              "linhas": 2500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1033,
+              "read": 0
+            },
+            {
+              "no": "Hash Join",
+              "alvo": null,
+              "linhas": 2500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1031,
+              "read": 0
+            },
+            {
+              "no": "Nested Loop",
+              "alvo": null,
+              "linhas": 2500,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1029,
+              "read": 0
+            },
+            {
+              "no": "Bitmap Heap Scan",
+              "alvo": "lancamentos_item",
+              "linhas": 2500,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 1026,
+              "read": 0
+            },
+            {
+              "no": "Bitmap Index Scan",
+              "alvo": "lanc_item_chamado_idx",
+              "linhas": 2508,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Materialize",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 2500,
+              "removidas_pelo_filtro": null,
+              "hit": 3,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "itens_pkey",
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 3,
+              "read": 0
+            },
+            {
+              "no": "Hash",
+              "alvo": null,
+              "linhas": 6,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 2,
+              "read": 0
+            },
+            {
+              "no": "Seq Scan",
+              "alvo": "filiais",
+              "linhas": 6,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 2,
+              "read": 0
+            },
+            {
+              "no": "Hash",
+              "alvo": null,
+              "linhas": 5,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 2,
+              "read": 0
+            },
+            {
+              "no": "Seq Scan",
+              "alvo": "profiles",
+              "linhas": 5,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 2,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "4a_ultimo_autor_quente",
+          "tela": "/itens",
+          "descricao": "getUltimoLancamento — o último lançamento é o mais recente",
+          "execucao_ms": {
+            "mediana": 0.217,
+            "p95": 0.243,
+            "min": 0.192,
+            "max": 0.243,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.009,
+            "p95": 0.012,
+            "min": 0.007,
+            "max": 0.012,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 4,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 4,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 2,
+              "loops": 1,
+              "removidas_pelo_filtro": 0,
+              "hit": 4,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "4b_ultimo_autor_frio",
+          "tela": "/itens",
+          "descricao": "getUltimoLancamento — o autor só escreveu no começo da ordem",
+          "execucao_ms": {
+            "mediana": 10.318,
+            "p95": 10.359,
+            "min": 10.211,
+            "max": 10.359,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.005,
+            "p95": 0.005,
+            "min": 0.004,
+            "max": 0.005,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1279,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 1,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1279,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1279,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 2,
+              "loops": 1,
+              "removidas_pelo_filtro": 49785,
+              "hit": 1279,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "4c_ultimo_autor_sem_lancamento",
+          "tela": "/itens",
+          "descricao": "getUltimoLancamento — autor sem lançamento nenhum",
+          "execucao_ms": {
+            "mediana": 10.406,
+            "p95": 10.599,
+            "min": 10.349,
+            "max": 10.599,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.011,
+            "p95": 0.012,
+            "min": 0.009,
+            "max": 0.012,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1286,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 0,
+          "nos": [
+            {
+              "no": "Limit",
+              "alvo": null,
+              "linhas": 0,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1286,
+              "read": 0
+            },
+            {
+              "no": "Result",
+              "alvo": null,
+              "linhas": 1,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1,
+              "read": 0
+            },
+            {
+              "no": "Incremental Sort",
+              "alvo": null,
+              "linhas": 0,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1286,
+              "read": 0
+            },
+            {
+              "no": "Index Scan",
+              "alvo": "lanc_item_created_idx",
+              "linhas": 0,
+              "loops": 1,
+              "removidas_pelo_filtro": 50035,
+              "hit": 1286,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "5a_itens_saldo_consolidado",
+          "tela": "/itens",
+          "descricao": "RPC de saldo, consolidado (todas as filiais)",
+          "execucao_ms": {
+            "mediana": 44.314,
+            "p95": 46.107,
+            "min": 44.148,
+            "max": 46.107,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.028,
+            "p95": 0.028,
+            "min": 0.027,
+            "max": 0.028,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1028,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 207,
+          "nos": [
+            {
+              "no": "Function Scan",
+              "alvo": null,
+              "linhas": 207,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1028,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "5b_itens_saldo_uma_filial",
+          "tela": "/itens",
+          "descricao": "RPC de saldo, uma filial",
+          "execucao_ms": {
+            "mediana": 15.086,
+            "p95": 15.296,
+            "min": 15.047,
+            "max": 15.296,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.032,
+            "p95": 0.034,
+            "min": 0.03,
+            "max": 0.034,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1028,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 207,
+          "nos": [
+            {
+              "no": "Function Scan",
+              "alvo": null,
+              "linhas": 207,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 1028,
+              "read": 0
+            }
+          ]
+        },
+        {
+          "forma": "5c_relatorio_mov_itens_30_dias",
+          "tela": "relatório",
+          "descricao": "RPC de movimento de itens, consolidado, 30 dias",
+          "execucao_ms": {
+            "mediana": 3.714,
+            "p95": 3.815,
+            "min": 3.669,
+            "max": 3.815,
+            "n": 7
+          },
+          "planejamento_ms": {
+            "mediana": 0.03,
+            "p95": 0.044,
+            "min": 0.028,
+            "max": 0.044,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 767,
+            "read_mediana": 0
+          },
+          "linhas_devolvidas": 207,
+          "nos": [
+            {
+              "no": "Function Scan",
+              "alvo": null,
+              "linhas": 207,
+              "loops": 1,
+              "removidas_pelo_filtro": null,
+              "hit": 767,
+              "read": 0
+            }
+          ]
+        }
+      ],
+      "escrita": {
+        "forma": "6_insert_trigger_par_quente",
+        "tela": "/itens (lançar)",
+        "descricao": "EXPLAIN ANALYZE de um INSERT individual no par quente (trigger valida_lancamento_item ligado), como postgres; o bloco termina em exceção e nada fica gravado",
+        "papel_na_medicao": "postgres",
+        "linhas_par_quente": 2500,
+        "execucao_ms": {
+          "mediana": 3.56,
+          "p95": 3.744,
+          "min": 2.978,
+          "max": 3.744,
+          "n": 7
+        },
+        "planejamento_ms": {
+          "mediana": 0.017,
+          "p95": 0.02,
+          "min": 0.015,
+          "max": 0.02,
+          "n": 7
+        },
+        "buffers_raiz": {
+          "hit_mediana": 1048,
+          "read_mediana": 0
+        },
+        "trigger_ms": {
+          "mediana": 3.201,
+          "p95": 3.365,
+          "min": 2.723,
+          "max": 3.365,
+          "n": 7
+        },
+        "nos": [
+          "ModifyTable lancamentos_item",
+          "Result"
+        ]
+      }
+    }
+  ],
+  "limpeza": {
+    "ms": 995.9,
+    "lancamentos_marcados_depois": 0,
+    "itens_marcados_depois": 0,
+    "ok": true
+  },
+  "estado_depois": {
+    "rotulo": "desenvolvimento",
+    "lancamentos_total": 35,
+    "lancamentos_marcados": 0,
+    "itens_marcados": 0,
+    "banco_bytes": 66710675,
+    "lancamentos_item_bytes": 44351488,
+    "lancamentos_item_heap_bytes": 8192,
+    "lanc_item_created_idx_bytes": 3342336,
+    "indice_candidato_existe": false,
+    "filiais_ativas": 6,
+    "perfis_candidatos": 2,
+    "perfis_admin_ativos": 1
+  },
+  "decisao_indice": {
+    "indice": "lanc_item_criado_por_idx on public.lancamentos_item (criado_por, created_at desc) where estorna_id is null",
+    "regra": "entra se 4b (frio) ou 4c (sem lançamento) crescer com o volume: linhas visitadas (devolvidas + Rows Removed by Filter, × loops) ou buffers crescendo pelo menos à metade da razão do volume entre o primeiro e o último patamar",
+    "casos": {
+      "4b_ultimo_autor_frio": {
+        "serie": [
+          {
+            "patamar": 10000,
+            "lancamentos_total": 10035,
+            "execucao_ms_mediana": 2.158,
+            "buffers_mediana": 251,
+            "linhas_visitadas": 9787,
+            "fracao_da_tabela_visitada": 0.975,
+            "nos": [
+              "Limit",
+              "Result",
+              "Incremental Sort",
+              "Index Scan lanc_item_created_idx"
+            ]
+          },
+          {
+            "patamar": 50000,
+            "lancamentos_total": 50035,
+            "execucao_ms_mediana": 10.318,
+            "buffers_mediana": 1279,
+            "linhas_visitadas": 49787,
+            "fracao_da_tabela_visitada": 0.995,
+            "nos": [
+              "Limit",
+              "Result",
+              "Incremental Sort",
+              "Index Scan lanc_item_created_idx"
+            ]
+          }
+        ],
+        "razao_volume": 4.99,
+        "razao_linhas_visitadas": 5.09,
+        "razao_buffers": 5.1,
+        "razao_execucao": 4.78,
+        "cresce_com_o_volume": true
+      },
+      "4c_ultimo_autor_sem_lancamento": {
+        "serie": [
+          {
+            "patamar": 10000,
+            "lancamentos_total": 10035,
+            "execucao_ms_mediana": 2.189,
+            "buffers_mediana": 258,
+            "linhas_visitadas": 10035,
+            "fracao_da_tabela_visitada": 1,
+            "nos": [
+              "Limit",
+              "Result",
+              "Incremental Sort",
+              "Index Scan lanc_item_created_idx"
+            ]
+          },
+          {
+            "patamar": 50000,
+            "lancamentos_total": 50035,
+            "execucao_ms_mediana": 10.406,
+            "buffers_mediana": 1286,
+            "linhas_visitadas": 50035,
+            "fracao_da_tabela_visitada": 1,
+            "nos": [
+              "Limit",
+              "Result",
+              "Incremental Sort",
+              "Index Scan lanc_item_created_idx"
+            ]
+          }
+        ],
+        "razao_volume": 4.99,
+        "razao_linhas_visitadas": 4.99,
+        "razao_buffers": 4.98,
+        "razao_execucao": 4.75,
+        "cresce_com_o_volume": true
+      }
+    },
+    "resultado": "entra",
+    "recomendacao": "ENTRA. 4c_ultimo_autor_sem_lancamento: com 50035 lançamentos o plano genérico de getUltimoLancamento visita 50035 linhas (100% da tabela) em 1286 buffers e 10.406 ms de mediana; com 10035, 10035 linhas, 258 buffers e 2.189 ms — buffers ×4.98 e linhas visitadas ×4.99 para volume ×4.99. O custo é linear no tamanho da tabela e é pago em toda carga de /itens por quem não tem lançamento (getUltimoLancamento está no Promise.all da página); o índice parcial (criado_por, created_at desc) where estorna_id is null troca a varredura por uma descida de índice. Migration própria, com este \"antes\" no cabeçalho.",
+    "depois": "pendente — medido no ensaio depois do apply normal da fase (CI → ensaio), com este mesmo harness; o índice NÃO foi criado nesta medição"
+  }
+}
