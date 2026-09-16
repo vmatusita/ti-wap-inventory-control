@@ -16,7 +16,7 @@ Johnny no topo, em [`docs/RELATORIO-F59.md`](docs/RELATORIO-F59.md).
 - ✅ **A doutrina escrita** — emenda F59 da [`docs/MATRIZ-REGRAS.md`](docs/MATRIZ-REGRAS.md), R-ACC-63 a R-ACC-72: o
   predicado de recorte é `col = any (array (select public.<fn>()))` sobre função `setof`; nunca `fn(col)`, nunca o falso
   içamento `(select fn(col))`, nunca sub-select que leia tabela ou olhe a linha; função sem dado da linha só dentro de
-  `(select …)`. A forma-alvo das quatro funções de conjunto da F62 está especificada por inteiro — **`setof`, não o `uuid[]`
+  `(select …)`. A forma-alvo das quatro funções de conjunto da virada multiempresa está especificada por inteiro — **`setof`, não o `uuid[]`
   da ficha**, que erra no conjunto vazio e no NULL (provado no ensaio) —, com a forma de pares e a fronteira com a R-ACC-51.
   A R-ACC-32 passa a 19.
 - ✅ **A trava de mesa** — `src/lib/validators/policies-initplan.test.ts` sobre `scripts/db/predicado-policies.mjs`: replay
@@ -24,7 +24,8 @@ Johnny no topo, em [`docs/RELATORIO-F59.md`](docs/RELATORIO-F59.md).
   montado por `execute`/`format` e comando ilegível, e a guarda com SQL sintético em memória.
 - ✅ **O par no catálogo do CI** — bloco 4 de `supabase/tests/catalogo_policies.sql` (`10a`–`14`), lendo a árvore
   `pg_policy.polqual`: o universo congelado, a lista única de exceções `k_excecoes_predicado` (**18 ocorrências**, por
-  ocorrência, com migration, motivo e destino — 6 para a F66, 1 para a F67, 11 permanentes), a catraca nos dois sentidos, a
+  ocorrência, com migration, motivo e destino — 6 com destino na fase que escreve o recorte de tenant nas policies, 1 na que
+  reescreve as de Storage, 11 permanentes), a catraca nos dois sentidos, a
   R-setof e a guarda de doze árvores sintéticas. Calibrado só leitura no ensaio e em produção antes do push; **oito
   mutações novas** no injetor, todas detectadas pelo rótulo nomeado (teto 75 → 85).
 - ✅ **A medição** — `scripts/perf/medir-rls.mjs`, só leitura e falha fechada, com a RLS no plano: no ensaio, a forma por
