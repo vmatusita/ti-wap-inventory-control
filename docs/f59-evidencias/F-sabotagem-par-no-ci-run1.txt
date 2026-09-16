@@ -1,0 +1,93 @@
+# Sabotagem F — o par no CI (run 35113464557, PR #50, SHA 96a6827)
+# https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35113464557
+
+## catalogo_policies.sql no banco do CI (bloco 4 e a linha FIM)
+==== supabase/tests/catalogo_policies.sql ====
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 1a toda tabela de public está CLASSIFICADA negócio × infra (0 de 25 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 1b todo nome classificado ainda existe no catálogo (0 de 25 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 2 toda tabela de NEGÓCIO tem policy de SELECT (0 de 20 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 3 nenhuma tabela de public fica sem SELECT por CATEGORIA (0 de 25 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 4 toda exceção deny-all ainda descreve o banco (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) (0 de 25 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 5 nenhuma policy com predicado equivalente a `true` (0 de 61 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 6a o piso `papel_atual()` continua nas 19 policies de SELECT congeladas (0 de 19 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 6b as 3 que decidem por CARGO não afrouxaram para o piso (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 6c toda policy de SELECT de public está numa das duas listas do piso (0 de 22 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 7 nenhuma policy de storage.objects decide só por `bucket_id` (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 8a nenhuma policy de Storage fora do conjunto congelado (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 8b nenhuma policy de Storage congelada sumiu (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 9a nenhuma tabela NOVA na publication do Realtime (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 9b nenhuma das 3 congeladas saiu da publication (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 10a toda policy de public está no universo congelado da doutrina (0 de 53 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 10b toda policy do universo congelado ainda existe (0 de 53 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 10c toda árvore de policy tem só nós que o analisador da doutrina lê (0 de 470 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 10d o analisador de árvore sabe reprovar (12 árvores sintéticas) (0 de 80 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 11a R1 nenhuma função recebe dado da linha fora da lista de exceções (0 de 86 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 11b toda exceção da doutrina ainda descreve uma ocorrência viva (0 de 18 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 12 R2 nenhuma função sem dado da linha fora de (select …) (0 de 86 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 13a R3 nenhum sub-select de policy lê tabela ou view (0 de 74 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 13b R3 nenhum sub-select de policy olha a linha fora de argumento de função (0 de 74 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  ✓ 14 alvo de array (select …) em policy é função que devolve conjunto (0 de 86 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1158: NOTICE:  FIM catalogo_policies: 25 asserções, 0 falhas
+roteiros do lote .... asof_desempate.sql, cargo_dev.sql, catalogo_policies.sql, catalogo_secdef.sql, conflito_filiais.sql, dev_destrutivo.sql, import_fora_da_unidade.sql, import_substituir.sql, integridade_alarme.sql, papeis_rls.sql, restauracao.sql, seguranca_catalogo.sql, vocabulario_import.sql
+[46/82] catalogo-tabela-nova-nao-classificada  →  catalogo_policies.sql  (espera ✗ 1a, 3)
+[47/82] catalogo-policy-volta-a-ser-sempre-verdadeira  →  catalogo_policies.sql  (espera ✗ 5, 6a)
+[48/82] catalogo-force-row-level-security-ligado  →  catalogo_policies.sql  (espera ✗ 4-bis)
+[49/82] catalogo-tabela-nova-na-publication-do-realtime  →  catalogo_policies.sql  (espera ✗ 9a)
+[50/82] catalogo-storage-decide-so-por-bucket  →  catalogo_policies.sql  (espera ✗ 7)
+[75/82] doutrina-policy-renomeada-escapa-do-universo  →  catalogo_policies.sql  (espera ✗ 10a, 10b)
+[76/82] doutrina-arvore-com-no-que-o-analisador-nao-le  →  catalogo_policies.sql  (espera ✗ 10c)
+[77/82] doutrina-leitura-passa-a-linha-para-funcao  →  catalogo_policies.sql  (espera ✗ 11a)
+[78/82] doutrina-excecao-sobrevive-ao-conserto  →  catalogo_policies.sql  (espera ✗ 11b)
+[79/82] doutrina-funcao-sem-argumento-solta  →  catalogo_policies.sql  (espera ✗ 12)
+[80/82] doutrina-subselect-le-tabela  →  catalogo_policies.sql  (espera ✗ 13a)
+[81/82] doutrina-subselect-olha-a-linha  →  catalogo_policies.sql  (espera ✗ 13b)
+[82/82] doutrina-array-sobre-funcao-que-nao-devolve-conjunto  →  catalogo_policies.sql  (espera ✗ 14)
+catalogo-tabela-nova-nao-classificada                      catalogo_policies.sql       1a,3             detectada            385 ms
+catalogo-policy-volta-a-ser-sempre-verdadeira              catalogo_policies.sql       5,6a             detectada            385 ms
+catalogo-force-row-level-security-ligado                   catalogo_policies.sql       4-bis            detectada            383 ms
+catalogo-tabela-nova-na-publication-do-realtime            catalogo_policies.sql       9a               detectada            387 ms
+catalogo-storage-decide-so-por-bucket                      catalogo_policies.sql       7                detectada            384 ms
+doutrina-policy-renomeada-escapa-do-universo               catalogo_policies.sql       10a,10b          detectada            386 ms
+doutrina-arvore-com-no-que-o-analisador-nao-le             catalogo_policies.sql       10c              detectada            389 ms
+doutrina-leitura-passa-a-linha-para-funcao                 catalogo_policies.sql       11a              detectada            387 ms
+doutrina-excecao-sobrevive-ao-conserto                     catalogo_policies.sql       11b              detectada            387 ms
+doutrina-funcao-sem-argumento-solta                        catalogo_policies.sql       12               detectada            387 ms
+doutrina-subselect-le-tabela                               catalogo_policies.sql       13a              detectada            387 ms
+doutrina-subselect-olha-a-linha                            catalogo_policies.sql       13b              detectada            388 ms
+doutrina-array-sobre-funcao-que-nao-devolve-conjunto       catalogo_policies.sql       14               detectada            386 ms
+
+## o injetor — as oito mutações da doutrina
+[75/82] doutrina-policy-renomeada-escapa-do-universo  →  catalogo_policies.sql  (espera ✗ 10a, 10b)
+      ✓ detectada  (386 ms)
+[76/82] doutrina-arvore-com-no-que-o-analisador-nao-le  →  catalogo_policies.sql  (espera ✗ 10c)
+      ✓ detectada  (389 ms)
+[77/82] doutrina-leitura-passa-a-linha-para-funcao  →  catalogo_policies.sql  (espera ✗ 11a)
+      ✓ detectada  (387 ms)
+[78/82] doutrina-excecao-sobrevive-ao-conserto  →  catalogo_policies.sql  (espera ✗ 11b)
+      ✓ detectada  (387 ms)
+[79/82] doutrina-funcao-sem-argumento-solta  →  catalogo_policies.sql  (espera ✗ 12)
+      ✓ detectada  (387 ms)
+[80/82] doutrina-subselect-le-tabela  →  catalogo_policies.sql  (espera ✗ 13a)
+      ✓ detectada  (387 ms)
+[81/82] doutrina-subselect-olha-a-linha  →  catalogo_policies.sql  (espera ✗ 13b)
+      ✓ detectada  (388 ms)
+[82/82] doutrina-array-sobre-funcao-que-nao-devolve-conjunto  →  catalogo_policies.sql  (espera ✗ 14)
+      ✓ detectada  (386 ms)
+doutrina-policy-renomeada-escapa-do-universo               catalogo_policies.sql       10a,10b          detectada            386 ms
+doutrina-arvore-com-no-que-o-analisador-nao-le             catalogo_policies.sql       10c              detectada            389 ms
+doutrina-leitura-passa-a-linha-para-funcao                 catalogo_policies.sql       11a              detectada            387 ms
+doutrina-excecao-sobrevive-ao-conserto                     catalogo_policies.sql       11b              detectada            387 ms
+doutrina-funcao-sem-argumento-solta                        catalogo_policies.sql       12               detectada            387 ms
+doutrina-subselect-le-tabela                               catalogo_policies.sql       13a              detectada            387 ms
+doutrina-subselect-olha-a-linha                            catalogo_policies.sql       13b              detectada            388 ms
+doutrina-array-sobre-funcao-que-nao-devolve-conjunto       catalogo_policies.sql       14               detectada            386 ms
+82/82 detectadas pelo cenário nomeado · 30847 ms no total
+Lote inteiro detectado pelo cenário nomeado.
+
+## gate de deriva de tipos
+---- gate de deriva de tipos ----
+banco ....... 34 relações · 312 colunas · 75 funções
+database.ts . 34 relações · 312 colunas · 75 funções
+
+VERDE: o database.ts conhece tudo o que o banco tem.

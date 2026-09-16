@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { listarMigrations } from '../../../scripts/db/corpo-vigente.mjs'
+import { lerExcecoesDoCatalogo } from '../../../scripts/db/predicado-policies.mjs'
 
 // A TRAVA DE MESA DOS CATÁLOGOS DE SEGURANÇA — F48. RODA SEM BANCO, e é essa a razão
 // de ela existir.
@@ -384,7 +386,12 @@ describe('7. os catálogos são DERIVADOS, não listas que afirmam', () => {
   // nos DOIS sentidos: o catálogo contra a lista (nome novo reprova) E a lista contra o
   // catálogo (nome morto reprova). Sem a segunda metade, a lista acumula fantasmas.
   const SIMETRIAS: { arquivo: string; conjuntos: string[] }[] = [
-    { arquivo: 'catalogo_policies', conjuntos: ['k_negocio', 'k_infra', 'k_sem_select', 'k_storage', 'k_realtime'] },
+    // F59: `k_policies_public` (o universo da doutrina do predicado) e `k_excecoes_predicado`
+    // (a lista única de exceções) entram com a mesma régua — as asserções 10a/10b e 11a/11b.
+    {
+      arquivo: 'catalogo_policies',
+      conjuntos: ['k_negocio', 'k_infra', 'k_sem_select', 'k_storage', 'k_realtime', 'k_policies_public', 'k_excecoes_predicado'],
+    },
     { arquivo: 'catalogo_secdef', conjuntos: ['k_secdef', 'k_invoker_anon'] },
   ]
 
@@ -566,5 +573,47 @@ describe('9. o bloco de grants e os arrays que o espelham não se separam', () =
       [...tabelasDoGrant('grant insert, update, delete on')].sort(),
       'o bloco `grant insert, update, delete on` e o array `k_escrita` divergiram — a asserção 6 mediria outra coisa',
     ).toEqual([...nomesDoArray('k_escrita')].sort())
+  })
+})
+
+describe('10. a lista única de exceções da doutrina do predicado (F59)', () => {
+  // `k_excecoes_predicado` é a FONTE ÚNICA das exceções da emenda F59 da MATRIZ-REGRAS:
+  // a trava de mesa (`policies-initplan.test.ts`) a lê, e as asserções 11a/11b a conferem
+  // contra o catálogo vivo. Aqui se cobra o que não precisa de banco: que cada entrada é
+  // uma OCORRÊNCIA (`schema.tabela / policy / função`, nunca um nome de função solto) e
+  // carrega, NA MESMA LINHA, a migration de origem, o motivo e o destino. A leitura é a
+  // do próprio módulo da trava — uma implementação só do formato.
+  const lidas = lerExcecoesDoCatalogo(fonte('catalogo_policies'))
+  const MIGRATIONS = new Set(
+    listarMigrations(RAIZ).map((f) => f.slice(0, 4)),
+  )
+
+  it('há exceções para conferir, e nenhuma fora do formato (guarda do próprio teste)', () => {
+    expect(lidas.entradas.length, 'k_excecoes_predicado vazio: a leitura quebrou?').toBeGreaterThan(0)
+    expect(lidas.problemas).toEqual([])
+  })
+
+  it('toda entrada é por OCORRÊNCIA e aponta uma migration que existe', () => {
+    for (const e of lidas.entradas) {
+      expect(e.chave.split(' / '), `"${e.chave}" não é schema.tabela / policy / função`).toHaveLength(3)
+      expect(MIGRATIONS.has(e.migration), `"${e.chave}" cita a migration ${e.migration}, que não existe`).toBe(true)
+      expect(e.destino).toMatch(/^(F\d+[A-Z]?|permanente)$/)
+    }
+  })
+
+  it('a régua do formato sabe reprovar (guarda do próprio teste)', () => {
+    const embrulhar = (linhas: string) => `k_excecoes_predicado text[] := array[\n${linhas}\n  ];`
+    const ok = "    'public.t / p / f', -- 0063 · motivo: uma frase honesta com mais de trinta letras · destino: F66"
+    expect(lerExcecoesDoCatalogo(embrulhar(ok)).problemas).toEqual([])
+    for (const ruim of [
+      "    'public.t / p / f', -- 0063 · motivo: uma frase honesta com mais de trinta letras", // sem destino
+      "    'public.t / p / f', -- 0063 · destino: F66", // sem motivo
+      "    'public.t / p / f', -- motivo: uma frase honesta com mais de trinta letras · destino: F66", // sem migration
+      "    'public.t / p / f', -- 0063 · motivo: uma frase honesta com mais de trinta letras · destino: depois", // destino inventado
+      "    'pode_escrever_filial', -- 0063 · motivo: uma frase honesta com mais de trinta letras · destino: F66", // por NOME de função
+      "    'public.t / p / f', -- 0063 · motivo: curto · destino: F66", // motivo raso
+    ]) {
+      expect(lerExcecoesDoCatalogo(embrulhar(ruim)).problemas.length, ruim).toBeGreaterThan(0)
+    }
   })
 })

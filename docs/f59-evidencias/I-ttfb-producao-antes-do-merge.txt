@@ -1,0 +1,48 @@
+# TTFB de produção antes do merge — node scripts/perf/medir.mjs --rotulo f59-producao-antes-do-merge --saida docs/perf/f59-producao-ttfb.json
+# 16/09/2026, 16:56–16:57 UTC; /api/saude antes: {"ok":true,"versao":"1.63.0","commit":"62c708d","banco":"ok"} (nenhum código da F59 no ar)
+# saída completa do script (segredos mascarados pelo próprio script; ids de rota dinâmica não saem):
+
+---------------------------------------------------------------
+Harness de performance · F33 · rótulo "f59-producao-antes-do-merge"
+Alvo: https://ti-wap-inventory-control.vercel.app
+Método: 2 passada(s) de aquecimento + 11 rodadas round-robin
+---------------------------------------------------------------
+Rotas medidas: 16
+
+  aquecimento 1/2 concluído
+  aquecimento 2/2 concluído
+  rodada 1/11 concluída
+  rodada 2/11 concluída
+  rodada 3/11 concluída
+  rodada 4/11 concluída
+  rodada 5/11 concluída
+  rodada 6/11 concluída
+  rodada 7/11 concluída
+  rodada 8/11 concluída
+  rodada 9/11 concluída
+  rodada 10/11 concluída
+  rodada 11/11 concluída
+  sessão encerrada (signOut).
+
+| Rota | Sessão | HTTP | TTFB mediana | TTFB p95 | Total mediana | Total p95 | HTML (bytes) | n |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| `/vercel.svg (controle estático)` | publico | 200 | 14.5 | 179.2 | 15.1 | 179.5 | 128 | 11 |
+| `/login` | publico | 200 | 36.6 | 54.4 | 37.7 | 55.2 | 18.558 | 11 |
+| `/relatorios/acesso` | publico | 200 | 57.3 | 110.3 | 60.5 | 112.6 | 37.701 | 11 |
+| `/login (com sessão — sonda do getUser do proxy)` | operador | 200 | 71.4 | 171.3 | 72.1 | 172.2 | 18.558 | 11 |
+| `/ (dashboard)` | operador | 200 | 350.6 | 480.6 | 360.6 | 532.1 | 121.506 | 11 |
+| `/ativos` | operador | 200 | 290.8 | 330.8 | 304.2 | 341.8 | 418.974 | 11 |
+| `/ativos/[id]` | operador | 200 | 314.3 | 401.3 | 320.5 | 406 | 160.496 | 11 |
+| `/movimentacoes` | operador | 200 | 285.2 | 352.2 | 322 | 376.7 | 346.761 | 11 |
+| `/movimentacoes/nova` | operador | 200 | 271.3 | 299.4 | 274.5 | 307.4 | 117.767 | 11 |
+| `/itens` | operador | 200 | 352.5 | 396 | 359.1 | 405.4 | 309.433 | 11 |
+| `/pendencias` | operador | 200 | 346.4 | 517.4 | 363.8 | 604.8 | 262.043 | 11 |
+| `/ajuda` | operador | 200 | 301.4 | 376.2 | 304 | 411.7 | 156.648 | 11 |
+| `/relatorios/geral` | operador | 200 | 533.9 | 861.7 | 807.9 | 1299.9 | 570.382 | 11 |
+| `/relatorios/[filial]` | operador | 200 | 349.3 | 456.6 | 738.2 | 845.7 | 470.867 | 11 |
+| `/relatorios/gerados` | operador | 200 | 338.2 | 417.5 | 343.6 | 438.2 | 202.220 | 11 |
+| `/relatorios/gerados/[id]` | operador | 200 | 317.4 | 509.1 | 330.1 | 523.5 | 365.928 | 11 |
+
+JSON gravado em .\docs\perf\f59-producao-ttfb.json
+
+[exited with code 0]

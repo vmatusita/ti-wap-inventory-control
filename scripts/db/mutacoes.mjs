@@ -1767,6 +1767,155 @@ const F56_VOCABULARIO = [
   },
 ]
 
+// =============================================================================
+// F59 — A DOUTRINA DO PREDICADO (16/09/2026)
+// =============================================================================
+// Uma quebra por rótulo do bloco 4 de `catalogo_policies.sql`. Sem elas, as asserções
+// 10a–14 seriam documento: nasceram verdes (o censo mediu zero policy fora da régua), e
+// só uma mutação prova que cada uma sabe ficar VERMELHA no banco de verdade do CI.
+//
+// A classe de defeito de fundo é uma só — a virada multiempresa escreve o predicado de
+// tenant na forma que roda POR LINHA e nada acusa —, e cada entrada imita um disfarce
+// dela: a função recebendo a coluna (11a), a função sem argumento solta (12), a leitura
+// de tabela ou a junta com a linha num sub-select (13a/13b), o `array (select …)` sobre
+// função que não devolve conjunto (14), a policy nova que escapa do universo julgado
+// (10a/10b), o nó que o analisador não sabe ler (10c) e a exceção que sobrevive ao
+// conserto (11b).
+//
+// ⚠ Os `alter policy` partem do texto VIVO de cada policy (migrations 0063/0070) e só
+// ACRESCENTAM o disfarce em conjunção — o piso `papel_atual()` fica, para que a quebra
+// derrube o rótulo da doutrina e não um rótulo vizinho por acidente.
+/** @type {Mutacao[]} */
+const F59_DOUTRINA = [
+  {
+    id: 'doutrina-policy-renomeada-escapa-do-universo',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'universo-nao-julgado',
+    derruba: ['10a', '10b'],
+    porque:
+      'Uma policy de public muda de nome (ou nasce) sem passar pelo universo congelado. A trava de mesa e o catálogo deixariam de julgar o mesmo conjunto — a mesa lê o replay das migrations, o banco lê pg_policies — e uma policy fora do universo seria julgada por um lado só, calada.',
+    sql: `alter policy "admin apaga" on public.filiais rename to "admin apaga renomeada";`,
+    prova: {
+      sql: `select exists (select 1 from pg_policies
+                       where schemaname = 'public' and tablename = 'filiais'
+                         and policyname = 'admin apaga renomeada')`,
+      espera: 't',
+    },
+    policies: [{ nome: 'admin apaga', tabela: 'public.filiais' }],
+  },
+  {
+    id: 'doutrina-arvore-com-no-que-o-analisador-nao-le',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'falha-fechada',
+    derruba: ['10c'],
+    porque:
+      'O predicado ganha um agregado dentro de sub-select — um nó (AGGREF) que o analisador da árvore não sabe julgar. Sem a falha fechada, as regras R1–R3 simplesmente não o veriam, e o predicado passaria por não ser entendido, que é o pior jeito de passar.',
+    sql: `alter policy "leitura operador" on public.motivos
+  using ((select public.papel_atual()) is not null and (select count(*) from generate_series(1, 1)) = 1);`,
+    prova: {
+      sql: `select coalesce(qual, '') ilike '%count(%' from pg_policies
+             where schemaname = 'public' and tablename = 'motivos' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.motivos' }],
+  },
+  {
+    id: 'doutrina-leitura-passa-a-linha-para-funcao',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-por-linha',
+    derruba: ['11a'],
+    porque:
+      'A policy de LEITURA de ativos ganha uma função security definer que recebe a coluna da linha — exatamente o e_membro(empresa_id) que a F66 poderia escrever. Roda uma vez por linha, em toda página de ativos, para todo usuário. É a quebra central que a doutrina existe para impedir.',
+    sql: `alter policy "leitura operador" on public.ativos
+  using ((select public.papel_atual()) is not null and public.pode_escrever_filial(filial_id));`,
+    prova: {
+      sql: `select coalesce(qual, '') like '%pode_escrever_filial(filial_id)%' from pg_policies
+             where schemaname = 'public' and tablename = 'ativos' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.ativos' }],
+  },
+  {
+    id: 'doutrina-excecao-sobrevive-ao-conserto',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'lista-que-apodrece',
+    derruba: ['11b'],
+    porque:
+      'A policy de INSERT de ativos deixa de passar a filial para a função, e a exceção dela continua na lista. É assim que uma lista de exceções apodrece: a catraca que devia só encolher passaria a guardar uma licença sem dono, pronta para cobrir a próxima policy que alguém escrever com o mesmo nome.',
+    sql: `alter policy "operador insere" on public.ativos with check ((select public.pode_escrever()));`,
+    prova: {
+      sql: `select coalesce(with_check, '') not like '%pode_escrever_filial%' from pg_policies
+             where schemaname = 'public' and tablename = 'ativos' and policyname = 'operador insere'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'operador insere', tabela: 'public.ativos' }],
+  },
+  {
+    id: 'doutrina-funcao-sem-argumento-solta',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-por-linha',
+    derruba: ['12'],
+    porque:
+      'A policy de filiais perde o (select …) em volta de e_admin(). Sem argumento, a função não depende da linha, mas solta ela é avaliada POR LINHA — o caso da 0103 que a 0107 teve de consertar em produção, com −45% de custo medido.',
+    sql: `alter policy "admin apaga" on public.filiais using (public.e_admin());`,
+    prova: {
+      sql: `select coalesce(qual, '') not ilike '%select%' from pg_policies
+             where schemaname = 'public' and tablename = 'filiais' and policyname = 'admin apaga'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'admin apaga', tabela: 'public.filiais' }],
+  },
+  {
+    id: 'doutrina-subselect-le-tabela',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-por-linha',
+    derruba: ['13a'],
+    porque:
+      'A policy de kits ganha um exists que lê operador_filiais direto. Mesmo sem olhar a linha, a leitura de tabela no predicado é a porta pela qual a junta com a linha entra no passo seguinte — a doutrina manda a leitura morar DENTRO da função de conjunto, avaliada uma vez.',
+    sql: `alter policy "leitura operador" on public.kits_modelos
+  using ((select public.papel_atual()) is not null
+         and exists (select 1 from public.operador_filiais o where o.usuario_id = (select auth.uid())));`,
+    prova: {
+      sql: `select coalesce(qual, '') ilike '%operador_filiais%' from pg_policies
+             where schemaname = 'public' and tablename = 'kits_modelos' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.kits_modelos' }],
+  },
+  {
+    id: 'doutrina-subselect-olha-a-linha',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-por-linha',
+    derruba: ['13b'],
+    porque:
+      'A policy de itens ganha um sub-select que referencia a coluna da própria linha — correlacionado, reexecutado por linha. É a forma "auth.uid() in (select … where … = tabela.col)" que a documentação da Supabase manda reescrever, sem função nenhuma que a R1 pudesse acusar.',
+    sql: `alter policy "leitura operador" on public.itens
+  using ((select public.papel_atual()) is not null and (select itens.id) is not null);`,
+    prova: {
+      sql: `select coalesce(qual, '') ilike '%select itens.id%' from pg_policies
+             where schemaname = 'public' and tablename = 'itens' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.itens' }],
+  },
+  {
+    id: 'doutrina-array-sobre-funcao-que-nao-devolve-conjunto',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'erro-de-execucao',
+    derruba: ['14'],
+    porque:
+      'A policy de profiles consome em array (select …) uma função que não devolve conjunto. Com auth.uid() é inofensivo; com a forma-alvo que a ficha herdou (→ uuid[]), array (select …) monta um array de uma dimensão a mais e ERRA no conjunto vazio e no NULL — a leitura de todo membro sem empresa cairia com erro. Nenhum teste de texto pega erro de execução; só o proretset.',
+    sql: `alter policy "leitura operador" on public.profiles
+  using ((select public.papel_atual()) is not null and id = any (array (select auth.uid())));`,
+    prova: {
+      sql: `select coalesce(qual, '') ilike '%array(%' from pg_policies
+             where schemaname = 'public' and tablename = 'profiles' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.profiles' }],
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -1781,6 +1930,7 @@ export const MUTACOES = [
   ...F54_RESTAURACAO,
   ...F55_INTEGRIDADE,
   ...F56_VOCABULARIO,
+  ...F59_DOUTRINA,
 ]
 
 /**

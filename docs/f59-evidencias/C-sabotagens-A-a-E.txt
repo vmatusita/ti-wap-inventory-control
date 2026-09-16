@@ -1,0 +1,91 @@
+# Sabotagens A, B, C e E — F59 (16/09/2026). Cadeia real: 139 migrations, 61 policies vivas.
+# Controle (sem sintética): violações 0 · falhas do replay 0 · exceções sem ocorrência 0 · universo só-no-replay 0 / só-no-catálogo 0
+
+==================== SABOTAGEM A — a forma que a F66 não pode escrever ====================
+
+## A.1 e_membro(empresa_id) numa policy nova de public.ativos
+   SQL: create policy "f59 sabotagem a" on public.ativos for select to authenticated using ((select public.papel_atual()) is not null and public.e_membro(empresa_id));
+   → VERMELHO
+   · public.ativos / f59 sabotagem a · SELECT · using (9999_sintetica_f59.sql:1) — R1: a função e_membro(empresa_id) recebe dado da LINHA, avaliada uma vez por linha. Use "col = any (array (select public.<fn>()))" com função de conjunto, ou declare a ocorrência "public.ativos / f59 sabotagem a / e_membro" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem a — a trava pede decidir e congelar
+
+## A.2 a mesma policy, na forma-alvo
+   SQL: create policy "f59 sabotagem a" on public.ativos for select to authenticated using ((select public.papel_atual()) is not null and empresa_id = any (array (select public.empresas_do_membro())));
+   → VERDE
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem a — a trava pede decidir e congelar
+
+==================== SABOTAGEM B — os disfarces da linha ====================
+
+## B.1 o falso içamento (select fn(col))
+   SQL: create policy "f59 sabotagem b1" on public.ativos for select to authenticated using ((select public.e_membro(empresa_id)));
+   → VERMELHO
+   · public.ativos / f59 sabotagem b1 · SELECT · using (9999_sintetica_f59.sql:1) — R1: a função e_membro(empresa_id) recebe dado da LINHA — e o "(select …)" em volta NÃO a iça: é o falso içamento, correlacionado, por linha. Use "col = any (array (select public.<fn>()))" com função de conjunto, ou declare a ocorrência "public.ativos / f59 sabotagem b1 / e_membro" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem b1 — a trava pede decidir e congelar
+
+## B.2 expressão sobre coluna
+   SQL: create policy "f59 sabotagem b2" on public.ativos for select to authenticated using (public.pode_escrever_filial((snapshot_anterior ->> 'filial_id')::smallint));
+   → VERMELHO
+   · public.ativos / f59 sabotagem b2 · SELECT · using (9999_sintetica_f59.sql:1) — R1: a função pode_escrever_filial((snapshot_anterior ->> 'filial_id')::smallint) recebe dado da LINHA, avaliada uma vez por linha. Use "col = any (array (select public.<fn>()))" com função de conjunto, ou declare a ocorrência "public.ativos / f59 sabotagem b2 / pode_escrever_filial" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem b2 — a trava pede decidir e congelar
+
+## B.3 coluna qualificada
+   SQL: create policy "f59 sabotagem b3" on public.ativos for select to authenticated using (public.pode_escrever_filial(ativos.filial_id));
+   → VERMELHO
+   · public.ativos / f59 sabotagem b3 · SELECT · using (9999_sintetica_f59.sql:1) — R1: a função pode_escrever_filial(ativos.filial_id) recebe dado da LINHA, avaliada uma vez por linha. Use "col = any (array (select public.<fn>()))" com função de conjunto, ou declare a ocorrência "public.ativos / f59 sabotagem b3 / pode_escrever_filial" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem b3 — a trava pede decidir e congelar
+
+## B.4 with check de INSERT
+   SQL: create policy "f59 sabotagem b4" on public.ativos for insert to authenticated with check (public.pode_escrever_filial(filial_id));
+   → VERMELHO
+   · public.ativos / f59 sabotagem b4 · INSERT · with check (9999_sintetica_f59.sql:1) — R1: a função pode_escrever_filial(filial_id) recebe dado da LINHA, avaliada uma vez por linha. Use "col = any (array (select public.<fn>()))" com função de conjunto, ou declare a ocorrência "public.ativos / f59 sabotagem b4 / pode_escrever_filial" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem b4 — a trava pede decidir e congelar
+
+==================== SABOTAGEM C — o embrulho e o sub-select ====================
+
+## C.1 função sem argumento solta
+   SQL: create policy "f59 sabotagem c1" on public.ativos for select to authenticated using (public.e_admin());
+   → VERMELHO
+   · public.ativos / f59 sabotagem c1 · SELECT · using (9999_sintetica_f59.sql:1) — R2: a função e_admin() não recebe dado da linha e está FORA de "(select …)" — solta, ela roda por linha. Embrulhe: "(select public.e_admin())" — e, se ela devolve conjunto, "col = any (array (select public.e_admin()))". Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem c1 — a trava pede decidir e congelar
+
+## C.2 = any (fn()) sem array (select …)
+   SQL: create policy "f59 sabotagem c2" on public.ativos for select to authenticated using (empresa_id = any (public.empresas_do_membro()));
+   → VERMELHO
+   · public.ativos / f59 sabotagem c2 · SELECT · using (9999_sintetica_f59.sql:1) — R2: a função empresas_do_membro() não recebe dado da linha e está FORA de "(select …)" — solta, ela roda por linha. Embrulhe: "(select public.empresas_do_membro())" — e, se ela devolve conjunto, "col = any (array (select public.empresas_do_membro()))". Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem c2 — a trava pede decidir e congelar
+
+## C.3 exists correlacionado
+   SQL: create policy "f59 sabotagem c3" on public.ativos for select to authenticated using (exists (select 1 from public.operador_filiais o where o.filial_id = ativos.filial_id and o.usuario_id = (select auth.uid())));
+   → VERMELHO
+   · public.ativos / f59 sabotagem c3 · SELECT · using (9999_sintetica_f59.sql:1) — R3: o sub-select "(select 1 from public.operador_filiais o where o.filial_id = ativos.filial_id and o.usuario_id = (select auth.uid()))" lê public.operador_filiais e referencia a linha (ativos.filial_id). A leitura de tabela mora DENTRO da função de conjunto; a junta com a linha se reescreve como "col in (select … from public.<fn>() u)". Exceção só declarada: "public.ativos / f59 sabotagem c3 / sub-select". Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).
+   · (universo) policy fora de k_policies_public: public.ativos / f59 sabotagem c3 — a trava pede decidir e congelar
+
+==================== SABOTAGEM E — o ponto cego da F66 (DDL de policy num laço) ====================
+
+## E.1 execute format('alter policy %I on %I.%I using (…)', …)
+   SQL: do $$ declare t text; begin   foreach t in array array['ativos', 'movimentacoes'] loop     execute format('alter policy %I on %I.%I using (%s)', 'leitura operador', 'public', t, 'public.e_membro(empresa_id)');   end loop; end $$;
+   → VERMELHO
+   · falha fechada 0156_policies_de_tenant_num_laco.sql:5 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration
+   · falha fechada 0156_policies_de_tenant_num_laco.sql:5 — execute de SQL que a trava não lê — só passa execute '<literal>' ou execute format('<literal>', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar
+   · falha fechada 0156_policies_de_tenant_num_laco.sql:5 — DDL de policy montado dinamicamente ("alter policy" dentro de corpo $…$) — o replay não sabe o que ele cria; escreva o comando por extenso na migration
+
+## E.2 o verbo parametrizado — format('%s policy …', v_verbo) (achado da revisão adversarial)
+   SQL: do $$ declare v_verbo text := 'alter'; begin   execute format('%s policy %I on %I.%I using (%s)', v_verbo, 'leitura operador', 'public', 'ativos', 'public.e_membro(empresa_id)'); end $$;
+   → VERMELHO
+   · falha fechada 0157_verbo_parametrizado.sql:4 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration
+   · falha fechada 0157_verbo_parametrizado.sql:4 — execute de SQL que a trava não lê — só passa execute '<literal>' ou execute format('<literal>', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar
+
+## E.3 a palavra partida entre literais — 'alter pol' || 'icy …' (achado da revisão adversarial)
+   SQL: do $$ begin   execute 'alter pol' || 'icy "leitura operador" on public.ativos using (public.e_membro(empresa_id))'; end $$;
+   → VERMELHO
+   · falha fechada 0158_palavra_partida.sql:3 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration
+   · falha fechada 0158_palavra_partida.sql:3 — execute de SQL que a trava não lê — só passa execute '<literal>' ou execute format('<literal>', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar
+
+## E.4 controle: o execute inofensivo da 0124 (format com %I/%L) continua passando
+   SQL: do $$ begin   execute format('alter database %I set timezone = %L', current_database(), 'America/Sao_Paulo'); end $$;
+   → VERDE
+
+## E.5 a palavra escondida por escape hexadecimal de E-string — E'drop poli\x63y …' (achado da re-revisão)
+   SQL: do $$ begin   execute E'drop poli\x63y "leitura operador" on public.ativos'; end $$;
+   → VERMELHO
+   · falha fechada 0160_escape_hex.sql:3 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration

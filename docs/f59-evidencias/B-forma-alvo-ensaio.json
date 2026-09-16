@@ -1,0 +1,235 @@
+{
+  "rotulo": "f59-forma-alvo",
+  "alvo": "ensaio",
+  "canal": "mcp",
+  "sha_codigo": "96a682707aa282fe52dd619f5ec4c2a89e96bf4e",
+  "gerado_em": "2026-09-16T15:18:15.425Z",
+  "casos": {
+    "pares-null": {
+      "erro": null,
+      "custo": 2.81,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Nested Loop",
+        "Aggregate",
+        "Function Scan",
+        "Index Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        0
+      ]
+    },
+    "setof-null": {
+      "erro": null,
+      "custo": 38.76,
+      "tipos": [
+        "Aggregate",
+        "Function Scan",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        1,
+        0
+      ]
+    },
+    "pares-vazio": {
+      "erro": null,
+      "custo": 2.81,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Nested Loop",
+        "Aggregate",
+        "Function Scan",
+        "Index Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        0
+      ]
+    },
+    "setof-cheio": {
+      "erro": null,
+      "custo": 40.06,
+      "tipos": [
+        "Aggregate",
+        "Seq Scan",
+        "Result",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 2",
+        "InitPlan 1",
+        "InitPlan 3"
+      ],
+      "linhas_contadas": 1606,
+      "loops_subplanos": [
+        1,
+        1,
+        1
+      ]
+    },
+    "setof-vazio": {
+      "erro": null,
+      "custo": 38.76,
+      "tipos": [
+        "Aggregate",
+        "Function Scan",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        1,
+        0
+      ]
+    },
+    "pares-no-where": {
+      "erro": null,
+      "custo": 28.06,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Result",
+        "Nested Loop",
+        "Seq Scan",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 1606,
+      "loops_subplanos": [
+        1,
+        1
+      ]
+    },
+    "uuid-array-null": {
+      "erro": "22004 cannot accumulate null arrays"
+    },
+    "uuid-array-cheio": {
+      "erro": null,
+      "custo": 10.38,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        1,
+        0
+      ]
+    },
+    "uuid-array-vazio": {
+      "erro": "2202E cannot accumulate empty arrays"
+    },
+    "pares-sem-pull-up": {
+      "erro": null,
+      "custo": 50.34,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Index Only Scan",
+        "Seq Scan",
+        "Result"
+      ],
+      "subplanos": [
+        "InitPlan 3",
+        "SubPlan 2",
+        "InitPlan 1"
+      ],
+      "linhas_contadas": 1606,
+      "loops_subplanos": [
+        1,
+        1,
+        1
+      ]
+    },
+    "setof-elemento-null": {
+      "erro": null,
+      "custo": 38.76,
+      "tipos": [
+        "Aggregate",
+        "Function Scan",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        1,
+        0
+      ]
+    },
+    "uuid-array-cast-null": {
+      "erro": null,
+      "custo": 10.38,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        1,
+        0
+      ]
+    },
+    "uuid-array-cast-vazio": {
+      "erro": null,
+      "custo": 10.38,
+      "tipos": [
+        "Aggregate",
+        "Result",
+        "Result",
+        "Index Only Scan"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "linhas_contadas": 0,
+      "loops_subplanos": [
+        1,
+        0
+      ]
+    }
+  },
+  "postgres": "17.6",
+  "total_ativos": 1606,
+  "papel_na_prova": "authenticated"
+}

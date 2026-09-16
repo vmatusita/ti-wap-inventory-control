@@ -11216,3 +11216,173 @@ O desenho inteiro, com as assinaturas, está em `docs/PLAN-F58.md` §3, §4 e §
 - **O que NÃO prova.** Mensagem montada em tempo de execução a partir de pedaços (`'Saldo ' || x`) entra na lista pelo
   pedaço literal; o teste confere o pedaço, não a frase montada. E o corpo vivo é o das MIGRATIONS: objeto alterado à mão
   num banco, fora da cadeia, fica invisível — é a trava de migrations (F46) e o gate de deriva (F47) que cobrem isso.
+
+## 2026-09-16 · F59 · As oito decisões da fase
+
+A doutrina do predicado, escrita e travada — sem migration, sem policy reescrita. O desenho inteiro está em
+`docs/PLAN-F59.md`; a régua, na emenda F59 da `docs/MATRIZ-REGRAS.md` (R-ACC-63 a R-ACC-72). Aqui, a escolha e o custo
+que decidiu cada uma.
+
+**Contexto medido antes de decidir** (`PLAN-F59.md` §1–2): 61 policies vivas (53 `public` + 8 `storage.objects`),
+iguais no replay das migrations, em `pg_policies` do ensaio, de produção e do banco do CI; 18 ocorrências
+`policy × função` que passam dado da linha (13 policies, 7 funções, uma built-in); 62 chamadas sem argumento, todas em
+`(select …)`; zero sub-select com `FROM`; zero DDL de policy dinâmico; zero perfil de operador com vínculo no ensaio.
+Canal SQL: o MCP da Supabase (`execute_sql`, como `postgres`), presente nesta sessão; `SUPABASE_ACCESS_TOKEN` ausente do
+ambiente — a Management API não foi usada e o token não foi procurado.
+
+1. **O analisador.** Módulo próprio, `scripts/db/predicado-policies.mjs`, sem banco, com léxico próprio (comentário fora
+   antes de qualquer casamento — a lição da F53), replay na ordem do texto (a lição da `0091`) e análise por árvore de
+   parênteses. Dado da linha = coluna da tabela da policy em qualquer forma, com qualificador desconhecido tratado como
+   linha e coluna não qualificada dentro de sub-select com `FROM` também (falha fechada); função = toda chamada fora da
+   lista NOMINAL de construções (`coalesce`, `nullif`, `greatest`, `least`, `cast`/`::`, `row`, `array`, `case`,
+   `exists`/`in`/`any`/`some`/`all`), built-in e nome desconhecido incluídos; `current_user` e família são função sem
+   argumento (o Postgres 16+ os guarda como `FuncExpr`). Universo: `public` + `storage.objects`, todo verbo, `using` e
+   `with check`. Falha fechada: DDL de policy dentro de literal ou corpo `$…$`, comando de policy ilegível, alter/drop de
+   policy desconhecida, e a auto-conferência (138 de 138 comandos consumidos). **Custo que decidiu:** a lista nominal dá
+   falso positivo em sintaxe exótica (`extract(epoch from …)`), preferível ao falso negativo; e o léxico próprio evita os
+   dois defeitos que o instrumento descartável do censo teve (`and (select …)` lido como a função `and`; DDL dinâmico
+   detectado por proximidade de `execute`).
+2. **As exceções.** Por OCORRÊNCIA `schema.tabela / policy / função` (R3: `… / sub-select`), no array
+   `k_excecoes_predicado` de `supabase/tests/catalogo_policies.sql`, com migration, `motivo:` e `destino:` na LINHA da
+   entrada, lidos pela mesa como texto (Decisão 2 da F48) e conferidos nos dois sentidos pela mesa e pelo catálogo
+   (`11a`/`11b`). Destinos: 6 `pode_escrever_filial` → F66; 1 `pode_ler_arquivo_termo` (o falso içamento de Storage) →
+   F67; 11 permanentes (a policy decide sobre o próprio objeto). **Custo:** por nome de função seria uma linha só para
+   `pode_escrever_filial` — e a F66 a escreveria numa policy nova sem ninguém decidir. Não é a lista da R-ACC-57
+   (`definer_sem_tenant.sql` pergunta outra coisa; `array_length` nem é definer); cada cabeçalho cita o outro.
+3. **O embrulho e o sub-select.** R2 generalizada de "função sem argumento" para "função que não recebe dado da linha"
+   (inclui só constantes); R3 reprova sub-select que LÊ relação mesmo sem olhar a linha, e o que olha a linha fora de
+   argumento de função; atribuição única — referência à linha sob função do mesmo sub-select é R1 (o falso içamento),
+   sem função é R3. **Custo:** as duas regras a mais nasceram verdes (zero casos) e fecham `tem_papel('admin')` solto e
+   `exists (select 1 from public.membros …)`.
+4. **O par no catálogo.** `pg_policy.polqual`/`polwithcheck` (`pg_node_tree`), não o texto de `pg_policies`: só a árvore
+   diz se `name` é da linha (`VAR :varlevelsup` = profundidade de `QUERY`), se a chamada é cast (`:funcformat`), se o
+   sub-select lê relação (`RANGETBLENTRY :rtekind 0`) e se a função devolve conjunto (`:funcretset`). Um laço `plpgsql`
+   dentro do `do $$` existente, sem função nova nem `pg_temp` novo; tipo de nó desconhecido reprova (`10c`); doze
+   árvores sintéticas na guarda `10d`. Universo congelado em `k_policies_public` (53) + `k_storage` (8), provado igual
+   ao da mesa por asserção dos dois lados (`10a`/`10b`). Oito mutações novas, todas detectadas pelo rótulo (CI run
+   35113464557, 82/82). Calibrado só leitura no ensaio e em produção antes do push — resultados idênticos: 74 árvores,
+   470 nós, 86 chamadas, 18 ocorrências. **Custo:** congelar 53 nomes obriga toda fase que cria policy a tocar o `.sql` —
+   o mesmo contrato de `k_storage`; e a guarda da F47 contra isenção por prefixo casou com `left(v_tok, 1)`, o que levou
+   o laço a grupos de captura em vez de prefixo (a guarda estava certa; o código mudou, a guarda não).
+5. **A forma-alvo.** `empresas_do_membro()`, `empresas_de_escrita()`, `empresas_de_admin()` → `returns setof uuid`
+   consumidas por `col = any (array (select public.<fn>()))`; `unidades_de_escrita()` → `returns table (empresa_id uuid,
+   filial_id smallint)` consumida por `(empresa_id, filial_id) in (select u.empresa_id, u.filial_id from
+   public.unidades_de_escrita() u)` em conjunção com `empresa_id = any (array (select public.empresas_de_escrita()))`.
+   Todas `language sql stable security definer set search_path = ''`, `revoke execute … from public, anon` + `grant
+   execute … to authenticated`. **Divergência da ficha declarada:** a ficha dá `→ uuid[]`, que ERRA com
+   `array (select …)` no conjunto vazio (`2202E`) e no NULL (`22004`) — provado no ensaio como `authenticated`
+   (`docs/f59-evidencias/B-forma-alvo-ensaio.json`). **Custo:** `uuid[]` com `= any ((select fn())::uuid[])` também
+   funciona (provado), mas criaria uma segunda forma canônica. A forma de pares vira junção no `WHERE` e `hashed SubPlan`
+   com um loop fora de `pull_up_sublinks` — o contexto de policy, conferido no `planner.c` do Postgres 17 (o qual de
+   segurança passa só por `preprocess_expression`).
+6. **A medição.** `scripts/perf/medir-rls.mjs`, canal MCP (o script gera os comandos, eu os executo por `execute_sql` e
+   gravo as respostas fora do repositório, o script analisa). Cada comando é um `do $f59$ … $f59$` que liga
+   `transaction_read_only` antes de tudo, confirma o alvo pelo banco (`rotulo_de_ambiente()`), escolhe a identidade
+   DENTRO do banco (o id nunca sai), prova a RLS (controle negativo: claims sem `sub` → 0 linhas; o piso `papel_atual`
+   no `Output` do plano; linhas = contagem esperada) e termina em `raise exception` com o payload. Formas F0–F3 sobre
+   `ativos` (projeção de `LEITURA_LISTA_ATIVOS`) e `movimentacoes` (a de maior volume; `LISTA_COLS`), sem `limit`,
+   `explain (analyze, buffers, verbose, format json)`, 1 aquecimento, N = 9 intercalado, mediana e p95 por posto mais
+   próximo. A guarda recusa antes de emitir — e, depois de três rodadas de revisão adversarial, só aceita o comando
+   idêntico, byte a byte, ao que o próprio script gera para os parâmetros que ele declara (ata seguinte). Em produção,
+   só a identidade de nível administrador: a persona operador é do ensaio, e fictícia (ali, 0 perfil com vínculo —
+   PENDENTE, e nada foi gravado para criá-lo). **Custo:** o MCP obriga a transcrever cada resposta para um arquivo fora
+   do repositório; em troca, nenhum token é tocado. O modo só leitura da Management API roda como
+   `supabase_read_only_user`, que não troca para `authenticated` — medir sem trocar de papel é medir sem policy.
+7. **Os documentos.** Corrigido o que é vivo ou catálogo de requisitos: `PLANO-PRODUTO-MULTIEMPRESA.md:71` por CÓPIA de
+   `SYSTEM-DESIGN-ACERVO-2026-08-31.md:191-197`; cabeçalho de status nos DOIS documentos (a ficha só listava o primeiro);
+   nota datada nas "5 das 71" e na forma de unidade que não cabe em `array (select …)`; cabeçalho de escopo na
+   `ESPECIFICACAO.md` com o texto da ficha; `README.md` sem "ainda não foi decidida" (os dois documentos passam a
+   "catálogo de requisitos", o espelho do SharePoint segue exploração) e com o índice da doutrina, e a `:51` sem "F0 →
+   F40"; nota de emenda no `ADR-002:90`; a linha da doutrina em `ARQUITETURA.md` §9/§10 e `RUNBOOK-BANCO.md` (e o job
+   `banco-sem-docker` onde ainda se lia `banco`); notas no `PLANO-MULTIEMPRESA.md` (a citação `:60-64`, o `setof`, a
+   forma de pares, a colisão F66 × F67). Apontado sem editar: `0129:66-69` (migration travada), atas e relatórios.
+   `CLAUDE.md` intocado — o cabeçalho da spec resolve a questão de autoridade.
+8. **A linha de base da F66.** A F66 herda o INSTRUMENTO (`medir-rls.mjs` + `medir.mjs`), não o número: a F60 muda o
+   caminho quente dos relatórios e a F62 muda o que `papel_atual()` lê. A F66 re-roda os dois imediatamente antes de
+   mexer nas policies e compara com essa rodada. Os números desta fase — `docs/perf/f59-rls-{ensaio,producao}.json` e
+   `docs/perf/f59-producao-ttfb.json` — são a prova da doutrina e o ponto de partida, não o gabarito. Duas leituras que
+   a F66 precisa levar: produção é ~2× mais lenta que o ensaio em tempo absoluto em TODAS as formas, inclusive a de hoje
+   (compare razões entre formas, nunca absolutos entre bancos); e o TTFB desta fase, com o mesmo código no ar da F58,
+   ficou 4% a 18% abaixo do "depois" da F58 nas rotas autenticadas — a faixa de ruído entre dias.
+
+## 2026-09-16 · F59 · As divergências da ordem e da ficha, medidas
+
+As dez que a ordem declarou de saída se confirmaram todas (`PLAN-F59.md` §1.1): a forma-alvo `uuid[]` que quebra no
+vazio e no NULL; 61 policies, não 54; 13 policies e 7 funções (18 ocorrências), não uma exceção — e as "12 de escrita"
+batem; o falso içamento de "termos leitura operador", que a `0129:66-69` chama de InitPlan; a `0107` medida no ensaio;
+o "ainda não foi decidida" do `README.md` na linha 69; a `ESPECIFICACAO.md` com 482 linhas e 174 menções (120 "filial",
+54 "filiais"); o cabeçalho de status valendo para dois documentos; a colisão com a R-ACC-51 sem fronteira escrita; e a
+linha de base que envelhece com a F60 e a F62. Mais estas, medidas na fase:
+
+1. `PLANO-MULTIEMPRESA.md:576` citava `docs/README.md:60-64`; o trecho estava em `:67-71` (nota acrescentada).
+2. `ARQUITETURA.md:96` e `RUNBOOK-BANCO.md:256-262` ainda descreviam o job de CI como `banco`, e a `ARQUITETURA` citava
+   migrations até a `0124` (corrigidos com uma linha cada).
+3. A ficha da F67 colide com a da F66: `pode_escrever_unidade` por `create or replace` manteria as policies de escrita
+   por linha. A doutrina resolve pela F66 (nota na emenda e no plano).
+4. A ficha da F67 prescreve `(storage.foldername(name))[2] = any(…)` nas policies de `backups-import` — função sobre a
+   linha (R1). Backlog nomeado para a F67.
+5. A forma de pares, emulada no `WHERE`, não vira `InitPlan` nem `Hash Semi Join`: é puxada para junção.
+6. `SYSTEM-DESIGN-ACERVO:200` escrevia `unidade_id = any(array(select unidades_de_escrita()))`, que não compila com uma
+   função de pares (nota acrescentada).
+7. O registro de versões recusa citar fase futura pelo código no `CHANGELOG.md` (`cobertura-changelog.test.ts`): a
+   entrada da F59 fala da F62/F66/F67 por extenso. O primeiro commit da versão saiu com esse teste vermelho — a saída do
+   `npm run test` foi lida por `tail`, que mascarou o código de saída —; o commit seguinte (`e74d3f9`) corrigiu, antes de
+   qualquer push.
+
+## 2026-09-16 · F59 · O que as quatro rodadas de revisão adversarial mudaram
+
+Revisores em contexto fresco, contra o `PLAN-F59.md` e os 29 critérios, cada achado passado por um cético instruído a
+refutá-lo. Três rodadas acharam lacunas reais de correção; a quarta, sobre o fecho, nenhuma.
+
+- **Rodada 1 (`6e59823`).** (a) A mesa não via DDL de policy com o verbo parametrizado (`format('%s policy …', v_verbo)`)
+  nem com a palavra partida entre literais (`'alter pol' || 'icy …'`). **Escolha:** `execute` em corpo `$…$` só passa como
+  `execute '<literal>'` ou `execute format('<literal>', …)` com `%I`/`%L`, sem `%s` e sem concatenação; corpo com
+  `execute` que mencione `policy` reprova. O `execute format('alter database …')` da `0124` continua verde. Dois testes
+  antigos passaram de "exatamente N falhas" para "a falha `dinamicamente` na linha 3" — o que eles provam (o DDL
+  dinâmico reprova com arquivo e linha) não mudou; mudou só que a regra nova acusa o mesmo corpo por mais de um motivo.
+  (b) A guarda do `medir-rls.mjs` aceitava função com efeito colateral chamada pelo nome (`resetar_acervo`,
+  `pg_advisory_lock`) e não conferia o VALOR de `transaction_read_only`. **Escolha:** lista fechada de funções,
+  read-only ligado uma vez e só `on`, troca de papel única.
+- **Rodada 2 (`740d104`).** (a) `E'drop poli\x63y …'` escondia a palavra. **Escolha:** o léxico decodifica escapes de
+  E-string (hex, octal, `\u`, `\U`), a checagem olha o valor decodificado, e `U&'…'` e `$tag$` dentro de `execute`
+  reprovam. (b) Conferir só o PREFIXO do `execute` deixava passar `execute format('select * into sombra …')`.
+  **Escolha:** os `execute` do comando são uma lista fechada do texto exato do modelo, e SQL dentro de literal não pode
+  ter `into`, `for`, `share` nem `nowait`.
+- **Rodada 3 (`b720f49`).** As checagens de vocabulário e de forma deixavam trocar o CONTEÚDO: outra tabela em
+  `v_tabela`, outro SQL em `v_sql`, a cláusula da identidade afrouxada. **Escolha:** depois das checagens específicas (que
+  dão o motivo de cada recusa), o comando tem de ser idêntico ao que o script gera para os parâmetros que ele declara.
+  **Motivo:** uma lista de proibições nunca fecha; a igualdade com o modelo fecha.
+- **Rodada 4:** nenhum achado. Em nenhuma rodada o texto dos comandos reais mudou — conferido por `cmp` no fechamento: os
+  gerados em `b720f49` são, byte a byte, os executados no ensaio (em `96a6827`) e em produção.
+- **O que NÃO se fez:** nenhuma exceção alargada, nenhum `skip`, nenhum casador afrouxado. O que a mesa ainda não vê
+  está escrito na R-ACC-70: a palavra montada por `chr()` ou lida de tabela — o catálogo vê o resultado.
+
+## 2026-09-16 · F59 · A MATRIZ-REGRAS duplicada por `String.replace` — achada e desfeita antes do push
+
+- **Contexto.** As duas edições da R-ACC-70 nas rodadas 1 e 2 foram feitas por um script Node com
+  `String.prototype.replace` e um texto de substituição que continha `` $` `` — o padrão especial que insere tudo o que
+  vem ANTES do trecho casado. O começo da matriz foi duplicado duas vezes (767 → 2.089 → 4.072 linhas), e isso foi
+  commitado em `740d104`, nunca publicado.
+- **Escolha.** O arquivo voltou ao estado íntegro de `d7456ff` (lido por `git show`, sem reset nem checkout destrutivo) e
+  as duas edições foram reaplicadas por edição literal (`6b536a9`). Conferido: 767 linhas, uma ocorrência de cada
+  cabeçalho de emenda.
+- **Motivo e regra prática.** Edição de documento por substituição de texto usa ferramenta de edição literal ou
+  `split`/`join` — nunca `replace` com texto arbitrário no segundo argumento. Nenhum teste lê a matriz inteira; o que
+  denunciou foi o tamanho do diff.
+
+## 2026-09-16 · F59 · O fechamento — SHA congelado, produção medida, TTFB antes do merge
+
+- **SHA de código congelado:** `b720f49` — o último commit que toca `src/**`, `scripts/**` ou `supabase/tests/**`.
+  Depois dele, só `docs/**`. Nesse SHA: 219 arquivos / 5.997 testes (eram 216 / 5.856), `lint`, `tsc`, `build` e
+  `verificar:actions` verdes.
+- **Produção, só leitura, sobre esse SHA** (canal MCP, `docs/perf/f59-rls-producao.json`): mediana de execução, N = 9,
+  identidade de nível administrador, RLS provada no plano. `ativos` (1.620 linhas): F0 1,62 ms · F1 43,6 · F2 45,0
+  (`SubPlan` ×1.620) · F3 2,13 (`InitPlan` ×1). `movimentacoes` (3.555): F0 1,92 · F1 87,7 · F2 94,2 (`SubPlan` ×3.555)
+  · F3 2,74. A forma içada é 20× a 34× mais rápida; no ensaio, 17× a 29×. A doutrina se confirma nos dois bancos, e a
+  distância cresce com o volume.
+- **TTFB antes do merge** (`docs/perf/f59-producao-ttfb.json`, `1.63.0`/`62c708d` no ar): 16 rotas, todas 200; nenhum
+  código diferente do "depois" da F58 — o que se vê (4% a 18% abaixo nas rotas autenticadas) é ruído.
+- **O gate de deriva de tipos** no CI: 34 relações · 312 colunas · 75 funções, os números da F58.
+- **Nenhuma escrita e nenhum DDL** em banco de verdade: toda leitura de produção e do ensaio foi um `do` com
+  `transaction_read_only = on` terminado em `raise exception`, ou `select` de catálogo; a única gravação foi a sessão do
+  login do `medir.mjs` no Supabase Auth, encerrada por `signOut`.

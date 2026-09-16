@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.64.0',
+    data: '2026-09-16',
+    fase: 'F59',
+    titulo: 'As regras de quem vê e quem muda cada registro passaram a ter um formato conferido',
+    mudancas: [
+      'Nenhuma tela mudou nesta versão. O que mudou é por dentro: as regras que decidem quem vê e quem pode mudar cada registro — ativos, movimentações, itens, pendências, termos e os arquivos dos termos — passaram a ter um formato conferido automaticamente, antes de qualquer mudança chegar ao ar.',
+      'O formato conferido é o que continua rápido quando o sistema atender mais de uma empresa: a pergunta "a que empresas esta pessoa tem acesso?" passa a ser respondida uma vez por consulta, e não uma vez para cada linha da lista. Medido nas listas de Ativos e de Movimentações, o formato lento levaria de 17 a 27 vezes mais tempo para montar a mesma lista.',
+      'A mudança que vem a seguir mexe nessas regras em quase todas as telas. Agora, uma regra escrita no formato lento é recusada antes de sair do lugar, com o nome da regra e o que precisa mudar.',
+    ],
+  },
+  {
     versao: '1.63.0',
     data: '2026-09-15',
     fase: 'F58',

@@ -1,0 +1,44 @@
+# Sabotagem D — a catraca (16/09/2026). sha256 antes: 7a5244d1a7f179caeeb4756c34e08976450dafda2efe8284fd98f905c659b77c
+
+## D.1 tirar do array a ocorrência public.ativos / operador atualiza / pode_escrever_filial
+     × nenhuma policy fora da régua (R1 fora da lista, R2, R3) 28ms
+     × as ocorrências R1 vivas são exatamente as exceções — nenhuma a mais, nenhuma a menos 6ms
+     × consertar a policy sem tirar a exceção → reprova pela catraca 70ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 24 passed (27)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > nenhuma policy fora da régua (R1 fora da lista, R2, R3)
+AssertionError: expected [ …(2) ] to deeply equal []
++   "public.ativos / operador atualiza · UPDATE · using (0063_papeis_policies.sql:108) — R1: a função pode_escrever_filial(filial_id) recebe dado da LINHA, avaliada uma vez por linha. Use \"col = any (array (select public.<fn>()))\" com função de conjunto, ou declare a ocorrência \"public.ativos / operador atualiza / pode_escrever_filial\" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).",
++   "public.ativos / operador atualiza · UPDATE · with check (0063_papeis_policies.sql:108) — R1: a função pode_escrever_filial(filial_id) recebe dado da LINHA, avaliada uma vez por linha. Use \"col = any (array (select public.<fn>()))\" com função de conjunto, ou declare a ocorrência \"public.ativos / operador atualiza / pode_escrever_filial\" em k_excecoes_predicado com motivo e destino. Veja a emenda F59 da docs/MATRIZ-REGRAS.md (R-ACC-63 em diante).",
+ FAIL  |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > as ocorrências R1 vivas são exatamente as exceções — nenhuma a mais, nenhuma a menos
+AssertionError: expected [ …(18) ] to deeply equal [ …(17) ]
++   "public.ativos / operador atualiza / pode_escrever_filial",
+ FAIL  |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > consertar a policy sem tirar a exceção → reprova pela catraca
+AssertionError: expected [] to deeply equal [ Array(1) ]
+-   "public.ativos / operador atualiza / pode_escrever_filial",
+    175|       'alter policy "operador atualiza" on public.ativos using ((selec…
+
+## D.2 acrescentar exceção para ocorrência que não existe
+     × CATRACA — toda exceção declarada ainda descreve uma ocorrência viva 16ms
+     × as ocorrências R1 vivas são exatamente as exceções — nenhuma a mais, nenhuma a menos 2ms
+     × consertar a policy sem tirar a exceção → reprova pela catraca 68ms
+ Test Files  1 failed (1)
+      Tests  3 failed | 24 passed (27)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > CATRACA — toda exceção declarada ainda descreve uma ocorrência viva
+AssertionError: expected [ Array(1) ] to deeply equal []
++   "catalogo_policies.sql:272 — \"public.motivos / leitura operador / pode_escrever_filial\" não tem ocorrência viva: tire a linha de k_excecoes_predicado",
+ FAIL  |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > as ocorrências R1 vivas são exatamente as exceções — nenhuma a mais, nenhuma a menos
+AssertionError: expected [ …(18) ] to deeply equal [ …(19) ]
+    "public.ativos / operador atualiza / pode_escrever_filial",
+    "public.termos_gerados / operador atualiza / array_length",
+ FAIL  |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > consertar a policy sem tirar a exceção → reprova pela catraca
+AssertionError: expected [ …(2) ] to deeply equal [ Array(1) ]
+    "public.ativos / operador atualiza / pode_escrever_filial",
+    175|       'alter policy "operador atualiza" on public.ativos using ((selec…
+
+## restaurado — sha256 depois: 7a5244d1a7f179caeeb4756c34e08976450dafda2efe8284fd98f905c659b77c · igual ao de antes: true
+## controle: a trava volta a passar
+ Test Files  1 passed (1)
+      Tests  27 passed (27)

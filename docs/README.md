@@ -10,6 +10,7 @@ Este diretório tem 60+ arquivos, e a maior parte é **histórico**. Esta págin
 | Entender o código que já existe | [`ARQUITETURA.md`](ARQUITETURA.md) — sobretudo §10, *"quero mudar X → mexo em Y"* |
 | Trabalhar aqui pela primeira vez | [`ONBOARDING.md`](ONBOARDING.md) |
 | Aplicar uma migration ou mexer no banco | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) |
+| **Escrever ou mudar uma policy de RLS** | a **emenda F59** de [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-63 em diante) — a doutrina do predicado: `col = any (array (select public.<fn>()))` sobre função `setof`, nunca `fn(col)`, e a forma-alvo das funções de conjunto. Travada na mesa por `src/lib/validators/policies-initplan.test.ts` e no catálogo do CI pelo bloco 4 de `supabase/tests/catalogo_policies.sql`, onde mora a lista única de exceções (`k_excecoes_predicado`). Para medir o custo de uma forma: `scripts/perf/medir-rls.mjs` |
 | **Chegou uma issue de alarme** — a sonda ficou vermelha | [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) — o que cada checagem quer dizer, onde olhar e o que **não** fazer |
 | Saber onde vive uma credencial (por NOME, nunca o valor) | [`INVENTARIO-CREDENCIAIS.md`](INVENTARIO-CREDENCIAIS.md) |
 | Saber por que algo foi decidido assim | [`DECISOES.md`](DECISOES.md) — atas em ordem cronológica, append-only |
@@ -42,13 +43,13 @@ Mantidos atualizados; espera-se que digam a verdade sobre o sistema de hoje.
 | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) | Procedimento de migrations, o "gate", rollback, armadilhas — o anexo A é histórico |
 | [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) | O alarme de saúde e de integridade (F55): o que cada uma das doze checagens quer dizer, o que fazer quando a issue chega, e o que NUNCA fazer (subir a linha de base, plantar estado em produção, apagar achado) |
 | [`INVENTARIO-CREDENCIAIS.md`](INVENTARIO-CREDENCIAIS.md) | Onde cada credencial vive, quem a lê, quem é dona e quando gira — **por NOME, nunca o valor** (F55) |
-| [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) | Matriz viva: cada regra de negócio, onde ela mora e o que a prova |
+| [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) | Matriz viva: cada regra de negócio, onde ela mora e o que a prova. A **emenda F59** é a doutrina do predicado de RLS |
 | [`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md) | O plano das 28 fases F45→F73 (preparação e virada multiempresa), de 04/09/2026. **A ficha de cada fase no §5 é a fonte da verdade do escopo dela** — onde a ordem de serviço e ela divergirem, vale a ficha |
 | [`DECISOES.md`](DECISOES.md) | Rastro de auditoria das decisões autônomas (append-only, nunca reescrito) |
 | [`DIVIDA-TECNICA.md`](DIVIDA-TECNICA.md) | Diagnóstico priorizado do que está torto |
 | [`BACKLOG-UX.md`](BACKLOG-UX.md) | Backlog de UX — fechado, exceto o que depende de decisão do Johnny |
 | [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md) · [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md) | Decisões de arquitetura do modelo de acesso |
-| [`prompts/`](prompts/) | As ordens de serviço, uma por fase (F0 → F40) |
+| [`prompts/`](prompts/) | As ordens de serviço, uma por fase (índice em [`prompts/README.md`](prompts/README.md)) |
 
 ## Planos de área
 
@@ -64,17 +65,23 @@ Escritos antes de construir um subsistema. Continuam úteis como **razão de des
 | [`PLANO-ITENS.md`](PLANO-ITENS.md) | O item passa a falar a língua do ativo — vocabulário único, cadastro passivo e o fim do bloqueio (F41/F42) |
 | [`INVENTARIO-LEITURAS.md`](INVENTARIO-LEITURAS.md) | O orçamento das F63–F68 (F57): cada call-site das cinco tabelas do acervo em `src/**`, com a classificação "precisa de `empresa_id` explícito" × "confia na RLS", o porquê e a fase de destino. É uma fotografia de 14/09/2026 por LEITURA do código — a F63 revalida antes de usar. Os módulos que a F57 criou para separar os quatro significados de filial (`auth/recorte-leitura.ts`, `filtros/filial.ts`, `queries/recorte-consulta.ts`, `unidades/slugs.ts`, `unidades/pertinencia.ts`, `ativos/identidade.ts`) estão em [`ARQUITETURA.md`](ARQUITETURA.md) §10 |
 
+## Catálogo de requisitos do multiempresa — a direção está decidida
+
+A direção multiempresa **foi decidida** em 09/2026 ([`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md) §1, decisão 1): evoluir **este** repositório por migração in-place e aditiva, nas fases F45→F73. Os dois documentos abaixo, escritos antes da decisão para um repositório novo, valem como **catálogo de requisitos, não como plano de execução** — cada um traz o cabeçalho de status dizendo isso. A doutrina do predicado de RLS que eles discutem está na emenda F59 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md).
+
+[`SYSTEM-DESIGN-ACERVO-2026-08-31.md`](SYSTEM-DESIGN-ACERVO-2026-08-31.md) · [`PLANO-PRODUTO-MULTIEMPRESA.md`](PLANO-PRODUTO-MULTIEMPRESA.md) · `prompt-produto-f0-fundacao.md` (a ordem do repositório novo — **aposentada** pela decisão 1; não se executa)
+
 ## Exploração — ainda não é compromisso
 
-Trabalho de projeto de sistema para uma direção que **ainda não foi decidida**: transformar o sistema num produto multiempresa e espelhar a planilha do SharePoint. Nada disso está construído.
+Trabalho de projeto de sistema para uma direção que **ainda não foi decidida**: espelhar a planilha do SharePoint. Nada disso está construído.
 
-`SYSTEM-DESIGN-ACERVO-2026-08-31.md` · `PLANO-PRODUTO-MULTIEMPRESA.md` · `PLANO-ESPELHO-SHAREPOINT.md` · `ROTEIRO-ESPELHO-ENTRA.md` · `prompt-produto-f0-fundacao.md`
+`PLANO-ESPELHO-SHAREPOINT.md` · `ROTEIRO-ESPELHO-ENTRA.md`
 
 ## Histórico — leia para arqueologia, não para trabalhar
 
 Estes arquivos descrevem o sistema **na data em que foram escritos**. Não os atualize: se o comportamento mudou, o lugar da verdade é a spec, a matriz de regras ou o CHANGELOG.
 
-- **Relatórios de fase** — `RELATORIO-F11.md` → `RELATORIO-F58.md` (mais `F19-RELATORIO.md` e `RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`): o que cada ordem entregou, com as evidências. As pastas `f45-evidencias/` a `f58-evidencias/` guardam as saídas reais das sabotagens que provam que cada trava sabe ficar vermelha — leia-as junto com o relatório da fase, nunca no lugar dele. A de F57 guarda também a matriz de casos-limite do filtro de filial rodada ANTES e DEPOIS do refactor (`casos-limite-antes.md`/`casos-limite-depois.md`). A de F58 guarda também os censos só-contagem de ensaio e produção, a equivalência da tradução de erros e as rodadas do conferidor de formas, só com contagens e caminhos normalizados. A porta de RPC, `linhas.ts`, as listas de erro do banco e o conferidor que a F58 criou estão em [`ARQUITETURA.md`](ARQUITETURA.md) §10.
+- **Relatórios de fase** — `RELATORIO-F11.md` → `RELATORIO-F59.md` (mais `F19-RELATORIO.md` e `RELATORIO-CORRECAO-TRUNCAMENTO-1000.md`): o que cada ordem entregou, com as evidências. As pastas `f45-evidencias/` a `f59-evidencias/` guardam as saídas reais das sabotagens que provam que cada trava sabe ficar vermelha — leia-as junto com o relatório da fase, nunca no lugar dele. A de F57 guarda também a matriz de casos-limite do filtro de filial rodada ANTES e DEPOIS do refactor (`casos-limite-antes.md`/`casos-limite-depois.md`). A de F58 guarda também os censos só-contagem de ensaio e produção, a equivalência da tradução de erros e as rodadas do conferidor de formas, só com contagens e caminhos normalizados. A porta de RPC, `linhas.ts`, as listas de erro do banco e o conferidor que a F58 criou estão em [`ARQUITETURA.md`](ARQUITETURA.md) §10. A de F59 guarda também o censo das policies nas quatro fontes, a pergunta de planejador e a prova da forma-alvo no ensaio, e os nós do plano das formas do predicado no ensaio e em produção — só números, nomes de nó e de tabela.
 - **Planos de fase** — `PLAN-F30.md`, `PLAN-F31.md`, `PLAN-F32.md`, `PLAN-F33.md`, `PLAN-F35.md`, `PLAN-F36-F39.md`, `PLAN-F39.md`, `PLAN-F40.md`, `PLAN-F41.md`, `PLAN-F42.md`, `PLAN-F43.md`, `PLAN-F44.md`, `PLAN-F45.md`, `PLAN-F55.md`, `PLAN-F56.md`, `PLAN-F57.md`, `PLAN-F58.md`: o plano medido antes de executar a fase.
 - **`F56-HANDOFF.md`** — não é plano nem relatório: é o ponto de retomada escrito no meio da F56, quando a máquina trocou antes de a fase terminar. Descreve o que já tinha ido para a `main`, o que ficou em WIP na branch e o roteiro exato para continuar. A pasta `f56-handoff/` guarda o que essa retomada precisou (medições da sessão original, scripts dos workflows, os relatórios que orientaram as decisões do plano) — histórico da troca de máquina, não documentação viva.
 - **Análises datadas** — `ANALISE-PLANILHA-F4.md`, `ANALISE-UX-2026-08-07.md`, `ANALISE-RELATORIOS-2026-08-10.md`, `SYSTEM-DESIGN-2026-08-30.md`, `E2E-F10.md`.
