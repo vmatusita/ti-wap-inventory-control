@@ -4,7 +4,19 @@ import { exigirDev } from '@/lib/auth/acesso'
 import type { DbClient } from '@/lib/auth/acesso'
 import { rotuloDoAtivo } from '@/lib/validators/dev-destrutivo'
 import type { StatusAtivo } from '@/lib/dominio'
-import { mapComLimite, paginarTodos, LIMITE_LOTES_PARALELOS } from '@/lib/queries/relatorios/comum'
+import {
+  CAP_ANOTACOES,
+  CAP_ATIVOS,
+  CAP_LANCAMENTOS_ITEM,
+  CAP_LOTE,
+  CAP_LOTE_MOVIMENTACOES,
+  CAP_MOVIMENTACOES,
+  CAP_PENDENCIAS_ITEM,
+  CAP_TERMOS_GERADOS,
+  mapComLimite,
+  paginarTodos,
+  LIMITE_LOTES_PARALELOS,
+} from '@/lib/queries/relatorios/comum'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhaDe, linhasDe, valorDe } from '@/lib/supabase/linhas'
 import {
@@ -393,19 +405,31 @@ export async function montarBackupDoReset(
   // mais um genérico solto) e confere com a forma FROUXA de backup daquela tabela
   // (`formas/dev-destrutivo.ts`, `LEITURA_BACKUP_*`): a coluna que a forma não declara atravessa
   // pelo `catchall` de `z.looseObject` — é o que garante que o backup nunca perde coluna nova.
+  //
+  // F60 (PLAN §2.1, #14–#24): TODAS as leituras deste backup por KEYSET pelo `id` — a ordem de
+  // antes já era a PK, então o arquivo sai byte a byte na mesma ordem. O teto é o do domínio na
+  // leitura global e o de LOTE na leitura por `.in()`/`.overlaps()` de 100 ids.
 
   const gerado_em = new Date().toISOString()
 
   if (bloco === 'itens') {
     const lancamentos = linhasDe(
-      await paginarTodos('Falha ao exportar lançamentos', (from, to) => {
-        const q = supabase
-          .from('lancamentos_item')
-          .select(LEITURA_BACKUP_LANCAMENTOS_ITEM.select)
-          .order('id')
-          .range(from, to)
-        return filialId !== null ? q.eq('filial_id', filialId) : q
-      }),
+      await paginarTodos(
+        'Falha ao exportar lançamentos',
+        {
+          porChave: (depoisDe, tamanho) => {
+            let q = supabase
+              .from('lancamentos_item')
+              .select(LEITURA_BACKUP_LANCAMENTOS_ITEM.select)
+              .order('id')
+              .limit(tamanho)
+            if (filialId !== null) q = q.eq('filial_id', filialId)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (l) => l.id,
+        },
+        CAP_LANCAMENTOS_ITEM,
+      ),
       LEITURA_BACKUP_LANCAMENTOS_ITEM.forma,
       LEITURA_BACKUP_LANCAMENTOS_ITEM.rotulo,
     )
@@ -434,10 +458,18 @@ export async function montarBackupDoReset(
 
   // ACERVO. O recorte é pelo ATIVO (a filial em que ele está HOJE) — igual ao da RPC.
   const ativos = linhasDe(
-    await paginarTodos('Falha ao exportar ativos', (from, to) => {
-      const q = supabase.from('ativos').select(LEITURA_BACKUP_ATIVOS.select).order('id').range(from, to)
-      return filialId !== null ? q.eq('filial_id', filialId) : q
-    }),
+    await paginarTodos(
+      'Falha ao exportar ativos',
+      {
+        porChave: (depoisDe, tamanho) => {
+          let q = supabase.from('ativos').select(LEITURA_BACKUP_ATIVOS.select).order('id').limit(tamanho)
+          if (filialId !== null) q = q.eq('filial_id', filialId)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (a) => a.id,
+      },
+      CAP_ATIVOS,
+    ),
     LEITURA_BACKUP_ATIVOS.forma,
     LEITURA_BACKUP_ATIVOS.rotulo,
   )
@@ -457,8 +489,16 @@ export async function montarBackupDoReset(
   async function backupMovimentacoes(): Promise<Record<string, unknown>[]> {
     if (filialId === null) {
       return linhasDe(
-        await paginarTodos('Falha ao exportar movimentacoes', (from, to) =>
-          supabase.from('movimentacoes').select(LEITURA_BACKUP_MOVIMENTACOES.select).order('id').range(from, to),
+        await paginarTodos(
+          'Falha ao exportar movimentacoes',
+          {
+            porChave: (depoisDe, tamanho) => {
+              const q = supabase.from('movimentacoes').select(LEITURA_BACKUP_MOVIMENTACOES.select).order('id').limit(tamanho)
+              return depoisDe === null ? q : q.gt('id', depoisDe)
+            },
+            chaveDe: (m) => m.id,
+          },
+          CAP_MOVIMENTACOES,
         ),
         LEITURA_BACKUP_MOVIMENTACOES.forma,
         LEITURA_BACKUP_MOVIMENTACOES.rotulo,
@@ -466,13 +506,21 @@ export async function montarBackupDoReset(
     }
     const acc: Record<string, unknown>[] = []
     for (const lote of lotes) {
-      const rows = await paginarTodos('Falha ao exportar movimentacoes', (from, to) =>
-        supabase
-          .from('movimentacoes')
-          .select(LEITURA_BACKUP_MOVIMENTACOES.select)
-          .in('ativo_id', lote)
-          .order('id')
-          .range(from, to),
+      const rows = await paginarTodos(
+        'Falha ao exportar movimentacoes',
+        {
+          porChave: (depoisDe, tamanho) => {
+            const q = supabase
+              .from('movimentacoes')
+              .select(LEITURA_BACKUP_MOVIMENTACOES.select)
+              .in('ativo_id', lote)
+              .order('id')
+              .limit(tamanho)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (m) => m.id,
+        },
+        CAP_LOTE_MOVIMENTACOES,
       )
       acc.push(...linhasDe(rows, LEITURA_BACKUP_MOVIMENTACOES.forma, LEITURA_BACKUP_MOVIMENTACOES.rotulo))
     }
@@ -482,8 +530,16 @@ export async function montarBackupDoReset(
   async function backupAnotacoes(): Promise<Record<string, unknown>[]> {
     if (filialId === null) {
       return linhasDe(
-        await paginarTodos('Falha ao exportar anotacoes', (from, to) =>
-          supabase.from('anotacoes').select(LEITURA_BACKUP_ANOTACOES.select).order('id').range(from, to),
+        await paginarTodos(
+          'Falha ao exportar anotacoes',
+          {
+            porChave: (depoisDe, tamanho) => {
+              const q = supabase.from('anotacoes').select(LEITURA_BACKUP_ANOTACOES.select).order('id').limit(tamanho)
+              return depoisDe === null ? q : q.gt('id', depoisDe)
+            },
+            chaveDe: (a) => a.id,
+          },
+          CAP_ANOTACOES,
         ),
         LEITURA_BACKUP_ANOTACOES.forma,
         LEITURA_BACKUP_ANOTACOES.rotulo,
@@ -491,13 +547,21 @@ export async function montarBackupDoReset(
     }
     const acc: Record<string, unknown>[] = []
     for (const lote of lotes) {
-      const rows = await paginarTodos('Falha ao exportar anotacoes', (from, to) =>
-        supabase
-          .from('anotacoes')
-          .select(LEITURA_BACKUP_ANOTACOES.select)
-          .in('ativo_id', lote)
-          .order('id')
-          .range(from, to),
+      const rows = await paginarTodos(
+        'Falha ao exportar anotacoes',
+        {
+          porChave: (depoisDe, tamanho) => {
+            const q = supabase
+              .from('anotacoes')
+              .select(LEITURA_BACKUP_ANOTACOES.select)
+              .in('ativo_id', lote)
+              .order('id')
+              .limit(tamanho)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (a) => a.id,
+        },
+        CAP_LOTE,
       )
       acc.push(...linhasDe(rows, LEITURA_BACKUP_ANOTACOES.forma, LEITURA_BACKUP_ANOTACOES.rotulo))
     }
@@ -507,8 +571,20 @@ export async function montarBackupDoReset(
   async function backupPendenciasItem(): Promise<Record<string, unknown>[]> {
     if (filialId === null) {
       return linhasDe(
-        await paginarTodos('Falha ao exportar pendencias_item', (from, to) =>
-          supabase.from('pendencias_item').select(LEITURA_BACKUP_PENDENCIAS_ITEM.select).order('id').range(from, to),
+        await paginarTodos(
+          'Falha ao exportar pendencias_item',
+          {
+            porChave: (depoisDe, tamanho) => {
+              const q = supabase
+                .from('pendencias_item')
+                .select(LEITURA_BACKUP_PENDENCIAS_ITEM.select)
+                .order('id')
+                .limit(tamanho)
+              return depoisDe === null ? q : q.gt('id', depoisDe)
+            },
+            chaveDe: (p) => p.id,
+          },
+          CAP_PENDENCIAS_ITEM,
         ),
         LEITURA_BACKUP_PENDENCIAS_ITEM.forma,
         LEITURA_BACKUP_PENDENCIAS_ITEM.rotulo,
@@ -516,13 +592,21 @@ export async function montarBackupDoReset(
     }
     const acc: Record<string, unknown>[] = []
     for (const lote of lotes) {
-      const rows = await paginarTodos('Falha ao exportar pendencias_item', (from, to) =>
-        supabase
-          .from('pendencias_item')
-          .select(LEITURA_BACKUP_PENDENCIAS_ITEM.select)
-          .in('ativo_id', lote)
-          .order('id')
-          .range(from, to),
+      const rows = await paginarTodos(
+        'Falha ao exportar pendencias_item',
+        {
+          porChave: (depoisDe, tamanho) => {
+            const q = supabase
+              .from('pendencias_item')
+              .select(LEITURA_BACKUP_PENDENCIAS_ITEM.select)
+              .in('ativo_id', lote)
+              .order('id')
+              .limit(tamanho)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (p) => p.id,
+        },
+        CAP_LOTE,
       )
       acc.push(...linhasDe(rows, LEITURA_BACKUP_PENDENCIAS_ITEM.forma, LEITURA_BACKUP_PENDENCIAS_ITEM.rotulo))
     }
@@ -555,8 +639,16 @@ export async function montarBackupDoReset(
   let termos_gerados: Record<string, unknown>[]
   if (filialId === null) {
     termos_gerados = linhasDe(
-      await paginarTodos('Falha ao exportar termos', (from, to) =>
-        supabase.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS.select).order('id').range(from, to),
+      await paginarTodos(
+        'Falha ao exportar termos',
+        {
+          porChave: (depoisDe, tamanho) => {
+            const q = supabase.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS.select).order('id').limit(tamanho)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (t) => t.id,
+        },
+        CAP_TERMOS_GERADOS,
       ),
       LEITURA_BACKUP_TERMOS_GERADOS.forma,
       LEITURA_BACKUP_TERMOS_GERADOS.rotulo,
@@ -564,13 +656,21 @@ export async function montarBackupDoReset(
   } else {
     const porId = new Map<string, Record<string, unknown>>()
     for (const lote of lotes) {
-      const rows = await paginarTodos('Falha ao exportar termos', (from, to) =>
-        supabase
-          .from('termos_gerados')
-          .select(LEITURA_BACKUP_TERMOS_GERADOS.select)
-          .overlaps('ativo_ids', lote)
-          .order('id')
-          .range(from, to),
+      const rows = await paginarTodos(
+        'Falha ao exportar termos',
+        {
+          porChave: (depoisDe, tamanho) => {
+            const q = supabase
+              .from('termos_gerados')
+              .select(LEITURA_BACKUP_TERMOS_GERADOS.select)
+              .overlaps('ativo_ids', lote)
+              .order('id')
+              .limit(tamanho)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (t) => t.id,
+        },
+        CAP_LOTE,
       )
       const parte = linhasDe(rows, LEITURA_BACKUP_TERMOS_GERADOS.forma, LEITURA_BACKUP_TERMOS_GERADOS.rotulo)
       for (const t of parte) porId.set(String(t.id), t)
@@ -596,13 +696,21 @@ export async function montarBackupDoReset(
           const acc: Record<string, unknown>[] = []
           for (const lote of lotes.length > 0 ? lotes : [[]]) {
             if (lote.length === 0) continue
-            const rows = await paginarTodos('Falha ao exportar ativos que apontam para o recorte', (from, to) =>
-              supabase
-                .from('ativos')
-                .select(LEITURA_BACKUP_ATIVOS.select)
-                .in('substitui_ativo_id', lote)
-                .order('id')
-                .range(from, to),
+            const rows = await paginarTodos(
+              'Falha ao exportar ativos que apontam para o recorte',
+              {
+                porChave: (depoisDe, tamanho) => {
+                  const q = supabase
+                    .from('ativos')
+                    .select(LEITURA_BACKUP_ATIVOS.select)
+                    .in('substitui_ativo_id', lote)
+                    .order('id')
+                    .limit(tamanho)
+                  return depoisDe === null ? q : q.gt('id', depoisDe)
+                },
+                chaveDe: (a) => a.id,
+              },
+              CAP_LOTE,
             )
             acc.push(...linhasDe(rows, LEITURA_BACKUP_ATIVOS.forma, LEITURA_BACKUP_ATIVOS.rotulo))
           }

@@ -1,7 +1,13 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { chavePatrimonio, SEM_PATRIMONIO } from '@/lib/patrimonio'
-import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import {
+  CAP_ATIVOS,
+  CAP_LOTE,
+  CAP_LOTE_MOVIMENTACOES,
+  CAP_TERMOS_GERADOS,
+  paginarTodos,
+} from '@/lib/queries/relatorios/comum'
 import type { Database } from '@/lib/types/database'
 import {
   escopoDeGestaoAtual,
@@ -87,10 +93,19 @@ async function idsDaFilial(client: DbClient, filialId: number): Promise<string[]
   // que VARIAVA entre chamadas: isso tornava o custo do preview não-determinístico
   // (falso "O estado da filial mudou desde o preview") e deixava o BACKUP incompleto.
   // Paginado + `order('id')` estável resolve os dois (a RPC já contava certo por SQL).
+  //
+  // F60 (PLAN §2.1, #25–#35): TODAS as leituras paginadas deste módulo são por KEYSET pelo `id` —
+  // a ordem de antes já era a PK, então custo do preview e backup saem na mesma ordem.
   const rows = await paginarTodos<{ id: string }>(
     'Falha ao listar ativos da filial',
-    (from, to) =>
-      client.from('ativos').select('id').eq('filial_id', filialId).order('id').range(from, to),
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = client.from('ativos').select('id').eq('filial_id', filialId).order('id').limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_ATIVOS,
   )
   return rows.map((r) => r.id)
 }
@@ -152,9 +167,19 @@ async function idsPorAtivo(
 ): Promise<string[]> {
   const out: string[] = []
   for (const lote of emLotes(idsAtivos)) {
+    // Teto de LOTE de movimentações para as duas tabelas: é a maior das duas contas (máx. 9
+    // movimentações por ativo; `pendencias_item` inteira tinha 17 linhas em 16/09), e o nome da
+    // tabela chega em variável.
     const parte = await paginarTodos<{ id: string }>(
       `Falha ao listar ${tabela} da filial`,
-      (from, to) => client.from(tabela).select('id').in('ativo_id', lote).order('id').range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client.from(tabela).select('id').in('ativo_id', lote).order('id').limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (r) => r.id,
+      },
+      CAP_LOTE_MOVIMENTACOES,
     )
     out.push(...parte.map((r) => r.id))
   }
@@ -297,12 +322,14 @@ export async function custoSubstituir(
     // multi-filial silenciosamente incompleta (o mesmo corte de 1.000 do PostgREST).
     paginarTodos<{ id: string; tipo: string; colaborador: string | null; ativo_ids: string[] }>(
       'Falha ao ler termos gerados',
-      (from, to) =>
-        client
-          .from('termos_gerados')
-          .select('id, tipo, colaborador, ativo_ids')
-          .order('id')
-          .range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client.from('termos_gerados').select('id, tipo, colaborador, ativo_ids').order('id').limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (t) => t.id,
+      },
+      CAP_TERMOS_GERADOS,
     ),
     // F56 · Frente F (0140) — pendências de item do acervo.
     contarPendenciasItem(client, ids),
@@ -366,8 +393,19 @@ export async function exportarAcervoFilial(
   // declara chega ao backup igual, pelo `catchall` de `z.looseObject`.
   const ativosBrutos = await paginarTodos(
     'Falha ao exportar ativos',
-    (from, to) =>
-      client.from('ativos').select(LEITURA_BACKUP_ATIVOS_IMPORT.select).eq('filial_id', filialId).order('id').range(from, to),
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = client
+          .from('ativos')
+          .select(LEITURA_BACKUP_ATIVOS_IMPORT.select)
+          .eq('filial_id', filialId)
+          .order('id')
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (a) => a.id,
+    },
+    CAP_ATIVOS,
   )
   const ativos = linhasDe(ativosBrutos, LEITURA_BACKUP_ATIVOS_IMPORT.forma, LEITURA_BACKUP_ATIVOS_IMPORT.rotulo)
 
@@ -375,8 +413,19 @@ export async function exportarAcervoFilial(
   for (const lote of emLotes(ids)) {
     const brutas = await paginarTodos(
       'Falha ao exportar movimentações',
-      (from, to) =>
-        client.from('movimentacoes').select(LEITURA_BACKUP_MOVIMENTACOES_IMPORT.select).in('ativo_id', lote).order('id').range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('movimentacoes')
+            .select(LEITURA_BACKUP_MOVIMENTACOES_IMPORT.select)
+            .in('ativo_id', lote)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (m) => m.id,
+      },
+      CAP_LOTE_MOVIMENTACOES,
     )
     movimentacoes.push(...linhasDe(brutas, LEITURA_BACKUP_MOVIMENTACOES_IMPORT.forma, LEITURA_BACKUP_MOVIMENTACOES_IMPORT.rotulo))
   }
@@ -385,8 +434,19 @@ export async function exportarAcervoFilial(
   for (const lote of emLotes(ids)) {
     const brutas = await paginarTodos(
       'Falha ao exportar anotações',
-      (from, to) =>
-        client.from('anotacoes').select(LEITURA_BACKUP_ANOTACOES_IMPORT.select).in('ativo_id', lote).order('id').range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('anotacoes')
+            .select(LEITURA_BACKUP_ANOTACOES_IMPORT.select)
+            .in('ativo_id', lote)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (a) => a.id,
+      },
+      CAP_LOTE,
     )
     anotacoes.push(...linhasDe(brutas, LEITURA_BACKUP_ANOTACOES_IMPORT.forma, LEITURA_BACKUP_ANOTACOES_IMPORT.rotulo))
   }
@@ -419,8 +479,19 @@ export async function exportarAcervoFilial(
   for (const lote of emLotes(ids)) {
     const brutos = await paginarTodos(
       'Falha ao exportar termos',
-      (from, to) =>
-        client.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.select).overlaps('ativo_ids', lote).order('id').range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('termos_gerados')
+            .select(LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.select)
+            .overlaps('ativo_ids', lote)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (t) => t.id,
+      },
+      CAP_LOTE,
     )
     const parte = linhasDe(brutos, LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.forma, LEITURA_BACKUP_TERMOS_GERADOS_IMPORT.rotulo)
     for (const t of parte) porId.set(t.id, t)
@@ -476,8 +547,19 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
   for (const lote of emLotes(ids)) {
     const brutas = await paginarTodos(
       'Falha ao exportar pendências de item',
-      (from, to) =>
-        client.from('pendencias_item').select(LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.select).in('ativo_id', lote).order('id').range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('pendencias_item')
+            .select(LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.select)
+            .in('ativo_id', lote)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (p) => p.id,
+      },
+      CAP_LOTE,
     )
     pendenciasItem.push(
       ...linhasDe(brutas, LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.forma, LEITURA_BACKUP_PENDENCIAS_ITEM_IMPORT.rotulo),
@@ -493,13 +575,19 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
   for (const lote of emLotes(movIds)) {
     const brutos = await paginarTodos(
       'Falha ao exportar lançamentos presos a movimentação',
-      (from, to) =>
-        client
-          .from('lancamentos_item')
-          .select(LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.select)
-          .in('movimentacao_id', lote)
-          .order('id')
-          .range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('lancamentos_item')
+            .select(LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.select)
+            .in('movimentacao_id', lote)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (l) => l.id,
+      },
+      CAP_LOTE,
     )
     const parte = linhasDe(
       brutos,
@@ -511,13 +599,19 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
   for (const lote of emLotes(pendIds)) {
     const brutos = await paginarTodos(
       'Falha ao exportar lançamentos presos a pendência',
-      (from, to) =>
-        client
-          .from('lancamentos_item')
-          .select(LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.select)
-          .in('pendencia_item_id', lote)
-          .order('id')
-          .range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('lancamentos_item')
+            .select(LEITURA_BACKUP_LANCAMENTOS_ITEM_IMPORT.select)
+            .in('pendencia_item_id', lote)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (l) => l.id,
+      },
+      CAP_LOTE,
     )
     const parte = linhasDe(
       brutos,
@@ -536,14 +630,20 @@ export async function exportarDesvinculosFk(client: DbClient, filialId: number):
     for (const lote of emLotes(ids)) {
       const brutos = await paginarTodos(
         'Falha ao exportar ativos que apontam para o acervo',
-        (from, to) =>
-          client
-            .from('ativos')
-            .select(LEITURA_BACKUP_ATIVOS_IMPORT.select)
-            .in('substitui_ativo_id', lote)
-            .neq('filial_id', filialId)
-            .order('id')
-            .range(from, to),
+        {
+          porChave: (depoisDe, tamanho) => {
+            const q = client
+              .from('ativos')
+              .select(LEITURA_BACKUP_ATIVOS_IMPORT.select)
+              .in('substitui_ativo_id', lote)
+              .neq('filial_id', filialId)
+              .order('id')
+              .limit(tamanho)
+            return depoisDe === null ? q : q.gt('id', depoisDe)
+          },
+          chaveDe: (a) => a.id,
+        },
+        CAP_LOTE,
       )
       const parte = linhasDe(brutos, LEITURA_BACKUP_ATIVOS_IMPORT.forma, LEITURA_BACKUP_ATIVOS_IMPORT.rotulo)
       for (const a of parte) porIdAtivo.set(a.id, a)

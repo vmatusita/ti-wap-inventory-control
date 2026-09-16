@@ -25,7 +25,7 @@ import type {
   SerieMovimentacoes,
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
-import { modeloDe, paginarTodos, type DbClient } from './comum'
+import { CAP_MOVIMENTACOES, modeloDe, paginarTodos, type DbClient } from './comum'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import {
@@ -68,6 +68,7 @@ async function serieCurta(
   periodo: Periodo,
   gran: 'dia' | 'semana',
 ): Promise<SerieMovimentacoes> {
+  // OFFSET, não keyset (F60 · PLAN §2.1, #46): ordem composta `data, id` sem cursor simples.
   const linhas = await paginarTodos<LinhaSerieCurta>(
     'Falha na série de movimentações',
     (from, to) => {
@@ -83,6 +84,7 @@ async function serieCurta(
         .order('id', { ascending: true })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   return montarSerieCurta(linhas, periodo, gran)
 }
@@ -278,6 +280,8 @@ async function buscarLinhasPeriodo(
   tipos: TipoMovimentacao[],
   incluirDestino = false,
 ): Promise<RawTabelaRow[]> {
+  // OFFSET, não keyset (F60 · PLAN §2.1, #47): ordem composta tripla `data desc, created_at desc,
+  // id desc` — a ordem VISÍVEL das três tabelas, sem cursor simples.
   const brutas = await paginarTodos(
     'Falha ao montar tabela do período',
     (from, to) => {
@@ -312,6 +316,7 @@ async function buscarLinhasPeriodo(
         .order('id', { ascending: false })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   return linhasDe(brutas, LEITURA_TABELA_DO_PERIODO.forma, LEITURA_TABELA_DO_PERIODO.rotulo)
 }
@@ -328,6 +333,10 @@ async function buscarEstornosAteData(
   client: DbClient,
   ate: string,
 ): Promise<Map<string, string>> {
+  // F60 (PLAN §2.1, #48 e §6.7): só o TETO nesta etapa — a leitura muda de FORMA no lote 2
+  // (`paginarPorIds` por `.in('estorno_de', ids)` depois das três tabelas, P6, em keyset), e
+  // migrar para keyset aqui seria reescrever duas vezes a mesma leitura. Teto do domínio: há no
+  // máximo um estorno por movimentação.
   const rows = await paginarTodos<{ estorno_de: string | null; data: string }>(
     'Falha ao ler estornos',
     (from, to) =>
@@ -339,6 +348,7 @@ async function buscarEstornosAteData(
         .lte('data', ate)
         .order('id', { ascending: true })
         .range(from, to),
+    CAP_MOVIMENTACOES,
   )
   const map = new Map<string, string>()
   for (const r of rows) if (r.estorno_de && !map.has(r.estorno_de)) map.set(r.estorno_de, r.data)

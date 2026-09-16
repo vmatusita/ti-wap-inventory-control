@@ -10,7 +10,7 @@ import type {
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
-import { paginarTodos, type DbClient } from './comum'
+import { CAP_ITENS, CAP_LANCAMENTOS_ITEM, paginarTodos, type DbClient } from './comum'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import {
@@ -65,14 +65,19 @@ async function lerMinimosDoCatalogo(
   client: DbClient,
 ): Promise<{ id: number; estoque_minimo: number }[]> {
   try {
-    return await paginarTodos<{ id: number; estoque_minimo: number }>(
+    // Keyset pelo `id` (F60 · PLAN §2.1, #42): a ordem já era a PK. O cursor aqui é INTEIRO
+    // (`itens.id` é serial), e é por isso que o segundo argumento de tipo diz `number` — a guarda
+    // da chave compara número com número; como texto, "10" viria antes de "9" e lançaria.
+    return await paginarTodos<{ id: number; estoque_minimo: number }, number>(
       'Falha ao ler o mínimo do catálogo de itens',
-      (from, to) =>
-        client
-          .from('itens')
-          .select('id, estoque_minimo')
-          .order('id', { ascending: true })
-          .range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client.from('itens').select('id, estoque_minimo').order('id', { ascending: true }).limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (r) => r.id,
+      },
+      CAP_ITENS,
     )
   } catch (e) {
     registrarFalha({ escopo: 'relatorios.minimos-catalogo', erro: e })
@@ -96,6 +101,9 @@ export async function getGruposItens(
     // "última observação" de um item podia ficar de fora por estar atrás da
     // janela. Desempate por `id`: `created_at` sozinho empata dentro do mesmo
     // lote de lançamentos, e empate não pagina.
+    //
+    // OFFSET, não keyset (F60 · PLAN §2.1, #43): ordem composta `created_at desc, id desc` sem
+    // cursor simples — "a última observação" é a primeira linha de cada item.
     paginarTodos<{ item_id: number; observacao: string | null }>(
       'Falha nas observações dos itens',
       (from, to) => {
@@ -117,6 +125,7 @@ export async function getGruposItens(
           .order('id', { ascending: false })
           .range(from, to)
       },
+      CAP_LANCAMENTOS_ITEM,
     ),
     // Só a aba CONSOLIDADA (filialId null) tem medidor de mínimo — ver o comentário
     // de `lerMinimosDoCatalogo` acima para o motivo. Nas abas de filial nem vale ler
@@ -275,16 +284,24 @@ async function buscarLancEstornadosAteData(
   client: DbClient,
   ate: string,
 ): Promise<Map<string, string>> {
-  const rows = await paginarTodos<{ estorna_id: string | null; data: string }>(
+  // Keyset pelo `id` (F60 · PLAN §2.1, #44): a ordem já era a PK — e o "primeiro estorno visto"
+  // do `Map` abaixo continua sendo o mesmo. O `id` entra no `select` só como cursor.
+  const rows = await paginarTodos<{ id: string; estorna_id: string | null; data: string }>(
     'Falha ao ler estornos de itens',
-    (from, to) =>
-      client
-        .from('lancamentos_item')
-        .select('estorna_id, data')
-        .not('estorna_id', 'is', null)
-        .lte('data', ate)
-        .order('id', { ascending: true })
-        .range(from, to),
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = client
+          .from('lancamentos_item')
+          .select('id, estorna_id, data')
+          .not('estorna_id', 'is', null)
+          .lte('data', ate)
+          .order('id', { ascending: true })
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_LANCAMENTOS_ITEM,
   )
   const map = new Map<string, string>()
   for (const r of rows) if (r.estorna_id && !map.has(r.estorna_id)) map.set(r.estorna_id, r.data)
@@ -298,6 +315,9 @@ export async function getLancamentosItensPeriodo(
 ): Promise<LinhaLancamentoItem[]> {
   // Período COMPLETO, paginado como buscarLinhasPeriodo (Saídas/Entradas/Transf.):
   // sem teto próprio que truncaria em silêncio e enganaria o contador da seção.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #45): ordem composta tripla `data desc, created_at
+  // desc, id desc` — é a ordem VISÍVEL da tabela, sem cursor simples.
   const [brutas, estornados] = await Promise.all([
     paginarTodos(
       'Falha ao listar movimentações de itens',
@@ -332,6 +352,7 @@ export async function getLancamentosItensPeriodo(
           .order('id', { ascending: false })
           .range(from, to)
       },
+      CAP_LANCAMENTOS_ITEM,
     ),
     buscarLancEstornadosAteData(client, periodo.ate),
   ])

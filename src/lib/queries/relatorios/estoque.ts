@@ -21,6 +21,10 @@ import {
   montarPontosEstado,
 } from '@/lib/relatorios/serie-estado'
 import {
+  CAP_ATIVOS,
+  CAP_LOTE,
+  CAP_LOTE_MOVIMENTACOES,
+  CAP_MOVIMENTACOES,
   modeloDe,
   paginarPorIds,
   paginarTodos,
@@ -69,17 +73,23 @@ export async function lerEstadoAtivos(
       colaborador_atual: string | null
       setor_atual: string | null
     }
+    // Keyset pelo `id` (F60 · PLAN §2.1, #38): a ordem já era a PK, então a lista sai igual.
     const linhas = await paginarTodos<LinhaAtivo>(
       'Falha ao ler estado atual',
-      (from, to) => {
-        let q = client
-          .from('ativos')
-          .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
-          // F14: exclui as DUAS baixas terminais (descartado e devolvido ao fornecedor).
-          .not('status', 'in', '("descartado","devolvido_fornecedor")')
-        if (filialId) q = q.eq('filial_id', filialId)
-        return q.order('id', { ascending: true }).range(from, to)
+      {
+        porChave: (depoisDe, tamanho) => {
+          let q = client
+            .from('ativos')
+            .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
+            // F14: exclui as DUAS baixas terminais (descartado e devolvido ao fornecedor).
+            .not('status', 'in', '("descartado","devolvido_fornecedor")')
+          if (filialId) q = q.eq('filial_id', filialId)
+          if (depoisDe !== null) q = q.gt('id', depoisDe)
+          return q.order('id', { ascending: true }).limit(tamanho)
+        },
+        chaveDe: (r) => r.id,
       },
+      CAP_ATIVOS,
     )
     return linhas.map((r) => ({
       ativo_id: r.id,
@@ -110,6 +120,10 @@ export async function lerEstadoAtivos(
   // anuláveis desde a porta de RPC — é o SQL vivo que o diz, não o gerador — e a forma confere
   // isso em runtime; a linha fora do formato LANÇA pelo mesmo caminho de erro desta função (e
   // `getSerieEstado`, que a embrulha num try/catch, continua degradando igual).
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #39): a fonte é RPC, e o builder que a porta devolve
+  // não tem filtro no TIPO (`rpc.ts`) — o `.gt('ativo_id', …)` do keyset não compila. Teto: uma
+  // linha por ativo.
   const brutas = await paginarTodos(
     'Falha ao reconstruir o estoque as-of',
     (from, to) =>
@@ -119,6 +133,7 @@ export async function lerEstadoAtivos(
       })
         .order('ativo_id', { ascending: true })
         .range(from, to),
+    CAP_ATIVOS,
   )
   const linhas = linhasDe(brutas, LEITURA_REL_ESTOQUE_ASOF.forma, LEITURA_REL_ESTOQUE_ASOF.rotulo)
   return linhas.map((r) => ({
@@ -301,14 +316,25 @@ async function dadosAtivos(
   // em 1.000 (os retornos/devoluções de `manutencaoDeEstado`). Paginar aquelas
   // tirou o teto daqui junto — e uma lista grande de uuids estoura a URL antes
   // mesmo do corte de linhas. Por lotes resolve os dois.
+  //
+  // Keyset pelo `id`, por lote (F60 · PLAN §2.1, P2): a ordem já era a PK.
   type Linha = { id: string } & DadosAtivo
-  const linhas = await paginarPorIds<Linha>('Falha ao ler ativos', ids, (lote, from, to) =>
-    client
-      .from('ativos')
-      .select('id, patrimonio, marca, modelo, filial_id')
-      .in('id', lote)
-      .order('id', { ascending: true })
-      .range(from, to),
+  const linhas = await paginarPorIds<Linha>(
+    'Falha ao ler ativos',
+    ids,
+    {
+      porChave: (lote, depoisDe, tamanho) => {
+        const q = client
+          .from('ativos')
+          .select('id, patrimonio, marca, modelo, filial_id')
+          .in('id', lote)
+          .order('id', { ascending: true })
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_LOTE,
   )
   for (const r of linhas)
     out.set(r.id, { patrimonio: r.patrimonio, marca: r.marca, modelo: r.modelo, filial_id: r.filial_id })
@@ -328,6 +354,9 @@ async function chamadoAteData(
   // de `dadosAtivos` (URL). A ordenação por ativo continua correta: o desempate
   // de `ultimoPorAtivo` é DENTRO de cada ativo, e um ativo nunca se divide entre
   // dois lotes.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, P3): ordem composta `created_at desc, id desc` sem
+  // cursor simples — é ela que `ultimoPorAtivo` lê como "o mais recente primeiro".
   const rows = await paginarPorIds<LinhaChamado>(
     'Falha ao ler chamados as-of',
     ids,
@@ -341,6 +370,7 @@ async function chamadoAteData(
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .range(from, to),
+    CAP_LOTE_MOVIMENTACOES,
   )
   // Paridade com o motor anterior: chamado '' (string vazia) NÃO reivindica o
   // slot — deixa um chamado real mais antigo vencer. O filtro `.not(is null)` só
@@ -404,6 +434,10 @@ export async function manutencaoDeEstado(
   // ficaram de fora da proteção. Desempate por `id`: `created_at` empata dentro
   // de uma mesma transação (um lote de movimentações grava tudo no mesmo
   // instante), e ordenação com empate não serve para paginar.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #40 e #41): ordem composta `created_at desc, id desc`
+  // sem cursor simples — `ultimoPorAtivo` depende dela. Teto do domínio: o preset "Tudo" lê o
+  // tipo inteiro.
   type LinhaMov = { ativo_id: string; data: string; observacao: string | null }
   const retornos = await paginarTodos<LinhaMov>(
     'Falha ao ler retornos de manutenção',
@@ -420,6 +454,7 @@ export async function manutencaoDeEstado(
         .order('id', { ascending: false })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   const retornoPorAtivo = ultimoPorAtivo(
     retornos,
@@ -444,6 +479,7 @@ export async function manutencaoDeEstado(
         .order('id', { ascending: false })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   const devolucaoPorAtivo = ultimoPorAtivo(
     devolucoes,
@@ -481,6 +517,9 @@ export async function manutencaoDeEstado(
     created_at: string
     autor: { nome: string | null } | null
   }
+  //
+  // As duas por OFFSET, não keyset (F60 · PLAN §2.1, P4 e P5): ordem composta
+  // `created_at, id` (desc nos envios, asc nas anotações) sem cursor simples.
   const [dados, envios, anotacoesRows] = await Promise.all([
     dadosAtivos(client, ids),
     paginarPorIds<LinhaEnvio>(
@@ -496,6 +535,7 @@ export async function manutencaoDeEstado(
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .range(from, to),
+      CAP_LOTE_MOVIMENTACOES,
     ),
     paginarPorIds<AnotRow>(
       'Falha ao ler anotações da manutenção',
@@ -511,6 +551,7 @@ export async function manutencaoDeEstado(
           .order('created_at', { ascending: true })
           .order('id', { ascending: true })
           .range(from, to),
+      CAP_LOTE,
     ),
   ])
 
