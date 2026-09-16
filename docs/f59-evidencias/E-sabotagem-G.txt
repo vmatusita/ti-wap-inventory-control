@@ -20,6 +20,8 @@ G17 função destrutiva chamada pelo nome (revisão adversarial) → medir-rls: 
 G18 lock de sessão por pg_advisory_lock (revisão adversarial) → medir-rls: RECUSADO — chamada a função fora do modelo: "pg_advisory_lock(…)". · arquivo gravado: false · fetch chamado: false
 G19 transaction_read_only reaberto com off (revisão adversarial) → medir-rls: RECUSADO — transaction_read_only com valor que não é on. · arquivo gravado: false · fetch chamado: false
 G20 select into escondido num execute format (achado da re-revisão) → medir-rls: RECUSADO — palavra "into" no SQL de dentro de um literal — o que o execute roda é só leitura, sem into/for. · arquivo gravado: false · fetch chamado: false
+G21 outra tabela em v_tabela, forma intacta (terceira rodada) → medir-rls: RECUSADO — o comando não é, byte a byte, um comando que este script gera. · arquivo gravado: false · fetch chamado: false
+G22 a cláusula da identidade afrouxada (terceira rodada) → medir-rls: RECUSADO — o comando não é, byte a byte, um comando que este script gera. · arquivo gravado: false · fetch chamado: false
 G16 canal api com escrita injetada: recusa antes do fetch → medir-rls: RECUSADO — comando fora do modelo (do $f59$ … end $f59$;). · arquivo gravado: false · fetch chamado: false
    fetch chamado em alguma tentativa: false
 # controle positivo: o comando do modelo passa na guarda

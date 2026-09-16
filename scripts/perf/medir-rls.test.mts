@@ -62,6 +62,10 @@ describe('2. o comando, contra o modelo fechado', () => {
     ['select into escondido num execute format', VALIDO.replace('  -- 5. a medição', "  execute format('select * into sombra from public.ativos');\n  -- 5. a medição")],
     ['select into no SQL de uma forma', VALIDO.replace("'select id, patrimonio", "'select id into sombra, patrimonio")],
     ['for share no SQL de uma forma', VALIDO.replace("from public.ativos'", "from public.ativos for share'")],
+    // terceira rodada adversarial: o CONTEÚDO que o execute lê, trocado sem mudar a forma
+    ['outra tabela em v_tabela', VALIDO.replace("v_tabela constant text := 'ativos';", "v_tabela constant text := 'profiles';")],
+    ['outro SQL em v_sql', VALIDO.replace(/'select id, patrimonio[^']*from public\.ativos'/, "'select id, email from auth.users'")],
+    ['a cláusula da identidade afrouxada', VALIDO.replace("where p.ativo and p.excluido_em is null and p.papel in ('admin', 'dev')", 'where true')],
     ['execute com o prefixo certo e o resto trocado', VALIDO.replace("execute format('select count(*) from public.%I', v_tabela) into v_total;", "execute format('select count(*) from public.%I', 'movimentacoes') into v_total;")],
   ])('%s → recusa', (_nome, sql) => {
     expect(() => validarComando(sql)).toThrow(/RECUSADO/)

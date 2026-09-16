@@ -426,7 +426,27 @@ export function validarComando(sql) {
     if (!EXECUTES_PERMITIDOS.has(e)) recusar(`execute fora do modelo: "${e.slice(0, 120)}".`)
   }
   if (palavras.filter((p) => p === 'execute').length !== executes.length) recusar('execute fora do modelo.')
+
+  // Por último, o FECHO: o comando tem de ser, byte a byte, o que este script gera para os
+  // parâmetros que ele declara. Terceira rodada adversarial da F59: as checagens acima
+  // olham vocabulário e forma, e trocar a tabela de `v_tabela`, o SQL de `v_sql` ou a
+  // cláusula que escolhe a identidade passava. As checagens específicas vêm ANTES para que
+  // cada recusa diga o motivo; esta garante que não sobre nada fora do modelo.
+  if (!ehComandoDoModelo(t)) recusar('o comando não é, byte a byte, um comando que este script gera.')
   return sql
+}
+
+function ehComandoDoModelo(t) {
+  const alvo = /v_alvo\s+constant text := '([a-z]+)';/.exec(t)?.[1]
+  try {
+    if (/raise exception 'F59_PROVA %'/.test(t)) return t === comandoProvaFormaAlvo({ alvo }).trim()
+    const tabela = /v_tabela constant text := '([a-z_]+)';/.exec(t)?.[1]
+    const identidade = /v_ident\s+constant text := '([a-z]+)';/.exec(t)?.[1]
+    const n = Number(/v_n\s+constant int\s+:= (\d+);/.exec(t)?.[1])
+    return t === comandoMedicao({ alvo, tabela, identidade, n }).trim()
+  } catch {
+    return false
+  }
 }
 
 /**
