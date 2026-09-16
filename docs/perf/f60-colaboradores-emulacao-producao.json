@@ -1,0 +1,15 @@
+{
+  "rotulo": "f60-colaboradores-emulacao-producao",
+  "alvo": "producao",
+  "data": "2026-09-16",
+  "metodo": "bloco do $f60$ só leitura (transaction_read_only, rotulo_de_ambiente() is null, termina em raise exception); explain (analyze, format json) 1 aquecimento + 5 medidas intercaladas; linhas e md5 de string_agg(r::text order by r::text) — só contagem e hash",
+  "contexto": {
+    "linhas_uniao_com_colaborador": {"movimentacoes": 1465, "lancamentos_item": 97},
+    "nomes_distintos": 979,
+    "custo_da_chave": {"chave_por_linha_movimentacoes_ms": 41.052, "chave_por_nome_distinto_movimentacoes_ms": 32.973, "so_o_filtro_btrim_ms": 2.441},
+    "plano_atual_nos_ms": {"Seq Scan movimentacoes": 47.21, "Append": 49.80, "Result (a chave por linha)": 84.94, "Sort": 88.01, "Aggregate": 92.35, "Merge Join": 92.97, "Limit 500": 95.27}
+  },
+  "v0_atual": {"linhas": 922, "hash": "c2320c5e1a55a51b7e9f69f9cc460f81", "exec_ms": [121.818, 100.139, 100.173, 99.981, 101.888]},
+  "v1_chave_por_nome": {"linhas": 922, "hash": "c2320c5e1a55a51b7e9f69f9cc460f81", "exec_ms": [49.340, 50.168, 49.766, 50.091, 55.129]},
+  "iguais": true
+}

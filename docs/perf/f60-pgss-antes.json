@@ -1,0 +1,116 @@
+{
+  "rotulo": "f60-pgss-antes",
+  "alvo": "producao",
+  "sha_codigo": "96fc43f12ca90c4b5d6dfab87083c703708e0a40",
+  "gerado_em": "2026-09-16T20:37:26.985Z",
+  "metodo": "pg_stat_statements, filtrado por s.query ~ ('\"' || nome || '\"\\s*\\(') — só as chamadas citadas entre aspas, como o PostgREST cita; nunca o texto do statement.",
+  "agora": "2026-09-16T17:37:08.941611-03:00",
+  "por_papel": [
+    {
+      "nome": "rel_estoque_asof",
+      "papel": "authenticated",
+      "chamadas": 2276,
+      "media_ms": 98.94,
+      "formas_de_statement": 3
+    },
+    {
+      "nome": "rel_estoque_asof",
+      "papel": "service_role",
+      "chamadas": 306,
+      "media_ms": 23.07,
+      "formas_de_statement": 2
+    },
+    {
+      "nome": "rel_frescor_itens",
+      "papel": "authenticated",
+      "chamadas": 1484,
+      "media_ms": 8.8,
+      "formas_de_statement": 3
+    },
+    {
+      "nome": "rel_frescor_itens",
+      "papel": "service_role",
+      "chamadas": 204,
+      "media_ms": 2.23,
+      "formas_de_statement": 1
+    },
+    {
+      "nome": "rel_mov_itens",
+      "papel": "authenticated",
+      "chamadas": 1484,
+      "media_ms": 12.71,
+      "formas_de_statement": 3
+    },
+    {
+      "nome": "rel_mov_itens",
+      "papel": "service_role",
+      "chamadas": 204,
+      "media_ms": 2.8,
+      "formas_de_statement": 1
+    },
+    {
+      "nome": "rel_mov_por_mes",
+      "papel": "authenticated",
+      "chamadas": 497,
+      "media_ms": 11.77,
+      "formas_de_statement": 2
+    },
+    {
+      "nome": "rel_mov_por_mes",
+      "papel": "service_role",
+      "chamadas": 142,
+      "media_ms": 13.63,
+      "formas_de_statement": 1
+    },
+    {
+      "nome": "rel_por_motivo",
+      "papel": "authenticated",
+      "chamadas": 1633,
+      "media_ms": 13.91,
+      "formas_de_statement": 2
+    },
+    {
+      "nome": "rel_por_motivo",
+      "papel": "service_role",
+      "chamadas": 298,
+      "media_ms": 13.09,
+      "formas_de_statement": 1
+    },
+    {
+      "nome": "rel_resumo",
+      "papel": "authenticated",
+      "chamadas": 1749,
+      "media_ms": 22.62,
+      "formas_de_statement": 2
+    },
+    {
+      "nome": "rel_resumo",
+      "papel": "service_role",
+      "chamadas": 298,
+      "media_ms": 17.54,
+      "formas_de_statement": 1
+    },
+    {
+      "nome": "rel_saldo_colaborador",
+      "papel": "authenticated",
+      "chamadas": 282,
+      "media_ms": 2.59,
+      "formas_de_statement": 3
+    },
+    {
+      "nome": "rel_saldo_itens",
+      "papel": "authenticated",
+      "chamadas": 8406,
+      "media_ms": 16.37,
+      "formas_de_statement": 4
+    },
+    {
+      "nome": "rel_saldo_itens",
+      "papel": "service_role",
+      "chamadas": 211,
+      "media_ms": 3.86,
+      "formas_de_statement": 2
+    }
+  ],
+  "stats_reset": "2026-07-09T12:30:38.921888-03:00"
+}
