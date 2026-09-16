@@ -61,12 +61,16 @@ cabeçalho nos dois documentos; a colisão com a R-ACC-51; a linha de base que e
 
 | schema · verbo | replay das migrations | `pg_policies` ensaio | `pg_policies` produção | `pg_policies` CI |
 |---|---:|---:|---:|---:|
-| `public` SELECT | 22 | 22 | 22 | *1ª rodada do par (Frente D)* |
-| `public` INSERT | 14 | 14 | 14 | |
-| `public` UPDATE | 11 | 11 | 11 | |
-| `public` DELETE | 6 | 6 | 6 | |
-| `storage` SELECT/INSERT/UPDATE/DELETE | 2/2/2/2 | 2/2/2/2 | 2/2/2/2 | |
-| **total** | **61** | **61** | **61** | |
+| `public` SELECT | 22 | 22 | 22 | ⎫ |
+| `public` INSERT | 14 | 14 | 14 | ⎬ **53** nomes (`10a`/`10b`: 0 de 53) |
+| `public` UPDATE | 11 | 11 | 11 | ⎪ |
+| `public` DELETE | 6 | 6 | 6 | ⎭ |
+| `storage` SELECT/INSERT/UPDATE/DELETE | 2/2/2/2 | 2/2/2/2 | 2/2/2/2 | **8** nomes (`8a`/`8b`: 0 de 8) |
+| **total** | **61** | **61** | **61** | **61** (`5`: 0 de 61) |
+
+A coluna do CI veio da 1ª rodada do par — run `35113464557` do `banco-sem-docker`, SHA `96a6827` — e foi acrescentada
+depois: o catálogo confere NOMES contra a lista congelada, não o verbo, e a igualdade com a mesa é transitiva, por asserção
+nos dois lados dessa lista (`docs/f59-evidencias/A-censo-replay-x-catalogo.md` §5).
 
 Conjunto de nomes `schema.tabela / policy`: **61 nas três fontes**, 0 só numa delas, 0 divergência de verbo, 0 divergência
 no conjunto de funções citadas por policy. Ensaio × produção: `qual`/`with_check` idênticos, e as árvores `polqual`/
@@ -393,4 +397,41 @@ sem prova; reverter só o catálogo deixa a mesa lendo uma lista que não existe
 
 ## 12. SHA de código congelado e a medição
 
-*(preenchido no fechamento)*
+**SHA de código congelado: `b720f49`** (`b720f49924fa45c45d0d91fa52abfbda82b5665e`, *fix(f59): a guarda do medir-rls.mjs só
+aceita, byte a byte, o comando que o script gera*) — o último commit da fase que toca `src/**`, `scripts/**` ou
+`supabase/tests/**`. Depois dele, só `docs/**`. Nesse SHA: 219 arquivos de teste / 5.997 testes, `lint`, `tsc`, `build` e
+`verificar:actions` verdes; quatro rodadas de revisão adversarial convergiram (a quarta sem achado). `supabase/tests/**` e
+`scripts/db/mutacoes.mjs` não mudaram desde o run `35113464557` (SHA `96a6827`), que deu o par verde e 82/82 mutações
+acusadas; o CI do PR roda de novo sobre a cabeça final.
+
+**As rodadas sobre esse SHA:**
+
+1. **Medição de RLS em produção** (`pbtjcalbmepmrqzprusb`, canal MCP, só leitura) → `docs/perf/f59-rls-producao.json`. Os
+   comandos que `medir-rls.mjs gerar` produz em `b720f49` são, byte a byte, os executados em produção — e os do ensaio
+   (medidos em `96a6827`) também: conferido por `cmp` contra os arquivos gravados fora do repositório.
+2. **TTFB de produção antes do merge** (`medir.mjs`, `1.63.0`/`62c708d` no ar) → `docs/perf/f59-producao-ttfb.json` e
+   `docs/f59-evidencias/I-ttfb-producao-antes-do-merge.txt`.
+3. **CI do PR** sobre a cabeça final — no relatório.
+
+**A medição, lado a lado** (mediana de execução em ms · custo estimado; N = 9; identidade de nível administrador; RLS
+provada no plano em todas as células — controle negativo 0 linhas, `papel_atual` no `Output`, linhas = esperadas):
+
+| forma | `ativos` ensaio (1.606) | `ativos` produção (1.620) | `movimentacoes` ensaio (3.245) | `movimentacoes` produção (3.555) |
+|---|---|---|---|---|
+| F0 piso de hoje | 0,68 · 64 | 1,62 · 130 | 1,12 · 293 | 1,92 · 318 |
+| F1 `fn(col)` | 23,3 · 465 | 43,6 · 708 | 45,2 · 1.102 | 87,7 · 1.192 |
+| F2 `(select fn(col))` | 24,3 · 481 — `SubPlan` ×1.606 | 45,0 · 731 — `SubPlan` ×1.620 | 47,5 · 1.135 — `SubPlan` ×3.245 | 94,2 · 1.227 — `SubPlan` ×3.555 |
+| F3 içada | 1,34 · 86 — `InitPlan` ×1 | 2,13 · 162 — `InitPlan` ×1 | 1,66 · 336 — `InitPlan` ×1 | 2,74 · 365 — `InitPlan` ×1 |
+| F1 ÷ F3 · F2 ÷ F3 | 17× · 18× | 20× · 21× | 27× · 29× | 32× · 34× |
+
+Os nós, célula a célula: `docs/f59-evidencias/H-plano-ensaio-e-producao.md`. A persona `operador` fica PENDENTE (0 perfil
+com vínculo no ensaio; em produção ela não é medida, por desenho — seria o escopo de uma pessoa real).
+
+**A linha de base da F66 (Decisão 8).** A F66 herda o INSTRUMENTO — `scripts/perf/medir-rls.mjs` e
+`scripts/perf/medir.mjs` —, não estes números. A F60 muda o caminho quente dos relatórios e a F62 muda o que
+`papel_atual()` lê; os números acima envelhecem com as duas. A F66 re-roda os dois scripts imediatamente antes de mexer
+nas policies e compara com essa rodada. O que estes números servem para: provar a doutrina (a razão F1/F2 × F3, que
+cresce com o volume) e dar a ordem de grandeza. Produção é ~2× mais lenta que o ensaio em tempo absoluto em TODAS as
+formas, inclusive F0 — a razão entre formas é o que se compara, nunca o absoluto entre bancos. O TTFB desta fase, com o
+MESMO código no ar da F58, ficou 4% a 18% abaixo do "depois" da F58 nas rotas autenticadas: é a faixa de ruído entre dias,
+que a F66 precisa ter em mente antes de atribuir uma diferença à mudança dela.

@@ -30,7 +30,8 @@ Johnny no topo, em [`docs/RELATORIO-F59.md`](docs/RELATORIO-F59.md).
   mutações novas** no injetor, todas detectadas pelo rótulo nomeado (teto 75 → 85).
 - ✅ **A medição** — `scripts/perf/medir-rls.mjs`, só leitura e falha fechada, com a RLS no plano: no ensaio, a forma por
   linha leva 23 ms (`ativos`) e 45 ms (`movimentacoes`), o falso içamento 24 ms e 47 ms (`SubPlan` com um loop por linha), e a
-  forma içada 1,3 ms e 1,7 ms (`InitPlan`). Produção e TTFB em [`docs/perf/`](docs/perf/).
+  forma içada 1,3 ms e 1,7 ms (`InitPlan`). Em produção, só leitura: 44 ms e 88 ms por linha, 45 ms e 94 ms no falso
+  içamento, 2,1 ms e 2,7 ms içada — 20× a 34×. Os números e o TTFB de antes do merge em [`docs/perf/`](docs/perf/).
 - ✅ **Os documentos** — `PLANO-PRODUTO-MULTIEMPRESA.md:71` corrigido por cópia; cabeçalho de status nos dois documentos do
   produto; cabeçalho de escopo na `ESPECIFICACAO.md`; nota de emenda no ADR-002; o índice sem "ainda não foi decidida".
 
