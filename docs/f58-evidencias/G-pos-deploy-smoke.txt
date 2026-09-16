@@ -1,0 +1,15 @@
+# F58 · Conferência pós-deploy — smoke de produção (scripts/smoke/smoke-prod.mjs)
+# 16/09/2026, depois do deploy da 1.63.0 (commit do merge: ac92273)
+#
+# Aqui entram SÓ o resumo e o único aviso: o log completo do smoke cita patrimônio, nome e slug de
+# filial reais, e por isso não vira evidência (critério 32). O rastro completo fica na mesa.
+
+RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha
+
+  [OK   ] /api/saude — banco ok · versao 1.63.0 · commit ac92273
+  [AVISO] kits_modelos · anon NAO le (RLS) — anon leu 0 linhas, mas nao ha kit cadastrado — RLS nao comprovada
+
+# O aviso é PRÉ-EXISTENTE e não tem relação com esta fase: produção não tem kit cadastrado, então a
+# leitura anônima não prova nada sobre a RLS daquela tabela. É a mesma lacuna que o conferidor
+# registra em `kits.ativos` e `kits.admin` — count exato 0, forma exercitada só pelos testes.
+# Nenhuma falha em 109 verificações.

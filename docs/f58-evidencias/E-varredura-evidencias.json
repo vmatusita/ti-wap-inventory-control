@@ -1,6 +1,6 @@
 {
-  "gerado_em": "2026-09-15T23:28:57.832Z",
-  "arquivos": 38,
+  "gerado_em": "2026-09-16T00:05:39.193Z",
+  "arquivos": 40,
   "filiais_lidas": 6,
   "termos_de_filial_comparados": 9,
   "termos_curtos_fora_da_comparacao": 0,
@@ -296,6 +296,22 @@
     },
     {
       "arquivo": "docs/f58-evidencias/G-build-congelado.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/G-pos-deploy-saude.txt",
+      "patrimonio": 0,
+      "email": 0,
+      "uuid": 0,
+      "filial": 0,
+      "ficticios": 0
+    },
+    {
+      "arquivo": "docs/f58-evidencias/G-pos-deploy-smoke.txt",
       "patrimonio": 0,
       "email": 0,
       "uuid": 0,
