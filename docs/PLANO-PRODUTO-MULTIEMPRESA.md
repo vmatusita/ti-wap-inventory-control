@@ -2,6 +2,13 @@
 
 **v0.1 · 14/08/2026 · Johnny + Claude · proposta para validação**
 
+> **Status (16/09/2026 · F59) — catálogo de requisitos, não plano de execução.** A decisão de 09/2026
+> (`PLANO-MULTIEMPRESA.md` §1, decisão 1) é evoluir **este** repositório por migração in-place e aditiva —
+> não criar repositório novo nem transplantar o núcleo, como o "Direcionamento" abaixo ainda diz. As seções
+> de schema deste documento valem como **catálogo de requisitos**; a execução é a do `PLANO-MULTIEMPRESA.md`.
+> A doutrina vigente do predicado de RLS é a **emenda F59 da `MATRIZ-REGRAS.md`** (R-ACC-63 em diante):
+> `col = any (array (select public.<fn>()))` sobre função que devolve conjunto (`setof`), nunca `fn(col)`.
+
 Este documento planeja o **sucessor genérico** do Estoque TI WAP: um produto de controle de ativos de TI que atende **várias empresas** no mesmo sistema, cada uma com suas unidades, seus funcionários, seu vocabulário e sua identidade visual. Ele está para o novo projeto como o par `ESPECIFICACAO.md` + `PLANEJAMENTO.md` esteve para a WAP — só que aqui, num documento único de partida. Validado o plano, ele se desdobra em spec própria e ordens de serviço (§11).
 
 **Direcionamento definido em 14/08/2026 (respostas do Johnny):** operação **gerida por você evoluindo para SaaS** · **repositório novo transplantando o núcleo** da WAP · **domínio único agora, subdomínio por empresa depois** · customização de MVP = **identidade e vocabulários** (campos personalizados, templates próprios de termo e fluxos custom ficam no backlog desenhado, §6).
@@ -68,7 +75,17 @@ Um projeto Supabase, `empresa_id NOT NULL` em **toda** tabela de negócio, e RLS
 
 Disciplina que transforma a decisão em segurança de verdade:
 
-- **RLS por membership, não por claim no JWT:** a policy confere `empresa_id` contra a tabela de membros **no request** (`e_membro(empresa_id)`), como a WAP faz com `papel_atual()`. Revogação vale no request seguinte — mesmo comportamento já validado; nada de claim des-sincronizada em token vivo.
+- **RLS por membership, não por claim no JWT:** a policy confere `empresa_id` contra a tabela de membros **no request**, como a WAP faz com `papel_atual()` — na forma içada *(corrigido na F59, 16/09/2026, por cópia de `SYSTEM-DESIGN-ACERVO-2026-08-31.md:191-197`; a doutrina vigente é a emenda F59 da `MATRIZ-REGRAS.md`)*:
+
+  ```sql
+  -- ✗ como o plano especifica — avaliada POR LINHA, não içável
+  using ( e_membro(empresa_id) )
+
+  -- ✓ InitPlan (1× por statement) + índice utilizável
+  using ( empresa_id = any (array(select public.empresas_do_membro())) )
+  ```
+
+  Revogação vale no request seguinte — mesmo comportamento já validado; nada de claim des-sincronizada em token vivo.
 - **FK composta contra referência cruzada:** `movimentacoes (empresa_id, ativo_id)` referencia `ativos (empresa_id, id)` — e assim em toda relação filha. Um bug de aplicação **não consegue** pendurar movimentação de uma empresa em ativo de outra; o banco recusa.
 - **O roteiro de isolamento é cidadão de primeira classe do CI:** o roteiro RLS da WAP (47+ asserções) vira o **roteiro de isolamento** — duas empresas fictícias, cada asserção provando que membro de A não lê nem escreve nada de B, service role incluso onde couber. **Regra permanente do novo CLAUDE.md: fase que toca schema não fecha sem o roteiro de isolamento verde.**
 - **RPCs `security definer` com guarda de tenant interna**, como a F21 pôs a guarda de admin dentro da RPC do import.

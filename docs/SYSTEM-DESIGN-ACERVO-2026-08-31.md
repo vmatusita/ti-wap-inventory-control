@@ -1,5 +1,12 @@
 # Projeto de sistema — Acervo (produto multiempresa), 31/08/2026
 
+> **Status (16/09/2026 · F59) — catálogo de requisitos, não plano de execução.** A decisão de 09/2026
+> (`PLANO-MULTIEMPRESA.md` §1, decisão 1) é evoluir **este** repositório por migração in-place e aditiva; o
+> repositório irmão ("Acervo") foi aposentado e a ordem `prompt-produto-f0-fundacao.md` não se executa. As
+> seções de schema e de desenho valem como **catálogo de requisitos**; a execução é a do
+> `PLANO-MULTIEMPRESA.md`. A doutrina vigente do predicado de RLS é a **emenda F59 da `MATRIZ-REGRAS.md`**
+> (R-ACC-63 em diante) — que confirma a recomendação do §3.2 abaixo e fixa o tipo de retorno (`setof`).
+
 Revisão arquitetural do **produto multiempresa** planejado em
 [`PLANO-PRODUTO-MULTIEMPRESA.md`](PLANO-PRODUTO-MULTIEMPRESA.md) (v0.1, 14/08/2026), pelo
 método da skill `system-design`: requisitos → desenho de alto nível → aprofundamento →
@@ -203,6 +210,15 @@ Com `empresas_do_membro()` `security definer stable` devolvendo as empresas do m
 forma (`unidade_id = any(array(select unidades_de_escrita()))`), o que deixa o produto
 **melhor que a WAP nesse ponto**, não igual: hoje só 5 das 71 policies do sistema atual usam
 o padrão içado.
+
+> **Nota F59 (16/09/2026) — a fotografia não se apaga, mas envelheceu.** Medido hoje: **61 policies vivas**
+> (53 em `public` + 8 em `storage.objects`), e **todas as 62 chamadas de função sem argumento** estão dentro de
+> `(select …)`. O que não é içável são **18 ocorrências** de função que recebe dado da linha — 11 permanentes
+> por decidirem sobre o próprio objeto, 6 de `pode_escrever_filial` com destino na F66 e 1 falso içamento de
+> Storage com destino na F67 (lista em `supabase/tests/catalogo_policies.sql`, `k_excecoes_predicado`). ⚠ O
+> escopo de escrita por unidade **não** cabe em `unidade_id = any(array(select unidades_de_escrita()))`:
+> a função devolve PARES; a forma é `(empresa_id, filial_id) in (select u.empresa_id, u.filial_id from
+> public.unidades_de_escrita() u)` — R-ACC-68.
 
 ### 3.3 O transplante está subdimensionado — os números
 

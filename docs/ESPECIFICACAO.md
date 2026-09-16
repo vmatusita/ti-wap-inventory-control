@@ -4,6 +4,8 @@
 Data: 09/07/2026 · Autor: Victor Matusita (Johnny) + Claude
 Status: decisões confirmadas · plano de execução em [`PLANEJAMENTO.md`](./PLANEJAMENTO.md) · perguntas em aberto na seção 13 · **nenhum código gerado ainda**
 
+> **Escopo (F59, 16/09/2026):** esta spec descreve o sistema mono-empresa; as fases F62+ acrescentam a camada de empresa, e para essa camada a autoridade é o [`PLANO-MULTIEMPRESA.md`](./PLANO-MULTIEMPRESA.md) até a spec ser emendada na F71.
+
 ---
 
 ## 1. Contexto e problema

@@ -89,6 +89,8 @@ public.pode_escrever_filial(fid smallint)
 
 As policies novas substituem as `using (true)` — sempre com a função embrulhada em `(select ...)`, o padrão initplan que a `0059` instituiu (avaliada uma vez por statement; custo ~zero na escala do banco, ~3 mil linhas na maior tabela). Mapa por tabela — os **verbos não mudam** (o que era insert-only continua insert-only), muda só o *quem*:
 
+> **Nota de emenda (F59, 16/09/2026).** O "sempre embrulhada" vale para função **sem dado da linha** (`papel_atual()`, `e_admin()`, `pode_escrever()`): aí o `(select …)` vira `InitPlan`. Para função que **recebe** a linha — as da tabela abaixo —, embrulhar não iça nada: vira sub-select correlacionado, avaliado por linha (medido: `SubPlan` com um loop por linha). A régua vigente é a **emenda F59 da `MATRIZ-REGRAS.md`** (R-ACC-63 em diante), e as ocorrências de hoje que dependem da linha estão declaradas, uma a uma, em `supabase/tests/catalogo_policies.sql` (`k_excecoes_predicado`).
+
 | Tabela | Leitura | Escrita |
 |---|---|---|
 | `ativos` | logado ativo | insert/update: `pode_escrever_filial(filial_id)` |

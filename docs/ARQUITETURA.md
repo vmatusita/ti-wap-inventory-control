@@ -90,10 +90,11 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 
 ## 9. Banco, migrations e CI
 
-- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0124`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`. Emenda de 30/08/2026: estava congelado em `0057`.)*
+- **Migrations** em `supabase/migrations/` são a **fonte da verdade** desde a F1 (`0001`→`0140`; a `0029` não existe). Nunca editar uma migration já aplicada — toda mudança é uma nova. O rascunho original `schema.sql` foi aposentado (21/07/2026). *(Emenda F19: o intervalo estava congelado em `0040`. Emenda de 30/08/2026: estava congelado em `0057`. Emenda F59, 16/09/2026: estava em `0124`.)*
 - **O fuso do banco é `America/Sao_Paulo`** desde a `0124` (30/08/2026), gravado com `alter database … set timezone`. Antes a sessão rodava em UTC e toda RPC que carimbava data com `current_date` gravava o dia seguinte entre 21h e meia-noite BRT — o defeito que a dívida técnica listava como item W, corrigido pela CLASSE em vez de RPC a RPC. Código novo pode chamar `public.hoje_brt()` para deixar a intenção escrita; `supabase/tests/fuso_do_negocio.sql` recusa a reversão no CI. Motivação e trade-offs em [`SYSTEM-DESIGN-2026-08-30.md`](SYSTEM-DESIGN-2026-08-30.md) §5.2.
 - **Tipos** gerados do schema em `src/lib/types/database.ts` (`npm run db:types`) — não editar à mão.
-- **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco` (sobe Postgres, aplica `0001`→última migration em ordem e roda os roteiros de `supabase/tests/`).
+- **CI** (`.github/workflows/ci.yml`): job `verificar` (`lint` + `test` + `build`) e job `banco-sem-docker` (sobe Postgres 17, aplica `0001`→última migration em ordem e roda os roteiros de `supabase/tests/` e o injetor de mutações). *(Emenda F59: o texto dizia `banco`, o job antigo com Docker, que saiu na v1.51.1.)*
+- **Policy de RLS nova ou alterada passa pela doutrina do predicado** (emenda F59 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), R-ACC-63 em diante): `col = any (array (select public.<fn>()))` sobre função `setof`, nunca `fn(col)`. `src/lib/validators/policies-initplan.test.ts` reprova na mesa e o bloco 4 de `supabase/tests/catalogo_policies.sql` no CI; exceção se declara **lá**, em `k_excecoes_predicado`, por ocorrência, com motivo e destino.
 - **Deploy/migrations em produção:** [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) (topologia prod/ensaio, o gate, apply manual, armadilhas conhecidas).
 
 ## 10. "Quero mudar X → mexo em Y"
@@ -120,6 +121,7 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 | uma nova escrita | uma Server Action em `src/lib/actions/**` + o validator Zod |
 | o comportamento do import | o motor em `src/lib/import/**` (puro, testável) e/ou a RPC (migration + runbook) |
 | um template de termo | `src/templates/termos/*.docx` + mapa em `src/lib/termos/` |
+| **uma policy de RLS** | nova migration com o predicado na forma da emenda F59 da `MATRIZ-REGRAS.md` (`col = any (array (select public.<fn>()))`, função `setof`); o universo congelado (`k_policies_public`/`k_storage`) e, se a policy depender da linha de propósito, a exceção por ocorrência em `k_excecoes_predicado` — os dois em `supabase/tests/catalogo_policies.sql`. `policies-initplan.test.ts` diz, na mesa, o que falta |
 | o schema do banco | **nova** migration em `supabase/migrations/` + `npm run db:types` **apontado para PRODUÇÃO** (`DB_TYPES_PROJECT_REF=<ref de prod>`) — a CLI **não** está linkada, e gerar do ensaio apaga do arquivo os objetos que só produção tem (F41) |
 | o **rótulo** de um tipo de lançamento de item | `TIPO_LANCAMENTO_META` em `src/lib/dominio.ts`, e só ali — o diálogo, o filtro, o histórico, o relatório, o CSV e a ajuda derivam dele. Os **valores** do enum são imutáveis (renomeá-los reescreveria a leitura do histórico) |
 | **quanto** um lançamento de item grava | as RPCs da `0126` (`criar_movimentacao_com_itens`, `resolver_pendencias_item_com_lancamentos`, `lancar_itens_lote`) — a partição da quantidade é do **Postgres**, sob a trava; `src/lib/itens/regularizacao.ts` é o espelho puro dela, para a tela **prever**, nunca para decidir |
