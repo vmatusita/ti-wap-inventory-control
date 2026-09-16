@@ -588,6 +588,52 @@ describe('paginarPorIds — keyset e teto por lote (F60)', () => {
   })
 })
 
+// F60 (critério 14) — o teto é OBRIGATÓRIO, e isto é o que o PROVA. Revisão do lote 1 (achado 1 do
+// revisor 3, 16/09/2026): até aqui a obrigatoriedade era só um fato da assinatura. Trocar
+// `cap: number` por `cap: number = CAP_MOVIMENTACOES` (ou `cap?: number`) deixava a suíte inteira
+// verde — a varredura de aridade abaixo confere as chamadas que EXISTEM, e todas continuariam
+// passando o teto —, e a chamada NOVA sem teto compilaria com o número herdado que a F60 aposentou.
+//
+// Duas travas, porque cada sabotagem escapa de uma:
+//  · o `@ts-expect-error` é conferido pelo `npx tsc --noEmit` (o `typecheck` do CI inclui os testes):
+//    com valor padrão OU parâmetro opcional a chamada sem teto passa a compilar, a diretiva fica sem
+//    erro para justificar, e o `tsc` reprova a diretiva sobrando;
+//  · a MESMA chamada roda no Vitest, que não confere tipo: com valor padrão o `undefined` vira o
+//    número herdado, a leitura conclui e o `rejects` fica vermelho. (Opcional sem padrão lança
+//    aqui também — quem pega esse é o `tsc`.)
+describe('o teto é OBRIGATÓRIO — no tipo e na execução (F60, critério 14)', () => {
+  it('paginarTodos sem o teto não compila, e em execução recusa ANTES de ir ao banco, nas duas formas', async () => {
+    const offset = fonte(10)
+    // @ts-expect-error — o teto não tem valor padrão nem é opcional
+    await expect(paginarTodos('rótulo', offset.fazPagina)).rejects.toThrow('rótulo: teto de paginação inválido (undefined)')
+    expect(offset.chamadas).toEqual([])
+    const keyset = fonteKeyset([1, 2, 3])
+    // @ts-expect-error — idem na forma keyset
+    await expect(paginarTodos('rótulo', keyset.pagina)).rejects.toThrow('rótulo: teto de paginação inválido (undefined)')
+    expect(keyset.chamadas).toEqual([])
+  })
+
+  it('paginarPorIds sem o teto não compila, e em execução recusa ANTES de ir ao banco, nas duas formas', async () => {
+    const pedidos: string[][] = []
+    const offset = (lote: string[], from: number, to: number) => {
+      pedidos.push(lote)
+      return Promise.resolve({ data: lote.slice(from, to + 1).map((id) => ({ id })), error: null })
+    }
+    // @ts-expect-error — o teto (4º argumento) não tem valor padrão nem é opcional
+    await expect(paginarPorIds('rótulo', [uuid(1)], offset)).rejects.toThrow('rótulo: teto de paginação inválido (undefined)')
+    const keyset = {
+      porChave: (lote: string[], _depoisDe: string | null, tamanho: number) => {
+        pedidos.push(lote)
+        return Promise.resolve({ data: lote.slice(0, tamanho).map((id) => ({ id })), error: null })
+      },
+      chaveDe: (linha: { id: string }) => linha.id,
+    }
+    // @ts-expect-error — idem na forma keyset
+    await expect(paginarPorIds('rótulo', [uuid(1)], keyset)).rejects.toThrow('rótulo: teto de paginação inválido (undefined)')
+    expect(pedidos).toEqual([])
+  })
+})
+
 // `mapComLimite` já é exercitado por dentro de `paginarPorIds` acima, mas é
 // contrato PRÓPRIO e exportado — outro módulo (dev-destrutivo.ts) o chama
 // direto, sem passar por `paginarPorIds` — então merece testes que travem a
