@@ -12,6 +12,12 @@
 -- conferir? Na virada multiempresa (F62→F65) é exatamente esta classe de função que vira a
 -- porta entre um administrador e o dado do vizinho — e até a F52 ninguém a enumerava.
 --
+-- ⚠ LISTA IRMÃ, FATO DIFERENTE (F59). `k_excecoes_predicado`, em `catalogo_policies.sql`,
+-- também cita `estorno_item_coerente`, `termo_ancora_coerente` e `pode_ler_arquivo_termo` —
+-- mas pergunta outra coisa: se a POLICY passa dado da linha para uma função (a doutrina do
+-- predicado, emenda F59 da MATRIZ-REGRAS). Esta pergunta se a `security definer` confere
+-- escopo NO CORPO. Por isso são duas listas, e mexer numa não dispensa decidir a outra.
+--
 -- Este arquivo NÃO corrige nada: ele é a fotografia de HOJE (pós-0132), o que é o suficiente
 -- para pegar a regressão real — uma `security definer` nova que recebe id do cliente e nasce
 -- sem citar NENHUMA das guardas de escopo, e some no ruído das outras 47.
