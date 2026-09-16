@@ -33,7 +33,9 @@ import { rotuloCategoria } from '@/lib/dominio'
 import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { cn } from '@/lib/utils'
 import { LegendaEstorno, LegendaTroca } from '@/components/relatorios/legendas'
-import type { LinhaEntrada } from '@/lib/relatorios/tipos'
+import { AvisoTetoTabela } from '@/components/relatorios/aviso-teto-tabela'
+import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
+import type { CorteDeTabela, LinhaEntrada } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 
@@ -68,6 +70,8 @@ export function TabelaEntradas({
   ehGeral,
   rotulosTipo,
   ehOperador,
+  corte,
+  aoVivo,
 }: {
   rows: LinhaEntrada[]
   ehGeral: boolean
@@ -77,6 +81,9 @@ export function TabelaEntradas({
   // usa o client RESOLVIDO, senão o relatório impresso sairia com o slug cru.
   rotulosTipo: MapaRotulosTipo
   ehOperador?: boolean
+  /** F60 — presente só quando a leitura cortou a tabela no teto (`snapshot.tabelasTruncadas`). */
+  corte?: CorteDeTabela
+  aoVivo?: boolean
 }) {
   // A ref estável que `useFiltrosTabela` espera: o mapa é constante de render
   // (vem pronto do Server Component), então o memo devolve sempre a mesma função.
@@ -105,12 +112,16 @@ export function TabelaEntradas({
 
   return (
     <section id="entradas" className="scroll-mt-28 space-y-3 break-before-page">
+      {/* F60 — o mesmo regime de `TabelaSaidas`: com corte, total exato no título, aviso, e
+          nenhum chip de resumo somando as linhas carregadas como se fossem o período. O número
+          exato por motivo de devolução está no card "Devoluções por motivo". */}
       <CabecalhoDetalhe
         titulo="Entradas"
-        total={rows.length}
+        total={totalDaTabela(rows, corte)}
         exibidas={temRecorte ? filtradas.length : undefined}
       />
-      <ChipsResumo resumo={resumo} />
+      <AvisoTetoTabela corte={corte} plural="entradas" aoVivo={aoVivo} />
+      {!corte && <ChipsResumo resumo={resumo} />}
       <FiltrosTabela
         campos={camposAtivos}
         filtros={filtros}

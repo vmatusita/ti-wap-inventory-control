@@ -318,7 +318,12 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
     const antiga = [
       ...RAIZES,
       ...readdirSync(dirRel)
-        .filter((f) => f.endsWith('.tsx') && f !== 'acesso-form.tsx')
+        // F60 — `.test.tsx` fora: a varredura por pasta (F29) nasceu quando o Vitest nem rodava
+        // `.test.tsx` (o projeto `componentes` é da F45), então "tudo o que a pasta continha" nunca
+        // incluiu teste — só componente que o viewer renderiza. O primeiro teste de componente
+        // desta pasta (`aviso-teto-tabela.test.tsx`) não é superfície: não é importado por rota
+        // nenhuma, e a derivação por imports está certa em não alcançá-lo.
+        .filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx') && f !== 'acesso-form.tsx')
         .map((f) => join(dirRel, f)),
     ]
     const perdidos = antiga

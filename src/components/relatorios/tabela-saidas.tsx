@@ -33,7 +33,9 @@ import {
 import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import { LegendaEstorno } from '@/components/relatorios/legendas'
-import type { LinhaSaida } from '@/lib/relatorios/tipos'
+import { AvisoTetoTabela } from '@/components/relatorios/aviso-teto-tabela'
+import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
+import type { CorteDeTabela, LinhaSaida } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'motivo']
 
@@ -64,10 +66,15 @@ export function TabelaSaidas({
   rows,
   ehGeral,
   ehOperador,
+  corte,
+  aoVivo,
 }: {
   rows: LinhaSaida[]
   ehGeral: boolean
   ehOperador?: boolean
+  /** F60 — presente só quando a leitura cortou a tabela no teto (`snapshot.tabelasTruncadas`). */
+  corte?: CorteDeTabela
+  aoVivo?: boolean
 }) {
   const {
     filtradas,
@@ -93,12 +100,18 @@ export function TabelaSaidas({
 
   return (
     <section id="saidas" className="scroll-mt-28 space-y-3 break-before-page">
+      {/* F60 — com corte, o título diz o total EXATO do período (não as linhas que couberam), o
+          aviso diz quantas estão na tela, e os chips do resumo por motivo SAEM: eles somam as
+          linhas carregadas, e "Admissão: 812" sobre uma tabela cortada é um total do período com
+          cara de certo e valor de recorte. O número exato por motivo está no card "Saídas por
+          motivo", que vem do banco. Sem corte, nada disto muda. */}
       <CabecalhoDetalhe
         titulo="Saídas"
-        total={rows.length}
+        total={totalDaTabela(rows, corte)}
         exibidas={temRecorte ? filtradas.length : undefined}
       />
-      <ChipsResumo resumo={resumo} />
+      <AvisoTetoTabela corte={corte} plural="saídas" aoVivo={aoVivo} />
+      {!corte && <ChipsResumo resumo={resumo} />}
       <FiltrosTabela
         campos={camposAtivos}
         filtros={filtros}
