@@ -1,6 +1,6 @@
 # Relatório F58 — A fronteira tipada do banco
 
-**v1.63.0** · **sem migration** · 15/09/2026 · SHA de código congelado **`66b1571`** · branch `f58-fronteira-tipada-do-banco` · PR de código e PR de documentação (links no fecho da fase)
+**v1.63.0** · **sem migration** · 15/09/2026 · SHA de código congelado **`66b1571`** · branch `f58-fronteira-tipada-do-banco` · código [PR #47](https://github.com/vmatusita/ti-wap-inventory-control/pull/47), mergeado em `ac92273` · documentação [PR #49](https://github.com/vmatusita/ti-wap-inventory-control/pull/49)
 
 > Até aqui o TypeScript parava de conferir exatamente onde o dado entra: um `.rpc(` que aceitava `null` onde o SQL não
 > aceita (e recusava onde aceita), um `(data ?? []) as X[]` que apagava o tipo que o `select` infere — 100 pontos —, e
@@ -490,13 +490,49 @@ oscilou −12% nesta execução e −32% na anterior — é o motivo de o métod
 
 ## 8.4 Produção DEPOIS do deploy
 
-*A medir depois que a Vercel publicar a `1.63.0`, com o mesmo método do §8.1 — entra no PR de documentação que fecha a fase,
-ao lado do antes × depois por rota.*
+`docs/perf/f58-producao-depois.json` — mesmo método do §8.1 (2 aquecimentos, 11 rodadas round-robin, sessão do smoke), medido
+minutos depois do deploy. **Todas as 16 rotas responderam 200.** TTFB mediana em ms:
+
+| Rota | antes (1.62.0) | depois (1.63.0) | razão bruta | normalizada por `/ajuda` |
+|---|---:|---:|---:|---:|
+| `/vercel.svg` (controle estático) | 14,7 | 12,7 | 0,864 | 0,758 |
+| `/login` | 32,7 | 33,4 | 1,021 | 0,896 |
+| `/relatorios/acesso` | 55,7 | 60,8 | 1,092 | 0,957 |
+| `/login` com sessão | 65,8 | 70,3 | 1,068 | 0,937 |
+| `/` (dashboard) | 366,2 | 364,9 | 0,996 | 0,874 |
+| `/ativos` | 303,9 | 340,5 | 1,120 | 0,982 |
+| `/ativos/[id]` | 354,0 | 377,9 | 1,068 | 0,936 |
+| `/movimentacoes` | 311,9 | 343,4 | 1,101 | 0,965 |
+| `/movimentacoes/nova` | 289,1 | 320,6 | 1,109 | 0,972 |
+| `/itens` | 359,2 | 426,9 | 1,188 | **1,042** |
+| `/pendencias` | 351,0 | 373,1 | 1,063 | 0,932 |
+| `/ajuda` (controle do app) | 318,2 | 362,9 | 1,140 | 1,000 |
+| `/relatorios/geral` | 497,9 | 553,1 | 1,111 | 0,974 |
+| `/relatorios/[filial]` | 388,1 | 390,8 | 1,007 | 0,883 |
+| `/relatorios/gerados` | 335,4 | 362,3 | 1,080 | 0,947 |
+| `/relatorios/gerados/[id]` | 332,2 | 388,5 | 1,169 | **1,025** |
+
+**Leitura.** Em número BRUTO a produção ficou 6 a 19% mais lenta — e o controle `/ajuda`, que a fase não toca, subiu 14%,
+enquanto o estático `/vercel.svg` caiu 14%. Ou seja: a mesa aqui é a própria produção, medida minutos depois de um deploy,
+com as funções frias e o cache vazio. **Normalizada pelo controle, nenhuma rota passa de +10%**; as duas maiores são `/itens`
+(1,042) e `/relatorios/gerados/[id]` (1,025), e nove rotas ficam ABAIXO de 1,000. Pela régua da ordem (regressão acima de 10%
+normalizada vira achado com PR corretivo), **não há achado**. O que a medição não resolve: ela mistura o custo do parse com o
+estado frio do deploy; a comparação limpa do custo da fase é o A/B do §8.3, com os dois lados no mesmo instante e no mesmo banco.
 
 # 9. A conferência pós-deploy
 
-*Entra no PR de documentação, e é a ÚNICA coisa que roda entre o merge e ele:* `/api/saude` respondendo `1.63.0` com o commit
-do merge; `node scripts/smoke/smoke-prod.mjs` com 0 falha; e o `medir.mjs` de produção, comparado com o §8.1. Tudo só leitura.
+Rodou entre o merge (`ac92273`) e este PR de documentação, nesta ordem, tudo só leitura:
+
+1. **`/api/saude` em produção** — `{"ok":true,"versao":"1.63.0","commit":"ac92273","banco":"ok"}`: a versão no ar é a da fase e o
+   commit é o do merge (`G-pos-deploy-saude.txt`). Antes do deploy a mesma rota respondia `1.62.0` / `86bd77d`.
+2. **`node scripts/smoke/smoke-prod.mjs`** — **109 OK · 1 aviso · 0 falha** (`G-pos-deploy-smoke.txt`). O aviso é pré-existente e
+   não é da fase: produção não tem kit cadastrado, então a leitura anônima de `kits_modelos` não prova a RLS daquela tabela —
+   a mesma lacuna que o conferidor registra em `kits.ativos`/`kits.admin`. Só o resumo e o aviso viraram evidência: o log
+   completo do smoke cita patrimônio, nome e slug reais.
+3. **`medir.mjs` em produção** — 16 rotas, todas 200, com o antes × depois no §8.4: nenhuma rota acima de +10% normalizada.
+
+As quatro telas do roteiro do Johnny (§1) continuam a ser a conferência HUMANA — nada aqui substitui abrir um relatório gerado
+antigo, a visão de uma filial numa data passada, o CSV de ativos e a ficha de um ativo.
 
 # 10. Os 33 critérios, autoverificados
 
@@ -524,14 +560,14 @@ do merge; `node scripts/smoke/smoke-prod.mjs` com 0 falha; e o `medir.mjs` de pr
 | 20 | nenhuma RPC que escreve chamada; retorno provado pelo corpo vivo | ✅ | chamáveis tirados do corpo vivo (`stable`/`immutable`, sem escrita); 14 recibos "provados pelo SQL, não chamados"; `rpc-retorno-sql.test.ts` |
 | 21 | benchmark de lote antes do lote 2 e sobre o SHA congelado, volume de produção, linhas fictícias | ✅ | `docs/perf/f58-bench-formas-antes-lote-2.json` (`db1c438`) e `docs/perf/f58-bench-formas-congelado.json` (`66b1571`), ambos sem banco, no volume do censo e em 10×, com linhas fictícias; §8.2 |
 | 22 | A/B de TTFB contra o ensaio no SHA congelado, nenhuma rota acima de 10% normalizada | ✅ na 3ª execução | `docs/perf/f58-ab-ttfb.json`: 16 rodadas × 3 repetições, intercalado, `PERF_URL_APP` apontando para cada `next start`; **0 rota acima de +10%** normalizada por `/ajuda`, com o controle em 1,005. As duas execuções anteriores (8 rodadas) foram descartadas com o motivo escrito: mesa ocupada e controle instável — §8.3 |
-| 23 | pós-deploy: `/api/saude` 1.63.0 + commit, smoke-prod 0 falha, `medir.mjs` antes × depois | ⏳ roda entre o merge e o PR de documentação | §9 |
+| 23 | pós-deploy: `/api/saude` 1.63.0 + commit, smoke-prod 0 falha, `medir.mjs` antes × depois | ✅ | `/api/saude` com `1.63.0` e `ac92273`; smoke **109 OK · 1 aviso · 0 falha**; `medir.mjs` com as 16 rotas em 200 e nenhuma acima de +10% normalizada — §9 e §8.4 |
 | 24 | nenhuma migration; lock e `database.ts` intactos | ✅ | `git diff --name-only main..HEAD -- supabase/migrations supabase/migrations.lock.json src/lib/types/database.ts` → 0 arquivos |
 | 25 | nenhuma tela, texto de operador ou assinatura de RPC mudou; nenhum cargo vê menos | ✅ | 0 arquivo em `src/components/`; os 2 de `src/app/` só trocam cast por `linhasDe` (nenhuma linha de texto no diff); sem migration; tradução de erro equivalente em 8.085 casos |
-| 26 | `verificar:actions` verde; `db:test:mutations` e `db:types:diff` com os números da F57 no CI | ✅ na mesa · ⏳ CI no PR | `[gate] chunks com Server Actions varridos: 23 · VERDE`; a fase não toca SQL, então os dois números do banco têm de sair iguais aos da F57 |
+| 26 | `verificar:actions` verde; `db:test:mutations` e `db:types:diff` com os números da F57 no CI | ✅ | mesa: `[gate] chunks com Server Actions varridos: 23 · VERDE`. CI do PR #47 (`banco-sem-docker`, 1m43s): injetor com **74 mutações ativas**, *lote inteiro detectado pelo cenário nomeado*, 2 em quarentena DECLARADA (as mesmas da F57, que adotam F73 e F53B); gate de deriva **VERDE** — banco e `database.ts` com 34 relações · 312 colunas · 75 funções |
 | 27 | 1.63.0 no `package.json`, `CHANGELOG.md` e `registry.ts`; tag no merge do PR de documentação | ✅ versão em `bb79e67` · ⏳ tag | a tag anotada `v1.63.0` vai no merge do PR de documentação |
 | 28 | ata datada em `docs/DECISOES.md` | ✅ | quatro atas de 15/09/2026: as nove decisões, a revisão do lote 2, as frases de erro do banco e o que as revisões adversariais mudaram |
 | 29 | `docs/RELATORIO-F58.md` no padrão, roteiro no topo | ✅ | este arquivo |
-| 30 | PRs de código e de documentação mergeados com os checks verdes | ⏳ | o de código sobe com os gates fechados (§7.2 e §8.3); o de documentação fecha a fase |
+| 30 | PRs de código e de documentação mergeados com os checks verdes | ✅ código · ⏳ documentação | #47 mergeado em `ac92273` com `verificar` (2m48s) e `banco-sem-docker` (1m43s) verdes; o #49 é este, e o merge dele é o commit final da fase — onde vai a tag `v1.63.0` |
 | 31 | `ARQUITETURA.md` §10 e `README.md` citam a porta, `linhas.ts`, as listas de erro e o conferidor | ✅ | `1348518`: as linhas novas citam `chamarRpc`, `linhas.ts`/`linhasDe`, `erros-do-banco`, `conferir.mts` |
 | 32 | nenhum dado real em teste, fixture, evidência, log ou saída | ✅ na 3ª passada | `E-varredura-evidencias.json`: **38 arquivos, 0 com ocorrência**, 9 termos de filial comparados (nome e slug de produção, em memória, nunca gravados). As duas passadas anteriores acusaram — homônimo na prosa do resumo e um caminho absoluto cujo diretório de sessão é um UUID —, e as duas causas foram corrigidas (§2.2, itens 15 e 16), não silenciadas |
 | 33 | estado de repouso declarado | ✅ | §11 |

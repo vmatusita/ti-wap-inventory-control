@@ -1,0 +1,370 @@
+{
+  "rotulo": "baseline",
+  "alvo": "https://ti-wap-inventory-control.vercel.app",
+  "node": "v26.4.0",
+  "inicio": "2026-09-16T00:02:07.960Z",
+  "fim": "2026-09-16T00:03:33.733Z",
+  "metodo": {
+    "aquecimento": 2,
+    "repeticoes": 11,
+    "ordem": "round-robin (cada rodada mede cada rota uma vez, na mesma ordem)",
+    "ttfb": "instante em que os cabeçalhos da resposta chegam (fetch resolvido)",
+    "total": "último byte do corpo HTML consumido",
+    "percentil": "interpolação linear entre postos",
+    "redirect": "manual (status 3xx é registrado, não seguido)"
+  },
+  "rotas": [
+    {
+      "rota": "/vercel.svg (controle estático)",
+      "sessao": "publico",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "HIT"
+      ],
+      "bytes_mediana": 128,
+      "bytes_min": 128,
+      "bytes_max": 128,
+      "ttfb_mediana": 12.7,
+      "ttfb_p95": 29.1,
+      "ttfb_min": 11.4,
+      "total_mediana": 13.1,
+      "total_p95": 29.5,
+      "erros": []
+    },
+    {
+      "rota": "/login",
+      "sessao": "publico",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "HIT"
+      ],
+      "bytes_mediana": 18558,
+      "bytes_min": 18558,
+      "bytes_max": 18558,
+      "ttfb_mediana": 33.4,
+      "ttfb_p95": 40.4,
+      "ttfb_min": 29.8,
+      "total_mediana": 34,
+      "total_p95": 41.2,
+      "erros": []
+    },
+    {
+      "rota": "/relatorios/acesso",
+      "sessao": "publico",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 37701,
+      "bytes_min": 37701,
+      "bytes_max": 37701,
+      "ttfb_mediana": 60.8,
+      "ttfb_p95": 88.1,
+      "ttfb_min": 54.6,
+      "total_mediana": 62.5,
+      "total_p95": 89.8,
+      "erros": []
+    },
+    {
+      "rota": "/login (com sessão — sonda do getUser do proxy)",
+      "sessao": "operador",
+      "estatico": true,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "HIT"
+      ],
+      "bytes_mediana": 18558,
+      "bytes_min": 18558,
+      "bytes_max": 18558,
+      "ttfb_mediana": 70.3,
+      "ttfb_p95": 89.9,
+      "ttfb_min": 57.6,
+      "total_mediana": 70.9,
+      "total_p95": 90.4,
+      "erros": []
+    },
+    {
+      "rota": "/ (dashboard)",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 121510,
+      "bytes_min": 121506,
+      "bytes_max": 121510,
+      "ttfb_mediana": 364.9,
+      "ttfb_p95": 472.3,
+      "ttfb_min": 318.4,
+      "total_mediana": 391.7,
+      "total_p95": 540.1,
+      "erros": []
+    },
+    {
+      "rota": "/ativos",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 419006,
+      "bytes_min": 419006,
+      "bytes_max": 419006,
+      "ttfb_mediana": 340.5,
+      "ttfb_p95": 390.5,
+      "ttfb_min": 307,
+      "total_mediana": 351.7,
+      "total_p95": 398.9,
+      "erros": []
+    },
+    {
+      "rota": "/ativos/[id]",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 160496,
+      "bytes_min": 160496,
+      "bytes_max": 161409,
+      "ttfb_mediana": 377.9,
+      "ttfb_p95": 436.8,
+      "ttfb_min": 355.1,
+      "total_mediana": 388.6,
+      "total_p95": 482.7,
+      "erros": []
+    },
+    {
+      "rota": "/movimentacoes",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 346655,
+      "bytes_min": 346655,
+      "bytes_max": 346938,
+      "ttfb_mediana": 343.4,
+      "ttfb_p95": 447.5,
+      "ttfb_min": 311.4,
+      "total_mediana": 361.6,
+      "total_p95": 457.2,
+      "erros": []
+    },
+    {
+      "rota": "/movimentacoes/nova",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 117767,
+      "bytes_min": 117767,
+      "bytes_max": 117767,
+      "ttfb_mediana": 320.6,
+      "ttfb_p95": 366.1,
+      "ttfb_min": 284.4,
+      "total_mediana": 324.6,
+      "total_p95": 378.2,
+      "erros": []
+    },
+    {
+      "rota": "/itens",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 309433,
+      "bytes_min": 309433,
+      "bytes_max": 309806,
+      "ttfb_mediana": 426.9,
+      "ttfb_p95": 494.3,
+      "ttfb_min": 369.6,
+      "total_mediana": 433.3,
+      "total_p95": 513,
+      "erros": []
+    },
+    {
+      "rota": "/pendencias",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 262043,
+      "bytes_min": 261717,
+      "bytes_max": 262043,
+      "ttfb_mediana": 373.1,
+      "ttfb_p95": 458,
+      "ttfb_min": 346,
+      "total_mediana": 404.8,
+      "total_p95": 512.1,
+      "erros": []
+    },
+    {
+      "rota": "/ajuda",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 156648,
+      "bytes_min": 156648,
+      "bytes_max": 156648,
+      "ttfb_mediana": 362.9,
+      "ttfb_p95": 538.8,
+      "ttfb_min": 333.5,
+      "total_mediana": 367.6,
+      "total_p95": 541.5,
+      "erros": []
+    },
+    {
+      "rota": "/relatorios/geral",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 567624,
+      "bytes_min": 567624,
+      "bytes_max": 567624,
+      "ttfb_mediana": 553.1,
+      "ttfb_p95": 941.8,
+      "ttfb_min": 490.4,
+      "total_mediana": 877.3,
+      "total_p95": 1286.4,
+      "erros": []
+    },
+    {
+      "rota": "/relatorios/[filial]",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 470789,
+      "bytes_min": 470789,
+      "bytes_max": 470789,
+      "ttfb_mediana": 390.8,
+      "ttfb_p95": 598.6,
+      "ttfb_min": 305.5,
+      "total_mediana": 816.7,
+      "total_p95": 1002.1,
+      "erros": []
+    },
+    {
+      "rota": "/relatorios/gerados",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 202220,
+      "bytes_min": 202220,
+      "bytes_max": 202220,
+      "ttfb_mediana": 362.3,
+      "ttfb_p95": 437.6,
+      "ttfb_min": 339.1,
+      "total_mediana": 369.9,
+      "total_p95": 447.5,
+      "erros": []
+    },
+    {
+      "rota": "/relatorios/gerados/[id]",
+      "sessao": "operador",
+      "estatico": false,
+      "amostras": 11,
+      "falhas": 0,
+      "status": [
+        200
+      ],
+      "cache": [
+        "MISS"
+      ],
+      "bytes_mediana": 367667,
+      "bytes_min": 365885,
+      "bytes_max": 367667,
+      "ttfb_mediana": 388.5,
+      "ttfb_p95": 440.5,
+      "ttfb_min": 311.9,
+      "total_mediana": 423.9,
+      "total_p95": 558.8,
+      "erros": []
+    }
+  ]
+}

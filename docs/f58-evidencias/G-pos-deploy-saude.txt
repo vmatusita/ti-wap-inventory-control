@@ -1,0 +1,8 @@
+# F58 · Conferência pós-deploy — /api/saude em PRODUÇÃO
+# 16/09/2026, logo após o merge do PR #47
+# A resposta tem de trazer a versão 1.63.0 E o commit do merge (ac92273).
+
+$ curl -s https://ti-wap-inventory-control.vercel.app/api/saude
+{"ok":true,"versao":"1.63.0","commit":"ac92273","banco":"ok","ms":94}
+
+# Antes do deploy, a mesma rota respondia: {"ok":true,"versao":"1.62.0","commit":"86bd77d","banco":"ok"}
