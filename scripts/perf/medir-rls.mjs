@@ -307,6 +307,25 @@ const PROIBIDAS = [
 const GUCS_PERMITIDOS = ['transaction_read_only', 'role', 'request.jwt.claims']
 
 /**
+ * As ÚNICAS funções que um comando do modelo chama. Revisão adversarial da F59: sem esta
+ * lista, `perform public.resetar_acervo(…)` ou `select pg_advisory_lock(…)` passavam — nenhuma
+ * palavra proibida, e a transação só leitura não segura um lock de sessão. Função fora da
+ * lista recusa, pelo NOME (o último, sem schema).
+ */
+const FUNCOES_PERMITIDAS = new Set([
+  'set_config', 'current_setting', 'rotulo_de_ambiente', 'pode_escrever_filial',
+  'json_build_object', 'jsonb_build_object', 'jsonb_build_array', 'jsonb_set',
+  'jsonb_path_query_array', 'jsonb_path_query_first', 'jsonb_path_exists',
+  'coalesce', 'array_length', 'format', 'count', 'unnest',
+])
+/** Palavras que abrem parêntese sem serem chamada de função. */
+const ABREM_PARENTESE = new Set([
+  'if', 'elsif', 'or', 'and', 'not', 'in', 'any', 'all', 'some', 'exists', 'array', 'values', 'explain',
+  'when', 'then', 'else', 'over', 'filter', 'using', 'into', 'select', 'from', 'where', 'on', 'is', 'case',
+  'return', 'loop', 'begin', 'end', 'perform', 'raise', 'declare', 'with', 'lateral', 'exception', 'by',
+])
+
+/**
  * As palavras de CÓDIGO de um trecho SQL — comentário fora, e o SQL de dentro de cada literal
  * DENTRO (é o que o `execute` roda). Usa o léxico da trava de mesa, que respeita literal,
  * identificador entre aspas e `$tag$`: tirar comentário por regex deixaria um `--` dentro de
@@ -320,14 +339,23 @@ function palavrasDeCodigo(sql, profundidade = 0) {
     recusar(`o comando não é SQL legível: ${err.message}`)
   }
   const palavras = []
-  for (const t of lexado.tokens) {
-    if (t.tipo === 'ident') palavras.push(t.v)
-    else if (t.tipo === 'dollar') recusar('bloco $…$ aninhado dentro do comando.')
-    else if (t.tipo === 'str' && t.v !== EXPLAIN && profundidade < 2) {
-      palavras.push(...palavrasDeCodigo(t.v, profundidade + 1).palavras)
+  const chamadas = []
+  const tk = lexado.tokens
+  tk.forEach((t, i) => {
+    if (t.tipo === 'ident' || t.tipo === 'qident') {
+      palavras.push(t.v)
+      const abre = tk[i + 1]?.tipo === 'punct' && tk[i + 1].v === '('
+      const depoisDeAs = tk[i - 1]?.tipo === 'ident' && tk[i - 1].v === 'as'
+      if (abre && !depoisDeAs && !(t.tipo === 'ident' && ABREM_PARENTESE.has(t.v))) chamadas.push(t.v)
+    } else if (t.tipo === 'dollar') {
+      recusar('bloco $…$ aninhado dentro do comando.')
+    } else if (t.tipo === 'str' && t.v !== EXPLAIN && profundidade < 2) {
+      const dentro = palavrasDeCodigo(t.v, profundidade + 1)
+      palavras.push(...dentro.palavras)
+      chamadas.push(...dentro.chamadas)
     }
-  }
-  return { palavras, comentarios: lexado.comentarios }
+  })
+  return { palavras, chamadas, comentarios: lexado.comentarios }
 }
 
 /**
@@ -340,7 +368,7 @@ export function validarComando(sql) {
   if (!t.startsWith('do $f59$') || !t.endsWith('end $f59$;')) recusar('comando fora do modelo (do $f59$ … end $f59$;).')
   if (t.split('$f59$').length !== 3) recusar('delimitador $f59$ repetido — um segundo bloco escondido.')
   const corpo = t.slice('do $f59$'.length, t.length - '$f59$;'.length)
-  const { palavras, comentarios } = palavrasDeCodigo(corpo)
+  const { palavras, chamadas, comentarios } = palavrasDeCodigo(corpo)
   // o corpo com os comentários apagados (mesmas posições), para as conferências por forma
   const codigo = corpo.split('')
   for (const [a, b] of comentarios) for (let k = a; k < b; k++) codigo[k] = ' '
@@ -356,10 +384,18 @@ export function validarComando(sql) {
     if (palavras.includes(p)) recusar(`palavra proibida no comando: "${p}".`)
   }
   if (palavras.includes('analyze')) recusar('"analyze" fora do explain do modelo.')
+  for (const f of chamadas) {
+    if (!FUNCOES_PERMITIDAS.has(f)) recusar(`chamada a função fora do modelo: "${f}(…)".`)
+  }
+  const porGuc = new Map()
   for (const m of semComentario.matchAll(/set_config\(\s*'([^']+)'\s*,\s*([^,]+),/g)) {
     if (!GUCS_PERMITIDOS.includes(m[1])) recusar(`set_config de "${m[1]}" fora da lista permitida.`)
     if (m[1] === 'role' && m[2].trim() !== "'authenticated'") recusar('troca de papel para outro que não authenticated.')
+    if (m[1] === 'transaction_read_only' && m[2].trim() !== "'on'") recusar('transaction_read_only com valor que não é on.')
+    porGuc.set(m[1], (porGuc.get(m[1]) ?? 0) + 1)
   }
+  if (porGuc.get('transaction_read_only') !== 1) recusar('transaction_read_only ligado mais de uma vez — ou nenhuma.')
+  if ((porGuc.get('role') ?? 0) > 1) recusar('troca de papel mais de uma vez.')
   const chamadasSetConfig = palavras.filter((p) => p === 'set_config').length
   if (chamadasSetConfig !== [...semComentario.matchAll(/set_config\(\s*'[^']+'\s*,/g)].length) {
     recusar('set_config com nome de parâmetro que não é literal.')

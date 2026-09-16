@@ -16,6 +16,9 @@ G12 troca de papel para postgres → medir-rls: RECUSADO — troca de papel para
 G13 bloco que se confirma (sem o raise exception final) → medir-rls: RECUSADO — o bloco não termina em raise exception — ele poderia se confirmar. · arquivo gravado: false · fetch chamado: false
 G14 sem transaction_read_only no começo → medir-rls: RECUSADO — o bloco não liga transaction_read_only antes de tudo. · arquivo gravado: false · fetch chamado: false
 G15 grant disfarçado de comentário em português → medir-rls: RECUSADO — palavra proibida no comando: "grant". · arquivo gravado: false · fetch chamado: false
+G17 função destrutiva chamada pelo nome (revisão adversarial) → medir-rls: RECUSADO — chamada a função fora do modelo: "resetar_acervo(…)". · arquivo gravado: false · fetch chamado: false
+G18 lock de sessão por pg_advisory_lock (revisão adversarial) → medir-rls: RECUSADO — chamada a função fora do modelo: "pg_advisory_lock(…)". · arquivo gravado: false · fetch chamado: false
+G19 transaction_read_only reaberto com off (revisão adversarial) → medir-rls: RECUSADO — transaction_read_only com valor que não é on. · arquivo gravado: false · fetch chamado: false
 G16 canal api com escrita injetada: recusa antes do fetch → medir-rls: RECUSADO — comando fora do modelo (do $f59$ … end $f59$;). · arquivo gravado: false · fetch chamado: false
    fetch chamado em alguma tentativa: false
 # controle positivo: o comando do modelo passa na guarda

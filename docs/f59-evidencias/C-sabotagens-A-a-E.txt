@@ -65,4 +65,22 @@
 ## E.1 execute format('alter policy %I on %I.%I using (…)', …)
    SQL: do $$ declare t text; begin   foreach t in array array['ativos', 'movimentacoes'] loop     execute format('alter policy %I on %I.%I using (%s)', 'leitura operador', 'public', t, 'public.e_membro(empresa_id)');   end loop; end $$;
    → VERMELHO
+   · falha fechada 0156_policies_de_tenant_num_laco.sql:5 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration
+   · falha fechada 0156_policies_de_tenant_num_laco.sql:5 — execute de SQL que a trava não lê — só passa execute '<literal>' ou execute format('<literal>', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar
    · falha fechada 0156_policies_de_tenant_num_laco.sql:5 — DDL de policy montado dinamicamente ("alter policy" dentro de corpo $…$) — o replay não sabe o que ele cria; escreva o comando por extenso na migration
+
+## E.2 o verbo parametrizado — format('%s policy …', v_verbo) (achado da revisão adversarial)
+   SQL: do $$ declare v_verbo text := 'alter'; begin   execute format('%s policy %I on %I.%I using (%s)', v_verbo, 'leitura operador', 'public', 'ativos', 'public.e_membro(empresa_id)'); end $$;
+   → VERMELHO
+   · falha fechada 0157_verbo_parametrizado.sql:4 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration
+   · falha fechada 0157_verbo_parametrizado.sql:4 — execute de SQL que a trava não lê — só passa execute '<literal>' ou execute format('<literal>', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar
+
+## E.3 a palavra partida entre literais — 'alter pol' || 'icy …' (achado da revisão adversarial)
+   SQL: do $$ begin   execute 'alter pol' || 'icy "leitura operador" on public.ativos using (public.e_membro(empresa_id))'; end $$;
+   → VERMELHO
+   · falha fechada 0158_palavra_partida.sql:3 — corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration
+   · falha fechada 0158_palavra_partida.sql:3 — execute de SQL que a trava não lê — só passa execute '<literal>' ou execute format('<literal>', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar
+
+## E.4 controle: o execute inofensivo da 0124 (format com %I/%L) continua passando
+   SQL: do $$ begin   execute format('alter database %I set timezone = %L', current_database(), 'America/Sao_Paulo'); end $$;
+   → VERDE

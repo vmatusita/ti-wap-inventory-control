@@ -160,9 +160,19 @@ describe('4. a guarda do próprio teste — reprova o que tem de reprovar (SQL s
       "do $$\nbegin\n  execute format('alter policy %I on %I.%I using (%s)', 'leitura operador', 'public', 'ativos', 'true');\nend $$;",
       '0200_laco_f66.sql',
     )
-    expect(j.replay.falhas).toHaveLength(1)
-    expect(j.replay.falhas[0]).toMatchObject({ arquivo: '0200_laco_f66.sql', linha: 3 })
-    expect(j.replay.falhas[0].motivo).toMatch(/dinamicamente/)
+    // A falha do DDL dinâmico, com arquivo e linha (o mesmo comando também reprova pela
+    // FORMA do execute desde a revisão adversarial — por isso não se conta uma só).
+    expect(j.replay.falhas.find((f) => /dinamicamente/.test(f.motivo))).toMatchObject({ arquivo: '0200_laco_f66.sql', linha: 3 })
+    expect(j.replay.falhas.every((f) => f.arquivo === '0200_laco_f66.sql')).toBe(true)
+  })
+
+  it.each([
+    ['o verbo parametrizado', "do $$\ndeclare v_verbo text := 'alter';\nbegin\n  execute format('%s policy %I on %I.%I using (%s)', v_verbo, 'leitura operador', 'public', 'ativos', 'true');\nend $$;"],
+    ['a palavra partida entre literais', "do $$\nbegin\n  execute 'alter pol' || 'icy \"leitura operador\" on public.ativos using (true)';\nend $$;"],
+  ])('DDL de policy dinâmico disfarçado (%s) → reprova por falha fechada (revisão adversarial da F59)', (_nome, sql) => {
+    const j = comSintetica(sql, '0200_laco_f66.sql')
+    expect(j.replay.falhas.length).toBeGreaterThan(0)
+    expect(j.replay.falhas.every((f) => f.arquivo === '0200_laco_f66.sql')).toBe(true)
   })
 
   it('policy nova em public fora do universo congelado → reprova pelo universo', () => {

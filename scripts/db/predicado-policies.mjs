@@ -330,6 +330,16 @@ export function replayPolicies(migrations) {
       i = ate
     }
 
+    // O `execute` DENTRO de corpo `$…$`: o replay não sabe o que ele monta. Revisão
+    // adversarial da F59: o verbo parametrizado (`format('%s policy …', v_verbo)`) e a
+    // palavra partida entre literais (`'alter pol' || 'icy …'`) passavam — o casador de
+    // texto contíguo não os via. A régua agora é por FORMA do `execute`, falha fechada.
+    for (const t of literais) {
+      if (t.tipo !== 'dollar') continue
+      const tag = /^\$[A-Za-z0-9_]*\$/.exec(sql.slice(t.ini))?.[0] ?? '$$'
+      for (const p of executesSuspeitos(t.v)) falhar(t.ini + tag.length + p.pos, p.motivo)
+    }
+
     // A AUTO-CONFERÊNCIA: todo `create|alter|drop policy` fora de comentário foi
     // consumido — ou mora dentro de literal/corpo `$…$` e reprova como DDL dinâmico.
     const limpo = semComentario.join('')
@@ -349,6 +359,70 @@ export function replayPolicies(migrations) {
   }
 
   return { vivas, consumidos, noTexto, falhas }
+}
+
+/**
+ * Os `execute` de um corpo plpgsql que a trava não consegue provar inofensivos para as
+ * policies. Só passa `execute '<literal>'` e `execute format('<literal>', …)` cujo formato
+ * usa apenas `%I`/`%L`/`%%` — identificador e literal citados nunca viram palavra-chave —,
+ * sem concatenação depois. E um corpo com `execute` cujo texto, sem aspas, barras e
+ * espaço, contenha `policy` reprova de todo jeito: é a palavra partida entre literais, ou
+ * guardada numa variável que o `execute` usa.
+ * ⚠ O que ainda escapa (a mesa é sintática): palavra montada por `chr()` ou lida de tabela.
+ * O catálogo do CI vê o RESULTADO no banco (10a/10b e 11a–14), e é a autoridade.
+ * @param {string} corpo o conteúdo do `$…$`
+ * @returns {{ pos: number, motivo: string }[]}
+ */
+export function executesSuspeitos(corpo) {
+  let lexado
+  try {
+    lexado = lexar(corpo)
+  } catch {
+    return [] // o corpo não é SQL legível como um todo (texto de função em outra linguagem)
+  }
+  const tk = lexado.tokens
+  const achados = []
+  const execs = tk.map((t, i) => [t, i]).filter(([t]) => t.tipo === 'ident' && t.v === 'execute')
+  if (execs.length === 0) return achados
+
+  const codigo = corpo.split('')
+  for (const [a, b] of lexado.comentarios) for (let k = a; k < b; k++) codigo[k] = ' '
+  if (codigo.join('').toLowerCase().replace(/['"\s|]/g, '').includes('policy')) {
+    achados.push({
+      pos: execs[0][0].ini,
+      motivo:
+        'corpo com "execute" que menciona "policy" (mesmo partida entre literais ou numa variável) — DDL de policy montado dinamicamente não é lido pelo replay; escreva o comando por extenso na migration',
+    })
+  }
+  const fim = (i) => tk[i] === undefined || (tk[i].tipo === 'punct' && tk[i].v === ';') || (tk[i].tipo === 'ident' && ['using', 'into'].includes(tk[i].v))
+  for (const [t, i] of execs) {
+    // `grant execute`, `execute function/procedure` (trigger) não são o EXECUTE dinâmico
+    if (tk[i - 1]?.tipo === 'ident' && ['grant', 'revoke'].includes(tk[i - 1].v)) continue
+    if (tk[i + 1]?.tipo === 'ident' && ['function', 'procedure'].includes(tk[i + 1].v)) continue
+    const a = tk[i + 1]
+    let ok = false
+    if (a?.tipo === 'str') {
+      ok = fim(i + 2)
+    } else if (a?.tipo === 'ident' && a.v === 'format' && tk[i + 2]?.v === '(' && tk[i + 3]?.tipo === 'str') {
+      const semEscapes = tk[i + 3].v.replace(/%%/g, '')
+      const soIdentELiteral = !/%(?!\d*\$?[IL])/.test(semEscapes)
+      let prof = 0
+      let j = i + 2
+      for (; j < tk.length; j++) {
+        if (tk[j].tipo === 'punct' && tk[j].v === '(') prof++
+        else if (tk[j].tipo === 'punct' && tk[j].v === ')' && --prof === 0) break
+      }
+      ok = soIdentELiteral && fim(j + 1)
+    }
+    if (!ok) {
+      achados.push({
+        pos: t.ini,
+        motivo:
+          'execute de SQL que a trava não lê — só passa execute \'<literal>\' ou execute format(\'<literal>\', …) com %I/%L, sem %s e sem concatenação; DDL de policy num laço é o ponto cego que esta falha fechada existe para barrar',
+      })
+    }
+  }
+  return achados
 }
 
 function aplicarComando(tk, sql, arquivo, vivas, falhar) {

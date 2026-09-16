@@ -99,9 +99,33 @@ describe('2. replay — na ORDEM do texto, com drop, rename e as formas de alter
     const r = replayPolicies([
       mig(`create policy p on t using (a = 1);\ndo $$ begin\n  execute format('alter policy %I on %I.%I using (%s)', 'p', 'public', 't', 'true');\nend $$;`, '0200_laco.sql'),
     ])
-    expect(r.falhas).toHaveLength(1)
-    expect(r.falhas[0]).toMatchObject({ arquivo: '0200_laco.sql', linha: 3 })
-    expect(r.falhas[0].motivo).toMatch(/dinamicamente/)
+    // A falha do DDL dinâmico, com arquivo e linha. Desde a revisão adversarial o mesmo
+    // comando também reprova pela FORMA do execute (%s no formato) — mais de uma falha.
+    expect(r.falhas.find((f) => /dinamicamente/.test(f.motivo))).toMatchObject({ arquivo: '0200_laco.sql', linha: 3 })
+    expect(r.falhas.every((f) => f.arquivo === '0200_laco.sql')).toBe(true)
+  })
+
+  it.each([
+    ['o verbo parametrizado', "do $$ declare v_verbo text := 'alter'; begin execute format('%s policy %I on %I.%I using (%s)', v_verbo, 'p', 'public', 't', 'true'); end $$;"],
+    ['a palavra partida entre literais', "do $$ begin execute 'alter pol' || 'icy \"p\" on public.t using (true)'; end $$;"],
+    ['o execute de uma variável', "do $$ declare v text := 'select 1'; begin execute v; end $$;"],
+    ['a concatenação depois do literal', "do $$ begin execute 'alter table ' || quote_ident('t') || ' enable row level security'; end $$;"],
+    ['o %s no formato', "do $$ begin execute format('create index %s on t (x)', 'i'); end $$;"],
+  ])('FALHA FECHADA — execute dinâmico que a trava não lê reprova: %s (revisão adversarial da F59)', (_nome, sql) => {
+    const r = replayPolicies([mig(sql, '0201_laco.sql')])
+    expect(r.falhas.length).toBeGreaterThan(0)
+    expect(r.falhas[0]).toMatchObject({ arquivo: '0201_laco.sql', linha: 1 })
+  })
+
+  it('execute inofensivo continua passando: format com %I/%L (o da 0124), literal puro, trigger e raise que cita "policy"', () => {
+    for (const sql of [
+      "do $$ begin execute format('alter database %I set timezone = %L', current_database(), 'America/Sao_Paulo'); end $$;",
+      "do $$ begin execute 'select 1'; end $$;",
+      'create function f() returns trigger language plpgsql as $$ begin return new; end $$; create trigger g after insert on t for each row execute function f();',
+      "create function f() returns void language plpgsql as $$ begin raise exception 'recusado pela policy'; end $$;",
+    ]) {
+      expect(replayPolicies([mig(sql)]).falhas, sql).toEqual([])
+    }
   })
 
   it('FALHA FECHADA — create policy dentro de corpo $$ (sem literal) também reprova', () => {

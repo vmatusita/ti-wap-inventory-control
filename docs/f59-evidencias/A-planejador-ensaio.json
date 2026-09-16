@@ -1,0 +1,217 @@
+{
+  "canal": "MCP Supabase execute_sql (role postgres, bypassrls)",
+  "ambiente_medido": {
+    "project_id": "sgmvldiizsrjbxzzpmhh",
+    "rotulo": "ENSAIO apenas (R-ACC-62 confirma: rotulo_de_ambiente() = 'desenvolvimento')",
+    "postgres_version": "PostgreSQL 17.6 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+    "aviso": "Sessão roda como postgres com bypassrls, sem set local role authenticated / request.jwt.claims. Nenhuma policy entra no plano — Actual Rows dos filtros de negócio ficou 0 em todas as consultas. Isto mede a FORMA do plano (InitPlan x SubPlan x Filter por linha x Join), não a policy em si."
+  },
+  "Q_ativos_e_movimentacoes": {
+    "Q1_ativos_filtro_por_linha": {
+      "sql": "select count(*) from public.ativos where public.pode_escrever_filial(filial_id)",
+      "nodes": ["Aggregate", "Index Only Scan (ativos_filial_status_idx)"],
+      "subplan_initplan": "nenhum",
+      "filter_contem_nome_funcao": true,
+      "filter_texto": "pode_escrever_filial(filial_id)",
+      "actual_loops_subplan_initplan": null,
+      "total_cost": 439.35,
+      "planning_time_ms": 11.837,
+      "execution_time_ms": 113.15,
+      "actual_rows_topo": 1
+    },
+    "Q2_falso_icamento": {
+      "sql": "select count(*) from public.ativos where (select public.pode_escrever_filial(filial_id))",
+      "nodes": ["Aggregate", "Index Only Scan (ativos_filial_status_idx)", "Result (dentro do SubPlan)"],
+      "subplan_initplan": "SubPlan 1 (Parent Relationship: SubPlan) — CORRELACIONADO, não içado",
+      "filter_contem_nome_funcao": false,
+      "filter_texto_no_scan_externo": "(SubPlan 1)",
+      "actual_loops_subplan_initplan": 1606,
+      "nota": "Actual Loops do SubPlan (1606) == Rows Removed by Filter do scan externo: confirma avaliação POR LINHA, não uma vez. Contradiz a 0129/ADR-002 quanto a esta forma.",
+      "total_cost": 456.04,
+      "planning_time_ms": 0.591,
+      "execution_time_ms": 22.537,
+      "actual_rows_topo": 1
+    },
+    "Q3_icada_array_any": {
+      "sql": "select count(*) from public.ativos where filial_id = any (array (select f.id from public.filiais f where public.pode_escrever_filial(f.id)))",
+      "nodes": ["Aggregate", "Seq Scan (filiais, dentro do InitPlan)", "Index Only Scan (ativos_filial_status_idx)"],
+      "subplan_initplan": "InitPlan 1 (Parent Relationship: InitPlan)",
+      "filter_contem_nome_funcao": true,
+      "filter_texto": "pode_escrever_filial(id) — dentro do InitPlan, sobre filiais, não sobre ativos",
+      "index_cond_ativos": "(filial_id = ANY ((InitPlan 1).col1))",
+      "actual_loops_subplan_initplan": 1,
+      "nota": "Avaliada UMA VEZ por consulta (Actual Loops=1), não por linha de ativos. É o içamento REAL.",
+      "total_cost": 40.80,
+      "planning_time_ms": 6.675,
+      "execution_time_ms": 14.932,
+      "actual_rows_topo": 1
+    },
+    "Q4_argless_secdef": {
+      "sql_original_erro": "select count(*) from public.ativos where 'x' = any (array (select public.papel_atual()))",
+      "erro_registrado": "ERROR 22P02: invalid input value for enum papel_usuario: \"x\" (papel_atual() devolve o ENUM papel_usuario, não text — comparação direta com 'x' falha antes de chegar a plano)",
+      "sql_corrigido": "select count(*) from public.ativos where 'x' = any (array (select public.papel_atual()::text))",
+      "nodes": ["Aggregate", "Result (InitPlan)", "Result (One-Time Filter, envolve o Index Only Scan)", "Index Only Scan (idx_ativos_substitui_ativo_id)"],
+      "subplan_initplan": "InitPlan 1 (Parent Relationship: InitPlan)",
+      "filter_contem_nome_funcao": false,
+      "one_time_filter_texto": "('x'::text = ANY ((InitPlan 1).col1))",
+      "actual_loops_subplan_initplan": 1,
+      "nota": "Como o InitPlan é constante (sem correlação), o planejador ainda comprime tudo num Result com One-Time Filter: como deu falso, o Index Only Scan sequer roda (Actual Loops do scan = 0). Prova InitPlan de função security definer SEM argumento real.",
+      "total_cost": 34.09,
+      "planning_time_ms": 8.277,
+      "execution_time_ms": 1.321,
+      "actual_rows_topo": 1
+    },
+    "Q5_pares_emulado_sem_forcar": {
+      "sql": "select count(*) from public.ativos a where (a.filial_id, a.filial_id) in (select f.id, f.id from public.filiais f where public.pode_escrever_filial(f.id))",
+      "nodes": ["Aggregate", "Nested Loop (Join Type: Inner)", "Seq Scan (filiais)", "Index Only Scan (ativos_patrimonio_service_tag_uidx)"],
+      "forma_encontrada": "NEM Hash Semi Join, NEM SubPlan hasheado, NEM InitPlan — o planejador ACHATOU o IN de par redundante num JOIN comum (Nested Loop/Inner), porque enxergou que as duas colunas do par vêm da mesma chave.",
+      "subplan_initplan": "nenhum — a função vira Filter comum no Seq Scan de filiais (lado condutor do laço), fora de qualquer SubPlan/InitPlan",
+      "filter_contem_nome_funcao": true,
+      "filter_texto": "pode_escrever_filial(id) — no Seq Scan de filiais",
+      "actual_loops_subplan_initplan": "n/a (não há SubPlan/InitPlan; o Seq Scan de filiais, lado condutor, roda com Actual Loops=1)",
+      "total_cost": 27.57,
+      "planning_time_ms": 3.211,
+      "execution_time_ms": 1.936,
+      "actual_rows_topo": 1
+    },
+    "Q5b_pares_forcado_com_or_false": {
+      "sql": "select count(*) from public.ativos a where false or (a.filial_id, a.filial_id) in (select f.id, f.id from public.filiais f where public.pode_escrever_filial(f.id))",
+      "nodes": ["Aggregate", "Index Only Scan (ativos_filial_status_idx)", "Seq Scan (filiais, dentro do SubPlan)"],
+      "forma_encontrada": "hashed SubPlan — o 'false or' bloqueou o achatamento em JOIN; o planejador caiu para um SubPlan, mas HASHEADO (roda uma vez, não por linha)",
+      "subplan_initplan": "SubPlan 1 (Parent Relationship: SubPlan), rotulado '(hashed SubPlan 1)' no texto do Filter",
+      "filter_contem_nome_funcao": false,
+      "filter_texto_no_scan_externo": "(ANY ((filial_id = (hashed SubPlan 1).col1) AND (filial_id = (hashed SubPlan 1).col2)))",
+      "filter_texto_interno_subplan": "pode_escrever_filial(id) — dentro do Seq Scan de filiais, que é o corpo do SubPlan",
+      "actual_loops_subplan_initplan": 1,
+      "nota": "Mesmo sendo SubPlan (não InitPlan), o hash faz com que seja avaliado UMA VEZ (Actual Loops=1 no Seq Scan de filiais), não por linha de ativos.",
+      "total_cost": 49.83,
+      "planning_time_ms": 0.727,
+      "execution_time_ms": 2.313,
+      "actual_rows_topo": 1
+    },
+    "Q6_movimentacoes": {
+      "F1_filtro_por_linha": {
+        "sql": "select count(*) from public.movimentacoes where public.pode_escrever_filial(filial_id)",
+        "nodes": ["Aggregate", "Index Only Scan (mov_filial_data_idx)"],
+        "subplan_initplan": "nenhum",
+        "filter_contem_nome_funcao": true,
+        "filter_texto": "pode_escrever_filial(filial_id)",
+        "actual_loops_subplan_initplan": null,
+        "total_cost": 881.12,
+        "planning_time_ms": 16.519,
+        "execution_time_ms": 64.15,
+        "actual_rows_topo": 1
+      },
+      "F2_falso_icamento": {
+        "sql": "select count(*) from public.movimentacoes where (select public.pode_escrever_filial(filial_id))",
+        "nodes": ["Aggregate", "Index Only Scan (mov_filial_data_idx)", "Result (SubPlan)"],
+        "subplan_initplan": "SubPlan 1 (Parent Relationship: SubPlan) — correlacionado",
+        "filter_contem_nome_funcao": false,
+        "filter_texto_no_scan_externo": "(SubPlan 1)",
+        "actual_loops_subplan_initplan": 3245,
+        "nota": "Actual Loops (3245) == Rows Removed by Filter: confirma, numa tabela 3x maior, o MESMO padrão de Q2 — por linha.",
+        "total_cost": 914.87,
+        "planning_time_ms": 0.726,
+        "execution_time_ms": 42.5,
+        "actual_rows_topo": 1
+      },
+      "F3_icada": {
+        "sql": "select count(*) from public.movimentacoes where filial_id = any (array (select f.id from public.filiais f where public.pode_escrever_filial(f.id)))",
+        "nodes": ["Aggregate", "Seq Scan (filiais, InitPlan)", "Index Only Scan (mov_filial_data_idx)"],
+        "subplan_initplan": "InitPlan 1",
+        "filter_contem_nome_funcao": true,
+        "filter_texto": "pode_escrever_filial(id) — dentro do InitPlan, sobre filiais",
+        "index_cond": "(filial_id = ANY ((InitPlan 1).col1))",
+        "actual_loops_subplan_initplan": 1,
+        "total_cost": 75.02,
+        "planning_time_ms": 4.267,
+        "execution_time_ms": 15.33,
+        "actual_rows_topo": 1
+      }
+    }
+  },
+  "T_fato21_uuid_array_setof": {
+    "T1": {
+      "sql": "select array (select '{}'::uuid[])",
+      "resultado": "ERRO",
+      "mensagem_erro": "ERROR 2202E: cannot accumulate empty arrays",
+      "nota": "ARRAY(subquery) sobre uma subconsulta cuja COLUNA já é do tipo array (uuid[]) tenta construir um array de arrays; com o array interno vazio, o Postgres recusa (não sabe as dimensões)."
+    },
+    "T2": {
+      "sql": "select array (select null::uuid[])",
+      "resultado": "ERRO",
+      "mensagem_erro": "ERROR 22004: cannot accumulate null arrays",
+      "nota": "Mesma família de erro do T1, agora por NULL em vez de vazio."
+    },
+    "T3a": {
+      "sql": "select array (select '{00000000-0000-0000-0000-000000000001}'::uuid[])",
+      "resultado": "sucesso",
+      "forma": "array de arrays (uuid[][], 2 dimensões) — [[<um uuid>]], NÃO um uuid[] plano",
+      "nota": "Quando a subconsulta tem exatamente 1 linha e a coluna já é uuid[], ARRAY() sobe uma dimensão."
+    },
+    "T3b": {
+      "sql": "select '<uuid>'::uuid = any (array (select '{<mesmo uuid>}'::uuid[]))",
+      "resultado": true,
+      "nota": "Mesmo o array resultante sendo 2-D (T3a), ANY (array) compara contra os elementos FOLHA, não contra a linha externa — Postgres percorre o array multidimensional linearmente."
+    },
+    "T4_unnest_setof_emulado": {
+      "T4a_unnest_vazio": {
+        "sql": "select '<uuid>'::uuid = any (array (select u from unnest('{}'::uuid[]) u))",
+        "resultado": false,
+        "nota": "unnest('{}') dá 0 linhas; ARRAY(select u ...) sobre 0 linhas ESCALARES (não array) dá uuid[] vazio sem erro (contraste com T1, onde o erro só ocorre quando a COLUNA da subconsulta já é array)."
+      },
+      "T4b_unnest_null": {
+        "sql": "select '<uuid>'::uuid = any (array (select u from unnest(null::uuid[]) u))",
+        "resultado": false,
+        "nota": "unnest(NULL) também dá 0 linhas (tratado como conjunto vazio) — mesmo resultado de T4a."
+      },
+      "T4c_unnest_array_com_null": {
+        "sql": "select '<uuid>'::uuid = any (array (select u from unnest('{NULL}'::uuid[]) u))",
+        "resultado": null,
+        "nota": "unnest('{NULL}') dá 1 linha cujo valor é NULL; ARRAY(...) = ARRAY[NULL::uuid]; uuid = ANY(ARRAY[NULL]) = NULL (propagação de três valores lógicos)."
+      },
+      "T4_em_where": {
+        "n_where_t4a_false": 0,
+        "n_where_t4b_false": 0,
+        "n_where_t4c_null": 0,
+        "nota": "Nos três casos, colocado dentro de WHERE, devolve ZERO linhas — inclusive quando o predicado avalia para NULL (T4c), porque WHERE só aceita TRUE."
+      }
+    },
+    "T5_outra_forma_de_consumo": {
+      "T5a_parens_sem_cast": {
+        "sql": "select '<uuid>'::uuid = any ((select '{}'::uuid[]))",
+        "resultado": "ERRO — NÃO compila",
+        "mensagem_erro": "ERROR 42883: operator does not exist: uuid = uuid[]",
+        "nota": "'= ANY (subconsulta)' sem ARRAY() e sem cast externo é interpretado como a forma CLÁSSICA 'x = ANY(subquery)' (uma linha por candidato, como IN), não como 'array unidimensional'. Como a COLUNA da subconsulta já é uuid[], o comparador esperado seria uuid=uuid[] — erro de tipo."
+      },
+      "T5b_com_cast_uuid_vazio": {
+        "sql": "select '<uuid>'::uuid = any ((select '{}'::uuid[])::uuid[])",
+        "resultado": false,
+        "nota": "O cast ::uuid[] fora dos parênteses força a semântica de ARRAY (elementos), e compila. Vazio → false, sem erro."
+      },
+      "T5c_com_cast_null": {
+        "sql": "select '<uuid>'::uuid = any ((select null::uuid[])::uuid[])",
+        "resultado": null,
+        "nota": "NULL::uuid[] com cast explícito NÃO dá erro (contraste com T2, que erra só dentro do construtor ARRAY()) — aqui o resultado é NULL por propagação, não exceção."
+      },
+      "T5d_coalesce": {
+        "sql": "select '<uuid>'::uuid = any (coalesce((select null::uuid[]), '{}'::uuid[]))",
+        "resultado": false,
+        "nota": "coalesce(..., '{}'::uuid[]) neutraliza o NULL antes do ANY, virando false em vez de null — padrão defensivo."
+      }
+    },
+    "T6_explain_unnest_vazio": {
+      "sql": "explain (format json) select count(*) from public.ativos where id = any (array (select u from unnest('{}'::uuid[]) u))",
+      "nodes": ["Aggregate", "Function Scan (unnest, InitPlan)", "Index Only Scan (ativos_pkey)"],
+      "subplan_initplan": "InitPlan 1 (Parent Relationship: InitPlan)",
+      "index_cond": "(id = ANY ((InitPlan 1).col1))",
+      "resposta": "SIM, é InitPlan.",
+      "obs": "Rodado só com format json (sem analyze, conforme pedido) — só custos estimados: Total Cost 10.13."
+    }
+  },
+  "respostas_diretas": {
+    "select_fn_coluna_vira_subplan_por_linha": "SIM — confirmado em Q2 e Q6-F2: '(select fn(coluna))' embrulha uma função que lê a PRÓPRIA linha filtrada; o Postgres gera um SubPlan correlacionado, com Actual Loops == número de linhas varridas (1606 em ativos, 3245 em movimentacoes). O texto da 0063 (fato 5) está CORRETO para este caso; o texto da 0129/ADR-002 (fato 6), que chama isso de InitPlan, está ERRADO.",
+    "col_eq_any_array_select_fn_vira_initplan": "SIM, mas só quando fn() NÃO lê a linha externa (Q3, Q4, Q6-F3, T6): nesses casos vira InitPlan de fato, com Actual Loops=1 — avaliado uma vez por consulta. A diferença entre virar SubPlan (Q2) ou InitPlan (Q3/Q4) não é o embrulho em si; é se a função é chamada com uma coluna da linha que está sendo filtrada (correlação) ou com algo independente dela (sem correlação).",
+    "forma_de_pares_avaliada_uma_vez": "Depende da forma exata. Sem truque (Q5): o planejador ACHATA o IN de par redundante num JOIN comum (Nested Loop/Inner) — nem InitPlan, nem SubPlan, nem 'Hash Semi Join' — mas ainda roda a função uma vez por linha de filiais (não por linha de ativos). Forçado com 'where false or (...)' (Q5b): cai para um SubPlan HASHEADO — rotulado '(hashed SubPlan 1)', ainda avaliado uma única vez (Actual Loops=1), mas tecnicamente é SubPlan, não InitPlan."
+  }
+}

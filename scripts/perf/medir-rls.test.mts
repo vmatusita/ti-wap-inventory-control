@@ -52,6 +52,12 @@ describe('2. o comando, contra o modelo fechado', () => {
     ['segundo bloco escondido', `${VALIDO}\ndo $f59$ begin null; end $f59$;`],
     ['grant', VALIDO.replace('  -- 5. a medição', '  grant select on public.ativos to anon;\n  -- 5. a medição')],
     ['execute fora do modelo', VALIDO.replace("execute format('select count(*) from public.%I', v_tabela) into v_total;", "execute 'truncate public.ativos';")],
+    // revisão adversarial da F59: função com efeito colateral chamada pelo nome, e o read-only reaberto
+    ['função destrutiva pelo nome', VALIDO.replace('  -- 5. a medição', "  perform public.resetar_acervo('teste f59', true);\n  -- 5. a medição")],
+    ['lock de sessão', VALIDO.replace('  -- 5. a medição', '  perform pg_advisory_lock(12345);\n  -- 5. a medição')],
+    ['função dentro do SQL que o execute roda', VALIDO.replace("'select id, patrimonio", "'select pg_sleep(1), id, patrimonio")],
+    ['transaction_read_only reaberto', VALIDO.replace('  -- 5. a medição', "  perform set_config('transaction_read_only', 'off', true);\n  -- 5. a medição")],
+    ['troca de papel duas vezes', VALIDO.replace('  -- 5. a medição', "  perform set_config('role', 'authenticated', true);\n  -- 5. a medição")],
   ])('%s → recusa', (_nome, sql) => {
     expect(() => validarComando(sql)).toThrow(/RECUSADO/)
   })
