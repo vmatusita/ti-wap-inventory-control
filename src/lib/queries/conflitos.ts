@@ -1,5 +1,7 @@
 import 'server-only'
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { memoizarPorUnidades } from '@/lib/queries/memo-do-request'
 import {
   CAP_ANOTACOES,
   CAP_ATIVOS,
@@ -235,15 +237,8 @@ export async function contarGruposConflito(
   return count ?? 0
 }
 
-/**
- * Contagem para o badge da sidebar. Falha de leitura NÃO derruba o shell — devolve 0 e
- * registra no log, exatamente como `contarPendenciasAbertas` faz desde a F9.
- */
-export async function contarConflitosAbertos(
-  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
-  // vai mostrar para quem está olhando. F57 — `UnidadesEfetivas`, sem padrão silencioso.
-  unidades: UnidadesEfetivas<'slug'>,
-): Promise<number> {
+/** A leitura de verdade do selo — sem memória. Ver `contarConflitosAbertos`. */
+async function lerConflitosAbertos(unidades: UnidadesEfetivas<'slug'>): Promise<number> {
   try {
     const client = await createClient()
     return await contarGruposConflito(client, unidades)
@@ -251,6 +246,31 @@ export async function contarConflitosAbertos(
     registrarFalha({ escopo: 'conflitos.contar-abertos', erro: e })
     return 0
   }
+}
+
+// F60 (fato 12) — a memória POR REQUEST da contagem do selo. `cache()` SEM argumento: devolve o
+// MESMO `Map` durante um request e um novo no seguinte (é o React quem invalida). A chave de
+// cada entrada é `chaveDasUnidades`, primitiva — ver `queries/memo-do-request.ts` para o porquê de
+// não ser `cache(lerConflitosAbertos)`, que compararia o objeto e nunca acertaria.
+const conflitosAbertosDoRequest = cache((): Map<string, Promise<number>> => new Map())
+const contarConflitosDoRequest = memoizarPorUnidades(conflitosAbertosDoRequest, lerConflitosAbertos)
+
+/**
+ * Contagem para o badge da sidebar. Falha de leitura NÃO derruba o shell — devolve 0 e
+ * registra no log, exatamente como `contarPendenciasAbertas` faz desde a F9.
+ *
+ * ⚠ F60 — MEMOIZADA POR REQUEST, pela chave das unidades. O layout do grupo `(app)` e a página do
+ * dashboard a chamam no MESMO request com a mesma vista em objetos diferentes; antes eram duas
+ * idas ao banco (e, com duas ou mais filiais no recorte, até duas varreduras de chaves), agora é
+ * uma. `contarPendenciasAbertas` NÃO entra: medido, ela tem um chamador só por request (o layout),
+ * e memória sem segunda chamada é só mais um lugar para envelhecer.
+ */
+export function contarConflitosAbertos(
+  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
+  // vai mostrar para quem está olhando. F57 — `UnidadesEfetivas`, sem padrão silencioso.
+  unidades: UnidadesEfetivas<'slug'>,
+): Promise<number> {
+  return contarConflitosDoRequest(unidades)
 }
 
 /**

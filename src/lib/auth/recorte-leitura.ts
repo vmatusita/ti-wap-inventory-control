@@ -239,3 +239,42 @@ export function lerUnidades<F extends FamiliaDeUnidade>(
 ): VistaDasUnidades<ValorDaFamilia<F>> {
   return unidades[MARCA].vista
 }
+
+/** Ordem total e estável entre valores da MESMA família: número por valor, slug por unidade de código. */
+function compararValores(a: string | number, b: string | number): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  const sa = String(a)
+  const sb = String(b)
+  return sa < sb ? -1 : sa > sb ? 1 : 0
+}
+
+/**
+ * A CHAVE PRIMITIVA das unidades efetivas — uma string determinística que é IGUAL para duas
+ * `UnidadesEfetivas` que pedem a mesma leitura, e diferente para as que pedem leituras diferentes
+ * (F60 · fato 12 · PLAN §10, decisão 6).
+ *
+ * ⚠ POR QUE ELA EXISTE. `efetivar` embrulha um objeto NOVO a cada chamada (`embrulhar`, acima), e
+ * o `cache()` do React compara argumento por `Object.is` — objeto é comparado por REFERÊNCIA
+ * (doc oficial, `reference/react/cache.md`: "React will use shallow equality of the arguments";
+ * no build `react-server` 19.2.8 o argumento-objeto vira chave de `WeakMap`). O layout do grupo
+ * `(app)` e a página do dashboard montam, no MESMO request, duas `UnidadesEfetivas` com a MESMA
+ * vista por caminhos diferentes — então memoizar a contagem de conflitos pelo objeto NUNCA
+ * acertaria, e memoizar reconstruindo o objeto fora de `efetivar` furaria a marca. A chave é a
+ * saída: primitiva, comparável por `Object.is`, e lida AQUI, o único módulo que enxerga a MARCA.
+ *
+ * O QUE ENTRA, e por quê cada peça: a FAMÍLIA (a mesma lista `[1]` por id e `['1']` por slug são
+ * leituras diferentes), o MODO (`todas` ≠ `nenhuma` ≠ `somente-sem-unidade` — é a distinção que a
+ * F57 criou e que uma chave não pode apagar), os VALORES ORDENADOS e `incluiSemUnidade` (muda o
+ * resultado de `/relatorios/gerados`). É tudo o que a vista tem; nada fica de fora.
+ *
+ * ⚠ A ORDEM DOS VALORES É DESCARTADA DE PROPÓSITO: a mesma seleção pode chegar em ordens diferentes
+ * (a da URL, a de `listarFiliais` por nome), e toda leitura que filtra por unidade trata a lista
+ * como CONJUNTO (`in`, `= any`). Leitura que dependa da ORDEM da lista não pode ser memoizada por
+ * esta chave. `JSON.stringify` e não `join(',')`: um slug com vírgula não pode colidir com dois slugs.
+ */
+export function chaveDasUnidades<F extends FamiliaDeUnidade>(unidades: UnidadesEfetivas<F>): string {
+  const { familia, vista } = unidades[MARCA]
+  if (vista.modo !== 'lista') return JSON.stringify([familia, vista.modo])
+  const valores: (string | number)[] = [...vista.valores].sort(compararValores)
+  return JSON.stringify([familia, vista.modo, valores, vista.incluiSemUnidade])
+}
