@@ -251,8 +251,14 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // substitui o hand-fix depois do apply). `vocabulario_unidades_guarda` NÃO
     // entra nesta contagem — é função-gatilho (`returns trigger`), a mesma regra
     // que já exclui `aplicar_movimentacao`/`guarda_acervo` logo abaixo.
+    //
+    // F60 · Frente B (16/09/2026): funções 75 -> 76. A `0141` cria
+    // `rel_contagem_status_filiais` (os KPIs do dashboard numa contagem agregada) e o
+    // `database.ts` a ganhou por HAND-FIX datado — a `0141` ainda não foi aplicada em banco
+    // real, e o gate de deriva do CI constrói a cadeia inteira; a regeneração do ensaio
+    // depois do apply substitui a entrada. O número SUBIU porque o banco ganhou uma função.
     expect(real.relacoes.size).toBe(34)
-    expect(real.funcoes.size).toBe(75)
+    expect(real.funcoes.size).toBe(76)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

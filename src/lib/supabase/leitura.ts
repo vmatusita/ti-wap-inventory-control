@@ -50,6 +50,12 @@ export type MatrizDeRpc =
   | { readonly tipo: 'filial-e-data'; readonly filial: string; readonly data: string }
   | { readonly tipo: 'filial-e-periodo'; readonly filial: string; readonly de: string; readonly ate: string }
   | { readonly tipo: 'colaborador'; readonly colaborador: string }
+  /**
+   * F60 — o recorte como LISTA (`p_filiais smallint[]`): o consolidado é a lista de TODAS as filiais
+   * (inclusive desativadas), e cada filial ativa ganha a sua célula com a lista de um id. Nunca
+   * NULL: nas `rel_*_filiais` o nulo dá zero linhas, e uma célula com NULL não provaria forma nenhuma.
+   */
+  | { readonly tipo: 'filiais'; readonly filiais: string }
 
 export type LeituraDeRpc<N extends NomeRpc = NomeRpc, F extends z.ZodType = z.ZodType> = {
   readonly tipo: 'rpc'

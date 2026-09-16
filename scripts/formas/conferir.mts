@@ -246,6 +246,9 @@ const segunda = (() => {
 
 // Os valores de filial e de pessoa passam pela memória e NUNCA saem: a célula é rotulada por ordem.
 const filiaisAtivas = ((await db.from('filiais').select('id').eq('ativo', true).order('id')).data ?? []).map((f) => f.id as number)
+// F60 — o consolidado das `rel_*_filiais` é a lista de TODAS as filiais, inclusive desativadas (a
+// mesma régua de `filiaisDoConsolidado`, `src/lib/queries/relatorios/recorte-filiais.ts`).
+const todasAsFiliais = ((await db.from('filiais').select('id').order('id')).data ?? []).map((f) => f.id as number)
 const maisAntiga = ((await db.from('movimentacoes').select('data').order('data', { ascending: true }).limit(1)).data ?? [])[0]?.data as string | undefined
 const inicio = maisAntiga ?? menos(365)
 const meio = (() => {
@@ -277,6 +280,12 @@ function celulas(m: MatrizDeRpc): Celula[] {
           args: { [m.filial]: r.filial, [m.de]: de, [m.ate]: ate },
         })),
       )
+    case 'filiais':
+      // F60 — a lista explícita no lugar do NULL: o consolidado com TODAS, e uma célula por filial ativa.
+      return [
+        { rotulo: 'consolidado', args: { [m.filiais]: todasAsFiliais } },
+        ...filiaisAtivas.map((id, i) => ({ rotulo: `filial #${i + 1}`, args: { [m.filiais]: [id] } })),
+      ]
   }
 }
 

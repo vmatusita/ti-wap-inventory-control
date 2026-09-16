@@ -3,11 +3,12 @@
 // relatório para comparar byte-a-byte ANTES × DEPOIS da refatoração.
 //
 // Uso:
-//   npx tsx scripts/carac-relatorios.ts <saida.json>           # superfície ESTÁVEL (v2 + getKpis consolidado)
+//   npx tsx scripts/carac-relatorios.ts <saida.json>           # superfície ESTÁVEL (v2 + KPIs consolidados)
 //   npx tsx scripts/carac-relatorios.ts <saida.json> --equiv   # + tabela de equivalência v1×v2 (só ANTES de remover o v1)
 //
 // A superfície estável é o que precisa sair IDÊNTICO depois: getSnapshotRelatorioV2
-// (relatório ao vivo + geração de snapshot) e getKpis(consolidado) (dashboard).
+// (relatório ao vivo + geração de snapshot) e os KPIs consolidados do dashboard (a conta de
+// `getKpis`, removida na F60 — ver `capturarEstavel`).
 // O módulo é importado DINAMICAMENTE para o script continuar compilando depois que
 // o v1 (getSnapshotRelatorio & cia.) for removido.
 import { writeFileSync } from 'node:fs'
@@ -78,9 +79,14 @@ async function capturarEstavel(outfile: string) {
     })
   }
 
-  // Dashboard: getKpis consolidado (null). É o único caminho v1 que sobrevive —
-  // precisa sair idêntico nos 7 campos exibidos após o reroute para o estado.
-  const getKpisConsolidado = await rel.getKpis(client, null as never)
+  // Dashboard: os KPIs consolidados — precisam sair idênticos nos 7 campos exibidos.
+  // F60 — `getKpis` SAIU (o dashboard passou a contar por `rel_contagem_status_filiais`, em
+  // `queries/dashboard.ts`, que abre o client da SESSÃO e por isso não serve a este script de
+  // service role). O que se congela aqui continua sendo a MESMA conta que `getKpis` fazia —
+  // `kpisDeEstado` sobre o estado de hoje —, com a mesma chave no JSON: as saídas já gravadas
+  // seguem comparáveis, e ela é a referência contra a qual a F60 provou os oito números.
+  const est = await import('@/lib/queries/relatorios/estoque')
+  const getKpisConsolidado = est.kpisDeEstado(await est.lerEstadoAtivos(client, null, hojeISO()))
 
   const saida = estavel({ hoje: hojeISO(), v2, getKpisConsolidado })
   writeFileSync(outfile, JSON.stringify(saida, null, 2))

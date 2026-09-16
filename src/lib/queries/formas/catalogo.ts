@@ -2,7 +2,10 @@ import 'server-only'
 import type { Descritor } from '@/lib/supabase/leitura'
 import { LEITURA_TIPOS_ITEM, LEITURA_TIPOS_ITEM_ADMIN } from '@/lib/queries/formas/tipos-item'
 import { LEITURA_PAPEL_ATUAL, LEITURA_PERFIL_OPERADOR } from '@/lib/queries/formas/auth'
-import { LEITURA_FILA_PENDENCIAS_DASHBOARD } from '@/lib/queries/formas/dashboard'
+import {
+  LEITURA_FILA_PENDENCIAS_DASHBOARD,
+  LEITURA_REL_CONTAGEM_STATUS,
+} from '@/lib/queries/formas/dashboard'
 import { LEITURA_DEVOLVER_AO_FORNECEDOR } from '@/lib/queries/formas/devolucao-fornecedor'
 import {
   LEITURA_ITENS_PARA_PONTE,
@@ -287,4 +290,6 @@ export const CATALOGO: readonly Descritor[] = [
   LEITURA_BACKUP_ANOTACOES_CONFLITO,
   LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO,
   LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO,
+  // F60 · Frente B — os KPIs do dashboard numa contagem agregada (0141), a matriz por lista de filiais
+  LEITURA_REL_CONTAGEM_STATUS,
 ]

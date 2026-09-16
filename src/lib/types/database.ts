@@ -1685,6 +1685,14 @@ export type Database = {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean
       }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0141 ainda não foi aplicada em banco real)
+      rel_contagem_status_filiais: {
+        Args: { p_filiais: number[] }
+        Returns: {
+          status: Database["public"]["Enums"]["status_ativo"]
+          total: number
+        }[]
+      }
       rel_estoque_asof: {
         Args: { p_data: string; p_filial: number }
         Returns: {

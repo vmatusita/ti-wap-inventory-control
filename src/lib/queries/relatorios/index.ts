@@ -8,13 +8,18 @@ import 'server-only'
 // TODAS as funções recebem o client já resolvido (RLS do operador OU client
 // administrativo p/ sessão por senha — lib/auth/acesso.ts) e são parametrizadas
 // por filial e período. `filialId null` = consolidado (geral). O motor v1 (grade
-// da F3) foi removido na Fase 3.5: o relatório ao vivo, a geração de snapshot e o
-// dashboard consomem uma única implementação por agregação, sobre o estado
-// reconstruído (`lerEstadoAtivos`). Ver docs/DECISOES.md.
+// da F3) foi removido na Fase 3.5: o relatório ao vivo e a geração de snapshot
+// consomem uma única implementação por agregação, sobre o estado reconstruído
+// (`lerEstadoAtivos`). Ver docs/DECISOES.md.
+//
+// F60 — `getKpis` SAIU daqui: o dashboard era o único chamador no app, e passou a
+// contar por `rel_contagem_status_filiais` em `queries/dashboard.ts` — um módulo que
+// NÃO aceita client e por isso fica fora da superfície do visualizador por senha
+// (`fronteira-viewer.test.ts`). A regra dos oito números continua uma só
+// (`kpisDeEstado`/`kpisDeContagens`, lado a lado em `estoque.ts`).
 
 export type { DbClient, Filial } from './comum'
 export { resolverFilialPorSlug } from './comum'
-export { getKpis } from './estoque'
 export {
   getPorMotivo,
   getResumoPeriodo,

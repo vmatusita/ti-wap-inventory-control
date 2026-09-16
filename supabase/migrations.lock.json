@@ -142,6 +142,7 @@
     "0137_vocabulario_import_falhou.sql": "d44fc4862ae94c644140e6fccb1302869618627677c1559e34d840d851a8a0fb",
     "0138_resumo_integridade_e_rotulo.sql": "07c486f6593b7274f0e86af21c8845b55c9ff1e9b9ea1ffd16dbdc95723d88fa",
     "0139_vocabulario_import.sql": "0b67fb972daba05f36e832b582473569c5d7ba891219817cf328396e9696e889",
-    "0140_import_desarma_fk.sql": "13966efbfc64fbb6daa7de693d33ff836d4f53fc6041fd9eac1a1de396b72b32"
+    "0140_import_desarma_fk.sql": "13966efbfc64fbb6daa7de693d33ff836d4f53fc6041fd9eac1a1de396b72b32",
+    "0141_rel_contagem_status.sql": "7d73824d68d88f48e2f40a2d37ec8cc026b45d828658291b9fce1aa586d7ce18"
   }
 }

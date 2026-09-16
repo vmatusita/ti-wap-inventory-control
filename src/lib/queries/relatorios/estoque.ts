@@ -38,8 +38,10 @@ import { LEITURA_REL_ESTOQUE_ASOF } from '@/lib/queries/formas/relatorios'
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
 // 3.5/3.6). Estado atual = fast path barato (período terminando hoje); passado =
-// reconstrução exata via rel_estoque_asof. Fonte unificada do relatório v2 e do
-// dashboard (getKpis). `descartado` nunca entra (baixa).
+// reconstrução exata via rel_estoque_asof. Fonte unificada do relatório v2 (ao vivo
+// e snapshot). `descartado` nunca entra (baixa). F60: o dashboard deixou de ler o
+// estado — conta por `rel_contagem_status_filiais` (`queries/dashboard.ts`), com a
+// MESMA regra de KPI em `kpisDeContagens`, logo abaixo de `kpisDeEstado`.
 
 // Estado de um ativo (atual ou as-of). Fonte unificada dos KPIs, categoria×
 // status, disponíveis por modelo, reservados e manutenção.
@@ -243,15 +245,47 @@ export function kpisDeEstado(estado: EstadoAtivo[]): KpisRelatorio {
   return k
 }
 
-// Dashboard (home): estado atual consolidado. Mesmo motor do relatório v2 — uma
-// única implementação de KPI (kpisDeEstado) sobre o estado reconstruído (fast
-// path de hoje). O tile do dashboard ignora `emprestado`, então o campo a mais
-// não muda a tela. Único caminho do antigo v1 que sobrevive.
-export async function getKpis(
-  client: DbClient,
-  filialId: number | null,
-): Promise<KpisRelatorio> {
-  return kpisDeEstado(await lerEstadoAtivos(client, filialId, hojeISO()))
+/** Uma linha de `rel_contagem_status_filiais` (0141): quantos ativos há em um status, no recorte. */
+export type ContagemPorStatus = { readonly status: StatusAtivo; readonly total: number }
+
+// F60 (fato 13 · PLAN-F60 §6.5) — os MESMOS oito números de `kpisDeEstado`, a partir da contagem
+// por status que o banco já agregou, em vez do estado linha a linha.
+//
+// Nasceu para o dashboard, que até a F59 lia `ativos` INTEIRA (duas páginas, 1.622 linhas em
+// 16/09/2026) só para contar — `getKpis`, que saiu quando o dashboard, o único chamador dela no
+// app, trocou de leitura (o script `carac-relatorios.ts` passou a fazer a conta por extenso). `kpisDeEstado`
+// fica INTOCADA ao lado: o snapshot e o relatório ao vivo precisam do estado inteiro de qualquer
+// forma (categoria × status, modelos, reservados), e contar o que já foi lido não custa leitura.
+//
+// ⚠ A REGRA É A MESMA, E TEM DE CONTINUAR SENDO. As duas baixas terminais (`descartado`,
+// `devolvido_fornecedor`) saem aqui, e não no SQL — a RPC devolve a contagem crua, e a regra do KPI
+// mora em TypeScript, uma linha acima da outra. Um status novo no enum entra no `total` nas duas
+// funções sem cair em nenhum tile, como hoje. `estoque.test.ts` prova, com fixture fictícia, que
+// `kpisDeContagens(contagem(estado))` é deep-equal a `kpisDeEstado(estado)` em estados que incluem
+// `emprestado`, as duas baixas e o vazio: mexeu numa, o teste manda mexer na outra.
+export function kpisDeContagens(contagens: readonly ContagemPorStatus[]): KpisRelatorio {
+  const k: Required<KpisRelatorio> = {
+    total: 0,
+    em_uso: 0,
+    em_estoque: 0,
+    reservado: 0,
+    em_manutencao: 0,
+    em_triagem: 0,
+    defasado: 0,
+    emprestado: 0,
+  }
+  for (const { status, total } of contagens) {
+    if (status === 'descartado' || status === 'devolvido_fornecedor') continue
+    k.total += total
+    if (status === 'em_uso') k.em_uso += total
+    else if (status === 'em_estoque') k.em_estoque += total
+    else if (status === 'reservado') k.reservado += total
+    else if (status === 'em_manutencao') k.em_manutencao += total
+    else if (status === 'em_triagem') k.em_triagem += total
+    else if (status === 'defasado') k.defasado += total
+    else if (status === 'emprestado') k.emprestado += total
+  }
+  return k
 }
 
 export function categoriaDeEstado(estado: EstadoAtivo[]): ContagemCategoria[] {

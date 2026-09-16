@@ -141,6 +141,14 @@ const SUPERFICIE: Record<string, string> = {
   'queries/relatorios/movimentacoes.ts': 'transitiva por getSnapshotRelatorioV2',
   'queries/relatorios/pendencias.ts': 'transitiva por getSnapshotRelatorioV2',
   'queries/relatorios/snapshot.ts': 'getSnapshotRelatorioV2, chamada em [filial]/page.tsx:126',
+  // F60 · Frente B — `filiaisDoConsolidado(client)`, a lista de TODAS as filiais que substitui o
+  // `p_filial = null`. No lote 1 só `queries/dashboard.ts` a chama, com o client da SESSÃO; ela
+  // nasce DECLARADA na superfície, e não como exceção, porque o lote 2 a põe sob
+  // `getSnapshotRelatorioV2` (o relatório inteiro recorta por ela) — e uma exceção que já nasce
+  // com data para virar superfície seria a lista mentindo por uma fase. Lê só `filiais`, que já
+  // está na lista branca.
+  'queries/relatorios/recorte-filiais.ts':
+    'filiaisDoConsolidado — hoje via queries/dashboard.ts (sessão); no lote 2 da F60, transitiva por getSnapshotRelatorioV2',
   'queries/relatorios/index.ts':
     're-export da pasta; sem query própria hoje, mas varrido para que uma query nova aqui não escape',
   'queries/gerados.ts': 'gerados/page.tsx:75 e gerados/[id]/page.tsx:41,63',

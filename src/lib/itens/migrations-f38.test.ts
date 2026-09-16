@@ -134,6 +134,13 @@ const DA_F38 = [
   // `delete from public.ativos` — a trava da F51 (`import-uma-porta.test.ts`)
   // é quem prova isso, não esta lista.
   '0140',
+  // F60 · Frente B (16/09/2026) — a `0141` cria UMA função nova de leitura,
+  // `rel_contagem_status_filiais(smallint[])` (os KPIs do dashboard numa ida só), com
+  // `revoke … from public, anon` e `grant … to authenticated, service_role`. Mesmo motivo de
+  // sempre: a lista é COBERTURA. Não recria função existente (passa pela guarda de intocáveis
+  // sem exceção), não mexe em enum, não tem DELETE/UPDATE de topo, e entra também na lista de
+  // funções NOVAS `security invoker`, mais abaixo.
+  '0141',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */
@@ -328,6 +335,10 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       // também para ele: RPC de acervo desta casa é `security invoker`, e a
       // permissão por filial é da policy, nunca de um `definer` que a contorne.
       'lancar_itens_lote',
+      // F60 (0141) — os KPIs do dashboard. `rel_*` desta casa é `security invoker` (a RLS de
+      // `ativos` vale como valia para o `select` que ela substitui), e a trava do recorte (bloco 7
+      // de `catalogo_secdef.sql`) cobra o mesmo no catálogo; aqui a prova é no disco.
+      'rel_contagem_status_filiais',
     ]
     const tudo = arquivosDaFase()
       .map((a) => a.sql)
