@@ -38,9 +38,16 @@ function comSintetica(sql: string, arquivo = '9999_sintetica_f59.sql') {
   return julgarPolicies({ migrations: [...MIGRATIONS, { arquivo, sql }], sqlCatalogo: SQL_CATALOGO })
 }
 
-/** As violações que a migration sintética INTRODUZ (as da cadeia real são zero). */
+/**
+ * As violações que a migration sintética INTRODUZ — as da cadeia real saem da conta. Sem esse
+ * desconto, uma cadeia real vermelha (a sabotagem D da fase) faria a guarda culpar o casador,
+ * que é o diagnóstico errado.
+ */
+const MENSAGENS_DA_CADEIA_REAL = new Set(J.violacoes.map(mensagemDeViolacao))
 function violacoesNovas(sql: string) {
-  return comSintetica(sql).violacoes.map((v) => ({ ...v, mensagem: mensagemDeViolacao(v) }))
+  return comSintetica(sql)
+    .violacoes.map((v) => ({ ...v, mensagem: mensagemDeViolacao(v) }))
+    .filter((v) => !MENSAGENS_DA_CADEIA_REAL.has(v.mensagem))
 }
 
 const policyEmAtivos = (nome: string, clausula: string) =>

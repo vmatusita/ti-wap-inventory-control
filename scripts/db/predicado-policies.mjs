@@ -987,7 +987,7 @@ export function mensagemDeViolacao(v) {
   if (v.regra === 'R2') {
     return (
       `${onde} — R2: a função ${v.funcao}(${v.argumento}) não recebe dado da linha e está FORA de "(select …)" — solta, ela roda por linha. ` +
-      `Embrulhe: "(select public.${v.funcao}(${v.argumento}))" ou "col = any (array (select public.${v.funcao}()))". Veja a ${EMENDA}.`
+      `Embrulhe: "(select public.${v.funcao}(${v.argumento}))" — e, se ela devolve conjunto, "col = any (array (select public.${v.funcao}(${v.argumento})))". Veja a ${EMENDA}.`
     )
   }
   const partes = []
