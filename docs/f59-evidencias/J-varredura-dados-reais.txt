@@ -1,0 +1,27 @@
+# J — varredura por dado real em TUDO o que a fase acrescentou (16/09/2026)
+#
+# Universo: toda linha acrescentada por `git diff main` na branch (código, testes, .sql, documentos, evidências, JSONs de
+# medição, relatório), exceto a própria ordem de serviço (docs/prompts/), que veio pronta.
+#   git diff main --unified=0 -- . ':!docs/prompts' | grep '^+' | grep -v '^+++'
+#
+# Padrões (grep -oiE):
+#   UUID ......... [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+#   e-mail ....... [A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}
+#   patrimônio ... WAP[0-9]{5,}
+#   credencial ... eyJ[A-Za-z0-9_-]{10,} | sbp_[A-Za-z0-9]{10,} | sb_secret_[A-Za-z0-9]+
+#
+linhas acrescentadas varridas: 7733
+
+UUID: 2 ocorrência(s)
+         1 00000000-0000-0000-0000-000000000000
+         1 00000000-0000-0000-0000-000000000001
+e-mail: 0 ocorrência(s)
+patrimônio: 0 ocorrência(s)
+credencial: 0 ocorrência(s)
+
+Classificação das 2 ocorrências de UUID — ambas SINTÉTICAS, o UUID nulo e o nulo+1, literais de SQL de prova:
+   00000000-0000-0000-0000-000000000000 — scripts/perf/medir-rls.mjs, caso 'uuid-array-cheio' da prova da forma-alvo
+   00000000-0000-0000-0000-000000000001 — docs/f59-evidencias/A-planejador-ensaio.json, consulta T3a (array de arrays)
+
+Resultado: zero id real, zero e-mail, zero patrimônio, zero valor de credencial.
+A identidade das medições foi escolhida dentro do banco e o id nunca atravessou o canal; o medir.mjs não grava ids de rota dinâmica.

@@ -1,0 +1,120 @@
+# G — a contagem final (HEAD b720f49, lida do disco pela mesma cadeia de policies-initplan.test.ts)
+
+| medida | começo (PLAN-F59 §2, antes do 1º commit de código) | fim (este arquivo) |
+|---|---:|---:|
+| migrations lidas | 139 | 139 |
+| comandos de policy consumidos pelo replay | 138 de 138 | 138 de 138 |
+| policies vivas | 61 | 61 |
+| ↳ public · storage | 53 · 8 | 53 · 8 |
+| ↳ public SELECT/INSERT/UPDATE/DELETE | 22/14/11/6 | 22/14/11/6 |
+| ocorrências policy × função com dado da linha | 18 (13 policies, 7 funções) | 18 (13 policies, 7 funções) |
+| exceções em k_excecoes_predicado | — (a lista nasceu na fase) → 18 | 18 |
+| ↳ por destino | F66 6 · F67 1 · permanente 11 | F66 6 · permanente 11 · F67 1 |
+| violações (R1 sem exceção, R2, R3) | 0 | 0 |
+| exceções sem ocorrência viva | — | 0 |
+| predicados ilegíveis · falhas fechadas do replay | 0 · 0 | 0 · 0 |
+| universo: só no replay · só no catálogo congelado | — | 0 · 0 |
+
+Nenhuma policy mudou: os números do fim são os do começo.
+
+## npm run test — antes × depois
+
+| | antes (main, v1.63.0, PLAN-F59 §1 fato 1) | depois (HEAD b720f49 + docs) |
+|---|---:|---:|
+| arquivos de teste | 216 | 219 |
+| testes | 5.856 | 5997 |
+
+```
+ Test Files  219 passed (219)
+      Tests  5997 passed (5997)
+   Duration  199.60s (transform 31.71s, setup 0ms, import 1012.96s, tests 79.40s, environment 189ms)
+test exit 0
+```
+
+## npm run lint · npx tsc --noEmit · npm run verificar:actions
+
+```
+
+> estoque-ti-wap@1.64.0 lint
+> eslint
+
+lint exit 0
+tsc exit 0
+
+> estoque-ti-wap@1.64.0 verificar:actions
+> node scripts/verificar-actions-build.mjs
+
+[gate] chunks com Server Actions varridos: 23
+[gate] VERDE — nenhum identificador registrado sem binding.
+actions exit 0
+```
+
+## npm run build — a saída inteira
+
+```
+
+> estoque-ti-wap@1.64.0 build
+> next build
+
+▲ Next.js 16.2.12 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 39.2s
+  Running TypeScript ...
+  Finished TypeScript in 69s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/32) ...
+  Generating static pages using 7 workers (8/32) 
+  Generating static pages using 7 workers (16/32) 
+  Generating static pages using 7 workers (24/32) 
+✓ Generating static pages using 7 workers (32/32) in 2.9s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin/colaboradores
+├ ƒ /admin/filiais
+├ ƒ /admin/importar
+├ ƒ /admin/itens
+├ ƒ /admin/kits
+├ ƒ /admin/motivos
+├ ƒ /admin/senhas
+├ ƒ /admin/tipos-item
+├ ƒ /admin/usuarios
+├ ƒ /ajuda
+├ ƒ /ajuda/[slug]
+├ ƒ /ajuda/manual
+├ ƒ /api/saude
+├ ƒ /ativos
+├ ƒ /ativos/[id]
+├ ƒ /ativos/novo
+├ ƒ /auth/confirm
+├ ƒ /auth/definir-senha
+├ ƒ /dev
+├ ƒ /dev/destrutivo
+├ ƒ /itens
+├ ƒ /itens/conferencia
+├ ƒ /itens/historico
+├ ○ /login
+├ ƒ /movimentacoes
+├ ƒ /movimentacoes/devolucao-fornecedor
+├ ƒ /movimentacoes/nova
+├ ƒ /pendencias
+├ ƒ /relatorios/[filial]
+├ ƒ /relatorios/acesso
+├ ƒ /relatorios/gerados
+├ ƒ /relatorios/gerados/[id]
+└ ƒ /versoes
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+build exit 0
+```
