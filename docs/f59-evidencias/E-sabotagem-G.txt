@@ -1,0 +1,24 @@
+# Sabotagem G — a guarda de scripts/perf/medir-rls.mjs (16/09/2026, sem alvo real)
+G1 --alvo ausente → exit 1 · medir-rls: RECUSADO — --alvo é obrigatório (ensaio|producao).
+G2 --alvo inventado → exit 1 · medir-rls: RECUSADO — --alvo "teste" não existe — só ensaio|producao.
+G3 --alvo producao com o ref do ENSAIO → exit 1 · medir-rls: RECUSADO — o ref do canal não é o do alvo producao — nada é gerado nem enviado.
+G4 --alvo ensaio com o ref de PRODUÇÃO → exit 1 · medir-rls: RECUSADO — o ref do canal não é o do alvo ensaio — nada é gerado nem enviado.
+G5 --alvo ensaio com ref inventado → exit 1 · medir-rls: RECUSADO — o ref do canal não é o do alvo ensaio — nada é gerado nem enviado.
+G6 --dir DENTRO do repositório → exit 1 · medir-rls: RECUSADO — --dir dentro do repositório — comandos e respostas moram FORA dele.
+G7 canal api sem SUPABASE_ACCESS_TOKEN → exit 1 · medir-rls: RECUSADO — canal api sem SUPABASE_ACCESS_TOKEN no ambiente do processo — o token não é procurado em outro lugar.
+   diretório fora do repositório continua vazio: true
+   docs/perf/lixo não foi criado: true
+G8 um update injetado na fila, depois de um comando válido → medir-rls: RECUSADO — comando fora do modelo (do $f59$ … end $f59$;). · arquivo gravado: false · fetch chamado: false
+G9 update escondido no corpo do bloco → medir-rls: RECUSADO — palavra proibida no comando: "update". · arquivo gravado: false · fetch chamado: false
+G10 update dentro do SQL de uma forma (o que o execute roda) → medir-rls: RECUSADO — palavra proibida no comando: "update". · arquivo gravado: false · fetch chamado: false
+G11 update atrás de um -- dentro de literal → medir-rls: RECUSADO — palavra proibida no comando: "update". · arquivo gravado: false · fetch chamado: false
+G12 troca de papel para postgres → medir-rls: RECUSADO — troca de papel para outro que não authenticated. · arquivo gravado: false · fetch chamado: false
+G13 bloco que se confirma (sem o raise exception final) → medir-rls: RECUSADO — o bloco não termina em raise exception — ele poderia se confirmar. · arquivo gravado: false · fetch chamado: false
+G14 sem transaction_read_only no começo → medir-rls: RECUSADO — o bloco não liga transaction_read_only antes de tudo. · arquivo gravado: false · fetch chamado: false
+G15 grant disfarçado de comentário em português → medir-rls: RECUSADO — palavra proibida no comando: "grant". · arquivo gravado: false · fetch chamado: false
+G16 canal api com escrita injetada: recusa antes do fetch → medir-rls: RECUSADO — comando fora do modelo (do $f59$ … end $f59$;). · arquivo gravado: false · fetch chamado: false
+   fetch chamado em alguma tentativa: false
+# controle positivo: o comando do modelo passa na guarda
+   validarComando(comandoMedicao ensaio/ativos/admin) devolve o comando: true
+   validarComando(comandoProvaFormaAlvo ensaio) devolve o comando: true
+   prova da forma-alvo em produção → medir-rls: RECUSADO — a prova da forma-alvo roda só no ensaio (ordem F59, Frente B).
