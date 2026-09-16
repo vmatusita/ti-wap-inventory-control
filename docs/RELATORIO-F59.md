@@ -1,8 +1,8 @@
 # Relatório F59 — A doutrina do predicado, escrita e travada
 
 **v1.64.0** · **sem migration** · 16/09/2026 · SHA de código congelado **`b720f49`** · branch `f59-doutrina-do-predicado` ·
-código [PR #50](https://github.com/vmatusita/ti-wap-inventory-control/pull/50) · a conferência pós-deploy entra pelo PR só de
-documentação (§9)
+código [PR #50](https://github.com/vmatusita/ti-wap-inventory-control/pull/50), mergeado em `84fdb38` · documentação
+[PR #51](https://github.com/vmatusita/ti-wap-inventory-control/pull/51), com a conferência pós-deploy (§9)
 
 > A virada multiempresa vai tocar ~60 policies de RLS, e a forma que o plano do produto propunha — `e_membro(empresa_id)`,
 > uma função que recebe a coluna da linha — roda uma vez por linha examinada, em toda leitura, para todo usuário. Medido
@@ -229,7 +229,7 @@ Por extenso na ata de 16/09 em `docs/DECISOES.md`.
 | **D** | tirar `public.ativos / operador atualiza / pode_escrever_filial` do array; depois acrescentar exceção sem ocorrência | **vermelho** pelos dois sentidos, nomeando a ocorrência; restaurado com o mesmo sha256 (`7a5244d1…`) e verde de novo | `C-sabotagem-D-catraca.txt` |
 | **E** | `execute format('alter policy %I on %I.%I using (%s)', …)` num laço; o verbo parametrizado; a palavra partida; o escape hex; controle com o `execute` da `0124` | **vermelho** por falha fechada com arquivo e linha nos quatro; o controle **verde** | `C-sabotagens-A-a-E.txt` |
 | **F** | as oito mutações `doutrina-*` no `banco-sem-docker` | **82/82** detectadas pelo cenário nomeado; cada `doutrina-*` pelo rótulo esperado (`10a`+`10b`, `10c`, `11a`, `11b`, `12`, `13a`, `13b`, `14`) — [run 35113464557](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35113464557) | `F-sabotagem-par-no-ci-run1.txt` |
-| **G** | `--alvo` ausente/inventado, ref trocado, `--dir` no repositório, canal api sem token, e 16 comandos adulterados na fila (update solto, no corpo, no SQL da forma, atrás de `--`; papel `postgres`; sem `raise`; sem read-only; `grant`; `resetar_acervo`; `pg_advisory_lock`; read-only `off`; `select into`; outra tabela; identidade afrouxada; escrita no canal api) | **todos recusados**, nenhum arquivo gravado, `fetch` nunca chamado; controle positivo aceito; a prova da forma-alvo recusada para produção. Sem alvo real | `E-sabotagem-G.txt` |
+| **G** | `--alvo` ausente/inventado, ref trocado, `--dir` no repositório, canal api sem token, e 15 comandos adulterados na fila (update solto, no corpo, no SQL da forma, atrás de `--`; papel `postgres`; sem `raise`; sem read-only; `grant`; `resetar_acervo`; `pg_advisory_lock`; read-only `off`; `select into`; outra tabela; identidade afrouxada; escrita no canal api) | **todos recusados**, nenhum arquivo gravado, `fetch` nunca chamado; controle positivo aceito; a prova da forma-alvo recusada para produção. Sem alvo real | `E-sabotagem-G.txt` |
 | **H** | o plano das formas F0–F3 com a RLS valendo, no ensaio e em produção | F1 com `Filter` por linha na própria tabela; F2 com `SubPlan` de 1.606/3.245 (ensaio) e 1.620/3.555 (produção) loops; F3 só `InitPlan` com 1 loop | `H-plano-ensaio-e-producao.md` |
 
 Trecho real da sabotagem A:
@@ -304,7 +304,7 @@ com persona fictícia criada pela própria F66.
 | `/relatorios/gerados` | 338,2 | 362,3 |
 | `/relatorios/gerados/[id]` | 317,4 | 388,5 |
 
-O código no ar é o mesmo do "depois" da F58: a diferença (4% a 18% abaixo) é **ruído entre dias**, e é essa a faixa que a
+O código no ar é o mesmo do "depois" da F58: a diferença (3,5% a 18% abaixo) é **ruído entre dias**, e é essa a faixa que a
 F66 precisa ter em mente antes de atribuir uma diferença à mudança dela. Saída completa em
 `I-ttfb-producao-antes-do-merge.txt`.
 
@@ -312,8 +312,29 @@ F66 precisa ter em mente antes de atribuir uma diferença à mudança dela. Saí
 
 # 9. A conferência pós-deploy
 
-*Preenchida no PR só de documentação, depois do merge do PR #50: `/api/saude` com `1.64.0` e o commit do merge;
-`node scripts/smoke/smoke-prod.mjs` com 0 falha.*
+Rodou entre o merge do PR #50 e o PR só de documentação, só leitura, antes de qualquer outro PR.
+
+**O CI da cabeça mergeada** (`68190e5`, [run 35126531216](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35126531216)):
+`verificar` e `banco-sem-docker` **success**; `catalogo_policies.sql` com as 25 asserções verdes e a linha FIM; o injetor
+com **82 mutações ativas, 82/82 detectadas pelo cenário nomeado** (as oito `doutrina-*` pelo rótulo esperado), 2 em
+quarentena declarada (as mesmas da F58); o gate de deriva **VERDE**, 34 relações · 312 colunas · 75 funções dos dois lados.
+`F-sabotagem-par-no-ci-run2.txt`.
+
+**`/api/saude` em produção** (`K-pos-deploy-saude.txt`):
+
+| momento | resposta |
+|---|---|
+| antes do deploy (16:56 UTC) | `{"ok":true,"versao":"1.63.0","commit":"62c708d","banco":"ok"}` |
+| primeira resposta nova (17:17 UTC, polling de 20 s) | `{"ok":true,"versao":"1.64.0","commit":"84fdb38","banco":"ok"}` |
+
+A versão no ar é a da fase e o commit é o do merge.
+
+**`node scripts/smoke/smoke-prod.mjs`** (`K-pos-deploy-smoke.txt`): **109 OK · 1 aviso · 0 n/a · 0 falha**, exit 0 — o mesmo
+placar da F58. O aviso é pré-existente e não é da fase: produção não tem kit cadastrado, então a leitura anônima de
+`kits_modelos` não prova a RLS daquela tabela. A evidência guarda só o resumo, a linha da saúde e o aviso: o log completo
+do smoke cita patrimônio, nome e slug de filial reais.
+
+A tag anotada `v1.64.0` vai no merge do PR #51, o commit final da fase.
 
 ---
 
@@ -344,10 +365,10 @@ F66 precisa ter em mente antes de atribuir uma diferença à mudança dela. Saí
 | 21 | README sem "ainda não foi decidida", índice, `:51`; ADR-002:90; ARQUITETURA e RUNBOOK | ✅ | `d7456ff` |
 | 22 | migrations, lock, `database.ts`, `src/app`, `src/components`, `CLAUDE.md` intactos | ✅ | `git diff --name-only main` não os lista (§4) |
 | 23 | nenhuma escrita/DDL em banco de verdade; deriva de tipos com os números da F58 | ✅ | §8.1 (todo comando `transaction_read_only = on` e terminado em `raise exception`; a única gravação foi a sessão do login do `medir.mjs`, encerrada por `signOut`); 34 · 312 · 75 no CI |
-| 24 | 1.64.0, CHANGELOG, registry; tag no merge do PR de documentação | ✅ versão · tag no PR de documentação | `0e2da66`/`e74d3f9`; tag: §9 |
+| 24 | 1.64.0, CHANGELOG, registry; tag no merge do PR de documentação | ✅ versão · a tag `v1.64.0` vai no merge do PR #51 | `0e2da66`/`e74d3f9`; `/api/saude` com `1.64.0` (§9) |
 | 25 | ata com as oito decisões, divergências e motivos | ✅ | `DECISOES.md`, 16/09 (cinco atas) |
 | 26 | este relatório, com o roteiro no topo | ✅ | §1 |
-| 27 | dois PRs mergeados com os dois checks verdes; conferência pós-deploy | no PR de documentação | §9 |
+| 27 | dois PRs mergeados com os dois checks verdes; conferência pós-deploy | ✅ PR #50 · PR #51 mergeado só com os dois checks verdes | PR #50 mergeado em `84fdb38` com `verificar` e `banco-sem-docker` success (run 35126531216); a conferência pós-deploy rodou antes de qualquer outro PR: saúde `1.64.0`/`84fdb38`, smoke 109 OK · 1 aviso pré-existente · 0 falha (§9) |
 | 28 | nenhum dado real; token nunca impresso nem gravado | ✅ | `J-varredura-dados-reais.txt`; o token não foi usado |
 | 29 | o estado de repouso | ✅ | §11 |
 
@@ -395,8 +416,8 @@ F66 precisa ter em mente antes de atribuir uma diferença à mudança dela. Saí
 
 # 13. Pendências e backlog nomeado
 
-**Pendências desta fase:** a persona operador na medição (§8.3); a conferência pós-deploy e a tag `v1.64.0` (PR de
-documentação, §9). **Não há token para girar**: o canal foi o MCP, e `SUPABASE_ACCESS_TOKEN` nunca esteve no ambiente.
+**Pendências desta fase:** a persona operador na medição (§8.3). A conferência pós-deploy está feita (§9); a tag `v1.64.0`
+vai no merge do PR #51. **Não há token para girar**: o canal foi o MCP, e `SUPABASE_ACCESS_TOKEN` nunca esteve no ambiente.
 
 **F60** — a trava positiva de parâmetro de recorte das RPCs (`rpcs-recorte-sql.test.ts`, parâmetro obrigatório e não
 anulável) e a troca de `(p_filial is null or col = p_filial)` nas `rel_*`; a fronteira com a R-ACC-51 está escrita na

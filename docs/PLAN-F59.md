@@ -433,5 +433,5 @@ com vínculo no ensaio; em produção ela não é medida, por desenho — seria 
 nas policies e compara com essa rodada. O que estes números servem para: provar a doutrina (a razão F1/F2 × F3, que
 cresce com o volume) e dar a ordem de grandeza. Produção é ~2× mais lenta que o ensaio em tempo absoluto em TODAS as
 formas, inclusive F0 — a razão entre formas é o que se compara, nunca o absoluto entre bancos. O TTFB desta fase, com o
-MESMO código no ar da F58, ficou 4% a 18% abaixo do "depois" da F58 nas rotas autenticadas: é a faixa de ruído entre dias,
+MESMO código no ar da F58, ficou 3,5% a 18% abaixo do "depois" da F58 nas rotas autenticadas: é a faixa de ruído entre dias,
 que a F66 precisa ter em mente antes de atribuir uma diferença à mudança dela.

@@ -11386,3 +11386,17 @@ refutá-lo. Três rodadas acharam lacunas reais de correção; a quarta, sobre o
 - **Nenhuma escrita e nenhum DDL** em banco de verdade: toda leitura de produção e do ensaio foi um `do` com
   `transaction_read_only = on` terminado em `raise exception`, ou `select` de catálogo; a única gravação foi a sessão do
   login do `medir.mjs` no Supabase Auth, encerrada por `signOut`.
+
+## 2026-09-16 · F59 · A conferência pós-deploy, e um número desta ata corrigido
+
+- **Pós-deploy** (só leitura, depois do merge do PR #50 em `84fdb38` e antes de qualquer outro PR): `/api/saude` passou de
+  `1.63.0`/`62c708d` a `1.64.0`/`84fdb38` às 17:17 UTC; `node scripts/smoke/smoke-prod.mjs` com **109 OK · 1 aviso · 0
+  falha** — o aviso é o pré-existente de `kits_modelos` sem kit cadastrado, o mesmo da F58. O CI da cabeça mergeada (run
+  35126531216): `verificar` e `banco-sem-docker` success, 82/82 mutações, deriva 34 · 312 · 75. Evidências
+  `K-pos-deploy-saude.txt`, `K-pos-deploy-smoke.txt` e `F-sabotagem-par-no-ci-run2.txt`; do smoke, só o resumo, porque o
+  log completo cita patrimônio, nome e slug de filial reais.
+- **Correção.** Um verificador em contexto fresco, instruído a conferir cada número do relatório contra as evidências,
+  achou dois erros: a faixa de ruído do TTFB nas duas atas acima ("4% a 18%") é **3,5% a 18%** — `/relatorios/geral`
+  ficou 3,47% abaixo do "depois" da F58 —, e a sabotagem G do relatório listava "16 comandos adulterados" onde são **15**
+  (G8–G22). A conclusão não muda (é ruído entre dias; todos recusados). As atas acima ficam como foram escritas; o
+  `PLAN-F59.md` e o `RELATORIO-F59.md`, ainda documentos da fase aberta, foram corrigidos no lugar.
