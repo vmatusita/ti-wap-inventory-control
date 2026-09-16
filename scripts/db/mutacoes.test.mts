@@ -100,7 +100,16 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 75 mutações ATIVAS', () => {
+  it('tem entre 20 e 85 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 75 PARA 85 NA F59 (16/09/2026). A doutrina do predicado pôs dez
+    // asserções novas em `catalogo_policies.sql` (bloco 4, rótulos 10a–14), todas nascidas
+    // VERDES — o censo mediu zero policy fora da régua. Asserção que nasce verde e nunca
+    // ficou vermelha é documento, e a ordem da fase exige uma quebra por regra coberta:
+    // OITO mutações novas (`F59_DOUTRINA`), uma por rótulo, com 10a/10b numa só (a policy
+    // renomeada sai do universo pelos dois lados) e a 10d provada por dentro do próprio
+    // roteiro (as árvores sintéticas). 74 + 8 = 82. 85 e não 82: a F60 acrescenta a trava
+    // de parâmetro de recorte das `rel_*` e vai precisar de folga — a mesma conta da F52.
+    //
     // ⚠ O TETO SUBIU DE 70 PARA 75 NA F56 · FRENTE F (11/09/2026). A `0140`
     // recria as três funções da cadeia do import para tratar os cinco caminhos
     // de FK do fato 27 (a bomba do "Substituir tudo"), e ganhou CINCO mutações
@@ -221,7 +230,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(75)
+    expect(MUTACOES.length).toBeLessThanOrEqual(85)
   })
 
   it('os `id` são únicos', () => {
