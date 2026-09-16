@@ -187,17 +187,31 @@ export const CAP_LOTE = CAP_PISO
 // laço é um só (`lerPaginas`, abaixo): duplicá-lo seria reabrir, numa cópia, o off-by-one do teto
 // e o `continue` da primeira página que a revisão de 19/08 levou três achados para acertar.
 //
-// ⚠ A GUARDA DA CHAVE (só no keyset): toda chave tem de ser ESTRITAMENTE maior que a anterior —
-// dentro da página e na virada entre páginas. Não é zelo. Um `.gt` esquecido devolve a mesma
-// primeira página para sempre (laço até o teto, com linhas repetidas no meio); um `.order` DESC
-// ou esquecido faz o `.gt` pular linhas que ainda não vieram. Os dois são corte ou duplicata
-// SILENCIOSOS no resultado, e a guarda os transforma em exceção na primeira página que mostra o
-// defeito. A comparação é a do JavaScript no tipo da chave, e casa com a do Postgres nos dois
-// cursores que existem: inteiro (número com número) e uuid (o texto canônico que o PostgREST
-// devolve é minúsculo, com os hífens nas mesmas posições, e `'0'…'9' < 'a'…'f'` em código de
-// caractere — então a ordem do texto é a ordem dos 128 bits, que é a do `uuid_cmp`). Uma coluna
-// de TEXTO com collation não tem essa garantia: não use keyset nela sem refazer esta conta — a
-// guarda lançaria (alto, nunca calado), mas lançaria em operação legítima.
+// ⚠ A GUARDA DA CHAVE (só no keyset): toda chave que CHEGA ao laço tem de ser ESTRITAMENTE maior
+// que a anterior — dentro da página e da última linha de uma página para a primeira da seguinte.
+// Não é zelo. Um `.gt` esquecido devolve a mesma primeira página para sempre (laço até o teto, com
+// linhas repetidas no meio); um `.order` DESC ou esquecido faz o `.gt` pular linhas que ainda não
+// vieram. Os dois são corte ou duplicata SILENCIOSOS no resultado, e a guarda os transforma em
+// exceção na primeira página que mostra o defeito. A comparação é a do JavaScript no tipo da chave,
+// e casa com a do Postgres nos dois cursores que existem: inteiro (número com número) e uuid (o
+// texto canônico que o PostgREST devolve é minúsculo, com os hífens nas mesmas posições, e
+// `'0'…'9' < 'a'…'f'` em código de caractere — então a ordem do texto é a ordem dos 128 bits, que
+// é a do `uuid_cmp`). Uma coluna de TEXTO com collation não tem essa garantia: não use keyset nela
+// sem refazer esta conta — a guarda lançaria (alto, nunca calado), mas lançaria em operação legítima.
+//
+// ⚠ O QUE A GUARDA NÃO VÊ — e é por isso que o cursor é SÓ a chave primária de uma tabela. Coluna
+// que repete só é acusada quando o empate cai DENTRO de uma página. Quando ele cai na VIRADA (a
+// última linha da página N e a gêmea que abriria a N+1 têm a mesma chave), o `.gt` da página
+// seguinte exclui a gêmea NO BANCO: ela nunca chega ao laço para ser comparada, e a leitura termina
+// com uma linha a menos, sem exceção. Medido na revisão do lote 1 (16/09/2026): chaves 1…1000, 1000
+// de novo, 1001…1500, com `max-rows` 1.000 → 1.500 linhas lidas de 1.501, nenhum erro (o caso está
+// em `comum.test.ts`). Nenhuma guarda do lado do cliente fecha isso sem pagar outra consulta por
+// página. A garantia, então, é ESTRUTURAL, e travada fora daqui: o cursor é o `id` de uma TABELA
+// cuja chave primária é o `id` — unicidade imposta por constraint, nunca pela construção de uma
+// view ou de uma RPC, que ninguém impede de mudar —, e `comum.test.ts` reprova a chamada keyset que
+// saia dessa forma (fonte fora da lista de tabelas, cuja PK a própria trava lê nas migrations;
+// `.order` que não seja só `id` ascendente; `.gt` que não seja no `id` pelo cursor; `chaveDe` que não
+// devolva `.id`; página que não esteja escrita na própria chamada).
 type RespostaDePagina<Row> = { data: readonly Row[] | null; error: { message: string } | null }
 
 /** O valor do cursor do keyset: o `id` inteiro ou uuid (ver a guarda da chave, acima). */

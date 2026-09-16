@@ -309,12 +309,36 @@ describe('paginarTodos — keyset (F60)', () => {
     await expect(paginarTodos('Falha ao ler', pagina, TETO)).rejects.toThrow(/não cresceu \(3 → 2\)/)
   })
 
-  it('LANÇA quando a chave REPETE (a coluna do cursor não é única)', async () => {
+  it('LANÇA quando a chave REPETE DENTRO da página', async () => {
     const repetida = {
       porChave: () => Promise.resolve({ data: [{ k: 'a' }, { k: 'b' }, { k: 'b' }], error: null }),
       chaveDe: (linha: { k: string }) => linha.k,
     }
     await expect(paginarTodos('Falha ao ler', repetida, TETO)).rejects.toThrow(/não cresceu \(b → b\)/)
+  })
+
+  // Revisão do lote 1 (revisor 2, achado 1, 16/09/2026): este título dizia "a coluna do cursor não é
+  // única", e o comentário de `comum.ts` prometia a guarda "na virada entre páginas". A promessa não
+  // se cumpre, e o caso abaixo é a MEDIDA disso — não um defeito a consertar aqui, porque nenhuma
+  // guarda do lado do cliente o fecha sem outra consulta: a gêmea da última chave é excluída pelo
+  // próprio `.gt` NO BANCO e nunca chega ao laço. É o que obriga a garantia a ser estrutural (o
+  // cursor só na PK de uma tabela), e é a trava "o cursor do keyset é a PK" no fim deste arquivo que
+  // a sustenta. Se um dia a guarda passar a enxergar a virada, este caso fica vermelho e a trava
+  // pode ser revista — não antes.
+  it('LIMITE MEDIDO: a repetição que cai na VIRADA da página passa calada — por isso o cursor é só a PK', async () => {
+    // A fonte responde como o Postgres: `where chave > depoisDe order by chave limit min(tamanho, 1000)`.
+    const chaves = [...Array.from({ length: 1000 }, (_, i) => i + 1), 1000, ...Array.from({ length: 500 }, (_, i) => 1001 + i)]
+    const naVirada = {
+      porChave: (depoisDe: number | null, tamanho: number) =>
+        Promise.resolve({
+          data: chaves.filter((k) => depoisDe === null || k > depoisDe).slice(0, Math.min(tamanho, 1000)).map((k) => ({ k })),
+          error: null,
+        }),
+      chaveDe: (linha: { k: number }) => linha.k,
+    }
+    const rows = await paginarTodos<{ k: number }, number>('rótulo', naVirada, TETO)
+    expect(chaves).toHaveLength(1501)
+    expect(rows).toHaveLength(1500) // a segunda `1000` sumiu, e nenhuma exceção avisou
   })
 
   it('LANÇA quando a chave troca de TIPO no meio da leitura', async () => {
@@ -799,26 +823,188 @@ function varrerFontes(dir: string, acc: string[] = []): string[] {
   return acc
 }
 
-type ChamadaDePaginacao = { onde: string; funcao: string; aridade: number; teto: string }
+// ---------------------------------------------------------------------------------------------------
+// F60 · revisão do lote 1 (revisor 2, achado 1) — o cursor do keyset é a CHAVE PRIMÁRIA de uma TABELA.
+//
+// A guarda da chave de `paginarTodos` não enxerga a repetição que cai na virada da página (o caso
+// "LIMITE MEDIDO" acima): o `.gt` exclui a gêmea no banco e a leitura termina com uma linha a menos,
+// calada. Então a unicidade do cursor não pode ser fé nem construção — tem de ser CONSTRAINT, e esta
+// trava a exige de cada chamada keyset, pela AST:
+//  · a fonte é UM `.from(<tabela>)` com a tabela nesta lista (ou um parâmetro tipado como união de
+//    literais só desta lista — o `idsPorAtivo` de `import-logs.ts`); nunca `.rpc()`, nunca view;
+//  · todo `.order()` é `('id')` ou `('id', { ascending: true })` — a ordem é SÓ a PK, ascendente;
+//  · há `.gt('id', <o parâmetro do cursor>)` e `.limit(<o parâmetro do tamanho>)`, e nenhum `.range()`;
+//  · `chaveDe` devolve `<linha>.id`, e as duas funções estão ESCRITAS no objeto (senão não há o que
+//    conferir).
+// E a lista não é de memória: o teste abaixo lê nas migrations que cada uma nasceu com `id … primary
+// key` e que nenhuma migration derrubou essa PK nem a coluna.
+const TABELAS_COM_PK_ID: ReadonlySet<string> = new Set([
+  'anotacoes',
+  'ativos',
+  'itens',
+  'lancamentos_item',
+  'movimentacoes',
+  'pendencias_item',
+  'termos_gerados',
+])
+
+/** `offset`: função escrita na chamada · `keyset`: objeto escrito na chamada · `fora-da-chamada`: o resto. */
+type FormaDaPagina = { forma: 'offset' | 'keyset' | 'fora-da-chamada'; defeitos: string[] }
+type FuncaoEscrita = ts.ArrowFunction | ts.FunctionExpression | ts.MethodDeclaration
+
+const semParenteses = (e: ts.Expression): ts.Expression => (ts.isParenthesizedExpression(e) ? semParenteses(e.expression) : e)
+const ehTexto = (e: ts.Expression | undefined, texto: string): boolean => !!e && ts.isStringLiteralLike(e) && e.text === texto
+
+function funcaoDaPropriedade(obj: ts.ObjectLiteralExpression, nome: string): FuncaoEscrita | 'ausente' | 'não escrita no objeto' {
+  const prop = obj.properties.find((p) => p.name && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name)) && p.name.text === nome)
+  if (!prop) return 'ausente'
+  if (ts.isMethodDeclaration(prop)) return prop
+  if (ts.isPropertyAssignment(prop)) {
+    const valor = semParenteses(prop.initializer)
+    if (ts.isArrowFunction(valor) || ts.isFunctionExpression(valor)) return valor
+  }
+  return 'não escrita no objeto'
+}
+
+const nomeDoParametro = (fn: FuncaoEscrita, i: number): string | null => {
+  const p = fn.parameters[i]
+  return p && ts.isIdentifier(p.name) ? p.name.text : null
+}
+
+/** `(linha) => linha.id` ou `chaveDe(linha) { return linha.id }` — e nada além. */
+function devolveOId(fn: FuncaoEscrita): boolean {
+  const linha = nomeDoParametro(fn, 0)
+  if (!linha || !fn.body) return false
+  let expr: ts.Expression | undefined
+  if (ts.isBlock(fn.body)) {
+    const [unica, ...resto] = fn.body.statements
+    if (resto.length === 0 && unica && ts.isReturnStatement(unica)) expr = unica.expression
+  } else {
+    expr = fn.body
+  }
+  if (!expr) return false
+  const e = semParenteses(expr)
+  return ts.isPropertyAccessExpression(e) && e.name.text === 'id' && ts.isIdentifier(e.expression) && e.expression.text === linha
+}
+
+/** A tabela em VARIÁVEL só vale como parâmetro de uma função que a tipa como união de literais. */
+function tabelasDoParametro(id: ts.Identifier): string[] | null {
+  for (let p: ts.Node | undefined = id.parent; p; p = p.parent) {
+    if (!ts.isFunctionLike(p)) continue
+    const decl = p.parameters.find((d) => ts.isIdentifier(d.name) && d.name.text === id.text)
+    if (!decl) continue
+    if (!decl.type) return null
+    const membros = ts.isUnionTypeNode(decl.type) ? [...decl.type.types] : [decl.type]
+    const nomes = membros.map((m) => (ts.isLiteralTypeNode(m) && ts.isStringLiteral(m.literal) ? m.literal.text : null))
+    return nomes.every((n): n is string => n !== null) ? nomes : null
+  }
+  return null
+}
+
+function examinarPagina(funcao: string, pagina: ts.Expression | undefined): FormaDaPagina {
+  if (!pagina) return { forma: 'fora-da-chamada', defeitos: ['sem o argumento da página'] }
+  const arg = semParenteses(pagina)
+  if (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg)) return { forma: 'offset', defeitos: [] }
+  if (!ts.isObjectLiteralExpression(arg)) {
+    return { forma: 'fora-da-chamada', defeitos: [`a página chega pronta (${ts.SyntaxKind[arg.kind]}), não escrita na chamada`] }
+  }
+  const defeitos: string[] = []
+  const chaveDe = funcaoDaPropriedade(arg, 'chaveDe')
+  if (typeof chaveDe === 'string') defeitos.push(`\`chaveDe\` ${chaveDe}`)
+  else if (!devolveOId(chaveDe)) defeitos.push('`chaveDe` não devolve `<linha>.id`')
+  const porChave = funcaoDaPropriedade(arg, 'porChave')
+  if (typeof porChave === 'string') return { forma: 'keyset', defeitos: [...defeitos, `\`porChave\` ${porChave}`] }
+
+  const deslocamento = funcao === 'paginarPorIds' ? 1 : 0 // o lote vem na frente
+  const cursor = nomeDoParametro(porChave, deslocamento)
+  const tamanho = nomeDoParametro(porChave, deslocamento + 1)
+  const fontes: (ts.Expression | undefined)[] = []
+  let ordens = 0
+  let gts = 0
+  let limites = 0
+  const visitar = (n: ts.Node): void => {
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)) {
+      const metodo = n.expression.name.text
+      const [a0, a1] = n.arguments
+      const alvo = n.expression.expression
+      if (metodo === 'from' && !(ts.isIdentifier(alvo) && alvo.text === 'Array')) {
+        fontes.push(a0)
+      } else if (metodo === 'rpc') {
+        defeitos.push('fonte `.rpc()` — o retorno de uma RPC não tem unicidade imposta')
+      } else if (metodo === 'range') {
+        defeitos.push('`.range()` dentro do keyset')
+      } else if (metodo === 'order') {
+        ordens++
+        const ascendente =
+          a1 === undefined ||
+          (ts.isObjectLiteralExpression(a1) &&
+            a1.properties.length === 1 &&
+            ts.isPropertyAssignment(a1.properties[0]) &&
+            a1.properties[0].name.getText() === 'ascending' &&
+            a1.properties[0].initializer.kind === ts.SyntaxKind.TrueKeyword)
+        if (!ehTexto(a0, 'id') || !ascendente || n.arguments.length > 2) {
+          defeitos.push(`\`.order(${n.arguments.map((x) => x.getText()).join(', ')})\` — o keyset ordena SÓ pelo \`id\`, ascendente`)
+        }
+      } else if (metodo === 'gt' && ehTexto(a0, 'id')) {
+        if (cursor !== null && a1 !== undefined && ts.isIdentifier(a1) && a1.text === cursor) gts++
+        else defeitos.push(`\`.gt('id', ${a1?.getText() ?? ''})\` não é pelo parâmetro do cursor`)
+      } else if (metodo === 'limit' && tamanho !== null && a0 !== undefined && ts.isIdentifier(a0) && a0.text === tamanho) {
+        limites++
+      }
+    }
+    ts.forEachChild(n, visitar)
+  }
+  if (porChave.body) visitar(porChave.body)
+
+  if (fontes.length !== 1) {
+    defeitos.push(`${fontes.length} chamadas a \`.from()\` — o keyset lê UMA tabela`)
+  } else {
+    const fonte = fontes[0] === undefined ? undefined : semParenteses(fontes[0])
+    const tabelas =
+      fonte === undefined ? null : ts.isStringLiteralLike(fonte) ? [fonte.text] : ts.isIdentifier(fonte) ? tabelasDoParametro(fonte) : null
+    if (tabelas === null || !tabelas.every((t) => TABELAS_COM_PK_ID.has(t))) {
+      defeitos.push(`\`.from(${fonte?.getText() ?? ''})\` fora das tabelas cuja PK é o \`id\``)
+    }
+  }
+  if (ordens === 0) defeitos.push("sem `.order('id')`")
+  if (gts === 0) defeitos.push("sem `.gt('id', <cursor>)`")
+  if (limites === 0) defeitos.push('sem `.limit(<tamanho>)`')
+  return { forma: 'keyset', defeitos }
+}
+
+type ChamadaDePaginacao = { onde: string; funcao: string; aridade: number; teto: string; pagina: FormaDaPagina }
 const CHAMADAS: ChamadaDePaginacao[] = []
-for (const p of [...varrerFontes(join(RAIZ, 'src')), ...varrerFontes(join(RAIZ, 'scripts'))]) {
-  const fonte = readFileSync(p, 'utf8')
-  if (!/paginar(Todos|PorIds)/.test(fonte)) continue
-  const sf = ts.createSourceFile(p, fonte, ts.ScriptTarget.Latest, true, p.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
-  const onde = relative(RAIZ, p).split(sep).join('/')
+function coletarChamadas(sf: ts.SourceFile, onde: string, acc: ChamadaDePaginacao[]): ChamadaDePaginacao[] {
   const visitar = (n: ts.Node): void => {
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text in ARIDADE) {
-      CHAMADAS.push({
+      const funcao = n.expression.text
+      acc.push({
         onde: `${onde}:${sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1}`,
-        funcao: n.expression.text,
+        funcao,
         aridade: n.arguments.length,
         teto: n.arguments.at(-1)?.getText(sf) ?? '',
+        pagina: examinarPagina(funcao, n.arguments[funcao === 'paginarPorIds' ? 2 : 1]),
       })
     }
     ts.forEachChild(n, visitar)
   }
   visitar(sf)
+  return acc
 }
+for (const p of [...varrerFontes(join(RAIZ, 'src')), ...varrerFontes(join(RAIZ, 'scripts'))]) {
+  const fonte = readFileSync(p, 'utf8')
+  if (!/paginar(Todos|PorIds)/.test(fonte)) continue
+  const sf = ts.createSourceFile(p, fonte, ts.ScriptTarget.Latest, true, p.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+  coletarChamadas(sf, relative(RAIZ, p).split(sep).join('/'), CHAMADAS)
+}
+const paginaDoTrecho = (fonte: string): FormaDaPagina[] =>
+  coletarChamadas(ts.createSourceFile('trecho.ts', fonte, ts.ScriptTarget.Latest, true), 'trecho.ts', []).map((c) => c.pagina)
+
+// As migrations, sem comentário de linha, lidas na COLETA: a prova de que cada tabela da lista tem o `id`
+// como chave primária desde que nasceu, e de que nenhuma migration a desfez.
+const MIGRATIONS_SEM_COMENTARIO = readdirSync(join(RAIZ, 'supabase', 'migrations'))
+  .filter((f) => f.endsWith('.sql'))
+  .map((f) => ({ arquivo: f, sql: readFileSync(join(RAIZ, 'supabase', 'migrations', f), 'utf8').replace(/--[^\n]*/g, '') }))
 const EXPORTADOS = new Map<string, unknown>(Object.entries(comum))
 
 describe('toda chamada passa o teto do domínio (F60)', () => {
@@ -850,5 +1036,82 @@ describe('toda chamada passa o teto do domínio (F60)', () => {
         return ![1, 2, 5].includes(valor / ordem)
       })
     expect(fora).toEqual([])
+  })
+})
+
+describe('o cursor do keyset é a PK de uma tabela (F60 · revisão do lote 1)', () => {
+  // O fecho de cada trecho: `c` é o client, `CAP_*` o teto — nomes soltos, a AST não os resolve.
+  const KEYSET_TODOS = (porChave: string, chaveDe = '(a) => a.id') =>
+    `async function f(){ return paginarTodos("x", { porChave: ${porChave}, chaveDe: ${chaveDe} }, CAP_ATIVOS) }`
+  const VALIDO = `(d, n) => { const q = c.from("ativos").select("id").order("id").limit(n); return d === null ? q : q.gt("id", d) }`
+
+  it.each([
+    ['a forma de `idsDaFilial`', KEYSET_TODOS(VALIDO)],
+    [
+      'paginarPorIds com o lote na frente e `{ ascending: true }`',
+      'async function f(ids: string[]){ return paginarPorIds("x", ids, { porChave: (lote, d, n) => { const q = c.from("ativos").select("id").in("id", lote).order("id", { ascending: true }).limit(n); return d === null ? q : q.gt("id", d) }, chaveDe: (r) => r.id }, CAP_LOTE) }',
+    ],
+    [
+      'o `let q` com filtro condicional (a Zona destrutiva)',
+      KEYSET_TODOS('(d, n) => { let q = c.from("lancamentos_item").select("id").order("id").limit(n); if (f !== null) q = q.eq("filial_id", f); return d === null ? q : q.gt("id", d) }'),
+    ],
+    [
+      'a tabela num PARÂMETRO tipado como união de literais da lista (`idsPorAtivo`)',
+      'async function f(tabela: "movimentacoes" | "pendencias_item"){ return paginarTodos("x", { porChave: (d, n) => { const q = c.from(tabela).select("id").order("id").limit(n); return d === null ? q : q.gt("id", d) }, chaveDe: (r) => r.id }, CAP_LOTE) }',
+    ],
+    ['`chaveDe` como método', `async function f(){ return paginarTodos("x", { porChave: ${VALIDO}, chaveDe(r) { return r.id } }, CAP_ATIVOS) }`],
+  ])('aceita: %s', (_nome, fonte) => {
+    expect(paginaDoTrecho(fonte)).toEqual([{ forma: 'keyset', defeitos: [] }])
+  })
+
+  it.each([
+    ['a VIEW de P1, pelo `ativo_id` (única só por construção)', KEYSET_TODOS('(d, n) => { const q = c.from("v_conflitos_filiais").select("ativo_id").order("ativo_id").limit(n); return d === null ? q : q.gt("ativo_id", d) }', '(r) => r.ativo_id'), 4],
+    ['`chaveDe` por outra coluna', KEYSET_TODOS(VALIDO, '(a) => a.ativo_id'), 1],
+    ['`chaveDe` que calcula em vez de devolver o `id`', KEYSET_TODOS(VALIDO, '(a) => String(a.id)'), 1],
+    ['ordem DESC', KEYSET_TODOS(VALIDO.replace('.order("id")', '.order("id", { ascending: false })')), 1],
+    ['desempate depois do `id`', KEYSET_TODOS(VALIDO.replace('.order("id")', '.order("id").order("created_at")')), 1],
+    ['ordem por outra coluna com `gt` no `id`', KEYSET_TODOS(VALIDO.replace('.order("id")', '.order("created_at")')), 1],
+    ['sem o `gt`', KEYSET_TODOS('(d, n) => c.from("ativos").select("id").order("id").limit(n)'), 1],
+    // dois: o `gt` que não é pelo cursor, e a falta do que é
+    ['`gt` no `id` por outro valor que não o cursor', KEYSET_TODOS(VALIDO.replace('q.gt("id", d)', 'q.gt("id", ultimo)')), 2],
+    ['sem o `limit` pelo tamanho', KEYSET_TODOS(VALIDO.replace('.limit(n)', '.limit(1000)')), 1],
+    ['`range` dentro do keyset', KEYSET_TODOS(VALIDO.replace('.limit(n)', '.limit(n).range(0, n)')), 1],
+    ['fonte RPC', KEYSET_TODOS('(d, n) => { const q = c.rpc("rel_x", {}).order("id").limit(n); return d === null ? q : q.gt("id", d) }'), 2],
+    ['tabela fora da lista', KEYSET_TODOS(VALIDO.replace('"ativos"', '"colaboradores_x"')), 1],
+    [
+      'tabela num parâmetro tipado `string`',
+      'async function f(tabela: string){ return paginarTodos("x", { porChave: (d, n) => { const q = c.from(tabela).select("id").order("id").limit(n); return d === null ? q : q.gt("id", d) }, chaveDe: (r) => r.id }, CAP_LOTE) }',
+      1,
+    ],
+    ['`porChave` pronto, fora do objeto (não há o que conferir)', 'async function f(){ return paginarTodos("x", { porChave: ler, chaveDe: (a) => a.id }, CAP_ATIVOS) }', 1],
+  ])('recusa: %s', (_nome, fonte, quantos) => {
+    const [pagina] = paginaDoTrecho(fonte)
+    expect(pagina.forma).toBe('keyset')
+    expect(pagina.defeitos).toHaveLength(quantos)
+  })
+
+  it('OFFSET escrito na chamada não é keyset (e não passa por esta régua)', () => {
+    expect(paginaDoTrecho('async function f(){ return paginarTodos("x", (a, b) => c.from("v").select("*").order("chave").range(a, b), CAP_ATIVOS) }')).toEqual([
+      { forma: 'offset', defeitos: [] },
+    ])
+  })
+
+  it('toda chamada KEYSET do repositório usa a PK como cursor', () => {
+    const keyset = CHAMADAS.filter((c) => c.pagina.forma === 'keyset')
+    // 33 de `paginarTodos` + 1 de `paginarPorIds` em 16/09/2026 (PLAN-F60 §2.1) — guarda da varredura.
+    expect(keyset.length).toBeGreaterThanOrEqual(34)
+    expect(keyset.filter((c) => c.pagina.defeitos.length > 0).map((c) => ({ onde: c.onde, defeitos: c.pagina.defeitos }))).toEqual([])
+  })
+
+  it.each([...TABELAS_COM_PK_ID])('`%s` nasceu com `id … primary key`, e nenhuma migration desfez a PK nem a coluna', (tabela) => {
+    // `String.raw`: a barra invertida chega intacta ao `RegExp`, e só o nome da tabela é interpolado.
+    const criacao = new RegExp(String.raw`create\s+table\s+(?:if\s+not\s+exists\s+)?public\.${tabela}\s*\(\s*id\s+[^,]*?\bprimary\s+key\b`, 'i')
+    expect(MIGRATIONS_SEM_COMENTARIO.filter((m) => criacao.test(m.sql)).map((m) => m.arquivo)).toHaveLength(1)
+    const desfeitas = [
+      new RegExp(String.raw`drop\s+table\s+(?:if\s+exists\s+)?public\.${tabela}\b`, 'i'),
+      new RegExp(String.raw`drop\s+constraint\s+(?:if\s+exists\s+)?"?${tabela}_pkey\b`, 'i'),
+      new RegExp(String.raw`alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?public\.${tabela}\b[^;]*\bdrop\s+(?:column\s+)?(?:if\s+exists\s+)?id\b`, 'i'),
+    ]
+    expect(MIGRATIONS_SEM_COMENTARIO.filter((m) => desfeitas.some((r) => r.test(m.sql))).map((m) => m.arquivo)).toEqual([])
   })
 })
