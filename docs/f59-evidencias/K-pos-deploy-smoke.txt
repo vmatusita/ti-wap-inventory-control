@@ -1,0 +1,14 @@
+# F59 · Conferência pós-deploy — smoke de produção (node scripts/smoke/smoke-prod.mjs)
+# 16/09/2026, depois do deploy da 1.64.0 (commit do merge: 84fdb38) — exit 0
+#
+# Aqui entram SÓ o resumo, a linha da saúde e o único aviso: o log completo do smoke cita patrimônio, nome e slug
+# de filial reais, e por isso não vira evidência (critério 28; o mesmo tratamento da F58). O rastro completo fica na mesa.
+
+RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha
+
+  [OK   ] /api/saude — banco ok · versao 1.64.0 · commit 84fdb38
+  [AVISO] kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada
+
+# O aviso é PRÉ-EXISTENTE (o mesmo da F58) e não tem relação com esta fase: produção não tem kit cadastrado, então a
+# leitura anônima de kits_modelos não prova nada sobre a RLS daquela tabela.
+# Nenhuma falha — o mesmo placar da conferência pós-deploy da F58 (109 OK · 1 aviso · 0 falha).

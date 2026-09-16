@@ -1,0 +1,13 @@
+# F59 · Conferência pós-deploy — /api/saude em produção (só leitura)
+# 16/09/2026, depois do merge do PR #50 (commit do merge: 84fdb38)
+
+antes do deploy (16:56 UTC, antes do TTFB):
+{"ok":true,"versao":"1.63.0","commit":"62c708d","banco":"ok","ms":121}
+
+primeira resposta com a versão nova (polling de 20 s, 17:17:00 UTC):
+{"ok":true,"versao":"1.64.0","commit":"84fdb38","banco":"ok","ms":96}
+
+logo depois do smoke:
+{"ok":true,"versao":"1.64.0","commit":"84fdb38","banco":"ok","ms":357}
+
+A versão no ar é a da fase (1.64.0) e o commit é o do merge (84fdb38).
