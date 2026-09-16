@@ -6,6 +6,33 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 16/09/2026 — F59 · A doutrina do predicado, escrita e travada ✅
+
+**v1.64.0** · **sem migration** · Fase invisível ao operador. A régua que decide a FORMA do predicado de RLS foi escrita
+antes da primeira policy de tenant e tornada impossível de violar — sem reescrever policy nenhuma: nenhuma policy, função,
+grant ou índice mudou em banco nenhum. Ata completa em [`docs/DECISOES.md`](docs/DECISOES.md); relatório, com o roteiro do
+Johnny no topo, em [`docs/RELATORIO-F59.md`](docs/RELATORIO-F59.md).
+
+- ✅ **A doutrina escrita** — emenda F59 da [`docs/MATRIZ-REGRAS.md`](docs/MATRIZ-REGRAS.md), R-ACC-63 a R-ACC-72: o
+  predicado de recorte é `col = any (array (select public.<fn>()))` sobre função `setof`; nunca `fn(col)`, nunca o falso
+  içamento `(select fn(col))`, nunca sub-select que leia tabela ou olhe a linha; função sem dado da linha só dentro de
+  `(select …)`. A forma-alvo das quatro funções de conjunto da F62 está especificada por inteiro — **`setof`, não o `uuid[]`
+  da ficha**, que erra no conjunto vazio e no NULL (provado no ensaio) —, com a forma de pares e a fronteira com a R-ACC-51.
+  A R-ACC-32 passa a 19.
+- ✅ **A trava de mesa** — `src/lib/validators/policies-initplan.test.ts` sobre `scripts/db/predicado-policies.mjs`: replay
+  das 139 migrations (**61 policies**, 138 de 138 comandos de policy consumidos), R1/R2/R3, falha fechada para DDL de policy
+  montado por `execute`/`format` e comando ilegível, e a guarda com SQL sintético em memória.
+- ✅ **O par no catálogo do CI** — bloco 4 de `supabase/tests/catalogo_policies.sql` (`10a`–`14`), lendo a árvore
+  `pg_policy.polqual`: o universo congelado, a lista única de exceções `k_excecoes_predicado` (**18 ocorrências**, por
+  ocorrência, com migration, motivo e destino — 6 para a F66, 1 para a F67, 11 permanentes), a catraca nos dois sentidos, a
+  R-setof e a guarda de doze árvores sintéticas. Calibrado só leitura no ensaio e em produção antes do push; **oito
+  mutações novas** no injetor, todas detectadas pelo rótulo nomeado (teto 75 → 85).
+- ✅ **A medição** — `scripts/perf/medir-rls.mjs`, só leitura e falha fechada, com a RLS no plano: no ensaio, a forma por
+  linha leva 23 ms (`ativos`) e 45 ms (`movimentacoes`), o falso içamento 24 ms e 47 ms (`SubPlan` com um loop por linha), e a
+  forma içada 1,3 ms e 1,7 ms (`InitPlan`). Produção e TTFB em [`docs/perf/`](docs/perf/).
+- ✅ **Os documentos** — `PLANO-PRODUTO-MULTIEMPRESA.md:71` corrigido por cópia; cabeçalho de status nos dois documentos do
+  produto; cabeçalho de escopo na `ESPECIFICACAO.md`; nota de emenda no ADR-002; o índice sem "ainda não foi decidida".
+
 ## 15/09/2026 — F58 · A fronteira tipada do banco ✅
 
 **v1.63.0** · **sem migration** · Fase invisível ao operador. O TypeScript voltou a conferir o que sai do banco: uma porta
