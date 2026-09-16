@@ -64,6 +64,18 @@ export const metadata = {
   title: 'Itens',
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// O teto vale também para as Server Actions desta página (doc do Next: o `maxDuration` da
+// página muda o de todas as actions usadas nela). Cada statement delas já para nos 8 s de
+// `statement_timeout` do banco (fato 18), então o que decide é o LAÇO, e aqui não há laço
+// que cresça com o acervo:
+// `lancarItens`/`transferirItens` são uma RPC cada, os cadastros inline uma escrita, as
+// buscas leituras curtas, e `exportarItensSaldosCSV` para em 5.000 linhas (`CAP_EXPORT`).
+export const maxDuration = 60
+
 // A LISTA DE ITENS POR QUANTIDADE — reescrita no padrão de `/ativos` (F42 · J3).
 //
 // ANTES: 562 linhas empilhando TRÊS telas numa — saldos, um toggle `?visao=` que

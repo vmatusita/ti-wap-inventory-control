@@ -167,6 +167,22 @@ function queryLista(
   params: ListarAtivosParams,
   head = false,
 ) {
+  // F60 · fato 14 — o `count: 'exact'` é DECISÃO, não herança (PLAN-F60 §10, decisão 6; ata da
+  // F60 em docs/DECISOES.md). Custo medido em produção em 16/09/2026, com 1.635 ativos
+  // (`docs/perf/f60-producao-antes-custo.json`, bloco B2, mediana de 7): sem busca, 1,34 ms
+  // (`Index Only Scan`); com UMA palavra nas 8 colunas, 7,73 ms (`Seq Scan` — `%palavra%` não
+  // usa índice). As alternativas trocam esse custo por um número aproximado com cara de exato,
+  // que a régua da casa proíbe: `planned` mostraria o `reltuples` (1.631 contra os 1.635 reais),
+  // e `estimated` passa ao planejado justamente quando o número cresce. O texto da paginação é
+  // "1–50 de {total}", sem "cerca de", e `ativos-paginacao.tsx` o repete em 8 telas.
+  //
+  // REVISITAR quando o count COM busca passar de ~100 ms. A conta, supondo o `Seq Scan` linear
+  // nas linhas: 100 / 7,73 ≈ 13× o volume medido ≈ 21 mil ativos. ⚠ A palavra medida foi `e`,
+  // que casa 1.589 das 1.635 linhas e sai cedo do OR (o Postgres para no primeiro ramo
+  // verdadeiro); uma palavra que não casa avalia os 8 `ilike` em toda linha e custa mais — o
+  // limiar vale contra a medição refeita com ela, não contra esta. A saída, quando chegar a
+  // hora, não é trocar o `count` (seria o número aproximado): é índice de trigrama (`pg_trgm`
+  // não está instalado, e habilitá-lo pede aprovação) ou busca por prefixo, que desfaz a F27/B5.
   let query = supabase
     .from('ativos')
     .select(LEITURA_LISTA_ATIVOS.select, { count: 'exact', head })

@@ -60,6 +60,18 @@ function Dado({
   )
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// O teto vale também para as Server Actions desta página (doc do Next: o `maxDuration` da
+// página muda o de todas as actions usadas nela). Cada statement delas já para nos 8 s de
+// `statement_timeout` do banco (fato 18), então o que decide é o LAÇO, e aqui não há laço
+// que cresça com o acervo:
+// `gerarTermo` monta UM `.docx` por chamada (render, upload, URL assinada), e as demais
+// (estorno, anotação, cadastro, assinatura, pendência de item) são uma RPC ou uma escrita.
+export const maxDuration = 60
+
 // FLX-03 — título da aba com o patrimônio (WCAG 2.4.2). Consulta PRÓPRIA, e não
 // `buscarAtivoPorId` (que a página já chama, embaixo): aquela traz a ficha
 // inteira com o embed de filial só para preencher um `<title>`. `data` vem

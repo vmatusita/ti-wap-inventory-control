@@ -11,6 +11,16 @@ import {
 import { BlocoAjuda } from '@/components/ajuda/bloco-ajuda'
 import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
 
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// Esta página não lê `lib/queries`, mas não é estática: chama `getOperador()` (Auth +
+// `profiles`) e roda debaixo de `(app)/layout.tsx`, que lê o banco a cada request (filiais
+// e os dois selos). O pendurado que o teto corta é o mesmo das outras rotas.
+// Esta página não hospeda Server Action própria.
+export const maxDuration = 60
+
 // Uma pagina da documentacao (F20). Server Component, como o resto da ajuda —
 // os badges do glossario sao os componentes REAIS do sistema.
 //
