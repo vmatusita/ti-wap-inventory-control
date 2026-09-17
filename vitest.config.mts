@@ -39,6 +39,34 @@ const alias = {
   'server-only': fileURLToPath(new URL('./node_modules/server-only/empty.js', import.meta.url)),
 }
 
+// O RELÓGIO DO RUNNER (F61, 17/09/2026) — 60 s no lugar dos 5 s padrão do Vitest.
+//
+// Esta suíte é dominada por teste de ANÁLISE ESTÁTICA: **51 arquivos** varrem a
+// árvore do repositório (`readdirSync` recursivo, `coletarLiterais`, o compilador
+// TypeScript) lendo centenas de fontes DENTRO do corpo do teste. O custo deles não
+// depende do que afirmam — depende de quantos arquivos o projeto tem e de quão
+// ocupado o disco está —, e cresce a cada fase. Os 5 s padrão do Vitest foram
+// feitos para teste unitário de função, não para isso.
+//
+// O sintoma medido em 17/09, na mesa: a MESMA suíte, quatro rodadas seguidas, sem
+// nenhuma mudança de código entre elas — **0, 2, 5 e 1** reprovações, todas por
+// `Test timed out in 5000ms` e cada vez em arquivos DIFERENTES (`url.test.ts` e
+// `registry.test.ts` na segunda; três arquivos na terceira;
+// `chaves-de-storage.test.ts`, a 5.106 ms, na quarta). Rodados isolados, todos
+// verdes em ~2 s. É o relógio, não a trava: em nenhuma das quatro uma asserção
+// falhou — 7.022 testes, e a contagem de reprovação bateu com a de timeout.
+//
+// A F61 acrescentou 11 arquivos de teste, que disputam o mesmo disco — ela tornou
+// visível uma fragilidade que já existia, e por isso conserta aqui em vez de
+// pendurar `60_000` em 51 testes, um a um, até a próxima fase recomeçar a fila.
+//
+// ⚠ Isto NÃO afrouxa nenhuma trava: timeout não é asserção de ninguém. O que ele
+// pega — laço infinito, promessa que nunca resolve — continua sendo pego, 55 s
+// depois. A folga é ~3x o pior tempo já medido (a `sem-wapismo`, ~22 s isolada),
+// que já carregava este mesmo `60_000` no próprio teste desde 14/09 — esta config
+// só promove a exceção dela a regra da casa.
+const RELOGIO = 60_000
+
 export default defineConfig({
   test: {
     projects: [
@@ -46,6 +74,7 @@ export default defineConfig({
         resolve: { alias },
         test: {
           name: 'puro',
+          testTimeout: RELOGIO,
           // Funções puras (CLAUDE.md — stack): domínio, patrimônio, datas,
           // período, termos e os validadores Zod (espelho da máquina de estados
           // §4). Ambiente `node`, sem tocar em componentes ou banco.
@@ -66,6 +95,7 @@ export default defineConfig({
         resolve: { alias },
         test: {
           name: 'componentes',
+          testTimeout: RELOGIO,
           // PISO DE TESTE DE COMPONENTE, GRAU 1 (F45). Render ESTÁTICO por
           // `renderToStaticMarkup` de `react-dom/server`, que já é dependência
           // (`react-dom` 19.2.8) — zero dependência nova, como manda a regra 3
