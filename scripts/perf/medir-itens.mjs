@@ -17,9 +17,12 @@
 //          último lançamento é o mais recente), frio (só escreveu no começo da ordem) e SEM
 //          lançamento nenhum — o caso de todo usuário de consulta que abre `/itens`
 //   5a/5b  as RPCs de saldo que `/itens` chama (a assinatura que EXISTIR no banco na hora —
-//          `rel_saldo_itens(smallint, date)` hoje, `rel_saldo_itens_filiais(smallint[], date)`
-//          depois do lote 2), rotuladas como forma de `/itens`
-//   5c     `rel_mov_itens` (velha ou `_filiais`), rotulada como forma de RELATÓRIO, não de `/itens`
+//          `rel_saldo_itens_filiais(smallint[], date)` desde a 0143; a velha
+//          `rel_saldo_itens(smallint, date)` só num banco anterior a ela, e a 0145 a derruba),
+//          rotuladas como forma de `/itens`. O consolidado (5a) é a lista de TODAS as filiais,
+//          inclusive as desativadas — a que `getSaldosPorFilial` manda desde o lote 2 da F60
+//   5c     `rel_mov_itens` (`_filiais` ou, antes da 0143, a velha), rotulada como forma de
+//          RELATÓRIO, não de `/itens` — com a mesma lista de todas as filiais no consolidado
 //   6      o custo por INSERT do trigger `valida_lancamento_item` no par quente
 //
 // As formas 1–4 rodam com PLANO GENÉRICO (`prepare` + `plan_cache_mode = force_generic_plan`),
@@ -394,6 +397,7 @@ declare
   v_frio     uuid;
   v_quente   uuid;
   v_fil      smallint[];
+  v_todas    smallint[];
   v_duas     smallint[];
   v_item_q   smallint;
   v_fil_q    smallint;
@@ -430,6 +434,8 @@ begin
    where l.observacao like '${MARCADOR}%' group by l.item_id, l.filial_id
    order by count(*) desc, l.item_id, l.filial_id limit 1;
   select array_agg(f.id order by f.id) into v_fil from public.filiais f where f.ativo;
+  -- F60 · lote 2: o consolidado das rel_*_filiais é a lista de TODAS (com desativada), como o app manda.
+  select array_agg(f.id order by f.id) into v_todas from public.filiais f;
   if v_admin is null or v_sem is null or v_frio is null or v_quente is null or v_item_q is null or v_fil is null then
     raise exception 'F60I_IDENTIDADE_AUSENTE';
   end if;
@@ -481,7 +487,7 @@ ${prepares}
     format('execute f60i_ultimo(%L)', v_sem),
     case
       when (v_ass ->> 'rel_saldo_itens_filiais')::boolean
-        then format('select * from public.rel_saldo_itens_filiais(%L::smallint[], current_date)', v_fil)
+        then format('select * from public.rel_saldo_itens_filiais(%L::smallint[], current_date)', v_todas)
       when (v_ass ->> 'rel_saldo_itens_velha')::boolean
         then 'select * from public.rel_saldo_itens(null::smallint, current_date)'
     end,
@@ -493,7 +499,7 @@ ${prepares}
     end,
     case
       when (v_ass ->> 'rel_mov_itens_filiais')::boolean
-        then format('select * from public.rel_mov_itens_filiais(%L::smallint[], (current_date - 30)::date, current_date)', v_fil)
+        then format('select * from public.rel_mov_itens_filiais(%L::smallint[], (current_date - 30)::date, current_date)', v_todas)
       when (v_ass ->> 'rel_mov_itens_velha')::boolean
         then 'select * from public.rel_mov_itens(null::smallint, (current_date - 30)::date, current_date)'
     end

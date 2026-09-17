@@ -455,6 +455,23 @@ function lerContagem(resposta) {
   return { count: resposta.count }
 }
 
+// F60 — o CONSOLIDADO das `rel_*_filiais` é a LISTA de TODAS as filiais, inclusive as desativadas
+// (a régua de `filiaisDoConsolidado`, src/lib/queries/relatorios/recorte-filiais.ts): NULL no recorte
+// dá ZERO linhas, não "tudo". Lida uma vez por sessão e guardada no `ctx`, com o `count` exato na
+// MESMA consulta — uma lista truncada daria um consolidado menor com cara de certo, e aqui isso LANÇA
+// (o check vira FALHA com o motivo). Só a CONTAGEM sai no relatório, nunca os ids.
+async function todasAsFiliais(db, ctx) {
+  if (ctx.todasAsFiliais) return ctx.todasAsFiliais
+  const { data, error, count } = await db.from('filiais').select('id', { count: 'exact' }).order('id')
+  if (error) throw error
+  const ids = (data ?? []).map((f) => f.id)
+  if (typeof count !== 'number' || count !== ids.length || ids.length === 0) {
+    throw { code: 'LISTA_DE_FILIAIS', message: `${ids.length} de ${count ?? '?'} filiais lidas — consolidado incompleto` }
+  }
+  ctx.todasAsFiliais = ids
+  return ids
+}
+
 // Lista declarativa de checks — para acrescentar cobertura, acrescente um
 // objeto aqui. `ctx` é compartilhado entre os checks (na ordem da lista).
 const CHECKS = [
@@ -678,23 +695,27 @@ const CHECKS = [
     },
   },
   {
-    nome: 'rpc rel_saldo_itens · consolidado',
+    nome: 'rpc rel_saldo_itens_filiais · consolidado',
     area: 'itens · saldos (I4)',
     async executar(db, ctx) {
-      // Sem os dois parâmetros a RPC nem resolve (assinatura p_filial/p_ate).
-      const { data, error } = await db.rpc('rel_saldo_itens', {
-        p_filial: null,
+      // Sem os dois parâmetros a RPC nem resolve (assinatura p_filiais/p_ate). F60: o consolidado é a
+      // lista de TODAS as filiais, e a RPC devolve dois níveis — conta-se o NÍVEL DO TOTAL (`filial_id`
+      // null), que é o que a chamada consolidada de antes devolvia.
+      const { data, error } = await db.rpc('rel_saldo_itens_filiais', {
+        p_filiais: await todasAsFiliais(db, ctx),
         p_ate: dataSP(0),
       })
       if (error) throw error
-      const linhas = data?.length ?? 0
-      ctx.saldos = data ?? []
+      const total = (data ?? []).filter((l) => l.filial_id === null)
+      const linhas = total.length
+      ctx.saldos = total
       if (!linhas) {
         return ctx.itensAtivos
-          ? { status: FALHA, detalhe: `catálogo tem ${ctx.itensAtivos} itens ativos mas a RPC devolveu 0 linhas` }
+          ? { status: FALHA, detalhe: `catálogo tem ${ctx.itensAtivos} itens ativos mas a RPC devolveu 0 linhas no nível do total` }
           : { status: AVISO, detalhe: '0 linhas (catálogo de itens vazio)' }
       }
-      const { faltando } = conferirColunas(data[0], [
+      const { faltando } = conferirColunas(total[0], [
+        'filial_id',
         'item_id',
         'item',
         'grupo',
@@ -705,26 +726,32 @@ const CHECKS = [
         'falta',
       ])
       if (faltando.length) return { status: FALHA, detalhe: `colunas faltando: ${faltando.join(', ')}` }
-      return { status: OK, detalhe: `${linhas} itens no saldo consolidado · shape ok` }
+      return { status: OK, detalhe: `${linhas} itens no saldo consolidado (nível do total, ${ctx.todasAsFiliais.length} filiais) · shape ok` }
     },
   },
   {
-    nome: 'rpc rel_saldo_itens · por filial',
+    nome: 'rpc rel_saldo_itens_filiais · por filial',
     area: 'itens · saldos lado a lado (I4)',
     async executar(db, ctx) {
       const filial = ctx.primeiraFilialId
       if (!filial) return { status: AVISO, detalhe: 'nenhuma filial para consultar' }
-      const { data, error } = await db.rpc('rel_saldo_itens', { p_filial: filial, p_ate: dataSP(0) })
+      const { data, error } = await db.rpc('rel_saldo_itens_filiais', { p_filiais: [filial], p_ate: dataSP(0) })
       if (error) throw error
-      return { status: OK, detalhe: `${data?.length ?? 0} linhas para 1 filial` }
+      // uma filial: as linhas dela e o nível do total, com a mesma contagem de itens nos dois
+      const daFilial = (data ?? []).filter((l) => l.filial_id === filial).length
+      const doTotal = (data ?? []).filter((l) => l.filial_id === null).length
+      if (daFilial !== doTotal) {
+        return { status: FALHA, detalhe: `1 filial: ${daFilial} linhas da filial × ${doTotal} do nível do total (deviam ser iguais)` }
+      }
+      return { status: OK, detalhe: `${daFilial} linhas para 1 filial (+ ${doTotal} do nível do total)` }
     },
   },
   {
-    nome: 'rpc rel_resumo · últimos 30 dias',
+    nome: 'rpc rel_resumo_filiais · últimos 30 dias',
     area: 'relatórios ao vivo',
-    async executar(db) {
-      const { data, error } = await db.rpc('rel_resumo', {
-        p_filial: null,
+    async executar(db, ctx) {
+      const { data, error } = await db.rpc('rel_resumo_filiais', {
+        p_filiais: await todasAsFiliais(db, ctx),
         p_de: dataSP(-30),
         p_ate: dataSP(0),
       })
@@ -734,11 +761,11 @@ const CHECKS = [
     },
   },
   {
-    nome: 'rpc rel_mov_por_mes · 12 meses',
+    nome: 'rpc rel_mov_por_mes_filiais · 12 meses',
     area: 'relatórios ao vivo · gráfico',
-    async executar(db) {
-      const { data, error } = await db.rpc('rel_mov_por_mes', {
-        p_filial: null,
+    async executar(db, ctx) {
+      const { data, error } = await db.rpc('rel_mov_por_mes_filiais', {
+        p_filiais: await todasAsFiliais(db, ctx),
         p_de: dataSP(-365),
         p_ate: dataSP(0),
       })

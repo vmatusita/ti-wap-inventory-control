@@ -64,6 +64,23 @@
 //   node scripts/perf/medir-rel.mjs analisar-a2 --dir=<mesma> --saida=docs/perf/f60-pgss-antes.json
 //   node scripts/perf/medir-rel.mjs analisar-a3 --dir=<mesma> --saida=docs/perf/f60-datas-amostra.json
 //   node scripts/perf/medir-rel.mjs analisar-a4 --dir=<mesma> --saida=docs/perf/f60-producao-antes-rel.json (mescla em "a4")
+//
+// O "DEPOIS" (F60 · lote 2) — o MESMO gerador sobre as sete `rel_*_filiais` (0143), com o recorte
+// como LISTA: o consolidado é a de TODAS as filiais (inclusive desativadas, lida dentro do banco), e
+// filial_a/filial_b viram `array[<id>]` das MESMAS filiais do "antes" (menor e maior id ativas). As
+// células (datas, janelas, N, formas a/b) são as mesmas; mudam só o nome, o tipo do primeiro parâmetro
+// e o valor do recorte:
+//   node scripts/perf/medir-rel.mjs gerar-a1 --funcao=rel_estoque_asof_filiais --dir=<fora-do-repo>
+//   node scripts/perf/medir-rel.mjs gerar-a2 --conjunto=depois --dir=<mesma>   (grava a2-pgss-depois: velhas E novas)
+//   node scripts/perf/medir-rel.mjs gerar-a4 --conjunto=depois --datas='[…]' --dir=<mesma>   (grava a4-datas-depois)
+//   node scripts/perf/medir-rel.mjs analisar-a1 --conjunto=depois --dir=<mesma> --saida=<…>
+//   node scripts/perf/medir-rel.mjs analisar-a2 --conjunto=depois --dir=<mesma> --saida=<…>
+//   node scripts/perf/medir-rel.mjs analisar-a4 --conjunto=depois --dir=<mesma> --saida=<…>
+// ⚠ O "ANTES" CONTINUA REPRODUZÍVEL: sem `--conjunto` (ou com `--conjunto=antes`) e com os nomes velhos,
+// cada `gerar-*` emite, byte a byte, o mesmo SQL de antes do lote 2 — o conjunto velho (`FUNCOES`,
+// `OITO_REL`, `FUNCOES_A4`) não mudou uma linha, e o que é da lista só entra quando o modelo é o novo
+// (`diff -r` vazio, registrado na evidência do lote). O corpo velho continua resolvível depois da 0145:
+// `corpo-vigente.mjs` não enxerga `drop` e devolve o da 0134/0027/0016/0011.
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
@@ -160,6 +177,29 @@ export const FUNCOES = {
   },
 }
 
+/**
+ * F60 · lote 2 — o conjunto "depois": as sete `rel_*_filiais` (0143), DERIVADAS do modelo velho para que
+ * as células não possam divergir — mesma `forma`, `campoData` e `celulas`; o primeiro parâmetro vira
+ * `p_filiais smallint[]` e `recorte: 'lista'` liga, no bloco, a lista no lugar do `smallint`.
+ */
+export const FUNCOES_FILIAIS = Object.fromEntries(
+  Object.entries(FUNCOES).map(([nome, cfg]) => [
+    `${nome}_filiais`,
+    {
+      ...cfg,
+      assinatura: cfg.assinatura.replace(`${nome}(smallint,`, `${nome}_filiais(smallint[],`),
+      parametros: ['p_filiais', ...cfg.parametros.slice(1)],
+      tipos: ['smallint[]', ...cfg.tipos.slice(1)],
+      recorte: 'lista',
+    },
+  ]),
+)
+
+/** O modelo de uma função, velha ou nova — `undefined` fora dos dois conjuntos. */
+export function modeloDaFuncao(nomeFuncao) {
+  return FUNCOES[nomeFuncao] ?? FUNCOES_FILIAIS[nomeFuncao]
+}
+
 export const RECORTES = ['consolidado', 'filial_a', 'filial_b']
 export const N_PADRAO = 7 // + 1 aquecimento (regra 7)
 
@@ -197,7 +237,7 @@ export function substituirParametros(corpo, parametros) {
  * devolve `{ corpoOriginal, corpoEmulado, arquivo }`.
  */
 export async function lerCorpoDaFuncao(nomeFuncao) {
-  const cfg = FUNCOES[nomeFuncao]
+  const cfg = modeloDaFuncao(nomeFuncao)
   if (!cfg) recusar(`função fora do modelo: ${nomeFuncao}`)
   const mod = await corpoVigenteMod()
   const { sql, arquivo } = mod.corpoVigente(`public.${cfg.assinatura}`, RAIZ_REPO)
@@ -314,30 +354,49 @@ const PREAMBULO = `
   perform set_config('role', 'authenticated', true);
 `.trim()
 
+// F60 · lote 2 — só no conjunto "depois": o CONSOLIDADO das `rel_*_filiais` é a lista de TODAS as
+// filiais, inclusive desativadas, escolhida DENTRO do banco (os ids nunca saem no payload). Lida depois
+// do `set role authenticated` do preâmbulo: é a leitura que o app faz com a sessão (a RLS de `filiais`
+// não recorta linha para quem lê).
+const LISTA_DE_TODAS = `
+  select array_agg(f.id order by f.id) into v_todas from public.filiais f;
+  if v_todas is null then
+    raise exception 'F60_FILIAL_AUSENTE';
+  end if;
+`
+
 // ---------------------------------------------------------------------------
 // 4. A1 — o bloco por função (todas as células: recorte × data/janela × forma)
 // ---------------------------------------------------------------------------
 
+// O recorte da célula: `smallint` em `v_filial_val` (o modelo velho, NULL no consolidado) ou `smallint[]` em
+// `v_filiais_val` (o novo, a lista — nunca NULL). O modelo velho sai com os MESMOS textos de antes.
+const tipoDoRecorte = (cfg) => (cfg.recorte === 'lista' ? 'smallint[]' : 'smallint')
+const valorDoRecorte = (cfg) => (cfg.recorte === 'lista' ? 'v_filiais_val' : 'v_filial_val')
+
 function textoFormaA(cfg, nomeFuncao) {
+  const tipo = tipoDoRecorte(cfg)
+  const valor = valorDoRecorte(cfg)
   if (cfg.forma === 'data') {
     const [pFilial, pData] = cfg.parametros
     return (
-      `v_json := json_build_object('${pFilial}', v_filial_val, '${pData}', v_data_val)::text;\n` +
-      `        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(${pFilial} smallint, ${pData} date), lateral public.${nomeFuncao}(${pFilial} := pgrst_body.${pFilial}, ${pData} := pgrst_body.${pData})', v_json) into v_plano;`
+      `v_json := json_build_object('${pFilial}', ${valor}, '${pData}', v_data_val)::text;\n` +
+      `        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(${pFilial} ${tipo}, ${pData} date), lateral public.${nomeFuncao}(${pFilial} := pgrst_body.${pFilial}, ${pData} := pgrst_body.${pData})', v_json) into v_plano;`
     )
   }
   const [pFilial, pDe, pAte] = cfg.parametros
   return (
-    `v_json := json_build_object('${pFilial}', v_filial_val, '${pDe}', v_de_val, '${pAte}', v_ate_val)::text;\n` +
-    `        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(${pFilial} smallint, ${pDe} date, ${pAte} date), lateral public.${nomeFuncao}(${pFilial} := pgrst_body.${pFilial}, ${pDe} := pgrst_body.${pDe}, ${pAte} := pgrst_body.${pAte})', v_json) into v_plano;`
+    `v_json := json_build_object('${pFilial}', ${valor}, '${pDe}', v_de_val, '${pAte}', v_ate_val)::text;\n` +
+    `        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(${pFilial} ${tipo}, ${pDe} date, ${pAte} date), lateral public.${nomeFuncao}(${pFilial} := pgrst_body.${pFilial}, ${pDe} := pgrst_body.${pDe}, ${pAte} := pgrst_body.${pAte})', v_json) into v_plano;`
   )
 }
 
 function textoFormaB(cfg, nomePrepare) {
+  const valor = valorDoRecorte(cfg)
   if (cfg.forma === 'data') {
-    return `execute format('explain (analyze, buffers, format json) execute ${nomePrepare}(%L, %L)', v_filial_val, v_data_val) into v_plano;`
+    return `execute format('explain (analyze, buffers, format json) execute ${nomePrepare}(%L, %L)', ${valor}, v_data_val) into v_plano;`
   }
-  return `execute format('explain (analyze, buffers, format json) execute ${nomePrepare}(%L, %L, %L)', v_filial_val, v_de_val, v_ate_val) into v_plano;`
+  return `execute format('explain (analyze, buffers, format json) execute ${nomePrepare}(%L, %L, %L)', ${valor}, v_de_val, v_ate_val) into v_plano;`
 }
 
 // ⚠ jsonb_set com PATH de 2 níveis (array[v_celula, forma]) só cria o ÚLTIMO
@@ -396,12 +455,13 @@ const FECHA_CELULA = (formaLit) => `
  * função, medindo as formas (a) e (b) INTERCALADAS (regra 7).
  */
 export async function comandoA1(nomeFuncao, { n = N_PADRAO } = {}) {
-  const cfg = FUNCOES[nomeFuncao]
+  const cfg = modeloDaFuncao(nomeFuncao)
   if (!cfg) recusar(`função fora do modelo: ${nomeFuncao}`)
   if (!Number.isInteger(n) || n < 1 || n > 30) recusar('--n precisa ser inteiro entre 1 e 30.')
   const { corpoEmulado, arquivo } = await lerCorpoDaFuncao(nomeFuncao)
   const nomePrepare = `f60_corpo_${nomeFuncao}`
   const tipos = cfg.tipos.join(', ')
+  const lista = cfg.recorte === 'lista'
 
   const rotulosCelula = cfg.celulas.map((c) => c.rotulo)
   const declaraCelulas =
@@ -462,7 +522,7 @@ declare
   v_di int;
   v_i int;
   v_recorte text;
-  v_filial_val smallint;
+  v_filial_val smallint;${lista ? '\n  v_todas smallint[];\n  v_filiais_val smallint[];' : ''}
   v_data_val date;
   v_de_val date;
   v_ate_val date;
@@ -483,7 +543,7 @@ declare
   v_total_lanc bigint;
 begin
   ${PREAMBULO}
-
+${lista ? LISTA_DE_TODAS : ''}
   -- 4. prepara o corpo emulado UMA vez, com plano genérico (censo-medicao.md §1.8)
   perform set_config('plan_cache_mode', 'force_generic_plan', true);
   deallocate all;
@@ -492,7 +552,11 @@ begin
   -- 5. as células: recorte × ${cfg.forma === 'data' ? 'data' : 'janela'}, formas a/b intercaladas
   for v_ri in 1 .. array_length(v_recortes, 1) loop
     v_recorte := v_recortes[v_ri];
-    v_filial_val := case v_recorte when 'consolidado' then null when 'filial_a' then v_fa when 'filial_b' then v_fb end;
+    v_filial_val := case v_recorte when 'consolidado' then null when 'filial_a' then v_fa when 'filial_b' then v_fb end;${
+      lista
+        ? "\n    v_filiais_val := case v_recorte when 'consolidado' then v_todas when 'filial_a' then array[v_fa] when 'filial_b' then array[v_fb] end;"
+        : ''
+    }
 ${loopInterno}
   end loop;
 
@@ -520,8 +584,14 @@ export const OITO_REL = [
   'rel_mov_por_mes', 'rel_por_motivo', 'rel_resumo', 'rel_saldo_colaborador',
 ]
 
-export function comandoA2() {
-  const valores = OITO_REL.map((n) => `('${n}')`).join(', ')
+/**
+ * F60 · lote 2 — o "depois" lê as VELHAS e as NOVAS (a janela do drop, PLAN-F60 §9): velha com chamada
+ * nova é chamador esquecido; nova sem chamada é o app que não subiu.
+ */
+export const REL_DEPOIS = [...OITO_REL, ...Object.keys(FUNCOES_FILIAIS), 'rel_contagem_status_filiais']
+
+export function comandoA2({ conjunto = 'antes' } = {}) {
+  const valores = (conjunto === 'depois' ? REL_DEPOIS : OITO_REL).map((n) => `('${n}')`).join(', ')
   return `select jsonb_build_object(
   'por_papel', coalesce((
     select jsonb_agg(x order by x.nome, x.papel) from (
@@ -647,11 +717,19 @@ const FUNCOES_A4 = {
   rel_saldo_itens: { campo: 'p_ate' },
 }
 
+// F60 · lote 2 — o "depois" de A4: as mesmas duas, pelos nomes novos, com o consolidado como LISTA.
+const FUNCOES_A4_FILIAIS = {
+  rel_estoque_asof_filiais: { campo: 'p_data' },
+  rel_saldo_itens_filiais: { campo: 'p_ate' },
+}
+
 /**
  * UM bloco cobrindo as 12 datas × as 2 funções (consolidado, forma a), N=3
  * (a ordem pede N=3 aqui, não o N=7 padrão da regra 7).
  */
-export function comandoA4(datas, { n = 3 } = {}) {
+export function comandoA4(datas, { n = 3, conjunto = 'antes' } = {}) {
+  const depois = conjunto === 'depois'
+  const modeloA4 = depois ? FUNCOES_A4_FILIAIS : FUNCOES_A4
   if (!Array.isArray(datas) || datas.length === 0) recusar('--datas precisa ser um array não vazio.')
   for (const d of datas) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) recusar(`data fora do formato ISO: ${d}`)
@@ -659,21 +737,26 @@ export function comandoA4(datas, { n = 3 } = {}) {
   if (!Number.isInteger(n) || n < 1 || n > 30) recusar('--n precisa ser inteiro entre 1 e 30.')
   const rotulosDatas = datas.map((_, i) => `'d${i + 1}'`).join(', ')
   const valoresDatas = datas.map((d) => `date '${d}'`).join(', ')
-  const rotulosFn = Object.keys(FUNCOES_A4)
+  const rotulosFn = Object.keys(modeloA4)
 
   // Mesma correção de A1: agrega DENTRO do bloco (arrays locais, nunca saem do
   // banco) e só a estatística entra no jsonb final — despejar as N amostras
   // cruas de 24 células truncou a resposta do canal (ver ACUMULA_AMOSTRA/FECHA_CELULA).
   const chamadasPorFuncao = rotulosFn
     .map((fn) => {
-      const campo = FUNCOES_A4[fn].campo
+      const campo = modeloA4[fn].campo
       return `
       v_celula := 'consolidado·' || v_rotulos_data[v_di] || '·${fn}';
       v_arr_exec := array[]::double precision[]; v_arr_plan := array[]::double precision[];
       v_arr_hit  := array[]::bigint[];           v_arr_read := array[]::bigint[];
       for v_i in 1 .. (${n} + 1) loop
-        v_json := json_build_object('p_filial', null, '${campo}', v_data_val)::text;
-        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(p_filial smallint, ${campo} date), lateral public.${fn}(p_filial := pgrst_body.p_filial, ${campo} := pgrst_body.${campo})', v_json) into v_plano;
+        ${
+          depois
+            ? `v_json := json_build_object('p_filiais', v_todas, '${campo}', v_data_val)::text;
+        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(p_filiais smallint[], ${campo} date), lateral public.${fn}(p_filiais := pgrst_body.p_filiais, ${campo} := pgrst_body.${campo})', v_json) into v_plano;`
+            : `v_json := json_build_object('p_filial', null, '${campo}', v_data_val)::text;
+        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(p_filial smallint, ${campo} date), lateral public.${fn}(p_filial := pgrst_body.p_filial, ${campo} := pgrst_body.${campo})', v_json) into v_plano;`
+        }
         if v_i > 1 then
           v_p := v_plano::jsonb -> 0;
           v_arr_exec := array_append(v_arr_exec, (v_p -> 'Execution Time')::text::double precision);
@@ -709,7 +792,7 @@ declare
   v_fa smallint;
   v_fb smallint;
   v_rotulos_data text[] := array[${rotulosDatas}];
-  v_valores_data date[] := array[${valoresDatas}];
+  v_valores_data date[] := array[${valoresDatas}];${depois ? '\n  v_todas smallint[];' : ''}
   v_di int;
   v_i int;
   v_data_val date;
@@ -723,7 +806,7 @@ declare
   v_amostras jsonb := '{}'::jsonb;
 begin
   ${PREAMBULO}
-
+${depois ? LISTA_DE_TODAS : ''}
   for v_di in 1 .. array_length(v_rotulos_data, 1) loop
     v_data_val := v_valores_data[v_di];
 ${chamadasPorFuncao}
@@ -869,6 +952,13 @@ function shaDoCodigo() {
 // 9. CLI
 // ---------------------------------------------------------------------------
 
+/** `--conjunto`: 'antes' (o padrão — as sete velhas) ou 'depois' (as `rel_*_filiais`). */
+function conjuntoDe(o) {
+  const c = o.conjunto ?? 'antes'
+  if (c !== 'antes' && c !== 'depois') recusar('--conjunto: antes | depois.')
+  return c
+}
+
 function args(argv) {
   const [modo, ...resto] = argv
   const o = { modo }
@@ -889,15 +979,16 @@ async function main() {
   if (!modosValidos.includes(o.modo)) recusar(`modo: ${modosValidos.join(' | ')}.`)
 
   if (o.modo === 'gerar-a1') {
-    if (!o.funcao) recusar('--funcao é obrigatório (uma das sete rel_*).')
+    if (!o.funcao) recusar('--funcao é obrigatório (uma das sete rel_*, velha ou _filiais).')
     const sql = await comandoA1(o.funcao, { n: o.n ? Number(o.n) : N_PADRAO })
     const caminho = gravar(o.dir, `a1-${o.funcao}`, sql, validarBlocoDo)
     console.log(JSON.stringify({ gravado: caminho }, null, 2))
     return
   }
   if (o.modo === 'gerar-a2') {
-    const sql = comandoA2()
-    const caminho = gravar(o.dir, 'a2-pgss', sql, validarConsultaSimples)
+    const conjunto = conjuntoDe(o)
+    const sql = comandoA2({ conjunto })
+    const caminho = gravar(o.dir, conjunto === 'depois' ? 'a2-pgss-depois' : 'a2-pgss', sql, validarConsultaSimples)
     console.log(JSON.stringify({ gravado: caminho }, null, 2))
     return
   }
@@ -918,8 +1009,9 @@ async function main() {
   if (o.modo === 'gerar-a4') {
     if (!o.datas) recusar('--datas é obrigatório (JSON: ["AAAA-MM-DD", ...]).')
     const datas = JSON.parse(o.datas)
-    const sql = comandoA4(datas, { n: o.n ? Number(o.n) : 3 })
-    const caminho = gravar(o.dir, 'a4-datas', sql, validarBlocoDo)
+    const conjunto = conjuntoDe(o)
+    const sql = comandoA4(datas, { n: o.n ? Number(o.n) : 3, conjunto })
+    const caminho = gravar(o.dir, conjunto === 'depois' ? 'a4-datas-depois' : 'a4-datas', sql, validarBlocoDo)
     console.log(JSON.stringify({ gravado: caminho }, null, 2))
     return
   }
@@ -928,8 +1020,9 @@ async function main() {
   if (!o.saida) recusar('--saida é obrigatório na análise.')
 
   if (o.modo === 'analisar-a1') {
-    const funcoes = Object.keys(FUNCOES)
-    const resultado = { rotulo: 'f60-motor-antes-producao', alvo: 'producao', sha_codigo: shaDoCodigo(), gerado_em: new Date().toISOString(), metodo: 'explain (analyze, buffers, format json); forma (a) = chamada como o PostgREST chama (json_to_record + lateral); forma (b) = corpo emulado, prepare/execute com plan_cache_mode=force_generic_plan; 1 aquecimento + N repetições intercaladas a/b; mediana e p95 por posto mais próximo; buffers do nó raiz do plano.', funcoes: [], pendencias: [] }
+    const depois = conjuntoDe(o) === 'depois'
+    const funcoes = Object.keys(depois ? FUNCOES_FILIAIS : FUNCOES)
+    const resultado = { rotulo: depois ? 'f60-motor-depois-producao' : 'f60-motor-antes-producao', alvo: 'producao', sha_codigo: shaDoCodigo(), gerado_em: new Date().toISOString(), metodo: 'explain (analyze, buffers, format json); forma (a) = chamada como o PostgREST chama (json_to_record + lateral); forma (b) = corpo emulado, prepare/execute com plan_cache_mode=force_generic_plan; 1 aquecimento + N repetições intercaladas a/b; mediana e p95 por posto mais próximo; buffers do nó raiz do plano.', funcoes: [], pendencias: [] }
     for (const fn of funcoes) {
       const caminho = join(o.dir, 'respostas', `a1-${fn}.resposta.txt`)
       if (!existsSync(caminho)) {
@@ -949,12 +1042,13 @@ async function main() {
   }
 
   if (o.modo === 'analisar-a2') {
-    const caminho = join(o.dir, 'respostas', 'a2-pgss.resposta.txt')
+    const depois = conjuntoDe(o) === 'depois'
+    const caminho = join(o.dir, 'respostas', depois ? 'a2-pgss-depois.resposta.txt' : 'a2-pgss.resposta.txt')
     if (!existsSync(caminho)) recusar(`sem resposta gravada: ${caminho}`)
     const linhas = lerResultadoSimples(readFileSync(caminho, 'utf8'))
     const payload = linhas[0]?.f60_pgss ?? linhas[0]
     const saida = {
-      rotulo: 'f60-pgss-antes', alvo: 'producao', sha_codigo: shaDoCodigo(), gerado_em: new Date().toISOString(),
+      rotulo: depois ? 'f60-pgss-depois' : 'f60-pgss-antes', alvo: 'producao', sha_codigo: shaDoCodigo(), gerado_em: new Date().toISOString(),
       metodo: 'pg_stat_statements, filtrado por s.query ~ (\'"\' || nome || \'"\\s*\\(\') — só as chamadas citadas entre aspas, como o PostgREST cita; nunca o texto do statement.',
       ...payload,
     }
@@ -981,7 +1075,7 @@ async function main() {
   }
 
   if (o.modo === 'analisar-a4') {
-    const caminho = join(o.dir, 'respostas', 'a4-datas.resposta.txt')
+    const caminho = join(o.dir, 'respostas', conjuntoDe(o) === 'depois' ? 'a4-datas-depois.resposta.txt' : 'a4-datas.resposta.txt')
     if (!existsSync(caminho)) recusar(`sem resposta gravada: ${caminho}`)
     const p = lerPayload(readFileSync(caminho, 'utf8'), 'F60_MEDICAO_A4')
     if (p.recusa) recusar(p.recusa)

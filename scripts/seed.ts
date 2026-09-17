@@ -1652,19 +1652,24 @@ async function sumario(
   // doutrina nova `falta` é indicador de anomalia (0 na operação válida — o
   // trigger impede estoque < 0), então a auto-verificação passa a checar
   // `atrelados > 0` (atrelar desconta o estoque) em vez de falta.
-  type SaldoRow = { item: string; estoque: number; atrelados: number; falta: number }
+  // F60: a RPC é `rel_saldo_itens_filiais`, com a LISTA `p_filiais` — `[id]` para uma filial — e devolve
+  // DOIS níveis: as linhas por filial e o nível do total (`filial_id` null). Aqui se lê o NÍVEL DO TOTAL,
+  // que para uma filial só é a linha dela; sem o filtro, cada item contaria duas vezes.
+  type SaldoRow = { filial_id: number | null; item: string; estoque: number; atrelados: number; falta: number }
+  const nivelDoTotal = (data: unknown) => ((data ?? []) as SaldoRow[]).filter((s) => s.filial_id === null)
   const idBySlug = new Map<string, number>()
   for (const [id, slug] of slugById) idBySlug.set(slug, id)
   let comAtrelados = 0
   for (const [, id] of idBySlug) {
-    const { data } = await db.rpc('rel_saldo_itens', { p_filial: id, p_ate: '2026-12-31' })
-    comAtrelados += ((data ?? []) as SaldoRow[]).filter((s) => Number(s.atrelados) > 0).length
+    const { data } = await db.rpc('rel_saldo_itens_filiais', { p_filiais: [id], p_ate: '2026-12-31' })
+    comAtrelados += nivelDoTotal(data).filter((s) => Number(s.atrelados) > 0).length
   }
-  const { data: sLinhares } = await db.rpc('rel_saldo_itens', {
-    p_filial: idBySlug.get('linhares'),
+  const linhares = idBySlug.get('linhares')
+  const { data: sLinhares } = await db.rpc('rel_saldo_itens_filiais', {
+    p_filiais: linhares === undefined ? [] : [linhares],
     p_ate: '2026-12-31',
   })
-  const carregador = ((sLinhares ?? []) as SaldoRow[]).find((s) => s.item === 'Carregador micro-USB')
+  const carregador = nivelDoTotal(sLinhares).find((s) => s.item === 'Carregador micro-USB')
   const zeradoOk = carregador ? Number(carregador.estoque) === 0 : false
   console.log(`  ${comAtrelados >= 1 ? '✓' : '✗'} itens com atrelados (F6A: atrelar desconta estoque), por filial: ${comAtrelados}  (meta >= 1)`)
   console.log(`  ${zeradoOk ? '✓' : '✗'} item com estoque zerado (Carregador micro-USB @ Linhares)  (meta: sim)`)

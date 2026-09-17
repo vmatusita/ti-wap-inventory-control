@@ -5,8 +5,10 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Recusa as RecusaCusto, validarDirFora as dirForaCusto } from './medir-custo.mjs'
 import { Recusa as RecusaRel, validarDirFora as dirForaRel } from './medir-rel.mjs'
+import { Recusa as RecusaEquivalencia, validarDirFora as dirForaEquivalencia } from './equivalencia-rel.mjs'
 
-// OS INSTRUMENTOS DA F60 — `medir-rel.mjs` (o motor, A1–A4) e `medir-custo.mjs` (o custo, B1–B8). Sem banco.
+// OS INSTRUMENTOS DA F60 — `medir-rel.mjs` (o motor, A1–A4), `medir-custo.mjs` (o custo, B1–B8) e, desde o lote 2,
+// `equivalencia-rel.mjs` (a equivalência velho × novo e o custo dos corpos novos, que o cabeçalho da 0143 cita). Sem banco.
 //
 // Os dois geraram as linhas de base "antes" de PRODUÇÃO (PLAN-F60 §3.2–§3.5), e o "depois" da fase tem de
 // rodar o MESMO arquivo — ou declarar a diferença. A revisão do lote 1 (revisor 3, 16/09/2026) achou as
@@ -28,7 +30,7 @@ const RAIZ = fileURLToPath(new URL('../..', import.meta.url))
 const PLANO = readFileSync(join(RAIZ, 'docs', 'PLAN-F60.md'), 'utf8')
 
 type Instrumento = { nome: string; sha: string; bytes: number }
-const INSTRUMENTOS: Instrumento[] = ['medir-rel.mjs', 'medir-custo.mjs'].map((nome) => {
+const INSTRUMENTOS: Instrumento[] = ['medir-rel.mjs', 'medir-custo.mjs', 'equivalencia-rel.mjs'].map((nome) => {
   const texto = readFileSync(join(RAIZ, 'scripts', 'perf', nome), 'utf8').replace(/\r\n/g, '\n')
   return { nome, sha: createHash('sha256').update(texto, 'utf8').digest('hex'), bytes: Buffer.byteLength(texto, 'utf8') }
 })
@@ -39,6 +41,7 @@ const milhar = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 const GUARDAS = [
   ['medir-rel.mjs', dirForaRel, RecusaRel],
   ['medir-custo.mjs', dirForaCusto, RecusaCusto],
+  ['equivalencia-rel.mjs', dirForaEquivalencia, RecusaEquivalencia],
 ] as const
 
 describe('1. a guarda de `--dir` — fora do repositório, exatamente', () => {
@@ -72,5 +75,7 @@ describe('2. a identidade — o sha256 (LF) de cada instrumento versionado está
   it('os originais que mediram o "antes" continuam na tabela (a outra metade do par)', () => {
     expect(PLANO).toContain('`4ab7f71a71eb8a89b1d78f4b546516eb53688a83f42088f8f74f8144145f8eb2`')
     expect(PLANO).toContain('`3c42d047b12408c0e14564fd7d998f66624a1a016341577383086c9a5eff7ea1`')
+    // lote 2 — o original da equivalência, que rodou fora do repositório
+    expect(PLANO).toContain('`59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d`')
   })
 })

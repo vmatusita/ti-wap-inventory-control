@@ -28,8 +28,10 @@ esta identidade — é ela que o "depois" tem de repetir, ou declarar a diferen�
 |---|---:|---|
 | `medir-rel.mjs` (A1–A4: as sete `rel_*`, `pg_stat_statements`, datas, variação com a data) — **original, mediu o "antes"** | 45.039 | `4ab7f71a71eb8a89b1d78f4b546516eb53688a83f42088f8f74f8144145f8eb2` |
 | `medir-custo.mjs` (B1–B8: o custo do lote 1) — **original, mediu o "antes"** | 33.353 | `3c42d047b12408c0e14564fd7d998f66624a1a016341577383086c9a5eff7ea1` |
-| `scripts/perf/medir-rel.mjs` — **versionado** (lote 1 + revisão) | 47.341 | `9974c99d0578340efd14469f591b0ae3d2a011cd19d812a7240ebc478b31df5d` |
+| `scripts/perf/medir-rel.mjs` — **versionado** (lote 1 + revisão + o conjunto "depois" do lote 2) | 53.098 | `fd8183d2853252ef315a0187b65a1d81a4d19455226c6961df6b304bb35a7ee7` |
 | `scripts/perf/medir-custo.mjs` — **versionado** (lote 1 + revisão) | 36.046 | `491b9a6aca1bbe9bfeee678a9360c448c77c438ed47ca5b76b0380af14600fb3` |
+| `equivalencia-rel.mjs` (a equivalência velho × novo emulada e o custo dos corpos novos, lote 2) — **original, mediu a equivalência** | 59.660 | `59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d` |
+| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2) | 61.324 | `6f2d0bad83980d60fb6a931eb83cf5bfb75b9ec431e4e9f0bb7ca5e543062eaf` |
 
 ⚠ Só `medir-rel.mjs` fixava `RAIZ_REPO` como caminho absoluto desta máquina; `medir-custo.mjs` não tinha raiz, e por isso
 também não conferia onde `--dir` caía. O plano previa um diff de "só essa linha"; o que entrou é maior, e está declarado aqui
@@ -44,6 +46,16 @@ geraram, cada par num diretório fora do repositório, os 19 arquivos (`gerar-a1
 e os dez blocos B), e `diff -r` saiu vazio. `scripts/perf/instrumentos-f60.test.mts` reprova o instrumento cujo sha256 (LF) ou
 tamanho deixar de bater com as linhas **versionado** acima — mudar o instrumento obriga a regravar a linha e declarar a
 diferença.
+
+**Lote 2 (16/09/2026) — as duas diferenças declaradas.** (1) `scripts/perf/medir-rel.mjs` ganhou o conjunto "depois" (as
+sete `rel_*_filiais`, derivadas do modelo velho: `FUNCOES_FILIAIS`, `--conjunto=depois` em A2/A4 e nas análises, a lista de
+TODAS as filiais lida dentro do banco); a versão do lote 1 tinha 47.341 bytes e sha256 (LF)
+`9974c99d0578340efd14469f591b0ae3d2a011cd19d812a7240ebc478b31df5d`. **O "antes" continua reproduzível:** a versão do lote 1
+e a do lote 2 geraram, cada uma num diretório fora do repositório, os 11 comandos do conjunto velho (`gerar-a1` das sete,
+`gerar-a2`, `gerar-a3-bruto`, `gerar-a3-contagens`, `gerar-a4`), e `diff -r` saiu vazio. (2) `scripts/perf/equivalencia-rel.mjs`
+entrou versionado: a raiz por `import.meta.url` (no lugar de `RAIZ_REPO`/`git rev-parse`) e `validarDirFora` com a régua dos
+dois instrumentos acima; o original e o versionado geraram os 28 blocos de `gerar-equivalencia`/`gerar-custo` (ensaio e
+produção) e `diff -r` saiu vazio.
 
 ---
 

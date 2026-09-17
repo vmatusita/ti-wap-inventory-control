@@ -44,8 +44,8 @@ produção contém dado real.
 sessão de operador e repete as leituras que o próprio app faz — contagem de
 ativos, uma página de movimentações, a view `v_fila_pendencias` (a fonte do
 dashboard, do badge da sidebar e de `/pendencias` desde a F18) e a `v_pendencias`
-que a alimenta, a RPC `rel_saldo_itens` (consolidada e por filial), as
-RPCs do relatório ao vivo, o catálogo de itens, termos e snapshots gerados. De
+que a alimenta, a RPC `rel_saldo_itens_filiais` (consolidada — a lista de todas as filiais,
+inclusive desativadas, desde a F60 — e por filial), as RPCs do relatório ao vivo, o catálogo de itens, termos e snapshots gerados. De
 cada uma valida **status, formato (nomes de coluna) e contagem**.
 
 > **O script nunca imprime conteúdo de linha.** Só contagens, status HTTP e
