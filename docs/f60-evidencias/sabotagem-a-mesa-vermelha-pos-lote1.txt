@@ -1,0 +1,45 @@
+# Sabotagem A — a MESA vermelha contra a cadeia de HOJE, com o lote 1 aplicado (0141 e 0142 no disco, sem o lote 2)
+# 2026-09-16T21:29:09-03:00 · HEAD 1e604e3 + 0142 e a trava na árvore
+$ npx vitest run src/lib/validators/rpcs-recorte-sql.test.ts
+
+ RUN  v4.1.11 <repo>
+
+ ❯ |puro| src/lib/validators/rpcs-recorte-sql.test.ts (52 tests | 1 failed) 2417ms
+     × nenhuma rel_* fora de R1–R4, salvo exceção declarada 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/rpcs-recorte-sql.test.ts > 3. a doutrina, contra as rel_* VIVAS > nenhuma rel_* fora de R1–R4, salvo exceção declarada
+AssertionError: expected [ …(7) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "public.rel_mov_por_mes(smallint,date,date) (0011_relatorios_rpc.sql:13) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++   "public.rel_por_motivo(smallint,date,date) (0011_relatorios_rpc.sql:29) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++   "public.rel_resumo(smallint,date,date) (0011_relatorios_rpc.sql:48) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++   "public.rel_mov_itens(smallint,date,date) (0016_rpcs_relatorio_v2.sql:63) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++   "public.rel_frescor_itens(smallint,date) (0016_rpcs_relatorio_v2.sql:90) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++   "public.rel_estoque_asof(smallint,date) (0134_desempate_por_ordem.sql:83) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++   "public.rel_saldo_itens(smallint,date) (0027_itens_total_estoque.sql:49) — R1: não declara o parâmetro de recorte \"p_filiais\"",
++ ]
+
+ ❯ src/lib/validators/rpcs-recorte-sql.test.ts:179:49
+    177|   // (`rel_saldo_colaborador`) não aparece — é exceção declarada (desc…
+    178|   it('nenhuma rel_* fora de R1–R4, salvo exceção declarada', () => {
+    179|     expect(J.violacoes.map(mensagemDeViolacao)).toEqual([])
+       |                                                 ^
+    180|   })
+    181| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 51 passed (52)
+   Start at  21:29:11
+   Duration  2.88s (transform 115ms, setup 0ms, import 265ms, tests 2.42s, environment 0ms)
+
+[exit code: 1]

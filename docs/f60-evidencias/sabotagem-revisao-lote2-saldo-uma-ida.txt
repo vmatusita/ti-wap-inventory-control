@@ -1,0 +1,18 @@
+ ❯ |puro| src/lib/queries/relatorios/itens.test.ts (15 tests | 5 failed) 225ms
+     × lê as 1.001 linhas em páginas: nenhuma coluna some, o "fora das colunas" fica 0 e a soma é a inteira 14ms
+     × a ordem é a do CORPO da função, imposta na chamada e total — o plano embaralhado entre as páginas não repete nem perde linha 97ms
+     × com um `max-rows` menor que a página pedida (500), o fim continua sendo o do teto OBSERVADO 93ms
+     × uma filial só: as duas metades (o nível do total e a linha dela, que vem DEPOIS e era a que sumia) voltam inteiras 4ms
+     × a ÚNICA chamada de `rel_saldo_itens_filiais` em `src/**` é a de `lerSaldoItensEmNiveis`, dentro de `paginarTodos` 2ms
+ FAIL  |puro| src/lib/queries/relatorios/itens.test.ts > lerSaldoItensEmNiveis — a leitura inteira, com o `max-rows` cortando (F60 · revisão do lote 2) > lê as 1.001 linhas em páginas: nenhuma coluna some, o "fora das colunas" fica 0 e a soma é a inteira
+AssertionError: expected [ { filial_id: null, …(8) }, …(999) ] to have a length of 1001 but got 1000
+ FAIL  |puro| src/lib/queries/relatorios/itens.test.ts > lerSaldoItensEmNiveis — a leitura inteira, com o `max-rows` cortando (F60 · revisão do lote 2) > a ordem é a do CORPO da função, imposta na chamada e total — o plano embaralhado entre as páginas não repete nem perde linha
+AssertionError: expected [ { filial_id: null, …(8) }, …(999) ] to deeply equal [ { filial_id: null, …(8) }, …(1000) ]
+ FAIL  |puro| src/lib/queries/relatorios/itens.test.ts > lerSaldoItensEmNiveis — a leitura inteira, com o `max-rows` cortando (F60 · revisão do lote 2) > com um `max-rows` menor que a página pedida (500), o fim continua sendo o do teto OBSERVADO
+AssertionError: expected [ { filial_id: null, …(8) }, …(499) ] to deeply equal [ { filial_id: null, …(8) }, …(1000) ]
+ FAIL  |puro| src/lib/queries/relatorios/itens.test.ts > lerSaldoItensEmNiveis — a leitura inteira, com o `max-rows` cortando (F60 · revisão do lote 2) > uma filial só: as duas metades (o nível do total e a linha dela, que vem DEPOIS e era a que sumia) voltam inteiras
+AssertionError: expected [ { filial_id: 4, …(8) }, …(399) ] to have a length of 600 but got 400
+ FAIL  |puro| src/lib/queries/relatorios/itens.test.ts > a leitura de dois níveis tem UMA porta, paginada (F60 · revisão do lote 2) > a ÚNICA chamada de `rel_saldo_itens_filiais` em `src/**` é a de `lerSaldoItensEmNiveis`, dentro de `paginarTodos`
+AssertionError: expected [ { …(3) } ] to deeply equal [ { …(3) } ]
+ Test Files  1 failed (1)
+      Tests  5 failed | 10 passed (15)

@@ -1,0 +1,104 @@
+# git grep -n "p_filial\b" -- ':!supabase/migrations/00[0-9][0-9]_*' ':!supabase/migrations/01[0-3][0-9]_*' ':!supabase/migrations/014[0-2]_*' ':!docs'
+# HEAD 778eacb · 2026-09-17T01:19Z · tarefa L2-1 (roteiros e mutações ainda não migrados — outras tarefas)
+
+CHANGELOG.md:48:  corpo vivo (`ARGUMENTOS_ANULAVEIS` — trocar o `p_filial` pela lista de filiais é uma linha), e os retornos que o gerador tipa não-nulos e
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:122:    `p_filial`** e nunca o confronta com `p_backup_path` — nada amarra o backup ao recorte.
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:125:    `prefixo_backup_reset(p_bloco text, p_filial smallint)` vive em `0089:50` e devolve
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:250:    `p_filial`/`p_plano` do chamador** — a classe exata que a trava mira. A saída que o próprio
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:288:`prefixo_backup_import(p_filial)` no molde por ID de `prefixo_backup_reset`, com a cascata de três
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:396:- **`prefixo_backup_import(p_filial smallint)`** devolvendo `'import/filial-' || p_filial || '/'`, no
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:495:8. `prefixo_backup_import(p_filial)` existe, no molde por **id**, e `import_validar_plano` faz a cascata
+Claude outputs/F52-guardas-de-escopo-no-op-ultracode.md:626:   auxiliares do import são `security definer`, recebem `p_filial`, e são fechadas nos quatro papéis —
+scripts/db/mutacoes.mjs:847:      `    p_filial, p_obs_marcador, p_uid`,
+scripts/db/mutacoes.mjs:848:      `    p_filial, 'compra normal', p_uid  ${MARCA}`,
+scripts/db/mutacoes.mjs:889:   where c.filial_id = p_filial;`,
+scripts/db/mutacoes.mjs:968:      where pi.ativo_id in (select id from public.ativos where filial_id = p_filial)
+scripts/db/mutacoes.mjs:993:      where m.ativo_id in (select id from public.ativos where filial_id = p_filial)
+scripts/db/mutacoes.mjs:1015:   where pi.ativo_id in (select id from public.ativos where filial_id = p_filial);
+scripts/db/mutacoes.mjs:1037:   where substitui_ativo_id in (select id from public.ativos where filial_id = p_filial)
+scripts/db/mutacoes.mjs:1038:     and filial_id <> p_filial;
+scripts/db/recorte-rel.mjs:6:// A F60 troca `p_filial smallint` com `(p_filial is null or col = p_filial)` por
+scripts/formas/conferir.mts:278:  // antiga (`p_filial` NULL + um id por filial ativa) montava — a grade de datas e janelas não muda.
+scripts/gen-types.ts:50: * Na F22 isso apareceu: a 2.110.0 gerou `p_filial: number` onde a 2.109.1 gerava
+scripts/gen-types.ts:51: * `p_filial: number | null` nas sete RPCs `rel_*` — e o app passa `null` de proposito no
+scripts/perf/equivalencia-rel.mjs:736:  const velho = substituir(corpoComoConsulta(corpoVelhoCru), { p_filial: '$1', p_data: '$2' })
+scripts/perf/equivalencia-rel.mjs:1162:        'consolidado, hoje; 6 variantes intercaladas por repetição (1 aquecimento + N); velho = corpo 0134 com p_filial nulo; ' +
+scripts/perf/medir-rel.mjs:112:    parametros: ['p_filial', 'p_data'],
+scripts/perf/medir-rel.mjs:124:    parametros: ['p_filial', 'p_ate'],
+scripts/perf/medir-rel.mjs:132:    parametros: ['p_filial', 'p_de', 'p_ate'],
+scripts/perf/medir-rel.mjs:142:    parametros: ['p_filial', 'p_ate'],
+scripts/perf/medir-rel.mjs:150:    parametros: ['p_filial', 'p_de', 'p_ate'],
+scripts/perf/medir-rel.mjs:160:    parametros: ['p_filial', 'p_de', 'p_ate'],
+scripts/perf/medir-rel.mjs:170:    parametros: ['p_filial', 'p_de', 'p_ate'],
+scripts/perf/medir-rel.mjs:757:            : `v_json := json_build_object('p_filial', null, '${campo}', v_data_val)::text;
+scripts/perf/medir-rel.mjs:758:        execute format('explain (analyze, buffers, format json) select * from json_to_record(%L::json) as pgrst_body(p_filial smallint, ${campo} date), lateral public.${fn}(p_filial := pgrst_body.p_filial, ${campo} := pgrst_body.${campo})', v_json) into v_plano;`
+src/lib/actions/dev-destrutivo.ts:424:  // `p_filial = null` é o alcance GLOBAL, valor de domínio — a porta aceita null aqui por
+src/lib/actions/dev-destrutivo.ts:427:    p_filial: filialId,
+src/lib/actions/dev-destrutivo.ts:513:    p_filial: filialId,
+src/lib/itens/migrations-f38.test.ts:485:      // F60 (0143) — as sete substitutas das `rel_*` que recortavam por `p_filial`. Mesmo motivo:
+src/lib/queries/dev-destrutivo.ts:372:  // `p_filial = null` é o ALCANCE GLOBAL, valor de domínio — a porta aceita null aqui por
+src/lib/queries/dev-destrutivo.ts:376:    p_filial: filialId,
+src/lib/queries/formas/dev-destrutivo.ts:101:// (`jsonb_build_object('bloco', p_bloco, 'filial_id', p_filial, 'rotulo', …,
+src/lib/queries/relatorios/recorte-filiais.ts:7:// Até a F59 o consolidado era `p_filial = null`: o nulo significava "tudo", e uma função que
+src/lib/queries/relatorios/recorte-filiais.ts:21: * esta lista cobre exatamente o conjunto que `p_filial = null` cobria — o número do consolidado
+src/lib/queries/relatorios/recorte-filiais.ts:64: * `p_filial = null` cobria. Um número → `[filialId]`, sem ler nada.
+src/lib/queries/relatorios/recorte-filiais.ts:73: * recorta por ela, como `p_filial = <id>` fazia. E sem conferir se o id existe: um id que não é
+src/lib/supabase/linhas-tipos.test.ts:158:// F60 · lote 2 — O RECORTE DOS RELATÓRIOS NÃO ACEITA NULO. Até a F59 `p_filial: null` compilava de
+src/lib/supabase/linhas-tipos.test.ts:173:  void chamarRpc(client, 'rel_resumo', { p_filial: null, p_de: '2026-09-01', p_ate: '2026-09-15' })
+src/lib/supabase/rpc-mapas-sql.test.ts:15:// `p_filial is null or` vira `p_filiais` (F60) e a entrada continua lá, autorizando um `null` que a
+src/lib/supabase/rpc.ts:12://    destrutiva recebem `p_filial smallint`, não são `strict`, e tratam `p_filial is null` como o
+src/lib/supabase/rpc.ts:13://    alcance GLOBAL; o gerador emite `p_filial: number`. Até a F58 isso era calado por casts —
+src/lib/supabase/rpc.ts:59:// `rel_*` apontavam para uma constante `RECORTE_DO_RELATORIO` (NULL em `p_filial` = o consolidado).
+src/lib/supabase/rpc.ts:68:/** O alcance da Zona destrutiva (F23): NULL em `p_filial` é o reset GLOBAL. */
+src/lib/supabase/rpc.ts:70:  p_filial: {
+src/lib/supabase/rpc.ts:72:    evidencia: 'p_filial is null or',
+src/lib/types/database.ts:1539:        Args: { p_estorna_id: string; p_filial: number; p_item: number }
+src/lib/types/database.ts:1558:        Args: { p_acao: string; p_ativo: string; p_filial: number }
+src/lib/types/database.ts:1575:          p_filial: number
+src/lib/types/database.ts:1583:      import_apagar_acervo_filial: { Args: { p_filial: number }; Returns: Json }
+src/lib/types/database.ts:1587:          p_filial: number
+src/lib/types/database.ts:1593:      import_contar_conflitos: { Args: { p_filial: number }; Returns: number }
+src/lib/types/database.ts:1595:        Args: { p_elemento: Json; p_filial: number }
+src/lib/types/database.ts:1605:          p_filial: number
+src/lib/types/database.ts:1618:          p_filial: number
+src/lib/types/database.ts:1625:        Args: { p_contagens: Json; p_filial: number }
+src/lib/types/database.ts:1632:          p_filial: number
+src/lib/types/database.ts:1666:      prefixo_backup_import: { Args: { p_filial: number }; Returns: string }
+src/lib/types/database.ts:1668:        Args: { p_bloco: string; p_filial: number }
+src/lib/types/database.ts:1672:        Args: { p_bloco: string; p_filial: number }
+src/lib/types/database.ts:1790:          p_filial: number
+src/lib/types/database.ts:1804:          p_filial: number
+src/lib/types/database.ts:1819:      rotulo_alcance_reset: { Args: { p_filial: number }; Returns: string }
+src/lib/validators/import-confirmacao-sql.test.ts:114:    expect(sql).toContain("select 'import/filial-' || p_filial::text || '/'")
+src/lib/validators/rpcs-recorte-sql.test.ts:17:// A F60 troca `p_filial smallint` com `(p_filial is null or col = p_filial)` por
+src/lib/validators/rpcs-recorte-sql.test.ts:40:// describe 3 nomeava as SETE `rel_*` que ainda usavam `p_filial smallint`/`is null or` — a
+src/lib/validators/rpcs-recorte-sql.test.ts:205:  // que usavam `p_filial smallint` — a trava veio antes da correção (a ordem F60,
+src/lib/validators/rpcs-recorte-sql.test.ts:277:    ['R1 · sem p_filiais (a forma velha)', funcaoRel('rel_f60_x', 'p_filial smallint', '(p_filial is null or col = p_filial)'), ['R1']],
+supabase/migrations/0143_rel_filiais.sql:14:--   6. `(p_filial is null or <col> = p_filial)` NÃO corta leitura no caminho REAL. A chamada
+supabase/migrations/0143_rel_filiais.sql:31:--   9. O consolidado de hoje (`p_filial null`) inclui filial DESATIVADA; a lista de filiais do
+supabase/migrations/0143_rel_filiais.sql:60:--   `and (p_filial is null or <col> = p_filial)` vira `and <col> = any (p_filiais)`, e o
+supabase/migrations/0143_rel_filiais.sql:78:--   construção, a chamada `p_filial null` de hoje; o de uma filial só é a linha dela. É isso
+supabase/migrations/0145_drop_rel_filial.sql:4:-- As sete `rel_*` que recortavam por `p_filial smallint`, com `(p_filial is null or …)` — a
+supabase/tests/catalogo_secdef.sql:459:  -- A F60 troca `p_filial smallint` com `(p_filial is null or col = p_filial)` por
+supabase/tests/definer_sem_tenant.sql:141:    --     p_filial, p_item)`). Reprová-la seria reprovar código seguro.
+supabase/tests/definer_sem_tenant.sql:142:    'recebe id do cliente e é alcançável por authenticated, mas SOZINHA não protege nada: a autorização real está ANDada ao lado, na MESMA expressão da policy (pode_escrever_filial(filial_id) and estorno_item_coerente(p_estorna_id, p_filial, p_item)). Reprová-la seria reprovar código seguro.',
+
+# CLASSIFICAÇÃO — nenhum uso de `p_filial` como ARGUMENTO de uma das sete rel_* sobra.
+# Argumento de verdade, fora das sete (legítimo):
+#   · Zona destrutiva: src/lib/actions/dev-destrutivo.ts:427,513 · src/lib/queries/dev-destrutivo.ts:376 ·
+#     src/lib/supabase/rpc.ts:70-72 (ALCANCE_DO_RESET) · database.ts (previa_reset, resetar_acervo, resetar_itens,
+#     rotulo_alcance_reset, prefixo_backup_reset)
+#   · Cadeia do import / guardas (não são rel_*): database.ts (import_*, prefixo_backup_import, e duas outras de filial),
+#     scripts/db/mutacoes.mjs (mutações do import), src/lib/validators/import-confirmacao-sql.test.ts,
+#     supabase/tests/definer_sem_tenant.sql
+# Intencionais do lote 2 (a forma VELHA de propósito):
+#   · scripts/perf/medir-rel.mjs — o conjunto "antes" (reproduzível byte a byte)
+#   · scripts/perf/equivalencia-rel.mjs:736,1162 — o corpo VELHO na comparação velho × novo
+#   · src/lib/supabase/linhas-tipos.test.ts:173 — @ts-expect-error: a assinatura velha não compila mais
+#   · src/lib/validators/rpcs-recorte-sql.test.ts:277 — sintético R1 (a forma velha reprova)
+# Só comentário/história: CHANGELOG.md:48, Claude outputs/F52-…md, scripts/db/recorte-rel.mjs:6,
+#   scripts/formas/conferir.mts:278, scripts/gen-types.ts:50-51, src/lib/itens/migrations-f38.test.ts,
+#   src/lib/queries/formas/dev-destrutivo.ts:101, src/lib/queries/relatorios/recorte-filiais.ts,
+#   src/lib/supabase/rpc-mapas-sql.test.ts:15, src/lib/supabase/rpc.ts:12-13,59,68,
+#   src/lib/validators/rpcs-recorte-sql.test.ts:17,40,205, supabase/migrations/0143 e 0145 (cabeçalhos),
+#   supabase/tests/catalogo_secdef.sql:459

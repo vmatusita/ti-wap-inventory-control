@@ -1,0 +1,56 @@
+# Sabotagem da trava de recorte — alter/drop routine (F60, 17/09/2026)
+# Arquivo sabotado: scripts/db/recorte-rel.mjs  (sha256 consertado: a350e04d1f2876f1fbfeced769d4c113cbbd9e8d7749d4a58bf74badaf354073)
+# Testes: npx vitest run src/lib/validators/rpcs-recorte-sql.test.ts, com os 7 casos novos de routine mantidos
+
+## Cadeia real e casos sintéticos, antes (HEAD 8566f5b) × depois (conserto)
+antes (HEAD) { vivas: 9, violacoes: 0, falhas: 0, consumidos: 33, encontrados: 32 }
+   public.rel_saldo_colaborador(uuid) | public.rel_contagem_status_filiais(smallint[]) | public.rel_mov_por_mes_filiais(smallint[],date,date) | public.rel_por_motivo_filiais(smallint[],date,date) | public.rel_resumo_filiais(smallint[],date,date) | public.rel_frescor_itens_filiais(smallint[],date) | public.rel_mov_itens_filiais(smallint[],date,date) | public.rel_saldo_itens_filiais(smallint[],date) | public.rel_estoque_asof_filiais(smallint[],date)
+    "alter routine public.x_sem_recorte_f60() rename to rel_x_f60;" → vivas 9 violacoes 0 falhas []
+    "drop routine public.rel_saldo_itens_filiais(smallint[], date);" → vivas 9 violacoes 0 falhas []
+    "alter routine public.rel_saldo_itens_filiais(smallint[], date) strict;" → vivas 9 violacoes 0 falhas []
+depois (conserto) { vivas: 9, violacoes: 0, falhas: 0, consumidos: 33, encontrados: 32 }
+   public.rel_saldo_colaborador(uuid) | public.rel_contagem_status_filiais(smallint[]) | public.rel_mov_por_mes_filiais(smallint[],date,date) | public.rel_por_motivo_filiais(smallint[],date,date) | public.rel_resumo_filiais(smallint[],date,date) | public.rel_frescor_itens_filiais(smallint[],date) | public.rel_mov_itens_filiais(smallint[],date,date) | public.rel_saldo_itens_filiais(smallint[],date) | public.rel_estoque_asof_filiais(smallint[],date)
+    "alter routine public.x_sem_recorte_f60() rename to rel_x_f60;" → vivas 9 violacoes 0 falhas [
+  'alter routine public.x_sem_recorte_f60() rename to rel_x_f60 — um nome FORA do prefixo rel'
+]
+    "drop routine public.rel_saldo_itens_filiais(smallint[], date);" → vivas 8 violacoes 0 falhas []
+    "alter routine public.rel_saldo_itens_filiais(smallint[], date) strict;" → vivas 9 violacoes 0 falhas [
+  'alter routine public.rel_saldo_itens_filiais(smallint[],date) muda algo que a trava não re'
+]
+
+## Sabotagem 1 — o conserto INTEIRO desfeito (recorte-rel.mjs de HEAD, 8566f5b)
+     × alter routine rename de uma função SEM recorte para dentro do prefixo rel_ (nu) → reprova fechado, e a mesa não fica verde 72ms
+     × alter routine rename de uma função SEM recorte para dentro do prefixo rel_ (em maiúsculas, esquema e nomes citados) → reprova fechado, e a mesa não fica verde 64ms
+     × drop routine de uma rel_* viva → sai do universo, sem falha, e a auto-conferência CONTA o comando 63ms
+     × drop routine de uma rel_* inexistente: SEM if exists reprova por "não conhece"; COM if exists passa 65ms
+     × alter routine … strict numa rel_* viva → reprova fechado como o alter function (a trava não replica o efeito) 63ms
+     × alter routine owner to numa rel_* viva → NÃO reprova; alter routine rename para fora de rel_ → sai do universo 123ms
+     × DDL de routine sobre rel_* em texto de corpo $…$ (sem execute) → a AUTO-CONFERÊNCIA reprova como montado dinamicamente 64ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  7 failed | 54 passed (61)
+
+## Sabotagem 2 — só o REPLAY desfeito (o padrão léxico com routine fica)
+sabotado (replay): «  if (!PALAVRAS_DE_FUNCAO.has(palavra)) return false» → «  if (palavra !== 'function') return false»
+     × alter routine rename de uma função SEM recorte para dentro do prefixo rel_ (nu) → reprova fechado, e a mesa não fica verde 71ms
+     × alter routine rename de uma função SEM recorte para dentro do prefixo rel_ (em maiúsculas, esquema e nomes citados) → reprova fechado, e a mesa não fica verde 66ms
+     × drop routine de uma rel_* viva → sai do universo, sem falha, e a auto-conferência CONTA o comando 64ms
+     × drop routine de uma rel_* inexistente: SEM if exists reprova por "não conhece"; COM if exists passa 62ms
+     × alter routine … strict numa rel_* viva → reprova fechado como o alter function (a trava não replica o efeito) 76ms
+     × alter routine owner to numa rel_* viva → NÃO reprova; alter routine rename para fora de rel_ → sai do universo 65ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  6 failed | 55 passed (61)
+
+## Sabotagem 3 — só a AUTO-CONFERÊNCIA desfeita (o replay com routine fica)
+sabotado (padrao): «(or\s+replace\s+)?(function|routine)\s+» → «(or\s+replace\s+)?(function)\s+»
+     × drop routine de uma rel_* viva → sai do universo, sem falha, e a auto-conferência CONTA o comando 75ms
+     × DDL de routine sobre rel_* em texto de corpo $…$ (sem execute) → a AUTO-CONFERÊNCIA reprova como montado dinamicamente 63ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  2 failed | 59 passed (61)
+
+## Restauração
+sha256 restaurado: a350e04d1f2876f1fbfeced769d4c113cbbd9e8d7749d4a58bf74badaf354073  (igual ao consertado: sim)
+ Test Files  7 passed (7)
+      Tests  542 passed (542)

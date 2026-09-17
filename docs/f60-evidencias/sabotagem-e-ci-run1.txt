@@ -1,0 +1,174 @@
+# Sabotagem E — o par no CI e as mutações novas (run 35173319638, job banco-sem-docker 105049473215, PR #52, commit f7b3153)
+# https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35173319638/job/105049473215
+# trechos do log (sem ids: linhas com uuid removidas)
+
+## gate de deriva
+banco ....... 34 relações · 312 colunas · 76 funções
+database.ts . 34 relações · 312 colunas · 76 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+banco base .......... estoque
+
+## roteiros da fase
+✓ 2a as-of D1 (2026-06-10, antes do estorno) = em_uso
+✓ 2b as-of hoje (par saída+estorno anulado) = em_estoque
+✓ 2c estorno restaurou ativos.status=em_estoque, batendo com o as-of de hoje
+✓ 4a a trava do estorno ((created_at, ordem)) recusa estornar a PENULTIMA movimentacao: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+✓ 11a as-of ANTES da transferencia (2025-03-10): o ativo esta no recorte da ORIGEM e nao no do destino, embora HOJE ele seja do destino — a filial e a CALCULADA na data, sem pre-filtro pela de hoje
+✓ 11b as-of DEPOIS da transferencia (2025-03-25): o ativo esta no recorte do DESTINO e nao no da origem
+✓ 11c consolidado: o ativo aparece UMA vez em cada data, com a filial de entao (origem em 2025-03-10, destino em 2025-03-25)
+FIM asof_desempate: 21 asserções, 0 falhas
+✓ 4b contagem de ruins NULA RECUSADA
+✓ 2a admin recusado ao conceder dev (42501)
+✓ 2b admin recusado ao rebaixar dev (42501)
+✓ 2c admin recusado ao desativar dev (42501)
+✓ 2d admin recusado ao apagar dev (42501)
+✓ 2e admin recusado ao mexer em vínculo de dev (42501)
+✓ 2f admin recusado ao encerrar sessões (42501)
+✓ 4a operador: e_dev=false, e_admin=false, pode_escrever=true
+✓ 4b operador recusado ao mudar cargo (42501)
+✓ 7d as cinco RPCs de gestão continuam citando exigir_gestao_de
+✓ 7g existe_outro_admin_ativo é UMA função só, com 2 argumentos (p_excluindo uuid, p_escopo uuid)
+✓ 7e existe_outro_admin_ativo(alvo) = existe_outro_admin_ativo(alvo, null) = t
+✓ 7f existe_outro_admin_ativo(alvo, escopo=>null) = true — escopo nulo não recusa tudo
+✓ 11a R1 nenhuma função recebe dado da linha fora da lista de exceções (0 de 86 conferidos)
+✓ 11b toda exceção da doutrina ainda descreve uma ocorrência viva (0 de 18 conferidos)
+✓ 7a toda rel_* declara p_filiais smallint[], ou está em k_excecoes_recorte (0 de 9 conferidos)
+✓ 7b toda rel_* fora da exceção tem "= any (p_filiais)" em prosrc (0 de 9 conferidos)
+✓ 7c nenhuma rel_* tem disfarce textual conhecido de fail-open em prosrc (prova fraca — a mesa é a autoridade) (0 de 9 conferidos)
+✓ 7d toda rel_* é security invoker, stable, não strict, com search_path fixo (0 de 9 conferidos)
+✓ 7e authenticated e service_role têm EXECUTE em toda rel_* (0 de 9 conferidos)
+✓ 7f toda exceção de k_excecoes_recorte existe como rel_* e não declara p_filiais (exceção viva, não morta) (0 de 1 conferidos)
+✓ 7g nenhum nome de k_excecoes_recorte tem mais de uma assinatura rel_* viva (0 de 1 conferidos)
+FIM catalogo_secdef: 16 asserções, 0 falhas
+✓ 2a  o lado com movimentação fora da carga tem tem_historico_real = true
+✓ 2b  o lado só-carga-do-import tem tem_historico_real = false
+✓ 2c  o resumo separa carga (2 movs, 1 fora da carga)
+✓ 2d  corrigir a identidade de um lado desfaz o conflito automaticamente
+✓ 2e  grupo de TRÊS filiais é representável
+✓ 4a  lista com ativo fora de conflito é recusada por inteiro (42501)
+✓ 4b  depois da recusa, NENHUM dos dois foi apagado
+✓ 11a os 26 cadastros fictícios entraram e TODOS estão em conflito entre filiais (acima do teto de 25 que obriga backup em arquivo)
+✓ 11b acima do teto, sem caminho de backup, a RPC recusa (22023): Seleção com mais de 25 ativos exige backup em arquivo: o caminho não veio. Nada foi apagado.
+✓ 11c backup fora do prefixo conflito/ é recusado pela guarda do caminho (22023)
+✓ 2a UPDATE em movimentacoes como authenticated não alterou nada
+✓ 2b DELETE em movimentacoes como authenticated não removeu nada
+✓ 2c UPDATE em lancamentos_item como authenticated não alterou nada
+✓ 2d DELETE em lancamentos_item como authenticated não removeu nada
+✓ 2e DELETE em ativos como authenticated (dev logado) não removeu nada
+✓ 2f INSERT com forcado = true recusado em movimentacoes (42501)
+✓ 4a apagar a ÚLTIMA devolve o ativo ao snapshot_anterior
+✓ 4b movimentação do MEIO recusada (42501)
+✓ 11a o ESTORNO comum continua funcionando (com estorno-strip da pendência)
+✓ 7d os CADASTROS sobreviveram ao reset global
+✓ 7e relatorios_gerados, eventos_admin e import_logs sobreviveram
+✓ 7f os dois resets globais deixaram trilha, cada um com o caminho do SEU backup
+✓ 7g os SETE verbos novos da F23 foram gravados em eventos_admin
+✓ 2a o lote com uma linha inválida foi recusado (P0001, Movimentacao saida invalida para ativo ZZF38A001 no estado e)
+✓ 2b ZERO movimentações e ZERO lançamentos sobraram (mov 2→2, lanc 5→5)
+✓ 2c a linha VÁLIDA do lote recusado também não gravou nada
+✓ 4a Σ com_a_pessoa (2) + sem vínculo (1) = liberados (3) — nenhum número mudou
+✓ 7d a pendência ficou resolvida
+✓ 2b gravou `retorno 1` + `ajuste +1` marcado
+✓ 11b nome repetido por caixa/espaço é recusado pela chave
+✓ 1a rel_contagem_status_filiais: NULL e vazio devolvem 0 linhas (0 de 2 conferidos)
+✓ 1b rel_mov_por_mes_filiais: NULL e vazio devolvem 0 linhas (0 de 2 conferidos)
+✓ 1c rel_por_motivo_filiais: NULL e vazio devolvem 0 linhas (0 de 2 conferidos)
+✓ 1d rel_resumo_filiais: NULL e vazio devolvem 0 linhas (0 de 2 conferidos)
+✓ 1e rel_frescor_itens_filiais: NULL e vazio devolvem 0 linhas (0 de 2 conferidos)
+✓ 1f rel_mov_itens_filiais: NULL e vazio devolvem 0 linhas (e não o catálogo zerado) (0 de 4 conferidos)
+✓ 1g rel_saldo_itens_filiais: NULL e vazio devolvem 0 linhas, em nenhum dos dois níveis (0 de 36 conferidos)
+✓ 1h rel_estoque_asof_filiais: NULL e vazio devolvem 0 linhas (0 de 2 conferidos)
+✓ 2a /itens com TODAS: total 12 soma a desativada, as colunas ativas somam 5, o fora das colunas é 7 (> 0)
+✓ 2b /itens só com as ATIVAS: total 5 = colunas 5, fora 0, e nenhuma linha da desativada — 2a mede a desativada, não outra coisa
+✓ 2c o as-of consolidado inclui o ativo da desativada (em_uso, com o detentor), e a lista só das ativas não
+✓ 2d a contagem por status consolidada conta todo o acervo (1), inclusive os 1 ativo(s) de filial desativada — e o em_uso desta entra no número
+✓ 2e os três relatórios de período consolidados incluem as 1 saída(s)/devolução(ões) de filial desativada, e o resumo tem a linha da desativada só na lista de todas
+✓ 2f a movimentação de itens consolidada soma as entradas da desativada (12 = 5 das ativas + 7 dela)
+✓ 3a chamado que atravessa filiais: atrelados do total 0 e soma das filiais 5; estoque do total 20 e soma 15 — o total é calculado sobre o conjunto, não somado
+✓ 4a uma filial só (A): o nível do total é idêntico à linha da filial, item a item (0 de 4 conferidos)
+✓ 4b uma filial só (B, com o clamp agindo): o nível do total é idêntico à linha da filial, item a item (0 de 4 conferidos)
+FIM f60_recorte: 17 asserções, 0 falhas
+✓ 2a backup sem o prefixo da filial recusado pela guarda do PREFIXO (22023): O backup informado não é o backup DESTA filial (esperado sob "import/filial-10/"). Nada foi apagado.
+✓ 2b backup com prefixo mas inexistente recusado (22023): O backup deste import não foi encontrado no armazenamento (import/filial-10/nao-existe.json). Nada foi apagado.
+✓ 2d a mensagem de 2b não contém "backup informado não existe" (não cai no ramo do RESET): O backup deste import não foi encontrado no armazenamento (import/filial-10/nao-existe.json). Nada foi apagado.
+✓ 2c backup com prefixo e existente PASSA (import_validar_plano devolveu 1)
+✓ 4a mesmo hash/mesma filial dentro de 24h recusado (22023): Este mesmo arquivo já foi importado nesta filial nas últimas 24 horas. Nada foi apagado — se a reimportação é intencional, aguarde a janela ou corrija o arquivo.
+✓ 4b mesmo hash em OUTRA filial PASSA (a janela de idempotência é por filial)
+✓ 4a filial B tem só o ativo do plano; o pré-existente foi apagado (R-IMP-02)
+✓ 4b ativo do plano presente com origem = importacao
+✓ 2a ativo_filial_inativa enxerga o ativo cuja filial foi desativada (delta +1) (0 de 1 conferidos)
+✓ 2b reativada a filial, a checagem volta ao número de antes (0 de 1 conferidos)
+✓ 4a perfil_sem_conta enxerga o perfil sem conta correspondente no Auth (delta +1) (0 de 1 conferidos)
+✓ 4b apagado o perfil órfão, a checagem volta ao número de antes (0 de 1 conferidos)
+✓ 11a reserva_aberta enxerga o chamado com saldo de reserva em aberto (delta +1) (0 de 1 conferidos)
+✓ 11b liberado o chamado, a checagem volta ao número de antes (0 de 1 conferidos)
+✓ 2a devolucao_fornecedor -> devolvido_fornecedor
+✓ 2b transferencia de devolvido_fornecedor rejeitada
+✓ 2c saida de devolvido_fornecedor rejeitada
+✓ 2d envio_manutencao de devolvido_fornecedor rejeitado
+✓ 2e ajuste tira de devolvido_fornecedor (valvula de escape)
+✓ 2f devolucao_fornecedor de em_estoque rejeitada
+✓ 4a antigo -> devolvido_fornecedor (via RPC)
+✓ 4b substituto nasce em_estoque com substitui_ativo_id -> antigo
+✓ 4b estorno de saida nao-ultima (saida->transferencia) rejeitado: So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)
+✓ 2a pode_escrever_filial: f1=true, f2=false
+✓ 2b operador MOVIMENTA na filial vinculada (f1)
+✓ 2c operador recusado na filial não vinculada (f2, 42501)
+✓ 2d operador LANÇA item na filial vinculada
+✓ 2e operador recusado ao lançar na não vinculada (42501)
+✓ 2f operador ATUALIZA ativo da filial vinculada
+✓ 4a papel_atual() é NULL para perfil desativado
+✓ 4b desativado não escreve na filial VINCULADA (f1)
+✓ 4a `ativos` entra primeiro, sem violar FK
+✓ 2a sem `overriding system value` o INSERT é RECUSADO (generated always)
+✓ 2b com `overriding system value`, a `ordem` do backup (248) foi preservada
+✓ 2c sem `setval`, a PRIMEIRA movimentação depois da restauração viola o índice único de `ordem`
+✓ 2d com `setval` para max(ordem), a movimentação seguinte entra sem colidir
+✓ 2a perfil DESATIVADO não lê objeto nenhum do bucket `termos` (0 de 2 conferidos)
+✓ 2b anon não lê objeto nenhum do bucket `termos` (0 de 2 conferidos)
+✓ 4a a policy de SELECT de `termos` chama pode_ler_arquivo_termo (0 de 1 conferidos)
+✓ 4b a policy continua exigindo bucket_id (não vale para bucket futuro) (0 de 1 conferidos)
+✓ 2a Total consolidado INALTERADO — A: 30→30, B: 12→12
+✓ 2b o estoque mexeu dos dois lados: origem 30→20, destino 0→10
+✓ 2c o caminho "intuitivo" INFLA o Total (30→40) — é isto que a transferência evita
+✓ 4a saldo insuficiente na origem recusa (Ajuste inválido: deixaria o item com total -9979 (não pode ficar negativo).)
+✓ 4b nada parcial sobrou (3 linhas antes e depois)
+✓ 2a devolucao de em_estoque rejeitada: Movimentacao devolucao invalida para ativo ZZF19INV01 no estado em_estoque
+✓ 2b triagem_ok de em_uso rejeitada: Movimentacao triagem_ok invalida para ativo ZZF19INV02 no estado em_uso
+✓ 2c reserva de em_uso rejeitada: Movimentacao reserva invalida para ativo ZZF19INV03 no estado em_uso
+✓ 2d transferencia de descartado rejeitada: Movimentacao transferencia invalida para ativo ZZF19INV04 no estado descartado
+✓ 2a troca no nascimento (em_estoque -> em_estoque)
+✓ 2b troca fora do nascimento (de em_uso) rejeitada
+✓ 4a com patrimônio e com ST -> sem pendência (null)
+✓ 4b com patrimônio, sem ST -> 'sem service tag'
+✓ 4a categoria "outro" recusada pelo check (sqlstate 23514)
+✓ 4b estado devolvido_fornecedor recusado pelo check (sqlstate 23514)
+
+## injetor
+mutações ativas ..... 90
+em quarentena ....... 2 (declaradas, NÃO executadas)
+controle verde: 14 roteiro(s), nenhum ✗.
+[62/90] f53-asof-volta-ao-desempate-por-id  →  asof_desempate.sql  (espera ✗ 3a)
+      ✓ detectada — também caíram (efeito colateral): 1, 10a  (397 ms)
+--
+[64/90] f53-asof-passa-a-ordenar-so-por-ordem  →  asof_desempate.sql  (espera ✗ 6a)
+      ✓ detectada  (396 ms)
+--
+[83/90] f60-recorte-volta-a-is-null-or  →  catalogo_secdef.sql  (espera ✗ 7c)
+      ✓ detectada  (356 ms)
+[84/90] f60-rel-nova-sem-recorte  →  catalogo_secdef.sql  (espera ✗ 7a, 7b)
+      ✓ detectada  (357 ms)
+[85/90] f60-rel-vira-strict  →  catalogo_secdef.sql  (espera ✗ 7d)
+      ✓ detectada  (358 ms)
+[86/90] f60-rel-perde-execute-do-service-role  →  catalogo_secdef.sql  (espera ✗ 7e)
+      ✓ detectada  (356 ms)
+[87/90] f60-excecao-apodrece  →  catalogo_secdef.sql  (espera ✗ 7f)
+      ✓ detectada  (357 ms)
+[88/90] f60-excecao-ganha-overload  →  catalogo_secdef.sql  (espera ✗ 7g)
+      ✓ detectada  (358 ms)
+[89/90] f60-asof-pre-filtra-pela-filial-de-hoje  →  asof_desempate.sql  (espera ✗ 11a)
+      ✓ detectada  (395 ms)
+[90/90] f60-saldo-consolidado-so-das-ativas  →  f60_recorte.sql  (espera ✗ 2a)
+      ✓ detectada  (377 ms)
+RESULTADO DO LOTE
+==============================================================================================================

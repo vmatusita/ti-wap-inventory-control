@@ -1,0 +1,4 @@
+     × (a) o "fora das colunas" é > 0 EXATAMENTE quando uma filial fora das colunas tem estoque 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 8 to be 12 // Object.is equality
+      Tests  1 failed | 22 passed (23)
