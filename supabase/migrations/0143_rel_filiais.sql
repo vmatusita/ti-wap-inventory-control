@@ -107,11 +107,17 @@
 -- · `status_tem_detentor` UMA VEZ POR LINHA (a lateral `d`), em vez de duas chamadas por linha
 --   nos dois `case` (~54 → ~50 ms). `when not d.tem_detentor then null` é a evidência que o mapa
 --   de retornos da porta confere (`rpc-mapas-sql.test.ts`).
--- · SERVIDO POR `mov_ativo_idx` e por `movimentacoes_estorno_de_idx` — `mov_ativo_idx (ativo_id,
---   data desc)` (`0003`) dá a busca da lateral por ativo já na ordem de `data`, e o `ordem desc`
---   desempata as poucas linhas da mesma data num Incremental Sort (≤ 9 movimentações por ativo
---   hoje); `movimentacoes_estorno_de_idx (estorno_de)` (`0106`) serve o `not exists`. Quem medir
---   sem o segundo conclui que a lateral não ajudou.
+-- · SERVIDO POR `mov_ativo_idx` — e, ⚠ ao contrário do que a ficha previa, NÃO por
+--   `movimentacoes_estorno_de_idx` no corpo final. `mov_ativo_idx (ativo_id, data desc)` (`0003`)
+--   dá a busca da lateral por ativo já na ordem de `data` (o `ordem desc` desempata as poucas
+--   linhas da mesma data num Incremental Sort, ≤ 9 movimentações por ativo hoje) E serve a sonda
+--   do `not exists` correlacionado (`x.ativo_id = a.id`): o plano medido é um Nested Loop Anti
+--   sobre `mov_ativo_idx`, 3.224 sondas, e `movimentacoes_estorno_de_idx` não aparece nele
+--   (`docs/perf/asof-orcamento.json`, `indices_usados`). `movimentacoes_estorno_de_idx (estorno_de)`
+--   (`0106`) é o índice que serve a forma NÃO correlacionada do `not exists` — a medida acima, 1,4×
+--   mais lenta, porque o planejador a resolve num merge anti join que relê esse índice por ativo.
+--   Quem medir de novo tem de medir as DUAS formas com os DOIS índices presentes, senão conclui
+--   errado para qualquer lado.
 -- · O ÍNDICE `(ativo_id, data desc, ordem desc)` NÃO ENTROU: o Incremental Sort por ativo é
 --   ~7–10% do corpo medido — não paga um índice novo em `movimentacoes` (R-REL-33: índice só
 --   pela medição).
