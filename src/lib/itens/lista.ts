@@ -77,10 +77,11 @@ export function saldoDoParPorItem(
 // `getSaldosPorFilial` traz `porFilial` + `consolidado` de cada item, e o recorte
 // se calcula aqui.
 //
-// ⚠ SEM recorte usa `consolidado`, e não a soma das colunas: o consolidado vem da
-// RPC com `p_filial null`, que enxerga também a filial DESATIVADA com saldo (é o
-// que `estoqueForaDasColunas` existe para denunciar). Somar as colunas devolveria
-// um total menor que o verdadeiro.
+// ⚠ SEM recorte usa `consolidado`, e não a soma das colunas: o consolidado é o
+// NÍVEL DO TOTAL da RPC chamada com a lista de TODAS as filiais (F60 — até a F59,
+// a chamada com o recorte nulo), que enxerga também a filial DESATIVADA com saldo
+// (é o que `estoqueForaDasColunas` existe para denunciar). Somar as colunas
+// devolveria um total menor que o verdadeiro.
 
 export type LinhaComFiliais = {
   porFilial: Readonly<Record<number, NumerosDoItem>>
