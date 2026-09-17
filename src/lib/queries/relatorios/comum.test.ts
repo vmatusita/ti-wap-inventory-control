@@ -901,10 +901,21 @@ function tabelasDoParametro(id: ts.Identifier): string[] | null {
   return null
 }
 
+/**
+ * Os embrulhos de página OFFSET que a casa tem — tipados só para a forma OFFSET, então não carregam
+ * `chaveDe` nenhum. Valem como página escrita na chamada quando o callback que embrulham também está
+ * escrito ali (`paginaAteOLimite`, `lib/relatorios/teto-tabela.ts` — as três tabelas do período).
+ */
+const EMBRULHOS_DE_OFFSET: ReadonlySet<string> = new Set(['paginaAteOLimite'])
+
 function examinarPagina(funcao: string, pagina: ts.Expression | undefined): FormaDaPagina {
   if (!pagina) return { forma: 'fora-da-chamada', defeitos: ['sem o argumento da página'] }
   const arg = semParenteses(pagina)
   if (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg)) return { forma: 'offset', defeitos: [] }
+  if (ts.isCallExpression(arg) && ts.isIdentifier(arg.expression) && EMBRULHOS_DE_OFFSET.has(arg.expression.text)) {
+    const dentro = arg.arguments[0] === undefined ? undefined : semParenteses(arg.arguments[0])
+    if (dentro !== undefined && (ts.isArrowFunction(dentro) || ts.isFunctionExpression(dentro))) return { forma: 'offset', defeitos: [] }
+  }
   if (!ts.isObjectLiteralExpression(arg)) {
     return { forma: 'fora-da-chamada', defeitos: [`a página chega pronta (${ts.SyntaxKind[arg.kind]}), não escrita na chamada`] }
   }
@@ -1093,6 +1104,44 @@ describe('o cursor do keyset é a PK de uma tabela (F60 · revisão do lote 1)',
   it('OFFSET escrito na chamada não é keyset (e não passa por esta régua)', () => {
     expect(paginaDoTrecho('async function f(){ return paginarTodos("x", (a, b) => c.from("v").select("*").order("chave").range(a, b), CAP_ATIVOS) }')).toEqual([
       { forma: 'offset', defeitos: [] },
+    ])
+  })
+
+  // Revisão do lote 1 (revisor 2, achado 2): a PÁGINA tem de estar ESCRITA na chamada. Não é estilo —
+  // é o que as duas travas por AST conseguem ler. Esta, sobre o cursor, precisa do objeto keyset à
+  // vista; e `src/lib/supabase/sem-cast-de-leitura.test.ts` só marca o parâmetro de `chaveDe` como
+  // linha lida quando o objeto é argumento literal da chamada produtora — medido na revisão:
+  // `chaveDe: (l) => l.id as string` dá 1 achado escrito na chamada, 0 com o objeto numa `const`, 0
+  // com ele montado por função. Em vez de ensinar as duas travas a seguir variável e retorno de
+  // função (e ainda deixar o caso entre arquivos de fora), a forma que elas não enxergam é proibida.
+  it.each([
+    ['o objeto keyset numa `const`', 'const pagina = { porChave: (d, n) => q(d, n), chaveDe: (l) => l.id }\nasync function f(){ return paginarTodos("x", pagina, CAP_ATIVOS) }', 'fora-da-chamada'],
+    ['o objeto keyset montado por função', 'async function f(){ return paginarTodos("x", montar(), CAP_ATIVOS) }', 'fora-da-chamada'],
+    ['o callback OFFSET numa `const`', 'const ler = (a, b) => c.from("t").select("id").range(a, b)\nasync function f(){ return paginarTodos("x", ler, CAP_ATIVOS) }', 'fora-da-chamada'],
+    ['o objeto keyset espalhado de outro', 'async function f(){ return paginarTodos("x", { ...base }, CAP_ATIVOS) }', 'keyset'],
+    ['o embrulho OFFSET com o callback numa `const`', 'async function f(){ return paginarTodos("x", paginaAteOLimite(ler, 2001), CAP_MOVIMENTACOES) }', 'fora-da-chamada'],
+    ['um embrulho que não é da casa', 'async function f(){ return paginarTodos("x", outroEmbrulho((a, b) => q(a, b)), CAP_MOVIMENTACOES) }', 'fora-da-chamada'],
+  ])('a página fora da chamada não passa: %s', (_nome, fonte, forma) => {
+    const [pagina] = paginaDoTrecho(fonte)
+    expect(pagina.forma).toBe(forma)
+    expect(pagina.defeitos.length).toBeGreaterThan(0)
+  })
+
+  it('o embrulho OFFSET da casa com o callback escrito na chamada vale como página escrita ali (as três tabelas)', () => {
+    expect(
+      paginaDoTrecho('async function f(){ return paginarTodos("x", paginaAteOLimite((from, to) => c.from("movimentacoes").select("id").range(from, to), 2001), CAP_MOVIMENTACOES) }'),
+    ).toEqual([{ forma: 'offset', defeitos: [] }])
+  })
+
+  it('toda chamada do repositório escreve a página NA chamada (a única forma que as travas por AST leem)', () => {
+    const fora = CHAMADAS.filter((c) => c.pagina.forma === 'fora-da-chamada')
+      // o repasse interno de `paginarPorIds` ao `paginarTodos` — a página do lote já foi conferida na chamada de fora
+      .filter((c) => !(c.onde.startsWith('src/lib/queries/relatorios/comum.ts:') && c.funcao === 'paginarTodos'))
+      .map((c) => ({ onde: c.onde, defeitos: c.pagina.defeitos }))
+    expect(fora).toEqual([])
+    // guarda do filtro acima: o repasse existe, é um só, e é o único `fora-da-chamada`
+    expect(CHAMADAS.filter((c) => c.pagina.forma === 'fora-da-chamada').map((c) => c.onde.split(':')[0])).toEqual([
+      'src/lib/queries/relatorios/comum.ts',
     ])
   })
 

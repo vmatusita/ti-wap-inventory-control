@@ -241,6 +241,14 @@ export function castsDeLeitura(
       // outro cast. Medido antes desta linha: a forma nova escapava (0 achados). O RESULTADO da
       // chamada já era derivado pelo NOME da função, sem olhar aridade — o `cap` e o objeto keyset
       // não mudam isso (casos abaixo).
+      //
+      // ⚠ SÓ O OBJETO ESCRITO NA CHAMADA (revisão do lote 1, revisor 2, achado 2). O objeto keyset numa
+      // `const` ou montado por uma função não é seguido: medido, `chaveDe: (l) => l.id as string` dá 1
+      // achado escrito na chamada e 0 nas duas formas indiretas. O buraco não é tapado AQUI — seguir
+      // variável e retorno de função (e o caso entre arquivos) seria reescrever a propagação — e sim
+      // fechado na ORIGEM: `src/lib/queries/relatorios/comum.test.ts` reprova toda chamada de
+      // `paginarTodos`/`paginarPorIds` em `src/**` e `scripts/**` cuja página não esteja escrita na
+      // própria chamada. A forma que esta trava não lê não pode existir no repositório.
       if (ts.isCallExpression(n) && ehChamadaProdutoraDeLinhas(n)) {
         for (const arg of n.arguments) {
           if (!ts.isObjectLiteralExpression(arg)) continue
@@ -823,6 +831,8 @@ describe('o detector de cast de leitura reconhece a forma (guarda do próprio te
     ['namespace local com tipo concreto', 'namespace X { export type Linha = { id: string } }\nasync function f(){ return paginarTodos<X.Linha>("x", (a, b) => c.from("t").select("id").range(a, b)) }'],
     ['tipo importado INLINE, concreto', 'async function f(){ return paginarTodos<import("@/lib/relatorios/serie").LinhaSerieCurta>("x", (a, b) => c.from("t").select("data, tipo").range(a, b)) }'],
     ['F60: keyset com tipo concreto e o teto, sem cast', 'type Linha = { id: number; nome: string }\nasync function f(){ return paginarTodos<Linha, number>("x", { porChave: (d, n) => c.from("t").select("id, nome").order("id").limit(n), chaveDe: (l) => l.id }, CAP_ITENS) }'],
+    // Um objeto que NENHUMA chamada produtora recebe. (O que é recebido por variável também daria 0 aqui
+    // — é o limite medido acima —, e por isso essa forma é reprovada em `relatorios/comum.test.ts`.)
     ['F60: `chaveDe` fora de uma chamada produtora não é linha lida', 'const pagina = { chaveDe: (l: { id: unknown }) => l.id as string }'],
   ])('não casa: %s', (_nome, fonte) => {
     expect(castsDeLeitura(fonte)).toEqual([])
