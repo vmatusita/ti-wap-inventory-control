@@ -26,11 +26,24 @@ esta identidade — é ela que o "depois" tem de repetir, ou declarar a diferen�
 
 | gerador | bytes | sha256 (LF, sem CRLF) |
 |---|---:|---|
-| `medir-rel.mjs` (A1–A4: as sete `rel_*`, `pg_stat_statements`, datas, variação com a data) | 45.039 | `4ab7f71a71eb8a89b1d78f4b546516eb53688a83f42088f8f74f8144145f8eb2` |
-| `medir-custo.mjs` (B1–B8: o custo do lote 1) | 33.353 | `3c42d047b12408c0e14564fd7d998f66624a1a016341577383086c9a5eff7ea1` |
+| `medir-rel.mjs` (A1–A4: as sete `rel_*`, `pg_stat_statements`, datas, variação com a data) — **original, mediu o "antes"** | 45.039 | `4ab7f71a71eb8a89b1d78f4b546516eb53688a83f42088f8f74f8144145f8eb2` |
+| `medir-custo.mjs` (B1–B8: o custo do lote 1) — **original, mediu o "antes"** | 33.353 | `3c42d047b12408c0e14564fd7d998f66624a1a016341577383086c9a5eff7ea1` |
+| `scripts/perf/medir-rel.mjs` — **versionado** (lote 1 + revisão) | 47.341 | `9974c99d0578340efd14469f591b0ae3d2a011cd19d812a7240ebc478b31df5d` |
+| `scripts/perf/medir-custo.mjs` — **versionado** (lote 1 + revisão) | 36.046 | `491b9a6aca1bbe9bfeee678a9360c448c77c438ed47ca5b76b0380af14600fb3` |
 
-⚠ Os dois fixam `RAIZ_REPO` como caminho absoluto desta máquina. Ao entrar no repositório, resolver a raiz por
-`import.meta.url` muda o sha: o lote 1 grava os dois hashes (medido × versionado) e o diff, que tem de ser só essa linha.
+⚠ Só `medir-rel.mjs` fixava `RAIZ_REPO` como caminho absoluto desta máquina; `medir-custo.mjs` não tinha raiz, e por isso
+também não conferia onde `--dir` caía. O plano previa um diff de "só essa linha"; o que entrou é maior, e está declarado aqui
+e no cabeçalho de cada arquivo. **Fora os comentários**, a diferença de cada versionado para o seu original é:
+- `medir-rel.mjs` — `RAIZ_REPO` por `import.meta.url` (+ `fileURLToPath`); a guarda `validarDirFora` exportada e apertada
+  (recusa a própria raiz, que o original liberava, e a pasta interna `..x`; + `sep`).
+- `medir-custo.mjs` — a raiz por `import.meta.url` (+ `fileURLToPath`); `validarDirFora` (exportada, a mesma régua) no lugar
+  de "--dir é obrigatório"; `relative`/`isAbsolute`/`sep` importados e o `readdirSync` morto removido.
+
+**Nenhuma dessas diferenças muda o SQL emitido:** na revisão do lote 1 (16/09/2026) os dois originais e os dois versionados
+geraram, cada par num diretório fora do repositório, os 19 arquivos (`gerar-a1` das sete funções, `gerar-a2`, `gerar-a3-bruto`
+e os dez blocos B), e `diff -r` saiu vazio. `scripts/perf/instrumentos-f60.test.mts` reprova o instrumento cujo sha256 (LF) ou
+tamanho deixar de bater com as linhas **versionado** acima — mudar o instrumento obriga a regravar a linha e declarar a
+diferença.
 
 ---
 

@@ -44,9 +44,14 @@
 // `f60-pgss-antes.json` e `f60-datas-amostra.json` (PLAN-F60 §3.2–§3.4), versionado no lote 1
 // da F60. O original rodou FORA do repositório com a raiz fixada como caminho absoluto da
 // máquina: 45.039 bytes, sha256 (LF) `4ab7f71a71eb8a89b1d78f4b546516eb53688a83f42088f8f74f8144145f8eb2`.
-// A versão daqui difere dele em DUAS coisas e só nelas: `RAIZ_REPO` sai de `import.meta.url`
-// (e o import de `fileURLToPath` que isso pede), e este bloco de uso. O "depois" da fase roda
-// ESTE arquivo — a mudança de sha é a da raiz, e está declarada aqui.
+// A versão daqui difere dele nestas coisas e só nelas: `RAIZ_REPO` sai de `import.meta.url`
+// (e o import de `fileURLToPath` que isso pede); a guarda `validarDirFora`, que o original tinha
+// e a revisão do lote 1 apertou (recusa a própria raiz e a pasta `..x` interna — ver o comentário
+// dela), exportada, com o `sep` que isso pede; e este bloco de uso. NENHUMA muda o SQL emitido: o
+// `gerar-*` desta versão reproduz byte a byte os `.sql` que o original gravou e rodaram em produção.
+// O sha256 desta versão (LF) está no PLAN-F60 §0, ao lado do original, e
+// `scripts/perf/instrumentos-f60.test.mts` reprova o arquivo que mudar sem a tabela mudar junto. O
+// "depois" da fase roda ESTE arquivo.
 //
 // Rode da raiz do repositório; `--dir` fica FORA dele (a guarda `validarDirFora` recusa):
 //   node scripts/perf/medir-rel.mjs gerar-a1 --funcao=rel_estoque_asof --dir=<fora-do-repo>
@@ -62,7 +67,7 @@
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join, resolve, relative, isAbsolute } from 'node:path'
+import { join, resolve, relative, isAbsolute, sep } from 'node:path'
 import { execSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -250,13 +255,20 @@ export function validarConsultaSimples(sql) {
   return sql
 }
 
-function validarDirFora(dir) {
+// A GUARDA DE `--dir` — o mesmo texto nos dois instrumentos da F60 (`medir-rel.mjs` e `medir-custo.mjs`).
+//
+// Revisão do lote 1 (revisor 3, achado 2, 16/09/2026): a versão que entrou no lote de `medir-rel.mjs`
+// liberava a PRÓPRIA RAIZ (`&& rel !== ''`, herdado do original) — `gerar-a2 --dir=.` gravou
+// `a2-pgss.sql` na raiz do repositório com saída 0, enquanto o cabeçalho dizia que a guarda recusa
+// `--dir` dentro dele. E as duas guardas tinham um segundo buraco em comum: `rel.startsWith('..')`
+// também casa `..rascunho`, uma pasta DENTRO do repositório cujo nome começa com dois pontos. "Fora"
+// é, agora, exatamente: outro disco (`relative` devolve caminho absoluto), o pai (`..`) ou abaixo dele
+// (`..${sep}…`). Exportada para `scripts/perf/instrumentos-f60.test.mts` provar os dois casos.
+export function validarDirFora(dir) {
   if (!dir) recusar('--dir é obrigatório.')
-  const abs = resolve(dir)
-  const rel = relative(RAIZ_REPO, abs)
-  if (!rel.startsWith('..') && !isAbsolute(rel) && rel !== '') {
-    recusar('--dir dentro do repositório — comandos e respostas moram FORA dele.')
-  }
+  const rel = relative(RAIZ_REPO, resolve(dir))
+  const fora = isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)
+  if (!fora) recusar('--dir dentro do repositório — comandos e respostas moram FORA dele.')
 }
 
 function gravar(dir, nome, sql, validador) {
