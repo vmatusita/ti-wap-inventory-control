@@ -1,8 +1,12 @@
 # PLAN-F60 — O recorte que corta scan, e o custo do caminho quente
 
 **Fase F60** do `PLANO-MULTIEMPRESA.md` (§5, Bloco D) · branch `f60-recorte-que-corta-scan` · versão-alvo **`1.65.0`** ·
-**com migration** (`0141`→`0144`) · plano medido em **16/09/2026** · base `main` em **`4c380ec`** (merge do PR #51), tag
+**com migration** (`0141`→`0145`) · plano medido em **16/09/2026** · base `main` em **`4c380ec`** (merge do PR #51), tag
 **`v1.64.0`** nesse commit.
+
+(corrigido em 17/09 pela execução: o plano previa `0141`→`0144`; a medição do ensaio pôs o índice `lanc_item_criado_por_idx`
+na `0142`, e a numeração das três seguintes andou uma casa — `0141` os KPIs, `0142` o índice, `0143` as sete `rel_*_filiais`,
+`0144` a view de colaboradores, `0145` o `drop`; ver §8.)
 
 Commits da fase já feitos, nesta ordem: **`50758d6`** *docs(f60): a ordem de serviço da fase* · **`96fc43f`** *chore(f60): o
 harness de TTFB mede as três rotas que a fase toca* — o único commit em `scripts/` permitido antes do lote 1, feito ANTES
@@ -14,7 +18,8 @@ trava da Frente C (`scripts/db/recorte-rel.mjs`, `src/lib/validators/rpcs-recort
 > A fase cabe numa frase: *o recorte vira LISTA obrigatória, ligada a uma coluna por `= any (p_filiais)`, e o nulo deixa de
 > significar "tudo" — sem mudar um número de tela.* As sete `rel_*` que recortam por filial ganham substitutas com nome novo
 > (`_filiais`), o as-of é reescrito por `join lateral` ancorado em `ativos`, o consolidado passa a ser a lista explícita de
-> TODAS as filiais (inclusive desativadas), `/itens` lê colunas e total numa chamada, e as assinaturas velhas só caem depois
+> TODAS as filiais (inclusive desativadas), `/itens` lê colunas e total numa leitura só (paginada — corrigido em 17/09 pela
+> execução: o plano dizia "numa chamada"; ver §6.4), e as assinaturas velhas só caem depois
 > do deploy e da prova do `pg_stat_statements`. No caminho quente: `cache()` com chave primitiva, KPIs por RPC, `cap`
 > obrigatório e keyset em `paginarTodos`, teto com aviso nas três tabelas e `maxDuration` escrito.
 
@@ -105,6 +110,7 @@ A régua é a da ordem: a medição ganha da frase escrita, e a divergência vai
 8. **A precedência é `data desc, ordem desc`** desde a F53 — confirmada.
 9. **A divergência declarada de `/itens` mora em `lista.ts` e `itens-table.tsx`** — confirmada (e são dois pontos na tabela).
 10. **`lanc_item_criado_por_idx` não se prova em produção** — confirmada com 155 lançamentos (0,31 ms na forma real).
+    (corrigido em 17/09 pela execução: o índice entrou mesmo assim, pela medição do ENSAIO — `0142`, §8.)
 11. **`movimentacoes_ordem_lista_idx` está vivo** — confirmada (17.054).
 12. **O agregado do PostgREST está desligado** — confirmada.
 13. **Keyset sobre RPC não compila pela porta, e ordem composta não tem cursor simples** — confirmada.
@@ -137,15 +143,22 @@ A régua é a da ordem: a medição ganha da frase escrita, e a divergência vai
   por `rpc-retorno-sql.test.ts` contra o corpo vivo — consumidor fora do fato 10. As quatro evidências textuais
   (`when not public.status_tem_detentor(…) then null`, `when u.tipo is null then null`, `a.marca`, `a.modelo`) continuam no
   corpo novo; a entrada migra 1:1.
+  (corrigido em 17/09 pela execução: a chave e as quatro colunas migraram 1:1, as evidências não — o corpo final não tem
+  `when u.tipo is null then null` (inalcançável na lateral interna) e chama `status_tem_detentor` uma vez por linha, na
+  lateral `d`; as evidências vivas de `rel_estoque_asof_filiais` são `when not d.tem_detentor then null`,
+  `else u.snapshot_anterior ->> 'setor'`, `a.marca` e `a.modelo`. Ver §6.2.)
 - **(l)** **`corpoVigente` não enxerga `drop function`**: ele devolve o ÚLTIMO `create` da assinatura, varrendo as migrations
-  de trás para frente. Depois da `0144`, `corpoVigente('public.rel_estoque_asof(smallint, date)')` continua devolvendo o corpo
+  de trás para frente. Depois da `0145` (o `drop`; corrigido em 17/09 pela execução: o plano o numerava `0144`),
+  `corpoVigente('public.rel_estoque_asof(smallint, date)')` continua devolvendo o corpo
   da `0134` (o censo das travas afirma o contrário). Consequências: as duas mutações de (b), se não reancoradas, montariam SQL
   válido, recriariam no banco do CI uma função dropada que nenhum roteiro chama e escapariam sem erro de montagem; e o
   orçamento do as-of tem de resolver a assinatura NOVA, ou usar o replay de `recorte-rel.mjs`, que lê `drop`.
 - **(m)** `src/lib/itens/migrations-f38.test.ts:140-150` (`INTOCAVEIS`) nomeia `rel_saldo_itens`, `rel_mov_itens` e
-  `rel_estoque_asof`. A guarda só lê `create` (`funcoesDefinidas`), então a `0144` derruba três "intocáveis" sem acusar. A
-  exceção vai por escrito — na lista e na ata —, no molde de `RECRIACOES_AUTORIZADAS['0134']`; e as quatro migrations novas
+  `rel_estoque_asof`. A guarda só lê `create` (`funcoesDefinidas`), então a `0145` derruba três "intocáveis" sem acusar. A
+  exceção vai por escrito — na lista e na ata —, no molde de `RECRIACOES_AUTORIZADAS['0134']`; e as cinco migrations novas
   entram em `DA_F38` (a segunda lista do fato 24).
+  (corrigido em 17/09 pela execução: o plano dizia "a `0144` derruba" e "as quatro migrations novas" — o índice da `0142`
+  entrou na fase e empurrou o `drop` para a `0145`.)
 - **(n)** **A catraca do visualizador.** `fronteira-viewer.test.ts` deriva a superfície pela ASSINATURA (quem aceita
   `DbClient`), e `queries/relatorios/estoque.ts` está nela. Um `chamarRpc(client, 'rel_contagem_status_filiais')` literal ali
   entra no conjunto de RPCs da superfície e leva `RPCS` a 8 > 7. A chamada dos KPIs mora em módulo fora da superfície (o
@@ -153,6 +166,9 @@ A régua é a da ordem: a medição ganha da frase escrita, e a divergência vai
 - **(o)** O teto de 2.000 linhas das três tabelas foi medido contra a janela de 365 dias (máx. 155). O preset **Tudo**
   (`relatorios/periodo.ts:58`, de `2000-01-01`) não foi medido: antes de fixar o número, contar o Tudo por `count head` nas
   três formas — o limite superior certo é 3.578 —, para o critério 19 (o aviso não aparece hoje) valer.
+  (corrigido em 17/09 pela execução: o Tudo foi contado em produção em 16/09, só leitura, com as mesmas exclusões de carga e
+  de import das três tabelas — saídas **155**, entradas **136**, transferências **14**, iguais à janela de 365 dias; o teto de
+  2.000 tem ~13× de folga e o aviso não aparece hoje.)
 - **(p)** A amostra de datas chama `2026-07-27` de "dia do go-live" (o dia de maior carga de compras de julho). O registry
   põe o go-live da `1.0.0` em `2026-07-15` (F4), que não está entre as 12 datas; e nenhuma movimentação carrega o marcador de
   carga go-live. A data entra como o dia do lote grande (§4).
@@ -162,8 +178,10 @@ A régua é a da ordem: a medição ganha da frase escrita, e a divergência vai
   item, uma linha por filial da lista MAIS a do nível do total. `select … into` escolheria uma em silêncio, e
   `select count(*)` (`dev_destrutivo.sql` 5b) contaria o dobro: a migração filtra o nível explicitamente.
 - **(s)** Das seis asserções do bloco 7, as quatro mutações do rascunho derrubavam só **7a** e **7c** (as outras duas
-  derrubam cenários de roteiro); **7b, 7d, 7e e 7f nasceriam sem mutação própria**. Resolvido no §7.3: sete mutações novas,
-  uma quebra por rótulo do bloco 7, 89 ativas, teto 90.
+  derrubam cenários de roteiro); **7b, 7d, 7e e 7f nasceriam sem mutação própria**. Resolvido no §7.3: oito mutações novas,
+  uma quebra por rótulo do bloco 7 (`7a`–`7g`) e uma por cenário, 90 ativas, teto 95.
+  (corrigido em 17/09 pela execução: o plano previa sete novas, 89 ativas e teto 90; a revisão adversarial da trava
+  acrescentou a `7g` — a exceção sem overload — e a mutação `f60-excecao-ganha-overload`, que a derruba.)
 - **(t)** A contagem final que a ordem prevê ("`rel_*` vivas 8 → 8") vira **8 → 9**: `rel_contagem_status_filiais` é uma
   `rel_*` nova, sob a trava.
 
@@ -247,6 +265,7 @@ declarada. T = tela · L = leitura em lote/servidor.
 | 46 | `src/lib/queries/relatorios/movimentacoes.ts:71` | `serieCurta` | `movimentacoes` ≤ 120 dias, 2 tipos (filial?) | `data asc, id asc` | sim | composta | L | subconjunto | 100.000 | OFFSET [C] |
 | 47 | `src/lib/queries/relatorios/movimentacoes.ts:281` | `buscarLinhasPeriodo` (as três tabelas) | `movimentacoes` período + tipos + exclusões | `data desc, created_at desc, id desc` | sim | composta (tripla) | L | máx. 155 em 365 dias | 100.000; o corte com aviso é o `TETO_LINHAS_TABELA` (§10.6) | OFFSET [C] |
 | 48 | `src/lib/queries/relatorios/movimentacoes.ts:331` | `buscarEstornosAteData` | `movimentacoes` estornos até a data | `id` | sim | coluna única | L | 8 | vira a chamada nova de `paginarPorIds` (abaixo) | **muda de forma** (§6.7) |
+| 49 (nova) | `src/lib/queries/relatorios/itens.ts:135` | `lerSaldoItensEmNiveis` — a única leitura de `rel_saldo_itens_filiais` do app | RPC `rel_saldo_itens_filiais` (os dois níveis) | `filial_id nulls first, grupo, ordem, item, item_id` (a do corpo, imposta na chamada) | sim | fonte RPC | L (`/itens`, histórico, CSV, dashboard, conferência, as duas actions e o relatório) | (6 + 1) × 23 = 161 | 10.000 (`CAP_SALDO_ITENS_EM_NIVEIS`: 161 × 20 = 3.220 → piso) | OFFSET [R] |
 
 | # | arquivo:linha (`paginarPorIds`) | função | fonte · filtro do lote | ordem | keyset cabe? | T/L | volume hoje | cap por lote | decisão |
 |---|---|---|---|---|---|---|---|---|---|
@@ -257,9 +276,15 @@ declarada. T = tela · L = leitura em lote/servidor.
 | P5 | `src/lib/queries/relatorios/estoque.ts:500` | anotações de manutenção | `anotacoes` · `.in('ativo_id')` + data | `created_at asc, id asc` | composta | L | ≤ 200/lote | 10.000 | OFFSET [C] |
 | P6 (nova) | `src/lib/queries/relatorios/movimentacoes.ts` | `buscarEstornosAteData` | `movimentacoes` · `.in('estorno_de')` + `tipo = estorno` + data, sem filial | `id` | coluna única | L | ≤ 1/movimentação | 10.000 | **KEYSET** (+`id`) |
 
-**A conta.** `paginarTodos`: **33 KEYSET** (1–3, 9–35, 38, 42, 44) · **13 OFFSET** (4–8, 36, 39–41, 43, 45–47) · **1 herda**
-(37) · **1 muda de forma** (48) = 48. `paginarPorIds`: **1 KEYSET** (P2) · **4 OFFSET** (P1, P3–P5) = 5, **+1 nova** (P6).
-OFFSET por motivo, somando as duas tabelas: [C] 15 · [T] 3 · [R] 1 · [V] 4 (as marcas se somam onde há dois motivos).
+**A conta.** `paginarTodos`: **33 KEYSET** (1–3, 9–35, 38, 42, 44) · **14 OFFSET** (4–8, 36, 39–41, 43, 45–47, 49) · **1 herda**
+(37) · **1 muda de forma** (48) = 48 **+1 nova** (49). `paginarPorIds`: **1 KEYSET** (P2) · **4 OFFSET** (P1, P3–P5) = 5, **+1
+nova** (P6). OFFSET por motivo, somando as duas tabelas: [C] 15 · [T] 3 · [R] 2 · [V] 4 (as marcas se somam onde há dois
+motivos).
+
+(corrigido em 17/09 pela execução: o censo contou 48 chamadas de `paginarTodos` e o plano não previa nenhuma nova; a revisão
+adversarial do lote 2 acrescentou a 49 — `lerSaldoItensEmNiveis`, OFFSET porque a fonte é RPC, com o `cap`
+`CAP_SALDO_ITENS_EM_NIVEIS`. Sem ela, a resposta de (filiais + 1) × itens linhas passaria calada do `max-rows` de 1.000 do
+PostgREST a partir de 143 itens com as seis filiais; ver §6.4. Até aqui eram 13 OFFSET e [R] 1.)
 Nenhuma chamada de hoje ordena por uma composta que `movimentacoes.ordem` substitua sem mudar a ordem visível — por isso o
 cursor da F53 não entra em chamada nenhuma desta fase, e o motivo fica escrito.
 
@@ -679,10 +704,16 @@ contagens são do próprio dia.
 devolvem 0 linhas, e `rel_mov_itens` devolve uma linha por item do catálogo nas duas formas (com lista não vazia).
 
 **As células.** Recortes = consolidado + cada filial (7 em produção). Por banco: 3 funções × 12 datas × 7 = **252** e 4
-funções × 12 datas × 2 janelas × 7 = **672** — **924 células**, cada uma com contagem e `md5(string_agg(r::text, '|' order by
-r::text))`, velho × novo. O consolidado velho é `p_filial null`; o novo, a lista de TODAS as filiais. Em
-`rel_saldo_itens_filiais` a prova é tripla: `velho(null)` ≡ `novo(todas)` no nível do total; `velho(f)` ≡ `novo([f])` no
-nível do total ≡ `novo(todas)` na linha `filial_id = f`.
+funções × 12 datas × 2 janelas × 7 = **672** — 924 na conta de uma comparação por célula; com a prova tripla abaixo,
+**1.004 células por banco**, cada uma com contagem e `md5(string_agg(r::text, '|' order by r::text))`, velho × novo. O
+consolidado velho é `p_filial null`; o novo, a lista de TODAS as filiais. Em `rel_saldo_itens_filiais` a prova é tripla:
+`velho(null)` ≡ `novo(todas)` no nível do total; `velho(f)` ≡ `novo([f])` no nível do total ≡ `novo(todas)` na linha
+`filial_id = f`.
+
+(corrigido em 17/09 pela execução: o plano dizia **924 células**. A equivalência emulada rodou **1.004 por banco, todas
+iguais, no ensaio e em produção** (`f60-equivalencia-emulada.json`): a prova tripla de `rel_saldo_itens_filiais` conta 156
+células em vez de 84 (12 do consolidado + 72 × 2 por filial), o que leva as sete a **996**, e os KPIs somam **8** —
+`rel_contagem_status_filiais` com a lista de todas × a contagem por status do caminho antigo, as sete que contam e o total.)
 
 ---
 
@@ -714,13 +745,15 @@ hoje. Corpos rascunhados e conferidos contra os vivos.
 | velha (corpo vivo) | nova | migration | o que muda no corpo |
 |---|---|---|---|
 | — | `rel_contagem_status_filiais(p_filiais smallint[])` → `(status, total)` | `0141` | nova: `group by status` sobre `ativos` com `filial_id = any (p_filiais)`; as baixas saem na conta em TS |
-| `rel_estoque_asof(smallint, date)` (`0134`) | `rel_estoque_asof_filiais(smallint[], date)` | `0142` | reescrito por `join lateral` (§6.2); `security invoker` volta a ser explícito |
-| `rel_saldo_itens(smallint, date)` (`0027`) | `rel_saldo_itens_filiais(smallint[], date)` | `0142` | dois níveis numa chamada, com `filial_id` na frente (NULL = o total do recorte) (§6.4) |
-| `rel_mov_itens(smallint, date, date)` (`0016`) | `rel_mov_itens_filiais(smallint[], date, date)` | `0142` | o recorte, **e o acréscimo declarado**: `where exists (select 1 from public.filiais f where f.id = any (p_filiais))` — o corpo devolve uma linha por item do catálogo mesmo sem lançamento (`left join`), e sem a guarda NULL e `'{}'` devolveriam o catálogo zerado |
-| `rel_frescor_itens(smallint, date)` (`0016`) | `rel_frescor_itens_filiais(smallint[], date)` | `0142` | só o recorte |
-| `rel_mov_por_mes(smallint, date, date)` (`0011`) | `rel_mov_por_mes_filiais(smallint[], date, date)` | `0142` | só o recorte |
-| `rel_por_motivo(smallint, date, date)` (`0011`) | `rel_por_motivo_filiais(smallint[], date, date)` | `0142` | só o recorte |
-| `rel_resumo(smallint, date, date)` (`0011`) | `rel_resumo_filiais(smallint[], date, date)` | `0142` | só o recorte |
+| `rel_estoque_asof(smallint, date)` (`0134`) | `rel_estoque_asof_filiais(smallint[], date)` | `0143` | reescrito por `join lateral` (§6.2); `security invoker` volta a ser explícito |
+| `rel_saldo_itens(smallint, date)` (`0027`) | `rel_saldo_itens_filiais(smallint[], date)` | `0143` | dois níveis numa chamada, com `filial_id` na frente (NULL = o total do recorte) (§6.4) |
+| `rel_mov_itens(smallint, date, date)` (`0016`) | `rel_mov_itens_filiais(smallint[], date, date)` | `0143` | o recorte, **e o acréscimo declarado**: `where exists (select 1 from public.filiais f where f.id = any (p_filiais))` — o corpo devolve uma linha por item do catálogo mesmo sem lançamento (`left join`), e sem a guarda NULL e `'{}'` devolveriam o catálogo zerado |
+| `rel_frescor_itens(smallint, date)` (`0016`) | `rel_frescor_itens_filiais(smallint[], date)` | `0143` | só o recorte |
+| `rel_mov_por_mes(smallint, date, date)` (`0011`) | `rel_mov_por_mes_filiais(smallint[], date, date)` | `0143` | só o recorte |
+| `rel_por_motivo(smallint, date, date)` (`0011`) | `rel_por_motivo_filiais(smallint[], date, date)` | `0143` | só o recorte |
+| `rel_resumo(smallint, date, date)` (`0011`) | `rel_resumo_filiais(smallint[], date, date)` | `0143` | só o recorte |
+
+(corrigido em 17/09 pela execução: as sete nasceram na `0143`, não na `0142` — a `0142` é o índice `lanc_item_criado_por_idx`.)
 
 "Só o recorte" = a linha `and (p_filial is null or <col> = p_filial)` vira `and <col> = any (p_filiais)`, e o diff contra o
 corpo vivo mostra isso e nada mais. **"Não-anulável" sem `NOT NULL`** (fato 7), em três camadas: (a) no banco, a comparação
@@ -738,28 +771,56 @@ cross join lateral (
   select m.tipo, m.filial_id, m.filial_destino_id, m.snapshot_anterior, m.status_resultante, m.colaborador, m.setor
     from public.movimentacoes m
    where m.ativo_id = a.id and m.data <= p_data and m.tipo <> 'estorno'
-     and not exists (select 1 from public.movimentacoes x where x.estorno_de = m.id and x.data <= p_data)
+     and not exists (select 1 from public.movimentacoes x
+                      where x.ativo_id = a.id and x.estorno_de = m.id and x.data <= p_data)
    order by m.data desc, m.ordem desc
    limit 1
 ) u
-cross join lateral (… filial_id, status, colaborador, setor com o MESMO case/coalesce da 0134 …) e
+cross join lateral (select public.status_tem_detentor(coalesce(u.status_resultante, 'em_estoque')) as tem_detentor) d
+cross join lateral (… filial_id, status com o MESMO case/coalesce da 0134; colaborador, setor com `when not d.tem_detentor then null` …) e
 where e.status not in ('descartado', 'devolvido_fornecedor')
   and e.filial_id = any (p_filiais)
 ```
 
+(corrigido em 17/09 pela execução: o rascunho tinha o `not exists` sem `x.ativo_id = a.id` e chamava `status_tem_detentor`
+duas vezes por linha, nos dois `case` de `e`; o corpo final é o de cima — `0143_rel_filiais.sql`, com a conta no cabeçalho.)
+
 - **O predicado `existe`** da `0134` (`left join ult` + `where existe`) vira o `cross join lateral`: ativo sem movimentação
-  efetiva até a data não produz linha — o mesmo resultado. O `when u.tipo is null then null` fica, morto e idêntico, porque é
-  evidência textual do mapa de retornos.
+  efetiva até a data não produz linha — o mesmo resultado. O `when u.tipo is null then null` da `0134` SAI: na lateral
+  interna ele é inalcançável (sem `u` não há linha), e o mapa de retornos passa a conferir `when not d.tem_detentor then null`.
+  (corrigido em 17/09 pela execução: o plano o mantinha, morto e idêntico, como evidência textual do mapa de retornos.)
+- **`status_tem_detentor` uma vez por linha**, na lateral `d`, em vez de duas chamadas por linha nos dois `case`: ~54 → ~50 ms
+  no consolidado de produção, na mesma sessão. (corrigido em 17/09 pela execução: não estava no plano.)
 - **A filial é CALCULADA na data** (`transferencia` → destino; `compra`/`troca` → a da movimentação; `snapshot_anterior ?
   'filial_id'` → a anterior; senão `ativos.filial_id`), e o recorte se aplica sobre ela. **Sem pré-filtro por
   `ativos.filial_id`** (fato 8): ele tiraria do relatório de A o ativo que estava em A na data e foi para B depois, e poria o
   que chegou depois. Cenário "transferido depois da data" em `asof_desempate.sql` + a mutação que injeta o pré-filtro
   (sabotagem G).
 - **O desempate é `data desc, ordem desc`** — os rótulos 3a→7b de `asof_desempate.sql` continuam provando.
-- **Os índices que o servem, escritos no cabeçalho da migration:** `mov_ativo_idx (ativo_id, data desc)` dá a busca por ativo
-  já em ordem de `data`, e o `ordem desc` desempata as poucas linhas da mesma data (≤ 9 por ativo hoje); o `not exists` é
-  servido por `movimentacoes_estorno_de_idx (estorno_de)` — quem medir sem o segundo conclui que a lateral não ajudou. Um
-  índice `(ativo_id, data desc, ordem desc)` só entra se o "depois" mostrar o `Sort` por ativo pesando (R-REL-33).
+- **O índice que o serve, escrito no cabeçalho da migration:** `mov_ativo_idx (ativo_id, data desc)` dá a busca por ativo
+  já em ordem de `data`, e o `ordem desc` desempata as poucas linhas da mesma data (≤ 9 por ativo hoje) num `Incremental
+  Sort`; o `not exists`, CORRELACIONADO por ativo (`x.ativo_id = a.id`), é sondado no MESMO índice — o plano medido é um
+  `Nested Loop Anti` sobre `mov_ativo_idx`, e `movimentacoes_estorno_de_idx` não aparece nele (`docs/perf/asof-orcamento.json`,
+  `indices_usados`). `movimentacoes_estorno_de_idx (estorno_de)` é o que serve a forma NÃO correlacionada, que o planejador
+  resolve num merge anti join relendo esse índice a cada ativo: ~70 ms contra ~54 ms da correlacionada (a primeira sessão de
+  medição; os números absolutos do custo, abaixo, são de outra sessão, com o velho medido ao lado). Um índice
+  `(ativo_id, data desc, ordem desc)` só entra se o "depois" mostrar o `Sort` por ativo pesando (R-REL-33) — e não entrou: o
+  `Incremental Sort` por ativo é ~7–10% do corpo medido.
+  (corrigido em 17/09 pela execução: o plano dizia que o `not exists` seria servido por `movimentacoes_estorno_de_idx` e que
+  quem medisse sem ele concluiria que a lateral não ajudou; quem medir de novo tem de medir as DUAS formas com os DOIS índices
+  presentes.)
+- **O custo, medido e aceito.** Produção, plano genérico, N = 7 (`docs/perf/f60-custo-corpos-novos-producao.json`, chave
+  `asof_rodada_2`): no consolidado de hoje (1.624 linhas) o corpo novo mede **65,7 ms** de mediana contra **38,9 ms** do corpo
+  `0134` na mesma sessão — **1,69×** (réplica 54,7 × 34,7 = 1,58×; `hoje-7` 1,67×) —, e na filial pequena 33,0 × 16,9
+  (1,95×); os buffers vão de 368 para 18.638, porque a lateral visita `mov_ativo_idx` uma vez por ativo. **Por que esta forma
+  mesmo assim:** é a única família que a trava de recorte aceita — as mais rápidas medidas (`not in` com subplano em hash,
+  ~38 ms; o corpo `0134` só com o recorte trocado, ~33 ms) leem `movimentacoes` sem correlação com o ativo ou numa CTE
+  descoberta, e a R4 as recusa (§7.1) —; e o custo dela cresce com o NÚMERO DE ATIVOS, não com o histórico de cada um (o
+  `limit 1` lê só o primeiro grupo de data), ao contrário do `0134`, que cresce com todas as movimentações até a data (239 →
+  378 buffers, §3.4). Custo declarado: +~20 ms de banco por chamada de as-of consolidada, e a "Evolução do estoque" faz até 6
+  em paralelo por render; o TTFB "depois" (critério 27) é o juiz, e uma piora fora da faixa se explica por esta causa medida.
+  (corrigido em 17/09 pela execução: o plano não trazia o custo do corpo novo — o do as-of lateral é ~1,6–1,7× o do corpo
+  `0134` no consolidado.)
 
 ### 6.3 O consolidado — onde o `null` morre
 
@@ -796,6 +857,18 @@ sets ((item_id, filial_id), (item_id))` em `tot` e `((item_id, filial_id, chamad
   MESMA chamada, somadas em TS por `somarSaldosDeFiliais`, como hoje — número idêntico ao de hoje (hoje são N chamadas
   somadas).
 - **`getSaldosItens(ids)`** (conferência, dashboard, `actions/admin.ts`, `actions/itens.ts`) → nível do total.
+- **A leitura é PAGINADA, e é uma só.** Os três acima e o relatório (`getGruposItens`) chegam à RPC por
+  `lerSaldoItensEmNiveis` (`queries/relatorios/itens.ts`), a única leitura de `rel_saldo_itens_filiais` em `src/**` (trava
+  por AST em `relatorios/itens.test.ts`): `paginarTodos` com OFFSET (fonte RPC — §2.1, chamada 49), a ordem do corpo imposta
+  na chamada e fechada em `item_id`, e o `cap` `CAP_SALDO_ITENS_EM_NIVEIS`. **O motivo é um corte calado:** a resposta tem
+  (filiais do recorte + 1) × itens linhas, e o `max-rows` do PostgREST corta em 1.000 sem erro — com as seis filiais, a
+  partir de 143 itens (7 × 143 = 1.001) a coluna da filial de id mais alto sairia zerada em `/itens` e o "fora das colunas"
+  acenderia sem filial desativada nenhuma. No volume de hoje (161 linhas) a segunda página vem vazia e prova o fim: **2 idas
+  ao banco por render de `/itens`, em vez das 7 da F59.** O critério 8 ("`/itens` lê colunas e consolidado numa chamada")
+  vale como UMA leitura de UM recorte — toda página executa a mesma função com os mesmos argumentos —, que é o que o `1 + N`
+  violava.
+  (corrigido em 17/09 pela execução: o plano dizia "numa chamada", uma ida só; a revisão adversarial do lote 2 achou o corte
+  calado, e o conserto está em `docs/DECISOES.md`, ata de 16/09 da revisão do lote 2.)
 - **Os roteiros** leem o nível explicitamente (r). O cenário novo, em `supabase/tests/f60_recorte.sql`: uma filial fictícia
   desativada com saldo de item e com ativo — o consolidado soma, as colunas não, o "fora das colunas" é > 0.
 
@@ -819,9 +892,10 @@ A causa medida (g): a chave é calculada por LINHA da união, duas vezes por ren
 da fase. **Materializar o recorte antes do agregado** = reduzir a união a `(nome, filial_id, n)` ANTES de chamar a chave,
 chamar `colaborador_chave()` uma vez por NOME distinto (979 chamadas em vez de 1.562), e reproduzir `mode()` por contagem (mais frequente;
 empate → menor na mesma collation, a regra do `mode_final`) e `count(distinct nome)` pelo agrupamento. **View de mesmo nome e
-mesmas colunas**, `security_invoker` mantido, `create or replace view` (`0143`). Medido: ~100 → ~50 ms, 922 linhas, hash
-igual. Paginar a tela não reduz o custo (o agregado roda inteiro); a tela não perde linha nem número. A `0143` vai a produção
+mesmas colunas**, `security_invoker` mantido, `create or replace view` (`0144`). Medido: ~100 → ~50 ms, 922 linhas, hash
+igual. Paginar a tela não reduz o custo (o agregado roda inteiro); a tela não perde linha nem número. A `0144` vai a produção
 DEPOIS do deploy, na janela do `drop`: muda o plano do que a `1.64.0` lê.
+(corrigido em 17/09 pela execução: o plano numerava a view `0143`.)
 
 ### 6.7 `buscarEstornosAteData`
 
@@ -839,7 +913,9 @@ crescer com o período —, não de tempo no volume de hoje. O padrão já exist
 ### 7.1 A mesa — `scripts/db/recorte-rel.mjs` + `src/lib/validators/rpcs-recorte-sql.test.ts`
 
 - **O universo** é toda `public.rel_*` VIVA pelo replay, na ordem do texto: `create`, `create or replace`, `drop function [if
-  exists]` (várias assinaturas) e `alter function … rename to` (entra ou sai do universo pelo prefixo). Nunca os corpos
+  exists]` (várias assinaturas) e `alter function … rename to` (entra ou sai do universo pelo prefixo) — e o mesmo com
+  `routine` no lugar de `function` (corrigido em 17/09 pela execução: a revisão do lote 2 achou a mesa cega para `alter
+  routine`/`drop routine`, e a leitura e a auto-conferência passaram a tratar `routine` como `function`). Nunca os corpos
   históricos (`0016`, `0019`, `0022`, `0045`, `0047`, `0054`, `0109`, `0110`). Reusa `lexar`/`linhaDe`/`carregarMigrations`
   de `predicado-policies.mjs` e `fimDoComando`/`definicoesDeFuncao` de `corpo-vigente.mjs`, lendo também os NOMES dos
   argumentos. Leitura das migrations e do `.sql` na COLETA (a lição da F57); alvo < 5 s.
@@ -895,6 +971,10 @@ arquivo; `pg_temp.assert_zero_de` com universo > 0; a linha `FIM` única.
 | `7d` | `rel_*` que não é `security invoker`, `stable`, não `strict`, com `search_path` em `proconfig` |
 | `7e` | `rel_*` sem EXECUTE para `authenticated` e `service_role` (o `anon` é da 6a — não duplica) |
 | `7f` | a exceção nos dois sentidos: nome de `k_excecoes_recorte` sem `rel_*` viva, ou que declara `p_filiais` |
+| `7g` | nome de `k_excecoes_recorte` com mais de uma assinatura `rel_*` viva — a exceção é por NOME, e um overload herdaria a isenção sem ter sido avaliado |
+
+(corrigido em 17/09 pela execução: o plano tinha `7a`–`7f`; a `7g`, a exceção sem overload, veio da revisão adversarial da
+trava.)
 
 **Fica só na mesa, com o motivo:** R3 (conjunção direta) e R4 (escopo das leituras) — exigem léxico e escopos, que `prosrc`
 como texto não dá com confiança; a falha fechada de DDL dinâmico — o catálogo vê o resultado do DDL, não o texto que o gerou.
@@ -903,7 +983,8 @@ como texto não dá com confiança; a falha fechada de DDL dinâmico — o catá
 
 ### 7.3 As mutações
 
-**Sete novas** em `scripts/db/mutacoes.mjs`, pelo rótulo nomeado — toda asserção nova do bloco 7 tem ao menos uma quebra que
+**Oito novas** (corrigido em 17/09 pela execução: o plano previa sete; a oitava, `f60-excecao-ganha-overload`, derruba a
+`7g`) em `scripts/db/mutacoes.mjs`, pelo rótulo nomeado — toda asserção nova do bloco 7 tem ao menos uma quebra que
 a derruba, e os dois cenários de comportamento também. As de corpo usam `trocarNoCorpo` sobre o corpo vivo (nunca cópia
 colada); as de atributo/grant são um comando só:
 
@@ -914,6 +995,7 @@ colada); as de atributo/grant são um comando só:
 | `f60-rel-vira-strict` | `alter function … strict` numa `rel_*_filiais` | `7d` |
 | `f60-rel-perde-execute-do-service-role` | `revoke execute … from service_role` numa `rel_*_filiais` (o visualizador perderia o relatório) | `7e` |
 | `f60-excecao-apodrece` | `drop function public.rel_saldo_colaborador(uuid)` — a lista de exceções passa a citar função que não existe | `7f` |
+| `f60-excecao-ganha-overload` | um SEGUNDO `rel_saldo_colaborador`, com outra assinatura, lendo `lancamentos_item` sem recorte — invoker, `stable`, `search_path` e os dois grants, para só a `7g` cair | `7g` |
 | `f60-asof-pre-filtra-pela-filial-de-hoje` | o as-of novo com pré-filtro por `ativos.filial_id = any (p_filiais)` | o cenário "transferido depois da data" de `asof_desempate.sql` |
 | `f60-saldo-consolidado-so-das-ativas` | o nível do total calculado só com as filiais ativas | o cenário de filial desativada de `f60_recorte.sql` |
 
@@ -924,11 +1006,16 @@ passa a ler `pg_get_functiondef` da assinatura nova. Reancorar não é opcional 
 
 ### 7.4 O teto do injetor
 
-82 ativas + 7 = **89**; **teto 85 → 90**, com ata: a regra da casa é "asserção que nasce verde e nunca ficou vermelha é
+82 ativas + 8 = **90**; **teto 85 → 95**, com ata: a regra da casa é "asserção que nasce verde e nunca ficou vermelha é
 documento" (F59), então cada rótulo novo do bloco 7 ganha a sua quebra (s), mais os dois cenários de comportamento — e a folga
 de uma vaga é a mesma conta da F52/F59 (quem precisar de mais sobe o teto com ata). `7d` por `strict` e não por `security
 definer`, para não derrubar junto a tabela-verdade das definer (bloco 1) e confundir o diagnóstico. A quarentena continua ≤
 1/3 do lote.
+
+(corrigido em 17/09 pela execução: o plano dizia 82 + 7 = 89 e teto 85 → 90. A conta furou uma vez dentro da própria fase — a
+`7g` trouxe a oitava mutação —, e o teto foi a 95, não a 91: a revisão adversarial do lote 2 ainda rodaria, e o que ela
+achasse no bloco 7 ou nos cenários ganharia quebra própria pela mesma régua; teto colado no número do dia reabriria a decisão
+no mesmo PR. A ata está no comentário do teto em `scripts/db/mutacoes.test.mts`.)
 
 ### 7.5 O orçamento do as-of — `docs/perf/asof-orcamento.json` + `src/lib/validators/asof-orcamento.test.ts`
 
@@ -940,7 +1027,8 @@ definer`, para não derrubar junto a tabela-verdade das definer (bloco 1) e conf
   diferentes; **nunca por calendário** (decisão iii). O corpo vivo vem do replay de `recorte-rel.mjs` ou de `corpoVigente`
   com a assinatura NOVA — nunca da velha, que `corpoVigente` continuaria achando na `0134` depois do `drop` (l).
 - **A medição:** como o CI passa antes de qualquer apply (fato 25), a primeira é a do corpo EMULADO em produção, só leitura,
-  no método do §3.1; depois do apply da `0142`, confirmada chamando a função. Sabotagem D: sem o JSON → vermelho; migration
+  no método do §3.1; depois do apply da `0143` (corrigido em 17/09 pela execução: o plano dizia `0142`), confirmada chamando
+  a função. Sabotagem D: sem o JSON → vermelho; migration
   sintética EM MEMÓRIA mudando um byte do corpo → vermelho ("velho"); restaurado → verde.
 
 ---
@@ -950,39 +1038,55 @@ definer`, para não derrubar junto a tabela-verdade das definer (bloco 1) e conf
 | migration | o que faz | lote | produção |
 |---|---|---|---|
 | `0141_rel_contagem_status.sql` | cria `rel_contagem_status_filiais` + grants | 1 | antes do merge |
-| `0142_rel_filiais.sql` | cria as sete `rel_*_filiais` + grants, com os índices que as servem no cabeçalho | 2 | antes do merge |
-| `0143_colaboradores_textos_por_nome.sql` | `create or replace view v_colaboradores_textos` (mesmas colunas, chave por nome distinto) | 2 | depois do deploy, na janela |
-| `0144_drop_rel_filial.sql` | `drop function` das sete assinaturas velhas | 2 | depois do deploy e da prova do pgss |
+| `0142_lanc_item_criado_por_idx.sql` | cria o índice parcial `lanc_item_criado_por_idx`, com o plano "antes" no cabeçalho | 1 | antes do merge |
+| `0143_rel_filiais.sql` | cria as sete `rel_*_filiais` + grants, com os índices que as servem no cabeçalho | 2 | antes do merge |
+| `0144_colaboradores_textos_por_nome.sql` | `create or replace view v_colaboradores_textos` (mesmas colunas, chave por nome distinto) | 2 | depois do deploy, na janela |
+| `0145_drop_rel_filial.sql` | `drop function` das sete assinaturas velhas | 2 | depois do deploy e da prova do pgss |
+
+(corrigido em 17/09 pela execução: o plano tinha quatro migrations — `0141` KPIs, `0142` as sete, `0143` a view, `0144` o
+`drop`; a `0142` virou o índice, e as três seguintes andaram uma casa.)
 
 Índice só se a medição mandar (`lanc_item_criado_por_idx` pelo harness no ensaio; o da lateral pelo "depois" do as-of) — em
-migration própria, com o plano no cabeçalho, e a numeração se ajusta então. **Toda migration nova** vai no mesmo commit que
+migration própria, com o plano no cabeçalho, e a numeração se ajusta então.
+(corrigido em 17/09 pela execução: a medição mandou UM. `lanc_item_criado_por_idx` entrou na `0142`, forma
+`(criado_por, created_at desc, id desc) where estorna_id is null`, pela medição do ENSAIO (`docs/perf/f60-itens-ensaio.json`):
+`getUltimoLancamento` de um autor SEM lançamento percorria `lanc_item_created_idx` inteiro — **2,19 ms e 258 buffers com
+10.035 linhas, 10,41 ms e 1.286 buffers com 50.035**, linear, pago em todo `/itens` de quem não lança. O `id desc` a mais que
+a ficha é porque a consulta ordena por `created_at desc, id desc`, e o índice passa a servir a ordem inteira sem sort. O da
+lateral não entrou — §6.2.) **Toda migration nova** vai no mesmo commit que
 `npm run db:lock` e a entrada em `DA_F38` de `migrations-f38.test.ts`, com o rollback escrito no rodapé antes do apply.
 `database.ts` recebe *hand-fix* datado (`// hand-fix F60 — substituído pela regeneração`) antes do primeiro push com cada
 migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
 
 **A ordem:**
 
-1. **CI** — o `banco-sem-docker` roda a cadeia `0001`→`0144`: roteiros (com os 59 pontos migrados e os cenários novos), o par
-   do bloco 7, as mutações (89 ativas, as sete novas acusadas pelo rótulo), o gate de deriva contra o *hand-fix*. **Nenhuma migration toca banco
+1. **CI** — o `banco-sem-docker` roda a cadeia `0001`→`0145`: roteiros (com os 59 pontos migrados e os cenários novos), o par
+   do bloco 7, as mutações (90 ativas, as oito novas acusadas pelo rótulo), o gate de deriva contra o *hand-fix*. **Nenhuma migration toca banco
    real antes de o CI tê-la rodado.**
 2. **Equivalência emulada, antes de qualquer apply:** o corpo novo EMULADO inline × a função velha, no ensaio e em produção,
-   nas 924 células do §4 (só contagem e hash). Migration aplicada não se edita: só aplica quando a emulação fecha.
-3. **Ensaio** (não tem app de produção: o `drop` não espera deploy): apply `0141` → verificação → apply `0142` → verificação
-   pós-apply → **equivalência com a função de verdade** (924 células) → apply `0143` → a view nova: linhas e hash iguais ao
-   de antes do apply → apply `0144` → `notify pgrst, 'reload schema'` → `to_regprocedure` das sete velhas é NULL →
+   nas 1.004 células do §4 (só contagem e hash). Migration aplicada não se edita: só aplica quando a emulação fecha.
+3. **Ensaio** (não tem app de produção: o `drop` não espera deploy): apply `0141` → verificação → apply `0142` (o índice) →
+   apply `0143` → verificação pós-apply → **equivalência com a função de verdade** (as mesmas células) → apply `0144` → a view
+   nova: linhas e hash iguais ao de antes do apply → apply `0145` → `notify pgrst, 'reload schema'` → `to_regprocedure` das
+   sete velhas é NULL →
    `DB_TYPES_PROJECT_REF=sgmvldiizsrjbxzzpmhh npm run db:types` → o arquivo regenerado conferido contra o *hand-fix* (o diff é
    só ordem e os comentários de *hand-fix*).
 4. **Verificação pós-apply** (cada apply, cada banco): uma assinatura por função, sem overload; grants por papel (`anon` sem,
    `authenticated` e `service_role` com); `md5(regexp_replace(prosrc, '\s+', ' ', 'g'))` contra o corpo do arquivo extraído
    por `corpo-vigente.mjs`; `notify pgrst, 'reload schema'`; `get_advisors(security)` sem achado novo; sonda de paridade
    ensaio × produção.
-5. **Produção, antes do merge:** `0141` e `0142` + verificação pós-apply + **equivalência com a função de verdade** (924
-   células) + `conferir.mts` sobre os descritores novos (conta do smoke, só contagens) + **`explain` "depois"** das funções
+5. **Produção, antes do merge:** `0141`, `0142` e `0143` + verificação pós-apply + **equivalência com a função de verdade**
+   (as mesmas células) + `conferir.mts` sobre os descritores novos (conta do smoke, só contagens) + **`explain` "depois"** das funções
    novas pelo `medir-rel.mjs` com os nomes novos + **orçamento do as-of** confirmado chamando a função. Nada disso quebra a
    `1.64.0`: são funções de nome novo. Hash diferente em qualquer célula segura o merge.
 6. **Merge** com `verificar` e `banco-sem-docker` verdes → **deploy** → **conferência** só leitura: `/api/saude` com `1.65.0`
    e o commit do merge; `node scripts/smoke/smoke-prod.mjs` com 0 falha (a Parte B chama as funções novas).
-7. **A janela** (§9): `0143` e `0144`, nessa ordem, depois da prova.
+7. **A janela** (§9): `0144` e `0145`, nessa ordem, depois da prova.
+
+(corrigido em 17/09 pela execução: nos passos 1–7 o plano dizia a cadeia `0001`→`0144`, 89 ativas e sete novas, 924 células,
+o ensaio `0141` → `0142` (as sete) → `0143` (a view) → `0144` (o `drop`), produção `0141` e `0142` antes do merge e a janela
+com `0143` e `0144`; a numeração andou uma casa com o índice na `0142` (§8), as mutações são oito (§7.3) e a equivalência
+emulada teve 1.004 células por banco, todas iguais (§4).)
 
 ---
 
@@ -1029,7 +1133,8 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
    entrada pode ter sido despejada e recriada, e Δ = 0 não prova nada: repetir a janela.
 7. **Chamador achado numa velha:** não dropar. Identificar pelo papel e pela contagem de formas de statement (nunca o texto),
    achar a origem (aba parada, script, deploy anterior), esperar e reler.
-8. **Aplicar**, nessa ordem: `0143` (a view) e `0144` (o `drop`), pelo MCP (a migration já está na `main`).
+8. **Aplicar**, nessa ordem: `0144` (a view) e `0145` (o `drop`), pelo MCP (a migration já está na `main`). (corrigido em
+   17/09 pela execução: o plano as numerava `0143` e `0144`.)
 9. **Depois:** `notify pgrst, 'reload schema'`; `to_regprocedure('public.rel_…(…)') is null` para as sete; smoke de produção
    outra vez com 0 falha; a view nova com as mesmas linhas e o mesmo hash da view velha, lidos imediatamente antes do
    apply; sonda de paridade ensaio × produção.
@@ -1051,16 +1156,21 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
    *Custo:* `listarFiliais().map(id)` apagaria em silêncio o que estiver em filial desativada (fato 9); a soma das colunas não
    é o total quando um chamado atravessa filiais.
 3. **O as-of.** `cross join lateral` ancorado em `ativos`, filial calculada, sem pré-filtro, desempate `data desc, ordem desc`,
-   servido por `mov_ativo_idx` + `movimentacoes_estorno_de_idx`; índice composto só pela medição. *Custo:* hoje o recorte não
+   o `not exists` dos estornos correlacionado por ativo e `status_tem_detentor` uma vez por linha, servido por `mov_ativo_idx`
+   (a lateral e a sonda do `not exists`); índice composto só pela medição — não entrou. *Custo:* hoje o recorte não
    corta a leitura — 368 buffers para 5 linhas ou para 1.624 (§3.2); o pré-filtro óbvio muda o resultado do ativo transferido
-   depois da data.
+   depois da data. (corrigido em 17/09 pela execução: o plano dizia "servido por `mov_ativo_idx` +
+   `movimentacoes_estorno_de_idx`", e o segundo não aparece no plano do corpo final; o custo medido do corpo novo é ~1,6–1,7× o
+   do `0134` no consolidado, aceito porque é a única família que a trava aceita e cresce com os ativos, não com o histórico —
+   §6.2.)
 4. **A janela do `drop`.** Criação antes do merge, `drop` em arquivo separado depois do deploy; T0 → tráfego → ≥ 30 min → T1;
    Δ velhas = 0, Δ novas > 0, `dealloc` igual; chamador achado segura. *Custo:* o `pg_stat_statements` de produção separa por
    papel e cita o nome entre aspas (fato 4, §3.3) — é a prova de ausência sem ler dado; `drop` + app velho = 404 do PostgREST.
 5. **`paginarTodos`.** `cap` terceiro parâmetro obrigatório nas duas funções, por domínio, com a conta do §2.1; acima dele
-   LANÇA; keyset nas 33 + 1 chamadas de `id`; OFFSET nas 13 + 4, com o motivo por chamada. *Custo:* com as ordens compostas o
+   LANÇA; keyset nas 33 + 1 chamadas de `id`; OFFSET nas 14 + 4, com o motivo por chamada. *Custo:* com as ordens compostas o
    ganho não se mede no volume de hoje e a troca por `ordem` muda a ordem visível; o `cap` é a proteção que importa, e o
-   `tsc` a garante.
+   `tsc` a garante. (corrigido em 17/09 pela execução: o plano dizia 13 + 4; a 14ª OFFSET é a chamada nova de
+   `lerSaldoItensEmNiveis` — §2.1, 49.)
 6. **O custo do caminho quente** (B1–B6):
    - **`cache()`** em `contarConflitosAbertos` por chave PRIMITIVA — `chaveDeUnidades(unidades)` (família + modo + valores
      ordenados, reversível); a função pública normaliza e chama a memoizada com a string. Teste: as unidades do caminho do
@@ -1074,7 +1184,9 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
    - **As três tabelas:** `TETO_LINHAS_TABELA = 2.000` por tabela (máx. 155 em 365 dias → ~13× de folga), lendo até teto + 1;
      passou → `count exact head` da mesma consulta dá o total EXATO, e o aviso diz "as N mais recentes de T". Snapshot: chave
      OPCIONAL na forma V2 (`tabelasTruncadas`), nunca `meta.schema: 3`; se o CSV lê as mesmas linhas, recebe o mesmo aviso e
-     total. ⚠ Antes de fixar, o preset Tudo contado (o).
+     total. ⚠ Antes de fixar, o preset Tudo contado (o). (corrigido em 17/09 pela execução: contado em produção em 16/09 —
+     saídas 155, entradas 136, transferências 14, iguais à janela de 365 dias; o 2.000 ficou, com ~13× de folga, e o aviso
+     não aparece hoje.)
    - **`maxDuration = 60`** nas páginas do grupo `(app)` que leem `lib/queries` (o motivo e a folga medida da
      `relatorios/[filial]`), exceto as que hospedam Server Action legitimamente longa (`admin/importar` e as que o censo
      nomear), que ficam com valor explícito e motivo.
@@ -1089,12 +1201,17 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
    "últimas movimentações" —; trocá-las por `data desc, ordem desc` muda a ordem visível no empate (backlog das duas réguas da
    F53), e sem a troca o `idx_scan` não para (17.054; +822 entre 09/09 e a manhã de 16/09). `lanc_item_criado_por_idx` pela
    medição do harness no ensaio — produção não prova (0,31 ms com `lanc_item_created_idx` + `Incremental Sort`). O da lateral
-   pelo "depois" do as-of. `lanc_item_ordem_lista_idx` não entra.
+   pelo "depois" do as-of. `lanc_item_ordem_lista_idx` não entra. (corrigido em 17/09 pela execução: a medição do ensaio pôs
+   `lanc_item_criado_por_idx` na `0142`, `(criado_por, created_at desc, id desc) where estorna_id is null` — o autor sem
+   lançamento ia de 2,19 ms/258 buffers com 10.035 linhas a 10,41 ms/1.286 buffers com 50.035, linear
+   (`docs/perf/f60-itens-ensaio.json`), §8; o da lateral não entrou, §6.2.)
 8. **Colaboradores.** Materializar o recorte antes do agregado — a chave por nome distinto (§6.6), view de mesmo nome e
    colunas, `security_invoker`, depois do deploy. *Custo:* fila 90,18 ms e resumo 83,37 ms, o maior custo de banco medido na
    fase; a emulação dá ~50 ms com o mesmo hash; paginar a tela não reduz o agregado.
 9. **A trava.** R1–R4 na mesa sobre o replay, falha fechada; a oitava como exceção permanente numa fonte só, no `.sql`, nos
-   dois sentidos; o par `7a`–`7f` no catálogo, com R3/R4 só na mesa; sete mutações novas (uma quebra por rótulo do bloco 7 e os dois cenários) + duas reancoradas; teto 85 → 90.
+   dois sentidos; o par `7a`–`7g` no catálogo, com R3/R4 só na mesa; oito mutações novas (uma quebra por rótulo do bloco 7 e os dois cenários) + duas reancoradas; teto 85 → 95.
+   (corrigido em 17/09 pela execução: o plano dizia `7a`–`7f`, sete mutações novas e teto 85 → 90; a `7g` e a
+   `f60-excecao-ganha-overload` vieram da revisão adversarial da trava — §7.2, §7.3, §7.4.)
    *Custo:* proibir a substring `is null or` é frágil (`or p is null` invertido e `coalesce(p, col) = col` passam); exceção por
    nome de função deixaria a próxima `rel_*` escolher o próprio destino.
 10. **O orçamento do as-of.** sha256 do corpo vivo pelo replay (assinatura nova), medição de produção do corpo emulado antes
@@ -1108,19 +1225,20 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
 É o inverso da de apply. O `drop` é a parte que um `create or replace` não desfaz. Em banco real, rollback é **migration nova
 de reversão** (a aplicada não se edita), com `npm run db:lock` e o rodapé de cada migration trazendo o comando.
 
-**Antes do merge** (`0141`/`0142` aplicadas em produção, PR aberto): não há app a reverter — dropar as oito funções novas,
-por migration de reversão, com `notify pgrst, 'reload schema'`, é o rollback inteiro; a `1.64.0` nunca as chamou.
+**Antes do merge** (`0141`–`0143` aplicadas em produção, PR aberto): não há app a reverter — dropar as oito funções novas
+(e, se for o caso, o índice da `0142`), por migration de reversão, com `notify pgrst, 'reload schema'`, é o rollback inteiro;
+a `1.64.0` nunca as chamou.
 
-**Antes do `drop` (merge e deploy feitos, a `0144` não aplicada em produção):**
+**Antes do `drop` (merge e deploy feitos, a `0145` não aplicada em produção):**
 
 1. **Reverter o app:** `git revert` do merge + redeploy → `/api/saude` com a versão anterior. O app volta a chamar as sete
    velhas, que existem, e a ler os KPIs pelas páginas de `ativos`.
 2. **Só então dropar as funções novas** — as sete `rel_*_filiais` e `rel_contagem_status_filiais` —, com `notify pgrst,
    'reload schema'`. Dropar antes do revert quebra o app novo no ar (404).
-3. Se a `0143` já tiver sido aplicada: a view volta pelo corpo da `0115` (`create or replace view`, mesmas colunas) —
+3. Se a `0144` já tiver sido aplicada: a view volta pelo corpo da `0115` (`create or replace view`, mesmas colunas) —
    independente do app, porque as colunas são as mesmas nos dois sentidos.
 
-**Depois do `drop` (a `0144` aplicada):**
+**Depois do `drop` (a `0145` aplicada):**
 
 1. **Recriar as sete velhas** com os corpos vivos, lidos do arquivo e não de memória: `rel_estoque_asof` da `0134` (sem a
    palavra `security invoker`, como está viva — (a)), `rel_saldo_itens` da `0027`, `rel_mov_itens` e `rel_frescor_itens` da
@@ -1135,6 +1253,10 @@ por migration de reversão, com `notify pgrst, 'reload schema'`, é o rollback i
 **Índice novo** (se algum entrar): `drop index`. **Tipos:** `database.ts` volta com o revert; o gate de deriva do CI acompanha
 a cadeia com a migration de reversão.
 
+(corrigido em 17/09 pela execução: o plano punha as funções novas em `0141`/`0142`, a view em `0143` e o `drop` em `0144`; com
+o índice na `0142`, as funções estão em `0141`/`0143`, a view em `0144` e o `drop` em `0145`. Entrou um índice —
+`drop index if exists public.lanc_item_criado_por_idx`, o rodapé da `0142`; não muda resultado, só plano.)
+
 ---
 
 ## 12. Ordem dos commits e o SHA de código congelado
@@ -1146,12 +1268,13 @@ Já feitos: `50758d6` (a ordem) · `96fc43f` (o instrumento do `medir.mjs`).
    qualquer commit em `src/`, `scripts/` ou `supabase/`.
 2. `perf(f60)`: **lote 1** — `scripts/perf/medir-rel.mjs` e `medir-custo.mjs` (com os dois hashes do cabeçalho), `cache()` com
    chave primitiva, a `0141` + *hand-fix* + `db:lock` + `DA_F38` + os KPIs, o `count` escrito, `cap` + keyset, o teto das três
-   tabelas, `maxDuration`, o harness e os índices decididos. Nenhuma `rel_*` existente muda.
+   tabelas, `maxDuration`, o harness e os índices decididos (a `0142`, `lanc_item_criado_por_idx`). Nenhuma `rel_*` existente muda.
 3. `test(f60)`: **a trava**, vermelha contra a cadeia de hoje — `recorte-rel.mjs`, `rpcs-recorte-sql.test.ts`, o bloco 7,
    `catalogos-seguranca.test.ts`; saída gravada (sabotagens A e B). Não sobe sozinho.
-4. `feat(f60)`: **lote 2** — `0142`/`0143`/`0144` + `db:lock` + `DA_F38` + *hand-fix*; a porta, os mapas, os descritores, os
+4. `feat(f60)`: **lote 2** — `0143`/`0144`/`0145` + `db:lock` + `DA_F38` + *hand-fix*; a porta, os mapas, os descritores, os
    chamadores do §2.2, os 59 pontos de roteiro, os cenários novos (`f60_recorte.sql`, o transferido depois da data), as
    mutações, `asof-orcamento.json` e a trava dele. A trava fica verde.
+   (corrigido em 17/09 pela execução: o plano punha `0142`/`0143`/`0144` no lote 2; a `0142` é o índice do lote 1.)
 5. `docs(f60)`: a emenda F60 da `MATRIZ-REGRAS.md`, o Anexo A e a receita da janela no `RUNBOOK-BANCO.md`, uma linha em
    `ARQUITETURA.md` e em `docs/README.md`.
 6. `chore(f60)`: `1.65.0` — `package.json`, `CHANGELOG.md`, `registry.ts`.
