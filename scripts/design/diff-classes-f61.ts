@@ -224,6 +224,12 @@ function ehCaminhoOuEndereco(valor: string): boolean {
   const v = valor.trim()
   if (/^(src|docs|scripts|supabase)\//.test(v)) return true
   if (/^@\//.test(v) || /^https?:/.test(v)) return true
+  // Uma DATA ISO não é classe de CSS. Sem esta linha, a entrada nova do
+  // `versoes/registry.ts` (`data: '2026-09-17'`) entra no portão como "classe
+  // acrescentada" e o acusa de mudança não declarada — um falso positivo que
+  // nasce em TODA fase, porque toda fase acrescenta uma versão. Pego rodando o
+  // portão depois do bump, em 17/09; o Tailwind não tem classe com esta forma.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return true
   return /\.(tsx?|mjs|cjs|json|md|sql|css)$/.test(v)
 }
 
