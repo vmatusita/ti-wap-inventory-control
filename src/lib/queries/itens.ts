@@ -5,6 +5,7 @@ import { hojeISO } from '@/lib/format'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
 import { filiaisDoConsolidado } from '@/lib/queries/relatorios/recorte-filiais'
+import { lerSaldoItensEmNiveis } from '@/lib/queries/relatorios/itens'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
@@ -204,33 +205,23 @@ export function somarSaldosDaSelecao(
 }
 
 /**
- * UMA chamada de `rel_saldo_itens_filiais` (as-of hoje) com a lista dada — os dois níveis juntos.
+ * A leitura de `rel_saldo_itens_filiais` (as-of hoje) com a lista dada — os dois níveis juntos.
  *
  * ⚠ `filiais` NUNCA é `null` aqui: o tipo o recusa, e quem chama resolve o "todas" pela lista
  * explícita (`filiaisDoConsolidado`, inclusive desativadas). Lista vazia não vai ao banco: a RPC
  * daria zero linhas de qualquer jeito.
+ *
+ * ⚠ PAGINADA, por `lerSaldoItensEmNiveis` (`relatorios/itens.ts`) — a única leitura da RPC no app. Até
+ * a revisão do lote 2 esta era uma ida só, e a resposta de (filiais + 1) × itens linhas passava do
+ * `max-rows` do PostgREST a partir de 143 itens com as seis filiais de hoje: o corte caía, calado, nas
+ * colunas das filiais de id mais alto (a coluna zerada, o "fora das colunas" aceso sem filial
+ * desativada, a soma da multi-seleção menor). O porquê inteiro está lá.
  */
 async function lerSaldosEmNiveis(
   supabase: Awaited<ReturnType<typeof createClient>>,
   filiais: readonly number[],
 ): Promise<SaldoItemNivel[]> {
-  if (filiais.length === 0) return []
-  const { data, error } = await chamarRpc(supabase, 'rel_saldo_itens_filiais', {
-    p_filiais: [...filiais],
-    p_ate: hojeISO(),
-  })
-  if (error) throw new Error(`Falha ao ler saldos: ${error.message}`)
-  return (data ?? []).map((r) => ({
-    filial_id: r.filial_id,
-    item_id: r.item_id,
-    item: r.item,
-    grupo: r.grupo,
-    ordem: r.ordem,
-    total: Number(r.total),
-    estoque: Number(r.estoque),
-    atrelados: Number(r.atrelados),
-    falta: Number(r.falta),
-  }))
+  return lerSaldoItensEmNiveis(supabase, filiais, hojeISO())
 }
 
 // Saldo/atrelados/falta por item (as-of hoje) do RECORTE `ids` inteiro — o nível do total de UMA

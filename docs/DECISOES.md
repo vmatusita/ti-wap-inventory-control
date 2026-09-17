@@ -11493,3 +11493,48 @@ refutá-lo. Três rodadas acharam lacunas reais de correção; a quarta, sobre o
   `<scratchpad>/evidencias/` desta sessão. `npx tsc --noEmit` e `npx eslint` limpos nos arquivos tocados
   (`scripts/db/recorte-rel.mjs`, `src/lib/validators/rpcs-recorte-sql.test.ts`, `src/lib/validators/catalogos-seguranca.test.ts`,
   `supabase/tests/catalogo_secdef.sql`). Nada commitado (ordem explícita do pedido).
+
+## 2026-09-16 · F60 · A revisão adversarial do lote 2 — o saldo em dois níveis e o `max-rows`, e a guarda de `drop` que não lia nome citado
+
+- **Contexto.** Três revisores independentes atacaram `4d4bad2..f7b3153` (o lote 2 da Frente D) por lentes diferentes
+  ("números de tela", "SQL, roteiros e mutações", "travas, porta e fronteiras"). Dois achados distintos; os três
+  convergiram no primeiro. Nenhum banco consultado, nenhuma migration nem corpo SQL executável mudado.
+
+- **Achado 1 (MÉDIO, os três revisores) — o saldo em dois níveis perdia linhas no `max-rows` do PostgREST, calado.**
+  Confirmado. Até a F59 cada chamada de `rel_saldo_itens` devolvia no máximo uma linha por item, e ler numa ida só era
+  "seguro estruturalmente" (a premissa de `PLANO-CORRECAO-TRUNCAMENTO-1000.md` §2.2). `rel_saldo_itens_filiais` (`0143`)
+  devolve (filiais do recorte + 1) × itens linhas numa resposta, ordenada `filial_id nulls first`, e
+  `lerSaldosEmNiveis` (`queries/itens.ts`) continuou lendo numa ida só: acima de 1.000 linhas o corte caía nas linhas das
+  filiais de id MAIS ALTO. Com as seis filiais de 16/09, a partir de 143 itens (hoje 23, 161 linhas): em `/itens` a
+  última coluna saía zerada e `estoqueForaDasColunas` acendia "inclui N de filial fora desta lista" sem filial
+  desativada; a soma da multi-seleção do histórico saía menor; o CSV herdava os dois. A equivalência velho × novo não o
+  pegaria — ela emula o corpo em SQL, sem PostgREST. O relatório e o dashboard só leem o nível do total, que vem
+  primeiro, e só errariam acima de 1.000 itens, como antes — mas a segurança deles passara a depender da ordem.
+  - **Escolha:** UMA leitura da RPC no app, paginada — `lerSaldoItensEmNiveis(client, filiais, ate)` em
+    `queries/relatorios/itens.ts`, por `paginarTodos` (OFFSET, porque a fonte é RPC) com a ordem do CORPO imposta na
+    chamada e fechada em ordem total (`filial_id nulls first, grupo, ordem, item, item_id`), o teto
+    `CAP_SALDO_ITENS_EM_NIVEIS` (piso; a conta escrita em `comum.ts`) e a linha conferida por `LEITURA_REL_SALDO_ITENS`.
+    `getGruposItens` (o relatório) e `lerSaldosEmNiveis` (a tela, o histórico, o CSV, o dashboard, a conferência e as
+    duas actions) passam por ela. Uma trava por AST em `relatorios/itens.test.ts` reprova uma segunda chamada da RPC em
+    `src/**`, ou a mesma fora de `paginarTodos`.
+  - **Por que paginar, e não contar e lançar:** `count: 'exact'` só DETECTARIA o corte — a tela quebraria inteira a
+    partir de 143 itens em vez de mostrar o número certo —, e a porta de RPC não expõe a opção. Paginar é o protocolo
+    que a casa já usa em toda leitura que pode passar do `max-rows`, inclusive de RPC (o as-of desde 19/08).
+  - **O custo, e a leitura do critério 8 ("`/itens` lê colunas e consolidado numa chamada"):** uma ida a mais por
+    leitura — a primeira página nunca é conclusiva sozinha, e a segunda (vazia, no volume de hoje) prova o fim. Continua
+    sendo UMA leitura por recorte (toda página executa a mesma função com os mesmos argumentos), e não o `1 + N` que a
+    fase tirou: 2 idas por render de `/itens` em vez das 7 da F59. Leio o critério como "sem leituras de recortes
+    diferentes a combinar", que é o que o `1 + N` violava; a paginação não o viola.
+  - **Por que a ordem é a do corpo, repetida à mão:** OFFSET sem ordem total repete e perde linha quando o plano muda
+    entre páginas, e a ordem de exibição de `/itens` (grupo/ordem/nome) é herdada da leitura. `item` é `itens.nome`
+    (text, collation padrão, igual à da coluna) e `grupo` o enum, então as chaves ordenam igual ao corpo.
+  - **Prova:** 7 casos contra um PostgREST de mentira que aplica ordem, faixa e `max-rows` (e embaralha o plano a cada
+    pedido): a fixture de 6 filiais × 143 itens (1.001 linhas) volta inteira, sem coluna sumida, "fora das colunas" 0 e
+    soma 6; o MESMO cenário lido numa ida só perde a coluna da filial 6, acende o "fora" em 1 e soma 5 (a guarda do
+    próprio teste); `max-rows` 500 termina pelo teto observado; uma filial só com 1.200 linhas volta nas duas metades.
+    Sabotagem (a leitura voltando a uma ida só): 5 dos 15 vermelhos, inclusive a trava da porta única —
+    `<scratchpad>/evidencias/sabotagem-revisao-lote2-saldo-uma-ida.txt`.
+  - **Fora do conserto, registrado:** os scripts que leem a RPC numa ida (`scripts/smoke/smoke-prod.mjs`, as duas
+    checagens de saldo; `scripts/smoke/fixtures-passe2.ts`, `lerSaldoItemNaFilial`, só no ensaio; `scripts/seed.ts`, só
+    em desenvolvimento) têm o mesmo limite, latente em centenas de itens, e falham ALTO (FALHA no smoke, saldo não
+    achado na fixture), não calados. `.mjs` e `tsx` não alcançam `paginarTodos` (`server-only`); fica para o backlog.

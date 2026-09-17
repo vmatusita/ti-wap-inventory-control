@@ -95,6 +95,13 @@ export const CAP_TERMOS_GERADOS = CAP_PISO
 export const CAP_COLABORADORES = CAP_PISO
 /** `itens` (o catálogo) — 23 em 16/09 → piso (434×). */
 export const CAP_ITENS = CAP_PISO
+/**
+ * O saldo de itens em DOIS NÍVEIS (`rel_saldo_itens_filiais`, F60 · revisão do lote 2) — uma linha por
+ * (nível, item), e os níveis são as filiais do recorte MAIS o total: no consolidado de 16/09, (6 + 1) ×
+ * 23 = 161 linhas × 20 = 3.220 → piso (62×). Não é `CAP_ITENS`: o volume desta leitura cresce com o
+ * catálogo E com o número de filiais, e cada filial nova o multiplica.
+ */
+export const CAP_SALDO_ITENS_EM_NIVEIS = CAP_PISO
 /** `anotacoes` — 16 em 16/09 → piso (625×). */
 export const CAP_ANOTACOES = CAP_PISO
 /** `pendencias_item` — 17 em 16/09 → piso (588×). */
