@@ -109,7 +109,20 @@ type LinhaMudanca = {
 
 function carregarTabela(caminho: string): LinhaMudanca[] {
   const absoluto = resolve(RAIZ, caminho)
-  if (!existsSync(absoluto)) return []
+  if (!existsSync(absoluto)) {
+    // ALTO E CLARO, nunca "tabela vazia". Antes isto era `return []`, e a
+    // consequência foi medida na revisão adversarial da F61 (17/09/2026): com o
+    // arquivo ausente, o portão não ficava verde por engano — ficava VERMELHO
+    // com 279 "diferenças sem linha", o que se lê como "quase tudo mudou sem
+    // documentação" em vez de "faltou commitar o gabarito junto com o código".
+    // Um portão que promete fechar um círculo não pode diagnosticar errado a
+    // própria ausência da metade que fecha.
+    throw new Error(
+      `a tabela de mudanças de propósito não existe em ${caminho}.\n` +
+        `  Este portão compara o diff de classes CONTRA ela: sem a tabela não há veredito.\n` +
+        `  Se o arquivo existe no seu disco mas não aqui, ele não foi commitado junto com o código.`,
+    )
+  }
   const bruto = JSON.parse(readFileSync(absoluto, 'utf8'))
   if (!Array.isArray(bruto)) {
     throw new Error(`${caminho} não é uma lista — o formato é um array de linhas`)
@@ -244,8 +257,20 @@ function extrairClasses(textoOriginal: string): Multiconjunto {
   const contagem = new Map<string, number>()
   const linhasPorValor = new Map<string, number[]>()
   for (const achado of classes(semComentario)) {
-    if (!ehStringDeClasse(achado.valor)) continue
     const textoDaLinha = linhas[achado.linha - 1] ?? ''
+    // Template com INTERPOLAÇÃO (`flex ${cond ? 'gap-6' : 'gap-4'}`) não passa em
+    // `ehStringDeClasse` — o `$` não está no alfabeto de utilitário —, e antes
+    // disto era descartado em SILÊNCIO: trocar o `'gap-4'` de dentro do ternário
+    // mudava pixel e não aparecia nem como remoção nem como adição. Achado da
+    // revisão adversarial da F61 (17/09/2026).
+    //
+    // A correção não tenta ENTENDER o template (isso exigiria avaliar o
+    // ternário): ela o registra OPACO, com o texto inteiro como valor. Assim
+    // qualquer edição dentro dele vira remoção+adição e passa a exigir linha na
+    // tabela — o portão deixa de ser cego, mesmo sem ser esperto.
+    const ehTemplateComInterpolacao =
+      achado.valor.includes('${') && /className\s*=\s*\{?`|cn\(`/.test(textoDaLinha)
+    if (!ehStringDeClasse(achado.valor) && !ehTemplateComInterpolacao) continue
     if (linhaEhImportOuDiretiva(textoDaLinha)) continue
     if (ehCaminhoOuEndereco(achado.valor)) continue
     contagem.set(achado.valor, (contagem.get(achado.valor) ?? 0) + 1)

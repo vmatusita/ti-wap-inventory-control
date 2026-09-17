@@ -258,6 +258,22 @@ describe('a catraca da regua (F61)', () => {
     }
   })
 
+  // Achado da revisão adversarial da F61 (17/09/2026). O varredor pula
+  // `*.test.tsx` — teste de render não é tela —, e isso abria a única porta que
+  // sobrava: um arquivo de produção NOMEADO `*.test.tsx`, importado por uma
+  // página de verdade, escaparia da régua inteira sem estar em `PENDENTES`.
+  // A promessa é "nem por prefixo, nem por NOME", então a porta se fecha pelo
+  // outro lado: código de produção não importa de um módulo `*.test`.
+  it('nenhum arquivo de producao importa de um modulo *.test (a porta pelo NOME)', () => {
+    const culpados: string[] = []
+    for (const f of FONTES) {
+      for (const m of f.texto.matchAll(/from\s+'([^']+)'/g)) {
+        if (/\.test$/.test(m[1])) culpados.push(`${f.arquivo} importa de ${m[1]}`)
+      }
+    }
+    expect(culpados).toEqual([])
+  })
+
   it.each(DIRETORIOS_SEM_ISENCAO)(
     'arquivo NOVO em %s nasce sob a regua, e a moldura a mao dele reprova',
     (dir) => {

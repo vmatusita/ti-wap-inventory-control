@@ -100,11 +100,40 @@ function literaisWap(fonte: Fonte): string[] {
   return achados
 }
 
+/** O arquivo IMPORTA a `chaveDeStorage` de verdade, do módulo do escopo?
+ *
+ *  Sem esta pergunta, a confiança era por NOME: uma função local chamada
+ *  `chaveDeStorage` — escrita por engano, por colisão de nome, ou de propósito —
+ *  fazia toda função `chave*` do arquivo entrar no conjunto confiável, e a chave
+ *  que ela devolvesse nunca passaria pelo escopo de verdade. Achado da revisão
+ *  adversarial da F61 (17/09/2026); o ataque era `['w','ap',':'].join('')`, que
+ *  também escapa da regra A por nunca escrever o literal.
+ *
+ *  Continua sendo casamento de NOME, não resolução de símbolo — o que isto fecha
+ *  é o caso PLAUSÍVEL (a colisão acidental num arquivo que não fala com o
+ *  escopo), não o adversário decidido. O limite está escrito no §11 do
+ *  RELATORIO-F61. */
+function importaAConstrutoraDeVerdade(fonte: Fonte, sf: ts.SourceFile): boolean {
+  let importa = false
+  percorrer(sf, (no) => {
+    if (!ts.isImportDeclaration(no) || !ts.isStringLiteral(no.moduleSpecifier)) return
+    const de = no.moduleSpecifier.text
+    if (!/(^@\/lib\/escopo\/chave$)|(^\.{1,2}\/chave$)|(\/escopo\/chave$)/.test(de)) return
+    const nomes = no.importClause?.namedBindings
+    if (nomes && ts.isNamedImports(nomes)) {
+      if (nomes.elements.some((e) => e.name.text === 'chaveDeStorage')) importa = true
+    }
+  })
+  // `chave.ts` é a casa da construtora: ela nasce lá, não se importa a si mesma.
+  return importa || fonte.arquivo === 'src/lib/escopo/chave.ts'
+}
+
 /** As funções `chave*` do projeto que devolvem `chaveDeStorage(…)`. */
 function construtorasDeChave(fontes: Fonte[]): Set<string> {
   const nomes = new Set<string>(['chaveDeStorage'])
   for (const fonte of fontes) {
     const sf = arvore(fonte)
+    if (!importaAConstrutoraDeVerdade(fonte, sf)) continue
     percorrer(sf, (no) => {
       if (!ts.isFunctionDeclaration(no) || !no.name || !/^chave[A-Z]/.test(no.name.text)) return
       const retornos: ts.Expression[] = []
@@ -199,6 +228,39 @@ describe('as chaves de storage saem de chaveDeStorage (F61)', () => {
         codigo: `const CHAVE_X = chaveDeStorage('x')\nsessionStorage.getItem(CHAVE_X)`,
       }
       expect(chamadasSemConstrutora(f, construtoras)).toHaveLength(1)
+    })
+
+    // Achado da revisão adversarial da F61 (17/09/2026): a confiança era por
+    // NOME. Uma função LOCAL chamada `chaveDeStorage` — colisão de nome, que é
+    // erro comum e não precisa de má intenção — fazia toda `chave*` do arquivo
+    // entrar no conjunto confiável, e a chave que ela devolvesse nunca passava
+    // pelo escopo de verdade. Agora o arquivo precisa IMPORTAR a construtora.
+    it('uma funcao LOCAL homonima nao compra confianca para as chave* do arquivo', () => {
+      const impostor = {
+        arquivo: 'src/components/x/impostor.ts',
+        codigo:
+          `function chaveDeStorage(sufixo: string) { return ['w', 'ap', ':'].join('') + sufixo }\n` +
+          `export function chaveEspia() { return chaveDeStorage('espia') }\n`,
+      }
+      // O arquivo do impostor nao importa a construtora -> `chaveEspia` fica de fora.
+      const conjunto = construtorasDeChave([impostor])
+      expect(conjunto.has('chaveEspia')).toBe(false)
+
+      const uso = {
+        arquivo: 'src/components/x/uso.ts',
+        codigo: `sessionStorage.setItem(chaveEspia(), '1')`,
+      }
+      expect(chamadasSemConstrutora(uso, conjunto)).toHaveLength(1)
+    })
+
+    it('a MESMA funcao, num arquivo que importa a construtora de verdade, e confiavel', () => {
+      const legitimo = {
+        arquivo: 'src/components/x/legitimo.ts',
+        codigo:
+          `import { chaveDeStorage } from '@/lib/escopo/chave'\n` +
+          `export function chaveEspia() { return chaveDeStorage('espia') }\n`,
+      }
+      expect(construtorasDeChave([legitimo]).has('chaveEspia')).toBe(true)
     })
 
     it('a chamada no uso passa', () => {

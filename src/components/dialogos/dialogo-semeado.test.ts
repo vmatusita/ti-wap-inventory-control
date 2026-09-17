@@ -54,9 +54,38 @@ function analisarDialogo(arquivo: string, codigo: string): Analise {
   }
 
   // 1ª passada: as props de todo componente do arquivo.
+  //
+  // Duas formas contam, e a segunda foi acrescentada pela revisão adversarial da
+  // F61 (17/09/2026):
+  //   (a) desestruturada na ASSINATURA — `function FilialDialog({ filial }: P)`,
+  //       que é como os 26 diálogos de hoje escrevem;
+  //   (b) desestruturada DENTRO do corpo — `function FilialDialog(props: P) {
+  //       const { filial } = props }`. É TypeScript idiomático (útil quando o
+  //       componente também repassa `props` adiante), e antes disto a trava não
+  //       via nada: `nomesDoPadrao` só olhava o padrão do parâmetro, então o
+  //       conjunto de props ficava `{'props'}` e o `useState(filial?.nome ?? '')`
+  //       passava limpo — com o defeito (reabrir mostra o dado velho) inteiro.
   const juntarProps = (no: ts.Node) => {
     if (ehComponente(no) && no.parameters[0]) {
-      for (const nome of nomesDoPadrao(no.parameters[0].name)) props.add(nome)
+      const parametro = no.parameters[0].name
+      for (const nome of nomesDoPadrao(parametro)) props.add(nome)
+      // (b) — `const { x } = <parâmetro>` em qualquer ponto do corpo.
+      if (ts.isIdentifier(parametro)) {
+        const nomeDoParametro = parametro.text
+        const varrerCorpo = (dentro: ts.Node) => {
+          if (
+            ts.isVariableDeclaration(dentro) &&
+            ts.isObjectBindingPattern(dentro.name) &&
+            dentro.initializer &&
+            ts.isIdentifier(dentro.initializer) &&
+            dentro.initializer.text === nomeDoParametro
+          ) {
+            for (const nome of nomesDoPadrao(dentro.name)) props.add(nome)
+          }
+          ts.forEachChild(dentro, varrerCorpo)
+        }
+        if (no.body) varrerCorpo(no.body)
+      }
     }
     ts.forEachChild(no, juntarProps)
   }
@@ -214,6 +243,45 @@ describe('todo dialogo que semeia de prop usa useDialogoSemeado (F61)', () => {
 
     it('o mesmo diálogo com o hook passa', () => {
       expect(recusasDoDialogo('src/components/admin/marca-dialog.tsx', CONSERTADO, EXCECOES)).toEqual([])
+    })
+
+    // Achado da revisão adversarial da F61 (17/09/2026): desestruturar a prop
+    // DENTRO do corpo, em vez de na assinatura, deixava a trava cega. É
+    // TypeScript idiomático — não é truque —, e o defeito que ele esconde é
+    // exatamente o que a trava existe para impedir.
+    const DEFEITO_PROP_NO_CORPO = `
+      'use client'
+      import { useState } from 'react'
+      export function MarcaDialog(props: { marca?: { nome: string } }) {
+        const { marca } = props
+        const [aberto, setAberto] = useState(false)
+        const [nome, setNome] = useState(marca?.nome ?? '')
+        return <Dialog open={aberto} onOpenChange={setAberto}><input value={nome} onChange={(e) => setNome(e.target.value)} /></Dialog>
+      }`
+
+    it('a prop desestruturada DENTRO do corpo reprova igual (não é esconderijo)', () => {
+      const recusas = recusasDoDialogo(
+        'src/components/admin/marca-dialog.tsx',
+        DEFEITO_PROP_NO_CORPO,
+        EXCECOES,
+      )
+      expect(recusas).toHaveLength(2)
+      expect(recusas[0]).toContain('sem useDialogoSemeado')
+      expect(recusas[1]).toContain('onOpenChange direto a um setter')
+    })
+
+    it('desestruturar de um objeto QUALQUER (não da prop) não semeia', () => {
+      const OUTRA_FONTE = `
+        'use client'
+        import { useState } from 'react'
+        export function MarcaDialog(props: { marca?: { nome: string } }) {
+          const { nome: padrao } = CONSTANTES
+          const [nome, setNome] = useState(padrao)
+          return <Dialog open={props.aberto} onOpenChange={props.mudar}><input value={nome} /></Dialog>
+        }`
+      expect(
+        recusasDoDialogo('src/components/admin/marca-dialog.tsx', OUTRA_FONTE, EXCECOES),
+      ).toEqual([])
     })
 
     it('o nome depois do ponto não é a prop (x.marca não semeia)', () => {
