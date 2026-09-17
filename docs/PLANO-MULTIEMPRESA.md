@@ -634,6 +634,8 @@ Cada fase vira `docs/prompts/F<N>-<slug>-ultracode.md` e um relatório `docs/REL
 
 **Reversão.** `create or replace` da definição anterior. A única parte não reversível é a janela do `drop`, por isso ela é a segunda migration.
 
+*(Nota F60, 17/09/2026: a execução mediu esta ficha e a corrigiu em seis pontos — `NOT NULL` em parâmetro de função é erro de sintaxe (o "não-anulável" virou a conjunção direta `= any`, a porta e a trava); as migrations são `0141`–`0145`, não `0137`–`0140`; os "10 chamadores" eram 8 no app, 1 pela porta, 7 diretos em scripts, 59 chamadas em 8 roteiros e 2 mutações; a divergência de `/itens` mora em `lib/itens/lista.ts` e `itens-table.tsx`; no corpo final do as-of só `mov_ativo_idx` serve a lateral; e a reversão depois do `drop` é recriar as velhas com os grants, não `create or replace` de volta. A régua está na emenda F60 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md); a ordem de rollback, no Anexo A do [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md).)*
+
 ---
 
 ### F61 — Os pontos de injeção da UI  ⟵ **última fase de preparação**
