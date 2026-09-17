@@ -78,6 +78,30 @@ function mutarFuncao(assinatura, de, para, id) {
   return trocarNoCorpo(corpoVigente(assinatura).sql, de, para, id)
 }
 
+/**
+ * `mutarFuncao` para a função cujo corpo vigente é `create function` PURO, sem `or replace`.
+ *
+ * ⚠ POR QUE EXISTE (F60). Função que nasce com NOME NOVO — as sete `rel_*_filiais` da `0143` —
+ * não tem o que substituir, e a migration escreve `create function`. Reemitir esse texto contra
+ * o banco em que ela já existe colide ("already exists with same argument types") e a mutação
+ * sai "NÃO aplicou", o diagnóstico errado. A F52 resolveu o mesmo caso com um `.replace` solto
+ * (`f52-admin-ativo-volta-a-igualdade-crua`); aqui a troca do cabeçalho passa também por
+ * `trocarNoCorpo`, que reprova ALTO se ele não estiver lá exatamente uma vez — no dia em que uma
+ * migration recriar a função com `create or replace`, o import deste catálogo quebra na mesa
+ * pedindo `mutarFuncao`, em vez de a mutação virar um `create` que falha só no CI.
+ *
+ * `create or replace` preserva os grants — a mutação muda o CORPO e nada além dele.
+ */
+function mutarFuncaoSemReplace(assinatura, de, para, id) {
+  const nome = assinatura.slice(0, assinatura.indexOf('(')).trim()
+  return trocarNoCorpo(
+    mutarFuncao(assinatura, de, para, id),
+    `create function ${nome}(`,
+    `create or replace function ${nome}(`,
+    id,
+  )
+}
+
 const CIFRAO = String.fromCharCode(36)
 
 const MARCA = '-- MUTAÇÃO F47 (injetor): o trecho abaixo foi deliberadamente afrouxado.'
@@ -1473,6 +1497,16 @@ const F52_GUARDAS = [
 // As duas primeiras miram o roteiro `asof_desempate.sql`, que outro agente está
 // estendendo EM PARALELO com os rótulos 3a/3b/3c/4a/4b/5a/6a/7a/10a/10b/10c — os
 // rótulos usados aqui (`3a`, `4c`, `6a`) existem nele quando o injetor rodar.
+//
+// ⚠ REANCORADAS NA F60 (16/09/2026) — `3a` e `6a`, não a `4c`. A `0143` criou o as-of com
+// NOME NOVO (`rel_estoque_asof_filiais(smallint[], date)`), reescrito por lateral ancorada em
+// `ativos`, e a `0145` derruba o velho. Sem a reancoragem as duas continuariam passando NA MESA
+// — `corpoVigente` não conhece `drop` e seguiria achando o corpo da `0134` — e no banco do CI
+// virariam `create or replace` de uma função que ninguém mais chama: aplicariam, a sonda diria
+// "pegou", e o roteiro, que agora só lê a função nova, ficaria verde. "NÃO detectada" para uma
+// asserção que está certa. A régua trocada é a MESMA (`data desc, ordem desc` → a velha por
+// `id`; → a pura por `ordem`), só que no `order by` da lateral `u`, onde ela mora agora; os
+// rótulos que caem são os mesmos. A `4c` mira `aplicar_movimentacao`, que a F60 não tocou.
 /** @type {Mutacao[]} */
 const F53_ORDEM = [
   {
@@ -1481,16 +1515,19 @@ const F53_ORDEM = [
     classe: 'desempate-de-ordem-vira-uuid',
     derruba: ['3a'],
     porque:
-      'Reverte o CTE `ult` de rel_estoque_asof ao desempate antigo por `id` (uuid sorteado), tirando `ordem` da régua. É o mesmo cara-ou-coroa que a 0054 tentou consertar com `(tipo=\'ajuste\') desc` e que a F53 mediu errando o ajuste em 643 dos 1270 pares compra+ajuste empatados de produção.',
-    sql: mutarFuncao(
-      'public.rel_estoque_asof(smallint, date)',
-      'order by e.ativo_id, e.data desc, e.ordem desc',
-      'order by e.ativo_id, e.data desc, e.created_at desc, e.id desc',
+      'Reverte a lateral `u` de rel_estoque_asof_filiais (até a F60, o CTE `ult` de rel_estoque_asof) ao desempate antigo por `id` (uuid sorteado), tirando `ordem` da régua. É o mesmo cara-ou-coroa que a 0054 tentou consertar com `(tipo=\'ajuste\') desc` e que a F53 mediu errando o ajuste em 643 dos 1270 pares compra+ajuste empatados de produção.',
+    // `created_at` entra na régua velha ANTES do `id`, como na 0054: em 3a a compra e o ajuste
+    // nascem na MESMA transação (o mesmo `now()`), então o empate chega ao `id` — e o arranjo de
+    // ids fixos do roteiro (alto na compra, baixo no ajuste) faz a régua velha errar SEMPRE.
+    sql: mutarFuncaoSemReplace(
+      'public.rel_estoque_asof_filiais(smallint[], date)',
+      'order by m.data desc, m.ordem desc',
+      'order by m.data desc, m.created_at desc, m.id desc',
       'f53-asof-volta-ao-desempate-por-id',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.rel_estoque_asof(smallint, date)'::regprocedure)
-              like '%e.data desc, e.created_at desc, e.id desc%'`,
+      sql: `select pg_get_functiondef('public.rel_estoque_asof_filiais(smallint[], date)'::regprocedure)
+              like '%m.data desc, m.created_at desc, m.id desc%'`,
       espera: 't',
     },
   },
@@ -1528,21 +1565,24 @@ const F53_ORDEM = [
     classe: 'regua-as-of-perde-a-data',
     derruba: ['6a'],
     porque:
-      'Tira `data desc` da frente do CTE `ult` e deixa só `ordem desc` — a régua PURA que a D3 do PLAN-F53 recusou por escrito: uma movimentação retroativa lançada amanhã ganharia `ordem` maior e passaria a vencer o as-of de um período em que ela não era a verdade (63,7% do acervo de produção é retroativo).',
+      'Tira `data desc` da frente do `order by` da lateral `u` de rel_estoque_asof_filiais (até a F60, o CTE `ult` de rel_estoque_asof) e deixa só `ordem desc` — a régua PURA que a D3 do PLAN-F53 recusou por escrito: uma movimentação retroativa lançada amanhã ganharia `ordem` maior e passaria a vencer o as-of de um período em que ela não era a verdade (63,7% do acervo de produção é retroativo).',
     // ⚠ SÓ 6a, DE PROPÓSITO — é a única asserção que distingue a régua mista
     // (`data desc, ordem desc`) da pura (`ordem desc`). Sobre o acervo de hoje as
     // duas concordam (o backfill tem `data` como primeira componente do rank), então
     // 3a/3b/3c continuam ✓ com esta mutação — não é lacuna, é a linha exata que o
     // PLAN-F53 traçou entre as duas réguas.
-    sql: mutarFuncao(
-      'public.rel_estoque_asof(smallint, date)',
-      'order by e.ativo_id, e.data desc, e.ordem desc',
-      'order by e.ativo_id, e.ordem desc',
+    //
+    // A sonda procura `order by m.ordem desc`, que o corpo original NÃO contém (lá o `order
+    // by` começa por `m.data`) e que só existe depois da troca — o `like` não casa por acaso.
+    sql: mutarFuncaoSemReplace(
+      'public.rel_estoque_asof_filiais(smallint[], date)',
+      'order by m.data desc, m.ordem desc',
+      'order by m.ordem desc',
       'f53-asof-passa-a-ordenar-so-por-ordem',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.rel_estoque_asof(smallint, date)'::regprocedure)
-              like '%order by e.ativo_id, e.ordem desc%'`,
+      sql: `select pg_get_functiondef('public.rel_estoque_asof_filiais(smallint[], date)'::regprocedure)
+              like '%order by m.ordem desc%'`,
       espera: 't',
     },
   },
@@ -1916,6 +1956,217 @@ const F59_DOUTRINA = [
   },
 ]
 
+// =============================================================================
+// F60 — O RECORTE OBRIGATÓRIO DAS `rel_*` (16/09/2026)
+// =============================================================================
+// Uma quebra por rótulo do bloco 7 de `catalogo_secdef.sql` (7a–7g) e uma por cenário de
+// COMPORTAMENTO que a fase escreveu e que o catálogo não enxerga (o transferido depois da data
+// em `asof_desempate.sql`, a filial desativada em `f60_recorte.sql`). O bloco 7 nasceu VERDE
+// contra a cadeia com a `0143`/`0145` — e asserção que nasce verde e nunca ficou vermelha é
+// documento (a régua da F59). Só a mutação prova, no banco de verdade do CI, que cada uma sabe
+// acordar.
+//
+// A classe de defeito de fundo é uma só — o relatório volta a devolver MAIS do que o recorte
+// pede, ou passa a devolver OUTRA coisa —, e cada entrada imita um caminho dela:
+//   · o disfarce textual do nulo-é-tudo voltando ao corpo (7c);
+//   · uma `rel_*` nova que nasce sem recorte nenhum (7a/7b);
+//   · o atributo que a forma exige, perdido (7d) — e o grant do visualizador, perdido (7e);
+//   · a lista de exceções que apodrece (7f) ou que passa a cobrir quem não foi avaliado (7g);
+//   · e as duas que mudam o NÚMERO sem mudar a forma, e que por isso só um cenário pega: o
+//     pré-filtro pela filial de HOJE no as-of (11a) e o consolidado só das filiais ativas (2a).
+//
+// ⚠ AS DE CORPO passam por `mutarFuncaoSemReplace` — as sete `rel_*_filiais` nasceram com
+// `create function` puro (ver o helper no topo). Nenhuma copia corpo: se a `0143` for sucedida
+// por uma migration que mude o trecho, `trocarNoCorpo` reprova na mesa.
+//
+// ⚠ AS DE ATRIBUTO E DE GRANT miram funções DIFERENTES de propósito (7c no `mov_por_mes`, 7d
+// no `frescor`, 7e no as-of): o bloco 7 julga o CONJUNTO das `rel_*`, e espalhar as quebras
+// prova que ele não olha só para a primeira da lista. A 7e fica no as-of porque é o relatório
+// que o visualizador por senha abre primeiro — é onde a perda do grant dói.
+//
+// ⚠ 7d POR `strict`, E NÃO POR `security definer` (PLAN-F60 §7.4): uma definer nova derrubaria
+// junto a tabela-verdade do bloco 1 (`1a`, "não classificada") e o diagnóstico sairia misturado.
+// `strict` é, das quatro propriedades, a única que não tem outra asserção no arquivo.
+//
+// ⚠ AS QUE CRIAM FUNÇÃO trazem o `revoke … from public, anon` e o `grant … to authenticated,
+// service_role` DENTRO da mutação, pelo mesmo motivo da `catalogo-security-definer-nova-nao-
+// classificada` (F48): sem eles a função nasceria com o EXECUTE default de PUBLIC e derrubaria
+// também a 6a (e sem o grant, a 7e) — dois fatos numa quebra só.
+/** @type {Mutacao[]} */
+const F60_RECORTE = [
+  {
+    id: 'f60-recorte-volta-a-is-null-or',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'nulo-volta-a-ser-tudo',
+    derruba: ['7c'],
+    porque:
+      'Uma rel_*_filiais é recriada com o recorte embrulhado em `(p_filiais is null or … = any (p_filiais))` — a forma velha, só que sobre a lista. O nome do parâmetro, o tipo, a ligação `= any` e os grants continuam certos (7a, 7b, 7d e 7e ficam verdes), e um chamador que perca a lista no caminho volta a receber o acervo inteiro de todas as filiais, sem erro — o fail-open que a F60 existe para matar, com cara de conserto.',
+    // ⚠ A LIGAÇÃO `= any` FICA NO CORPO de propósito: é o disfarce que passa pela 7b (prova
+    // POSITIVA) e só cai na 7c (a NEGATIVA textual). Tirar a ligação derrubaria a 7b junto e
+    // não provaria que a 7c existe por conta própria.
+    sql: mutarFuncaoSemReplace(
+      'public.rel_mov_por_mes_filiais(smallint[], date, date)',
+      '    and m.filial_id = any (p_filiais)',
+      '    and (p_filiais is null or m.filial_id = any (p_filiais))',
+      'f60-recorte-volta-a-is-null-or',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.rel_mov_por_mes_filiais(smallint[], date, date)'::regprocedure)
+              like '%p_filiais is null or m.filial_id = any (p_filiais)%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-rel-nova-sem-recorte',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'rel-sem-recorte',
+    derruba: ['7a', '7b'],
+    porque:
+      'Uma rel_* NOVA nasce do jeito certo em tudo que não é o recorte — invoker, stable, search_path fixo, sem anon, com authenticated e service_role — e lê movimentacoes de todas as filiais, sem parâmetro de filial nenhum. É o caminho mais provável de a regra voltar a ser opcional: a próxima função de relatório escrita às pressas, que o visualizador por senha alcançaria pelo client administrativo.',
+    sql: `create function public.rel_sabotagem_f60_sem_recorte(p_ate date)
+returns table (total bigint)
+language sql stable security invoker set search_path = public as $sab$
+  select count(*)::bigint from public.movimentacoes m where m.data <= p_ate;
+$sab$;
+revoke all on function public.rel_sabotagem_f60_sem_recorte(date) from public, anon;
+grant execute on function public.rel_sabotagem_f60_sem_recorte(date) to authenticated, service_role;`,
+    // A sonda prova as DUAS coisas que isolam o diagnóstico: a função existe E o
+    // `service_role` a executa (com o grant, a 7e não cai junto).
+    prova: {
+      sql: `select has_function_privilege('service_role', 'public.rel_sabotagem_f60_sem_recorte(date)'::regprocedure, 'execute')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-rel-vira-strict',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'atributo-da-forma-perdido',
+    derruba: ['7d'],
+    porque:
+      'Uma rel_*_filiais vira `strict`. O efeito imediato parece inofensivo — NULL já dava zero linhas —, mas é mais uma diferença de texto e de atributo entre as oito sem ganho de plano enquanto houver `set search_path` (Decisão 1 do PLAN-F60), e é o primeiro passo do atalho "o banco que recuse o nulo", que tira a prova do vazio do corpo e a põe num atributo que ninguém lê.',
+    sql: `alter function public.rel_frescor_itens_filiais(smallint[], date) strict;`,
+    prova: {
+      sql: `select proisstrict from pg_proc
+             where oid = 'public.rel_frescor_itens_filiais(smallint[], date)'::regprocedure`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-rel-perde-execute-do-service-role',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'grant-perdido',
+    derruba: ['7e'],
+    porque:
+      'O as-of perde o EXECUTE do service_role. Para quem tem sessão nada muda — e é por isso que ninguém perceberia —, mas o visualizador por senha lê os relatórios pelo client administrativo (`resolverAcessoRelatorio`), e o relatório que ele abre primeiro passaria a falhar. A 6a só vigia o anon; sem a 7e, uma rel_* recriada por drop+create com o `revoke … from public, anon` de sempre e sem o `grant` perderia o visualizador em silêncio.',
+    sql: `revoke execute on function public.rel_estoque_asof_filiais(smallint[], date) from service_role;`,
+    prova: {
+      sql: `select not has_function_privilege('service_role', 'public.rel_estoque_asof_filiais(smallint[], date)'::regprocedure, 'execute')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-excecao-apodrece',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'lista-que-apodrece',
+    derruba: ['7f'],
+    porque:
+      'rel_saldo_colaborador(uuid) deixa de existir e `k_excecoes_recorte` continua citando o nome. É assim que uma lista de exceções apodrece: a licença fica sem dono, pronta para cobrir a próxima função que alguém criar com o mesmo nome — que nasceria isenta de 7a/7b sem ninguém ter decidido nada.',
+    // ⚠ `drop function`, e não `drop table`: a regra do bloco 5 do `mutacoes.test.mts` é sobre
+    // o que PERDE DADO, e derrubar uma função de leitura não apaga linha nenhuma. Nada no banco
+    // depende dela (nenhuma view; as chamadas moram em roteiro e no app).
+    sql: `drop function public.rel_saldo_colaborador(uuid);`,
+    prova: {
+      sql: `select to_regprocedure('public.rel_saldo_colaborador(uuid)') is null`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-excecao-ganha-overload',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'excecao-herdada-por-overload',
+    derruba: ['7g'],
+    porque:
+      'Nasce um SEGUNDO rel_saldo_colaborador, com outra assinatura, que lê lancamentos_item de todas as filiais sem recorte nenhum. A exceção é por NOME: sem a 7g, o overload herdaria a isenção inteira de 7a/7b/7c sem ter sido avaliado — o achado CRÍTICO da revisão adversarial da trava, e a forma exata de um furo passar pela porta que a exceção legítima abriu.',
+    // Invoker, stable, `search_path` fixo e com os dois grants: a quebra muda UM fato (o nome
+    // ganha outra assinatura), e 7d/7e/6a continuam verdes — o diagnóstico cai só na 7g.
+    sql: `create function public.rel_saldo_colaborador(p_incluir_zerados boolean)
+returns table (item_id smallint, com_a_pessoa bigint)
+language sql stable security invoker set search_path = public as $sab$
+  select l.item_id, sum(l.quantidade)::bigint
+    from public.lancamentos_item l
+   where p_incluir_zerados or l.quantidade <> 0
+   group by l.item_id;
+$sab$;
+revoke all on function public.rel_saldo_colaborador(boolean) from public, anon;
+grant execute on function public.rel_saldo_colaborador(boolean) to authenticated, service_role;`,
+    prova: {
+      sql: `select count(*) = 2 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.prokind = 'f' and p.proname = 'rel_saldo_colaborador'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-asof-pre-filtra-pela-filial-de-hoje',
+    roteiro: 'asof_desempate.sql',
+    classe: 'recorte-sobre-a-filial-errada',
+    derruba: ['11a'],
+    porque:
+      'O as-of ganha o pré-filtro óbvio para "cortar scan": `a.filial_id = any (p_filiais)` sobre `ativos`, que é a filial de HOJE. O ativo que estava na filial A na data e foi transferido para B depois some do relatório de A naquela data — e não aparece no de B, porque na data ele era de A. Some do passado. Nenhum número de hoje muda, a forma continua passando na trava (é mais uma conjunção direta), e só o cenário do transferido depois da data vê.',
+    // ⚠ SÓ 11a. 11b (a data DEPOIS da transferência) e 11c (o consolidado, cuja lista contém
+    // as duas filiais) continuam verdes com o pré-filtro — é exatamente por isso que o cenário
+    // tem três rótulos: o defeito só aparece no passado da filial de ORIGEM.
+    sql: mutarFuncaoSemReplace(
+      'public.rel_estoque_asof_filiais(smallint[], date)',
+      "  where e.status not in ('descartado', 'devolvido_fornecedor')",
+      "  where a.filial_id = any (p_filiais)\n    and e.status not in ('descartado', 'devolvido_fornecedor')",
+      'f60-asof-pre-filtra-pela-filial-de-hoje',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.rel_estoque_asof_filiais(smallint[], date)'::regprocedure)
+              like '%where a.filial_id = any (p_filiais)%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f60-saldo-consolidado-so-das-ativas',
+    roteiro: 'f60_recorte.sql',
+    classe: 'consolidado-perde-a-desativada',
+    derruba: ['2a'],
+    porque:
+      'O nível do total de rel_saldo_itens_filiais passa a somar só as filiais ATIVAS — o atalho de montar o consolidado com a lista de filiais que o app mostra, que esconde as desativadas. Em /itens o consolidado perde o estoque guardado em filial desativada, `estoqueForaDasColunas` vira 0 e a tela mente com o teste da função pura verde: o fato 9 da ordem, dentro do banco.',
+    // ⚠ A TROCA É SÓ NO NÍVEL DO TOTAL, e isso é o ponto. O `grouping sets` de `tot` vira as
+    // linhas por filial (intactas) + um ramo de total que filtra `filiais.ativo`. As linhas por
+    // filial não mudam — a desativada continua com a coluna dela —, então o cenário cai pela
+    // EMENDA e não por uma linha sumida:
+    //   · 2a (lista de TODAS) cai: total 5 em vez de 12, e o fora das colunas vira 0;
+    //   · 2b (lista só das ATIVAS) fica verde: com as ativas o filtro não muda nada — é a
+    //     variante que prova que a 2a mede a desativada;
+    //   · 3a/4a/4b ficam verdes: as filiais do chamado cruzado são ativas.
+    // `atrel` não é tocado: a desativada do cenário não tem reserva, e mexer nele só alargaria
+    // a quebra sem derrubar rótulo nenhum a mais.
+    sql: mutarFuncaoSemReplace(
+      'public.rel_saldo_itens_filiais(smallint[], date)',
+      'group by grouping sets ((item_id, filial_id), (item_id))',
+      `group by item_id, filial_id
+    union all
+    select item_id, null::smallint,
+           sum(case tipo when 'entrada' then quantidade
+                         when 'ajuste'  then quantidade else 0 end),
+           sum(case tipo when 'saida'   then quantidade
+                         when 'retorno' then -quantidade else 0 end)
+    from rows
+    where filial_id in (select f.id from public.filiais f where f.ativo)
+    group by item_id`,
+      'f60-saldo-consolidado-so-das-ativas',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.rel_saldo_itens_filiais(smallint[], date)'::regprocedure)
+              like '%where filial_id in (select f.id from public.filiais f where f.ativo)%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -1931,6 +2182,7 @@ export const MUTACOES = [
   ...F55_INTEGRIDADE,
   ...F56_VOCABULARIO,
   ...F59_DOUTRINA,
+  ...F60_RECORTE,
 ]
 
 /**
