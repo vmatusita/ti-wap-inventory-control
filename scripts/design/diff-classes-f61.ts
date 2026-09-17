@@ -211,6 +211,22 @@ function linhaEhImportOuDiretiva(linha: string): boolean {
   return false
 }
 
+/**
+ * CAMINHO DE ARQUIVO, especificador de módulo e endereço também não são classe
+ * — e a medição mostrou por quê: `src/lib/layout/pendentes-da-regua.ts` (F61)
+ * lista caminhos como `'src/app/(app)/page.tsx'`, que `ehStringDeClasse` aprova
+ * (tem barra, parêntese e ponto), e sozinho produzia 187 "classes" que nenhuma
+ * tela renderiza. Descarta-se o que COMEÇA por `src/`, `docs/`, `scripts/`,
+ * `@/`, `http(s):` ou TERMINA numa extensão de arquivo. Uma classe do Tailwind
+ * nunca tem nenhuma dessas formas.
+ */
+function ehCaminhoOuEndereco(valor: string): boolean {
+  const v = valor.trim()
+  if (/^(src|docs|scripts|supabase)\//.test(v)) return true
+  if (/^@\//.test(v) || /^https?:/.test(v)) return true
+  return /\.(tsx?|mjs|cjs|json|md|sql|css)$/.test(v)
+}
+
 /** `valor → quantas vezes`, junto com a LISTA de linhas de cada ocorrência (na
  *  ordem em que aparecem) — a lista alimenta o `--esqueleto` (pareamento por
  *  linha). */
@@ -225,6 +241,7 @@ function extrairClasses(textoOriginal: string): Multiconjunto {
     if (!ehStringDeClasse(achado.valor)) continue
     const textoDaLinha = linhas[achado.linha - 1] ?? ''
     if (linhaEhImportOuDiretiva(textoDaLinha)) continue
+    if (ehCaminhoOuEndereco(achado.valor)) continue
     contagem.set(achado.valor, (contagem.get(achado.valor) ?? 0) + 1)
     const lista = linhasPorValor.get(achado.valor) ?? []
     lista.push(achado.linha)

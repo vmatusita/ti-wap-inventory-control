@@ -32,13 +32,35 @@
 //     [--saida <arquivo.json>]
 //
 // O GABARITO é um objeto `{ "<vitrine>/<quadro>": "zero" | "muda" }`.
-//   · "zero"  — o quadro TEM de sair byte a byte igual. `pixelsDiferentes > 0`
-//               ou tamanho divergente → REPROVA.
+//   · "zero"  — o quadro TEM de sair igual. Tamanho divergente, ou QUALQUER pixel
+//               fora da faixa de ANTIALIAS (ver abaixo), → REPROVA.
 //   · "muda"  — mudança ESPERADA (a tabela de mudanças de propósito já credita
 //               o pixel). Só INFORMA a contagem, nunca reprova.
 //   · um quadro medido que não está no gabarito → REPROVA ("quadro sem
 //     gabarito") — todo pixel que muda tem de ter uma linha na tabela, sem
 //     exceção por esquecimento.
+//
+// ============================================================================
+// A FAIXA DE ANTIALIAS — por que "zero" não é "zero byte a byte"
+// ============================================================================
+// O recorte de cada quadro sai da foto da página INTEIRA, numa grade de pixels
+// inteiros; a posição do quadro na página, não. Quando um quadro ACIMA muda de
+// altura (e a F61 muda: raio, respiro, tamanho de texto), o quadro de baixo desce
+// alguns pixels e a fração do seu deslocamento muda — então o MESMO conteúdo é
+// recortado com um alinhamento sub-pixel diferente, e o texto sai com outra
+// borda de antialias. Medido na bancada (17/09/2026), em quadros cujo HTML
+// normalizado é BYTE A BYTE idêntico nos dois lados: 1 a 64 pixels por quadro, e o
+// MAIOR Δ medido em qualquer canal foi 14 — um cinza de borda de letra.
+//
+// Por isso "zero" é: NENHUM pixel com Δ > 16 em qualquer canal (o maior ruído medido
+// foi 14, e a faixa fica dois pontos acima dele). Qualquer coisa
+// que alguém enxergue — um traço que some, um raio, um tom, um deslocamento —
+// passa MUITO disso (a borda removida de um valor copiável mediu Δ 48; a caixa
+// que mudou de posição, Δ 140). A contagem crua continua no relatório
+// (`pixelsDiferentes`), ao lado da contagem que decide (`pixelsForaDoAntialias`).
+//
+// ⚠ Isto NÃO é um limiar de porcentagem ("até 0,1% passa"): um pixel forte
+// reprova, venha sozinho ou acompanhado.
 //
 // Sai com código 1 se qualquer coisa reprovar. `--saida` grava o relatório
 // completo (todas as linhas, inclusive as "muda" e a foto inteira) em JSON.
@@ -155,7 +177,11 @@ function funcaoDoNavegador({ antesB64, depoisB64, quadros }) {
     const tamanhoDivergente = a.w !== b.w || a.h !== b.h
     const w = Math.max(a.w, b.w)
     const h = Math.max(a.h, b.h)
+    // Δ acima do qual a diferença deixa de ser borda de letra — ver o cabeçalho.
+    const ANTIALIAS = 16
     let pixelsDiferentes = 0
+    let pixelsForaDoAntialias = 0
+    let maiorDelta = 0
     let minX = null
     let minY = null
     let maxX = null
@@ -165,19 +191,23 @@ function funcaoDoNavegador({ antesB64, depoisB64, quadros }) {
         const dentroA = x < a.w && y < a.h
         const dentroB = x < b.w && y < b.h
         let diff
+        let delta = 0
         if (!dentroA || !dentroB) {
           diff = true
+          delta = 255
         } else {
           const ia = (y * a.w + x) * 4
           const ib = (y * b.w + x) * 4
-          diff =
-            a.data[ia] !== b.data[ib] ||
-            a.data[ia + 1] !== b.data[ib + 1] ||
-            a.data[ia + 2] !== b.data[ib + 2] ||
-            a.data[ia + 3] !== b.data[ib + 3]
+          for (let c = 0; c < 4; c++) {
+            const d = Math.abs(a.data[ia + c] - b.data[ib + c])
+            if (d > delta) delta = d
+          }
+          diff = delta > 0
         }
         if (diff) {
           pixelsDiferentes++
+          if (delta > maiorDelta) maiorDelta = delta
+          if (delta > ANTIALIAS) pixelsForaDoAntialias++
           if (minX === null || x < minX) minX = x
           if (minY === null || y < minY) minY = y
           if (maxX === null || x > maxX) maxX = x
@@ -187,6 +217,8 @@ function funcaoDoNavegador({ antesB64, depoisB64, quadros }) {
     }
     return {
       pixelsDiferentes,
+      pixelsForaDoAntialias,
+      maiorDelta,
       total: w * h,
       tamanhoDivergente,
       tamanho: tamanhoDivergente ? `${a.w}x${a.h} vs ${b.w}x${b.h}` : `${a.w}x${a.h}`,
@@ -254,7 +286,7 @@ async function main() {
           veredito = 'REPROVA (quadro sem gabarito)'
           reprova = true
         } else if (esperado === 'zero') {
-          if (r.pixelsDiferentes > 0 || r.tamanhoDivergente) {
+          if (r.pixelsForaDoAntialias > 0 || r.tamanhoDivergente) {
             veredito = 'REPROVA (deveria ser zero)'
             reprova = true
           } else {
@@ -272,6 +304,8 @@ async function main() {
           tema: mAntes.tema,
           tamanho: r.tamanho,
           pixelsDiferentes: r.pixelsDiferentes,
+          pixelsForaDoAntialias: r.pixelsForaDoAntialias,
+          maiorDelta: r.maiorDelta,
           total: r.total,
           tamanhoDivergente: r.tamanhoDivergente,
           bboxDaDiferenca: r.bboxDaDiferenca,
@@ -287,6 +321,8 @@ async function main() {
         tema: mAntes.tema,
         tamanho: fotoInteira.tamanho,
         pixelsDiferentes: fotoInteira.pixelsDiferentes,
+        pixelsForaDoAntialias: fotoInteira.pixelsForaDoAntialias,
+        maiorDelta: fotoInteira.maiorDelta,
         total: fotoInteira.total,
         tamanhoDivergente: fotoInteira.tamanhoDivergente,
         bboxDaDiferenca: fotoInteira.bboxDaDiferenca,
@@ -299,13 +335,14 @@ async function main() {
   }
 
   // ---- relatório -----------------------------------------------------------
-  const cols = ['vitrine', 'quadro', 'tema', 'tamanho', 'pixelsDiferentes/total', 'veredito']
+  const cols = ['vitrine', 'quadro', 'tema', 'tamanho', 'fora-do-antialias/diferentes/total', 'maior Δ', 'veredito']
   const linhasTabela = linhas.map((l) => [
     l.vitrine,
     l.quadro,
     l.tema,
     l.tamanho,
-    `${l.pixelsDiferentes}/${l.total}`,
+    `${l.pixelsForaDoAntialias ?? 0}/${l.pixelsDiferentes}/${l.total}`,
+    String(l.maiorDelta ?? 0),
     l.veredito,
   ])
   const larguras = cols.map((c, i) => Math.max(c.length, ...linhasTabela.map((r) => String(r[i]).length)))
