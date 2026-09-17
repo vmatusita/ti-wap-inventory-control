@@ -64,7 +64,8 @@
 --      e `service_role`), que uma função recriada do zero não traz.
 --   2. `notify pgrst, 'reload schema'`; conferir `to_regprocedure` das sete não nulo, os grants
 --      por papel e o md5 de `regexp_replace(prosrc, '\s+', ' ', 'g')` contra o corpo dos arquivos.
---   3. SÓ ENTÃO reverter o app (`git revert` do merge + redeploy) — reverter o app antes de
+--   3. SÓ ENTÃO reverter o app (os commits de `src/`/`scripts/` + redeploy, nunca `git revert` do
+--      merge inteiro, que tiraria as migrations aplicadas do repositório — `docs/RUNBOOK-BANCO.md`) — reverter o app antes de
 --      recriar as funções deixa o app velho chamando nomes que não existem (404 do PostgREST).
 --   4. Depois, se for o caso, o rollback da `0143` (derrubar as novas) e o da `0144` (a view pelo
 --      corpo da `0115`).

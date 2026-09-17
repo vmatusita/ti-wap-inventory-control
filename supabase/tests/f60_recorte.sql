@@ -57,14 +57,15 @@
 --          inclusive quando o clamp (`greatest(0, …)`) está agindo
 --
 -- ⚠ O QUE ELE **NÃO** PROVA: a equivalência número a número entre as funções velhas e as novas
--- sobre dados reais. Essa prova é da Frente D, feita ANTES do apply nos dois bancos (924
--- células, só contagem e hash — `docs/PLAN-F60.md` §4 e §8), e não cabe num roteiro de CI: as
+-- sobre dados reais. Essa prova é da Frente D, feita ANTES do apply nos dois bancos (1.004
+-- células por banco, só contagem e hash — corpo novo EMULADO contra a função velha — `docs/PLAN-F60.md` §4 e §8), e não cabe num roteiro de CI: as
 -- funções velhas não existem mais depois da 0145.
 --
 -- ⚠ ROBUSTO A BANCO POPULADO: toda asserção sobre o consolidado compara DIFERENÇAS (lista de
 -- todas menos lista das ativas) contra a contagem direta das tabelas, ou olha só os itens e o
--- ativo que ele mesmo criou. Em produção existe filial desativada com dado — o roteiro não
--- presume que a desativada dele é a única.
+-- ativo que ele mesmo criou. Um banco pode ter filial desativada com dado (em 16/09/2026
+-- nenhum dos dois bancos tinha: as 6 filiais estavam ativas) — o roteiro não presume que a
+-- desativada dele é a única.
 -- =============================================================
 
 begin;

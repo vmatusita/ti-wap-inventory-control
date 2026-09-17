@@ -183,7 +183,8 @@
 -- de função aqui engoliria o corpo real logo abaixo (a armadilha medida na F53). A receita se
 -- descreve; não se cola.
 --   · ANTES DO DROP DAS VELHAS (a `0145` não aplicada): se o app que chama estas funções já
---     estiver no ar, reverter o APP PRIMEIRO (`git revert` do merge + redeploy — o app volta a
+--     estiver no ar, reverter o APP PRIMEIRO (reverter os commits de `src/`/`scripts/` + redeploy, NUNCA `git revert` do merge inteiro: ele tiraria
+--     do repositório as migrations aplicadas e quebraria a trava de hash — `docs/RUNBOOK-BANCO.md` — o app volta a
 --     chamar as sete velhas, que existem); só então derrubar as sete `rel_*_filiais` desta
 --     migration (as assinaturas com `smallint[]` na frente, listadas nos `revoke` do fim) e
 --     `notify pgrst, 'reload schema'`. Derrubar antes do revert quebra o app novo no ar com 404

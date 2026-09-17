@@ -145,8 +145,8 @@
     "0140_import_desarma_fk.sql": "13966efbfc64fbb6daa7de693d33ff836d4f53fc6041fd9eac1a1de396b72b32",
     "0141_rel_contagem_status.sql": "7d73824d68d88f48e2f40a2d37ec8cc026b45d828658291b9fce1aa586d7ce18",
     "0142_lanc_item_criado_por_idx.sql": "44332b82dc10d454db4d2549b6c4d34a446352d23818e1915ea75448c4955401",
-    "0143_rel_filiais.sql": "28d471b06e5dd0666f95449e141daed36d7f56cbafca528f5d6b8497cd91b556",
+    "0143_rel_filiais.sql": "bc63197b53c6658b998d01e194f945343ff3b33f7f6db44d5adeee33b19bcdb7",
     "0144_colaboradores_textos_por_nome.sql": "e7131b510c8b5a65de8e478017f7c08033a4b015bb5167394f9838ede1400e28",
-    "0145_drop_rel_filial.sql": "24a1e782a423003915b8f6c4eefa7751cf949a3e80278681c0e8b25219a1757b"
+    "0145_drop_rel_filial.sql": "fdbe4033446f1dcad436e674978df78a0b32761b1c991c3c8ab59399e373f299"
   }
 }
