@@ -1156,10 +1156,12 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   **Ledger.** Registradas como `20260901000131`/`20260901000132` (mesma convenção que o ensaio usa), junto com `0136`/`0137`, que a F54 aplicou em produção e **não** havia registrado — cada uma conferida **pelo efeito** antes de entrar, que é a regra deste Anexo.
 
   **Rollback** (nenhum passo perde dado): `create or replace` de `apagar_ativos_conflito_filiais` com o corpo da `0100`; idem `importar_ativos_substituir` e `import_validar_plano` com os corpos da `0131`; `exigir_gestao_de` com o da `0074`; `drop` + `create` de `existe_outro_admin_ativo(uuid)` da `0074` **reemitindo os revokes da `0078`** (único passo que perde privilégio); `drop` de `mesmo_escopo_de_gestao`, `exigir_ativos_da_empresa` e `prefixo_backup_import`; `drop index import_logs_filial_hash_idx`; e só **então** `create or replace` de `importar_ativos_substituir` com o corpo monolítico da `0094` seguido do `drop` das 8 auxiliares. Fingerprints normalizados de antes, para conferir a volta: `importar_ativos_substituir` `0c5f33bbfc7e812dd8fb4ca3e87070c0` · `apagar_ativos_conflito_filiais` `f21695b89d7d5051ddf9d43cc00bf3e6` · `exigir_gestao_de` `13dabe501de45d7527a3be80ca6cfe87` · `existe_outro_admin_ativo(uuid)` `7dcc8eb131619919c5ef4fa7843052ca`.
-- **`0141` a `0145`** (F60 — o recorte que corta scan; escritas em 16/09/2026, **v1.65.0**) — ⚠ **NÃO APLICADAS em banco
-  nenhum até 17/09/2026.** O canal de apply (o conector MCP da Supabase) foi desligado durante a execução da fase e não
-  havia `SUPABASE_ACCESS_TOKEN` no ambiente; pela ordem, o PR #52 ficou ABERTO e SEM merge (ata F60 (j) em
-  `docs/DECISOES.md`). Todo "Ensaio"/"produção" abaixo é o PLANO, com o resultado a preencher por quem aplicar. O que
+- **`0141` a `0145`** (F60 — o recorte que corta scan; escritas em 16/09/2026, **v1.65.0**) — **APLICADAS nos dois bancos em 17/09/2026**
+  (atas F60 (l) e (m) em `docs/DECISOES.md`; evidências `docs/f60-evidencias/apply-ensaio.txt`,
+  `apply-producao-antes-do-merge.txt` e `pos-deploy-e-drop.txt`). O canal de apply (o conector MCP da Supabase) caiu
+  durante a execução — o PR #52 ficou aberto e sem merge (ata (j)) — e voltou no mesmo dia. O CI foi refeito sobre o HEAD
+  antes do merge (run 35215000369, `5bbc0ca`, verde). Os "Ensaio · produção" abaixo trazem o RESULTADO; o parágrafo
+  seguinte guarda o estado do CI na hora do bloqueio. O que
   existe de prova de banco é do CI (`banco-sem-docker`, cadeia `0001`→`0145`, run 35178186717: 35 roteiros, 855
   asserções, 90/90 mutações) e das emulações só leitura em ensaio e produção (`docs/perf/f60-*.json`). ⚠ **Esse run é de
   `d83f8ec`.** Depois dele vieram `5094f6f` (comentários da `0143`/`0145`/`f60_recorte.sql`, com o lock das duas
@@ -1187,8 +1189,9 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   `anon` false · `authenticated` true · `service_role` true, e a `proacl` sem a entrada de PUBLIC (teste `a::text like
   '=%'` sobre `unnest(proacl)` — `like '%=X/%'` casa `postgres=X/postgres`); `md5(regexp_replace(prosrc,'\s+',' ','g'))`
   igual ao do corpo do arquivo; `count(*)` com `null` e com `'{}'` = 0; a soma do
-  consolidado (a lista de todas as filiais) = `count(*)` de `ativos`; `notify pgrst, 'reload schema'`. Ensaio: PENDENTE ·
-  produção: PENDENTE. **Rollback:** se o app que a chama estiver no ar, reverter o app PRIMEIRO (o dashboard volta a ler
+  consolidado (a lista de todas as filiais) = `count(*)` de `ativos`; `notify pgrst, 'reload schema'`. Ensaio: aplicada
+  (ledger `rel_contagem_status`), md5 `695b38a8…`, NULL/`'{}'` 0, consolidado = ativos · produção: aplicada antes do merge,
+  idem; o plano chamando a função: `Index Only Scan ativos_filial_status_idx`, 1,36 ms, 272 buffers. **Rollback:** se o app que a chama estiver no ar, reverter o app PRIMEIRO (o dashboard volta a ler
   as páginas de `ativos`); só então `drop` da assinatura e `notify pgrst, 'reload schema'`.
 
   **`0142_lanc_item_criado_por_idx.sql`** — cria `lanc_item_criado_por_idx on public.lancamentos_item (criado_por,
@@ -1199,7 +1202,9 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   `btree (criado_por, created_at DESC, id DESC)` e `WHERE (estorna_id IS NULL)`; no ENSAIO, o harness
   `scripts/perf/medir-itens.mjs` no mesmo patamar (50 mil, marcador de limpeza, contagem antes e depois) mostra `Index
   Scan using lanc_item_criado_por_idx` sem nó de sort e os buffers parados — o "depois", que vai para a evidência e NÃO
-  para o cabeçalho (a trava de hash o congelou). Ensaio: PENDENTE (o "depois") · produção: PENDENTE. **Rollback:** `drop
+  para o cabeçalho (a trava de hash o congelou). Ensaio: aplicada (ledger `lanc_item_criado_por_idx`); o "depois" do harness — sem lançamento 10,406 → **0,017 ms**, 3
+  buffers, sem sort (`docs/perf/f60-itens-ensaio-depois.json`) · produção: aplicada antes do merge, `indexdef` conferido;
+  já fora de `unused_index` nos advisors depois do deploy. **Rollback:** `drop
   index if exists public.lanc_item_criado_por_idx` — só muda o plano; o primeiro a ser desfeito.
 
   **`0143_rel_filiais.sql`** — cria as SETE `rel_*_filiais` com os grants de cada uma. As cinco simples mudam SÓ o
@@ -1222,8 +1227,10 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   `medir-rel.mjs gerar-a1 --funcao=<nome>_filiais` e o de `rel_contagem_status_filiais` e do as-of, com a confirmação do
   orçamento, pelo `equivalencia-rel.mjs gerar-custo-real --alvo=producao --hoje=AAAA-MM-DD --dir=<…>` + `analisar-custo --real
   --dir=<…> --saida=<…> --confirmar-orcamento=docs/perf/asof-orcamento.json` (grava só `medicao.confirmacao`). ⚠ Num banco com a `0143` e sem a `0145`, o bloco 7 de `catalogo_secdef.sql` fica VERMELHO em
-  `7a`/`7b` nomeando as sete velhas — é o estado esperado da janela, não um defeito. Ensaio: PENDENTE · produção:
-  PENDENTE. **Rollback:** antes da `0145` — se o app novo estiver no ar, reverter o app PRIMEIRO; só então `drop` das
+  `7a`/`7b` nomeando as sete velhas — é o estado esperado da janela, não um defeito. Ensaio: aplicada (ledger
+  `rel_filiais`), os sete md5 iguais, equivalência com a função de verdade 1.004/1.004 · produção: aplicada antes do merge,
+  os sete md5 iguais, equivalência real 1.004/1.004 (`docs/perf/f60-equivalencia-real.json`), conferidor 271 pontos sem
+  reprovação, `explain` "depois" (`f60-producao-depois-rel.json`), orçamento confirmado (razão 0,833). **Rollback:** antes da `0145` — se o app novo estiver no ar, reverter o app PRIMEIRO; só então `drop` das
   sete (as assinaturas com `smallint[]` na frente, as mesmas dos `revoke` do fim do arquivo) e `notify pgrst, 'reload
   schema'`; derrubar antes do revert quebra o app no ar com 404. Depois da `0145` — ver a ordem da fase, abaixo.
 
@@ -1234,8 +1241,9 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   `select count(*), md5(string_agg(v::text, '|' order by v::text)) from public.v_colaboradores_textos v;` — os dois
   pares iguais (diferente → rollback, sem discussão: a tela não pode perder linha nem número); `reloptions` =
   `{security_invoker=true}`; `notify pgrst, 'reload schema'`. A emulação em produção deu 922 linhas e o mesmo `md5`,
-  ~100 → ~50 ms (`docs/perf/f60-colaboradores-emulacao-producao.json`). Ensaio: PENDENTE (antes · depois) · produção:
-  PENDENTE (antes · depois). **Rollback:** `create or replace view` com o corpo da `0115` (o agregado por
+  ~100 → ~50 ms (`docs/perf/f60-colaboradores-emulacao-producao.json`). Ensaio: aplicada (ledger
+  `colaboradores_textos_por_nome`), 780 linhas · md5 `816c2505…` antes e depois · produção: aplicada na janela, depois do
+  deploy, 923 linhas · md5 `08374799…` antes e depois, o resumo idêntico. **Rollback:** `create or replace view` com o corpo da `0115` (o agregado por
   `colaborador_chave(t.nome)` com os dois `mode()`) e `notify pgrst, 'reload schema'` — independe do app, porque as
   colunas são as mesmas nos dois sentidos.
 
@@ -1244,10 +1252,13 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   `rel_mov_itens(smallint, date, date)` e `rel_frescor_itens(smallint, date)` (`0016`), `rel_mov_por_mes`,
   `rel_por_motivo` e `rel_resumo` (`smallint, date, date`, `0011`). **Em produção, só pela receita de "A janela do
   `drop`"**: T0 → tráfego → espera ≥ 30 min → T1; Δ velhas 0 nos três papéis, Δ novas > 0 em `authenticated`, `dealloc` e
-  `stats_reset` iguais — PENDENTE. **Verificação pós-apply:** `notify pgrst, 'reload schema'`; `to_regprocedure` das sete
+  `stats_reset` iguais — em produção, T0 11:26:39Z → T1 11:57:59Z (31,35 min): as sete velhas Δ 0 em `authenticated` e
+  `service_role`, nenhuma em `anon`; as oito novas de +1 a +122 em `authenticated`; `dealloc` 0 = 0; `stats_reset` igual
+  (`docs/f60-evidencias/janela-do-drop.json`). **Verificação pós-apply:** `notify pgrst, 'reload schema'`; `to_regprocedure` das sete
   = `null`; as sete `_filiais` e `rel_contagem_status_filiais` vivas, uma assinatura cada, com os grants; smoke com 0
-  falha; sonda de paridade ensaio × produção (`func` e `grant_func` batendo, as velhas fora nos dois). Ensaio: PENDENTE ·
-  produção: PENDENTE. **Rollback:** ver a ordem da fase, logo abaixo.
+  falha; sonda de paridade ensaio × produção (`func` e `grant_func` batendo, as velhas fora nos dois). Ensaio: aplicada (ledger
+  `drop_rel_filial`), as sete `null` · produção: aplicada às 11:59Z, as sete `null`, nove `rel_*` vivas com os grants,
+  smoke 109 OK · 0 falha, paridade **11 de 11** classes, bloco 7 só leitura verde nos dois bancos. **Rollback:** ver a ordem da fase, logo abaixo.
 
   **Tipos — as DUAS regenerações.** `src/lib/types/database.ts` entrou com *hand-fix* datado (`// hand-fix F60 —
   substituído pela regeneração do ensaio`) do estado FINAL da cadeia — o gate de deriva do CI constrói a cadeia inteira,
@@ -1257,10 +1268,13 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   resultado vai para a evidência, NÃO para o commit; **(2) de PRODUÇÃO, depois do `drop`** — a regra de sempre da
   `ARQUITETURA.md` §10 (`DB_TYPES_PROJECT_REF=<ref de prod>`); é ESTE o arquivo que substitui o hand-fix no repositório.
   Antes do `drop` em produção, regenerar de lá traria as sete velhas de volta ao tipo — o que o `@ts-expect-error` (24) de
-  `linhas-tipos.test.ts` recusa. Ensaio: PENDENTE · produção: PENDENTE.
+  `linhas-tipos.test.ts` recusa. **Resultado (17/09/2026):** sem `SUPABASE_ACCESS_TOKEN` a CLI fixada não tem canal, e os
+  dois vieram do MCP `generate_typescript_types` — ensaio e produção **byte a byte iguais** entre si e ao hand-fix sem as 8
+  linhas de comentário (md5 `4465cfaf…`); o arquivo de produção substituiu o hand-fix no PR de documentação da fase.
 
-  **Ledger.** PENDENTE — `version`/`name` das cinco nos dois bancos, conferidas pelo efeito antes de entrar (a regra deste
-  Anexo).
+  **Ledger.** As cinco registradas pelo `apply_migration` nos dois bancos, com o `name` sem o prefixo numérico (a convenção
+  das recentes): `rel_contagem_status`, `lanc_item_criado_por_idx`, `rel_filiais`, `colaboradores_textos_por_nome`,
+  `drop_rel_filial` — cada uma conferida pelo efeito (a verificação acima), que é a regra deste Anexo.
 
   **A ordem de rollback da fase — o inverso da de apply, e o `drop` é a parte que `create or replace` não desfaz.** Em
   banco real, rollback é **migration nova de reversão** (a aplicada não se edita), com `npm run db:lock` e as guardas que fixam o universo da fase reconciliadas no MESMO commit (a lista está em "O que a

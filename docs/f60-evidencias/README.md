@@ -4,13 +4,12 @@ As saídas reais das sabotagens e das provas da fase, copiadas da pasta de traba
 17/09/2026. Leia-as junto com a emenda F60 da [`MATRIZ-REGRAS.md`](../MATRIZ-REGRAS.md) (R-ACC-73 a R-ACC-76 e R-REL-34 a R-REL-46) e com as
 atas F60 de [`DECISOES.md`](../DECISOES.md) — nunca no lugar delas.
 
-⚠ **Nenhuma das migrations da fase (`0141`–`0145`) foi aplicada em banco real** (ata F60 (j), 17/09/2026). Tudo aqui é
-prova de mesa, de CI ou consulta de catálogo só leitura. **O que NÃO está aqui, porque depende do apply:** as
-verificações pós-apply, a equivalência com as funções de verdade, o `conferir.mts` sobre os descritores novos, o
-`explain` "depois", a confirmação do orçamento do as-of, a sonda de conjunto da `0144`, o "depois" do harness de itens, a
-janela do `drop` (T0/T1 do `pg_stat_statements`), o TTFB "depois" e o smoke pós-deploy. As medições da fase em JSON — as
-linhas de base de produção, a equivalência EMULADA (1.004 células por banco), o custo dos corpos novos, o harness de itens
-e o orçamento vivo do as-of — estão em [`../perf/`](../perf/) (`f60-*.json` e `asof-orcamento.json`).
+**As migrations da fase (`0141`–`0145`) estão aplicadas no ensaio e em produção desde 17/09/2026** (atas F60 (l) e (m)). As
+provas de banco real — o apply no ensaio, produção antes do merge, a conferência pós-deploy e a janela do `drop` — estão na
+seção "Banco real", no fim. O resto é prova de mesa, de CI ou consulta de catálogo só leitura feita ANTES do apply. As
+medições da fase em JSON — as linhas de base de produção, a equivalência EMULADA e a REAL (1.004 células por banco, nos
+dois casos), o custo dos corpos novos e o `explain` "depois", o harness de itens antes e depois, a janela e o TTFB — estão
+em [`../perf/`](../perf/) (`f60-*.json` e `asof-orcamento.json`).
 
 ## O que foi mascarado
 
@@ -30,8 +29,8 @@ absoluto com o nome de usuário do Windows:
 
 Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da origem).
 
-**SHA de código congelado: `c516467`** (17/09/2026, depois da revisão final — ata F60 (k)). O CI do PR #52 rodou em
-`d83f8ec` (run 35178186717) e NÃO sobre este SHA; a mesa dele está em `revisao-final-build.txt`.
+**SHA de código congelado: `c516467`** (17/09/2026, depois da revisão final — ata F60 (k)). O CI sobre ele: run
+35186554796 (`3f10f2e`, `ci-sha-congelado.txt`) e, antes do merge, run 35215000369 (`5bbc0ca`); a mesa, em `revisao-final-build.txt`.
 
 ## A trava do recorte — nasce vermelha, e cada disfarce reprova
 
@@ -80,3 +79,14 @@ Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da
 | `lote2-build.txt` | `npm run build` do lote 2, saída 0 |
 | `lote2-build-final.txt` | Depois da revisão do lote 2 (`2020641`): `vitest` inteiro (228 arquivos, 6.343 testes), `lint`, `tsc`, `verificar:actions` antes e depois do build, e `build` — todos com saída 0 |
 | `revisao-final-build.txt` | Depois da revisão final (código `c516467`): `lint`, `tsc`, `build` e `verificar:actions` com saída 0, e `vitest` inteiro 228 arquivos / 6.432 testes |
+
+## Banco real (17/09/2026, depois que o canal voltou)
+
+| Arquivo | O que prova |
+|---|---|
+| `apply-ensaio.txt` | O ensaio: `0141`→`0145` com a verificação pós-apply (os oito `md5`), a equivalência com a FUNÇÃO de verdade (1.004/1.004), a sonda de conjunto da `0144`, a prova de ausência, o "depois" do harness de itens (10,4 → 0,017 ms) e os tipos do ensaio iguais byte a byte ao hand-fix |
+| `apply-producao-antes-do-merge.txt` | Produção antes do merge: `0141`–`0143`, a verificação, a equivalência real (1.004/1.004), o conferidor, o `explain` "depois" das sete com a leitura honesta dos buffers, e a confirmação do orçamento do as-of |
+| `conferidor-producao-f60.json` | `scripts/formas/conferir.mts --alvo=producao` sobre os descritores novos: 271 pontos, 100.408 linhas, 0 recusadas, 0 reprovados — só nomes de ponto e contagens |
+| `pos-deploy-e-drop.txt` | O merge, `/api/saude` e o smoke pós-deploy, a janela do `drop` (T0 → tráfego → 31 min → T1), a `0144` com a sonda, a `0145` com a prova de ausência, o smoke outra vez, a paridade 11 de 11, o bloco 7 verde nos dois bancos, os tipos de produção e os advisors |
+| `janela-do-drop.json` | As leituras T0 e T1 do `pg_stat_statements` por papel (só papel, chamadas e número de formas), o Δ por função e as quatro condições avaliadas |
+| `ttfb-criterio-27.txt` | O critério 27: as duas rodadas "depois" contra as duas A/A, corrigidas pela deriva dos três controles (D 1,079) — as 16 rotas com sessão dentro da faixa, com a faixa de horário declarada |

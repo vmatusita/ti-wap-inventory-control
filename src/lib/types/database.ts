@@ -1685,7 +1685,6 @@ export type Database = {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0141 ainda não foi aplicada em banco real)
       rel_contagem_status_filiais: {
         Args: { p_filiais: number[] }
         Returns: {
@@ -1693,7 +1692,6 @@ export type Database = {
           total: number
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_estoque_asof_filiais: {
         Args: { p_data: string; p_filiais: number[] }
         Returns: {
@@ -1707,7 +1705,6 @@ export type Database = {
           status: Database["public"]["Enums"]["status_ativo"]
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_frescor_itens_filiais: {
         Args: { p_ate: string; p_filiais: number[] }
         Returns: {
@@ -1715,7 +1712,6 @@ export type Database = {
           ultima: string
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_mov_itens_filiais: {
         Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
@@ -1727,7 +1723,6 @@ export type Database = {
           saidas: number
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_mov_por_mes_filiais: {
         Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
@@ -1736,7 +1731,6 @@ export type Database = {
           total: number
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_por_motivo_filiais: {
         Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
@@ -1745,7 +1739,6 @@ export type Database = {
           total: number
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_resumo_filiais: {
         Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
@@ -1767,7 +1760,6 @@ export type Database = {
           item_id: number
         }[]
       }
-      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
       rel_saldo_itens_filiais: {
         Args: { p_ate: string; p_filiais: number[] }
         Returns: {

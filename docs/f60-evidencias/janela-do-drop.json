@@ -1,0 +1,254 @@
+{
+  "rotulo": "f60-janela-do-drop",
+  "alvo": "producao",
+  "metodo": "pg_stat_statements por papel (authenticated, service_role, anon), nome da função entre aspas como o PostgREST cita; só papel, chamadas e número de formas — nunca o texto do statement. Receita: docs/RUNBOOK-BANCO.md, A janela do drop.",
+  "T0": {
+    "agora": "2026-09-17T08:26:39.196369-03:00",
+    "dealloc": 0,
+    "stats_reset": "2026-07-09T12:30:38.921888-03:00"
+  },
+  "T1": {
+    "agora": "2026-09-17T08:57:59.997279-03:00",
+    "dealloc": 0,
+    "stats_reset": "2026-07-09T12:30:38.921888-03:00"
+  },
+  "espera_min": 31.35,
+  "trafego_entre": [
+    "scripts/perf/medir.mjs --rotulo janela (19 rotas × 11, operador) às 11:27Z",
+    "scripts/smoke/smoke-prod.mjs (109 OK · 0 falha) às 11:29Z"
+  ],
+  "prova_estatica_service_role": {
+    "git_grep_velhas_em_src_scripts": "vazio",
+    "fronteira_viewer_test": "18/18 verde"
+  },
+  "por_papel": [
+    {
+      "nome": "rel_contagem_status_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 16,
+      "chamadas_T1": 33,
+      "delta": 17,
+      "formas_T0": 3,
+      "formas_T1": 3,
+      "nova": true
+    },
+    {
+      "nome": "rel_estoque_asof_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 48,
+      "chamadas_T1": 102,
+      "delta": 54,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": true
+    },
+    {
+      "nome": "rel_estoque_asof",
+      "papel": "authenticated",
+      "chamadas_T0": 2328,
+      "chamadas_T1": 2328,
+      "delta": 0,
+      "formas_T0": 3,
+      "formas_T1": 3,
+      "nova": false
+    },
+    {
+      "nome": "rel_estoque_asof",
+      "papel": "service_role",
+      "chamadas_T0": 306,
+      "chamadas_T1": 306,
+      "delta": 0,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": false
+    },
+    {
+      "nome": "rel_frescor_itens_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 44,
+      "chamadas_T1": 71,
+      "delta": 27,
+      "formas_T0": 3,
+      "formas_T1": 3,
+      "nova": true
+    },
+    {
+      "nome": "rel_frescor_itens",
+      "papel": "authenticated",
+      "chamadas_T0": 1510,
+      "chamadas_T1": 1510,
+      "delta": 0,
+      "formas_T0": 3,
+      "formas_T1": 3,
+      "nova": false
+    },
+    {
+      "nome": "rel_frescor_itens",
+      "papel": "service_role",
+      "chamadas_T0": 204,
+      "chamadas_T1": 204,
+      "delta": 0,
+      "formas_T0": 1,
+      "formas_T1": 1,
+      "nova": false
+    },
+    {
+      "nome": "rel_mov_itens_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 44,
+      "chamadas_T1": 71,
+      "delta": 27,
+      "formas_T0": 3,
+      "formas_T1": 3,
+      "nova": true
+    },
+    {
+      "nome": "rel_mov_itens",
+      "papel": "authenticated",
+      "chamadas_T0": 1510,
+      "chamadas_T1": 1510,
+      "delta": 0,
+      "formas_T0": 3,
+      "formas_T1": 3,
+      "nova": false
+    },
+    {
+      "nome": "rel_mov_itens",
+      "papel": "service_role",
+      "chamadas_T0": 204,
+      "chamadas_T1": 204,
+      "delta": 0,
+      "formas_T0": 1,
+      "formas_T1": 1,
+      "nova": false
+    },
+    {
+      "nome": "rel_mov_por_mes_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 44,
+      "chamadas_T1": 45,
+      "delta": 1,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": true
+    },
+    {
+      "nome": "rel_mov_por_mes",
+      "papel": "authenticated",
+      "chamadas_T0": 497,
+      "chamadas_T1": 497,
+      "delta": 0,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": false
+    },
+    {
+      "nome": "rel_mov_por_mes",
+      "papel": "service_role",
+      "chamadas_T0": 142,
+      "chamadas_T1": 142,
+      "delta": 0,
+      "formas_T0": 1,
+      "formas_T1": 1,
+      "nova": false
+    },
+    {
+      "nome": "rel_por_motivo_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 44,
+      "chamadas_T1": 71,
+      "delta": 27,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": true
+    },
+    {
+      "nome": "rel_por_motivo",
+      "papel": "authenticated",
+      "chamadas_T0": 1659,
+      "chamadas_T1": 1659,
+      "delta": 0,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": false
+    },
+    {
+      "nome": "rel_por_motivo",
+      "papel": "service_role",
+      "chamadas_T0": 298,
+      "chamadas_T1": 298,
+      "delta": 0,
+      "formas_T0": 1,
+      "formas_T1": 1,
+      "nova": false
+    },
+    {
+      "nome": "rel_resumo_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 46,
+      "chamadas_T1": 74,
+      "delta": 28,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": true
+    },
+    {
+      "nome": "rel_resumo",
+      "papel": "authenticated",
+      "chamadas_T0": 1775,
+      "chamadas_T1": 1775,
+      "delta": 0,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": false
+    },
+    {
+      "nome": "rel_resumo",
+      "papel": "service_role",
+      "chamadas_T0": 298,
+      "chamadas_T1": 298,
+      "delta": 0,
+      "formas_T0": 1,
+      "formas_T1": 1,
+      "nova": false
+    },
+    {
+      "nome": "rel_saldo_itens_filiais",
+      "papel": "authenticated",
+      "chamadas_T0": 66,
+      "chamadas_T1": 188,
+      "delta": 122,
+      "formas_T0": 4,
+      "formas_T1": 4,
+      "nova": true
+    },
+    {
+      "nome": "rel_saldo_itens",
+      "papel": "authenticated",
+      "chamadas_T0": 8539,
+      "chamadas_T1": 8539,
+      "delta": 0,
+      "formas_T0": 4,
+      "formas_T1": 4,
+      "nova": false
+    },
+    {
+      "nome": "rel_saldo_itens",
+      "papel": "service_role",
+      "chamadas_T0": 211,
+      "chamadas_T1": 211,
+      "delta": 0,
+      "formas_T0": 2,
+      "formas_T1": 2,
+      "nova": false
+    }
+  ],
+  "criterios": {
+    "a_velhas_delta_zero_nos_tres_papeis": true,
+    "b_novas_delta_positivo_authenticated": true,
+    "b_service_role_novas": "sem tráfego de visualizador na janela (nenhuma senha de acesso ativa resolvida pelo harness); prova estática verde",
+    "c_dealloc_igual": true,
+    "d_stats_reset_igual": true
+  },
+  "decisao": "drop"
+}

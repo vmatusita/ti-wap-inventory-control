@@ -1,249 +1,66 @@
 # Relatório F60 — O recorte que corta scan, e o custo do caminho quente
 
-> **Retomada (17/09/2026, mesmo dia — ata (l) de `DECISOES.md`):** o canal voltou. **Ensaio:** `0141`→`0145` aplicadas,
-> equivalência com as funções de verdade 1.004/1.004, harness de itens "depois" e tipos conferidos. **Produção:** `0141`,
-> `0142` e `0143` aplicadas antes do merge, equivalência real 1.004/1.004, conferidor 271 pontos sem reprovação, `explain`
-> "depois" e orçamento do as-of confirmado. Faltam, nesta ordem: merge, conferência pós-deploy, janela do `drop` (`0144`
-> e `0145`), TTFB "depois", PR de documentação e tag. O texto abaixo é o do bloqueio e fica até o fecho.
+**v1.65.0** · **migrations `0141`–`0145` aplicadas no ensaio e em produção** · 17/09/2026 · SHA de código congelado
+**`c516467`** · código no [PR #52](https://github.com/vmatusita/ti-wap-inventory-control/pull/52) (merge `51b2886`) ·
+documentação no PR de fecho, com a tag anotada `v1.65.0` no merge dele
 
-**v1.65.0** · **migrations `0141`–`0145` — NÃO aplicadas em banco nenhum** · 17/09/2026 · SHA de código congelado
-**`c516467`** · branch `f60-recorte-que-corta-scan` · código no
-[PR #52](https://github.com/vmatusita/ti-wap-inventory-control/pull/52), **em rascunho, aberto e SEM merge** (ata (j) de
-`DECISOES.md`) · CI verde sobre o código congelado ([run 35186554796](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35186554796), HEAD `3f10f2e`)
-
-> As sete leituras de relatório que recortavam por filial com "nulo = tudo" — `(p_filial is null or col = p_filial)`,
-> a forma que a R-ACC-71 proíbe e que no caminho real não corta a leitura (o as-of da menor filial lia os mesmos 368
-> buffers do consolidado) — ganharam substitutas de nome novo, `rel_*_filiais(p_filiais smallint[], …)`, com o recorte
-> ligado por `col = any (p_filiais)`: NULL e `'{}'` devolvem 0 linhas, e o consolidado é a lista EXPLÍCITA de todas as
-> filiais, inclusive desativada. A velha sai em arquivo separado, depois do deploy e da prova de que ninguém a chama. Uma
-> trava de mesa sobre o replay das migrations e um par no catálogo do CI tornam a forma velha impossível de voltar. O
-> caminho quente parou de pagar duas vezes: os KPIs numa ida, `/itens` em duas idas no lugar de sete, a memória por request
-> com chave estável, teto obrigatório em `paginarTodos`. **Nada disso está em banco real:** o canal de apply foi desligado
-> durante a execução, e pela ordem o PR fica aberto e sem merge. O que existe de prova de banco é do CI e das emulações só
-> leitura em ensaio e produção.
+> As sete leituras de relatório que recortavam por filial com "nulo = tudo" — `(p_filial is null or col = p_filial)`, a
+> forma que a R-ACC-71 proíbe — foram substituídas por `rel_*_filiais(p_filiais smallint[], …)`, com o recorte ligado por
+> `col = any (p_filiais)`: NULL e `'{}'` devolvem 0 linhas, e o consolidado é a lista EXPLÍCITA de todas as filiais,
+> inclusive desativada. As velhas saíram de produção depois do deploy e da prova, pelo `pg_stat_statements`, de que ninguém
+> mais as chamava. Uma trava de mesa sobre o replay das migrations e um par no catálogo do CI tornam a forma velha
+> impossível de voltar. A equivalência com as funções de verdade deu **1.004 células, 0 divergentes**, no ensaio e em
+> produção; nenhum número de tela mudou. O caminho quente parou de pagar duas vezes: os KPIs numa ida, `/itens` em duas
+> idas no lugar de sete, a memória por request com chave estável, teto obrigatório em `paginarTodos`, o índice do "último
+> lançamento". **O que custou, e o que não veio:** o as-of ficou ~1,6× mais caro no consolidado (medido e declarado desde a
+> `0143`), e nas três leituras de movimentações o recorte de uma filial ainda lê o que o consolidado lê — o plano escolhe o
+> índice de data no volume de hoje.
 
 ---
 
-# 1. O ROTEIRO DO JOHNNY — o que ficou com você, com os comandos PRIMEIRO
+# 1. O ROTEIRO DO JOHNNY — o que conferir, e o que ficou
 
-*Nada aqui é pedido de autorização: é o que ficou sem canal nesta sessão. A ordem é a do `PLAN-F60.md` §8, e o
-procedimento detalhado mora no Anexo A e em "A janela do `drop`" do [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), que
-prevalecem sobre qualquer resumo daqui.*
+*Nada aqui é pedido de autorização: a fase fechou inteira. É o que vale a pena olhar, e o que não se resolveu nela.*
 
-### ⚠ Antes de tudo: o canal caiu, e é você quem o devolve
+### O canal caiu e voltou — o que isso custou
 
-**O que aconteceu.** Na madrugada de 17/09, com o lote 2 pronto e o CI verde (`d83f8ec`), todas as ferramentas do conector
-da **Supabase** passaram a responder *"This tool has been disabled in your connector settings"* — inclusive `list_projects`
-e `list_migrations`, que só leem. Não havia `SUPABASE_ACCESS_TOKEN` no ambiente. A ordem manda, nesse caso, não contornar
-nem procurar o token: entregar tudo o que não depende de banco real, verde no CI, com o PR **aberto e sem merge**. Por isso
-**nenhuma migration da fase foi aplicada**, produção está exatamente como na `1.64.0`, e a tag `v1.65.0` não existe.
+Na madrugada de 17/09 as ferramentas do conector da Supabase foram desligadas nas configurações do conector; a execução
+seguiu a ordem (PR aberto sem merge, comandos no topo deste relatório — ata (j)). Reabilitado o conector no mesmo dia, a
+fase retomou do ponto em que parou (atas (l) e (m)): nada foi refeito, e o CI foi rodado de novo sobre o HEAD antes do
+merge. **Se acontecer de novo:** a memória `conector-supabase-desligado-no-meio-da-run` e a ata (j) têm o caminho.
 
-**Devolver o canal (2 minutos):** em claude.ai → *Settings → Connectors → Supabase*, reabilite as ferramentas do conector
-(no mínimo `list_projects`, `list_migrations`, `execute_sql`, `apply_migration`, `get_advisors` e
-`generate_typescript_types`).
+### Conferir (5 minutos, só leitura)
 
-**Caminho recomendado — o agente termina a fase.** Numa sessão `claude` na raiz do repositório, na branch
-`f60-recorte-que-corta-scan`, com o conector reabilitado, cole:
+1. <https://ti-wap-inventory-control.vercel.app/api/saude> → `"versao":"1.65.0"`; `/versoes` com a entrada nova.
+2. `/itens` e `/relatorios/geral`: os números são os de antes — nesta fase nenhum número de tela mudou (a equivalência
+   provou célula a célula; o smoke confere as formas).
+3. `git diff v1.64.0 v1.65.0 --stat`: aparecem `supabase/migrations/0141`–`0145` e o lock, `src/lib/queries/**`,
+   `src/lib/supabase/rpc.ts`, `src/lib/types/database.ts`, as 30 páginas de `(app)` (o `maxDuration`), `scripts/**`,
+   `supabase/tests/**` e `docs/**`. **Não** aparecem migrations `0001`–`0140`, `CLAUDE.md` nem `.github/workflows/`.
+4. `npm run test` uma vez, na sua máquina: 228 arquivos, 6.432 testes.
 
-```text
-Retome a fase F60 do ponto em que o docs/RELATORIO-F60.md §1 parou: o canal da Supabase voltou. Siga os passos 0 a 5 do
-§1 na ordem, sem refazer o que o relatório já prova — ensaio (0141→0145 com a verificação, a equivalência com a função de
-verdade entre a 0143 e a 0145, o "depois" do harness de itens e os tipos conferidos), produção antes do merge (0141, 0142,
-0143, a equivalência real, o conferidor, o explain "depois" e a confirmação do orçamento do as-of), o merge do PR #52 com
-verificar e banco-sem-docker verdes, a conferência pós-deploy, a janela do drop pela receita do RUNBOOK-BANCO.md, as duas
-rodadas do TTFB "depois", o PR só de documentação e a tag anotada v1.65.0. Regras da ordem
-docs/prompts/F60-recorte-que-corta-scan-ultracode.md (Frente F e "Git e segurança") valem inteiras. Atualize este
-relatório, a ata e as evidências.
-```
+### O que ficou, com dono
 
-**Se preferir fazer à mão**, os passos abaixo são os mesmos — o apply pelo SQL Editor (caminho B) colando cada arquivo
-inteiro. Só a equivalência com a função de verdade e a leitura do `pg_stat_statements` da janela do `drop` dependem dos
-instrumentos, que emitem SQL para você colar e gravar a resposta; se for fazer só o apply à mão, pare no passo 2.1 e deixe o
-resto para o agente — **nunca** faça o merge sem a equivalência real, nem o `drop` sem a janela.
+- **O corte de scan nas três leituras de movimentações** (`rel_mov_por_mes_filiais`, `rel_por_motivo_filiais`,
+  `rel_resumo_filiais`): no volume de hoje (3.578 movimentações) o plano genérico usa `movimentacoes_data_ordem_idx` e
+  filtra a filial — uma filial em 365 dias lê os mesmos buffers do consolidado (§8). Não é regressão. Índice só por
+  medição (R-REL-33): quem medir com volume maior decide.
+- **O TTFB na faixa de horário da A/A.** As duas rodadas "depois" rodaram logo depois do `drop`, de manhã (UTC), e a A/A
+  foi medida à tarde; a regra corrige pela deriva dos controles, e ela ficou dentro dos 18% (§8). Uma rodada extra na faixa
+  19–21h UTC só mudaria algo se contrariasse a conclusão.
+- **`SUPABASE_ACCESS_TOKEN` fora do ambiente** desde a F55: `npm run db:types` (CLI fixada) não tem canal; os tipos desta
+  fase vieram do MCP `generate_typescript_types`, byte a byte iguais nos dois bancos. Nada a fazer enquanto o MCP existir.
+- **O visualizador por senha** não teve tráfego na janela do `drop` (nenhuma senha ativa resolvida pelo harness, igual à
+  F59): a ausência de chamador velho no `service_role` foi provada pelo código (o `git grep` vazio e a lista branca do
+  visualizador), não pelo tráfego.
+- **O backlog nomeado** (§14): F63, F65, F66, F67, F68 e as mutações do injetor para as formas da revisão final.
 
-**O canal.** Caminho A: o MCP da Supabase (`apply_migration` para as migrations, `execute_sql` para as leituras). Sem MCP:
-caminho B, o SQL Editor, colando cada arquivo inteiro. **Não há script de apply no repositório** — o "caminho da `0131`" era
-um padrão escrito na hora (runbook, "O canal"). Nenhum passo abaixo lê dado de linha: só contagens, hashes e nomes.
+### Rollback — se precisar
 
-### 0. Antes do primeiro apply — publicar e ter o CI sobre o SHA que vai ao banco
-
-✅ **Feito no fim da run.** A branch foi publicada (`3f10f2e`, código congelado `c516467`), o CI rodou a cadeia `0001`→`0145`
-sobre ela — [run 35186554796](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35186554796): `verificar` e
-`banco-sem-docker` verdes, 35 roteiros / 855 asserções / 0 falhas, **90/90 mutações** detectadas, gate de deriva verde
-(`docs/f60-evidencias/ci-sha-congelado.txt`) — e o corpo do PR #52 foi atualizado (1.004 células, o bloqueio, sem merge).
-Se a `main` andar antes do apply, faça rebase e rode o CI de novo: a emenda F56 exige o CI sobre o que vai ser aplicado.
-
-### 1. O ENSAIO — as cinco na ordem da cadeia (não há app de produção lá: o `drop` não espera deploy)
-
-1. **Apply `0141_rel_contagem_status.sql`**, depois **`0142_lanc_item_criado_por_idx.sql`**, depois **`0143_rel_filiais.sql`**.
-2. **Verificação pós-apply** (depois da `0143`), só leitura — esperado: **8 linhas**, `anon` false, `authenticated` e
-   `service_role` true, e o `md5` igual ao da coluna da direita:
-
-   ```sql
-   select p.oid::regprocedure as funcao,
-          has_function_privilege('anon', p.oid, 'execute')          as anon,
-          has_function_privilege('authenticated', p.oid, 'execute') as authenticated,
-          has_function_privilege('service_role', p.oid, 'execute')  as service_role,
-          p.prosecdef, p.provolatile, p.proisstrict, p.proconfig,
-          md5(regexp_replace(p.prosrc, '\s+', ' ', 'g'))             as md5_normalizado
-     from pg_proc p
-     join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname like 'rel\_%\_filiais'
-    order by 1;
-   ```
-
-   | função | `md5_normalizado` esperado |
-   |---|---|
-   | `rel_contagem_status_filiais` | `695b38a8b50fe95e743e30460fecc881` |
-   | `rel_mov_por_mes_filiais` | `f961349ded4db3fb17a16fe503b9201b` |
-   | `rel_por_motivo_filiais` | `4340acc35728a592c2de946aea822042` |
-   | `rel_resumo_filiais` | `ad948cbb7c544eec083d271b8cf27184` |
-   | `rel_frescor_itens_filiais` | `edd2fa35a094951f31b3cfeacc8f7ba8` |
-   | `rel_mov_itens_filiais` | `55be37e2a84b5e9449f388498585b02b` |
-   | `rel_saldo_itens_filiais` | `01aa17a8aee42557345de6f4f77fba02` |
-   | `rel_estoque_asof_filiais` | `54943d2f41e17dd1c648b32e10fd43f4` |
-
-   E NULL e `'{}'` → **0** nas oito (o mesmo que `f60_recorte.sql` 1a–1h prova no CI):
-
-   ```sql
-   select 'contagem' f, (select count(*) from public.rel_contagem_status_filiais(null)) nulo, (select count(*) from public.rel_contagem_status_filiais('{}')) vazio
-   union all select 'mov_por_mes', (select count(*) from public.rel_mov_por_mes_filiais(null, current_date - 364, current_date)), (select count(*) from public.rel_mov_por_mes_filiais('{}', current_date - 364, current_date))
-   union all select 'por_motivo', (select count(*) from public.rel_por_motivo_filiais(null, current_date - 364, current_date)), (select count(*) from public.rel_por_motivo_filiais('{}', current_date - 364, current_date))
-   union all select 'resumo', (select count(*) from public.rel_resumo_filiais(null, current_date - 364, current_date)), (select count(*) from public.rel_resumo_filiais('{}', current_date - 364, current_date))
-   union all select 'mov_itens', (select count(*) from public.rel_mov_itens_filiais(null, current_date - 364, current_date)), (select count(*) from public.rel_mov_itens_filiais('{}', current_date - 364, current_date))
-   union all select 'frescor', (select count(*) from public.rel_frescor_itens_filiais(null, current_date)), (select count(*) from public.rel_frescor_itens_filiais('{}', current_date))
-   union all select 'saldo_itens', (select count(*) from public.rel_saldo_itens_filiais(null, current_date)), (select count(*) from public.rel_saldo_itens_filiais('{}', current_date))
-   union all select 'asof', (select count(*) from public.rel_estoque_asof_filiais(null, current_date)), (select count(*) from public.rel_estoque_asof_filiais('{}', current_date));
-   ```
-
-   Depois: `notify pgrst, 'reload schema';` e `get_advisors(security)` sem achado novo. ⚠ Com a `0143` e sem a `0145`, o
-   bloco 7 de `catalogo_secdef.sql` fica VERMELHO em `7a`/`7b` nomeando as sete velhas — é o estado esperado da janela.
-3. **A equivalência com a FUNÇÃO de verdade**, ENTRE o apply da `0143` e o da `0145` (os blocos recusam sozinhos função
-   nova ausente, `prosrc` diferente do versionado e velha já derrubada; só contagem e hash):
-
-   ```bash
-   node scripts/perf/equivalencia-rel.mjs gerar-equivalencia-real --alvo=ensaio \
-        --datas=docs/perf/f60-datas-amostra.json --dir=<fora-do-repo>
-   # executar cada .sql pelo canal; gravar a resposta em <dir>/respostas/<nome>.resposta.txt
-   node scripts/perf/equivalencia-rel.mjs analisar-equivalencia --real --dir=<mesma> --saida=<fora>/f60-equivalencia-real.json
-   ```
-
-   Esperado: **1.004 células** no banco, **0 divergentes** (a emulação deu isso). Qualquer divergência segura tudo.
-4. **A `0144`** com a sonda de conjunto IMEDIATAMENTE antes e depois, no mesmo banco — os dois pares iguais; diferente é
-   rollback, sem discussão:
-
-   ```sql
-   select count(*), md5(string_agg(v::text, '|' order by v::text)) from public.v_colaboradores_textos v;
-   ```
-5. **A `0145`**, `notify pgrst, 'reload schema';`, e a prova de AUSÊNCIA (esperado `null` nas sete):
-
-   ```sql
-   select a.assinatura, to_regprocedure(a.assinatura) as ainda_existe
-     from (values
-       ('public.rel_estoque_asof(smallint, date)'), ('public.rel_saldo_itens(smallint, date)'),
-       ('public.rel_mov_itens(smallint, date, date)'), ('public.rel_frescor_itens(smallint, date)'),
-       ('public.rel_mov_por_mes(smallint, date, date)'), ('public.rel_por_motivo(smallint, date, date)'),
-       ('public.rel_resumo(smallint, date, date)')
-     ) as a(assinatura);
-   ```
-6. **O "depois" do harness de itens** (o índice da `0142`; o harness ESCREVE e APAGA — só ensaio, com a limpeza conferida
-   por contagem):
-
-   ```bash
-   MEDIR_ITENS_CONFIRM=sim node scripts/perf/medir-itens.mjs gerar --alvo ensaio --ref sgmvldiizsrjbxzzpmhh --canal mcp --dir <fora-do-repo>
-   node scripts/perf/medir-itens.mjs analisar --alvo ensaio --ref sgmvldiizsrjbxzzpmhh --dir <mesma> --saida <fora>/f60-itens-ensaio-depois.json
-   ```
-
-   Esperado: `Index Scan using lanc_item_criado_por_idx` sem nó de sort, buffers parados.
-7. **Os tipos do ensaio**, para conferir o hand-fix — o diff vai para a evidência, NÃO para o commit:
-
-   ```bash
-   DB_TYPES_PROJECT_REF=sgmvldiizsrjbxzzpmhh npm run db:types && git diff --stat src/lib/types/database.ts
-   git restore src/lib/types/database.ts       # o arquivo do commit é o de PRODUÇÃO, depois do drop (passo 4.7)
-   ```
-
-### 2. PRODUÇÃO, ANTES DO MERGE — só a `0141`, a `0142` e a `0143`
-
-Nada disso quebra a `1.64.0` no ar: são funções de nome novo e um índice.
-
-1. Apply `0141` → `0142` → `0143`, cada um com a verificação do passo 1.2 (as mesmas duas consultas, os mesmos `md5`).
-2. A equivalência com a função de verdade — `--alvo=producao` nos dois comandos do passo 1.3. **1.004 células, 0
-   divergentes, ou não há merge.**
-3. O conferidor de formas sobre os descritores novos (conta do smoke, só contagens):
-
-   ```bash
-   NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env.local scripts/formas/conferir.mts --alvo=producao --saida=<fora>/conferidor-producao-f60.json
-   ```
-4. O `explain` "depois" das sete pelo gerador do "antes" (os nomes novos), e o da `rel_contagem_status_filiais` e do as-of
-   com a CHAMADA da função — que também grava a confirmação do orçamento do as-of:
-
-   ```bash
-   node scripts/perf/medir-rel.mjs gerar-a1 --funcao=rel_estoque_asof_filiais --dir=<fora-do-repo>   # e as outras seis _filiais
-   node scripts/perf/medir-rel.mjs analisar-a1 --conjunto=depois --dir=<mesma> --saida=<fora>/f60-producao-depois-rel.json
-   node scripts/perf/equivalencia-rel.mjs gerar-custo-real --alvo=producao --hoje=AAAA-MM-DD --dir=<mesma>
-   node scripts/perf/equivalencia-rel.mjs analisar-custo --real --dir=<mesma> --saida=<fora>/f60-custo-real.json \
-        --confirmar-orcamento=docs/perf/asof-orcamento.json
-   ```
-
-   O último grava só `medicao.confirmacao` no orçamento; o hash não muda (o `md5` do `prosrc` é conferido no bloco).
-
-### 3. O MERGE e a conferência
-
-```bash
-gh pr ready 52 && gh pr checks 52 --watch   # e o merge, com verificar e banco-sem-docker verdes
-```
-
-Depois do deploy `READY`: `https://ti-wap-inventory-control.vercel.app/api/saude` com `"versao":"1.65.0"` e o commit do
-merge; `node scripts/smoke/smoke-prod.mjs` com **0 falha** (a Parte B chama as funções novas). Abra `/itens` e
-`/relatorios/geral`: os números são os de antes — nesta fase nenhum número de tela muda. As referências contadas em
-16/09/2026 (só leitura): **1.635** ativos, a soma dos KPIs **1.622** pelos três caminhos, e as três tabelas do período em
-365 dias com **155** saídas, **136** entradas e **14** transferências no consolidado — o aviso de "mais de 2.000 linhas"
-não aparece em lugar nenhum. (Esses números andam com o acervo; o que não pode acontecer é mudarem na virada do deploy.)
-
-### 4. A JANELA DO `drop` — produção, depois do deploy
-
-1. **T0** — a leitura do `pg_stat_statements` por papel, velhas e novas (o SQL inteiro está no passo 2 da receita do
-   runbook; saem só papel, chamadas, formas, `dealloc` e `stats_reset`).
-2. **Tráfego real:** `node scripts/perf/medir.mjs --rotulo janela --saida <fora>/f60-janela.json` e
-   `node scripts/smoke/smoke-prod.mjs`.
-3. **A prova ESTÁTICA do papel `service_role`** (o visualizador não tem tráfego sem uma senha ativa resolvida, então Δ = 0
-   ali não prova nada) — o primeiro tem de sair VAZIO, o segundo verde:
-
-   ```bash
-   git grep -nE "['\"]rel_(estoque_asof|saldo_itens|mov_itens|frescor_itens|mov_por_mes|por_motivo|resumo)['\"]" -- 'src/**' 'scripts/**' ':!**/*.test.*' ':!scripts/perf/**' ':!scripts/db/gerar-0134.mjs'
-   npx vitest run src/lib/queries/relatorios/fronteira-viewer.test.ts
-   ```
-4. **Espera de ao menos 30 minutos.** **T1** — o mesmo SQL.
-5. **O `drop` só se os quatro valerem:** Δ das VELHAS = 0 em `authenticated`, `service_role` e `anon`; Δ das NOVAS > 0 em
-   `authenticated` (em `service_role`, 0 só com a prova estática do item 3); `dealloc` igual; `stats_reset` igual.
-   Chamador achado: NÃO derrube — identifique por papel e forma, espere, releia.
-6. **Aplicar** a `0144` (com a sonda do passo 1.4 antes e depois) e a `0145`; `notify pgrst, 'reload schema'`; a prova de
-   ausência do passo 1.5; `node scripts/smoke/smoke-prod.mjs` de novo; a sonda de paridade ensaio × produção (runbook).
-7. **Os tipos de PRODUÇÃO**, que substituem o hand-fix no commit:
-   `DB_TYPES_PROJECT_REF=pbtjcalbmepmrqzprusb npm run db:types` → PR de documentação.
-8. **Se o classificador barrar o `drop`:** registrar, não reformular; as velhas ficam (ninguém as chama) e o `drop` vai
-   pelo SQL Editor.
-
-### 5. Depois da janela
-
-1. O TTFB "depois": `node scripts/perf/medir.mjs --rotulo depois --saida docs/perf/f60-producao-depois-1.json` e uma
-   segunda rodada em outro momento, contra a faixa A/A de `f60-producao-antes-aa-{1,2}.json` corrigida pela deriva das rotas
-   de controle (critério 27).
-2. O PR só de documentação com as evidências pós-apply e da janela, e a tag no merge dele:
-   `git tag -a v1.65.0 -m "F60 — o recorte que corta scan" <merge> && git push origin v1.65.0`.
-3. Conferir o que a versão mudou: `git diff v1.64.0 v1.65.0 --stat`. **Deve aparecer:** as cinco migrations `0141`–`0145`
-   e o lock; `src/lib/queries/**`, `src/lib/supabase/rpc.ts`, `src/lib/types/database.ts`, os componentes de relatório e as
-   30 páginas do grupo `(app)` (o `maxDuration`); `scripts/db/recorte-rel.mjs`, `scripts/perf/**`, os roteiros de
-   `supabase/tests/**`, os documentos. **Não deve aparecer:** nenhuma migration de `0001` a `0140`, `CLAUDE.md`, `.env*`.
-4. `npm run test` uma vez, na sua máquina — esperado **228 arquivos, 6.432 testes**.
-
-### 6. Rollback — se precisar
-
-A ordem inteira, nos dois estados de produção, está no Anexo A do runbook ("A ordem de rollback da fase"). Dois avisos
-que custaram achado na revisão final: **reverter o app NUNCA é `git revert` do merge inteiro**; e a migration de reversão
-reprova o CI não só pela trava (que pede a exceção declarada), mas pelas guardas que fixam o universo de hoje
-(`rpcs-recorte-sql.test.ts` describe 1, `asof-orcamento.test.ts`, as listas de `migrations-f38.test.ts`) — reconciliadas
-no mesmo commit, com ata.
+A ordem inteira está no Anexo A do `RUNBOOK-BANCO.md` ("A ordem de rollback da fase"), no caso **3 — depois do `drop`**:
+recriar as sete velhas com os corpos dos arquivos e os grants da `0056`, só então reverter o app (NUNCA `git revert` do
+merge inteiro), e depois derrubar as novas, a view pela `0115` e o índice — sempre por migration nova, com `npm run
+db:lock`.
 
 ---
 
@@ -298,7 +115,7 @@ no mesmo commit, com ata.
 | keyset | geral | RPC não compila pela porta; ordem composta sem cursor simples → keyset só pela PK (**33** + P2 + P6), OFFSET em **13 + 4** + 1 | decisão 5 |
 | o "não-sargável" | ficha | confirma no caminho real (368 buffers para 5 ou 1.624 linhas); o `EXPLAIN` com literal não foi usado | PLAN §1, fato 6 |
 | produção viva | ordem: 1.620 / 3.556 / 148 / 32 | **1.635** ativos · **3.578** movimentações · **155** lançamentos · **34** colaboradores · 6 filiais ativas | ata (i) (e) |
-| células da equivalência | plano: 924 | **1.004** por banco, **0** divergentes, ensaio e produção (EMULADA) | `f60-equivalencia-emulada.json` |
+| células da equivalência | plano: 924 | **1.004** por banco, **0** divergentes, ensaio e produção — emulada antes do apply E com as funções de verdade depois | `f60-equivalencia-{emulada,real}.json` |
 | as-of novo × velho | "mais barato" | **mais caro**: 1,58–1,82× no consolidado (+21–27 ms), 1,68–2,29× numa filial (+13–22 ms); para de crescer com o histórico | ata (a) |
 | `/itens` por render | 1 + N | **1 + 6 = 7** → **2** idas | decisão 2 |
 | KPIs | paginar `ativos` | 2 páginas (1.000 + 622 linhas, 1,50 + 2,11 ms) → **1** ida, **1,43 ms**; **1.622** nos três caminhos | decisão 6 |
@@ -366,32 +183,78 @@ formas de fail-open passavam e agora reprovam, as **16** legítimas seguem passa
 **EMULADA, antes de qualquer apply:** o corpo novo colado como subconsulta com literais tipados × a função velha do banco,
 `count(*)` e `md5` das linhas com o mesmo tipo declarado, nas 12 datas de amostra × (consolidado com desativada + cada
 filial por ordinal) × janelas 7d/365d nas de período, o saldo em três comparações, e os KPIs: **1.004 células por banco,
-0 divergentes, no ensaio e em produção** (`docs/perf/f60-equivalencia-emulada.json`); com NULL e `'{}'`, 0 linhas nas oito.
+0 divergentes, no ensaio e em produção** (`docs/perf/f60-equivalencia-emulada.json`).
 
-**Com a função de verdade:** PENDENTE — o comando está no §1 (passos 1.3 e 2.2). Até a revisão final ele não existia; o
-instrumento só sabia colar o corpo.
+**Com a FUNÇÃO de verdade, entre o apply da `0143` e o da `0145`** (`docs/perf/f60-equivalencia-real.json`): cada bloco
+conferiu, antes de medir, que a função nova aplicada tem o `md5` do `prosrc` versionado e que a velha ainda existe.
+
+| função | células por banco | ensaio | produção | a velha com NULL (produção) |
+|---|---:|---|---|---:|
+| `rel_mov_por_mes_filiais` | 168 | 168 iguais | 168 iguais | 8 |
+| `rel_por_motivo_filiais` | 168 | 168 iguais | 168 iguais | 11 |
+| `rel_resumo_filiais` | 168 | 168 iguais | 168 iguais | 59 |
+| `rel_mov_itens_filiais` | 168 | 168 iguais | 168 iguais | 23 |
+| `rel_frescor_itens_filiais` | 84 | 84 iguais | 84 iguais | 2 |
+| `rel_saldo_itens_filiais` | 156 | 156 iguais | 156 iguais | 23 |
+| `rel_estoque_asof_filiais` | 84 | 84 iguais | 84 iguais | 1.624 |
+| `rel_contagem_status_filiais` | 8 | 8 iguais | 8 iguais | — |
+| **total** | **1.004** | **0 divergentes** | **0 divergentes** | |
+
+NULL e `'{}'` → 0 linhas, sem erro, nas oito, nos dois bancos. Nenhuma filial desativada em nenhum dos dois (o caso da
+desativada é provado pelo roteiro `f60_recorte.sql` no CI).
 
 ---
 
 # 7. A janela do `drop`
 
-**Não abriu.** Sem apply não há deploy, e sem deploy não há `drop` (ata (j)). A receita — T0, tráfego, prova estática do
-`service_role`, ≥ 30 min, T1, as quatro condições, e o que fazer com chamador achado — está em "A janela do `drop` —
-receita" do runbook, e os comandos no §1.4. `main` e produção seguem na `1.64.0` com as sete velhas vivas.
+Pela receita do `RUNBOOK-BANCO.md` (`docs/f60-evidencias/janela-do-drop.json`, `pos-deploy-e-drop.txt`):
+
+1. **Pré-condição.** Merge `51b2886` às 11:23Z; `/api/saude` com `1.65.0`/`51b2886` às 11:25Z; smoke **109 OK · 0 falha**.
+2. **T0** às 11:26:39Z (`pg_stat_statements` por papel, só chamadas e número de formas).
+3. **Tráfego:** `medir.mjs` (19 rotas × 11, operador) e o smoke. **Prova estática do `service_role`:** o `git grep` das
+   velhas em `src/**`/`scripts/**` vazio; `fronteira-viewer.test.ts` 18/18.
+4. **T1** às 11:57:59Z — 31,35 minutos depois.
+5. **As quatro condições:**
+
+| | condição | resultado |
+|---|---|---|
+| (a) | Δ das VELHAS = 0 em `authenticated`, `service_role` e `anon` | as sete com Δ 0 nos dois papéis que tinham entrada; nenhuma em `anon` |
+| (b) | Δ das NOVAS > 0 em `authenticated`; `service_role` só com a prova estática | +17 contagem · +54 as-of · +122 saldo · +27 mov_itens · +27 frescor · +1 mov_por_mes · +27 por_motivo · +28 resumo; `service_role` sem tráfego, prova estática verde |
+| (c) | `dealloc` igual | 0 = 0 |
+| (d) | `stats_reset` igual | igual |
+
+6. **A `0144`** com a sonda idêntica antes e depois (923 linhas, `md5` `08374799…`, o resumo igual) e **a `0145`**: as sete
+   velhas `null`, nove `rel_*` vivas com os grants, smoke outra vez **109 OK · 0 falha**, **paridade 11 de 11** e o bloco 7
+   verde nos dois bancos.
+
+No ensaio a `0144` e a `0145` foram na ordem da cadeia (lá não há app), com a mesma sonda (780 linhas, `md5` igual) e a
+mesma prova de ausência.
 
 ---
 
 # 8. O custo, antes × depois
 
-| | antes (medido) | depois | fonte |
+| | antes (medido) | depois (medido) | fonte |
 |---|---|---|---|
-| KPIs do dashboard | 2 páginas: 1.000 + 622 linhas, 1,50 + 2,11 ms de banco | 1 ida, 1,43 ms (`Index Only Scan ativos_filial_status_idx`) — medido sobre a forma, antes do apply | decisão 6 |
+| KPIs do dashboard | 2 páginas: 1.000 + 622 linhas, 1,50 + 2,11 ms de banco | **1 ida, 1,36 ms** (chamada; corpo 1,67 ms), `Index Only Scan ativos_filial_status_idx`, 272 buffers | `f60-custo-real-producao.json` |
 | `/itens` por render | 7 chamadas de saldo | 2 idas | decisão 2 |
 | conflitos no shell | 2 leituras por request | 1 (sabotagem I) | decisão 6 |
-| lista de nomes sem cadastro | ~100 ms | ~50 ms, mesmo conjunto (emulado em produção) | ata (c) |
-| as-of consolidado, hoje | 38,9 ms (corpo `0134`) | 65,7 ms (réplica 54,7 × 34,7) — **mais caro, aceito** | ata (a) |
-| `getUltimoLancamento`, autor sem lançamento (ensaio, 50.035) | 10,41 ms, 1.286 buffers | PENDENTE (o "depois" do harness, §1.6) | ata (b) |
-| TTFB das rotas | `f60-producao-antes-aa-{1,2}.json` | PENDENTE (critério 27) | PLAN §3.7 |
+| lista de nomes sem cadastro | ~100 ms | ~50 ms emulado; o conjunto idêntico depois do apply nos dois bancos | ata (c) |
+| as-of consolidado, hoje (chamada) | 35,8 ms · 378 buffers | **55,9 ms** · 18.648 buffers — **mais caro, aceito** | `f60-producao-{antes,depois}-rel.json` |
+| as-of filial menor, hoje (chamada) | 15,9 ms · 378 | 29,0 ms · 18.648 | idem |
+| as-of, orçamento confirmado | 65,7 ms emulado | 54,8 ms com a função aplicada (razão 0,833) | §9 |
+| `rel_mov_por_mes` UMA filial · 365d | 2,1 ms · 201 buffers | 2,1 ms · **201** buffers — o recorte não corta scan no volume de hoje | `f60-producao-depois-rel.json` |
+| `rel_resumo` consolidado · 365d | 6,2 ms · 1.714 | 6,1 ms · 1.466 | idem |
+| `rel_saldo_itens` consolidado | 2,1 ms · 23 linhas | 3,7 ms · 161 linhas (os dois níveis numa ida) | idem |
+| `getUltimoLancamento`, sem lançamento (ensaio, 50.035) | 10,41 ms · 1.286 buffers | **0,017 ms · 3 buffers**, sem sort | `f60-itens-ensaio-depois.json` |
+
+**O TTFB** (`f60-producao-depois-{1,2}.json` contra a A/A `f60-producao-antes-aa-{1,2}.json`, regra do `PLAN-F60.md` §3.7):
+deriva do controle D = **1,079** (7,9%, ≤ 18% — vale): `/vercel.svg` 12,8 → 13,8 · `/login` 32,3 → 39,7 ·
+`/relatorios/acesso` 57,3 → 61,8 ms. **As 16 rotas com sessão dentro da faixa (R ≤ 1,131), nenhuma fora** — de R 0,772
+(`/itens`, 405,6 → 337,9 ms: as 7 idas viraram 2) a 0,963 (`/ativos/[id]`, 328,6 → 341,4 ms); `/` 369,1 → 334,8 (0,840),
+`/itens/conferencia` 0,795, `/itens/historico` 0,822, `/admin/colaboradores` 0,896, `/relatorios/geral` 526,8 → 520,7
+(0,916), `/relatorios/[filial]` 0,944. As rodadas foram às 12:02Z e 12:29Z, depois do `drop`; a A/A, às 19:47Z e 21:13Z do
+dia anterior — a faixa de horário está declarada no §1 (`docs/f60-evidencias/ttfb-criterio-27.txt`).
 
 ---
 
@@ -399,11 +262,11 @@ receita" do runbook, e os comandos no §1.4. `main` e produção seguem na `1.64
 
 `docs/perf/asof-orcamento.json`: `rel_estoque_asof_filiais(smallint[], date)`, sha256 da definição viva pelo replay
 `78e967373c53…`, medição de produção sobre o corpo EMULADO — **65,722 ms** de mediana (p95 80,677), **18.638** buffers,
-**1.624** linhas, os nós do plano. A trava reprova ausente, velho, incompleto, outra assinatura, ilegível e sem corpo vivo;
-a mesma medição datada de 2000 passa. **Revisão final:** a identidade da função passou a ser a do Postgres — `create or
-replace` com `int2[]`/`smallint []`/`_int2`/`pg_catalog.date` e `drop` sem lista de argumentos agora dão "velho" e "sem
-corpo vivo" (antes, "ok" sobre um corpo que o banco não teria). **A confirmação chamando a função:** PENDENTE, pelo comando
-do §1, passo 2.4.
+**1.624** linhas, os nós do plano. **A confirmação chamando a função** (produção, 17/09/2026, depois do apply da `0143`,
+`md5` do `prosrc` conferido): corpo aplicado **54,758 ms** de mediana (p95 59,817), **18.638** buffers, **1.624** linhas,
+`mov_ativo_idx`; a chamada pelo nome **57,826 ms** — gravada em `medicao.confirmacao`, razão **0,833** sobre a medida. O
+hash não mudou, e `asof-orcamento.test.ts` segue 20/20. A trava reprova ausente, velho, incompleto, outra assinatura,
+ilegível e sem corpo vivo; a mesma medição datada de 2000 passa.
 
 ---
 
@@ -434,7 +297,8 @@ Subagentes em contexto fresco contra a ordem, o plano e os 34 critérios; cada a
 | 22 | o registry generalizava 1,6–1,7× | as duas faixas medidas | `754d1d4` |
 
 **Não feito, declarado:** mutação nova no injetor para as formas dos achados 1–11 (exige banco descartável; a regressão
-fica no describe 7, que roda em `npm run test`); o push, o CI sobre `c516467` e o corpo do PR (§1.0).
+fica no describe 7, que roda em `npm run test`). O push, o CI sobre o código congelado e o corpo do PR foram feitos no fim
+da execução (run 35186554796).
 
 ---
 
@@ -442,72 +306,71 @@ fica no describe 7, que roda em `npm run test`); o push, o CI sobre `c516467` e 
 
 | # | Critério | Estado | Onde |
 |---|---|---|---|
-| 1 | lint, test, build, tsc, `verificar:actions` | ✅ | `c516467`: 228 / 6.432; `revisao-final-build.txt`; CI verde em `3f10f2e` |
+| 1 | lint, test, build, tsc, `verificar:actions` | ✅ | `c516467`: 228 / 6.432; CI verde em `3f10f2e` e em `5bbc0ca` (run 35215000369), antes do merge |
 | 2 | o `PLAN-F60.md` com censo, tabelas, linhas de base, datas | ✅ | PLAN §1–§3, antes dos lotes (§12) |
-| 3 | sete novas com `= any (p_filiais)`, NULL e `'{}'` → 0 em roteiro | ✅ CI · banco real PENDENTE | `f60_recorte.sql` 1a–1h |
-| 4 | grants nos dois bancos, 6a verde | ✅ CI · dois bancos PENDENTE | `catalogo_secdef.sql` 6a, `7e` |
+| 3 | sete novas com `= any (p_filiais)`, NULL e `'{}'` → 0 em roteiro | ✅ CI e nos dois bancos | `f60_recorte.sql` 1a–1h; verificação pós-apply |
+| 4 | grants nos dois bancos, 6a verde | ✅ | verificação pós-apply nos dois; bloco 7 só leitura verde nos dois; paridade `grant_func` |
 | 5 | as-of lateral, `asof_desempate.sql`, transferido depois da data | ✅ CI | 11a–11c, R-REL-35 |
-| 6 | equivalência igual no ensaio e em produção | ✅ EMULADA (1.004 × 2) · real PENDENTE, comando no §1 | §6 |
-| 7 | consolidado com desativada; nenhum número muda | ✅ roteiro + emulação · real PENDENTE | decisão 2 |
-| 8 | `/itens` colunas + consolidado; `estoqueForaDasColunas` | ✅ (numa LEITURA paginada: 2 idas — divergência declarada) | sabotagem F |
-| 9 | chamadores migrados, travas verdes | ✅ | `grep-p_filial-pos-lote2.txt` |
+| 6 | equivalência igual no ensaio e em produção | ✅ EMULADA e REAL: 1.004 × 2, 0 divergentes | §6, `f60-equivalencia-real.json` |
+| 7 | consolidado com desativada; nenhum número muda | ✅ roteiro + equivalência real | decisão 2 |
+| 8 | `/itens` colunas + consolidado; `estoqueForaDasColunas` | ✅ (numa LEITURA paginada: 2 idas — divergência declarada) | sabotagem F; smoke pós-deploy |
+| 9 | chamadores migrados, travas verdes | ✅ | `grep-p_filial-pos-lote2.txt`; o `git grep` da janela vazio |
 | 10 | 59 chamadas em 8 roteiros; 2 mutações reancoradas | ✅ | `rotulos-roteiros.txt`, CI 90/90 |
 | 11 | `rpcs-recorte-sql.test.ts`: coleta, replay, falha fechada, vermelho gravado | ✅ (reforçado na revisão final) | sabotagens A e B, describe 7 |
-| 12 | par no catálogo verde, mutações pelo rótulo, teto | ✅ CI sobre o código congelado (run 35186554796: bloco 7 verde, 90/90) | `ci-sha-congelado.txt`, ata (g) |
+| 12 | par no catálogo verde, mutações pelo rótulo, teto | ✅ CI e nos dois bancos (bloco 7 só leitura, universo 9) | `ci-sha-congelado.txt`, `pos-deploy-e-drop.txt` §7 |
 | 13 | `rel_saldo_colaborador` decidida, uma fonte, dois sentidos | ✅ | R-ACC-76 |
 | 14 | `paginarTodos` sem `cap` não compila; keyset/OFFSET listados | ✅ | sabotagem C, decisão 5 |
-| 15 | as sete velhas dropadas — ou PENDENTE com bloqueio e comando no topo | 🚧 PENDENTE, comando no §1.4 | ata (j) |
+| 15 | as sete velhas dropadas | ✅ ensaio e produção, depois da janela | §7, `janela-do-drop.json` |
 | 16 | `cache()` com chave primitiva, UMA leitura | ✅ | sabotagem I |
-| 17 | KPIs sem ler `ativos` inteira, oito números iguais | ✅ teste + contagem de 16/09 (1.622 × 3) · pós-apply PENDENTE | decisão 6 |
+| 17 | KPIs sem ler `ativos` inteira, oito números iguais | ✅ teste + equivalência real (8 células × 2) + plano "depois" (1,36 ms) | decisão 6, §8 |
 | 18 | `count` de `/ativos` decidido com custo | ✅ | ata (e) |
 | 19 | teto e aviso nas três tabelas; snapshot sem `meta.schema` novo | ✅ | decisão 6 |
 | 20 | `maxDuration` e o import | ✅ | `maxduration.md` |
 | 21 | `statement_timeout` conferido, sem `alter role` | ✅ | ata (f) |
-| 22 | `medir-itens.mjs` na forma do app, no ensaio, limpeza por contagem | ✅ antes · "depois" PENDENTE | ata (b) |
-| 23 | `lanc_item_criado_por_idx` e `movimentacoes_ordem_lista_idx` decididos | ✅ | atas (b), (d) |
+| 22 | `medir-itens.mjs` na forma do app, no ensaio, limpeza por contagem | ✅ antes e depois | ata (b), `f60-itens-ensaio-depois.json` |
+| 23 | `lanc_item_criado_por_idx` e `movimentacoes_ordem_lista_idx` decididos | ✅ | atas (b), (d); o "depois" do ensaio |
 | 24 | `buscarEstornosAteData` com `.in('estorno_de', ids)` | ✅ | `relatorios/movimentacoes.ts` |
-| 25 | `/admin/colaboradores` decidido e medido | ✅ emulado · sonda real PENDENTE | ata (c) |
-| 26 | `asof-orcamento.json` com o hash; trava sem calendário | ✅ | sabotagem D, describe 6 |
-| 27 | TTFB "depois" dentro da faixa A/A | 🚧 PENDENTE (sem deploy) | §1.5 |
-| 28 | lock e `migrations-f38.test.ts`; `database.ts` regenerado; deriva verde; `0001`–`0140` intocadas | ✅ lock, listas, deriva (CI), intocadas · regeneração PENDENTE (hand-fix) | Anexo A |
-| 29 | emenda F60, Anexo A, receita, ata | ✅ | matriz, runbook, atas |
-| 30 | `1.65.0`, CHANGELOG, registry; tag — ou o motivo e o comando | ✅ versão · tag NÃO criada, comando no §1.5 | ata (j) |
+| 25 | `/admin/colaboradores` decidido e medido | ✅ emulado · sonda real idêntica nos dois bancos | ata (c), `pos-deploy-e-drop.txt` §4 |
+| 26 | `asof-orcamento.json` com o hash; trava sem calendário | ✅ e confirmado chamando a função (razão 0,833) | sabotagem D, §9 |
+| 27 | TTFB "depois" dentro da faixa A/A | ✅ D 1,079 (7,9%); 16 de 16 rotas com R ≤ 1,131 (0,772–0,963); faixa de horário declarada | §8 |
+| 28 | lock e `migrations-f38.test.ts`; `database.ts` regenerado; deriva verde; `0001`–`0140` intocadas | ✅ — os tipos de produção iguais byte a byte ao hand-fix sem os comentários | Anexo A, `pos-deploy-e-drop.txt` §8 |
+| 29 | emenda F60, Anexo A, receita, ata | ✅ | matriz, runbook, atas (a)–(m) |
+| 30 | `1.65.0`, CHANGELOG, registry; tag | ✅ — a tag anotada `v1.65.0` no merge do PR de documentação | ata (m) |
 | 31 | `RELATORIO-F60.md` com o roteiro no topo | ✅ | este |
-| 32 | os dois PRs mergeados — ou o bloqueio no topo | 🚧 bloqueio no topo | §1 |
-| 33 | nenhum dado real em teste, evidência, log | ✅ | a varredura de `f60-evidencias/README.md`; a da revisão final |
+| 32 | os dois PRs mergeados | ✅ o de código (#52); o de documentação, com o CI verde | ata (m) |
+| 33 | nenhum dado real em teste, evidência, log | ✅ | a varredura de `f60-evidencias/README.md`; a das evidências de banco real (UUID, e-mail, patrimônio: 0) |
 | 34 | o estado de repouso declarado | ✅ | §12 |
 
 ---
 
 # 12. O estado de repouso — se o projeto parar aqui por dois meses
 
-- **Produção e `main` ficam na `1.64.0`**, com as sete `rel_*` velhas vivas e nenhuma `_filiais`. O app no ar funciona como
-  hoje — inclusive com a forma `(p_filial is null or …)` que a R-ACC-71 proíbe e que esta fase veio trocar.
-- **A branch fica com `1.65.0` e cinco migrations não aplicadas.** Qualquer fase nova que partir da `main` numera a partir
-  da `0141` e colide com esta branch: antes de começar outra fase de banco, decidir entre aplicar esta ou fechar o PR.
-- **O que envelhece:** a equivalência emulada vale para o dado de 16/09 — o apply de daqui a dois meses tem de rodar a
-  equivalência REAL (o comando existe; ela não se aproveita da emulada); os `md5` dos corpos não mudam, mas o acervo sim.
-  O orçamento do as-of não envelhece pelo calendário — só se o corpo mudar. O TTFB "antes" (`f60-producao-antes-aa-*`)
-  envelhece com o volume: o "depois" tem de ser comparado com um "antes" remedido se a deriva do controle passar dos 18%.
-- **Nada acende sozinho:** nenhuma checagem de ledger × repositório no `/api/saude` nem no smoke; a pendência só existe
-  escrita — aqui, na ata (j) e no Anexo A.
+- **Produção, ensaio e `main` na `1.65.0`**, com as oito `_filiais` e a exceção `rel_saldo_colaborador`, e nenhuma das
+  sete velhas. A paridade de schema bate nas 11 classes. Nada da fase fica "pela metade".
+- **O que envelhece:** o custo do as-of cresce com o NÚMERO DE ATIVOS (a lateral visita cada um), não com o histórico; o
+  orçamento não envelhece pelo calendário — só se o corpo mudar. As três leituras de movimentações seguem lendo, por
+  filial, o que o consolidado lê: com mais movimentações isso cresce, e é lá que um índice pela filial pode passar a valer
+  (medir antes). O TTFB "antes" e "depois" envelhecem com o volume.
+- **O que acende sozinho se alguém voltar a forma velha:** a trava de mesa (`rpcs-recorte-sql.test.ts`) e o bloco 7 do
+  catálogo no CI; o orçamento do as-of se o corpo mudar sem medição nova.
 
 ---
 
 # 13. O que este relatório NÃO prova
 
-- **Nada em banco real.** Nenhuma das cinco migrations foi aplicada; toda prova de banco é do CI (banco descartável, em
-  `d83f8ec`) ou de emulação só leitura.
-- **Que o CI passa sobre `c516467`.** A mesa (vitest, lint, tsc, build, `verificar:actions`) passou; o `banco-sem-docker`
-  não rodou sobre os commits da revisão final (que não tocam `supabase/**`, mas o lock da `0143`/`0145` foi regravado em
-  `5094f6f`, também depois do run).
-- **Que a equivalência vale para toda data** — vale para as 12 de amostra, sobre o dado de 16/09, e só emulada.
+- **Que a equivalência vale para toda data** — vale para as 12 de amostra, sobre o dado de 16/09 (emulada) e de 17/09
+  (real), no consolidado e em cada filial.
 - **Que a trava julga se a lista passada é a certa** — ela julga a FORMA do recorte; `rel_resumo_filiais(array[<filial
   errada>], …)` passa em todas as regras (isso é a F63). E uma coluna CALCULADA chamada `filial_id` numa lateral é aceita
   pela forma, não pela semântica.
-- **Que o TTFB vale para outro volume**, e que o custo do as-of (1,6–2,3×) se mantém — ele cresce com o número de ativos.
-- **Que o índice medido com volume fictício no ensaio se comporta igual em produção** quando o volume chegar.
-- **Que nenhuma aba aberta antes do deploy veria erro na janela do `drop`.**
+- **Que o recorte obrigatório corta scan hoje** nas leituras de movimentações — o `explain` "depois" mostra que não, no
+  volume atual (§8).
+- **Que o TTFB vale para outro volume, ou para a faixa de horário da A/A** — as rodadas "depois" rodaram de manhã (UTC).
+- **Que o índice medido com volume fictício no ensaio se comporta igual em produção** quando o volume chegar — em produção
+  ele só apareceu como usado (fora de `unused_index`).
+- **Que nenhuma aba aberta antes do deploy viu erro na janela do `drop`** — o `pg_stat_statements` não registrou chamada
+  velha em 31 minutos de janela, e isso é o que se pode provar.
+- **Que o visualizador por senha não chama as velhas por TRÁFEGO** — só pelo código (a prova estática da receita).
 - **Que o consolidado de quem entra pela senha é recortado por inquilino** — é "tudo" porque o `service_role` não tem RLS;
   isso é da F68.
 - **Que as mutações do injetor cobrem as formas da revisão final** — a regressão delas é da mesa (describe 7).
@@ -516,12 +379,11 @@ fica no describe 7, que roda em `npm run test`); o push, o CI sobre `c516467` e 
 
 # 14. Pendências e backlog nomeado
 
-**Pendências desta fase** (todas no §1): o push e o CI sobre `c516467`; o corpo do PR #52; o apply no ensaio e em
-produção com a verificação; a equivalência real; o conferidor; o `explain` "depois" e a confirmação do orçamento; o
-"depois" do harness de itens; o merge e a conferência pós-deploy; a janela do `drop`; os tipos do ensaio e de produção; o
-TTFB "depois"; o PR de documentação e a tag `v1.65.0`.
+**Pendências desta fase:** nenhuma. O que não se resolveu na fase — o corte de scan nas leituras de movimentações e a faixa de horário do TTFB — está no §1 e no backlog abaixo.
 
 **Backlog nomeado:**
+- **O corte de scan nas três leituras de movimentações** — medir `mov_filial_data_idx` × `movimentacoes_data_ordem_idx`
+  no plano genérico com `= any ($1)` quando o volume crescer; índice só pela medição.
 - **F63** — a camada de relatório segue `number | null` por dentro (o `null` morre em `recorteDeFiliais`); `empresa_id`
   nas leituras.
 - **F65** — `(empresa_id, ordem)` e o cursor do keyset; as ordens compostas que ficaram em OFFSET (**13 + 4 + 1**, cada uma
@@ -537,3 +399,5 @@ TTFB "depois"; o PR de documentação e a tag `v1.65.0`.
   antigo.
 - **A trava:** mutações no injetor para as formas da revisão final (precedência do `or`, junção externa, dois comandos),
   na próxima fase que tocar `scripts/db/mutacoes.mjs` com banco descartável.
+- **Os scripts que leem `rel_saldo_itens_filiais` numa ida** (`smoke-prod.mjs`, `fixtures-passe2.ts`, `seed.ts`) têm o
+  limite de `max-rows`, latente em centenas de itens, e falham ALTO (R-REL-36).

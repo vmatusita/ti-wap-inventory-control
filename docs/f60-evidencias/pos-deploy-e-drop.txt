@@ -1,0 +1,65 @@
+F60 — o merge, a conferência pós-deploy e a janela do drop em PRODUÇÃO, 17/09/2026. Só números, hashes e nomes.
+
+1. O MERGE
+   PR #52 com `verificar` e `banco-sem-docker` verdes sobre 5bbc0ca (run 35215000369; 4 de 4 checks) e `main` sem commit
+   novo → merge commit 51b2886, 11:23:38Z.
+
+2. A CONFERÊNCIA PÓS-DEPLOY (só leitura, antes de qualquer outro passo)
+   /api/saude às 11:25:11Z: {"ok":true,"versao":"1.65.0","commit":"51b2886","banco":"ok"}.
+   node scripts/smoke/smoke-prod.mjs (SMOKE_VERSAO_ESPERADA=1.65.0): RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha.
+     A Parte B chamou as funções novas: rel_saldo_itens_filiais (consolidado: 23 itens no nível do total, 6 filiais;
+     por filial: 23 linhas + 23 do nível do total), rel_resumo_filiais (30 dias), rel_mov_por_mes_filiais (12 meses).
+     O aviso é o de sempre: kits_modelos sem kit cadastrado, RLS de anon não comprovada.
+
+3. A JANELA DO DROP (receita: docs/RUNBOOK-BANCO.md, "A janela do drop"; evidência: janela-do-drop.json)
+   T0 11:26:39Z · tráfego: scripts/perf/medir.mjs --rotulo janela (19 rotas × 11 repetições, sessão de operador, todas 200 —
+   docs/perf/f60-producao-janela.json) e o smoke outra vez (109 OK · 0 falha) · T1 11:57:59Z (31,35 min).
+   Prova ESTÁTICA do service_role (antes do T1): o git grep das sete velhas em src/** e scripts/** → VAZIO;
+   fronteira-viewer.test.ts → 18/18.
+   Δ chamadas T0 → T1, por papel:
+     VELHAS  rel_estoque_asof a 0 · s 0   rel_saldo_itens a 0 · s 0   rel_mov_itens a 0 · s 0   rel_frescor_itens a 0 · s 0
+             rel_mov_por_mes a 0 · s 0    rel_por_motivo a 0 · s 0    rel_resumo a 0 · s 0      (anon: nenhuma entrada)
+     NOVAS   (authenticated) contagem_status +17 · estoque_asof +54 · saldo_itens +122 · mov_itens +27 · frescor +27 ·
+             mov_por_mes +1 · por_motivo +27 · resumo +28 · (service_role: nenhuma entrada — sem visualizador na janela)
+   dealloc 0 = 0 · stats_reset igual (2026-07-09) → as quatro condições valeram → drop.
+
+4. A 0144 COM A SONDA DE CONJUNTO (produção)
+   antes:  v_colaboradores_textos 923 linhas · md5 08374799ca0bce77599ef213ca025802 ·
+           v_colaboradores_consolidacao 2 linhas · md5 8e29bc88d526ee79a2d83d7d7aa3605a
+   apply 0144 (ledger colaboradores_textos_por_nome) → success
+   depois: 923 linhas · md5 08374799ca0bce77599ef213ca025802 · consolidacao 2 · md5 8e29bc88d526ee79a2d83d7d7aa3605a ·
+           reloptions {security_invoker=true}  → os dois pares IGUAIS.
+
+5. A 0145 E A PROVA DE AUSÊNCIA (produção)
+   apply 0145 (ledger drop_rel_filial) → success · notify pgrst, 'reload schema' → ok.
+   to_regprocedure das sete velhas → NULL nas sete.
+   rel_* vivas: nove — as oito _filiais com anon f · authenticated t · service_role t e os md5 da 0141/0143, e
+   rel_saldo_colaborador(uuid).
+   Smoke depois do drop, 12:00:38Z: 109 OK · 1 aviso · 0 falha.
+
+6. A SONDA DE PARIDADE ENSAIO × PRODUÇÃO (supabase/ci/impressao-schema.sql), estado final dos dois:
+   classe          objetos  fingerprint (igual nos dois bancos)
+   coluna            304    04389aafedd3c6228355ae38c8bf908d
+   constraint         91    e4f2683c66ee7dfdb120655e88e92679
+   enum                7    34837fbf7cb50082e461fd8cdad47532
+   func               82    e58da143f0a13f27bc0b92fb4aedecc0
+   grant_func         82    d3cd514f2f65f106fd76573f509e94e8
+   indice             88    1e382427085f27c104cb2adfc03ee809
+   policy             53    4392469ec82bcd18cf90b72d44a6b0a3
+   policy_storage      8    cd68b8eccf9532909791b7cf67619b08
+   rls_flag           24    09081944cd2aeaac407de7fcb40093a2
+   trigger             8    c8a10e985ab40e20f14532ae7c740b86
+   view                9    eccffb70b9021b329278eaf0cd2c6601
+   → 11 de 11.
+
+7. O BLOCO 7 DO CATÁLOGO, SÓ LEITURA, NOS DOIS BANCOS (bloco7-mcp.sql, depois do drop)
+   ensaio e produção: universo_rel 9 · 7a 0 · 7b 0 · 7c 0 · 7d 0 · 7e 0 · 7f 0 · 7g 0 — VERDE nos dois.
+
+8. OS TIPOS DE PRODUÇÃO (MCP generate_typescript_types — sem SUPABASE_ACCESS_TOKEN, a CLI fixada não tem canal)
+   md5(tipos de produção) = md5(tipos do ensaio) = md5(database.ts do commit sem as 8 linhas "hand-fix F60")
+                          = 4465cfaf70ec86d2341871ff530946c1 → src/lib/types/database.ts passa a ser o arquivo gerado
+   (o diff: só as 8 linhas de comentário saem); tsc --noEmit verde.
+
+9. ADVISORS DE PRODUÇÃO depois do drop
+   security: os mesmos de antes da fase (rls_enabled_no_policy ×3, security definer ×28, leaked password ×1).
+   performance: nenhum achado novo; lanc_item_criado_por_idx NÃO aparece em unused_index — o app já o usou.

@@ -12214,3 +12214,33 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   depois do `drop`, pelo mesmo caminho.
 - **Reversível?** Sim, pelo Anexo A do runbook: em produção, antes do deploy, derrubar as oito `_filiais` e o índice não
   toca a `1.64.0`. No ensaio, a ordem de rollback da fase.
+
+## 2026-09-17 · F60 · (m) O merge, a janela do `drop`, o TTFB "depois" e o fecho
+
+- **O merge.** PR #52 com `verificar` e `banco-sem-docker` verdes sobre `5bbc0ca` (run 35215000369) e `main` parada →
+  merge `51b2886` às 11:23Z. `/api/saude` com `1.65.0`/`51b2886` às 11:25Z; `smoke-prod.mjs` **109 OK · 1 aviso · 0 falha**
+  (o aviso de `kits_modelos` de sempre), com a Parte B chamando as `_filiais`.
+- **A janela do `drop`, pela receita do runbook** (`docs/f60-evidencias/janela-do-drop.json`): T0 11:26:39Z → `medir.mjs`
+  (19 rotas × 11) e o smoke → T1 11:57:59Z (31,35 min). As sete velhas com **Δ 0** em `authenticated` e `service_role` e
+  nenhuma entrada em `anon`; as oito novas de **+1 a +122** em `authenticated`; `dealloc` 0 = 0; `stats_reset` igual. Em
+  `service_role` as novas não tiveram tráfego (nenhuma senha de acesso ativa resolvida pelo harness) — a prova ESTÁTICA
+  valeu: o `git grep` das velhas em `src/**`/`scripts/**` vazio e `fronteira-viewer.test.ts` 18/18. **Decisão: drop.**
+- **A `0144` e a `0145` em produção** (`pos-deploy-e-drop.txt`): a sonda de conjunto idêntica antes e depois (923 linhas,
+  `md5` `08374799…`, o resumo igual); as sete velhas `null`; nove `rel_*` vivas com os grants; smoke outra vez 109 OK · 0
+  falha; **paridade ensaio × produção 11 de 11**; o bloco 7, só leitura, verde nos dois bancos (universo 9, `7a`–`7g` 0).
+- **Tipos.** Os de produção, pelo MCP (sem token, a CLI fixada não tem canal), são byte a byte os do ensaio e os do hand-fix
+  sem as 8 linhas de comentário: o arquivo gerado substituiu o hand-fix neste PR de documentação — o único arquivo fora de
+  `docs/**` e do `CHANGELOG.md` nele, e só comentário sai.
+- **O TTFB "depois"** (`docs/perf/f60-producao-depois-{1,2}.json`), pela regra do `PLAN-F60.md` §3.7: D = **1,079** (7,9%, dentro dos 18%); as 16 rotas com sessão com R ≤ 1,131 — de **0,772** (`/itens`, 405,6 → 337,9 ms, coerente com as 7 idas que viraram 2) a **0,963** (`/ativos/[id]`); nenhuma fora (`docs/f60-evidencias/ttfb-criterio-27.txt`).
+- **A faixa de horário, declarada.** O §3.7 pede o "depois" na mesma faixa da A/A (19:47Z e 21:13Z); as duas rodadas
+  rodaram às 12:02Z e 12:29Z, logo depois do `drop`. A correção pela deriva dos três controles é o que a regra usa para isso, e a
+  deriva ficou dentro dos 18%; o limite fica escrito: a hora do dia mexe mais nas rotas com sessão do que nos controles
+  (os +29% de `/pendencias` medidos na própria F60, no mesmo dia).
+- **O que a fase NÃO entregou do título, medido.** Nas três de movimentações o recorte de UMA filial lê, no volume de hoje,
+  os mesmos buffers do consolidado (201 em 365 dias em `mov_por_mes`): o plano genérico escolhe o índice de data. A forma
+  ficou sargável e obrigatória — o que as travas provam —; o corte de scan fica para o volume que o justificar, pela
+  medição (R-REL-33), e está no backlog do relatório.
+- **Documentos vivos atualizados neste PR**: a emenda F60 da `MATRIZ-REGRAS.md` (os vereditos "PENDENTE (apply)" viraram a
+  prova de banco real), o Anexo A do `RUNBOOK-BANCO.md` (o resultado de cada migration e o ledger), a linha da
+  `ARQUITETURA.md`, o `CHANGELOG.md` (✅), o `README` das evidências e o `RELATORIO-F60.md`.
+- **A tag** `v1.65.0` anotada no merge deste PR, publicada.
