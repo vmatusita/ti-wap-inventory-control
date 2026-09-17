@@ -12244,3 +12244,206 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   prova de banco real), o Anexo A do `RUNBOOK-BANCO.md` (o resultado de cada migration e o ledger), a linha da
   `ARQUITETURA.md`, o `CHANGELOG.md` (✅), o `README` das evidências e o `RELATORIO-F60.md`.
 - **A tag** `v1.65.0` anotada no merge deste PR, publicada.
+
+
+## 2026-09-17 · F61 · (a) A fonte única da identidade, e por que ela não é autorização
+
+- **Contexto:** a sigla `WAP` e o nome do sistema estavam escritos como literal em 10 arquivos, com **duas grafias**
+  (`Estoque TI` no metadata e na 404, `Estoque TI WAP` na sidebar e no manual), e o crédito de autoria em 4 chamadas. A
+  ficha da fase pedia "uma fonte só, com os valores de hoje", e a F70 pede um `contextoDoApp()` por empresa.
+- **Decisão:** `src/lib/identidade/sistema.ts`, função `identidadeDoSistema()` devolvendo `{sigla, nome, nomeCompleto,
+  descricao, credito}`. Módulo **puro**: sem `'use client'`, sem `server-only`, sem `process.env`, sem banco — porque
+  quem o consome hoje são Server Components, Client Components e o `metadata` do `layout.tsx`, e qualquer uma dessas
+  marcas fecharia uma das três portas. O crédito é `CreditoDeAutoria | null`: `null` some com a linha inteira, sem deixar
+  separador órfão (teste `credito-autor.test.tsx`).
+- **Motivo:** é um **ponto de injeção**, não uma feature. Quando a F70 trocar o corpo da função por uma leitura do
+  contexto da empresa, os 10 consumidores não mudam. E vale dizer o que ela **não** é: identidade EXIBIDA nunca é
+  autorização — quem decide o que a pessoa vê continua sendo `papel_atual()` no Postgres.
+- **Grafia:** ficou **uma**, `Estoque TI WAP`. Isso muda de propósito o título da aba de `/auth/confirm` e de
+  `/auth/definir-senha` (era `Estoque TI`), e as duas linhas estão na tabela de mudanças de propósito.
+
+## 2026-09-17 · F61 · (b) A régua sem isenção por construção, e a catraca por conjunto nominal
+
+- **Contexto:** `consistencia.test.ts` isentava por **prefixo de caminho** (`PENDENTES`), e `src/components/admin/` e
+  `src/components/relatorios/` estavam na lista inteira — 45 arquivos, 113 violações. São exatamente os dois diretórios
+  onde a UI de tenant vai nascer. A catraca pedida na ficha tinha dois furos: não via arquivo novo e reprovaria a
+  **exclusão** legítima de um arquivo.
+- **Decisão (i do Johnny, 17/09):** converter os 45 pela escala do `PLANO-DESIGN-SYSTEM`, tirar os dois diretórios de
+  `PENDENTES` e **proibir que voltem**: `DIRETORIOS_SEM_ISENCAO` em `src/lib/layout/pendentes-da-regua.ts` reprova
+  qualquer entrada de `PENDENTES` sob esses prefixos. A catraca virou comparação de **conjuntos nominais** —
+  `SOB_REGRA_CONGELADA` com os 154 caminhos —, com três vereditos distintos: arquivo novo fora da régua reprova; arquivo
+  **apagado** passa (e a lista encolhe no mesmo commit); arquivo do piso que volta a ser isento reprova nomeando-o.
+- **Motivo:** régua com isenção por prefixo é uma régua que o próximo arquivo fura sem ninguém perceber. A catraca por
+  contagem (`length >= N`) teria os dois furos; por conjunto, não tem nenhum dos dois.
+- **A válvula não foi usada.** `DEVOLVIDOS_F61B` — a porta por ARQUIVO, com defeito medido e caminho de evidência —
+  fechou a fase **vazia**: os 45 couberam na escala. **Não há F61B.**
+- **O que NÃO entrou:** as **rotas** `src/app/(app)/admin/**` e `src/app/(app)/relatorios/**` (18 `.tsx`: 13 sem casco,
+  4 esqueletos) seguem em `PENDENTES`. O casco é das frentes b e c do sistema de design; a F61 destravou os
+  **componentes**. E o `EstadoVazio` não foi adotado nos cinco vazios de tabela do admin: aplicou-se a regra de escala
+  (`py-10` → `py-12`) porque trocar o componente acrescentaria um ícone que aquelas telas não têm — adoção vai ao backlog.
+
+## 2026-09-17 · F61 · (c) O verde, o branco e o preto viram par de tokens — e a regra de tinta
+
+- **Contexto:** o verde de sucesso aparecia cru em 12 sítios (`green-100/800/950/300`), e o texto sobre o cromo escuro e
+  sobre o amarelo da marca era `text-white`/`text-black` literal em 8 arquivos. A ficha pedia par de contraste medido.
+- **Decisão:** quatro pares novos em `globals.css` com os **mesmos valores de hoje** — `--sucesso`/`--sucesso-texto`
+  (estado positivo), `--medidor-folga`/`--medidor-folga-barra` (a folga do medidor), `--brand-dark-texto` (#ffffff) e
+  `--brand-amarelo-texto` (#000000) —, literais em `:root` **e** em `.dark`, porque `scripts/contraste.mjs` lê o valor
+  por NOME nos dois blocos. `<Badge variant="sucesso">` e a quarta intenção do `Aviso` consomem o par. A regra de tinta
+  (`src/lib/layout/regra-de-tinta.ts`) proíbe a volta do par cru, com lista de exceções **nomeada** — que fechou vazia.
+- **Motivo de duas escolhas contraintuitivas:**
+  1. A variante `sucesso` **não** segue o molde do `warning` (token + `/10` de opacidade): o verde de hoje é chapado, e
+     aplicar opacidade repintaria os selos — mudança de pixel fora da tabela. Usa o par cheio.
+  2. O medidor ganhou token **próprio** de folga em vez de reusar `--sucesso`: são coisas diferentes (uma barra de
+     gráfico e um estado), e amarrá-las faria a próxima mudança de uma mexer na outra.
+- **A regra de tinta não é derivada do CSS.** Tentar derivar a lista de cores proibidas dos comentários do `globals.css`
+  proibiria 204 usos legítimos (âmbar de callout, entre outros). A lista é **escrita**, curta e nominal.
+- **Um par ficou abaixo do piso, e está declarado:** `green-600` sobre `green-100` (a barra do medidor) mede **2,93:1**,
+  abaixo dos 3:1 do WCAG 1.4.11. É a cor de ANTES da fase. Entrou no medidor como `antes: true` — registrado, não
+  exigido — porque consertar é escurecer a barra, mudança visível de gráfico. Vai ao backlog PATCH, agora com nome.
+
+## 2026-09-17 · F61 · (d) As quatro confirmações digitadas, e a mesa que passou a falar
+
+- **Contexto:** `ConfirmacaoDigitada` existia em `components/layout/`, mas só uma tela a usava; as outras três copiavam o
+  campo. A ficha previa migrar "as que couberem". Medido no dia: a trava de fronteira que a fase ia criar
+  (`dicaConfirmacaoNaoConfere` só importável de `components/layout/`) **reprovaria três importadores** já existentes.
+- **Decisão (ii do Johnny):** migrar **as quatro**, e a da mesa de conflitos entre filiais — a única que era muda —
+  passou a anunciar o erro (`aria-invalid`, `aria-describedby`, `role="alert"`). O componente ganhou três props para
+  absorver as diferenças reais: `mono` (a palavra esperada em monoespaçado), `exibirEsperado` (a Zona destrutiva não
+  repete a palavra) e `aviso` (texto próprio no lugar do esperado), mais `spellCheck={false}` sempre.
+- **Motivo:** trava com exceção nomeada no primeiro dia é trava que nasce furada. Migrar as quatro deixou a lista de
+  exceções **vazia** — e deu de brinde o acerto de acessibilidade que a mesa não tinha.
+
+## 2026-09-17 · F61 · (e) Semear na abertura, filtrar por caminho, e a chave calculada no uso
+
+- **Diálogos.** Quatro dos seis diálogos de CRUD do admin (mais o de relatórios) semeavam `useState` a partir de prop e
+  **só ressincronizavam no fechamento** — "Novo" logo depois de "Editar" abria com os dados do anterior.
+  `useDialogoSemeado` (`src/components/dialogos/`) semeia na transição fechado→aberto; oito consumidores. Exceção
+  nomeada: `lancar-item-dialog`, que mantém o carrinho e o "Repetir último" ENTRE aberturas **de propósito**.
+  `editar-ativo-dialog` nem dispara a trava — o react-hook-form sincroniza por `values`.
+- **Filtros.** Os cinco filtros de lista repetiam o mesmo par "base pendente + esquecer ao sair"; **dois** perdiam o
+  clique rápido (o terceiro tinha uma cópia em `useRef`). Unificados em `src/components/filtros/url.ts` com o pendente
+  **por CAMINHO**. Isso fechou um defeito que a ficha não previa: o módulo antigo guardava um pendente só, e navegar de
+  `/itens` para `/itens/historico` levava a URL da outra tela — vazamento provado por teste **vermelho** antes da
+  correção (`H-vazamento-vermelho-antes.txt`).
+- **Storage.** As sete chaves `wap:*` eram literais espalhados. Passaram a sair de `chaveDeStorage`, **calculada no uso**
+  (nunca em constante de módulo, que congela o valor antes de o escopo existir), e `assinatura-realtime.test.ts` prova as
+  sete **byte a byte** iguais às de hoje — nenhum rascunho de ninguém se perde na virada. Exceções nomeadas:
+  `wap-sidebar` (embutida no script anti-flash) e `theme` (padrão do `next-themes`) — renomear apagaria a preferência de
+  todo mundo; e `wap:lancar-item`/`wap:transferir-item`, que são nomes de `CustomEvent`, não chave de storage.
+- **Motivo comum aos três:** são os pontos onde a F70 vai injetar a empresa. Corrigir o defeito agora custa um arquivo;
+  corrigir depois da virada custa um arquivo **vezes o número de empresas**.
+
+## 2026-09-17 · F61 · (f) A prova visual sem subir o app: a prévia estática
+
+- **Contexto:** a fase prometeu que **nenhum pixel muda fora da tabela de mudanças de propósito**. O caminho natural
+  seria `scripts/design/capturar.mjs`, que sobe o `next dev` e fotografa as telas.
+- **Decisão: não usar.** O `.env.local` aponta para o **ensaio**, que guarda cópia de dado real; fotografar de lá poria
+  nome de pessoa e patrimônio real numa evidência versionada. Construiu-se um instrumento novo —
+  `scripts/design/previa-f61.tsx`, `renderToStaticMarkup` com os providers do Next e o `globals.css` do próprio app
+  compilado pelo `@tailwindcss/postcss` — com **8 vitrines, 103 quadros e dados 100% fictícios**, fotografado em
+  1440×900 e 390×844, claro e escuro. Resultado: **176 quadros em zero pixel**, com o cromo inteiro em zero.
+- **Dois cuidados que a prova exigiu, escritos porque limitam o que ela vale:**
+  1. **Determinismo.** Duas rodadas idênticas diferiam em 2 quadros (hinting de fonte e foco). Corrigido com
+     `--font-render-hinting=none`, `--disable-font-subpixel-positioning`, raster de 1 thread, e removendo o `autofocus`
+     do documento. Conferido: 4 rodadas × 6 pares, zero diferenças.
+  2. **A faixa de antialias.** O recorte de cada quadro sai de uma foto de página inteira; quando um quadro acima muda de
+     altura, o mesmo conteúdo é recortado com outro alinhamento sub-pixel. Medido em quadros com HTML **byte a byte
+     idêntico**: até 64 pixels com Δ máximo 14 por canal. O comparador passou a reprovar qualquer pixel com Δ > 16 e a
+     imprimir as duas contagens. **Não é limiar de porcentagem: um pixel forte reprova.**
+- **Nomes de filial reais na prévia.** Dois placeholders de produção citam filiais reais ("Ex.: Linhares", "CD Afonso
+  Pena"). A prévia os **mascara** ("Filial de exemplo") e a substituição está declarada na evidência — o fonte não mudou.
+- **O que a prova NÃO é:** não é a tela de produção. É a prévia estática, com dublê de `Dialog`, sem a fonte Geist. E o
+  rig de componente é **grau 1**: afirma o HTML que o servidor produz, não interação.
+
+## 2026-09-17 · F61 · (g) Os desvios de forma da ordem, declarados
+
+- **Um commit por FRENTE, não por lote.** A ordem sugeria lotes; a conversão, os pontos de injeção e as correções se
+  cruzam nos mesmos arquivos (o `importar-wizard` recebeu classe, token **e** a caixa de confirmação) e `git add` é por
+  arquivo. Cinco commits por frente, cada um com o teste da frente verde.
+- **A sabotagem K1 nasceu no-op.** O roteiro mandava trocar uma classe específica; ela não existia mais depois da
+  conversão. Refeita com uma classe **atual** do mesmo arquivo — e aí o portão acusou o arquivo e as duas classes, como
+  devia.
+- **Três testes com `timeout` explícito de 60 s** (`assinatura-realtime`, `credito-autor`, `rodape-sidebar`): usam
+  `vi.doMock` + `vi.resetModules` + import dinâmico, e o padrão de 5 s não cobre a recompilação do módulo. Mesmo
+  comentário da `sem-wapismo`.
+- **A régua reprovava o próprio teste.** A varredura da regra de tinta pegava `cores.test.ts` (que **cita** as classes
+  proibidas para testá-las). `*.test.ts(x)` saiu do escopo da varredura.
+- **Cinco afirmações erradas encontradas em documento vivo** estão registradas na emenda F61 da `MATRIZ-REGRAS.md` e não
+  se editam: a ficha da fase erra em oito pontos (linha da isenção, contagem de arquivos, de diálogos, de filtros, de
+  chaves e de callouts), o cabeçalho da ordem conta 12 rotas onde há 18 arquivos, o comentário do
+  `confinamento-viewer.test.ts` dizia "a folga é de NOVE" com os números errados (**corrigido**: fecho 158, piso 149), o
+  da `confirmacao-digitada.tsx` dizia que "o import exige igualdade exata" (falso desde a F52, **corrigido**) e o do
+  `itens/url-filtros.ts` justificava o pendente único com uma premissa que caducou na F42 (o módulo saiu).
+
+## 2026-09-17 · F61 · (h) O relógio do runner — um número, num lugar só
+
+- **Contexto.** Fechada a frente G, a suíte foi rodada mais três vezes para conferir os números do relatório. Sem
+  **nenhuma** mudança de código entre elas, deu **0, 2, 5 e 1** reprovações — todas por `Test timed out in 5000ms`, e
+  cada vez em arquivos **diferentes** (`url.test.ts`, `registry.test.ts`, `chaves-de-storage.test.ts` a 5.106 ms).
+  Rodados isolados, os mesmos arquivos são verdes em ~2 s. Saída das quatro rodadas em
+  `docs/f61-evidencias/L-relogio-do-runner.txt`.
+- **O diagnóstico.** A causa não é da F61 — é da forma desta suíte. **51 arquivos** de teste varrem a árvore do
+  repositório (`readdirSync` recursivo, `coletarLiterais`, o compilador TypeScript) lendo centenas de fontes **dentro do
+  corpo do teste**. O custo deles não depende do que afirmam; depende de quantos arquivos o projeto tem e de quão
+  ocupado está o disco. Os 5 s padrão do Vitest foram pensados para teste unitário de função. A F61 acrescentou 11
+  arquivos de teste ao mesmo paralelismo e **tornou visível** uma fragilidade que já existia.
+- **A alternativa recusada.** Pendurar `60_000` em cada teste que estourasse. Foi a primeira tentativa, em dois deles — e
+  na rodada seguinte estourou um terceiro que não estava na lista. Pendurar em 51 testes, um a um, até a próxima fase
+  recomeçar a fila, é dívida disfarçada de conserto.
+- **Decisão.** Um número, num lugar só: `testTimeout: 60_000` nos dois projetos de `vitest.config.mts`, com o comentário
+  que conta a medição inteira. Os dois remendos foram **revertidos** — `src/lib/ajuda/registry.test.ts` (arquivo
+  pré-existente, que a fase não tinha por que tocar) voltou byte a byte ao que era, e nenhum teste da F61 carrega
+  relógio próprio.
+- **Por que isso não afrouxa nada.** Timeout não é asserção de ninguém: nas quatro rodadas, **nenhuma** asserção falhou —
+  a contagem de reprovação bateu, todas as vezes, com a de timeout. O que o relógio pega (laço infinito, promessa que
+  nunca resolve) continua sendo pego, 55 s depois. A folga é ~3x o pior tempo já medido nesta mesa: a `sem-wapismo`, com
+  ~22 s isolada, **já carregava este mesmo `60_000`** no próprio teste desde 14/09. A config só promove a exceção dela a
+  regra da casa.
+- **O limite, escrito.** Isto conserta o relógio, não o custo. Se a suíte continuar crescendo em teste de varredura de
+  árvore, a conta volta — e aí o conserto é outro (cache da varredura entre testes, ou um projeto `estatico` com
+  paralelismo próprio), não um número maior. Fica no backlog, com nome.
+
+## 2026-09-17 · F61 · (i) A revisão adversarial, e o que dela virou conserto
+
+- **Como foi feita.** Dois revisores frescos, sem contexto da execução, em paralelo e só-leitura: um atacando as
+  **travas** (a régua, a tinta, os literais, as chaves, a semeadura, a fronteira da dica), outro atacando a **prova
+  visual** (os dois portões, o gabarito e a cobertura das vitrines). Cada um recebeu ordem de tentar QUEBRAR e de colar
+  saída real; e de dizer, quando não conseguisse, que não conseguiu.
+- **O que eles confirmaram** (vale tanto quanto o que acharam): a régua resistiu aos três ataques de caminho
+  (barra invertida do Windows, subdiretório novo, prefixo mal-casado) — `fontes()` normaliza o separador e
+  `conferirCatraca` compara os dois sentidos do prefixo. O filtro `ehCaminhoOuEndereco` do portão de classes não
+  descarta nenhuma classe legítima: não há utilitário do Tailwind que comece com `src/`, `@/` ou `https:`, nem que
+  termine em `.ts`/`.json`/`.css`. E a recontagem independente dos **27 arquivos com linha sem vitrine**, feita do JSON
+  bruto, bateu com o número do relatório.
+- **Cinco viraram conserto, com sabotagem própria:**
+  1. **A confiança da chave de storage era por NOME.** Uma função LOCAL chamada `chaveDeStorage` — colisão de nome, que
+     é erro comum e não precisa de má intenção — fazia toda `chave*` do arquivo entrar no conjunto confiável. Agora o
+     arquivo precisa **importar** a construtora de verdade. Duas sabotagens novas: a homônima não compra confiança, e a
+     mesma função num arquivo que importa continua confiável.
+  2. **A prop desestruturada DENTRO do corpo** (`function D(props) { const { filial } = props }`) deixava a trava da
+     semeadura cega — e isso é TypeScript idiomático, não truque. O varredor passou a juntar também os nomes
+     desestruturados do parâmetro no corpo. Duas sabotagens novas: o esconderijo reprova, e desestruturar de um objeto
+     QUALQUER continua não semeando (sem falso positivo).
+  3. **O portão de classes virava "tabela vazia" em silêncio** quando o JSON do gabarito não existia. O efeito medido
+     não era verde por engano — era **vermelho com 279 diferenças**, que se lê como "quase tudo mudou sem documentação"
+     em vez de "faltou commitar o gabarito". Agora estoura com a causa escrita.
+  4. **Template com interpolação era descartado em silêncio** pelo portão de classes: `` `flex ${cond ? 'gap-6' :
+     'gap-4'}` `` não passa em `ehStringDeClasse` por causa do `$`, e trocar o literal de dentro do ternário mudava
+     pixel sem aparecer. Agora ele é registrado OPACO — o portão não entende o template, mas vê qualquer edição nele.
+     O padrão não existe em nenhum dos 45 arquivos desta fase; existe em `pendencias/`, que migra depois.
+  5. **A porta pelo NOME.** O varredor da régua pula `*.test.tsx` — teste de render não é tela. Um arquivo de produção
+     NOMEADO `*.test.tsx`, importado por uma página, escaparia da régua inteira. Como a promessa é "nem por prefixo,
+     nem por nome", a porta se fechou pelo outro lado: **código de produção não importa de módulo `*.test`**.
+- **Cinco viraram declaração, não conserto** — estão no §12 do `RELATORIO-F61.md`, itens 9 a 13: o portão de pixel não
+  audita a correspondência nos quadros que mudam; o portão de classes não lê `globals.css` e a faixa de antialias
+  mascara troca de tom pequena; a comparação é agregada por ARQUIVO, então troca cruzada dentro do mesmo arquivo dá
+  líquido zero; as travas são de texto e de nome, então literal fragmentado (`'W' + 'AP'`) e acesso computado passam; e
+  o gabarito é autoverificação, não auditoria independente.
+- **O critério da escolha, escrito.** O alvo destas travas é o **acidente e a deriva** — o arquivo novo que ninguém
+  converteu, a colisão de nome, a prop lida do jeito de sempre —, não o adversário decidido. Consertei o que era
+  plausível **por acidente**; declarei o que só cai para quem quer burlar. Perseguir o adversário decidido com
+  casamento de texto é corrida sem linha de chegada: quem quiser esse nível precisa de análise semântica de tipos, que
+  é outro instrumento e outra fase.
+- **Duas palavras saíram dos documentos** porque prometiam mais do que a trava entrega: "reprova **sempre**" na
+  R-UI-61i da matriz, e "a linha da tabela **explica**" na tabela de vereditos de pixel do relatório.

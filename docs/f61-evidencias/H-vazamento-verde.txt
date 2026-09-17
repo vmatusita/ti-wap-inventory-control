@@ -1,0 +1,23 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > sem push pendente, parte da URL commitada 3ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > preserva o filtro anterior quando a navegação ainda não commitou 1ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > encadeia três trocas seguidas sem perder nenhuma 1ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > descarta a base quando a navegação commita 0ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > descarta a base quando vem navegação de fora (voltar/avançar) 0ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > o filtro empurrado em /itens não vaza para /itens/historico 1ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > o pendente de uma rota não apaga o de outra 0ms
+ ✓ |puro| src/components/filtros/url.test.ts > baseDosFiltros > o filtro que sai da tela esquece o pendente (a garantia do useRef de antes) 0ms
+ ✓ |puro| src/components/filtros/url.test.ts > os filtros de lista compartilham o modulo (F61) > src/components/itens/itens-filtros.tsx usa src/components/filtros/url.ts, com o caminho 2ms
+ ✓ |puro| src/components/filtros/url.test.ts > os filtros de lista compartilham o modulo (F61) > src/components/itens/historico-filtros.tsx usa src/components/filtros/url.ts, com o caminho 2ms
+ ✓ |puro| src/components/filtros/url.test.ts > os filtros de lista compartilham o modulo (F61) > src/components/ativos/ativos-filtros.tsx usa src/components/filtros/url.ts, com o caminho 2ms
+ ✓ |puro| src/components/filtros/url.test.ts > os filtros de lista compartilham o modulo (F61) > src/components/pendencias/pendencias-filtros.tsx usa src/components/filtros/url.ts, com o caminho 2ms
+ ✓ |puro| src/components/filtros/url.test.ts > os filtros de lista compartilham o modulo (F61) > src/components/movimentacoes/lista-filtros.tsx usa src/components/filtros/url.ts, com o caminho 2ms
+ ✓ |puro| src/components/filtros/url.test.ts > os filtros de lista compartilham o modulo (F61) > nenhum modulo de src/lib/ e "use client" 528ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  16:10:33
+   Duration  979ms (transform 65ms, setup 0ms, import 101ms, tests 547ms, environment 0ms)
+

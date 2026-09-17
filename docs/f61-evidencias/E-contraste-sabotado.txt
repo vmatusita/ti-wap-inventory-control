@@ -1,0 +1,26 @@
+== E0 · a régua de hoje mede os pares pelos nomes NOVOS (npm run contraste, verde)
+| marca | amarelo WAP sobre card escuro | escuro | `#eda100` | `card` | 8.27:1 | 3:1 | ✅ AAA |
+| F29 | amarelo WAP sobre o header escuro (claro) | claro | `brand-amarelo` | `brand-dark` | 8.73:1 | 4.5:1 | ✅ AAA |
+| F29 | amarelo WAP sobre o header escuro (escuro) | escuro | `brand-amarelo` | `brand-dark` | 8.73:1 | 4.5:1 | ✅ AAA |
+| F61 | chip "WAP" — texto da marca sobre o amarelo (claro) | claro | `brand-amarelo-texto` | `brand-amarelo` | 9.70:1 | 4.5:1 | ✅ AAA |
+| F61 | chip "WAP" — texto da marca sobre o amarelo (escuro) | escuro | `brand-amarelo-texto` | `brand-amarelo` | 9.70:1 | 4.5:1 | ✅ AAA |
+| F61 | texto do cromo sobre o header escuro (claro) | claro | `brand-dark-texto` | `brand-dark` | 18.89:1 | 4.5:1 | ✅ AAA |
+| F61 | texto do cromo sobre o header escuro (escuro) | escuro | `brand-dark-texto` | `brand-dark` | 18.89:1 | 4.5:1 | ✅ AAA |
+| F61 | texto atenuado do cromo (70%) (claro) | claro | `brand-dark-texto/70` | `brand-dark` | 9.48:1 | 4.5:1 | ✅ AAA |
+| F61 | texto atenuado do cromo (70%) (escuro) | escuro | `brand-dark-texto/70` | `brand-dark` | 9.48:1 | 4.5:1 | ✅ AAA |
+| F61 | texto atenuado do cromo (80%) (claro) | claro | `brand-dark-texto/80` | `brand-dark` | 12.17:1 | 4.5:1 | ✅ AAA |
+| F61 | texto atenuado do cromo (80%) (escuro) | escuro | `brand-dark-texto/80` | `brand-dark` | 12.17:1 | 4.5:1 | ✅ AAA |
+| F61 | kbd "Ctrl K" no header (claro) | claro | `brand-dark-texto` | `brand-dark-texto/10` | 14.60:1 | 4.5:1 | ✅ AAA |
+| F61 | kbd "Ctrl K" no header (escuro) | escuro | `brand-dark-texto` | `brand-dark-texto/10` | 14.60:1 | 4.5:1 | ✅ AAA |
+| F61 | sucesso — selo "Ativo", círculo, pílula e Aviso (claro) | claro | `sucesso-texto` | `sucesso` | 6.45:1 | 4.5:1 | ✅ AA |
+| F61 | sucesso — selo "Ativo", círculo, pílula e Aviso (escuro) | escuro | `sucesso-texto` | `sucesso` | 10.67:1 | 4.5:1 | ✅ AAA |
+| F61 | medidor de mínimo — barra de folga sobre o trilho (claro) — ANTES | claro | `medidor-folga-barra` | `medidor-folga` | 2.93:1 | 3:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| F61 | medidor de mínimo — barra de folga sobre o trilho (escuro) | escuro | `medidor-folga-barra` | `medidor-folga` | 6.71:1 | 3:1 | ✅ AA |
+
+== E1 · um valor que não atinge a razão (cópia fora do repositório: --brand-amarelo-texto = #b8b8b8)
+| F61 | chip "WAP" — texto da marca sobre o amarelo (claro) | claro | `brand-amarelo-texto` | `brand-amarelo` | 1.09:1 | 4.5:1 | ❌ reprova |
+| F61 | chip "WAP" — texto da marca sobre o amarelo (escuro) | escuro | `brand-amarelo-texto` | `brand-amarelo` | 1.09:1 | 4.5:1 | ❌ reprova |
+(o script saiu com código 1 — os dois pares são 'exigir: true')
+
+== E2 · o token escrito como var(--x) (--brand-dark-texto: var(--foreground)) — a régua NÃO ignora em silêncio:
+Error: cor desconhecida: "brand-dark-texto" (tema claro)

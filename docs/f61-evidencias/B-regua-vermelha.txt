@@ -1,0 +1,1604 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/layout/consistencia.test.ts (982 tests | 65 failed) 1284ms
+     × 'src/components/admin/importar/tabela-…' 27ms
+     × 'src/components/relatorios/lista-manut…' 2ms
+     × 'src/components/relatorios/tabela-iten…' 3ms
+     × 'src/components/admin/colaboradores-ta…' 2ms
+     × 'src/components/admin/fila-consolidaca…' 2ms
+     × 'src/components/admin/importar/correco…' 1ms
+     × 'src/components/admin/importar/grupos-…' 3ms
+     × 'src/components/admin/importar/importa…' 3ms
+     × 'src/components/admin/itens-tabela.tsx' 2ms
+     × 'src/components/admin/tipos-item-tabel…' 1ms
+     × 'src/components/admin/usuarios/apagar-…' 1ms
+     × 'src/components/admin/usuarios/usuario…' 1ms
+     × 'src/components/relatorios/acesso-form…' 2ms
+     × 'src/components/relatorios/card-relato…' 2ms
+     × 'src/components/relatorios/corpo-relat…' 2ms
+     × 'src/components/relatorios/corpo-relat…' 3ms
+     × 'src/components/relatorios/filtros-tab…' 2ms
+     × 'src/components/relatorios/grupo-colap…' 1ms
+     × 'src/components/relatorios/kpi-tiles.t…' 2ms
+     × 'src/components/relatorios/legendas.tsx' 2ms
+     × 'src/components/relatorios/resumo-peri…' 1ms
+     × 'src/components/admin/usuarios/auditor…' 1ms
+     × 'src/components/relatorios/card-relato…' 1ms
+     × 'src/components/relatorios/celulas.tsx' 1ms
+     × 'src/components/relatorios/filtros-tab…' 1ms
+     × 'src/components/relatorios/kpi-tiles.t…' 1ms
+     × 'src/components/relatorios/lista-manut…' 1ms
+     × 'src/components/relatorios/lista-model…' 1ms
+     × 'src/components/relatorios/lista-model…' 1ms
+     × 'src/components/relatorios/lista-reser…' 1ms
+     × 'src/components/relatorios/manutencao-…' 1ms
+     × 'src/components/relatorios/medidor-min…' 1ms
+     × 'src/components/relatorios/resumo-peri…' 1ms
+     × 'src/components/relatorios/tabela-entr…' 1ms
+     × 'src/components/relatorios/tabela-iten…' 1ms
+     × 'src/components/relatorios/tabela-mov-…' 1ms
+     × 'src/components/admin/colaboradores-ta…' 2ms
+     × 'src/components/admin/convidar-usuario…' 1ms
+     × 'src/components/admin/criar-senha-dial…' 3ms
+     × 'src/components/admin/fila-consolidaca…' 4ms
+     × 'src/components/admin/filial-apelidos.…' 1ms
+     × 'src/components/admin/filial-dialog.tsx' 2ms
+     × 'src/components/admin/importar/correco…' 1ms
+     × 'src/components/admin/importar/grupos-…' 33ms
+     × 'src/components/admin/importar/importa…' 60ms
+     × 'src/components/admin/importar/tabela-…' 2ms
+     × 'src/components/admin/itens-tabela.tsx' 2ms
+     × 'src/components/admin/kit-dialog.tsx' 3ms
+     × 'src/components/admin/testar-senha-dia…' 2ms
+     × 'src/components/admin/tipo-item-dialog…' 2ms
+     × 'src/components/admin/tipos-item-tabel…' 3ms
+     × 'src/components/admin/usuarios/auditor…' 1ms
+     × 'src/components/admin/usuarios/encerra…' 1ms
+     × 'src/components/admin/usuarios/gerar-l…' 2ms
+     × 'src/components/admin/usuarios/usuario…' 3ms
+     × 'src/components/relatorios/card-relato…' 2ms
+     × 'src/components/relatorios/gerar-relat…' 3ms
+     × 'src/components/relatorios/manutencao-…' 3ms
+     × 'src/components/relatorios/observacao-…' 1ms
+     × 'src/components/relatorios/tabela-entr…' 7ms
+     × 'src/components/relatorios/tabela-iten…' 3ms
+     × 'src/components/relatorios/tabela-mov-…' 3ms
+     × 'src/components/relatorios/tabela-movi…' 2ms
+     × 'src/components/relatorios/tabela-said…' 4ms
+     × 'src/components/relatorios/tabela-tran…' 4ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 65 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > so o casco de pagina centraliza e limita a largura > 'src/components/admin/importar/tabela-…'
+AssertionError: src/components/admin/importar/tabela-erros.tsx centraliza e limita a largura por conta propria. Container de pagina e <Pagina largura="estreita|cheia"> — a tabela de larguras vive em src/components/layout/pagina.tsx e mais em lugar nenhum. Formulario dentro de pagina cheia usa MEDIDA_DE_FORMULARIO no contêiner dos CAMPOS.
+  linha 30: "max-w-40" — largura de PAGINA fora do casco: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 30: \"max-w-40\" — largura de PAGINA fora do casco",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:480:7
+    478|         `pagina cheia usa MEDIDA_DE_FORMULARIO no contêiner dos CAMPOS…
+    479|         culpados.join('\n  '),
+    480|     ).toEqual([])
+       |       ^
+    481|   })
+    482| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > so o casco de pagina centraliza e limita a largura > 'src/components/relatorios/lista-manut…'
+AssertionError: src/components/relatorios/lista-manutencao.tsx centraliza e limita a largura por conta propria. Container de pagina e <Pagina largura="estreita|cheia"> — a tabela de larguras vive em src/components/layout/pagina.tsx e mais em lugar nenhum. Formulario dentro de pagina cheia usa MEDIDA_DE_FORMULARIO no contêiner dos CAMPOS.
+  linha 17: "max-w-[45%]" — largura de PAGINA fora do casco: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 17: \"max-w-[45%]\" — largura de PAGINA fora do casco",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:480:7
+    478|         `pagina cheia usa MEDIDA_DE_FORMULARIO no contêiner dos CAMPOS…
+    479|         culpados.join('\n  '),
+    480|     ).toEqual([])
+       |       ^
+    481|   })
+    482| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > so o casco de pagina centraliza e limita a largura > 'src/components/relatorios/tabela-iten…'
+AssertionError: src/components/relatorios/tabela-itens-grupo.tsx centraliza e limita a largura por conta propria. Container de pagina e <Pagina largura="estreita|cheia"> — a tabela de larguras vive em src/components/layout/pagina.tsx e mais em lugar nenhum. Formulario dentro de pagina cheia usa MEDIDA_DE_FORMULARIO no contêiner dos CAMPOS.
+  linha 142: "max-w-[220px]" — largura de PAGINA fora do casco: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 142: \"max-w-[220px]\" — largura de PAGINA fora do casco",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:480:7
+    478|         `pagina cheia usa MEDIDA_DE_FORMULARIO no contêiner dos CAMPOS…
+    479|         culpados.join('\n  '),
+    480|     ).toEqual([])
+       |       ^
+    481|   })
+    482| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/colaboradores-ta…'
+AssertionError: src/components/admin/colaboradores-tabela.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 110: "py-10": expected [ 'linha 110: "py-10"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 110: \"py-10\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/fila-consolidaca…'
+AssertionError: src/components/admin/fila-consolidacao.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 177: "py-10": expected [ 'linha 177: "py-10"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 177: \"py-10\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/importar/correco…'
+AssertionError: src/components/admin/importar/correcoes-aplicadas.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 45: "p-2.5": expected [ 'linha 45: "p-2.5"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 45: \"p-2.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/importar/grupos-…'
+AssertionError: src/components/admin/importar/grupos-erros.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 522: "p-2.5"
+  linha 917: "p-2.5"
+  linha 970: "p-2.5": expected [ 'linha 522: "p-2.5"', …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 522: \"p-2.5\"",
++   "linha 917: \"p-2.5\"",
++   "linha 970: \"p-2.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/importar/importa…'
+AssertionError: src/components/admin/importar/importar-wizard.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 509: "space-y-5"
+  linha 615: "space-y-5"
+  linha 806: "p-2.5"
+  linha 884: "space-y-5"
+  linha 1055: "space-y-5": expected [ 'linha 509: "space-y-5"', …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 509: \"space-y-5\"",
++   "linha 615: \"space-y-5\"",
++   "linha 806: \"p-2.5\"",
++   "linha 884: \"space-y-5\"",
++   "linha 1055: \"space-y-5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/itens-tabela.tsx'
+AssertionError: src/components/admin/itens-tabela.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 78: "py-10": expected [ 'linha 78: "py-10"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 78: \"py-10\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/tipos-item-tabel…'
+AssertionError: src/components/admin/tipos-item-tabela.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 58: "py-10": expected [ 'linha 58: "py-10"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 58: \"py-10\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/usuarios/apagar-…'
+AssertionError: src/components/admin/usuarios/apagar-usuario-dialog.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 104: "pl-5": expected [ 'linha 104: "pl-5"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 104: \"pl-5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/admin/usuarios/usuario…'
+AssertionError: src/components/admin/usuarios/usuarios-tabela.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 157: "py-10": expected [ 'linha 157: "py-10"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 157: \"py-10\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/acesso-form…'
+AssertionError: src/components/relatorios/acesso-form.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 25: "py-10": expected [ 'linha 25: "py-10"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 25: \"py-10\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/card-relato…'
+AssertionError: src/components/relatorios/card-relatorio.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 59: "p-5": expected [ 'linha 59: "p-5"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 59: \"p-5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/corpo-relat…'
+AssertionError: src/components/relatorios/corpo-relatorio-v2.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 182: "gap-3.5"
+  linha 335: "gap-3.5"
+  linha 365: "gap-3.5": expected [ 'linha 182: "gap-3.5"', …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 182: \"gap-3.5\"",
++   "linha 335: \"gap-3.5\"",
++   "linha 365: \"gap-3.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/corpo-relat…'
+AssertionError: src/components/relatorios/corpo-relatorio.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 114: "space-y-3.5"
+  linha 119: "gap-3.5": expected [ 'linha 114: "space-y-3.5"', …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 114: \"space-y-3.5\"",
++   "linha 119: \"gap-3.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/filtros-tab…'
+AssertionError: src/components/relatorios/filtros-tabela.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 67: "pl-7"
+  linha 121: "px-2.5": expected [ 'linha 67: "pl-7"', …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 67: \"pl-7\"",
++   "linha 121: \"px-2.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/grupo-colap…'
+AssertionError: src/components/relatorios/grupo-colapsavel.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 105: "space-y-3.5": expected [ 'linha 105: "space-y-3.5"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 105: \"space-y-3.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/kpi-tiles.t…'
+AssertionError: src/components/relatorios/kpi-tiles.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 126: "gap-2.5"
+  linha 134: "px-3.5"
+  linha 215: "gap-2.5"
+  linha 229: "py-2.5": expected [ 'linha 126: "gap-2.5"', …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 126: \"gap-2.5\"",
++   "linha 134: \"px-3.5\"",
++   "linha 215: \"gap-2.5\"",
++   "linha 229: \"py-2.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/legendas.tsx'
+AssertionError: src/components/relatorios/legendas.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 52: "pt-2.5"
+  linha 74: "gap-y-2.5": expected [ 'linha 52: "pt-2.5"', …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 52: \"pt-2.5\"",
++   "linha 74: \"gap-y-2.5\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > o espacamento das telas cabe na escala > 'src/components/relatorios/resumo-peri…'
+AssertionError: src/components/relatorios/resumo-periodo.tsx usa espacamento fora da escala {0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, auto, px}. A escala e a de docs/PLANO-DESIGN-SYSTEM.md §3.1; nada de p-5, gap-7, py-10 ou p-[18px].
+  linha 48: "pt-9"
+  linha 48: "pr-32": expected [ 'linha 48: "pt-9"', …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 48: \"pt-9\"",
++   "linha 48: \"pr-32\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:508:7
+    506|         `p-[18px].\n  ` +
+    507|         culpados.join('\n  '),
+    508|     ).toEqual([])
+       |       ^
+    509|   })
+    510| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/admin/usuarios/auditor…'
+AssertionError: src/components/admin/usuarios/auditoria-filtro.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 44: "w-[260px]" — largura em pixel (use a escala: w-36, w-40…): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 44: \"w-[260px]\" — largura em pixel (use a escala: w-36, w-40…)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/card-relato…'
+AssertionError: src/components/relatorios/card-relatorio.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 86: "text-[11px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 86: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/celulas.tsx'
+AssertionError: src/components/relatorios/celulas.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 18: "max-w-[220px]" — largura em pixel (use a escala: w-36, w-40…)
+  linha 59: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 77: "text-[10px]" — fonte arbitraria (use text-xs, 12px): expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 18: \"max-w-[220px]\" — largura em pixel (use a escala: w-36, w-40…)",
++   "linha 59: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 77: \"text-[10px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/filtros-tab…'
+AssertionError: src/components/relatorios/filtros-tabela.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 56: "w-[220px]" — largura em pixel (use a escala: w-36, w-40…): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 56: \"w-[220px]\" — largura em pixel (use a escala: w-36, w-40…)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/kpi-tiles.t…'
+AssertionError: src/components/relatorios/kpi-tiles.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 85: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 89: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 160: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 247: "text-[11px]" — fonte arbitraria (use text-xs, 12px): expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 85: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 89: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 160: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 247: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/lista-manut…'
+AssertionError: src/components/relatorios/lista-manutencao.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 12: "text-[13px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 12: \"text-[13px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/lista-model…'
+AssertionError: src/components/relatorios/lista-modelo-categoria.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 27: "text-[13px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 27: \"text-[13px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/lista-model…'
+AssertionError: src/components/relatorios/lista-modelo.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 14: "text-[13px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 14: \"text-[13px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/lista-reser…'
+AssertionError: src/components/relatorios/lista-reservados.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 12: "text-[13px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 12: \"text-[13px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/manutencao-…'
+AssertionError: src/components/relatorios/manutencao-casos.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 41: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 47: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 57: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 112: "text-[13px]" — fonte arbitraria (use text-xs, 12px): expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 41: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 47: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 57: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 112: \"text-[13px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/medidor-min…'
+AssertionError: src/components/relatorios/medidor-minimo.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 59: "text-[10px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 59: \"text-[10px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/resumo-peri…'
+AssertionError: src/components/relatorios/resumo-periodo.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 48: "text-[13px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 48: \"text-[13px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/tabela-entr…'
+AssertionError: src/components/relatorios/tabela-entradas.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 220: "text-[11px]" — fonte arbitraria (use text-xs, 12px): expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 220: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/tabela-iten…'
+AssertionError: src/components/relatorios/tabela-itens-grupo.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 134: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 142: "max-w-[220px]" — largura em pixel (use a escala: w-36, w-40…): expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 134: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 142: \"max-w-[220px]\" — largura em pixel (use a escala: w-36, w-40…)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > a tipografia e as larguras de campo saem da escala > 'src/components/relatorios/tabela-mov-…'
+AssertionError: src/components/relatorios/tabela-mov-itens.tsx usa tamanho arbitrario. A hierarquia tem QUATRO degraus — 24 / 16 / 14 / 12 (docs/PLANO-DESIGN-SYSTEM.md §3.4) — e largura de campo sai da escala de espacamento, nao de um pixel escolhido no braco.
+  linha 164: "text-[11px]" — fonte arbitraria (use text-xs, 12px)
+  linha 171: "text-[10px]" — fonte arbitraria (use text-xs, 12px): expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 164: \"text-[11px]\" — fonte arbitraria (use text-xs, 12px)",
++   "linha 171: \"text-[10px]\" — fonte arbitraria (use text-xs, 12px)",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:620:7
+    618|         `nao de um pixel escolhido no braco.\n  ` +
+    619|         culpados.join('\n  '),
+    620|     ).toEqual([])
+       |       ^
+    621|   })
+    622| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/colaboradores-ta…'
+AssertionError: src/components/admin/colaboradores-tabela.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 116: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 116: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/convidar-usuario…'
+AssertionError: src/components/admin/convidar-usuario-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 165: "flex items-center gap-2 rounded-md border bg-muted/40 p-3": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 165: \"flex items-center gap-2 rounded-md border bg-muted/40 p-3\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/criar-senha-dial…'
+AssertionError: src/components/admin/criar-senha-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 140: "block break-all rounded-md border bg-muted/40 p-3 font-mono text-xs"
+  linha 148: "flex items-center gap-2 rounded-md border bg-muted/40 p-3": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 140: \"block break-all rounded-md border bg-muted/40 p-3 font-mono text-xs\"",
++   "linha 148: \"flex items-center gap-2 rounded-md border bg-muted/40 p-3\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/fila-consolidaca…'
+AssertionError: src/components/admin/fila-consolidacao.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 208: "overflow-hidden rounded-lg border"
+  linha 280: "rounded-lg border p-3": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 208: \"overflow-hidden rounded-lg border\"",
++   "linha 280: \"rounded-lg border p-3\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/filial-apelidos.…'
+AssertionError: src/components/admin/filial-apelidos.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 70: "rounded-md border bg-muted/50 px-2 py-1 text-sm"
+  linha 76: "flex items-center gap-1 rounded-md border px-2 py-1 text-sm": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 70: \"rounded-md border bg-muted/50 px-2 py-1 text-sm\"",
++   "linha 76: \"flex items-center gap-1 rounded-md border px-2 py-1 text-sm\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/filial-dialog.tsx'
+AssertionError: src/components/admin/filial-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 252: "rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 252: \"rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/importar/correco…'
+AssertionError: src/components/admin/importar/correcoes-aplicadas.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 39: "divide-y rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 39: \"divide-y rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/importar/grupos-…'
+AssertionError: src/components/admin/importar/grupos-erros.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 91: "overflow-x-auto rounded-md border"
+  linha 152: "space-y-3 rounded-lg border p-4"
+  linha 522: "flex flex-wrap items-center gap-2 rounded-md border p-2.5"
+  linha 712: "space-y-2 rounded-md border p-3"
+  linha 917: "flex flex-wrap items-center gap-2 rounded-md border p-2.5"
+  linha 970: "flex flex-wrap items-center gap-2 rounded-md border p-2.5"
+  linha 1081: "flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3": expected [ …(7) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 91: \"overflow-x-auto rounded-md border\"",
++   "linha 152: \"space-y-3 rounded-lg border p-4\"",
++   "linha 522: \"flex flex-wrap items-center gap-2 rounded-md border p-2.5\"",
++   "linha 712: \"space-y-2 rounded-md border p-3\"",
++   "linha 917: \"flex flex-wrap items-center gap-2 rounded-md border p-2.5\"",
++   "linha 970: \"flex flex-wrap items-center gap-2 rounded-md border p-2.5\"",
++   "linha 1081: \"flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/importar/importa…'
+AssertionError: src/components/admin/importar/importar-wizard.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 96: "rounded-lg border p-4"
+  linha 130: "space-y-2 rounded-lg border bg-muted/30 p-4"
+  linha 143: "overflow-x-auto rounded-md border bg-background"
+  linha 529: "rounded-lg border bg-muted/30 p-4"
+  linha 667: "rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"
+  linha 679: "rounded-lg border border-green-600/40 bg-green-50 p-4 dark:border-green-400/30 dark:bg-green-950/30"
+  linha 784: "rounded-lg border border-destructive/40 bg-destructive/5 p-4"
+  linha 804: "rounded-lg border divide-y text-sm"
+  linha 930: "rounded-lg border border-destructive/50 bg-destructive/5 p-4"
+  linha 1112: "rounded-lg border border-warning/40 bg-warning/5 p-4"
+  linha 1134: "rounded-lg border border-warning/40 bg-warning/5 p-4": expected [ …(11) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 96: \"rounded-lg border p-4\"",
++   "linha 130: \"space-y-2 rounded-lg border bg-muted/30 p-4\"",
++   "linha 143: \"overflow-x-auto rounded-md border bg-background\"",
++   "linha 529: \"rounded-lg border bg-muted/30 p-4\"",
++   "linha 667: \"rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning\"",
++   "linha 679: \"rounded-lg border border-green-600/40 bg-green-50 p-4 dark:border-green-400/30 dark:bg-green-950/30\"",
++   "linha 784: \"rounded-lg border border-destructive/40 bg-destructive/5 p-4\"",
++   "linha 804: \"rounded-lg border divide-y text-sm\"",
++   "linha 930: \"rounded-lg border border-destructive/50 bg-destructive/5 p-4\"",
++   "linha 1112: \"rounded-lg border border-warning/40 bg-warning/5 p-4\"",
++   "linha 1134: \"rounded-lg border border-warning/40 bg-warning/5 p-4\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/importar/tabela-…'
+AssertionError: src/components/admin/importar/tabela-erros.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 15: "overflow-x-auto rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 15: \"overflow-x-auto rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/itens-tabela.tsx'
+AssertionError: src/components/admin/itens-tabela.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 84: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 84: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/kit-dialog.tsx'
+AssertionError: src/components/admin/kit-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 307: "grid grid-cols-2 gap-2 rounded-lg border p-3 sm:grid-cols-3"
+  linha 356: "rounded-md border bg-muted/40 p-3 text-sm": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 307: \"grid grid-cols-2 gap-2 rounded-lg border p-3 sm:grid-cols-3\"",
++   "linha 356: \"rounded-md border bg-muted/40 p-3 text-sm\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/testar-senha-dia…'
+AssertionError: src/components/admin/testar-senha-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 103: "flex items-center gap-2 rounded-md border border-green-600/40 bg-green-50 p-3 text-sm text-green-900 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
+  linha 112: "flex items-center gap-2 rounded-md border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 103: \"flex items-center gap-2 rounded-md border border-green-600/40 bg-green-50 p-3 text-sm text-green-900 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200\"",
++   "linha 112: \"flex items-center gap-2 rounded-md border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/tipo-item-dialog…'
+AssertionError: src/components/admin/tipo-item-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 162: "rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm text-muted-foreground": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 162: \"rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm text-muted-foreground\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/tipos-item-tabel…'
+AssertionError: src/components/admin/tipos-item-tabela.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 64: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 64: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/usuarios/auditor…'
+AssertionError: src/components/admin/usuarios/auditoria-tabela.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 28: "overflow-x-auto rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 28: \"overflow-x-auto rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/usuarios/encerra…'
+AssertionError: src/components/admin/usuarios/encerrar-sessoes-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 89: "rounded-md border border-warning/40 bg-warning/5 p-3 text-sm": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 89: \"rounded-md border border-warning/40 bg-warning/5 p-3 text-sm\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/usuarios/gerar-l…'
+AssertionError: src/components/admin/usuarios/gerar-link-acesso.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 107: "rounded-md border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+  linha 122: "flex items-center gap-2 rounded-md border bg-muted/40 p-3": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 107: \"rounded-md border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200\"",
++   "linha 122: \"flex items-center gap-2 rounded-md border bg-muted/40 p-3\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/admin/usuarios/usuario…'
+AssertionError: src/components/admin/usuarios/usuarios-tabela.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 161: "overflow-x-auto rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 161: \"overflow-x-auto rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[55/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/card-relato…'
+AssertionError: src/components/relatorios/card-relatorio.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 49: "scroll-mt-28 min-w-0 rounded-xl border bg-card p-4 md:p-5 md:col-span-2 break-inside-avoid": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 49: \"scroll-mt-28 min-w-0 rounded-xl border bg-card p-4 md:p-5 md:col-span-2 break-inside-avoid\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[56/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/gerar-relat…'
+AssertionError: src/components/relatorios/gerar-relatorio-dialog.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 262: "rounded-md border bg-muted/40 p-3 text-sm": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 262: \"rounded-md border bg-muted/40 p-3 text-sm\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[57/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/manutencao-…'
+AssertionError: src/components/relatorios/manutencao-casos.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 26: "break-inside-avoid rounded-lg border bg-card p-3": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 26: \"break-inside-avoid rounded-lg border bg-card p-3\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[58/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/observacao-…'
+AssertionError: src/components/relatorios/observacao-card.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 12: "scroll-mt-28 break-inside-avoid rounded-lg border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 12: \"scroll-mt-28 break-inside-avoid rounded-lg border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[59/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/tabela-entr…'
+AssertionError: src/components/relatorios/tabela-entradas.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 143: "overflow-hidden rounded-lg border"
+  linha 220: "rounded border border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300": expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 143: \"overflow-hidden rounded-lg border\"",
++   "linha 220: \"rounded border border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[60/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/tabela-iten…'
+AssertionError: src/components/relatorios/tabela-itens-grupo.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 48: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 48: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[61/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/tabela-mov-…'
+AssertionError: src/components/relatorios/tabela-mov-itens.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 108: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 108: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[62/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/tabela-movi…'
+AssertionError: src/components/relatorios/tabela-movimentacoes.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 67: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 67: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[63/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/tabela-said…'
+AssertionError: src/components/relatorios/tabela-saidas.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 133: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 133: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[64/65]⎯
+
+ FAIL  |puro| src/lib/layout/consistencia.test.ts > agrupamento com borda vem de Card, nao escrito a mao > 'src/components/relatorios/tabela-tran…'
+AssertionError: src/components/relatorios/tabela-transferencias.tsx desenha um cartao a mao ("rounded-* border"). Agrupamento com moldura e <Card> (ou <QuadroDeTabela>, <CartaoDeMetrica>, <Aviso>, <EstadoVazio>) — o Card do kit e rounded-xl com anel, e um cartao a mao nunca bate com ele.
+  linha 138: "overflow-hidden rounded-lg border": expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "linha 138: \"overflow-hidden rounded-lg border\"",
++ ]
+
+ ❯ src/lib/layout/consistencia.test.ts:702:7
+    700|         `kit e rounded-xl com anel, e um cartao a mao nunca bate com e…
+    701|         culpados.join('\n  '),
+    702|     ).toEqual([])
+       |       ^
+    703|   })
+    704| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[65/65]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  65 failed | 917 passed (982)
+   Start at  12:16:36
+   Duration  2.54s (transform 185ms, setup 0ms, import 684ms, tests 1.28s, environment 0ms)
+

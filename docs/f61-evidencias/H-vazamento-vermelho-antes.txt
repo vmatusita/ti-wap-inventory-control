@@ -1,0 +1,30 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/components/itens/sabotagem-h-f61.test.ts (1 test | 1 failed) 12ms
+   × o filtro empurrado em /itens não vaza para /itens/historico 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/components/itens/sabotagem-h-f61.test.ts > o filtro empurrado em /itens não vaza para /itens/historico
+AssertionError: expected 'filial=2&item=5' to be 'item=5' // Object.is equality
+
+Expected: "item=5"
+Received: "filial=2&item=5"
+
+ ❯ src/components/itens/sabotagem-h-f61.test.ts:15:27
+     13|   const base = baseFiltrosItens('')
+     14|   base.set('item', '5')
+     15|   expect(base.toString()).toBe('item=5')
+       |                           ^
+     16| })
+     17|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  12:32:19
+   Duration  393ms (transform 46ms, setup 0ms, import 71ms, tests 12ms, environment 0ms)
+

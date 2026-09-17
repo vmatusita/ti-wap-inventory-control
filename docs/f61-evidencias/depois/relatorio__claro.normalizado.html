@@ -1,0 +1,1782 @@
+<!-- CSS sha256:ad79e16eb68d41a47df3d09a4a0174245c8dc13f13809c8961f33e8696213014 (o <style> real não entra no normalizado — ver comparar-pixels-f61.mjs) -->
+<style>
+@keyframes wap-barra-progresso {
+  0%   { transform: scaleX(0.03); }
+  35%  { transform: scaleX(0.5); }
+  70%  { transform: scaleX(0.78); }
+  100% { transform: scaleX(0.9); }
+}
+@keyframes wap-barra-final {
+  from { transform: scaleX(0.9); opacity: 1; }
+  to   { transform: scaleX(1); opacity: 0; }
+}
+
+</style>
+<div class="min-h-svh space-y-8 bg-background p-6 text-foreground">
+<h1 class="text-lg font-semibold">F61 · prévia estática · vitrine
+<span class="font-mono">relatorio
+</span>
+</h1>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">kpi-tiles — KpiTiles (sem Δ)
+</p>
+<section data-quadro="kpi-tiles" class="bg-background">
+<section class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
+<div class="rounded-xl border bg-card px-4 py-3 col-span-2 sm:col-span-3 xl:col-span-1">
+<div class="text-xs font-semibold text-foreground/80">Total de ativos
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">420
+</span>
+</div>
+<div class="text-xs text-muted-foreground">no inventário
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-uso)">
+<div class="text-xs font-semibold text-foreground/80">Em uso
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">260
+</span>
+</div>
+<div class="text-xs text-muted-foreground">com colaborador/setor
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-estoque)">
+<div class="text-xs font-semibold text-foreground/80">Em estoque
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">90
+</span>
+</div>
+<div class="text-xs text-muted-foreground">disponíveis p/ entrega
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-reservado)">
+<div class="text-xs font-semibold text-foreground/80">Reservados
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">12
+</span>
+</div>
+<div class="text-xs text-muted-foreground">aguardando entrega
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-triagem)">
+<div class="text-xs font-semibold text-foreground/80">Em triagem
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">4
+</span>
+</div>
+<div class="text-xs text-muted-foreground">separados p/ conferência
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-manutencao)">
+<div class="text-xs font-semibold text-foreground/80">Em manutenção
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">8
+</span>
+</div>
+<div class="text-xs text-muted-foreground">conserto/assistência
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-defasado)">
+<div class="text-xs font-semibold text-foreground/80">Reserva técnica
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">46
+</span>
+</div>
+<div class="text-xs text-muted-foreground">defasados / posse WAP
+</div>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">kpi-tiles-delta — KpiTiles (com Δ vs período anterior)
+</p>
+<section data-quadro="kpi-tiles-delta" class="bg-background">
+<section class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
+<div class="rounded-xl border bg-card px-4 py-3 col-span-2 sm:col-span-3 xl:col-span-1">
+<div class="text-xs font-semibold text-foreground/80">Total de ativos
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">420
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up size-3" aria-hidden="true">
+<path d="m5 12 7-7 7 7">
+</path>
+<path d="M12 19V5">
+</path>
+</svg>+6
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">no inventário
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-uso)">
+<div class="text-xs font-semibold text-foreground/80">Em uso
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">260
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up size-3" aria-hidden="true">
+<path d="m5 12 7-7 7 7">
+</path>
+<path d="M12 19V5">
+</path>
+</svg>+10
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">com colaborador/setor
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-estoque)">
+<div class="text-xs font-semibold text-foreground/80">Em estoque
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">90
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down size-3" aria-hidden="true">
+<path d="M12 5v14">
+</path>
+<path d="m19 12-7 7-7-7">
+</path>
+</svg>-6
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">disponíveis p/ entrega
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-reservado)">
+<div class="text-xs font-semibold text-foreground/80">Reservados
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">12
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up size-3" aria-hidden="true">
+<path d="m5 12 7-7 7 7">
+</path>
+<path d="M12 19V5">
+</path>
+</svg>+2
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">aguardando entrega
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-triagem)">
+<div class="text-xs font-semibold text-foreground/80">Em triagem
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">4
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="text-xs text-muted-foreground tabular-nums">→ 0
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">separados p/ conferência
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-manutencao)">
+<div class="text-xs font-semibold text-foreground/80">Em manutenção
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">8
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up size-3" aria-hidden="true">
+<path d="m5 12 7-7 7 7">
+</path>
+<path d="M12 19V5">
+</path>
+</svg>+2
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">conserto/assistência
+</div>
+</div>
+<div class="rounded-xl border bg-card px-4 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-defasado)">
+<div class="text-xs font-semibold text-foreground/80">Reserva técnica
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-2xl font-bold">46
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="text-xs text-muted-foreground tabular-nums">→ 0
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">defasados / posse WAP
+</div>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">grupo-kpis — GrupoKpis
+</p>
+<section data-quadro="grupo-kpis" class="bg-background">
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+<div class="rounded-lg bg-muted/40 px-3 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-estoque)">
+<div class="text-xs font-medium text-muted-foreground">Guardados
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-lg font-bold">90
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down size-3" aria-hidden="true">
+<path d="M12 5v14">
+</path>
+<path d="m19 12-7 7-7-7">
+</path>
+</svg>-6
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">= Em estoque
+</div>
+</div>
+<div class="rounded-lg bg-muted/40 px-3 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-reservado)">
+<div class="text-xs font-medium text-muted-foreground">Reservados
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-lg font-bold">12
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up size-3" aria-hidden="true">
+<path d="m5 12 7-7 7 7">
+</path>
+<path d="M12 19V5">
+</path>
+</svg>+2
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">aguardando entrega
+</div>
+</div>
+<div class="rounded-lg bg-muted/40 px-3 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-em-manutencao)">
+<div class="text-xs font-medium text-muted-foreground">Em manutenção
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-lg font-bold">8
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up size-3" aria-hidden="true">
+<path d="m5 12 7-7 7 7">
+</path>
+<path d="M12 19V5">
+</path>
+</svg>+2
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">conserto/assistência
+</div>
+</div>
+<div class="rounded-lg bg-muted/40 px-3 py-3" style="border-top-width:3px;border-top-style:solid;border-top-color:var(--grafico-emprestado)">
+<div class="text-xs font-medium text-muted-foreground">Emprestados
+</div>
+<div class="mt-0.5 flex items-baseline gap-1.5">
+<span class="text-lg font-bold">6
+</span>
+<span tabindex="0" class="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex" data-state="closed" data-slot="tooltip-trigger">
+<span class="text-xs text-muted-foreground tabular-nums">→ 0
+</span>
+</span>
+</div>
+<div class="text-xs text-muted-foreground">cedidos, com retorno
+</div>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">card-relatorio — CardRelatorio (com chip de janela)
+</p>
+<section data-quadro="card-relatorio" class="bg-background">
+<section class="min-w-0 break-inside-avoid">
+<div data-slot="card" data-size="default" class="group/card flex flex-col overflow-hidden rounded-xl bg-card text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl gap-0 p-4 md:p-6">
+<div class="mb-3 flex items-start justify-between gap-2">
+<div class="min-w-0">
+<h2 class="text-sm font-semibold leading-tight">Saídas por motivo
+</h2>
+<p class="mt-0.5 text-xs text-muted-foreground">período selecionado
+</p>
+<span class="mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">07/09 – 11/09
+</span>
+</div>
+</div>
+<div>
+<p class="text-sm text-muted-foreground">Conteúdo de exemplo do cartão.
+</p>
+</div>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">card-relatorio-vazio — CardRelatorio (vazio)
+</p>
+<section data-quadro="card-relatorio-vazio" class="bg-background">
+<section class="min-w-0 break-inside-avoid">
+<div data-slot="card" data-size="default" class="group/card flex flex-col overflow-hidden rounded-xl bg-card text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl gap-0 p-4 md:p-6">
+<div class="mb-3 flex items-start justify-between gap-2">
+<div class="min-w-0">
+<h2 class="text-sm font-semibold leading-tight">Transferências
+</h2>
+</div>
+</div>
+<p class="py-6 text-center text-sm text-muted-foreground">Sem registros no período.
+</p>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">celulas — celulas.tsx — uma linha de demonstração
+</p>
+<section data-quadro="celulas" class="bg-background">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm">
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">08/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">
+<span class="inline-flex items-center gap-1.5">
+<a class="underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000001">WAP0001234
+</a>
+<span tabindex="0" class="outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive" data-state="closed" data-slot="tooltip-trigger">estornada
+</span>
+</span>
+</td>
+<td class="p-2">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-manutencao text-selo-em-manutencao-texto">Saída
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">#8421
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0">
+<div class="w-56">
+<span class="flex min-w-0 max-w-full items-center gap-1 text-muted-foreground w-full text-xs" data-state="closed" data-slot="tooltip-trigger">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square size-3 shrink-0 opacity-60" aria-hidden="true">
+<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z">
+</path>
+</svg>
+<span class="truncate print:overflow-visible print:whitespace-normal print:break-words">Entregue com carregador e mochila.
+</span>
+</span>
+</div>
+</td>
+<td class="p-2">
+<span tabindex="0" class="outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive" data-state="closed" data-slot="tooltip-trigger">estornada
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="mt-2">
+<div class="flex flex-wrap items-baseline justify-between gap-2">
+<h2 class="text-lg font-semibold tracking-tight">Saídas — 6 no período
+</h2>
+<span class="text-sm text-muted-foreground tabular-nums">4 exibida(s)
+</span>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-saidas — TabelaSaidas
+</p>
+<section data-quadro="tabela-saidas" class="bg-background">
+<section id="saidas" class="scroll-mt-28 space-y-3 break-before-page">
+<div class="flex flex-wrap items-baseline justify-between gap-2">
+<h2 class="text-lg font-semibold tracking-tight">Saídas — 2 no período
+</h2>
+</div>
+<div class="flex flex-wrap gap-1.5 print:hidden">
+<span class="rounded-full bg-muted px-3 py-0.5 text-xs">Cerrado Alto · Novo colaborador:
+<span class="font-semibold tabular-nums">1
+</span>
+</span>
+<span class="rounded-full bg-muted px-3 py-0.5 text-xs">Aurora · Viagem a serviço:
+<span class="font-semibold tabular-nums">1
+</span>
+</span>
+</div>
+<div class="flex flex-wrap items-center gap-2 print:hidden">
+<div class="relative w-full sm:w-56">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
+<path d="m21 21-4.34-4.34">
+</path>
+<circle cx="11" cy="11" r="8">
+</circle>
+</svg>
+<input type="search" data-slot="input" class="w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-8 pl-8 text-sm" placeholder="Buscar nesta tabela…" aria-label="Buscar nesta tabela" value=""/>
+</div>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por filial">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por categoria">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[170px]" aria-label="Filtrar por motivo">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+</div>
+<div data-slot="card" data-size="default" class="group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl border bg-transparent py-0 ring-0">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm rel-print-compacta">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 xl:hidden print:hidden" aria-hidden="true">
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Data
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Filial
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Categoria
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Marca/Modelo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Patrimônio
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Tipo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Motivo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Chamado
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Colab./Setor
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">Termo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">Obs.
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 xl:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de WAP0001234" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">08/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap md:table-cell print:table-cell">Cerrado Alto
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Notebook
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Lenovo ThinkPad T14
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">
+<span class="inline-flex items-center gap-1.5">
+<a class="underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000001">WAP0001234
+</a>
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-manutencao text-selo-em-manutencao-texto">Saída
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">Novo colaborador
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground hidden md:table-cell print:table-cell">#8421
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Fulano de Tal / Financeiro
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap xl:table-cell print:table-cell">Pendente
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">
+<div class="w-56">
+<span class="flex min-w-0 max-w-full items-center gap-1 text-muted-foreground w-full text-xs" data-state="closed" data-slot="tooltip-trigger">
+<span class="truncate print:overflow-visible print:whitespace-normal print:break-words">Entregue com carregador e mochila.
+</span>
+</span>
+</div>
+</td>
+</tr>
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted bg-muted/40 text-muted-foreground">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 xl:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de WAP0001238" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">09/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap md:table-cell print:table-cell">Aurora
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Celular
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Samsung Galaxy A54
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">
+<span class="inline-flex items-center gap-1.5">
+<a class="underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000002">WAP0001238
+</a>
+<span tabindex="0" class="outline-none focus-visible:ring-2 focus-visible:ring-ring inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive" data-state="closed" data-slot="tooltip-trigger">estornada
+</span>
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-descartado text-selo-descartado-texto">Empréstimo
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">Viagem a serviço
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground hidden md:table-cell print:table-cell">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Sicrano Oliveira / Comercial
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap xl:table-cell print:table-cell">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">
+<div class="w-56">
+<span class="text-muted-foreground w-full text-xs">—
+</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p class="pt-1 text-xs text-muted-foreground">Linha esmaecida (marca &quot;estornada&quot;) = movimentação estornada depois. A contagem do período continua incluindo a movimentação original.
+</p>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-entradas — TabelaEntradas
+</p>
+<section data-quadro="tabela-entradas" class="bg-background">
+<section id="entradas" class="scroll-mt-28 space-y-3 break-before-page">
+<div class="flex flex-wrap items-baseline justify-between gap-2">
+<h2 class="text-lg font-semibold tracking-tight">Entradas — 2 no período
+</h2>
+</div>
+<div class="flex flex-wrap gap-1.5 print:hidden">
+<span class="rounded-full bg-muted px-3 py-0.5 text-xs">Cerrado Alto · Desligamento:
+<span class="font-semibold tabular-nums">1
+</span>
+</span>
+<span class="rounded-full bg-muted px-3 py-0.5 text-xs">Dunas · Outro:
+<span class="font-semibold tabular-nums">1
+</span>
+</span>
+</div>
+<div class="flex flex-wrap items-center gap-2 print:hidden">
+<div class="relative w-full sm:w-56">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
+<path d="m21 21-4.34-4.34">
+</path>
+<circle cx="11" cy="11" r="8">
+</circle>
+</svg>
+<input type="search" data-slot="input" class="w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-8 pl-8 text-sm" placeholder="Buscar nesta tabela…" aria-label="Buscar nesta tabela" value=""/>
+</div>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por filial">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por categoria">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[170px]" aria-label="Filtrar por motivo">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+</div>
+<div data-slot="card" data-size="default" class="group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl border bg-transparent py-0 ring-0">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm rel-print-compacta">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 xl:hidden print:hidden" aria-hidden="true">
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Data
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Filial
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Categoria
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Marca/Modelo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Patrimônio
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Tipo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Motivo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Colaborador
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">Setor
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Itens faltantes
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">Obs.
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 xl:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de WAP0001241" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">10/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap md:table-cell print:table-cell">Cerrado Alto
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Notebook
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Lenovo ThinkPad T14
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">
+<span class="inline-flex items-center gap-1.5">
+<a class="underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000003">WAP0001241
+</a>
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-uso text-selo-em-uso-texto">Devolução
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">Desligamento
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Ciclano de Souza
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap xl:table-cell print:table-cell">Comercial
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">
+<div class="flex flex-wrap gap-1">
+<span class="rounded-full border border-amber-300 bg-amber-50 px-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">Mouse
+</span>
+<span class="rounded-full border border-amber-300 bg-amber-50 px-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">Carregador
+</span>
+</div>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">
+<div class="w-56">
+<span class="flex min-w-0 max-w-full items-center gap-1 text-muted-foreground w-full text-xs" data-state="closed" data-slot="tooltip-trigger">
+<span class="truncate print:overflow-visible print:whitespace-normal print:break-words">Colaborador desligado; dois periféricos não retornaram.
+</span>
+</span>
+</div>
+</td>
+</tr>
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 xl:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de WAP0001236" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">11/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap md:table-cell print:table-cell">Dunas
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Monitor
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Dell 24&quot;
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">
+<span class="inline-flex items-center gap-1.5">WAP0001236
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-estoque text-selo-em-estoque-texto">Compra
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap xl:table-cell print:table-cell">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">
+<span class="text-muted-foreground">—
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden xl:table-cell print:table-cell">
+<div class="w-56">
+<span class="text-muted-foreground w-full text-xs">—
+</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-transferencias — TabelaTransferencias
+</p>
+<section data-quadro="tabela-transferencias" class="bg-background">
+<section id="transferencias" class="scroll-mt-28 space-y-3 break-before-page">
+<div class="flex flex-wrap items-baseline justify-between gap-2">
+<h2 class="text-lg font-semibold tracking-tight">Transferências — 1 no período
+</h2>
+</div>
+<div class="flex flex-wrap items-center gap-2 print:hidden">
+<div class="relative w-full sm:w-56">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
+<path d="m21 21-4.34-4.34">
+</path>
+<circle cx="11" cy="11" r="8">
+</circle>
+</svg>
+<input type="search" data-slot="input" class="w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-8 pl-8 text-sm" placeholder="Buscar nesta tabela…" aria-label="Buscar nesta tabela" value=""/>
+</div>
+</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="rounded-full bg-muted px-3 py-0.5 text-xs">Aurora → Cerrado Alto:
+<span class="font-semibold tabular-nums">1
+</span>
+</span>
+</div>
+<div data-slot="card" data-size="default" class="group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl border bg-transparent py-0 ring-0">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm rel-print-compacta">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 lg:hidden print:hidden" aria-hidden="true">
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Data
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">De → Para
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Categoria
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Marca/Modelo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Patrimônio
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Chamado
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Obs.
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 lg:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de WAP0001237" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">09/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5">Aurora
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right size-3 text-muted-foreground" aria-hidden="true">
+<path d="M5 12h14">
+</path>
+<path d="m12 5 7 7-7 7">
+</path>
+</svg>Cerrado Alto
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Notebook
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Dell Latitude 5420
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">
+<span class="inline-flex items-center gap-1.5">
+<a class="underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000004">WAP0001237
+</a>
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground hidden md:table-cell print:table-cell">#8433
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">
+<div class="w-56">
+<span class="text-muted-foreground w-full text-xs">—
+</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-movimentacoes — TabelaMovimentacoes (grade v1)
+</p>
+<section data-quadro="tabela-movimentacoes" class="bg-background">
+<div>
+<div class="flex flex-wrap items-center gap-2 print:hidden mb-3">
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por filial">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por categoria">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por tipo">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+</div>
+<div data-slot="card" data-size="default" class="group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl border bg-transparent py-0 ring-0">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm rel-print-compacta">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Data
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Tipo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Patrimônio
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Ativo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Colaborador / Setor
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Filial
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Chamado
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Observação
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">08/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-manutencao text-selo-em-manutencao-texto">Saída
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap font-medium tabular-nums">WAP0001234
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap lg:table-cell print:table-cell">Lenovo ThinkPad T14
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">Fulano de Tal / Financeiro
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap md:table-cell print:table-cell">Cerrado Alto
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground hidden md:table-cell print:table-cell">#8421
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">
+<div class="w-56">
+<span class="text-muted-foreground w-full text-xs">—
+</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-mov-itens — TabelaMovItens
+</p>
+<section data-quadro="tabela-mov-itens" class="bg-background">
+<section id="mov-itens" class="scroll-mt-28 space-y-3 break-before-page">
+<div class="flex flex-wrap items-baseline justify-between gap-2">
+<h2 class="text-lg font-semibold tracking-tight">Movimentações de itens — 2 no período
+</h2>
+</div>
+<div class="flex flex-wrap items-center gap-2 print:hidden">
+<div class="relative w-full sm:w-56">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
+<path d="m21 21-4.34-4.34">
+</path>
+<circle cx="11" cy="11" r="8">
+</circle>
+</svg>
+<input type="search" data-slot="input" class="w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-8 pl-8 text-sm" placeholder="Buscar nesta tabela…" aria-label="Buscar nesta tabela" value=""/>
+</div>
+</div>
+<div data-slot="card" data-size="default" class="group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl border bg-transparent py-0 ring-0">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm rel-print-compacta">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 lg:hidden print:hidden" aria-hidden="true">
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Data
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden sm:table-cell print:table-cell">Filial
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Item
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Grupo
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Tipo
+</th>
+<th data-slot="table-head" class="h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 text-right">Qtd.
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden md:table-cell print:table-cell">Chamado
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Colaborador
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Obs.
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 lg:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de Mouse sem fio" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">08/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap sm:table-cell print:table-cell">Cerrado Alto
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">
+<span class="inline-flex items-center gap-1.5">Mouse sem fio
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden text-muted-foreground md:table-cell print:table-cell">Acessório
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-manutencao text-selo-em-manutencao-texto">Saída
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right font-semibold tabular-nums">-1
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground hidden md:table-cell print:table-cell">#8421
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap text-muted-foreground lg:table-cell print:table-cell">Fulano de Tal
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">
+<div class="w-56">
+<span class="text-muted-foreground w-full text-xs">—
+</span>
+</div>
+</td>
+</tr>
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 lg:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de Carregador de notebook 65 W" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground">10/09/2026
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap sm:table-cell print:table-cell">Cerrado Alto
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">
+<span class="inline-flex items-center gap-1.5">Carregador de notebook 65 W
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden text-muted-foreground md:table-cell print:table-cell">Acessório
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap">
+<span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold bg-selo-em-estoque text-selo-em-estoque-texto">Compra
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right font-semibold tabular-nums">+2
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 whitespace-nowrap tabular-nums text-muted-foreground hidden md:table-cell print:table-cell">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle [&amp;:has([role=checkbox])]:pr-0 hidden whitespace-nowrap text-muted-foreground lg:table-cell print:table-cell">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">
+<div class="w-56">
+<span class="flex min-w-0 max-w-full items-center gap-1 text-muted-foreground w-full text-xs" data-state="closed" data-slot="tooltip-trigger">
+<span class="truncate print:overflow-visible print:whitespace-normal print:break-words">Reposição de estoque.
+</span>
+</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-itens-grupo — TabelaItensGrupo
+</p>
+<section data-quadro="tabela-itens-grupo" class="bg-background">
+<div data-slot="card" data-size="default" class="group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl border bg-transparent py-0 ring-0">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm rel-print-compacta">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 lg:hidden print:hidden" aria-hidden="true">
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Item
+</th>
+<th data-slot="table-head" class="h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 text-right">Total
+</th>
+<th data-slot="table-head" class="h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 text-right">Estoque
+</th>
+<th data-slot="table-head" class="h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 text-right">Δ período
+</th>
+<th data-slot="table-head" class="h-10 px-2 align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 text-right">Falta
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">Obs.
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 lg:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de Mouse sem fio" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">Mouse sem fio
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right tabular-nums text-muted-foreground">40
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right text-base font-semibold tabular-nums">10
+<span class="mt-1 flex items-center justify-end gap-1">
+<span role="img" aria-label="abaixo do mínimo 12" title="abaixo do mínimo 12" class="block h-1.5 w-11 shrink-0 overflow-hidden rounded-full print:border print:border-foreground/40 bg-red-100 dark:bg-red-950">
+<span class="block h-full rounded-full bg-red-600 dark:bg-red-500" style="width:83%">
+</span>
+</span>
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right">
+<span class="inline-flex items-center justify-end gap-0.5 tabular-nums text-red-600 dark:text-red-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down size-3" aria-hidden="true">
+<path d="M12 5v14">
+</path>
+<path d="m19 12-7 7-7-7">
+</path>
+</svg>-2
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right">
+<span class="text-muted-foreground">—
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">
+<div class="w-56">
+<span class="text-muted-foreground w-full text-xs">—
+</span>
+</div>
+</td>
+</tr>
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 w-10 p-0 pl-1 lg:hidden print:hidden">
+<button type="button" aria-expanded="false" aria-label="Detalhes de Memória RAM 8 GB DDR4" class="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-4 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">Memória RAM 8 GB DDR4
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right tabular-nums text-muted-foreground">20
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right text-base font-semibold tabular-nums">2
+<span class="mt-1 flex items-center justify-end gap-1">
+<span role="img" aria-label="abaixo do mínimo 10" title="abaixo do mínimo 10" class="block h-1.5 w-11 shrink-0 overflow-hidden rounded-full print:border print:border-foreground/40 bg-red-100 dark:bg-red-950">
+<span class="block h-full rounded-full bg-red-600 dark:bg-red-500" style="width:20%">
+</span>
+</span>
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right">
+<span class="inline-flex items-center justify-end gap-0.5 tabular-nums text-red-600 dark:text-red-400">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down size-3" aria-hidden="true">
+<path d="M12 5v14">
+</path>
+<path d="m19 12-7 7-7-7">
+</path>
+</svg>-3
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-right">
+<span class="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">faltam 1
+</span>
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 hidden lg:table-cell print:table-cell">
+<div class="w-56">
+<span class="flex min-w-0 max-w-full items-center gap-1 text-muted-foreground w-full text-xs" data-state="closed" data-slot="tooltip-trigger">
+<span class="truncate print:overflow-visible print:whitespace-normal print:break-words">Estoque abaixo do mínimo.
+</span>
+</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">filtros-tabela — FiltrosTabela (categoria + motivo, sem filtro ativo)
+</p>
+<section data-quadro="filtros-tabela" class="bg-background">
+<div class="flex flex-wrap items-center gap-2 print:hidden">
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[150px]" aria-label="Filtrar por categoria">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+<button type="button" role="combobox" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="sm" class="flex items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-4 w-full sm:w-[170px]" aria-label="Filtrar por motivo">
+<span data-slot="select-value" style="pointer-events:none">
+</span>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down pointer-events-none size-4 text-muted-foreground" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+<select aria-hidden="true" tabindex="-1" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;word-wrap:normal">
+</select>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">grupo-colapsavel — GrupoColapsavel (sempre aberto)
+</p>
+<section data-quadro="grupo-colapsavel" class="bg-background">
+<section id="previa-grupo" class="scroll-mt-28 break-before-page space-y-3">
+<div class="flex w-full items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-laptop-minimal size-4 shrink-0 text-muted-foreground" aria-hidden="true">
+<rect width="18" height="12" x="3" y="4" rx="2" ry="2">
+</rect>
+<line x1="2" x2="22" y1="20" y2="20">
+</line>
+</svg>
+<div class="min-w-0">
+<h2 class="text-lg font-semibold tracking-tight">Equipamentos principais
+</h2>
+<p class="text-xs text-muted-foreground">notebooks, celulares e tablets
+</p>
+</div>
+<button type="button" aria-expanded="true" aria-controls="previa-grupo-conteudo" class="ml-auto flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden" aria-label="Recolher Equipamentos principais">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-5 transition-transform rotate-180" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</div>
+<div id="previa-grupo-conteudo" class="grupo-conteudo space-y-4 md:block">
+<p class="text-sm text-muted-foreground">Conteúdo do grupo.
+</p>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">legenda-delta — LegendaDelta
+</p>
+<section data-quadro="legenda-delta" class="bg-background">
+<p class="pt-1 text-xs text-muted-foreground">Δ = variação frente ao período anterior. A seta ▲▼ mostra a direção; a cor mostra o juízo por indicador: verde = melhorou, vermelho = piorou, cinza = neutro (ex.: em &quot;Em manutenção&quot;, subir é vermelho).
+</p>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">legenda-estorno — LegendaEstorno
+</p>
+<section data-quadro="legenda-estorno" class="bg-background">
+<p class="pt-1 text-xs text-muted-foreground">Linha esmaecida (marca &quot;estornada&quot;) = movimentação estornada depois. A contagem do período continua incluindo a movimentação original.
+</p>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">legenda-troca — LegendaTroca
+</p>
+<section data-quadro="legenda-troca" class="bg-background">
+<p class="pt-1 text-xs text-muted-foreground">&quot;Troca&quot; (pílula teal) = equipamento substituto entregue pelo fornecedor no lugar de um devolvido — é entrada real, mas não foi comprado.
+</p>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">legenda-manutencao — LegendaManutencao
+</p>
+<section data-quadro="legenda-manutencao" class="bg-background">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-xs text-muted-foreground">
+<span class="inline-flex items-center gap-1.5">
+<span class="inline-block size-2.5 shrink-0 rounded-full bg-red-100 dark:bg-red-900" aria-hidden="true">
+</span>parado há 30+ dias
+</span>
+<span class="inline-flex items-center gap-1.5">
+<span class="inline-block size-2.5 shrink-0 rounded-full bg-sucesso" aria-hidden="true">
+</span>voltou ao estoque
+</span>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">glossario-relatorio — GlossarioRelatorio
+</p>
+<section data-quadro="glossario-relatorio" class="bg-background">
+<section id="como-ler" class="scroll-mt-28 break-before-page space-y-3">
+<div class="flex w-full items-center gap-2">
+<div class="min-w-0">
+<h2 class="text-lg font-semibold tracking-tight">Como ler este relatório
+</h2>
+<p class="text-xs text-muted-foreground">glossário dos termos, cores e contagens usados acima
+</p>
+</div>
+<button type="button" aria-expanded="false" aria-controls="como-ler-conteudo" class="ml-auto flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden" aria-label="Expandir Como ler este relatório">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-5 transition-transform" aria-hidden="true">
+<path d="m6 9 6 6 6-6">
+</path>
+</svg>
+</button>
+</div>
+<div id="como-ler-conteudo" class="grupo-conteudo space-y-4 hidden md:block">
+<dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Total de ativos
+</dt>
+<dd class="text-xs text-muted-foreground">Todos os equipamentos com patrimônio no inventário (a soma de todas as situações abaixo).
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-em-uso)">
+</span>Em uso
+</dt>
+<dd class="text-xs text-muted-foreground">Entregue e em uso por um colaborador ou setor.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-em-estoque)">
+</span>Em estoque (Guardados)
+</dt>
+<dd class="text-xs text-muted-foreground">Disponível na prateleira da TI, pronto para entrega. No grupo &quot;Equipamentos principais&quot; aparece como &quot;Guardados&quot; — é o mesmo número, com outro nome.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-reservado)">
+</span>Reservado
+</dt>
+<dd class="text-xs text-muted-foreground">Separado para um colaborador ou finalidade, aguardando a entrega.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-emprestado)">
+</span>Emprestado
+</dt>
+<dd class="text-xs text-muted-foreground">Cedido em caráter temporário — espera-se a devolução.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-em-triagem)">
+</span>Em triagem
+</dt>
+<dd class="text-xs text-muted-foreground">Separado manualmente para conferência antes de voltar ao estoque.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-em-manutencao)">
+</span>Em manutenção
+</dt>
+<dd class="text-xs text-muted-foreground">Em conserto ou assistência técnica.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-defasado)">
+</span>Reserva técnica (Defasado)
+</dt>
+<dd class="text-xs text-muted-foreground">Equipamento obsoleto / fim de vida útil, ainda em posse da WAP como reserva — não é mais distribuído.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-descartado)">
+</span>Descartado
+</dt>
+<dd class="text-xs text-muted-foreground">Baixado em definitivo. Sai do estoque (não entra na foto do último dia).
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">
+<span aria-hidden="true" class="size-2.5 shrink-0 rounded-[3px]" style="background:var(--grafico-devolvido-fornecedor)">
+</span>Devolvido ao fornecedor
+</dt>
+<dd class="text-xs text-muted-foreground">O fornecedor ficou com o equipamento (a manutenção não teve conserto). Baixa terminal; o substituto, quando houve, entra nas Entradas como &quot;Troca&quot;.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Saída
+</dt>
+<dd class="text-xs text-muted-foreground">O que saiu para as pessoas no período: saídas (entrega definitiva) + empréstimos.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Entrada
+</dt>
+<dd class="text-xs text-muted-foreground">O que entrou no período: devoluções + compras + trocas. Troca = substituto entregue pelo fornecedor no lugar do devolvido — não é uma compra.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Transferência
+</dt>
+<dd class="text-xs text-muted-foreground">Mudança de filial de um ativo. Aparece nas DUAS filiais envolvidas (a de origem e a de destino).
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Estoque no último dia do período
+</dt>
+<dd class="text-xs text-muted-foreground">A foto do estoque na data final do período (as-of), reconstruída pela linha do tempo — não é a soma das movimentações.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Estorno
+</dt>
+<dd class="text-xs text-muted-foreground">Desfaz a última movimentação de um ativo e restaura o estado anterior (spec §8, regra 6). A linha original fica esmaecida nas tabelas, mas a contagem do período continua incluindo-a.
+</dd>
+</div>
+<div class="break-inside-avoid">
+<dt class="flex items-center gap-2 text-sm font-semibold">Foto × período
+</dt>
+<dd class="text-xs text-muted-foreground">Chip cinza &quot;foto de dd/MM&quot; = um instante (o estoque naquela data, como fecha um caixa). Chip azul &quot;dd/MM – dd/MM&quot; = um intervalo (o que se moveu entre as duas datas, como um extrato). Cards de KPI e saldo são foto; cards de série, motivo e movimentação por item são período.
+</dd>
+</div>
+</dl>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">lista-manutencao — ListaManutencao
+</p>
+<section data-quadro="lista-manutencao" class="bg-background">
+<ul class="divide-y">
+<li class="flex items-baseline gap-3 py-1.5 text-xs">
+<span class="w-24 shrink-0 font-semibold tabular-nums">WAP0001239
+</span>
+<span class="min-w-0 w-2/5 truncate text-foreground/70">HP ProBook 440
+</span>
+<span class="flex max-w-full items-center gap-1 text-muted-foreground min-w-0 flex-1 text-xs" data-state="closed" data-slot="tooltip-trigger">
+<span class="truncate print:overflow-visible print:whitespace-normal print:break-words">Tela trincada.
+</span>
+</span>
+</li>
+</ul>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">lista-modelo — ListaModelo
+</p>
+<section data-quadro="lista-modelo" class="bg-background">
+<ul class="divide-y">
+<li class="flex items-baseline gap-3 py-1.5 text-xs">
+<span class="w-8 shrink-0 font-bold tabular-nums">12×
+</span>
+<span class="min-w-0 truncate text-foreground/80">Lenovo ThinkPad T14
+</span>
+</li>
+<li class="flex items-baseline gap-3 py-1.5 text-xs">
+<span class="w-8 shrink-0 font-bold tabular-nums">07×
+</span>
+<span class="min-w-0 truncate text-foreground/80">Dell Latitude 5420
+</span>
+</li>
+</ul>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">lista-modelo-categoria — ListaModeloCategoria
+</p>
+<section data-quadro="lista-modelo-categoria" class="bg-background">
+<div class="space-y-4">
+<div>
+<div class="mb-1.5 flex items-baseline justify-between">
+<h4 class="text-xs font-semibold text-foreground/80">Notebook
+</h4>
+<span class="text-xs text-muted-foreground tabular-nums">19 em estoque
+</span>
+</div>
+<ul class="space-y-1">
+<li class="flex items-center gap-2 text-xs">
+<span class="w-40 shrink-0 truncate sm:w-52" title="Lenovo ThinkPad T14">Lenovo ThinkPad T14
+</span>
+<span class="relative h-4 min-w-0 flex-1 overflow-hidden rounded-sm bg-muted">
+<span class="absolute inset-y-0 left-0 rounded-sm bg-brand-azul" style="width:100%">
+</span>
+</span>
+<span class="w-8 shrink-0 text-right font-semibold tabular-nums">12
+</span>
+</li>
+<li class="flex items-center gap-2 text-xs">
+<span class="w-40 shrink-0 truncate sm:w-52" title="Dell Latitude 5420">Dell Latitude 5420
+</span>
+<span class="relative h-4 min-w-0 flex-1 overflow-hidden rounded-sm bg-muted">
+<span class="absolute inset-y-0 left-0 rounded-sm bg-brand-azul" style="width:58.333333333333336%">
+</span>
+</span>
+<span class="w-8 shrink-0 text-right font-semibold tabular-nums">7
+</span>
+</li>
+</ul>
+</div>
+<div>
+<div class="mb-1.5 flex items-baseline justify-between">
+<h4 class="text-xs font-semibold text-foreground/80">Celular
+</h4>
+<span class="text-xs text-muted-foreground tabular-nums">5 em estoque
+</span>
+</div>
+<ul class="space-y-1">
+<li class="flex items-center gap-2 text-xs">
+<span class="w-40 shrink-0 truncate sm:w-52" title="Samsung Galaxy A54">Samsung Galaxy A54
+</span>
+<span class="relative h-4 min-w-0 flex-1 overflow-hidden rounded-sm bg-muted">
+<span class="absolute inset-y-0 left-0 rounded-sm bg-brand-azul" style="width:41.66666666666667%">
+</span>
+</span>
+<span class="w-8 shrink-0 text-right font-semibold tabular-nums">5
+</span>
+</li>
+</ul>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">lista-reservados — ListaReservados
+</p>
+<section data-quadro="lista-reservados" class="bg-background">
+<ul class="divide-y">
+<li class="flex items-baseline gap-3 py-1.5 text-xs">
+<span class="w-24 shrink-0 font-semibold tabular-nums">WAP0001242
+</span>
+<span class="min-w-0 flex-1 truncate text-foreground/70">Dell Latitude 5420
+</span>
+<span class="shrink-0 tabular-nums text-muted-foreground">#8501
+</span>
+</li>
+<li class="flex items-baseline gap-3 py-1.5 text-xs">
+<span class="w-24 shrink-0 font-semibold tabular-nums">WAP0001243
+</span>
+<span class="min-w-0 flex-1 truncate text-foreground/70">Dell Latitude 5420
+</span>
+<span class="shrink-0 tabular-nums text-muted-foreground">—
+</span>
+</li>
+</ul>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">manutencao-casos — ManutencaoCasos (caso em alerta + caso que voltou)
+</p>
+<section data-quadro="manutencao-casos" class="bg-background">
+<div class="grid gap-3 md:grid-cols-2">
+<div data-slot="card" data-size="sm" class="group/card flex flex-col overflow-hidden rounded-xl bg-card text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl break-inside-avoid gap-0 p-3">
+<div class="flex flex-wrap items-center gap-2">
+<a class="font-semibold tabular-nums underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000005">WAP0001239
+</a>
+<span class="min-w-0 truncate text-sm text-muted-foreground">HP ProBook 440
+</span>
+<span class="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock size-3" aria-hidden="true">
+<circle cx="12" cy="12" r="10">
+</circle>
+<path d="M12 6v6l4 2">
+</path>
+</svg>há 33 dias
+</span>
+</div>
+<dl class="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+<div class="flex items-baseline gap-1.5">
+<dt class="shrink-0 font-medium text-muted-foreground">Chamado:
+</dt>
+<dd class="min-w-0 truncate tabular-nums">#7710
+</dd>
+</div>
+<div class="flex items-baseline gap-1.5">
+<dt class="shrink-0 font-medium text-muted-foreground">Chamado do fornecedor:
+</dt>
+<dd class="min-w-0 truncate">FORN-2201
+</dd>
+</div>
+</dl>
+<p class="mt-1 text-xs text-muted-foreground">Cerrado Alto · envio 15/08/2026
+</p>
+<ul class="mt-2 space-y-1.5 border-l pl-3 text-xs">
+<li>
+<span class="text-muted-foreground">Envio:
+</span>
+<span class="italic">“Tela trincada.”
+</span>
+</li>
+<li class="flex items-start gap-1.5">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sticky-note mt-0.5 size-3 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true">
+<path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z">
+</path>
+<path d="M15 3v5a1 1 0 0 0 1 1h5">
+</path>
+</svg>
+<span>Peça em trânsito do fornecedor.
+<span class="ml-1 text-xs text-muted-foreground">— Beltrano Silva, 25/08/2026 às 07:00
+</span>
+</span>
+</li>
+</ul>
+</div>
+<div data-slot="card" data-size="sm" class="group/card flex flex-col overflow-hidden rounded-xl bg-card text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl break-inside-avoid gap-0 p-3">
+<div class="flex flex-wrap items-center gap-2">
+<a class="font-semibold tabular-nums underline-offset-2 outline-none hover:underline focus-visible:underline" href="/ativos/00000000-0000-4000-8000-000000000006">WAP0001240
+</a>
+<span class="min-w-0 truncate text-sm text-muted-foreground">Lenovo ThinkPad E14
+</span>
+<span class="ml-auto inline-flex items-center gap-1 rounded-full bg-sucesso px-2 py-0.5 text-xs font-medium text-sucesso-texto">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-check size-3" aria-hidden="true">
+<circle cx="12" cy="12" r="10">
+</circle>
+<path d="m16 9-5.5 5.5L8 12">
+</path>
+</svg>voltou em 05/09/2026
+</span>
+</div>
+<dl class="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+<div class="flex items-baseline gap-1.5">
+<dt class="shrink-0 font-medium text-muted-foreground">Chamado:
+</dt>
+<dd class="min-w-0 truncate tabular-nums">#7699
+</dd>
+</div>
+<div class="flex items-baseline gap-1.5">
+<dt class="shrink-0 font-medium text-muted-foreground">Chamado do fornecedor:
+</dt>
+<dd class="min-w-0 truncate">—
+</dd>
+</div>
+</dl>
+<p class="mt-1 text-xs text-muted-foreground">Aurora · envio 01/08/2026
+</p>
+<ul class="mt-2 space-y-1.5 border-l pl-3 text-xs">
+<li>
+<span class="text-muted-foreground">Envio:
+</span>
+<span class="italic">“Bateria não carrega.”
+</span>
+</li>
+<li>
+<span class="text-green-700 dark:text-green-400">Retorno:
+</span> 05/09/2026
+<span class="italic"> — “Bateria trocada.”
+</span>
+</li>
+</ul>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">medidor-minimo-folga — MedidorMinimo (folga)
+</p>
+<section data-quadro="medidor-minimo-folga" class="bg-background">
+<span class="mt-1 flex items-center justify-end gap-1">
+<span role="img" aria-label="acima do mínimo 5" title="acima do mínimo 5" class="block h-1.5 w-11 shrink-0 overflow-hidden rounded-full print:border print:border-foreground/40 bg-medidor-folga">
+<span class="block h-full rounded-full bg-medidor-folga-barra" style="width:100%">
+</span>
+</span>
+</span>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">medidor-minimo-atencao — MedidorMinimo (no limite)
+</p>
+<section data-quadro="medidor-minimo-atencao" class="bg-background">
+<span class="mt-1 flex items-center justify-end gap-1">
+<span class="text-xs font-semibold text-amber-700 dark:text-amber-400">no limite
+</span>
+<span role="img" aria-label="no limite do mínimo 5" title="no limite do mínimo 5" class="block h-1.5 w-11 shrink-0 overflow-hidden rounded-full print:border print:border-foreground/40 bg-amber-100 dark:bg-amber-950">
+<span class="block h-full rounded-full bg-amber-600 dark:bg-amber-500" style="width:100%">
+</span>
+</span>
+</span>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">medidor-minimo-abaixo — MedidorMinimo (falta)
+</p>
+<section data-quadro="medidor-minimo-abaixo" class="bg-background">
+<span class="mt-1 flex items-center justify-end gap-1">
+<span role="img" aria-label="abaixo do mínimo 5" title="abaixo do mínimo 5" class="block h-1.5 w-11 shrink-0 overflow-hidden rounded-full print:border print:border-foreground/40 bg-red-100 dark:bg-red-950">
+<span class="block h-full rounded-full bg-red-600 dark:bg-red-500" style="width:60%">
+</span>
+</span>
+</span>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">observacao-card — ObservacaoCard
+</p>
+<section data-quadro="observacao-card" class="bg-background">
+<section id="observacao" class="scroll-mt-28 break-inside-avoid">
+<div data-slot="card" data-size="default" class="group/card flex flex-col overflow-hidden rounded-xl text-sm text-card-foreground ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[&gt;img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl gap-0 border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4 ring-0">
+<h2 class="flex items-center gap-2 text-lg font-semibold tracking-tight">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text size-4 text-brand-amarelo" aria-hidden="true">
+<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z">
+</path>
+<path d="M7 11h10">
+</path>
+<path d="M7 15h6">
+</path>
+<path d="M7 7h8">
+</path>
+</svg>Observações da semana
+</h2>
+<p class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">Semana com feriado; parte dos notebooks em trânsito entre filiais.
+</p>
+</div>
+</section>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">resumo-periodo — ResumoPeriodoCard
+</p>
+<section data-quadro="resumo-periodo" class="bg-background">
+<div class="relative">
+<button data-slot="button" data-variant="outline" data-size="sm" class="group/button inline-flex shrink-0 items-center justify-center border bg-clip-padding font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-3.5 absolute top-0 right-0 gap-1.5 print:hidden">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy size-4" aria-hidden="true">
+<rect width="14" height="14" x="8" y="8" rx="2" ry="2">
+</rect>
+<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2">
+</path>
+</svg>Copiar texto
+</button>
+<pre class="mt-1 max-w-full whitespace-pre-wrap break-words pt-12 pr-0 font-sans text-xs leading-relaxed text-foreground/90">No período de 07/09/2026 a 11/09/2026:
+
+Foram realizadas 6 saídas:
+• Cerrado Alto (4) —
+  novo colaborador: 02 notebooks, 01 celular
+
+Foram realizadas 2 devoluções:
+• Cerrado Alto (2) —
+  desligamento: 02 notebooks
+</pre>
+</div>
+</section>
+</div>
+</div>

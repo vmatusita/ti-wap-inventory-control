@@ -1,0 +1,2826 @@
+[
+  {
+    "vitrine": "cromo",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "login": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 900
+      },
+      "auth-confirmar": {
+        "x": 24,
+        "y": 1130,
+        "width": 1392,
+        "height": 900
+      },
+      "app-header": {
+        "x": 24,
+        "y": 2119,
+        "width": 1392,
+        "height": 56
+      },
+      "viewer-header": {
+        "x": 24,
+        "y": 2264,
+        "width": 1392,
+        "height": 56
+      },
+      "acesso-form": {
+        "x": 24,
+        "y": 2409,
+        "width": 1392,
+        "height": 900
+      },
+      "rodape-sidebar": {
+        "x": 24,
+        "y": 3398,
+        "width": 1392,
+        "height": 82
+      },
+      "sidebar-lateral": {
+        "x": 24,
+        "y": 3569,
+        "width": 1392,
+        "height": 420
+      },
+      "versoes-rodape": {
+        "x": 24,
+        "y": 4078,
+        "width": 1392,
+        "height": 33
+      },
+      "marca-sobre-popover": {
+        "x": 24,
+        "y": 4200,
+        "width": 1392,
+        "height": 51
+      },
+      "nao-encontrado": {
+        "x": 24,
+        "y": 4340,
+        "width": 1392,
+        "height": 900
+      }
+    }
+  },
+  {
+    "vitrine": "cromo",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "login": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 844
+      },
+      "auth-confirmar": {
+        "x": 24,
+        "y": 1074,
+        "width": 342,
+        "height": 844
+      },
+      "app-header": {
+        "x": 24,
+        "y": 2007,
+        "width": 342,
+        "height": 56
+      },
+      "viewer-header": {
+        "x": 24,
+        "y": 2152,
+        "width": 342,
+        "height": 56
+      },
+      "acesso-form": {
+        "x": 24,
+        "y": 2297,
+        "width": 342,
+        "height": 844
+      },
+      "rodape-sidebar": {
+        "x": 24,
+        "y": 3230,
+        "width": 342,
+        "height": 82
+      },
+      "sidebar-lateral": {
+        "x": 24,
+        "y": 3401,
+        "width": 342,
+        "height": 420
+      },
+      "versoes-rodape": {
+        "x": 24,
+        "y": 3926,
+        "width": 342,
+        "height": 33
+      },
+      "marca-sobre-popover": {
+        "x": 24,
+        "y": 4048,
+        "width": 342,
+        "height": 51
+      },
+      "nao-encontrado": {
+        "x": 24,
+        "y": 4188,
+        "width": 342,
+        "height": 844
+      }
+    }
+  },
+  {
+    "vitrine": "cromo",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "login": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 900
+      },
+      "auth-confirmar": {
+        "x": 24,
+        "y": 1130,
+        "width": 1392,
+        "height": 900
+      },
+      "app-header": {
+        "x": 24,
+        "y": 2119,
+        "width": 1392,
+        "height": 56
+      },
+      "viewer-header": {
+        "x": 24,
+        "y": 2264,
+        "width": 1392,
+        "height": 56
+      },
+      "acesso-form": {
+        "x": 24,
+        "y": 2409,
+        "width": 1392,
+        "height": 900
+      },
+      "rodape-sidebar": {
+        "x": 24,
+        "y": 3398,
+        "width": 1392,
+        "height": 82
+      },
+      "sidebar-lateral": {
+        "x": 24,
+        "y": 3569,
+        "width": 1392,
+        "height": 420
+      },
+      "versoes-rodape": {
+        "x": 24,
+        "y": 4078,
+        "width": 1392,
+        "height": 33
+      },
+      "marca-sobre-popover": {
+        "x": 24,
+        "y": 4200,
+        "width": 1392,
+        "height": 51
+      },
+      "nao-encontrado": {
+        "x": 24,
+        "y": 4340,
+        "width": 1392,
+        "height": 900
+      }
+    }
+  },
+  {
+    "vitrine": "cromo",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "login": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 844
+      },
+      "auth-confirmar": {
+        "x": 24,
+        "y": 1074,
+        "width": 342,
+        "height": 844
+      },
+      "app-header": {
+        "x": 24,
+        "y": 2007,
+        "width": 342,
+        "height": 56
+      },
+      "viewer-header": {
+        "x": 24,
+        "y": 2152,
+        "width": 342,
+        "height": 56
+      },
+      "acesso-form": {
+        "x": 24,
+        "y": 2297,
+        "width": 342,
+        "height": 844
+      },
+      "rodape-sidebar": {
+        "x": 24,
+        "y": 3230,
+        "width": 342,
+        "height": 82
+      },
+      "sidebar-lateral": {
+        "x": 24,
+        "y": 3401,
+        "width": 342,
+        "height": 420
+      },
+      "versoes-rodape": {
+        "x": 24,
+        "y": 3926,
+        "width": 342,
+        "height": 33
+      },
+      "marca-sobre-popover": {
+        "x": 24,
+        "y": 4048,
+        "width": 342,
+        "height": 51
+      },
+      "nao-encontrado": {
+        "x": 24,
+        "y": 4188,
+        "width": 342,
+        "height": 844
+      }
+    }
+  },
+  {
+    "vitrine": "admin-tabelas",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tipos-item-tabela": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 2606
+      },
+      "tipos-item-tabela--selo-1": {
+        "x": 545,
+        "y": 468,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-2": {
+        "x": 545,
+        "y": 972,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-3": {
+        "x": 545,
+        "y": 1476,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela-vazio": {
+        "x": 24,
+        "y": 2836,
+        "width": 1392,
+        "height": 162
+      },
+      "itens-tabela": {
+        "x": 24,
+        "y": 3087,
+        "width": 1392,
+        "height": 2198
+      },
+      "itens-tabela--selo-1": {
+        "x": 282,
+        "y": 3426,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela--selo-2": {
+        "x": 821,
+        "y": 3426,
+        "width": 45,
+        "height": 20
+      },
+      "itens-tabela--selo-3": {
+        "x": 282,
+        "y": 3954,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela-vazio": {
+        "x": 24,
+        "y": 5373,
+        "width": 1392,
+        "height": 162
+      },
+      "colaboradores-tabela": {
+        "x": 24,
+        "y": 5624,
+        "width": 1392,
+        "height": 1581
+      },
+      "colaboradores-tabela--selo-1": {
+        "x": 700,
+        "y": 5954,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-2": {
+        "x": 700,
+        "y": 6463,
+        "width": 52,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-3": {
+        "x": 700,
+        "y": 6956,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela-vazio": {
+        "x": 24,
+        "y": 7294,
+        "width": 1392,
+        "height": 162
+      },
+      "usuarios-tabela": {
+        "x": 24,
+        "y": 7545,
+        "width": 1392,
+        "height": 3462
+      },
+      "auditoria-tabela": {
+        "x": 24,
+        "y": 11095,
+        "width": 1392,
+        "height": 153
+      },
+      "auditoria-filtro": {
+        "x": 24,
+        "y": 11337,
+        "width": 1392,
+        "height": 32
+      },
+      "fila-consolidacao": {
+        "x": 24,
+        "y": 11458,
+        "width": 1392,
+        "height": 348
+      }
+    }
+  },
+  {
+    "vitrine": "admin-tabelas",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tipos-item-tabela": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 2842
+      },
+      "tipos-item-tabela--selo-1": {
+        "x": 136,
+        "y": 524,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-2": {
+        "x": 136,
+        "y": 1068,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-3": {
+        "x": 136,
+        "y": 1612,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela-vazio": {
+        "x": 24,
+        "y": 3072,
+        "width": 342,
+        "height": 218
+      },
+      "itens-tabela": {
+        "x": 24,
+        "y": 3379,
+        "width": 342,
+        "height": 2610
+      },
+      "itens-tabela--selo-1": {
+        "x": 250,
+        "y": 3797,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela--selo-2": {
+        "x": 345,
+        "y": 3797,
+        "width": 45,
+        "height": 20
+      },
+      "itens-tabela--selo-3": {
+        "x": 250,
+        "y": 4411,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela-vazio": {
+        "x": 24,
+        "y": 6077,
+        "width": 342,
+        "height": 218
+      },
+      "colaboradores-tabela": {
+        "x": 24,
+        "y": 6384,
+        "width": 342,
+        "height": 1955
+      },
+      "colaboradores-tabela--selo-1": {
+        "x": 147,
+        "y": 6813,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-2": {
+        "x": 147,
+        "y": 7432,
+        "width": 52,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-3": {
+        "x": 147,
+        "y": 8035,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela-vazio": {
+        "x": 24,
+        "y": 8428,
+        "width": 342,
+        "height": 246
+      },
+      "usuarios-tabela": {
+        "x": 24,
+        "y": 8763,
+        "width": 342,
+        "height": 4154
+      },
+      "auditoria-tabela": {
+        "x": 24,
+        "y": 13005,
+        "width": 342,
+        "height": 153
+      },
+      "auditoria-filtro": {
+        "x": 24,
+        "y": 13247,
+        "width": 342,
+        "height": 32
+      },
+      "fila-consolidacao": {
+        "x": 24,
+        "y": 13368,
+        "width": 342,
+        "height": 688
+      }
+    }
+  },
+  {
+    "vitrine": "admin-tabelas",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tipos-item-tabela": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 2606
+      },
+      "tipos-item-tabela--selo-1": {
+        "x": 545,
+        "y": 468,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-2": {
+        "x": 545,
+        "y": 972,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-3": {
+        "x": 545,
+        "y": 1476,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela-vazio": {
+        "x": 24,
+        "y": 2836,
+        "width": 1392,
+        "height": 162
+      },
+      "itens-tabela": {
+        "x": 24,
+        "y": 3087,
+        "width": 1392,
+        "height": 2198
+      },
+      "itens-tabela--selo-1": {
+        "x": 282,
+        "y": 3426,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela--selo-2": {
+        "x": 821,
+        "y": 3426,
+        "width": 45,
+        "height": 20
+      },
+      "itens-tabela--selo-3": {
+        "x": 282,
+        "y": 3954,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela-vazio": {
+        "x": 24,
+        "y": 5373,
+        "width": 1392,
+        "height": 162
+      },
+      "colaboradores-tabela": {
+        "x": 24,
+        "y": 5624,
+        "width": 1392,
+        "height": 1581
+      },
+      "colaboradores-tabela--selo-1": {
+        "x": 700,
+        "y": 5954,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-2": {
+        "x": 700,
+        "y": 6463,
+        "width": 52,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-3": {
+        "x": 700,
+        "y": 6956,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela-vazio": {
+        "x": 24,
+        "y": 7294,
+        "width": 1392,
+        "height": 162
+      },
+      "usuarios-tabela": {
+        "x": 24,
+        "y": 7545,
+        "width": 1392,
+        "height": 3462
+      },
+      "auditoria-tabela": {
+        "x": 24,
+        "y": 11095,
+        "width": 1392,
+        "height": 153
+      },
+      "auditoria-filtro": {
+        "x": 24,
+        "y": 11337,
+        "width": 1392,
+        "height": 32
+      },
+      "fila-consolidacao": {
+        "x": 24,
+        "y": 11458,
+        "width": 1392,
+        "height": 348
+      }
+    }
+  },
+  {
+    "vitrine": "admin-tabelas",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tipos-item-tabela": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 2842
+      },
+      "tipos-item-tabela--selo-1": {
+        "x": 136,
+        "y": 524,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-2": {
+        "x": 136,
+        "y": 1068,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela--selo-3": {
+        "x": 136,
+        "y": 1612,
+        "width": 45,
+        "height": 20
+      },
+      "tipos-item-tabela-vazio": {
+        "x": 24,
+        "y": 3072,
+        "width": 342,
+        "height": 218
+      },
+      "itens-tabela": {
+        "x": 24,
+        "y": 3379,
+        "width": 342,
+        "height": 2610
+      },
+      "itens-tabela--selo-1": {
+        "x": 250,
+        "y": 3797,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela--selo-2": {
+        "x": 345,
+        "y": 3797,
+        "width": 45,
+        "height": 20
+      },
+      "itens-tabela--selo-3": {
+        "x": 250,
+        "y": 4411,
+        "width": 66,
+        "height": 20
+      },
+      "itens-tabela-vazio": {
+        "x": 24,
+        "y": 6077,
+        "width": 342,
+        "height": 218
+      },
+      "colaboradores-tabela": {
+        "x": 24,
+        "y": 6384,
+        "width": 342,
+        "height": 1955
+      },
+      "colaboradores-tabela--selo-1": {
+        "x": 147,
+        "y": 6813,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-2": {
+        "x": 147,
+        "y": 7432,
+        "width": 52,
+        "height": 20
+      },
+      "colaboradores-tabela--selo-3": {
+        "x": 147,
+        "y": 8035,
+        "width": 45,
+        "height": 20
+      },
+      "colaboradores-tabela-vazio": {
+        "x": 24,
+        "y": 8428,
+        "width": 342,
+        "height": 246
+      },
+      "usuarios-tabela": {
+        "x": 24,
+        "y": 8763,
+        "width": 342,
+        "height": 4154
+      },
+      "auditoria-tabela": {
+        "x": 24,
+        "y": 13005,
+        "width": 342,
+        "height": 153
+      },
+      "auditoria-filtro": {
+        "x": 24,
+        "y": 13247,
+        "width": 342,
+        "height": 32
+      },
+      "fila-consolidacao": {
+        "x": 24,
+        "y": 13368,
+        "width": 342,
+        "height": 688
+      }
+    }
+  },
+  {
+    "vitrine": "admin-importar",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tabela-erros-bloqueantes": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 116
+      },
+      "tabela-erros-aviso": {
+        "x": 24,
+        "y": 346,
+        "width": 1392,
+        "height": 79
+      },
+      "correcoes-aplicadas": {
+        "x": 24,
+        "y": 513,
+        "width": 1392,
+        "height": 183
+      },
+      "grupos-erros": {
+        "x": 24,
+        "y": 785,
+        "width": 1392,
+        "height": 118
+      }
+    }
+  },
+  {
+    "vitrine": "admin-importar",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tabela-erros-bloqueantes": {
+        "x": 24,
+        "y": 169,
+        "width": 342,
+        "height": 116
+      },
+      "tabela-erros-aviso": {
+        "x": 24,
+        "y": 374,
+        "width": 342,
+        "height": 79
+      },
+      "correcoes-aplicadas": {
+        "x": 24,
+        "y": 541,
+        "width": 342,
+        "height": 271
+      },
+      "grupos-erros": {
+        "x": 24,
+        "y": 917,
+        "width": 342,
+        "height": 138
+      }
+    }
+  },
+  {
+    "vitrine": "admin-importar",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tabela-erros-bloqueantes": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 116
+      },
+      "tabela-erros-aviso": {
+        "x": 24,
+        "y": 346,
+        "width": 1392,
+        "height": 79
+      },
+      "correcoes-aplicadas": {
+        "x": 24,
+        "y": 513,
+        "width": 1392,
+        "height": 183
+      },
+      "grupos-erros": {
+        "x": 24,
+        "y": 785,
+        "width": 1392,
+        "height": 118
+      }
+    }
+  },
+  {
+    "vitrine": "admin-importar",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "tabela-erros-bloqueantes": {
+        "x": 24,
+        "y": 169,
+        "width": 342,
+        "height": 116
+      },
+      "tabela-erros-aviso": {
+        "x": 24,
+        "y": 374,
+        "width": 342,
+        "height": 79
+      },
+      "correcoes-aplicadas": {
+        "x": 24,
+        "y": 541,
+        "width": 342,
+        "height": 271
+      },
+      "grupos-erros": {
+        "x": 24,
+        "y": 917,
+        "width": 342,
+        "height": 138
+      }
+    }
+  },
+  {
+    "vitrine": "admin-dialogos",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "filial-dialog-novo": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 617
+      },
+      "filial-dialog-edicao": {
+        "x": 24,
+        "y": 847,
+        "width": 1392,
+        "height": 767
+      },
+      "kit-dialog-novo": {
+        "x": 24,
+        "y": 1703,
+        "width": 1392,
+        "height": 743
+      },
+      "kit-dialog-edicao": {
+        "x": 24,
+        "y": 2535,
+        "width": 1392,
+        "height": 815
+      },
+      "motivo-dialog-novo": {
+        "x": 24,
+        "y": 3439,
+        "width": 1392,
+        "height": 505
+      },
+      "motivo-dialog-edicao": {
+        "x": 24,
+        "y": 4033,
+        "width": 1392,
+        "height": 537
+      },
+      "item-dialog-novo": {
+        "x": 24,
+        "y": 4659,
+        "width": 1392,
+        "height": 467
+      },
+      "item-dialog-edicao": {
+        "x": 24,
+        "y": 5215,
+        "width": 1392,
+        "height": 523
+      },
+      "tipo-item-dialog-novo": {
+        "x": 24,
+        "y": 5827,
+        "width": 1392,
+        "height": 463
+      },
+      "tipo-item-dialog-edicao": {
+        "x": 24,
+        "y": 6379,
+        "width": 1392,
+        "height": 511
+      },
+      "colaborador-dialog-novo": {
+        "x": 24,
+        "y": 6979,
+        "width": 1392,
+        "height": 443
+      },
+      "colaborador-dialog-edicao": {
+        "x": 24,
+        "y": 7511,
+        "width": 1392,
+        "height": 551
+      },
+      "editar-usuario-dialog": {
+        "x": 24,
+        "y": 8151,
+        "width": 1392,
+        "height": 475
+      },
+      "convidar-usuario-dialog": {
+        "x": 24,
+        "y": 8715,
+        "width": 1392,
+        "height": 589
+      },
+      "criar-senha-dialog": {
+        "x": 24,
+        "y": 9393,
+        "width": 1392,
+        "height": 357
+      },
+      "testar-senha-dialog": {
+        "x": 24,
+        "y": 9839,
+        "width": 1392,
+        "height": 303
+      },
+      "gerar-link-acesso": {
+        "x": 24,
+        "y": 10231,
+        "width": 1392,
+        "height": 396
+      },
+      "encerrar-sessoes-dialog": {
+        "x": 24,
+        "y": 10732,
+        "width": 1392,
+        "height": 323
+      },
+      "apagar-usuario-dialog-com-email": {
+        "x": 24,
+        "y": 11160,
+        "width": 1392,
+        "height": 427
+      },
+      "apagar-usuario-dialog-sem-email": {
+        "x": 24,
+        "y": 11692,
+        "width": 1392,
+        "height": 443
+      },
+      "gerar-relatorio-dialog": {
+        "x": 24,
+        "y": 12224,
+        "width": 1392,
+        "height": 666
+      }
+    }
+  },
+  {
+    "vitrine": "admin-dialogos",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "filial-dialog-novo": {
+        "x": 24,
+        "y": 169,
+        "width": 342,
+        "height": 733
+      },
+      "filial-dialog-edicao": {
+        "x": 24,
+        "y": 991,
+        "width": 342,
+        "height": 824
+      },
+      "kit-dialog-novo": {
+        "x": 24,
+        "y": 1904,
+        "width": 342,
+        "height": 868
+      },
+      "kit-dialog-edicao": {
+        "x": 24,
+        "y": 2861,
+        "width": 342,
+        "height": 876
+      },
+      "motivo-dialog-novo": {
+        "x": 24,
+        "y": 3826,
+        "width": 342,
+        "height": 687
+      },
+      "motivo-dialog-edicao": {
+        "x": 24,
+        "y": 4602,
+        "width": 342,
+        "height": 731
+      },
+      "item-dialog-novo": {
+        "x": 24,
+        "y": 5422,
+        "width": 342,
+        "height": 573
+      },
+      "item-dialog-edicao": {
+        "x": 24,
+        "y": 6084,
+        "width": 342,
+        "height": 657
+      },
+      "tipo-item-dialog-novo": {
+        "x": 24,
+        "y": 6830,
+        "width": 342,
+        "height": 503
+      },
+      "tipo-item-dialog-edicao": {
+        "x": 24,
+        "y": 7422,
+        "width": 342,
+        "height": 551
+      },
+      "colaborador-dialog-novo": {
+        "x": 24,
+        "y": 8062,
+        "width": 342,
+        "height": 553
+      },
+      "colaborador-dialog-edicao": {
+        "x": 24,
+        "y": 8704,
+        "width": 342,
+        "height": 661
+      },
+      "editar-usuario-dialog": {
+        "x": 24,
+        "y": 9454,
+        "width": 342,
+        "height": 711
+      },
+      "convidar-usuario-dialog": {
+        "x": 24,
+        "y": 10254,
+        "width": 342,
+        "height": 813
+      },
+      "criar-senha-dialog": {
+        "x": 24,
+        "y": 11156,
+        "width": 342,
+        "height": 397
+      },
+      "testar-senha-dialog": {
+        "x": 24,
+        "y": 11642,
+        "width": 342,
+        "height": 375
+      },
+      "gerar-link-acesso": {
+        "x": 24,
+        "y": 12106,
+        "width": 342,
+        "height": 499
+      },
+      "encerrar-sessoes-dialog": {
+        "x": 24,
+        "y": 12710,
+        "width": 342,
+        "height": 423
+      },
+      "apagar-usuario-dialog-com-email": {
+        "x": 24,
+        "y": 13254,
+        "width": 342,
+        "height": 527
+      },
+      "apagar-usuario-dialog-sem-email": {
+        "x": 24,
+        "y": 13902,
+        "width": 342,
+        "height": 559
+      },
+      "gerar-relatorio-dialog": {
+        "x": 24,
+        "y": 14550,
+        "width": 342,
+        "height": 829
+      }
+    }
+  },
+  {
+    "vitrine": "admin-dialogos",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "filial-dialog-novo": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 617
+      },
+      "filial-dialog-edicao": {
+        "x": 24,
+        "y": 847,
+        "width": 1392,
+        "height": 767
+      },
+      "kit-dialog-novo": {
+        "x": 24,
+        "y": 1703,
+        "width": 1392,
+        "height": 743
+      },
+      "kit-dialog-edicao": {
+        "x": 24,
+        "y": 2535,
+        "width": 1392,
+        "height": 815
+      },
+      "motivo-dialog-novo": {
+        "x": 24,
+        "y": 3439,
+        "width": 1392,
+        "height": 505
+      },
+      "motivo-dialog-edicao": {
+        "x": 24,
+        "y": 4033,
+        "width": 1392,
+        "height": 537
+      },
+      "item-dialog-novo": {
+        "x": 24,
+        "y": 4659,
+        "width": 1392,
+        "height": 467
+      },
+      "item-dialog-edicao": {
+        "x": 24,
+        "y": 5215,
+        "width": 1392,
+        "height": 523
+      },
+      "tipo-item-dialog-novo": {
+        "x": 24,
+        "y": 5827,
+        "width": 1392,
+        "height": 463
+      },
+      "tipo-item-dialog-edicao": {
+        "x": 24,
+        "y": 6379,
+        "width": 1392,
+        "height": 511
+      },
+      "colaborador-dialog-novo": {
+        "x": 24,
+        "y": 6979,
+        "width": 1392,
+        "height": 443
+      },
+      "colaborador-dialog-edicao": {
+        "x": 24,
+        "y": 7511,
+        "width": 1392,
+        "height": 551
+      },
+      "editar-usuario-dialog": {
+        "x": 24,
+        "y": 8151,
+        "width": 1392,
+        "height": 475
+      },
+      "convidar-usuario-dialog": {
+        "x": 24,
+        "y": 8715,
+        "width": 1392,
+        "height": 589
+      },
+      "criar-senha-dialog": {
+        "x": 24,
+        "y": 9393,
+        "width": 1392,
+        "height": 357
+      },
+      "testar-senha-dialog": {
+        "x": 24,
+        "y": 9839,
+        "width": 1392,
+        "height": 303
+      },
+      "gerar-link-acesso": {
+        "x": 24,
+        "y": 10231,
+        "width": 1392,
+        "height": 396
+      },
+      "encerrar-sessoes-dialog": {
+        "x": 24,
+        "y": 10732,
+        "width": 1392,
+        "height": 323
+      },
+      "apagar-usuario-dialog-com-email": {
+        "x": 24,
+        "y": 11160,
+        "width": 1392,
+        "height": 427
+      },
+      "apagar-usuario-dialog-sem-email": {
+        "x": 24,
+        "y": 11692,
+        "width": 1392,
+        "height": 443
+      },
+      "gerar-relatorio-dialog": {
+        "x": 24,
+        "y": 12224,
+        "width": 1392,
+        "height": 666
+      }
+    }
+  },
+  {
+    "vitrine": "admin-dialogos",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "filial-dialog-novo": {
+        "x": 24,
+        "y": 169,
+        "width": 342,
+        "height": 733
+      },
+      "filial-dialog-edicao": {
+        "x": 24,
+        "y": 991,
+        "width": 342,
+        "height": 824
+      },
+      "kit-dialog-novo": {
+        "x": 24,
+        "y": 1904,
+        "width": 342,
+        "height": 868
+      },
+      "kit-dialog-edicao": {
+        "x": 24,
+        "y": 2861,
+        "width": 342,
+        "height": 876
+      },
+      "motivo-dialog-novo": {
+        "x": 24,
+        "y": 3826,
+        "width": 342,
+        "height": 687
+      },
+      "motivo-dialog-edicao": {
+        "x": 24,
+        "y": 4602,
+        "width": 342,
+        "height": 731
+      },
+      "item-dialog-novo": {
+        "x": 24,
+        "y": 5422,
+        "width": 342,
+        "height": 573
+      },
+      "item-dialog-edicao": {
+        "x": 24,
+        "y": 6084,
+        "width": 342,
+        "height": 657
+      },
+      "tipo-item-dialog-novo": {
+        "x": 24,
+        "y": 6830,
+        "width": 342,
+        "height": 503
+      },
+      "tipo-item-dialog-edicao": {
+        "x": 24,
+        "y": 7422,
+        "width": 342,
+        "height": 551
+      },
+      "colaborador-dialog-novo": {
+        "x": 24,
+        "y": 8062,
+        "width": 342,
+        "height": 553
+      },
+      "colaborador-dialog-edicao": {
+        "x": 24,
+        "y": 8704,
+        "width": 342,
+        "height": 661
+      },
+      "editar-usuario-dialog": {
+        "x": 24,
+        "y": 9454,
+        "width": 342,
+        "height": 711
+      },
+      "convidar-usuario-dialog": {
+        "x": 24,
+        "y": 10254,
+        "width": 342,
+        "height": 813
+      },
+      "criar-senha-dialog": {
+        "x": 24,
+        "y": 11156,
+        "width": 342,
+        "height": 397
+      },
+      "testar-senha-dialog": {
+        "x": 24,
+        "y": 11642,
+        "width": 342,
+        "height": 375
+      },
+      "gerar-link-acesso": {
+        "x": 24,
+        "y": 12106,
+        "width": 342,
+        "height": 499
+      },
+      "encerrar-sessoes-dialog": {
+        "x": 24,
+        "y": 12710,
+        "width": 342,
+        "height": 423
+      },
+      "apagar-usuario-dialog-com-email": {
+        "x": 24,
+        "y": 13254,
+        "width": 342,
+        "height": 527
+      },
+      "apagar-usuario-dialog-sem-email": {
+        "x": 24,
+        "y": 13902,
+        "width": 342,
+        "height": 559
+      },
+      "gerar-relatorio-dialog": {
+        "x": 24,
+        "y": 14550,
+        "width": 342,
+        "height": 829
+      }
+    }
+  },
+  {
+    "vitrine": "relatorio",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "kpi-tiles": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 94
+      },
+      "kpi-tiles-delta": {
+        "x": 24,
+        "y": 324,
+        "width": 1392,
+        "height": 94
+      },
+      "grupo-kpis": {
+        "x": 24,
+        "y": 507,
+        "width": 1392,
+        "height": 89
+      },
+      "card-relatorio": {
+        "x": 24,
+        "y": 685,
+        "width": 1392,
+        "height": 138
+      },
+      "card-relatorio-vazio": {
+        "x": 24,
+        "y": 912,
+        "width": 1392,
+        "height": 146
+      },
+      "celulas": {
+        "x": 24,
+        "y": 1146,
+        "width": 1392,
+        "height": 72
+      },
+      "tabela-saidas": {
+        "x": 24,
+        "y": 1307,
+        "width": 1392,
+        "height": 264
+      },
+      "tabela-entradas": {
+        "x": 24,
+        "y": 1660,
+        "width": 1392,
+        "height": 232
+      },
+      "tabela-transferencias": {
+        "x": 24,
+        "y": 1980,
+        "width": 1392,
+        "height": 195
+      },
+      "tabela-movimentacoes": {
+        "x": 24,
+        "y": 2264,
+        "width": 1392,
+        "height": 119
+      },
+      "tabela-mov-itens": {
+        "x": 24,
+        "y": 2471,
+        "width": 1392,
+        "height": 200
+      },
+      "tabela-itens-grupo": {
+        "x": 24,
+        "y": 2760,
+        "width": 1392,
+        "height": 144
+      },
+      "filtros-tabela": {
+        "x": 24,
+        "y": 2992,
+        "width": 1392,
+        "height": 28
+      },
+      "grupo-colapsavel": {
+        "x": 24,
+        "y": 3109,
+        "width": 1392,
+        "height": 76
+      },
+      "legenda-delta": {
+        "x": 24,
+        "y": 3274,
+        "width": 1392,
+        "height": 20
+      },
+      "legenda-estorno": {
+        "x": 24,
+        "y": 3383,
+        "width": 1392,
+        "height": 20
+      },
+      "legenda-troca": {
+        "x": 24,
+        "y": 3492,
+        "width": 1392,
+        "height": 20
+      },
+      "legenda-manutencao": {
+        "x": 24,
+        "y": 3601,
+        "width": 1392,
+        "height": 28
+      },
+      "glossario-relatorio": {
+        "x": 24,
+        "y": 3718,
+        "width": 1392,
+        "height": 508
+      },
+      "lista-manutencao": {
+        "x": 24,
+        "y": 4315,
+        "width": 1392,
+        "height": 28
+      },
+      "lista-modelo": {
+        "x": 24,
+        "y": 4432,
+        "width": 1392,
+        "height": 57
+      },
+      "lista-modelo-categoria": {
+        "x": 24,
+        "y": 4578,
+        "width": 1392,
+        "height": 112
+      },
+      "lista-reservados": {
+        "x": 24,
+        "y": 4779,
+        "width": 1392,
+        "height": 57
+      },
+      "manutencao-casos": {
+        "x": 24,
+        "y": 4925,
+        "width": 1392,
+        "height": 132
+      },
+      "medidor-minimo-folga": {
+        "x": 24,
+        "y": 5146,
+        "width": 1392,
+        "height": 6
+      },
+      "medidor-minimo-atencao": {
+        "x": 24,
+        "y": 5241,
+        "width": 1392,
+        "height": 16
+      },
+      "medidor-minimo-abaixo": {
+        "x": 24,
+        "y": 5346,
+        "width": 1392,
+        "height": 6
+      },
+      "observacao-card": {
+        "x": 24,
+        "y": 5441,
+        "width": 1392,
+        "height": 93
+      },
+      "resumo-periodo": {
+        "x": 24,
+        "y": 5623,
+        "width": 1392,
+        "height": 224
+      }
+    }
+  },
+  {
+    "vitrine": "relatorio",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "kpi-tiles": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 410
+      },
+      "kpi-tiles-delta": {
+        "x": 24,
+        "y": 640,
+        "width": 342,
+        "height": 410
+      },
+      "grupo-kpis": {
+        "x": 24,
+        "y": 1139,
+        "width": 342,
+        "height": 190
+      },
+      "card-relatorio": {
+        "x": 24,
+        "y": 1418,
+        "width": 342,
+        "height": 122
+      },
+      "card-relatorio-vazio": {
+        "x": 24,
+        "y": 1629,
+        "width": 342,
+        "height": 130
+      },
+      "celulas": {
+        "x": 24,
+        "y": 1847,
+        "width": 342,
+        "height": 72
+      },
+      "tabela-saidas": {
+        "x": 24,
+        "y": 2008,
+        "width": 342,
+        "height": 438
+      },
+      "tabela-entradas": {
+        "x": 24,
+        "y": 2535,
+        "width": 342,
+        "height": 348
+      },
+      "tabela-transferencias": {
+        "x": 24,
+        "y": 2971,
+        "width": 342,
+        "height": 199
+      },
+      "tabela-movimentacoes": {
+        "x": 24,
+        "y": 3259,
+        "width": 342,
+        "height": 191
+      },
+      "tabela-mov-itens": {
+        "x": 24,
+        "y": 3538,
+        "width": 342,
+        "height": 208
+      },
+      "tabela-itens-grupo": {
+        "x": 24,
+        "y": 3835,
+        "width": 342,
+        "height": 144
+      },
+      "filtros-tabela": {
+        "x": 24,
+        "y": 4067,
+        "width": 342,
+        "height": 64
+      },
+      "grupo-colapsavel": {
+        "x": 24,
+        "y": 4220,
+        "width": 342,
+        "height": 76
+      },
+      "legenda-delta": {
+        "x": 24,
+        "y": 4385,
+        "width": 342,
+        "height": 52
+      },
+      "legenda-estorno": {
+        "x": 24,
+        "y": 4526,
+        "width": 342,
+        "height": 52
+      },
+      "legenda-troca": {
+        "x": 24,
+        "y": 4667,
+        "width": 342,
+        "height": 52
+      },
+      "legenda-manutencao": {
+        "x": 24,
+        "y": 4808,
+        "width": 342,
+        "height": 28
+      },
+      "glossario-relatorio": {
+        "x": 24,
+        "y": 4925,
+        "width": 342,
+        "height": 44
+      },
+      "lista-manutencao": {
+        "x": 24,
+        "y": 5058,
+        "width": 342,
+        "height": 28
+      },
+      "lista-modelo": {
+        "x": 24,
+        "y": 5175,
+        "width": 342,
+        "height": 57
+      },
+      "lista-modelo-categoria": {
+        "x": 24,
+        "y": 5321,
+        "width": 342,
+        "height": 112
+      },
+      "lista-reservados": {
+        "x": 24,
+        "y": 5522,
+        "width": 342,
+        "height": 57
+      },
+      "manutencao-casos": {
+        "x": 24,
+        "y": 5684,
+        "width": 342,
+        "height": 360
+      },
+      "medidor-minimo-folga": {
+        "x": 24,
+        "y": 6133,
+        "width": 342,
+        "height": 6
+      },
+      "medidor-minimo-atencao": {
+        "x": 24,
+        "y": 6228,
+        "width": 342,
+        "height": 16
+      },
+      "medidor-minimo-abaixo": {
+        "x": 24,
+        "y": 6333,
+        "width": 342,
+        "height": 6
+      },
+      "observacao-card": {
+        "x": 24,
+        "y": 6428,
+        "width": 342,
+        "height": 116
+      },
+      "resumo-periodo": {
+        "x": 24,
+        "y": 6633,
+        "width": 342,
+        "height": 224
+      }
+    }
+  },
+  {
+    "vitrine": "relatorio",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "kpi-tiles": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 94
+      },
+      "kpi-tiles-delta": {
+        "x": 24,
+        "y": 324,
+        "width": 1392,
+        "height": 94
+      },
+      "grupo-kpis": {
+        "x": 24,
+        "y": 507,
+        "width": 1392,
+        "height": 89
+      },
+      "card-relatorio": {
+        "x": 24,
+        "y": 685,
+        "width": 1392,
+        "height": 138
+      },
+      "card-relatorio-vazio": {
+        "x": 24,
+        "y": 912,
+        "width": 1392,
+        "height": 146
+      },
+      "celulas": {
+        "x": 24,
+        "y": 1146,
+        "width": 1392,
+        "height": 72
+      },
+      "tabela-saidas": {
+        "x": 24,
+        "y": 1307,
+        "width": 1392,
+        "height": 264
+      },
+      "tabela-entradas": {
+        "x": 24,
+        "y": 1660,
+        "width": 1392,
+        "height": 232
+      },
+      "tabela-transferencias": {
+        "x": 24,
+        "y": 1980,
+        "width": 1392,
+        "height": 195
+      },
+      "tabela-movimentacoes": {
+        "x": 24,
+        "y": 2264,
+        "width": 1392,
+        "height": 119
+      },
+      "tabela-mov-itens": {
+        "x": 24,
+        "y": 2471,
+        "width": 1392,
+        "height": 200
+      },
+      "tabela-itens-grupo": {
+        "x": 24,
+        "y": 2760,
+        "width": 1392,
+        "height": 144
+      },
+      "filtros-tabela": {
+        "x": 24,
+        "y": 2992,
+        "width": 1392,
+        "height": 28
+      },
+      "grupo-colapsavel": {
+        "x": 24,
+        "y": 3109,
+        "width": 1392,
+        "height": 76
+      },
+      "legenda-delta": {
+        "x": 24,
+        "y": 3274,
+        "width": 1392,
+        "height": 20
+      },
+      "legenda-estorno": {
+        "x": 24,
+        "y": 3383,
+        "width": 1392,
+        "height": 20
+      },
+      "legenda-troca": {
+        "x": 24,
+        "y": 3492,
+        "width": 1392,
+        "height": 20
+      },
+      "legenda-manutencao": {
+        "x": 24,
+        "y": 3601,
+        "width": 1392,
+        "height": 28
+      },
+      "glossario-relatorio": {
+        "x": 24,
+        "y": 3718,
+        "width": 1392,
+        "height": 508
+      },
+      "lista-manutencao": {
+        "x": 24,
+        "y": 4315,
+        "width": 1392,
+        "height": 28
+      },
+      "lista-modelo": {
+        "x": 24,
+        "y": 4432,
+        "width": 1392,
+        "height": 57
+      },
+      "lista-modelo-categoria": {
+        "x": 24,
+        "y": 4578,
+        "width": 1392,
+        "height": 112
+      },
+      "lista-reservados": {
+        "x": 24,
+        "y": 4779,
+        "width": 1392,
+        "height": 57
+      },
+      "manutencao-casos": {
+        "x": 24,
+        "y": 4925,
+        "width": 1392,
+        "height": 132
+      },
+      "medidor-minimo-folga": {
+        "x": 24,
+        "y": 5146,
+        "width": 1392,
+        "height": 6
+      },
+      "medidor-minimo-atencao": {
+        "x": 24,
+        "y": 5241,
+        "width": 1392,
+        "height": 16
+      },
+      "medidor-minimo-abaixo": {
+        "x": 24,
+        "y": 5346,
+        "width": 1392,
+        "height": 6
+      },
+      "observacao-card": {
+        "x": 24,
+        "y": 5441,
+        "width": 1392,
+        "height": 93
+      },
+      "resumo-periodo": {
+        "x": 24,
+        "y": 5623,
+        "width": 1392,
+        "height": 224
+      }
+    }
+  },
+  {
+    "vitrine": "relatorio",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "kpi-tiles": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 410
+      },
+      "kpi-tiles-delta": {
+        "x": 24,
+        "y": 640,
+        "width": 342,
+        "height": 410
+      },
+      "grupo-kpis": {
+        "x": 24,
+        "y": 1139,
+        "width": 342,
+        "height": 190
+      },
+      "card-relatorio": {
+        "x": 24,
+        "y": 1418,
+        "width": 342,
+        "height": 122
+      },
+      "card-relatorio-vazio": {
+        "x": 24,
+        "y": 1629,
+        "width": 342,
+        "height": 130
+      },
+      "celulas": {
+        "x": 24,
+        "y": 1847,
+        "width": 342,
+        "height": 72
+      },
+      "tabela-saidas": {
+        "x": 24,
+        "y": 2008,
+        "width": 342,
+        "height": 438
+      },
+      "tabela-entradas": {
+        "x": 24,
+        "y": 2535,
+        "width": 342,
+        "height": 348
+      },
+      "tabela-transferencias": {
+        "x": 24,
+        "y": 2971,
+        "width": 342,
+        "height": 199
+      },
+      "tabela-movimentacoes": {
+        "x": 24,
+        "y": 3259,
+        "width": 342,
+        "height": 191
+      },
+      "tabela-mov-itens": {
+        "x": 24,
+        "y": 3538,
+        "width": 342,
+        "height": 208
+      },
+      "tabela-itens-grupo": {
+        "x": 24,
+        "y": 3835,
+        "width": 342,
+        "height": 144
+      },
+      "filtros-tabela": {
+        "x": 24,
+        "y": 4067,
+        "width": 342,
+        "height": 64
+      },
+      "grupo-colapsavel": {
+        "x": 24,
+        "y": 4220,
+        "width": 342,
+        "height": 76
+      },
+      "legenda-delta": {
+        "x": 24,
+        "y": 4385,
+        "width": 342,
+        "height": 52
+      },
+      "legenda-estorno": {
+        "x": 24,
+        "y": 4526,
+        "width": 342,
+        "height": 52
+      },
+      "legenda-troca": {
+        "x": 24,
+        "y": 4667,
+        "width": 342,
+        "height": 52
+      },
+      "legenda-manutencao": {
+        "x": 24,
+        "y": 4808,
+        "width": 342,
+        "height": 28
+      },
+      "glossario-relatorio": {
+        "x": 24,
+        "y": 4925,
+        "width": 342,
+        "height": 44
+      },
+      "lista-manutencao": {
+        "x": 24,
+        "y": 5058,
+        "width": 342,
+        "height": 28
+      },
+      "lista-modelo": {
+        "x": 24,
+        "y": 5175,
+        "width": 342,
+        "height": 57
+      },
+      "lista-modelo-categoria": {
+        "x": 24,
+        "y": 5321,
+        "width": 342,
+        "height": 112
+      },
+      "lista-reservados": {
+        "x": 24,
+        "y": 5522,
+        "width": 342,
+        "height": 57
+      },
+      "manutencao-casos": {
+        "x": 24,
+        "y": 5684,
+        "width": 342,
+        "height": 360
+      },
+      "medidor-minimo-folga": {
+        "x": 24,
+        "y": 6133,
+        "width": 342,
+        "height": 6
+      },
+      "medidor-minimo-atencao": {
+        "x": 24,
+        "y": 6228,
+        "width": 342,
+        "height": 16
+      },
+      "medidor-minimo-abaixo": {
+        "x": 24,
+        "y": 6333,
+        "width": 342,
+        "height": 6
+      },
+      "observacao-card": {
+        "x": 24,
+        "y": 6428,
+        "width": 342,
+        "height": 116
+      },
+      "resumo-periodo": {
+        "x": 24,
+        "y": 6633,
+        "width": 342,
+        "height": 224
+      }
+    }
+  },
+  {
+    "vitrine": "confirmacoes",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "mesa-vazio": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 78
+      },
+      "mesa-nao-confere": {
+        "x": 24,
+        "y": 308,
+        "width": 1392,
+        "height": 106
+      },
+      "mesa-confere": {
+        "x": 24,
+        "y": 503,
+        "width": 1392,
+        "height": 78
+      },
+      "importar-vazio": {
+        "x": 24,
+        "y": 670,
+        "width": 1392,
+        "height": 54
+      },
+      "importar-nao-confere": {
+        "x": 24,
+        "y": 813,
+        "width": 1392,
+        "height": 82
+      },
+      "importar-confere": {
+        "x": 24,
+        "y": 984,
+        "width": 1392,
+        "height": 54
+      },
+      "apagar-conta-vazio": {
+        "x": 24,
+        "y": 1127,
+        "width": 1392,
+        "height": 78
+      },
+      "apagar-conta-nao-confere": {
+        "x": 24,
+        "y": 1294,
+        "width": 1392,
+        "height": 106
+      },
+      "apagar-conta-confere": {
+        "x": 24,
+        "y": 1489,
+        "width": 1392,
+        "height": 78
+      },
+      "apagar-conta-sem-email": {
+        "x": 24,
+        "y": 1656,
+        "width": 1392,
+        "height": 86
+      },
+      "destrutivo-vazio": {
+        "x": 24,
+        "y": 1831,
+        "width": 1392,
+        "height": 78
+      },
+      "destrutivo-nao-confere": {
+        "x": 24,
+        "y": 1998,
+        "width": 1392,
+        "height": 106
+      },
+      "destrutivo-confere": {
+        "x": 24,
+        "y": 2193,
+        "width": 1392,
+        "height": 78
+      }
+    }
+  },
+  {
+    "vitrine": "confirmacoes",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "mesa-vazio": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 78
+      },
+      "mesa-nao-confere": {
+        "x": 24,
+        "y": 308,
+        "width": 342,
+        "height": 106
+      },
+      "mesa-confere": {
+        "x": 24,
+        "y": 503,
+        "width": 342,
+        "height": 78
+      },
+      "importar-vazio": {
+        "x": 24,
+        "y": 670,
+        "width": 342,
+        "height": 54
+      },
+      "importar-nao-confere": {
+        "x": 24,
+        "y": 813,
+        "width": 342,
+        "height": 82
+      },
+      "importar-confere": {
+        "x": 24,
+        "y": 984,
+        "width": 342,
+        "height": 54
+      },
+      "apagar-conta-vazio": {
+        "x": 24,
+        "y": 1127,
+        "width": 342,
+        "height": 78
+      },
+      "apagar-conta-nao-confere": {
+        "x": 24,
+        "y": 1294,
+        "width": 342,
+        "height": 126
+      },
+      "apagar-conta-confere": {
+        "x": 24,
+        "y": 1509,
+        "width": 342,
+        "height": 78
+      },
+      "apagar-conta-sem-email": {
+        "x": 24,
+        "y": 1692,
+        "width": 342,
+        "height": 134
+      },
+      "destrutivo-vazio": {
+        "x": 24,
+        "y": 1915,
+        "width": 342,
+        "height": 78
+      },
+      "destrutivo-nao-confere": {
+        "x": 24,
+        "y": 2082,
+        "width": 342,
+        "height": 106
+      },
+      "destrutivo-confere": {
+        "x": 24,
+        "y": 2277,
+        "width": 342,
+        "height": 78
+      }
+    }
+  },
+  {
+    "vitrine": "confirmacoes",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "mesa-vazio": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 78
+      },
+      "mesa-nao-confere": {
+        "x": 24,
+        "y": 308,
+        "width": 1392,
+        "height": 106
+      },
+      "mesa-confere": {
+        "x": 24,
+        "y": 503,
+        "width": 1392,
+        "height": 78
+      },
+      "importar-vazio": {
+        "x": 24,
+        "y": 670,
+        "width": 1392,
+        "height": 54
+      },
+      "importar-nao-confere": {
+        "x": 24,
+        "y": 813,
+        "width": 1392,
+        "height": 82
+      },
+      "importar-confere": {
+        "x": 24,
+        "y": 984,
+        "width": 1392,
+        "height": 54
+      },
+      "apagar-conta-vazio": {
+        "x": 24,
+        "y": 1127,
+        "width": 1392,
+        "height": 78
+      },
+      "apagar-conta-nao-confere": {
+        "x": 24,
+        "y": 1294,
+        "width": 1392,
+        "height": 106
+      },
+      "apagar-conta-confere": {
+        "x": 24,
+        "y": 1489,
+        "width": 1392,
+        "height": 78
+      },
+      "apagar-conta-sem-email": {
+        "x": 24,
+        "y": 1656,
+        "width": 1392,
+        "height": 86
+      },
+      "destrutivo-vazio": {
+        "x": 24,
+        "y": 1831,
+        "width": 1392,
+        "height": 78
+      },
+      "destrutivo-nao-confere": {
+        "x": 24,
+        "y": 1998,
+        "width": 1392,
+        "height": 106
+      },
+      "destrutivo-confere": {
+        "x": 24,
+        "y": 2193,
+        "width": 1392,
+        "height": 78
+      }
+    }
+  },
+  {
+    "vitrine": "confirmacoes",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "mesa-vazio": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 78
+      },
+      "mesa-nao-confere": {
+        "x": 24,
+        "y": 308,
+        "width": 342,
+        "height": 106
+      },
+      "mesa-confere": {
+        "x": 24,
+        "y": 503,
+        "width": 342,
+        "height": 78
+      },
+      "importar-vazio": {
+        "x": 24,
+        "y": 670,
+        "width": 342,
+        "height": 54
+      },
+      "importar-nao-confere": {
+        "x": 24,
+        "y": 813,
+        "width": 342,
+        "height": 82
+      },
+      "importar-confere": {
+        "x": 24,
+        "y": 984,
+        "width": 342,
+        "height": 54
+      },
+      "apagar-conta-vazio": {
+        "x": 24,
+        "y": 1127,
+        "width": 342,
+        "height": 78
+      },
+      "apagar-conta-nao-confere": {
+        "x": 24,
+        "y": 1294,
+        "width": 342,
+        "height": 126
+      },
+      "apagar-conta-confere": {
+        "x": 24,
+        "y": 1509,
+        "width": 342,
+        "height": 78
+      },
+      "apagar-conta-sem-email": {
+        "x": 24,
+        "y": 1692,
+        "width": 342,
+        "height": 134
+      },
+      "destrutivo-vazio": {
+        "x": 24,
+        "y": 1915,
+        "width": 342,
+        "height": 78
+      },
+      "destrutivo-nao-confere": {
+        "x": 24,
+        "y": 2082,
+        "width": 342,
+        "height": 106
+      },
+      "destrutivo-confere": {
+        "x": 24,
+        "y": 2277,
+        "width": 342,
+        "height": 78
+      }
+    }
+  },
+  {
+    "vitrine": "selos-sucesso",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "painel-sucesso": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 1121
+      },
+      "status-badge": {
+        "x": 24,
+        "y": 1351,
+        "width": 1392,
+        "height": 24
+      }
+    }
+  },
+  {
+    "vitrine": "selos-sucesso",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 399,
+    "clientWidth": 390,
+    "rolaHorizontal": true,
+    "quadros": {
+      "painel-sucesso": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 1363
+      },
+      "status-badge": {
+        "x": 24,
+        "y": 1593,
+        "width": 342,
+        "height": 24
+      }
+    }
+  },
+  {
+    "vitrine": "selos-sucesso",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "painel-sucesso": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 1121
+      },
+      "status-badge": {
+        "x": 24,
+        "y": 1351,
+        "width": 1392,
+        "height": 24
+      }
+    }
+  },
+  {
+    "vitrine": "selos-sucesso",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 399,
+    "clientWidth": 390,
+    "rolaHorizontal": true,
+    "quadros": {
+      "painel-sucesso": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 1363
+      },
+      "status-badge": {
+        "x": 24,
+        "y": 1593,
+        "width": 342,
+        "height": 24
+      }
+    }
+  },
+  {
+    "vitrine": "filtros",
+    "tema": "claro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "itens-filtros": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 32
+      },
+      "historico-filtros": {
+        "x": 24,
+        "y": 262,
+        "width": 1392,
+        "height": 60
+      },
+      "ativos-filtros": {
+        "x": 24,
+        "y": 411,
+        "width": 1392,
+        "height": 32
+      },
+      "pendencias-filtros": {
+        "x": 24,
+        "y": 532,
+        "width": 1392,
+        "height": 66
+      },
+      "lista-filtros": {
+        "x": 24,
+        "y": 687,
+        "width": 1392,
+        "height": 60
+      }
+    }
+  },
+  {
+    "vitrine": "filtros",
+    "tema": "claro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "itens-filtros": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 88
+      },
+      "historico-filtros": {
+        "x": 24,
+        "y": 318,
+        "width": 342,
+        "height": 270
+      },
+      "ativos-filtros": {
+        "x": 24,
+        "y": 677,
+        "width": 342,
+        "height": 136
+      },
+      "pendencias-filtros": {
+        "x": 24,
+        "y": 902,
+        "width": 342,
+        "height": 182
+      },
+      "lista-filtros": {
+        "x": 24,
+        "y": 1173,
+        "width": 342,
+        "height": 272
+      }
+    }
+  },
+  {
+    "vitrine": "filtros",
+    "tema": "escuro",
+    "largura": 1440,
+    "altura": 900,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "rolaHorizontal": false,
+    "quadros": {
+      "itens-filtros": {
+        "x": 24,
+        "y": 141,
+        "width": 1392,
+        "height": 32
+      },
+      "historico-filtros": {
+        "x": 24,
+        "y": 262,
+        "width": 1392,
+        "height": 60
+      },
+      "ativos-filtros": {
+        "x": 24,
+        "y": 411,
+        "width": 1392,
+        "height": 32
+      },
+      "pendencias-filtros": {
+        "x": 24,
+        "y": 532,
+        "width": 1392,
+        "height": 66
+      },
+      "lista-filtros": {
+        "x": 24,
+        "y": 687,
+        "width": 1392,
+        "height": 60
+      }
+    }
+  },
+  {
+    "vitrine": "filtros",
+    "tema": "escuro",
+    "largura": 390,
+    "altura": 844,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false,
+    "quadros": {
+      "itens-filtros": {
+        "x": 24,
+        "y": 141,
+        "width": 342,
+        "height": 88
+      },
+      "historico-filtros": {
+        "x": 24,
+        "y": 318,
+        "width": 342,
+        "height": 270
+      },
+      "ativos-filtros": {
+        "x": 24,
+        "y": 677,
+        "width": 342,
+        "height": 136
+      },
+      "pendencias-filtros": {
+        "x": 24,
+        "y": 902,
+        "width": 342,
+        "height": 182
+      },
+      "lista-filtros": {
+        "x": 24,
+        "y": 1173,
+        "width": 342,
+        "height": 272
+      }
+    }
+  }
+]

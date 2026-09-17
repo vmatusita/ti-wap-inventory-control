@@ -1,0 +1,37 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas > as três tabelas assinadas são exatamente as de sempre 5ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas > devolve INSERT no schema public, sem filtro 1ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas > NENHUMA assinatura emite `filter` hoje 1ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > o componente não monta assinatura à mão > as opções vêm de `opcoesDaAssinatura`, e nenhum objeto é montado no fonte 1ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > o componente não monta assinatura à mão > nenhuma tabela é assinada por fora da lista 1ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > o componente não monta assinatura à mão > o nome do canal é PARAMETRIZADO, não literal 0ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > devolve a chave do escopo corrente 0ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > compõe nome de canal (F50) 0ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > compõe chave de storage IDÊNTICA às literais de hoje (F61) 1ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > A · nenhum literal "wap:" fora de lib/escopo/chave.ts (salvo os dois nomes de evento) 1773ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de compra:defaults (local) devolve a chave de antes, byte a byte (F61) 5415ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de compra:rascunho devolve a chave de antes, byte a byte (F61) 1ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de mov:rascunho devolve a chave de antes, byte a byte (F61) 317ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de itens:conferencia:<filial> devolve a chave de antes, byte a byte (F61) 17ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de ativos:ultima-lista devolve a chave de antes, byte a byte (F61) 13ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de ativos:recentes devolve a chave de antes, byte a byte (F61) 15ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > a construtora de relatorios:ultimo devolve a chave de antes, byte a byte (F61) 16ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > trocar o prefixo de chaveDeStorage derruba as SETE afirmações (sabotagem I) 23ms
+ ✓ |puro| src/lib/relatorios/assinatura-realtime.test.ts > chaveDoEscopo serve aos DOIS consumidores > o módulo é PURO — sem React, sem Supabase, sem DOM 3ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > B · toda chamada de storage recebe a chave de uma construtora, calculada no uso 1316ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > as sete construtoras existem (e a de conferência leva a filial) 1ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > o nome de evento 'wap:lancar-item' existe em 'src/components/itens/lancar-item-even…' 1ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > o nome de evento 'wap:transferir-item' existe em 'src/components/itens/transferir-item-…' 0ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a exceção 'CHAVE_SIDEBAR' ('wap-sidebar') existe e diz por quê 3ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a trava enxerga a volta > localStorage.setItem com literal "wap:" reprova nas DUAS regras 3ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a trava enxerga a volta > a constante de módulo com a chave reprova, mesmo sem chamada nenhuma 1ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a trava enxerga a volta > guardar a construtora numa constante e passar o identificador reprova 1ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a trava enxerga a volta > a chamada no uso passa 1ms
+
+ Test Files  2 passed (2)
+      Tests  28 passed (28)
+   Start at  16:10:37
+   Duration  7.02s (transform 639ms, setup 0ms, import 3.72s, tests 8.94s, environment 1ms)
+
