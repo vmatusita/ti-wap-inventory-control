@@ -164,11 +164,15 @@ na ordem da cadeia (o ensaio não tem app de produção: lá o `drop` não esper
 última coisa, depois dos passos abaixo. `drop function` **sem** `if exists` e **sem** `cascade`: uma velha que não
 existe é apply fora de ordem, e uma dependência que apareça tem de falhar alto.
 
-**O canal.** O caminho A de sempre (o MCP da Supabase, `apply_migration`/`execute_sql`). Sem MCP na sessão: o caminho da
-`0131` (script que confere o sha256 do arquivo contra `migrations.lock.json` e faz um POST à Management API, com o
-`SUPABASE_ACCESS_TOKEN` que JÁ estiver no ambiente — nunca procurado) ou o caminho B (o SQL Editor). Sem nenhum dos três,
-nada desta receita começa — e o PR que chama as funções novas não é mergeado (foi o repouso da própria F60, ata (j) de
-17/09/2026 em `DECISOES.md`).
+**O canal.** O caminho A de sempre (o MCP da Supabase, `apply_migration`/`execute_sql`). Sem MCP na sessão, há o PADRÃO
+da `0131`/`0132` — **um padrão a reescrever na hora, não um script do repositório**: o de 09/09/2026 foi escrito ad hoc e
+nunca versionado (nenhum arquivo de `scripts/` faz apply de migration). Ele lia o arquivo, conferia o sha256 contra
+`migrations.lock.json` e fazia um POST a `database/query` da Management API com o `SUPABASE_ACCESS_TOKEN` que JÁ estava no
+processo — e, desde a F55, esse token não mora mais no `.env.local` (`docs/f56-handoff/medicoes/R-runbook-apply.md`, Fato
+31): sem ele já no ambiente — nunca procurado —, o padrão não existe. Sobra o caminho B (o SQL Editor, colando o arquivo
+inteiro, com a verificação pós-apply conferindo o `md5` do `prosrc`). Sem nenhum dos caminhos, nada desta receita começa —
+e o PR que chama as funções novas não é mergeado (foi o repouso da própria F60, ata (j) de 17/09/2026 em `DECISOES.md`).
+*(Corrigido na revisão final da F60, 17/09/2026: o texto apresentava "o caminho da `0131`" como script pronto.)*
 
 ### Os passos
 
@@ -214,6 +218,23 @@ nada desta receita começa — e o PR que chama as funções novas não é merge
    ativa for resolvida) e `node scripts/smoke/smoke-prod.mjs`. É o que garante que o Δ das NOVAS sai positivo — sem ele,
    "velhas = 0" num fim de tarde vazio não prova nada.
 
+   ⚠ **O papel `service_role` (o visualizador por senha) quase nunca tem tráfego nesta janela, e Δ = 0 ali NÃO prova
+   ausência de chamador.** `medir.mjs` só acrescenta as rotas do visualizador com `VIEW_SESSION_SECRET` E uma senha de
+   acesso ativa resolvida (nem a F59 nem a F60 a resolveram — `PLAN-F60.md` §3.7), e `smoke-prod.mjs` não tem caminho de
+   visualizador. Por isso a prova desse papel é ESTÁTICA, rodada antes do T1, e as duas partes têm de valer:
+   - nenhum chamador das velhas pelo nome no código — tem de sair VAZIO (as exclusões são os instrumentos de medição, que
+     citam as velhas de propósito, e o gerador histórico da `0134`):
+
+     ```bash
+     git grep -nE "['\"]rel_(estoque_asof|saldo_itens|mov_itens|frescor_itens|mov_por_mes|por_motivo|resumo)['\"]" -- 'src/**' 'scripts/**' ':!**/*.test.*' ':!scripts/perf/**' ':!scripts/db/gerar-0134.mjs'
+     ```
+
+   - `npx vitest run src/lib/queries/relatorios/fronteira-viewer.test.ts` verde — a lista branca da superfície que o
+     client do visualizador (`resolverAcessoRelatorio`) alcança só pode citar as sete `_filiais` (a catraca `RPCS ≤ 7`).
+
+   *(Acrescentado na revisão final da F60, 17/09/2026: o critério (b) aceitava Δ = 0 em `service_role` pela simples falta de
+   tráfego.)*
+
 4. **Espera de ao menos 30 minutos** entre o T0 e o T1, com o app novo no ar.
 
 5. **Leitura T1** — o MESMO SQL.
@@ -221,8 +242,9 @@ nada desta receita começa — e o PR que chama as funções novas não é merge
 6. **O critério — o `drop` só acontece se os quatro valerem:**
    - **(a)** Δ chamadas das VELHAS = **0** em `authenticated`, `service_role` **e** `anon` entre T0 e T1 (entrada que
      não existe em T0 e existe em T1 é Δ > 0);
-   - **(b)** Δ das NOVAS **> 0** em `authenticated`; em `service_role`, Δ = 0 é aceitável se nenhum tráfego de
-     visualizador foi gerado — e as velhas também com 0 ali;
+   - **(b)** Δ das NOVAS **> 0** em `authenticated`; em `service_role`, Δ = 0 das novas só é aceitável se nenhum
+     tráfego de visualizador foi gerado **E** a prova ESTÁTICA do passo 3 passou (o `git grep` vazio e
+     `fronteira-viewer.test.ts` verde) — o Δ = 0 das velhas ali, sozinho, é falta de tráfego, não ausência de chamador;
    - **(c)** `dealloc` **igual** em T0 e T1 — se mudou, o `pg_stat_statements` despejou entradas para caber no
      `pg_stat_statements.max`, uma entrada de velha pode ter sido despejada e recriada no meio, e Δ = 0 não prova nada:
      repita a janela;
@@ -283,8 +305,12 @@ teria o que derrubar no CI. Reverter o app é um PR que desfaz os commits que mu
 `src/lib/supabase/rpc.ts`, os componentes, os scripts que chamam as funções) e redeploy — mantendo `supabase/**` intacto
 e o `src/lib/types/database.ts` conhecendo toda assinatura viva no banco de destino (o gate de deriva só reprova o que o
 banco tem e o arquivo não). O CI desse PR diz o que mais ficou incoerente; nada se desliga para ele passar. A receita da
-F60, passo a passo, está na entrada dela no Anexo A (e prevalece sobre a prosa "`git revert` do merge" dos rodapés da
-`0143` e da `0145`).
+F60, passo a passo, está na entrada dela no Anexo A. *(Os rodapés da `0143` e da `0145` diziam "`git revert` do merge"; desde
+`5094f6f` dizem "nunca `git revert` do merge inteiro", com o atalho "os commits de `src/`/`scripts/`". O escopo exato é o
+deste parágrafo, que prevalece: um commit da fase que mistura `supabase/**` com `src/**` — `b5c4587` leva a `0143`–`0145`,
+o lock E as listas de `src/lib/itens/migrations-f38.test.ts` — desfaz-se por TRECHO, nunca por `git revert <sha>` inteiro:
+tirar `0143`–`0145` de `DA_F38` com os arquivos ainda no disco reprova "nenhuma migration a partir da 0116 fica de fora
+da lista". Corrigido na revisão final da F60, 17/09/2026.)*
 
 ## Restauração — recolocar DADO a partir de um backup (F54, 09/09/2026)
 
@@ -1135,14 +1161,21 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   havia `SUPABASE_ACCESS_TOKEN` no ambiente; pela ordem, o PR #52 ficou ABERTO e SEM merge (ata F60 (j) em
   `docs/DECISOES.md`). Todo "Ensaio"/"produção" abaixo é o PLANO, com o resultado a preencher por quem aplicar. O que
   existe de prova de banco é do CI (`banco-sem-docker`, cadeia `0001`→`0145`, run 35178186717: 35 roteiros, 855
-  asserções, 90/90 mutações) e das emulações só leitura em ensaio e produção (`docs/perf/f60-*.json`).
+  asserções, 90/90 mutações) e das emulações só leitura em ensaio e produção (`docs/perf/f60-*.json`). ⚠ **Esse run é de
+  `d83f8ec`.** Depois dele vieram `5094f6f` (comentários da `0143`/`0145`/`f60_recorte.sql`, com o lock das duas
+  regravado) e a revisão final (a trava de mesa, o instrumento da equivalência, o registry) até o **SHA de código
+  congelado `c516467`** — e o CI NÃO rodou sobre eles (`npm run test`, `lint`, `tsc`, `build` e `verificar:actions`
+  verdes na mesa, `docs/f60-evidencias/revisao-final-build.txt`).
 
   **O plano: cinco migrations, em duas janelas de produção.** **`0141`, `0142` e `0143` ANTES do merge** (nada que a
   `1.64.0` no ar chame: uma função nova, um índice, sete funções de nome novo) e **`0144` e `0145` DEPOIS do deploy**,
   pela receita de "A janela do `drop`" (a `0144` muda o plano do que a `1.64.0` lê; a `0145` derruba o que ela chama).
   **Nenhuma toca dado.** Nenhuma bate no gate (sem `delete from ativos/movimentacoes`): caminho **A**, **ensaio
-  primeiro** e **só depois de o CI (`banco-sem-docker`) ter rodado a cadeia `0001`→`0145`** (emenda F56) — o que já
-  aconteceu. No ensaio as cinco vão na ordem da cadeia, sem esperar deploy (não há app de produção lá). `npm run db:lock` e
+  primeiro** e **só depois de o CI (`banco-sem-docker`) ter rodado a cadeia `0001`→`0145` SOBRE O SHA QUE VAI SER
+  APLICADO** (emenda F56). O run 35178186717 é de `d83f8ec`, anterior à regravação do lock da `0143`/`0145` e ao SHA
+  congelado `c516467`: antes do primeiro apply, um CI verde (`verificar` e `banco-sem-docker`) sobre o HEAD do PR #52 é
+  exigido — não se reaproveita o run antigo. *(Corrigido na revisão final, 17/09/2026: o texto dava a pré-condição por
+  cumprida.)* No ensaio as cinco vão na ordem da cadeia, sem esperar deploy (não há app de produção lá). `npm run db:lock` e
   `DA_F38` de `src/lib/itens/migrations-f38.test.ts` já estão no repositório para as cinco; a `0143` entrou em
   `RECRIACOES_AUTORIZADAS` e a `0145` em `REMOCOES_AUTORIZADAS` (a guarda de intocáveis passou a ler `drop`, nome citado
   e `drop routine` na revisão do lote 2).
@@ -1179,11 +1212,16 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   cada uma igual ao do cabeçalho (`rel_mov_por_mes_filiais` `f961349d…`, `rel_por_motivo_filiais` `4340acc3…`,
   `rel_resumo_filiais` `ad948cbb…`, `rel_frescor_itens_filiais` `edd2fa35…`, `rel_mov_itens_filiais` `55be37e2…`,
   `rel_saldo_itens_filiais` `01aa17a8…`, `rel_estoque_asof_filiais` `54943d2f…`); `count(*)` com `null` e `'{}'` = 0 nas
-  sete; `notify pgrst, 'reload schema'`; **a equivalência com a FUNÇÃO de verdade** nas mesmas células (só contagem e hash)
-  — hash diferente em qualquer célula segura o merge; `get_advisors(security)` sem achado novo; em produção, ainda antes do
-  merge, `scripts/formas/conferir.mts` sobre os descritores novos (conta do smoke, só contagens), o `explain` "depois" pelo
-  `medir-rel.mjs` e a confirmação do orçamento do as-of chamando a função (`docs/perf/asof-orcamento.json`, campo
-  `medicao.confirmacao`). ⚠ Num banco com a `0143` e sem a `0145`, o bloco 7 de `catalogo_secdef.sql` fica VERMELHO em
+  sete; `notify pgrst, 'reload schema'`; **a equivalência com a FUNÇÃO de verdade** nas mesmas células (só contagem e hash) —
+  `node scripts/perf/equivalencia-rel.mjs gerar-equivalencia-real --alvo=<ensaio|producao>
+  --datas=docs/perf/f60-datas-amostra.json --dir=<fora-do-repo>`, cada bloco pelo canal com a resposta em
+  `<dir>/respostas/<nome>.resposta.txt`, e `analisar-equivalencia --real --dir=<…> --saida=<…>`; o bloco recusa sozinho função
+  nova ausente, `prosrc` aplicado diferente do versionado e função velha já derrubada (roda ENTRE o apply da `0143` e o
+  da `0145`) — hash diferente em qualquer célula segura o merge; `get_advisors(security)` sem achado novo; em produção, ainda antes do
+  merge, `scripts/formas/conferir.mts` sobre os descritores novos (conta do smoke, só contagens), o `explain` "depois" das sete pelo
+  `medir-rel.mjs gerar-a1 --funcao=<nome>_filiais` e o de `rel_contagem_status_filiais` e do as-of, com a confirmação do
+  orçamento, pelo `equivalencia-rel.mjs gerar-custo-real --alvo=producao --hoje=AAAA-MM-DD --dir=<…>` + `analisar-custo --real
+  --dir=<…> --saida=<…> --confirmar-orcamento=docs/perf/asof-orcamento.json` (grava só `medicao.confirmacao`). ⚠ Num banco com a `0143` e sem a `0145`, o bloco 7 de `catalogo_secdef.sql` fica VERMELHO em
   `7a`/`7b` nomeando as sete velhas — é o estado esperado da janela, não um defeito. Ensaio: PENDENTE · produção:
   PENDENTE. **Rollback:** antes da `0145` — se o app novo estiver no ar, reverter o app PRIMEIRO; só então `drop` das
   sete (as assinaturas com `smallint[]` na frente, as mesmas dos `revoke` do fim do arquivo) e `notify pgrst, 'reload
@@ -1225,9 +1263,9 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   Anexo).
 
   **A ordem de rollback da fase — o inverso da de apply, e o `drop` é a parte que `create or replace` não desfaz.** Em
-  banco real, rollback é **migration nova de reversão** (a aplicada não se edita), com `npm run db:lock` e as listas de
-  `migrations-f38.test.ts` (`DA_F38`, `RECRIACOES_AUTORIZADAS`). ⚠ **"Reverter o app" NUNCA é `git revert` do merge
-  inteiro** — nem onde os rodapés da `0143` e da `0145` o escrevem: o merge leva as migrations já aplicadas, o lock, os
+  banco real, rollback é **migration nova de reversão** (a aplicada não se edita), com `npm run db:lock` e as guardas que fixam o universo da fase reconciliadas no MESMO commit (a lista está em "O que a
+  reversão reabre", logo abaixo). ⚠ **"Reverter o app" NUNCA é `git revert` do merge inteiro** (os rodapés da `0143` e da
+  `0145` dizem isso desde `5094f6f`; o escopo exato é o de "Voltar atrás"): o merge leva as migrations já aplicadas, o lock, os
   roteiros e as listas; revertê-lo tiraria do repositório o que o banco TEM e a cadeia do CI deixaria de construir o banco
   de verdade. **Reverter o app** = um PR que desfaz os commits que mudaram os CHAMADORES (`src/lib/queries/**`, a porta
   `src/lib/supabase/rpc.ts`, os descritores, os componentes, os scripts que chamam as funções) + redeploy, com
@@ -1263,7 +1301,22 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   ⚠ **O que a reversão reabre, e a trava vai dizer:** as sete velhas vivas de novo violam R1 na mesa
   (`rpcs-recorte-sql.test.ts`) e `7a`/`7b` no catálogo do CI. A migration de reversão declara as sete em
   `k_excecoes_recorte` (`supabase/tests/catalogo_secdef.sql`), com `motivo:` e `destino:` na linha, e uma ata — reabrir o
-  fail-open do nulo é DECISÃO, nunca efeito colateral, e a trava não se afrouxa de outro jeito.
+  fail-open do nulo é DECISÃO, nunca efeito colateral.
+
+  ⚠ **A exceção declarada NÃO basta para o CI da migration de reversão ficar verde** (medido na revisão final, 17/09/2026:
+  com a `0146` sintética recriando `rel_resumo` e a exceção declarada, a mesa dá zero violações, mas o replay tem 10 vivas).
+  As guardas que fixam o universo de HOJE reprovam, e cada uma se reconcilia no MESMO commit da migration, com a mesma ata —
+  reescrever a régua, nunca desligá-la:
+  1. **`src/lib/validators/rpcs-recorte-sql.test.ts`, describe 1** — fixa as sete velhas FORA do universo e `vivas.size` = 9;
+     recriar as velhas ou derrubar as novas muda esses fatos, e o describe é reescrito para o universo pós-reversão.
+  2. **`src/lib/validators/asof-orcamento.test.ts`** — se a reversão derrubar `rel_estoque_asof_filiais`, o veredito real vira
+     `sem-corpo-vivo`: `FUNCAO`/`CHAVE_REPLAY` e `docs/perf/asof-orcamento.json` passam a orçar o as-of vivo (medido de novo).
+  3. **`src/lib/itens/migrations-f38.test.ts`** — a migration nova entra em `DA_F38`; recriar as intocáveis `rel_estoque_asof`/
+     `rel_saldo_itens`/`rel_mov_itens` pede `RECRIACOES_AUTORIZADAS`; derrubar as sucessoras intocáveis
+     `rel_*_filiais` pede `REMOCOES_AUTORIZADAS`.
+  4. **Se a reversão derrubar as novas:** tudo o que as chama — os 59 pontos dos 8 roteiros de `supabase/tests/`,
+     `f60_recorte.sql`, as mutações ancoradas nelas em `scripts/db/mutacoes.mjs`, os descritores e a porta — volta no MESMO
+     PR (`git grep -n "_filiais" -- supabase/tests scripts src` lista o que falta).
 
   ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56), embora as
   atas dessas fases registrem os applies.

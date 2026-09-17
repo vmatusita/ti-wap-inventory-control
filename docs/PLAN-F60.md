@@ -1138,12 +1138,15 @@ orçamento sem instrumento que os fizesse — os modos `*-real` de `equivalencia
    A aspa de fechamento separa `"rel_resumo"(` de `"rel_resumo_filiais"(`. Os blocos de medição citam as funções sem aspas
    (a regex não os casa) e terminam em exceção: não contaminam a leitura.
 3. **Tráfego real** com o app novo: `node scripts/perf/medir.mjs` (a sessão do operador; o visualizador só se uma senha ativa
-   for resolvida) e `node scripts/smoke/smoke-prod.mjs`.
+   for resolvida) e `node scripts/smoke/smoke-prod.mjs`. Como nenhum instrumento gera tráfego de visualizador sem uma senha
+   ativa resolvida, o papel `service_role` se prova ESTATICAMENTE, antes do T1: o `git grep` das sete velhas pelo nome em
+   `src/` e `scripts/` (fora os instrumentos de medição e o gerador da `0134`) vazio, e `fronteira-viewer.test.ts` verde —
+   o comando está no passo 3 da receita do `RUNBOOK-BANCO.md`.
 4. **Espera de ao menos 30 minutos** com o app novo no ar.
 5. **Leitura T1**, o mesmo SQL.
 6. **Critério de parada — o `drop` só acontece se os três valerem:** (a) Δ chamadas das VELHAS = 0 em `authenticated`,
-   `service_role` e `anon` entre T0 e T1; (b) Δ das NOVAS > 0 em `authenticated` (em `service_role`, Δ = 0 é aceitável se
-   nenhum tráfego de visualizador foi gerado — e as velhas também com 0); (c) `dealloc` igual em T0 e T1 — se mudou, uma
+   `service_role` e `anon` entre T0 e T1; (b) Δ das NOVAS > 0 em `authenticated` (em `service_role`, Δ = 0 só é aceitável sem
+   tráfego de visualizador E com a prova estática do passo 3 — Δ = 0 das velhas ali, sozinho, é falta de tráfego); (c) `dealloc` igual em T0 e T1 — se mudou, uma
    entrada pode ter sido despejada e recriada, e Δ = 0 não prova nada: repetir a janela.
 7. **Chamador achado numa velha:** não dropar. Identificar pelo papel e pela contagem de formas de statement (nunca o texto),
    achar a origem (aba parada, script, deploy anterior), esperar e reler.
@@ -1245,7 +1248,9 @@ a `1.64.0` nunca as chamou.
 
 **Antes do `drop` (merge e deploy feitos, a `0145` não aplicada em produção):**
 
-1. **Reverter o app:** `git revert` do merge + redeploy → `/api/saude` com a versão anterior. O app volta a chamar as sete
+1. **Reverter o app:** um PR que desfaz os commits que mudaram os CHAMADORES + redeploy — NUNCA `git revert` do merge
+   inteiro, que tiraria do repositório as migrations aplicadas e o lock (`RUNBOOK-BANCO.md`, "Voltar atrás") — →
+   `/api/saude` com a versão anterior. O app volta a chamar as sete
    velhas, que existem, e a ler os KPIs pelas páginas de `ativos`.
 2. **Só então dropar as funções novas** — as sete `rel_*_filiais` e `rel_contagem_status_filiais` —, com `notify pgrst,
    'reload schema'`. Dropar antes do revert quebra o app novo no ar (404).
@@ -1260,12 +1265,17 @@ a `1.64.0` nunca as chamou.
    anon` + `grant execute … to authenticated, service_role`), que `create` de função nova não traz.
 2. `notify pgrst, 'reload schema'`; conferir `to_regprocedure` das sete não nulo, grants por papel e `md5` do `prosrc`
    normalizado contra os arquivos.
-3. **Só então reverter o app** (`git revert` + redeploy).
+3. **Só então reverter o app** (o PR que desfaz os chamadores + redeploy; nunca `git revert` do merge inteiro).
 4. Depois, se for o caso, dropar as funções novas, como no passo 2 de cima.
 5. A view pelo corpo da `0115`, se for o caso.
 
 **Índice novo** (se algum entrar): `drop index`. **Tipos:** `database.ts` volta com o revert; o gate de deriva do CI acompanha
 a cadeia com a migration de reversão.
+
+(corrigido em 17/09 pela revisão final: os passos "reverter o app" diziam `git revert` do merge + redeploy, o que a decisão
+1, o runbook e — desde `5094f6f` — os rodapés da `0143`/`0145` declaram errado; e a migration de reversão reprova, além
+da trava, as guardas que fixam o universo — `rpcs-recorte-sql.test.ts` describe 1, `asof-orcamento.test.ts` e as listas de
+`migrations-f38.test.ts` —, que se reconciliam no mesmo commit, listadas no Anexo A do runbook.)
 
 (corrigido em 17/09 pela execução: o plano punha as funções novas em `0141`/`0142`, a view em `0143` e o `drop` em `0144`; com
 o índice na `0142`, as funções estão em `0141`/`0143`, a view em `0144` e o `drop` em `0145`. Entrou um índice —
@@ -1292,8 +1302,10 @@ Já feitos: `50758d6` (a ordem) · `96fc43f` (o instrumento do `medir.mjs`).
 5. `docs(f60)`: a emenda F60 da `MATRIZ-REGRAS.md`, o Anexo A e a receita da janela no `RUNBOOK-BANCO.md`, uma linha em
    `ARQUITETURA.md` e em `docs/README.md`.
 6. `chore(f60)`: `1.65.0` — `package.json`, `CHANGELOG.md`, `registry.ts`.
-7. `fix(f60)`: as correções da revisão adversarial → **SHA de código congelado: `(a preencher)`** — o último commit que toca
-   `src/**`, `scripts/**` ou `supabase/**`. Depois dele, só `docs/**` e `CHANGELOG.md`.
+7. `fix(f60)`: as correções da revisão adversarial → **SHA de código congelado: `c516467`** (17/09/2026, depois da revisão
+   final: a trava por tabela, os modos `*-real` do instrumento, o registry) — o último commit que toca `src/**`,
+   `scripts/**` ou `supabase/**`. Depois dele, só `docs/**` e `CHANGELOG.md`. ⚠ O CI do PR #52 rodou em `d83f8ec`, NÃO
+   sobre este SHA: o push e um `verificar` + `banco-sem-docker` verdes sobre o HEAD são pré-condição do primeiro apply.
 8. `docs(f60)`: a ata em `DECISOES.md` e o `RELATORIO-F60.md` com o que já dá para escrever, antes do merge.
 
 Depois do merge e da janela: **PR só de documentação** com a conferência pós-deploy, a evidência do `drop`, as medições
