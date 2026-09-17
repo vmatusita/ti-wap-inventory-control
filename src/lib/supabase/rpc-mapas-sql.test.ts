@@ -102,9 +102,21 @@ describe('a lógica de "null de domínio" (casos sintéticos — guarda do próp
   })
 
   it('os três mapas não estão vazios', () => {
-    expect(ARGUMENTOS.length).toBeGreaterThanOrEqual(11)
-    expect(COLUNAS.length).toBeGreaterThanOrEqual(6)
+    // F60 · lote 2: ARGUMENTOS caiu de 11 para 4 — as sete `rel_*` saíram (as `rel_*_filiais` não
+    // aceitam NULL de domínio; o consolidado é a lista de todas as filiais). Sobram os três da Zona
+    // destrutiva e o `p_backup_path` da mesa de conflitos. COLUNAS subiu de 6 para 7: a chave do
+    // as-of migrou 1:1 e entrou `rel_saldo_itens_filiais.filial_id` (o nível do total).
+    expect(ARGUMENTOS.length).toBeGreaterThanOrEqual(4)
+    expect(COLUNAS.length).toBeGreaterThanOrEqual(7)
     expect(ESCALARES.length).toBeGreaterThanOrEqual(3)
+  })
+
+  // F60 · lote 2 — nenhuma `rel_*` volta ao mapa de argumentos anuláveis. Não é redundante com a
+  // conferência de evidência abaixo: uma entrada `rel_x_filiais: { p_filiais: { evidencia: 'coalesce(
+  // p_filiais,' } }` passaria nela se alguém escrevesse o disfarce no corpo — e a trava de recorte a
+  // pegaria no SQL, não aqui. Esta asserção fecha o lado da PORTA.
+  it('nenhuma rel_* aceita NULL pela porta (o recorte é lista obrigatória desde a F60)', () => {
+    expect(ARGUMENTOS.filter(([fn]) => fn.startsWith('rel_')).map(([fn, p]) => `${fn}.${p}`)).toEqual([])
   })
 })
 

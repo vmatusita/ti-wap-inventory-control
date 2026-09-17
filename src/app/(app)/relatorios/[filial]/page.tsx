@@ -44,8 +44,9 @@ export const metadata = {
 // layout e route). Sem ele a rota herda o teto da Vercel, 300 s: em 24/07/2026 um
 // request de /relatorios/[filial] travou e consumiu os 300 s inteiros (1 ocorrência,
 // `get_runtime_errors`). O caminho foi medido e NÃO é lentidão de dados — a RPC mais
-// pesada (rel_estoque_asof consolidada, 1.573 linhas) roda em 233 ms e a página
-// dispara as leituras em Promise.all. Ou seja: 300 s só acontece se algo PENDURAR
+// pesada (o as-of consolidado, 1.573 linhas — medido na então `rel_estoque_asof`; desde
+// a F60, `rel_estoque_asof_filiais` com a lista de todas as filiais) rodou em 233 ms, e a
+// página dispara as leituras em Promise.all. Ou seja: 300 s só acontece se algo PENDURAR
 // (conexão do Supabase), e aí 5 min de spinner é o pior desfecho possível — ainda mais
 // para o gestor, que entra por senha e não tem como diagnosticar. 60 s dá ~30× de folga
 // sobre o pior caso medido e troca o pendurado por um erro rápido.

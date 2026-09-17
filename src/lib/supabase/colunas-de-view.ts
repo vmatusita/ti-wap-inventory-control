@@ -58,28 +58,32 @@ export const COLUNAS_DE_VIEW_NAO_NULAS = {
       evidencia: 'count(*) as total',
     },
   },
+  // F60 (0144) — a view passou a calcular a chave uma vez por NOME distinto, e o `mode()` e o
+  // `count(distinct …)` da 0115 viraram contagens (`por_nome`/`por_filial`). As colunas e a
+  // não-nulidade são as mesmas; as EVIDÊNCIAS abaixo são as do corpo novo.
   v_colaboradores_textos: {
     nome_chave: {
       motivo:
-        'o `where` final (0115) descarta todo grupo cuja chave normalizada ficaria vazia (só tab/CR/NBSP) — sobrevive só quem tem nome de gente',
+        'o `where` final (0115, mantido na 0144) descarta todo grupo cuja chave normalizada ficaria vazia (só tab/CR/NBSP) — sobrevive só quem tem nome de gente',
       evidencia: "coalesce(g.nome_chave, '')",
     },
     grafia_exemplo: {
-      motivo: '`mode()` sobre um grupo NÃO-VAZIO (o `group by` já garante isso) nunca é null',
-      evidencia: 'mode() within group (order by t.nome) as grafia_exemplo',
+      motivo:
+        'o primeiro elemento de um `array_agg` sobre um grupo NÃO-VAZIO de `por_nome`, cujos nomes vêm do filtro `btrim(coalesce(…)) <> \'\'` das duas pontas — nunca null',
+      evidencia: '(array_agg(pn.nome order by pn.n desc, pn.nome))[1] as grafia_exemplo',
     },
     ocorrencias: {
-      motivo: '`count(*)` de um `group by` — nunca nulo, sempre ≥ 1',
-      evidencia: 'count(*)::bigint as ocorrencias',
+      motivo: '`sum` das contagens (`count(*)` ≥ 1) de um grupo não-vazio — nunca nulo, sempre ≥ 1',
+      evidencia: 'sum(pn.n)::bigint as ocorrencias',
     },
     grafias: {
-      motivo: '`count(distinct …)` — nunca nulo, sempre ≥ 1',
-      evidencia: 'count(distinct t.nome)::bigint as grafias',
+      motivo: '`count(*)` das linhas de `por_nome` do grupo (uma por nome distinto) — nunca nulo, sempre ≥ 1',
+      evidencia: 'count(*)::bigint as grafias',
     },
     filial_id: {
       motivo:
-        '`mode()` sobre `t.filial_id`, e `movimentacoes.filial_id`/`lancamentos_item.filial_id` são `smallint not null` nas duas tabelas-fonte',
-      evidencia: 'mode() within group (order by t.filial_id) as filial_id',
+        'join INTERNO com `por_filial` na posição 1, e `movimentacoes.filial_id`/`lancamentos_item.filial_id` são `smallint not null` nas duas tabelas-fonte',
+      evidencia: 'join por_filial pf on pf.nome_chave = g.nome_chave and pf.pos = 1',
     },
     ja_cadastrado: {
       motivo: 'é uma comparação `IS NOT NULL` — nunca produz NULL',

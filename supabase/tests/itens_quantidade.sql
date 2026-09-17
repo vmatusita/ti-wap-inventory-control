@@ -31,6 +31,21 @@
 -- Tudo roda numa transação que termina em ROLLBACK: NADA é gravado. Pré-req:
 -- >= 1 profile (operador) e a migration 0007 (filiais matriz/linhares).
 -- =============================================================
+--
+-- F60 (16/09/2026) — O SALDO PELA ASSINATURA NOVA (migrations 0143/0145). As oito leituras
+-- de saldo deste roteiro passaram de `rel_saldo_itens(<filial>, <data>)`, dropada na 0145,
+-- para `rel_saldo_itens_filiais(array[<filial>], <data>) where filial_id is null`. A função
+-- nova devolve DOIS níveis numa chamada — uma linha por (filial do recorte, item) e o nível do
+-- TOTAL do recorte, com `filial_id` nulo — e o filtro de nível é o que mantém cada asserção
+-- provando a MESMA coisa: o total do recorte é, por construção, o número que a chamada velha
+-- devolvia para aquele recorte (para uma filial só, ele é igual à linha dela, e
+-- `f60_recorte.sql` 4a/4b prova isso item a item). Sem o filtro, `select … into` passaria a
+-- escolher entre linhas de níveis diferentes sem avisar, e `count(*)` contaria cada item uma
+-- vez por nível. Nenhum rótulo mudou.
+--
+-- E as três leituras de as-of de ativos (12a-12c) passaram de `rel_estoque_asof(v_matriz, …)`
+-- para `rel_estoque_asof_filiais(array[v_matriz], …)` — o recorte de uma filial como lista de um
+-- elemento, sobre o corpo novo da 0143 (lateral ancorada em `ativos`, filial calculada na data).
 
 begin;
 
@@ -73,7 +88,7 @@ begin
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
     values (v_item, v_matriz, 'reserva', 12, '1001', '2026-06-05', v_prof);
   select total, estoque, atrelados, falta into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item;
   if r.total = 40 and r.estoque = 28 and r.atrelados = 12 and r.falta = 0 then
     v_ok := v_ok + 1; raise notice '✓ 1: entrada 40 + reserva 12 → total 40, estoque 28, atrelados 12, falta 0';
   else
@@ -86,7 +101,7 @@ begin
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
     values (v_item, v_matriz, 'saida', 5, '1001', '2026-06-10', v_prof);
   select total, estoque, atrelados into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item;
   if r.total = 40 and r.estoque = 23 and r.atrelados = 12 then
     v_ok := v_ok + 1; raise notice '✓ 2: saída 5 → estoque 28→23, atrelados intacto 12 (saída não consome reserva), total 40';
   else
@@ -98,7 +113,7 @@ begin
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
     values (v_item, v_matriz, 'liberacao', 3, '1001', '2026-06-12', v_prof);
   select total, estoque, atrelados into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item;
   if r.total = 40 and r.estoque = 26 and r.atrelados = 9 then
     v_ok := v_ok + 1; raise notice '✓ 3: devolução 3 (ch 1001) → atrelados 12→9, estoque 23→26, total 40';
   else
@@ -110,7 +125,7 @@ begin
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
     values (v_item, v_matriz, 'retorno', 2, '2026-06-14', v_prof);
   select total, estoque, atrelados into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item;
   if r.total = 40 and r.estoque = 28 and r.atrelados = 9 then
     v_ok := v_ok + 1; raise notice '✓ 4: retorno 2 → liberados 5→3, estoque 26→28, total intacto 40';
   else
@@ -128,7 +143,7 @@ begin
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
     values (v_item2, v_matriz, 'reserva', 8, '2002', '2026-06-05', v_prof);
   select total, estoque, atrelados, falta into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item2;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item2;
   if r.total = 10 and r.estoque = 2 and r.atrelados = 8 and r.falta = 0 then
     v_ok := v_ok + 1; raise notice '✓ 5: entrada 10 + atrelar 8 → estoque 2, atrelados 8, falta 0 (atrelar não acende falta)';
   else
@@ -181,7 +196,7 @@ begin
 
   -- CENARIO 10 — AS-OF de itens: em 06/06 só a entrada e a reserva contam.
   select total, estoque, atrelados into r
-    from public.rel_saldo_itens(v_matriz, '2026-06-06') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-06-06') where filial_id is null and item_id = v_item;
   if r.total = 40 and r.estoque = 28 and r.atrelados = 12 then
     v_ok := v_ok + 1; raise notice '✓ 10: as-of 06/06 → total 40, estoque 28, atrelados 12 (saídas/devoluções/retornos posteriores ignorados)';
   else
@@ -194,7 +209,7 @@ begin
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
     values (v_item, v_matriz, 'entrada', 10, '2026-06-18', v_prof) returning id into v_entrada;
   select total, estoque into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item;
   if r.total <> 50 or r.estoque <> 38 then
     v_falhas := v_falhas + 1; raise warning '✗ 11a: após entrada 10 esperava total/estoque 50/38, veio %/%', r.total, r.estoque;
   end if;
@@ -203,7 +218,7 @@ begin
     values (v_item, v_matriz, 'ajuste', -10, 'Estorno de entrada (baixa de 10 do total)',
             '2026-06-19', v_prof, v_entrada);
   select total, estoque into r
-    from public.rel_saldo_itens(v_matriz, '2026-12-31') where item_id = v_item;
+    from public.rel_saldo_itens_filiais(array[v_matriz], '2026-12-31') where filial_id is null and item_id = v_item;
   if r.total = 40 and r.estoque = 28 then
     v_ok := v_ok + 1; raise notice '✓ 11: entrada 10 + estorno (ajuste −10 vinculado) → total volta a 40, estoque a 28';
   else
@@ -225,7 +240,7 @@ begin
     values (v_ativo, 'saida', '2026-06-10', v_matriz, 'Fulano Teste', v_prof, timestamptz '2026-06-10 10:00:00+00')
     returning id into v_saida;
   -- as-of 12/06 (depois da saída, antes do estorno) → em_uso
-  select status into r from public.rel_estoque_asof(v_matriz, '2026-06-12') where ativo_id = v_ativo;
+  select status into r from public.rel_estoque_asof_filiais(array[v_matriz], '2026-06-12') where ativo_id = v_ativo;
   if r.status = 'em_uso' then
     v_ok := v_ok + 1; raise notice '✓ 12a: as-of 12/06 (após saída) → em_uso';
   else
@@ -235,14 +250,14 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
     values (v_ativo, 'estorno', '2026-06-20', v_matriz, v_saida, v_prof, timestamptz '2026-06-20 10:00:00+00');
   -- as-of 30/06 (após o estorno): saída+estorno se anulam; sobra a compra → em_estoque
-  select status into r from public.rel_estoque_asof(v_matriz, '2026-06-30') where ativo_id = v_ativo;
+  select status into r from public.rel_estoque_asof_filiais(array[v_matriz], '2026-06-30') where ativo_id = v_ativo;
   if r.status = 'em_estoque' then
     v_ok := v_ok + 1; raise notice '✓ 12b: as-of 30/06 (após estorno) → o par se anula, sobra a compra → em_estoque';
   else
     v_falhas := v_falhas + 1; raise warning '✗ 12b: esperava em_estoque, veio %', r.status;
   end if;
   -- as-of 12/06 continua em_uso (o estorno é posterior — não conta as-of)
-  select status into r from public.rel_estoque_asof(v_matriz, '2026-06-12') where ativo_id = v_ativo;
+  select status into r from public.rel_estoque_asof_filiais(array[v_matriz], '2026-06-12') where ativo_id = v_ativo;
   if r.status = 'em_uso' then
     v_ok := v_ok + 1; raise notice '✓ 12c: as-of 12/06 segue em_uso (estorno de 20/06 é futuro p/ essa data)';
   else

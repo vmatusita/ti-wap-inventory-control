@@ -1,0 +1,17 @@
+# Sabotagem A — o PAR no catálogo contra a cadeia de HOJE (antes do lote 2)
+# 16/09/2026 · as consultas de contagem do bloco 7 de supabase/tests/catalogo_secdef.sql (7a–7g), isoladas num bloco
+# `do $f60$` só leitura (transaction_read_only como primeira instrução; termina em raise exception; nada criado),
+# executadas pela ferramenta MCP execute_sql. Universo: `public.rel_*` (prokind 'f').
+# ESPERADO: 7a e 7b acusam as SETE que ainda recebem `p_filial smallint`; 7c–7g limpas; a oitava
+# (rel_saldo_colaborador) é exceção declarada em k_excecoes_recorte.
+
+## ENSAIO (sgmvldiizsrjbxzzpmhh) — rotulo_de_ambiente() = 'desenvolvimento'
+ERROR:  P0001: F60_CATALOGO {"7a": 7, "7b": 7, "7c": 0, "7d": 0, "7e": 0, "7f": 0, "7g": 0, "alvo": "ensaio", "rotulo": "desenvolvimento", "7a_lista": "rel_estoque_asof, rel_frescor_itens, rel_mov_itens, rel_mov_por_mes, rel_por_motivo, rel_resumo, rel_saldo_itens", "7b_lista": "rel_estoque_asof, rel_frescor_itens, rel_mov_itens, rel_mov_por_mes, rel_por_motivo, rel_resumo, rel_saldo_itens", "universo_rel": 8}
+CONTEXT:  PL/pgSQL function inline_code_block line 28 at RAISE
+
+## PRODUÇÃO (pbtjcalbmepmrqzprusb) — rotulo_de_ambiente() is null
+ERROR:  P0001: F60_CATALOGO {"7a": 7, "7b": 7, "7c": 0, "7d": 0, "7e": 0, "7f": 0, "7g": 0, "alvo": "producao", "rotulo": null, "7a_lista": "rel_estoque_asof, rel_frescor_itens, rel_mov_itens, rel_mov_por_mes, rel_por_motivo, rel_resumo, rel_saldo_itens", "7b_lista": "rel_estoque_asof, rel_frescor_itens, rel_mov_itens, rel_mov_por_mes, rel_por_motivo, rel_resumo, rel_saldo_itens", "universo_rel": 8}
+CONTEXT:  PL/pgSQL function inline_code_block line 28 at RAISE
+
+# A leitura: vermelho nomeando exatamente as sete, nos dois bancos; a oitava fora (exceção); nenhum falso positivo em
+# 7c–7g. O verde deste par só pode vir do banco do CI construído com as migrations do lote 2 (o run do banco-sem-docker).

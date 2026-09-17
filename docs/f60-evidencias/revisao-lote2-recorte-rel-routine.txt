@@ -1,0 +1,11 @@
+chaves [
+  'vivas',
+  'violacoes',
+  'falhas',
+  'excecoes',
+  'consumidos',
+  'encontrados'
+]
+base vivas 9 violacoes 0
+"drop routine public.rel_resumo_filiais(smallint[], date, date);" → vivas 9 violacoes []
+"create function public.foo_sem_recorte() returns table (n bigint) lang" → vivas 9 violacoes []

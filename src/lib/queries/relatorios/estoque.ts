@@ -21,6 +21,10 @@ import {
   montarPontosEstado,
 } from '@/lib/relatorios/serie-estado'
 import {
+  CAP_ATIVOS,
+  CAP_LOTE,
+  CAP_LOTE_MOVIMENTACOES,
+  CAP_MOVIMENTACOES,
   modeloDe,
   paginarPorIds,
   paginarTodos,
@@ -30,12 +34,15 @@ import {
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import { LEITURA_REL_ESTOQUE_ASOF } from '@/lib/queries/formas/relatorios'
+import { recorteDeFiliais } from './recorte-filiais'
 
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
 // 3.5/3.6). Estado atual = fast path barato (período terminando hoje); passado =
-// reconstrução exata via rel_estoque_asof. Fonte unificada do relatório v2 e do
-// dashboard (getKpis). `descartado` nunca entra (baixa).
+// reconstrução exata via rel_estoque_asof_filiais. Fonte unificada do relatório v2 (ao vivo
+// e snapshot). `descartado` nunca entra (baixa). F60: o dashboard deixou de ler o
+// estado — conta por `rel_contagem_status_filiais` (`queries/dashboard.ts`), com a
+// MESMA regra de KPI em `kpisDeContagens`, logo abaixo de `kpisDeEstado`.
 
 // Estado de um ativo (atual ou as-of). Fonte unificada dos KPIs, categoria×
 // status, disponíveis por modelo, reservados e manutenção.
@@ -51,7 +58,7 @@ export type EstadoAtivo = {
 }
 
 // Fast path (§7): período terminando hoje → estado derivado atual (barato).
-// Período no passado → rel_estoque_asof (reconstrução exata, par mov+estorno se
+// Período no passado → rel_estoque_asof_filiais (reconstrução exata, par mov+estorno se
 // anula). `descartado` nunca entra (baixa).
 export async function lerEstadoAtivos(
   client: DbClient,
@@ -69,17 +76,23 @@ export async function lerEstadoAtivos(
       colaborador_atual: string | null
       setor_atual: string | null
     }
+    // Keyset pelo `id` (F60 · PLAN §2.1, #38): a ordem já era a PK, então a lista sai igual.
     const linhas = await paginarTodos<LinhaAtivo>(
       'Falha ao ler estado atual',
-      (from, to) => {
-        let q = client
-          .from('ativos')
-          .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
-          // F14: exclui as DUAS baixas terminais (descartado e devolvido ao fornecedor).
-          .not('status', 'in', '("descartado","devolvido_fornecedor")')
-        if (filialId) q = q.eq('filial_id', filialId)
-        return q.order('id', { ascending: true }).range(from, to)
+      {
+        porChave: (depoisDe, tamanho) => {
+          let q = client
+            .from('ativos')
+            .select('id, categoria, marca, modelo, filial_id, status, colaborador_atual, setor_atual')
+            // F14: exclui as DUAS baixas terminais (descartado e devolvido ao fornecedor).
+            .not('status', 'in', '("descartado","devolvido_fornecedor")')
+          if (filialId) q = q.eq('filial_id', filialId)
+          if (depoisDe !== null) q = q.gt('id', depoisDe)
+          return q.order('id', { ascending: true }).limit(tamanho)
+        },
+        chaveDe: (r) => r.id,
       },
+      CAP_ATIVOS,
     )
     return linhas.map((r) => ({
       ativo_id: r.id,
@@ -102,7 +115,7 @@ export async function lerEstadoAtivos(
   // novos que nunca existiram.
   //
   // A função SQL está CORRETA e devolve tudo — o defeito era só a leitura. O
-  // `.order('ativo_id')` NÃO é enfeite: `rel_estoque_asof` não tem `order by` no
+  // `.order('ativo_id')` NÃO é enfeite: `rel_estoque_asof_filiais` não tem `order by` no
   // corpo, e paginar por OFFSET sem ordem total repete e perde linhas quando o
   // plano muda entre duas páginas (ver o bloco de `paginarTodos` em comum.ts).
   // `ativo_id` é uuid e há uma linha por ativo, então é ordem total.
@@ -110,15 +123,26 @@ export async function lerEstadoAtivos(
   // anuláveis desde a porta de RPC — é o SQL vivo que o diz, não o gerador — e a forma confere
   // isso em runtime; a linha fora do formato LANÇA pelo mesmo caminho de erro desta função (e
   // `getSerieEstado`, que a embrulha num try/catch, continua degradando igual).
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #39): a fonte é RPC, e o builder que a porta devolve
+  // não tem filtro no TIPO (`rpc.ts`) — o `.gt('ativo_id', …)` do keyset não compila. Teto: uma
+  // linha por ativo.
+  //
+  // F60 · lote 2 — o recorte é a LISTA (`recorteDeFiliais`: `null` → todas as filiais, inclusive
+  // desativadas; um id → `[id]`), lida UMA vez antes das páginas: todas as páginas recortam pela
+  // MESMA lista. A filial do as-of é a CALCULADA na data (a da última movimentação efetiva), e é
+  // sobre ela que a função recorta — não sobre `ativos.filial_id` de hoje (`0143`).
+  const filiais = await recorteDeFiliais(client, filialId)
   const brutas = await paginarTodos(
     'Falha ao reconstruir o estoque as-of',
     (from, to) =>
-      chamarRpc(client, 'rel_estoque_asof', {
-        p_filial: filialId,
+      chamarRpc(client, 'rel_estoque_asof_filiais', {
+        p_filiais: filiais,
         p_data: ate,
       })
         .order('ativo_id', { ascending: true })
         .range(from, to),
+    CAP_ATIVOS,
   )
   const linhas = linhasDe(brutas, LEITURA_REL_ESTOQUE_ASOF.forma, LEITURA_REL_ESTOQUE_ASOF.rotulo)
   return linhas.map((r) => ({
@@ -138,7 +162,7 @@ export async function lerEstadoAtivos(
 //
 // SEM migration e SEM RPC nova (restrição da ordem): cada ponto é uma chamada de
 // `lerEstadoAtivos`, que já sabe escolher entre o fast path (data ≥ hoje) e a
-// reconstrução exata via `rel_estoque_asof`. As datas vêm da régua pura
+// reconstrução exata via `rel_estoque_asof_filiais`. As datas vêm da régua pura
 // `datasDaSerieEstado`, que TAMBÉM é o teto de custo — ver ali o orçamento novo
 // (6 leituras no pior caso, não mais 9).
 //
@@ -159,7 +183,7 @@ export async function lerEstadoAtivos(
 // DEGRADAÇÃO: o card é opcional e decorativo (`serieEstado?` em tipos.ts) — ele
 // não pode derrubar as contagens que não dependem dele. Por isso o corpo inteiro
 // vive num try/catch: se qualquer uma das reconstruções as-of falhar (a RPC
-// `rel_estoque_asof` lança em erro, ver `lerEstadoAtivos`), a rejeição é
+// `rel_estoque_asof_filiais` lança em erro, ver `lerEstadoAtivos`), a rejeição é
 // registrada com `registrarFalha` e a função devolve `undefined` — o mesmo valor
 // que "período curto demais" já produz, e que o resto do sistema já sabe tratar
 // como "sem card". Sem o try/catch, essa rejeição subiria pelo `Promise.all` de
@@ -228,15 +252,47 @@ export function kpisDeEstado(estado: EstadoAtivo[]): KpisRelatorio {
   return k
 }
 
-// Dashboard (home): estado atual consolidado. Mesmo motor do relatório v2 — uma
-// única implementação de KPI (kpisDeEstado) sobre o estado reconstruído (fast
-// path de hoje). O tile do dashboard ignora `emprestado`, então o campo a mais
-// não muda a tela. Único caminho do antigo v1 que sobrevive.
-export async function getKpis(
-  client: DbClient,
-  filialId: number | null,
-): Promise<KpisRelatorio> {
-  return kpisDeEstado(await lerEstadoAtivos(client, filialId, hojeISO()))
+/** Uma linha de `rel_contagem_status_filiais` (0141): quantos ativos há em um status, no recorte. */
+export type ContagemPorStatus = { readonly status: StatusAtivo; readonly total: number }
+
+// F60 (fato 13 · PLAN-F60 §6.5) — os MESMOS oito números de `kpisDeEstado`, a partir da contagem
+// por status que o banco já agregou, em vez do estado linha a linha.
+//
+// Nasceu para o dashboard, que até a F59 lia `ativos` INTEIRA (duas páginas, 1.622 linhas em
+// 16/09/2026) só para contar — `getKpis`, que saiu quando o dashboard, o único chamador dela no
+// app, trocou de leitura (o script `carac-relatorios.ts` passou a fazer a conta por extenso). `kpisDeEstado`
+// fica INTOCADA ao lado: o snapshot e o relatório ao vivo precisam do estado inteiro de qualquer
+// forma (categoria × status, modelos, reservados), e contar o que já foi lido não custa leitura.
+//
+// ⚠ A REGRA É A MESMA, E TEM DE CONTINUAR SENDO. As duas baixas terminais (`descartado`,
+// `devolvido_fornecedor`) saem aqui, e não no SQL — a RPC devolve a contagem crua, e a regra do KPI
+// mora em TypeScript, uma linha acima da outra. Um status novo no enum entra no `total` nas duas
+// funções sem cair em nenhum tile, como hoje. `estoque.test.ts` prova, com fixture fictícia, que
+// `kpisDeContagens(contagem(estado))` é deep-equal a `kpisDeEstado(estado)` em estados que incluem
+// `emprestado`, as duas baixas e o vazio: mexeu numa, o teste manda mexer na outra.
+export function kpisDeContagens(contagens: readonly ContagemPorStatus[]): KpisRelatorio {
+  const k: Required<KpisRelatorio> = {
+    total: 0,
+    em_uso: 0,
+    em_estoque: 0,
+    reservado: 0,
+    em_manutencao: 0,
+    em_triagem: 0,
+    defasado: 0,
+    emprestado: 0,
+  }
+  for (const { status, total } of contagens) {
+    if (status === 'descartado' || status === 'devolvido_fornecedor') continue
+    k.total += total
+    if (status === 'em_uso') k.em_uso += total
+    else if (status === 'em_estoque') k.em_estoque += total
+    else if (status === 'reservado') k.reservado += total
+    else if (status === 'em_manutencao') k.em_manutencao += total
+    else if (status === 'em_triagem') k.em_triagem += total
+    else if (status === 'defasado') k.defasado += total
+    else if (status === 'emprestado') k.emprestado += total
+  }
+  return k
 }
 
 export function categoriaDeEstado(estado: EstadoAtivo[]): ContagemCategoria[] {
@@ -301,14 +357,25 @@ async function dadosAtivos(
   // em 1.000 (os retornos/devoluções de `manutencaoDeEstado`). Paginar aquelas
   // tirou o teto daqui junto — e uma lista grande de uuids estoura a URL antes
   // mesmo do corte de linhas. Por lotes resolve os dois.
+  //
+  // Keyset pelo `id`, por lote (F60 · PLAN §2.1, P2): a ordem já era a PK.
   type Linha = { id: string } & DadosAtivo
-  const linhas = await paginarPorIds<Linha>('Falha ao ler ativos', ids, (lote, from, to) =>
-    client
-      .from('ativos')
-      .select('id, patrimonio, marca, modelo, filial_id')
-      .in('id', lote)
-      .order('id', { ascending: true })
-      .range(from, to),
+  const linhas = await paginarPorIds<Linha>(
+    'Falha ao ler ativos',
+    ids,
+    {
+      porChave: (lote, depoisDe, tamanho) => {
+        const q = client
+          .from('ativos')
+          .select('id, patrimonio, marca, modelo, filial_id')
+          .in('id', lote)
+          .order('id', { ascending: true })
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_LOTE,
   )
   for (const r of linhas)
     out.set(r.id, { patrimonio: r.patrimonio, marca: r.marca, modelo: r.modelo, filial_id: r.filial_id })
@@ -328,6 +395,9 @@ async function chamadoAteData(
   // de `dadosAtivos` (URL). A ordenação por ativo continua correta: o desempate
   // de `ultimoPorAtivo` é DENTRO de cada ativo, e um ativo nunca se divide entre
   // dois lotes.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, P3): ordem composta `created_at desc, id desc` sem
+  // cursor simples — é ela que `ultimoPorAtivo` lê como "o mais recente primeiro".
   const rows = await paginarPorIds<LinhaChamado>(
     'Falha ao ler chamados as-of',
     ids,
@@ -341,6 +411,7 @@ async function chamadoAteData(
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .range(from, to),
+    CAP_LOTE_MOVIMENTACOES,
   )
   // Paridade com o motor anterior: chamado '' (string vazia) NÃO reivindica o
   // slot — deixa um chamado real mais antigo vencer. O filtro `.not(is null)` só
@@ -404,6 +475,10 @@ export async function manutencaoDeEstado(
   // ficaram de fora da proteção. Desempate por `id`: `created_at` empata dentro
   // de uma mesma transação (um lote de movimentações grava tudo no mesmo
   // instante), e ordenação com empate não serve para paginar.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #40 e #41): ordem composta `created_at desc, id desc`
+  // sem cursor simples — `ultimoPorAtivo` depende dela. Teto do domínio: o preset "Tudo" lê o
+  // tipo inteiro.
   type LinhaMov = { ativo_id: string; data: string; observacao: string | null }
   const retornos = await paginarTodos<LinhaMov>(
     'Falha ao ler retornos de manutenção',
@@ -420,6 +495,7 @@ export async function manutencaoDeEstado(
         .order('id', { ascending: false })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   const retornoPorAtivo = ultimoPorAtivo(
     retornos,
@@ -444,6 +520,7 @@ export async function manutencaoDeEstado(
         .order('id', { ascending: false })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   const devolucaoPorAtivo = ultimoPorAtivo(
     devolucoes,
@@ -481,6 +558,9 @@ export async function manutencaoDeEstado(
     created_at: string
     autor: { nome: string | null } | null
   }
+  //
+  // As duas por OFFSET, não keyset (F60 · PLAN §2.1, P4 e P5): ordem composta
+  // `created_at, id` (desc nos envios, asc nas anotações) sem cursor simples.
   const [dados, envios, anotacoesRows] = await Promise.all([
     dadosAtivos(client, ids),
     paginarPorIds<LinhaEnvio>(
@@ -496,6 +576,7 @@ export async function manutencaoDeEstado(
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
           .range(from, to),
+      CAP_LOTE_MOVIMENTACOES,
     ),
     paginarPorIds<AnotRow>(
       'Falha ao ler anotações da manutenção',
@@ -511,6 +592,7 @@ export async function manutencaoDeEstado(
           .order('created_at', { ascending: true })
           .order('id', { ascending: true })
           .range(from, to),
+      CAP_LOTE,
     ),
   ])
 

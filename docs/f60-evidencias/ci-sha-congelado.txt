@@ -1,0 +1,21 @@
+# CI sobre o SHA de código congelado — F60
+# PR #52 · HEAD 3f10f2e (código congelado c516467; depois dele só docs/**) · 17/09/2026
+# run https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35186554796
+#   verificar        pass 3m42s  (job 105089759303)
+#   banco-sem-docker pass 1m45s  (job 105089759516)
+
+## gate de deriva
+banco ....... 34 relações · 312 colunas · 76 funções
+database.ts . 34 relações · 312 colunas · 76 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+## roteiros (a cadeia inteira 0001→0145, banco descartável)
+35 roteiros, 855 asserções, 0 falhas
+FIM asof_desempate: 21 asserções, 0 falhas
+FIM catalogo_secdef: 16 asserções, 0 falhas
+FIM f60_recorte: 17 asserções, 0 falhas
+
+## injetor de mutações
+mutações ativas ..... 90
+controle verde: 14 roteiro(s), nenhum ✗.
+90/90 detectadas pelo cenário nomeado · 35170 ms no total

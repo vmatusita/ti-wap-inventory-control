@@ -1,0 +1,112 @@
+# bloco7-verde-por-leitura — tarefa L2-2 (F60), sem banco
+#
+# PERGUNTA: com a cadeia 0001→0145 (as sete rel_*_filiais da 0143 e o drop das sete velhas na 0145),
+# as asserções 7a–7g do bloco 7 de supabase/tests/catalogo_secdef.sql ficam VERDES no banco-sem-docker?
+#
+# MÉTODO (não há Postgres nesta máquina):
+#  1. o universo vem do REPLAY das migrations por scripts/db/recorte-rel.mjs::replayFuncoesRel (o mesmo
+#     que a mesa usa) — create/create or replace/drop/alter rename, na ordem do texto. Resultado: 9 rel_*
+#     vivas (as 8 rel_*_filiais + rel_saldo_colaborador(uuid)); as 7 velhas saem pelo drop da 0145.
+#  2. `prosrc` de função `language sql` clássica é o texto ENTRE os delimitadores $$ — o replay entrega
+#     exatamente esse trecho (`corpo`). As regex de 7b e 7c foram traduzidas 1:1 de POSIX ARE (`~*`,
+#     case-insensitive) para JS com a flag `i`: nenhuma usa construção que difira entre os dois motores
+#     (só classes [a-z_], `\s`, `\.`, `\(`, alternância e grupos opcionais).
+#  3. 7d lê o CABEÇALHO do create (antes de `as $$`): `stable` → provolatile 's'; `security invoker` →
+#     prosecdef false; ausência de `strict`/`returns null on null input` → proisstrict false; `set
+#     search_path = public` → proconfig {search_path=public}.
+#  4. 7e/6a reconstituem o EXECUTE final por papel a partir dos grant/revoke das migrations, na ordem. No
+#     CI não há default privileges (supabase/ci/bootstrap-roles.sql: "nada de alter default privileges"),
+#     então função nova nasce com EXECUTE só para PUBLIC; `revoke all … from public, anon` o tira, e
+#     `grant execute … to authenticated, service_role` dá aos dois. `anon` não é membro de
+#     authenticated → has_function_privilege('anon', …) = false.
+#  5. 7a usa proallargtypes (as 9 usam `returns table`, então proallargtypes NÃO é nulo) indexado pela
+#     posição de `p_filiais` em proargnames — posição 1 em todas as 8 que o declaram, tipo int2[].
+#  6. 7f/7g: k_excecoes_recorte (lida do próprio .sql por lerExcecoesDeRecorte) = ['rel_saldo_colaborador'];
+#     ela existe (0118), não declara p_filiais, e tem UMA assinatura viva.
+#
+# CONCLUSÃO: 7a–7g VERDES (universo 9 > 0 em 7a–7e; 1 em 7f/7g), e nenhuma rel_* reprova a 6a. Nenhuma
+# regra do bloco precisou mudar, e nenhum corpo executável foi tocado.
+#
+# ⚠ RESSALVA HONESTA: isto é leitura, não execução. O que só o banco-sem-docker confirma: que o Postgres 17
+# aceita as oito migrations sem erro e que `regtype`/`has_function_privilege` respondem como descrito
+# acima. Num banco ANTERIOR à 0145 (o ensaio entre o apply da 0143 e o do drop), 7a/7b ficariam VERMELHAS
+# nomeando as sete velhas — é o estado esperado da janela (PLAN-F60 §9), não um defeito do bloco.
+#
+# --- saída da emulação (<scratchpad>/bloco7-por-leitura.mjs) ---
+# bloco 7 de supabase/tests/catalogo_secdef.sql — conferência POR LEITURA (sem banco)
+# replay de 144 migrations (0001_profiles.sql → 0145_drop_rel_filial.sql); comandos rel_* consumidos 33, encontrados 32; falhas do replay: 0
+# k_excecoes_recorte lida do .sql: ["rel_saldo_colaborador"]
+
+UNIVERSO (v_univ de 7a–7e) = 9 função(ões) rel_* viva(s):
+- public.rel_saldo_colaborador(uuid) — definida em 0118_saldo_colaborador.sql:89 — EXCEÇÃO declarada
+    args: p_colaborador uuid
+    7a p_filiais smallint[] declarado: não (exceção: fora de 7a/7b) → ok
+    7b "= any (p_filiais)" em prosrc: 0 ocorrência(s) [] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 0 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0118 revoke public+anon · 0118 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_contagem_status_filiais(smallint[]) — definida em 0141_rel_contagem_status.sql:119
+    args: p_filiais smallint[]
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 1 ocorrência(s) ["a.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 1 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0141 revoke public+anon · 0141 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_mov_por_mes_filiais(smallint[], date, date) — definida em 0143_rel_filiais.sql:194
+    args: p_filiais smallint[], p_de date, p_ate date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 1 ocorrência(s) ["m.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 1 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_por_motivo_filiais(smallint[], date, date) — definida em 0143_rel_filiais.sql:215
+    args: p_filiais smallint[], p_de date, p_ate date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 1 ocorrência(s) ["m.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 1 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_resumo_filiais(smallint[], date, date) — definida em 0143_rel_filiais.sql:240
+    args: p_filiais smallint[], p_de date, p_ate date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 1 ocorrência(s) ["m.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 1 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_frescor_itens_filiais(smallint[], date) — definida em 0143_rel_filiais.sql:272
+    args: p_filiais smallint[], p_ate date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 1 ocorrência(s) ["l.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 1 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_mov_itens_filiais(smallint[], date, date) — definida em 0143_rel_filiais.sql:292
+    args: p_filiais smallint[], p_de date, p_ate date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 2 ocorrência(s) ["l.filial_id = any (p_filiais)","f.id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 2 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_saldo_itens_filiais(smallint[], date) — definida em 0143_rel_filiais.sql:324
+    args: p_filiais smallint[], p_ate date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 2 ocorrência(s) ["f.id = any (p_filiais)","l.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 2 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+- public.rel_estoque_asof_filiais(smallint[], date) — definida em 0143_rel_filiais.sql:399
+    args: p_filiais smallint[], p_data date
+    7a p_filiais smallint[] declarado: sim → ok
+    7b "= any (p_filiais)" em prosrc: 1 ocorrência(s) ["e.filial_id = any (p_filiais)"] → ok
+    7c disfarce textual: nenhum · menções a p_filiais no corpo: 1 → ok
+    7d cabeçalho: stable=true security definer=false strict=false set search_path=true → ok
+    7e/6a grants/revokes: 0143 revoke public+anon · 0143 grant authenticated+service_role → EXECUTE authenticated=true service_role=true anon=false → 7e ok · 6a ok
+
+7a ruins 0 de 9 → VERDE
+7b ruins 0 de 9 → VERDE
+7c ruins 0 de 9 → VERDE
+7d ruins 0 de 9 → VERDE
+7e ruins 0 de 9 → VERDE
+7f exceções órfãs [] mortas [] → ruins 0 de 1 → VERDE
+7g nomes da exceção com > 1 assinatura: [] → VERDE
+6a (recorte rel_*): rel_* com EXECUTE para anon: 0 → nenhuma rel_* reprova a 6a

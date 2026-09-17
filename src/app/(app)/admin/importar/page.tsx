@@ -25,6 +25,17 @@ export const metadata = {
   title: 'Importar',
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, e ALTO de propósito (ata da F60 em
+// docs/DECISOES.md). As rotas que leem o banco ficam em 60 s (o motivo está em
+// relatorios/[filial]/page.tsx); esta NÃO, porque o `maxDuration` da página vale para as
+// Server Actions usadas nela (doc do Next) e `aplicarImport` ("Substituir tudo") cresce com o
+// acervo da FILIAL: lê o acervo inteiro para o backup, sobe o JSON, roda a RPC e, já DEPOIS
+// do commit, copia cada `.docx` antes de removê-lo — trabalho que 60 s cortaria no meio.
+// 300 é o teto que a rota já herdava (o padrão do plano Pro da Vercel, PLAN-F60 §5; o
+// incidente de 24/07/2026 morreu exatamente nele). Quem baixar mede antes o import da maior
+// filial.
+export const maxDuration = 300
+
 // admin/importar (OS-F7 / W3): wizard de "Substituir tudo" + histórico de imports.
 // F21 — só o cargo ADMIN: a rota é fechada pelo `admin/layout.tsx`, a action
 // `aplicarImport` exige `exigirAdmin()`, a RPC `importar_ativos_substituir` tem

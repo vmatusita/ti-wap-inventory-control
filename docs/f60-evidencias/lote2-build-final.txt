@@ -1,0 +1,103 @@
+=== 2026-09-16T23:54:12-03:00 · HEAD 2020641 · npx vitest run (INTEIRO) ===
+
+ RUN  v4.1.11 <repo>
+
+
+ Test Files  228 passed (228)
+      Tests  6343 passed (6343)
+   Start at  23:54:14
+   Duration  109.36s (transform 12.65s, setup 0ms, import 568.00s, tests 52.61s, environment 80ms)
+
+=== exit vitest: 0 ===
+=== npm run lint ===
+
+> estoque-ti-wap@1.64.0 lint
+> eslint
+
+=== exit lint: 0 ===
+=== npx tsc --noEmit ===
+=== exit tsc: 0 ===
+=== npm run verificar:actions ===
+
+> estoque-ti-wap@1.64.0 verificar:actions
+> node scripts/verificar-actions-build.mjs
+
+[gate] chunks com Server Actions varridos: 23
+[gate] VERDE — nenhum identificador registrado sem binding.
+=== exit verificar:actions: 0 ===
+=== npm run build ===
+
+> estoque-ti-wap@1.64.0 build
+> next build
+
+▲ Next.js 16.2.12 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 15.9s
+  Running TypeScript ...
+  Finished TypeScript in 32.6s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/32) ...
+  Generating static pages using 7 workers (8/32) 
+  Generating static pages using 7 workers (16/32) 
+  Generating static pages using 7 workers (24/32) 
+✓ Generating static pages using 7 workers (32/32) in 1757ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin/colaboradores
+├ ƒ /admin/filiais
+├ ƒ /admin/importar
+├ ƒ /admin/itens
+├ ƒ /admin/kits
+├ ƒ /admin/motivos
+├ ƒ /admin/senhas
+├ ƒ /admin/tipos-item
+├ ƒ /admin/usuarios
+├ ƒ /ajuda
+├ ƒ /ajuda/[slug]
+├ ƒ /ajuda/manual
+├ ƒ /api/saude
+├ ƒ /ativos
+├ ƒ /ativos/[id]
+├ ƒ /ativos/novo
+├ ƒ /auth/confirm
+├ ƒ /auth/definir-senha
+├ ƒ /dev
+├ ƒ /dev/destrutivo
+├ ƒ /itens
+├ ƒ /itens/conferencia
+├ ƒ /itens/historico
+├ ○ /login
+├ ƒ /movimentacoes
+├ ƒ /movimentacoes/devolucao-fornecedor
+├ ƒ /movimentacoes/nova
+├ ƒ /pendencias
+├ ƒ /relatorios/[filial]
+├ ƒ /relatorios/acesso
+├ ƒ /relatorios/gerados
+├ ƒ /relatorios/gerados/[id]
+└ ƒ /versoes
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+=== exit build: 0 ===
+=== npm run verificar:actions (de novo, sobre o .next do build acima) ===
+
+> estoque-ti-wap@1.64.0 verificar:actions
+> node scripts/verificar-actions-build.mjs
+
+[gate] chunks com Server Actions varridos: 23
+[gate] VERDE — nenhum identificador registrado sem binding.
+=== exit verificar:actions: 0 ===
+=== git status --short ===
+?? "Claude outputs/F60-recorte-que-corta-scan-ultracode.md"

@@ -36,6 +36,17 @@ export const metadata = {
   title: 'Desenvolvedor',
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, e ALTO de propósito (ata da F60 em
+// docs/DECISOES.md). As rotas que leem o banco ficam em 60 s (o motivo está em
+// relatorios/[filial]/page.tsx); esta NÃO, porque o `maxDuration` da página vale para as
+// Server Actions usadas nela (doc do Next) e `resetarBloco` cresce com o acervo inteiro,
+// global ou da filial: lê cada tabela para o backup, sobe o JSON, roda a RPC e, já DEPOIS do
+// commit, copia cada `.docx` antes de removê-lo (`apagarAtivo` repete a cópia). Cortado em
+// 60 s, o reset morreria no meio da cópia com as linhas já apagadas. 300 é o teto que a rota
+// já herdava (o padrão do plano Pro da Vercel, PLAN-F60 §5; o incidente de 24/07/2026 morreu
+// exatamente nele).
+export const maxDuration = 300
+
 // /dev/destrutivo (F23) — a ZONA DESTRUTIVA.
 //
 // ⚠ POR QUE UMA SUBROTA, E NÃO UM QUINTO CARD NA /dev. A /dev é uma tela para SE OLHAR:

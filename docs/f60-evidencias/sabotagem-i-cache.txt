@@ -1,0 +1,178 @@
+# F60 · SABOTAGEM I — o cache() com o objeto cru como chave
+# data: 2026-09-16T22:33:02Z · branch f60-recorte-que-corta-scan · HEAD 0204a2a
+# a troca (temporária), em src/lib/auth/recorte-leitura.ts::chaveDasUnidades — primeira linha do corpo:
+276:  return unidades as unknown as string // SABOTAGEM I — TEMPORÁRIA: a chave vira o objeto cru
+# comando: npx vitest run src/lib/queries/memo-do-request.test.ts
+# ===== EXECUÇÃO SABOTADA (esperado: vermelho em (i) e (ii)) =====
+
+ RUN  v4.1.11 <repo>
+
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > a réplica das duas montagens é a do código de hoje (guarda do próprio teste) 3ms
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > dev: objetos diferentes, chaves Object.is-iguais 8ms
+   → expected 'object' to be 'string' // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > admin: objetos diferentes, chaves Object.is-iguais 1ms
+   → expected 'object' to be 'string' // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > operador com vínculo: objetos diferentes, chaves Object.is-iguais 1ms
+   → expected 'object' to be 'string' // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > consulta: objetos diferentes, chaves Object.is-iguais 1ms
+   → expected 'object' to be 'string' // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > dev: com a leitura de filiais falhando nos dois, as chaves também batem 2ms
+   → expected false to be true // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > admin: com a leitura de filiais falhando nos dois, as chaves também batem 1ms
+   → expected false to be true // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > operador com vínculo: com a leitura de filiais falhando nos dois, as chaves também batem 0ms
+   → expected false to be true // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > consulta: com a leitura de filiais falhando nos dois, as chaves também batem 0ms
+   → expected false to be true // Object.is equality
+ × |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > a ordem dos valores não muda a chave (a lista é conjunto) 3ms
+   → expected { Object () } to be { Object () } // Object.is equality
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > vistas que pedem leituras diferentes têm chaves diferentes (a chave não colapsa) 0ms
+ × |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > dev: no mesmo request, uma leitura — feita pelo objeto recebido 1ms
+   → expected "vi.fn()" to be called 1 times, but got 2 times
+ × |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > admin: no mesmo request, uma leitura — feita pelo objeto recebido 0ms
+   → expected "vi.fn()" to be called 1 times, but got 2 times
+ × |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > operador com vínculo: no mesmo request, uma leitura — feita pelo objeto recebido 0ms
+   → expected "vi.fn()" to be called 1 times, but got 2 times
+ × |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > consulta: no mesmo request, uma leitura — feita pelo objeto recebido 0ms
+   → expected "vi.fn()" to be called 1 times, but got 2 times
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > outro request, outra leitura — a memória não é global 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > no mesmo request, vistas diferentes leem cada uma a sua 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > fora de um request não há memória (o repasse do React) 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > a simulação memoiza a MESMA referência (guarda: sem isto, o vermelho abaixo não provaria nada) 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > dev: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > admin: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > operador com vínculo: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > consulta: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > dev: objetos diferentes, chaves Object.is-iguais
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > admin: objetos diferentes, chaves Object.is-iguais
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > operador com vínculo: objetos diferentes, chaves Object.is-iguais
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > consulta: objetos diferentes, chaves Object.is-iguais
+AssertionError: expected 'object' to be 'string' // Object.is equality
+
+Expected: "string"
+Received: "object"
+
+ ❯ src/lib/queries/memo-do-request.test.ts:130:26
+    128|     expect(Object.is(doLayout, daPagina)).toBe(false)
+    129|     const chave = chaveDasUnidades(doLayout)
+    130|     expect(typeof chave).toBe('string')
+       |                          ^
+    131|     expect(Object.is(chave, chaveDasUnidades(daPagina))).toBe(true)
+    132|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > dev: com a leitura de filiais falhando nos dois, as chaves também batem
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > admin: com a leitura de filiais falhando nos dois, as chaves também batem
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > operador com vínculo: com a leitura de filiais falhando nos dois, as chaves também batem
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > consulta: com a leitura de filiais falhando nos dois, as chaves também batem
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/queries/memo-do-request.test.ts:137:79
+    135|     const doLayout = unidadesComoOLayout(operador, []) // o `catch` do…
+    136|     const daPagina = unidadesComoAPagina(operador, 'falhou')
+    137|     expect(Object.is(chaveDasUnidades(doLayout), chaveDasUnidades(daPa…
+       |                                                                               ^
+    138|   })
+    139|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > a ordem dos valores não muda a chave (a lista é conjunto)
+AssertionError: expected { Object () } to be { Object () } // Object.is equality
+
+- Expected
++ Received
+
+@@ -3,11 +3,11 @@
+      "familia": "slug",
+      "vista": {
+        "incluiSemUnidade": false,
+        "modo": "lista",
+        "valores": [
+-         "alfa",
+          "charlie",
++         "alfa",
+        ],
+      },
+    },
+  }
+
+ ❯ src/lib/queries/memo-do-request.test.ts:143:61
+    141|     const porSlugs = (slugs: string[]) =>
+    142|       efetivar(RECORTE_UNIVERSAL, { familia: 'slug', modo: 'lista', sl…
+    143|     expect(chaveDasUnidades(porSlugs(['charlie', 'alfa']))).toBe(chave…
+       |                                                             ^
+    144|     const porIds = (ids: number[]) => efetivar(RECORTE_UNIVERSAL, { fa…
+    145|     // Número por VALOR, não por texto: `[10, 9]` e `[9, 10]` são a me…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯
+
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > dev: no mesmo request, uma leitura — feita pelo objeto recebido
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > admin: no mesmo request, uma leitura — feita pelo objeto recebido
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > operador com vínculo: no mesmo request, uma leitura — feita pelo objeto recebido
+ FAIL  |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > consulta: no mesmo request, uma leitura — feita pelo objeto recebido
+AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+ ❯ src/lib/queries/memo-do-request.test.ts:189:20
+    187|     // No mesmo `Promise.all`: a segunda chamada chega com a primeira …
+    188|     const [selo, card] = await emUmRequest(() => Promise.all([contar(d…
+    189|     expect(leitor).toHaveBeenCalledTimes(1)
+       |                    ^
+    190|     // A leitura recebe o objeto que CHEGOU — nenhum `UnidadesEfetivas…
+    191|     expect(leitor.mock.calls[0][0]).toBe(doLayout)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  13 failed | 10 passed (23)
+   Start at  19:33:04
+   Duration  401ms (transform 97ms, setup 0ms, import 134ms, tests 25ms, environment 0ms)
+
+# exit code do vitest: 1
+
+# ===== RESTAURADO (a troca desfeita; esperado: verde) =====
+# grep da marca da sabotagem no módulo (esperado: nenhuma linha):
+(nenhuma)
+
+ RUN  v4.1.11 <repo>
+
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > a réplica das duas montagens é a do código de hoje (guarda do próprio teste) 3ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > dev: objetos diferentes, chaves Object.is-iguais 1ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > admin: objetos diferentes, chaves Object.is-iguais 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > operador com vínculo: objetos diferentes, chaves Object.is-iguais 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > consulta: objetos diferentes, chaves Object.is-iguais 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > dev: com a leitura de filiais falhando nos dois, as chaves também batem 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > admin: com a leitura de filiais falhando nos dois, as chaves também batem 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > operador com vínculo: com a leitura de filiais falhando nos dois, as chaves também batem 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > consulta: com a leitura de filiais falhando nos dois, as chaves também batem 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > a ordem dos valores não muda a chave (a lista é conjunto) 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (i) a chave das unidades — primitiva, igual no layout e na página > vistas que pedem leituras diferentes têm chaves diferentes (a chave não colapsa) 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > dev: no mesmo request, uma leitura — feita pelo objeto recebido 2ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > admin: no mesmo request, uma leitura — feita pelo objeto recebido 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > operador com vínculo: no mesmo request, uma leitura — feita pelo objeto recebido 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > consulta: no mesmo request, uma leitura — feita pelo objeto recebido 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > outro request, outra leitura — a memória não é global 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > no mesmo request, vistas diferentes leem cada uma a sua 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (ii) a memória por request — UMA leitura de conflitos para layout + página > fora de um request não há memória (o repasse do React) 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > a simulação memoiza a MESMA referência (guarda: sem isto, o vermelho abaixo não provaria nada) 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > dev: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > admin: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > operador com vínculo: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+ ✓ |puro| src/lib/queries/memo-do-request.test.ts > (iii) SABOTAGEM I, documentada — o objeto cru como chave > consulta: `cache(contarConflitosAbertos)` pelo objeto dá DUAS leituras no mesmo request 0ms
+
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  19:33:17
+   Duration  357ms (transform 97ms, setup 0ms, import 132ms, tests 12ms, environment 0ms)
+
+# exit code do vitest: 0

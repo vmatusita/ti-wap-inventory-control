@@ -32,6 +32,18 @@ export const metadata = {
   title: 'Histórico de itens',
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// O teto vale também para as Server Actions desta página (doc do Next: o `maxDuration` da
+// página muda o de todas as actions usadas nela). Cada statement delas já para nos 8 s de
+// `statement_timeout` do banco (fato 18), então o que decide é o LAÇO, e aqui não há laço
+// que cresça com o acervo:
+// `estornarLancamento` é uma escrita e `exportarItensHistoricoCSV` para em 5.000 linhas
+// (`CAP_EXPORT`).
+export const maxDuration = 60
+
 // O HISTÓRICO DE LANÇAMENTOS — rota própria (F42 · frente B).
 //
 // POR QUE SAIU DE `/itens`. Até a v1.46.0 ele era a SEGUNDA seção de uma tela que

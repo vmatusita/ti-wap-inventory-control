@@ -48,8 +48,9 @@ const REF = (process.env.DB_TYPES_PROJECT_REF ?? '').trim()
  *
  * Antes daqui saia `npx supabase ...`, que resolve para a versao MAIS NOVA a cada execucao.
  * Na F22 isso apareceu: a 2.110.0 gerou `p_filial: number` onde a 2.109.1 gerava
- * `p_filial: number | null` nas sete RPCs `rel_*` — e o app passa `null` de proposito no
- * relatorio consolidado ("geral"). Resultado: sete erros de tipo em arquivos que a fase nem
+ * `p_filial: number | null` nas sete RPCs `rel_*` — e o app passava `null` de proposito no
+ * relatorio consolidado ("geral"; ate a F60, quando as sete viraram `rel_*_filiais` com a lista
+ * `p_filiais` de todas as filiais). Resultado: sete erros de tipo em arquivos que a fase nem
  * tocou, num diff que deveria conter so o cargo novo. Pior, o conserto "obvio" seria mexer no
  * APP para agradar um tipo errado.
  *

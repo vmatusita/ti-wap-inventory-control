@@ -29,7 +29,9 @@ import { rotuloCategoria } from '@/lib/dominio'
 import { cn } from '@/lib/utils'
 import { LegendaEstorno } from '@/components/relatorios/legendas'
 import { paresDeTransferencia } from '@/lib/relatorios/transferencias-resumo'
-import type { LinhaTransferencia } from '@/lib/relatorios/tipos'
+import { AvisoTetoTabela } from '@/components/relatorios/aviso-teto-tabela'
+import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
+import type { CorteDeTabela, LinhaTransferencia } from '@/lib/relatorios/tipos'
 
 // Campos textuais da busca livre (F16/T3) — refs de MÓDULO (estáveis).
 const BUSCA_TEXTO = (r: LinhaTransferencia) => [
@@ -52,6 +54,8 @@ export function TabelaTransferencias({
   rows,
   ehGeral,
   ehOperador,
+  corte,
+  aoVivo,
 }: {
   rows: LinhaTransferencia[]
   /** F32/RV-11 — só o CONSOLIDADO ganha a linha-resumo dos pares. No relatório de
@@ -59,6 +63,9 @@ export function TabelaTransferencias({
    *  duas pontas é sempre a filial da aba, e os chips só repetiriam o nome dela. */
   ehGeral?: boolean
   ehOperador?: boolean
+  /** F60 — presente só quando a leitura cortou a tabela no teto (`snapshot.tabelasTruncadas`). */
+  corte?: CorteDeTabela
+  aoVivo?: boolean
 }) {
   const {
     filtradas,
@@ -87,11 +94,14 @@ export function TabelaTransferencias({
 
   return (
     <section id="transferencias" className="scroll-mt-28 space-y-3 break-before-page">
+      {/* F60 — com corte: total exato no título e o aviso (sem os selects de filtro, que esta
+          tabela não tem). */}
       <CabecalhoDetalhe
         titulo="Transferências"
-        total={rows.length}
+        total={totalDaTabela(rows, corte)}
         exibidas={temRecorte ? filtradas.length : undefined}
       />
+      <AvisoTetoTabela corte={corte} plural="transferências" temFiltros={false} aoVivo={aoVivo} />
       <FiltrosTabela
         campos={camposAtivos}
         filtros={filtros}
@@ -114,8 +124,11 @@ export function TabelaTransferencias({
           anuncia "um resumo 'filial de origem → filial de destino' acima da
           tabela"), não navegação de tela; sem a prop ela sumiria do papel pelo
           `print:hidden` padrão do componente, que existe para o outro uso dele
-          (resumo de FILTRO em Saídas/Entradas). */}
-      {ehGeral && <ChipsResumo resumo={resumoDePares} imprimir />}
+          (resumo de FILTRO em Saídas/Entradas).
+          F60 — e SAI quando a tabela foi cortada no teto: "o período inteiro" deixa de ser o que
+          `rows` contém, e "Matriz → Filial B: 640" somado sobre as linhas que couberam seria
+          total de recorte com cara de total do período — o aviso logo acima diz por quê. */}
+      {ehGeral && !corte && <ChipsResumo resumo={resumoDePares} imprimir />}
 
       {filtradas.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">

@@ -103,7 +103,7 @@ console.log(`[censo] alvo ${alvo.toUpperCase()} · ref ${refDe(url)} · só leit
 // 2. O que o app lê: relações (de `database.ts`) cruzadas com `.from('x')` em src/**
 // ---------------------------------------------------------------------------
 const tiposTexto = readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8')
-const { relacoes, colunas } = conjuntosDoArquivoDeTipos(tiposTexto)
+const { relacoes, colunas, funcoes } = conjuntosDoArquivoDeTipos(tiposTexto)
 const viewsDeclaradas = new Set(
   [...tiposTexto.matchAll(/^\s{6}(v_[a-z_]+): \{/gm)].map((m) => m[1]),
 )
@@ -126,7 +126,11 @@ for (const arq of varrer(join(RAIZ, 'src'))) {
     if (!lidasPor.has(m[1])) lidasPor.set(m[1], new Set())
     lidasPor.get(m[1]).add(rel)
   }
-  for (const m of fonte.matchAll(/['"`](rel_[a-z_]+)['"`]/g)) rpcsLidas.add(m[1])
+  // F60 · lote 2 — só o nome que o `database.ts` conhece conta como RPC lida. A varredura por texto
+  // também casa nome citado em COMENTÁRIO, e depois da `0145` os comentários de `src/**` ainda citam as
+  // sete `rel_*` velhas (a história); sem este filtro o censo tentaria chamá-las e `corpoVigente` — que
+  // não enxerga `drop` — as daria por vivas.
+  for (const m of fonte.matchAll(/['"`](rel_[a-z_]+)['"`]/g)) if (funcoes.has(m[1])) rpcsLidas.add(m[1])
 }
 // As tabelas que o backup lê por NOME EM VARIÁVEL (`tabela()` em conflitos/dev-destrutivo/
 // import-logs) já aparecem literais em outros pontos; a conferência abaixo o prova.
@@ -247,7 +251,7 @@ async function paginarRpc(nome, args, ordem) {
   const acc = []
   for (let de = 0; ; de += 1000) {
     let q = db.rpc(nome, args)
-    if (ordem) q = q.order(ordem, { ascending: true })
+    for (const col of ordem === null ? [] : [ordem].flat()) q = q.order(col, { ascending: true })
     const r = await q.range(de, de + 999)
     if (r.error) throw Object.assign(new Error(nome), { codigo: r.error.code })
     acc.push(...(r.data ?? []))
@@ -257,17 +261,39 @@ async function paginarRpc(nome, args, ordem) {
 }
 
 const resultadosRpc = []
+
+// F60 · lote 2 — o CONSOLIDADO das `rel_*_filiais` é a LISTA de TODAS as filiais, inclusive as
+// desativadas (a régua de `filiaisDoConsolidado`, src/lib/queries/relatorios/recorte-filiais.ts): NULL
+// no recorte dá ZERO linhas. Lida com `count` exato na mesma consulta; erro, lista truncada ou vazia
+// RECUSAM a rodada — uma célula com `p_filiais: []` contaria zero linhas e sairia "medida". Os ids ficam
+// só em memória.
+const todasAsFiliais = await (async () => {
+  const { data, error, count } = await db.from('filiais').select('id', { count: 'exact' }).order('id')
+  if (error) recusar(`a leitura das filiais do consolidado falhou (${descrever(error)}).`)
+  const ids = (data ?? []).map((f) => f.id)
+  if (typeof count !== 'number' || count !== ids.length || ids.length === 0) {
+    recusar(`${ids.length} de ${count ?? '?'} filiais lidas — o consolidado das rel_*_filiais ficaria incompleto.`)
+  }
+  return ids
+})()
+
+// A grade fixa de chamadas, pelos nomes NOVOS (0143) e com a lista no lugar do NULL. As células são as
+// mesmas de antes (o consolidado de hoje e de 180 dias atrás no as-of; hoje ou 365 dias nas demais).
+// `rel_saldo_itens_filiais` devolve dois níveis: a ordem total é `filial_id` + `item_id` (o nível do total
+// tem `filial_id` NULL, e é aí que a contagem de nulos daquela coluna aparece).
 const MATRIZ = {
-  rel_estoque_asof: [
-    ['consolidado · hoje', { p_filial: null, p_data: hoje }, 'ativo_id'],
-    ['consolidado · 180 dias atrás', { p_filial: null, p_data: diasAtras(180) }, 'ativo_id'],
+  rel_estoque_asof_filiais: [
+    ['consolidado · hoje', { p_filiais: todasAsFiliais, p_data: hoje }, 'ativo_id'],
+    ['consolidado · 180 dias atrás', { p_filiais: todasAsFiliais, p_data: diasAtras(180) }, 'ativo_id'],
   ],
-  rel_saldo_itens: [['consolidado · hoje', { p_filial: null, p_ate: hoje }, 'item_id']],
-  rel_mov_itens: [['consolidado · 365 dias', { p_filial: null, p_de: diasAtras(365), p_ate: hoje }, 'item_id']],
-  rel_frescor_itens: [['consolidado · hoje', { p_filial: null, p_ate: hoje }, null]],
-  rel_mov_por_mes: [['consolidado · 365 dias', { p_filial: null, p_de: diasAtras(365), p_ate: hoje }, null]],
-  rel_por_motivo: [['consolidado · 365 dias', { p_filial: null, p_de: diasAtras(365), p_ate: hoje }, null]],
-  rel_resumo: [['consolidado · 365 dias', { p_filial: null, p_de: diasAtras(365), p_ate: hoje }, null]],
+  rel_saldo_itens_filiais: [['consolidado · hoje', { p_filiais: todasAsFiliais, p_ate: hoje }, ['filial_id', 'item_id']]],
+  rel_mov_itens_filiais: [['consolidado · 365 dias', { p_filiais: todasAsFiliais, p_de: diasAtras(365), p_ate: hoje }, 'item_id']],
+  rel_frescor_itens_filiais: [['consolidado · hoje', { p_filiais: todasAsFiliais, p_ate: hoje }, null]],
+  rel_mov_por_mes_filiais: [['consolidado · 365 dias', { p_filiais: todasAsFiliais, p_de: diasAtras(365), p_ate: hoje }, null]],
+  rel_por_motivo_filiais: [['consolidado · 365 dias', { p_filiais: todasAsFiliais, p_de: diasAtras(365), p_ate: hoje }, null]],
+  rel_resumo_filiais: [['consolidado · 365 dias', { p_filiais: todasAsFiliais, p_de: diasAtras(365), p_ate: hoje }, null]],
+  // F60 (0141) — os KPIs do dashboard: uma linha por status presente no recorte.
+  rel_contagem_status_filiais: [['consolidado · agora', { p_filiais: todasAsFiliais }, 'status']],
 }
 for (const nome of [...rpcsLidas].sort()) {
   try {

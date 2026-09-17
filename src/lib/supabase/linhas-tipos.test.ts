@@ -116,7 +116,8 @@ export async function provasDeJson() {
 
 export async function provasDaPorta() {
   // (15) o retorno alargado pela porta: `colaborador`, `setor`, `marca` e `modelo` são `string | null`
-  const { data } = await chamarRpc(client, 'rel_estoque_asof', { p_filial: null, p_data: '2026-09-15' })
+  // (F60 · lote 2: a chave migrou 1:1 para `rel_estoque_asof_filiais`, e o recorte é a LISTA)
+  const { data } = await chamarRpc(client, 'rel_estoque_asof_filiais', { p_filiais: [1, 2], p_data: '2026-09-15' })
   const ASOF = {
     ativo_id: z.string(),
     categoria: z.enum(CATEGORIAS),
@@ -142,16 +143,42 @@ export async function provasDaPorta() {
   void cargo
 
   // @ts-expect-error — (18) `null` num parâmetro FORA do mapa continua recusado
-  void chamarRpc(client, 'rel_estoque_asof', { p_filial: 1, p_data: null })
+  void chamarRpc(client, 'rel_estoque_asof_filiais', { p_filiais: [1], p_data: null })
 
   // (19) o builder sobrevive: Promise.all e .order().range() compilam
   await Promise.all([
-    chamarRpc(client, 'rel_saldo_itens', { p_filial: null, p_ate: '2026-09-15' }),
-    chamarRpc(client, 'rel_frescor_itens', { p_filial: 2, p_ate: '2026-09-15' }),
+    chamarRpc(client, 'rel_saldo_itens_filiais', { p_filiais: [1, 2, 3], p_ate: '2026-09-15' }),
+    chamarRpc(client, 'rel_frescor_itens_filiais', { p_filiais: [2], p_ate: '2026-09-15' }),
   ])
-  await chamarRpc(client, 'rel_estoque_asof', { p_filial: null, p_data: '2026-09-15' })
+  await chamarRpc(client, 'rel_estoque_asof_filiais', { p_filiais: [1, 2], p_data: '2026-09-15' })
     .order('ativo_id', { ascending: true })
     .range(0, 999)
+}
+
+// F60 · lote 2 — O RECORTE DOS RELATÓRIOS NÃO ACEITA NULO. Até a F59 `p_filial: null` compilava de
+// propósito (o consolidado, por `RECORTE_DO_RELATORIO` em `rpc.ts`); as `rel_*_filiais` saíram do
+// mapa de argumentos anuláveis, e cada uma destas linhas afirma que o `null` — ou a assinatura
+// velha, que não existe mais no tipo — deixou de compilar. Se alguém devolver uma `rel_*` ao mapa,
+// o `@ts-expect-error` fica sem uso e o `tsc` acusa.
+export async function provasDoRecorteObrigatorio() {
+  // @ts-expect-error — (20) `null` em `p_filiais` do as-of
+  void chamarRpc(client, 'rel_estoque_asof_filiais', { p_filiais: null, p_data: '2026-09-15' })
+  // @ts-expect-error — (21) `null` em `p_filiais` do saldo de itens
+  void chamarRpc(client, 'rel_saldo_itens_filiais', { p_filiais: null, p_ate: '2026-09-15' })
+  // @ts-expect-error — (22) `null` em `p_filiais` de uma função de período
+  void chamarRpc(client, 'rel_resumo_filiais', { p_filiais: null, p_de: '2026-09-01', p_ate: '2026-09-15' })
+  // @ts-expect-error — (23) um id solto no lugar da lista (a forma velha do recorte)
+  void chamarRpc(client, 'rel_mov_por_mes_filiais', { p_filiais: 1, p_de: '2026-09-01', p_ate: '2026-09-15' })
+  // @ts-expect-error — (24) a assinatura velha não existe mais no tipo (a 0145 a derrubou)
+  void chamarRpc(client, 'rel_resumo', { p_filial: null, p_de: '2026-09-01', p_ate: '2026-09-15' })
+
+  // (25) o nível do total do saldo sai com `filial_id` anulável pela porta (`COLUNAS_DE_RETORNO_ANULAVEIS`)
+  const { data } = await chamarRpc(client, 'rel_saldo_itens_filiais', { p_filiais: [1, 2], p_ate: '2026-09-15' })
+  const nivel: number | null = data?.[0]?.filial_id ?? null
+  void nivel
+  // @ts-expect-error — (26) supor o nível não-nulo (a mentira do gerador) não compila
+  const soFilial: number = data![0].filial_id
+  void soFilial
 }
 
 describe('a amarração da F58 (prova em compilação)', () => {

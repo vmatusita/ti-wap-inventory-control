@@ -1,0 +1,75 @@
+F60 — o apply no ENSAIO (sgmvldiizsrjbxzzpmhh), 17/09/2026, canal MCP da Supabase (apply_migration / execute_sql)
+Código aplicado: as migrations do SHA de código congelado c516467 (CI verde: run 35186554796). Só números, hashes e nomes.
+
+1. APPLY, na ordem da cadeia (ledger: rel_contagem_status, lanc_item_criado_por_idx, rel_filiais,
+   colaboradores_textos_por_nome, drop_rel_filial)
+   0141 → success · 0142 → success · 0143 → success
+
+2. VERIFICAÇÃO PÓS-APPLY (depois da 0143)
+   funcao                                        anon  authenticated  service_role  secdef  volat  strict  proconfig              PUBLIC=X  md5_normalizado
+   rel_contagem_status_filiais(smallint[])       f     t              t             f       s      f       {search_path=public}   f         695b38a8b50fe95e743e30460fecc881
+   rel_estoque_asof_filiais(smallint[],date)     f     t              t             f       s      f       {search_path=public}   f         54943d2f41e17dd1c648b32e10fd43f4
+   rel_frescor_itens_filiais(smallint[],date)    f     t              t             f       s      f       {search_path=public}   f         edd2fa35a094951f31b3cfeacc8f7ba8
+   rel_mov_itens_filiais(smallint[],date,date)   f     t              t             f       s      f       {search_path=public}   f         55be37e2a84b5e9449f388498585b02b
+   rel_mov_por_mes_filiais(smallint[],date,date) f     t              t             f       s      f       {search_path=public}   f         f961349ded4db3fb17a16fe503b9201b
+   rel_por_motivo_filiais(smallint[],date,date)  f     t              t             f       s      f       {search_path=public}   f         4340acc35728a592c2de946aea822042
+   rel_resumo_filiais(smallint[],date,date)      f     t              t             f       s      f       {search_path=public}   f         ad948cbb7c544eec083d271b8cf27184
+   rel_saldo_itens_filiais(smallint[],date)      f     t              t             f       s      f       {search_path=public}   f         01aa17a8aee42557345de6f4f77fba02
+   → 8 linhas; os 8 md5 IGUAIS aos do RELATORIO-F60 §1 passo 1.2 (o corpo aplicado é o do arquivo).
+   NULL e '{}' → 0 linhas, sem erro, nas oito (contagem, mov_por_mes, por_motivo, resumo, mov_itens, frescor, saldo_itens, asof).
+   consolidado da rel_contagem_status_filiais (lista de todas as filiais) = count(*) de ativos → true.
+   lanc_item_criado_por_idx: 1 (indexdef com "(criado_por, created_at DESC, id DESC)" e "WHERE (estorna_id IS NULL)").
+   notify pgrst, 'reload schema' → ok.
+   get_advisors(security): nenhum achado sobre as rel_* nem sobre o índice — os de sempre (rls_enabled_no_policy ×3,
+   authenticated_security_definer_function_executable ×28, auth_leaked_password_protection ×1).
+
+3. EQUIVALÊNCIA COM A FUNÇÃO DE VERDADE (entre a 0143 e a 0145; equivalencia-rel.mjs gerar-equivalencia-real --alvo=ensaio,
+   datas docs/perf/f60-datas-amostra.json; cada bloco conferiu o md5 do prosrc aplicado e a presença da velha)
+   rel_mov_por_mes_filiais      168 células · 168 iguais · 0 divergentes · NULL 0 / '{}' 0 (velha com NULL: 15 linhas)
+   rel_por_motivo_filiais       168 · 168 · 0 · 0 / 0 (velha com NULL: 12)
+   rel_resumo_filiais           168 · 168 · 0 · 0 / 0 (velha com NULL: 48)
+   rel_mov_itens_filiais        168 · 168 · 0 · 0 / 0 (velha com NULL: 7)
+   rel_frescor_itens_filiais     84 ·  84 · 0 · 0 / 0 (velha com NULL: 2)
+   rel_saldo_itens_filiais      156 · 156 · 0 · 0 / 0 (velha com NULL: 7)   — as três comparações (i/ii/iii)
+   rel_estoque_asof_filiais      84 ·  84 · 0 · 0 / 0 (velha com NULL: 1.564)
+   rel_contagem_status_filiais    8 ·   8 · 0 · 0 / 0
+   TOTAL                       1.004 · 1.004 · 0   (a emulação dera o mesmo: 1.004 / 0)
+   papel authenticated; Postgres 17.6; 6 filiais, nenhuma desativada no ensaio.
+
+4. A 0144 COM A SONDA DE CONJUNTO
+   antes:  v_colaboradores_textos 780 linhas · md5 816c25059f73bfa551191b8e9834bda9 ·
+           v_colaboradores_consolidacao 1 linha · md5 7fb11ca6320e076ab867fe78a618a183
+   apply 0144 → success
+   depois: v_colaboradores_textos 780 linhas · md5 816c25059f73bfa551191b8e9834bda9 ·
+           v_colaboradores_consolidacao 1 linha · md5 7fb11ca6320e076ab867fe78a618a183 ·
+           reloptions {security_invoker=true}
+   → os dois pares IGUAIS.
+
+5. A 0145 E A PROVA DE AUSÊNCIA
+   apply 0145 → success
+   to_regprocedure das sete velhas → NULL nas sete.
+   rel_* vivas: rel_contagem_status_filiais, rel_estoque_asof_filiais, rel_frescor_itens_filiais, rel_mov_itens_filiais,
+   rel_mov_por_mes_filiais, rel_por_motivo_filiais, rel_resumo_filiais, rel_saldo_colaborador(uuid), rel_saldo_itens_filiais
+   (nove: as oito _filiais + a exceção declarada).
+   notify pgrst, 'reload schema' → ok. (O classificador recusou UMA vez a consulta que juntava o notify com a prova de
+   ausência — "[Blind Apply]"; as duas partes, separadas, passaram. Registrado na ata.)
+   get_advisors(performance): lanc_item_criado_por_idx aparece em unused_index — criado minutos antes; nenhum achado novo
+   além disso.
+
+6. O "DEPOIS" DO HARNESS DE ITENS (medir-itens.mjs, canal mcp, 18 comandos; evidência docs/perf/f60-itens-ensaio-depois.json)
+   getUltimoLancamento, plano genérico, authenticated, 1 aquecimento + 7:
+                                   ANTES (f60-itens-ensaio.json)                     DEPOIS
+   4c sem lançamento · 10.035     2,189 ms · Incremental Sort > lanc_item_created_idx   0,016 ms ·  2 buffers · Index Scan lanc_item_criado_por_idx
+   4c sem lançamento · 50.035    10,406 ms · Incremental Sort > lanc_item_created_idx   0,017 ms ·  3 buffers · Index Scan lanc_item_criado_por_idx
+   4b frio           · 50.035    10,318 ms                                              0,139 ms ·  5 buffers · Index Scan lanc_item_criado_por_idx
+   4a quente         · 50.035     0,217 ms                                              0,199 ms ·  5 buffers · Index Scan lanc_item_criado_por_idx
+   → sem nó de sort, buffers parados com o volume ×4,99 (2 → 3). O rótulo "decisao_indice: nao_entra" do analisador é a
+     régua aplicada ao estado DEPOIS (indice_candidato_existe = true): nada mais cresce com o volume — é a prova de que o
+     índice resolveu, não um veto a ele.
+   Limpeza: lancamentos_marcados_depois 0 · itens_marcados_depois 0; estado-depois 35 lançamentos (= antes).
+
+7. OS TIPOS DO ENSAIO (MCP generate_typescript_types — sem SUPABASE_ACCESS_TOKEN no ambiente, a CLI não tem canal)
+   md5(database.ts do commit SEM as 8 linhas "hand-fix F60") = 4465cfaf70ec86d2341871ff530946c1
+   md5(tipos gerados do ensaio)                               = 4465cfaf70ec86d2341871ff530946c1
+   → byte a byte iguais: o hand-fix estava certo. Nada foi commitado a partir daqui (o arquivo do commit é o de produção,
+     depois do drop).

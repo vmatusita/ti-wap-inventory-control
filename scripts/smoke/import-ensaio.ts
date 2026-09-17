@@ -423,8 +423,9 @@ async function main(): Promise<void> {
     // A foto "antes" do saldo é tirada AQUI — depois das fixtures, logo antes do passe
     // 2. A primeira versão a tirava antes da SAÍDA com item junto, e a execução de
     // 14/09/2026 acusou "saldo mudou" (estoque 3 → 2) por causa da própria saída, não
-    // do import. `rel_saldo_itens` (0027) conta total/estoque/atrelados/falta só por
-    // `tipo`/`quantidade`/`chamado` dos lançamentos — nenhum dos quatro depende de
+    // do import. `rel_saldo_itens_filiais` (0143, com os clamps da 0027) conta
+    // total/estoque/atrelados/falta só por `tipo`/`quantidade`/`chamado` dos
+    // lançamentos — nenhum dos quatro depende de
     // `movimentacao_id`, então desvincular o lançamento não pode mudar nenhum deles.
     const saldoAntes = await lerSaldoItemNaFilial(sessaoPersona, { itemId, filialId: sedeId, ate: hojeIso })
 

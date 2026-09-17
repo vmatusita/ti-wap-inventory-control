@@ -66,8 +66,9 @@ export type LancamentoParaSaldoApos = {
   chamado: string | null
 }
 
-/** Os quatro números que a RPC `rel_saldo_itens` devolve para o item na filial
- *  do recorte — a "fonte da verdade" contra a qual a reconstrução é conferida. */
+/** Os quatro números que a RPC `rel_saldo_itens_filiais` devolve para o item na
+ *  linha da filial do recorte — a "fonte da verdade" contra a qual a reconstrução é
+ *  conferida. */
 export type SaldoAtualParaConferencia = {
   total: number
   atrelados: number

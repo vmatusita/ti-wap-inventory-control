@@ -1,0 +1,59 @@
+# diff: original (scratchpad, fora do repositório) × scripts/perf/equivalencia-rel.mjs (versionado no lote 2)
+68a69,84
+> //
+> // PROVENIÊNCIA — este é o gerador que produziu as evidências de equivalência e de custo dos corpos
+> // novos citadas no cabeçalho da `0143_rel_filiais.sql` (`f60-equivalencia-emulada.json`,
+> // `f60-custo-corpos-novos-producao.json`, `f60-asof-variantes-producao.json`), versionado no lote 2 da
+> // F60. O original rodou FORA do repositório: 59.660 bytes, sha256 (LF)
+> // `59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d` (PLAN-F60 §0). A versão daqui
+> // difere dele nestas coisas e só nelas, e NENHUMA muda o SQL emitido:
+> //   · a RAIZ do repositório sai de `import.meta.url` (`fileURLToPath`), no lugar da variável de
+> //     ambiente `RAIZ_REPO` ou do `git rev-parse --show-toplevel` do diretório corrente — a raiz agora é
+> //     a do arquivo, não a de onde se roda;
+> //   · `validarDirFora` é a régua de `medir-rel.mjs`/`medir-custo.mjs` (a revisão do lote 1): "fora" é
+> //     outro disco, o pai ou abaixo dele — a do original liberava uma pasta INTERNA chamada `..x`
+> //     (`startsWith('..')`) e, sem raiz resolvida, não conferia nada. Exportada, para
+> //     `instrumentos-f60.test.mts` provar os dois casos;
+> //   · este bloco. O `--corpos` continua apontando um arquivo FORA do repositório (o rascunho medido); a
+> //     comparação com a função de verdade, depois do apply, é outro passo.
+72c88
+< import { join, resolve, relative, isAbsolute } from 'node:path'
+---
+> import { join, resolve, relative, isAbsolute, sep } from 'node:path'
+75c91
+< import { pathToFileURL } from 'node:url'
+---
+> import { fileURLToPath, pathToFileURL } from 'node:url'
+81a98,99
+> /** A raiz do repositório, pela posição DESTE arquivo (`scripts/perf/`) — nunca pelo diretório corrente. */
+> const RAIZ_REPO = fileURLToPath(new URL('../..', import.meta.url))
+83,88c101
+<   if (process.env.RAIZ_REPO) return resolve(process.env.RAIZ_REPO)
+<   try {
+<     return execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
+<   } catch {
+<     return null
+<   }
+---
+>   return RAIZ_REPO
+220c233,236
+< function validarDirFora(dir) {
+---
+> // A GUARDA DE `--dir` — o mesmo texto de `medir-rel.mjs` e `medir-custo.mjs`: "fora" é, exatamente, outro
+> // disco (`relative` devolve caminho absoluto), o pai (`..`) ou abaixo dele (`..${sep}…`). Recusa a própria
+> // raiz e a pasta interna cujo nome começa com dois pontos.
+> export function validarDirFora(dir) {
+222,225c238,240
+<   const raiz = raizRepo()
+<   if (!raiz) return
+<   const rel = relative(raiz, resolve(dir))
+<   if (!rel.startsWith('..') && !isAbsolute(rel)) recusar('--dir dentro do repositório — comandos e respostas moram FORA dele.')
+---
+>   const rel = relative(RAIZ_REPO, resolve(dir))
+>   const fora = isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)
+>   if (!fora) recusar('--dir dentro do repositório — comandos e respostas moram FORA dele.')
+
+# prova de que o SQL emitido não muda: gerar-equivalencia e gerar-custo (--alvo=ensaio e producao, --corpos=<scratch>/corpos-novos.sql, --datas=docs/perf/f60-datas-amostra.json, --hoje=2026-09-16) com o original e com o versionado, cada um num diretório fora do repositório
+arquivos gerados por lado: 28
+diff -r orig novo: 0 linha(s) (vazio)
+gerar-ab-asof (conjunto diagnostico, padrão): RECUSADO nos DOIS lados, com a mesma mensagem ('alt_a: a troca achou 0 ocorrência(s)') — o diagnóstico A/B foi escrito sobre o corpo anterior (md5 497f7784…) e não casa com o §7 final; comportamento idêntico, não é efeito da versão.

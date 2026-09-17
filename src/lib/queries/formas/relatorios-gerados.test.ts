@@ -210,3 +210,47 @@ describe('a forma do snapshot congelado (relatorios_gerados.dados)', () => {
     expect(aceita(semMeta)).toBe(false)
   })
 })
+
+// F60 (fato 16 · PLAN-F60 §10, decisão 6) — o corte das três tabelas no teto é chave OPCIONAL da V2,
+// nunca `meta.schema: 3`. O V2 de antes (sem a chave — `V2_COMPLETO` acima) continua válido; o novo,
+// com a chave, também; e a chave não vira porta para dado torto.
+describe('a forma do snapshot com o corte das tabelas (F60 — tabelasTruncadas)', () => {
+  const corte = { mostradas: 2_000, total: 2_412 }
+
+  it('o v2 SEM a chave (todo snapshot anterior à F60, e todo de hoje) continua aceito', () => {
+    expect('tabelasTruncadas' in V2_COMPLETO).toBe(false)
+    expect(aceita(V2_COMPLETO)).toBe(true)
+  })
+
+  it('aceita o v2 com UMA tabela cortada, e a leitura devolve a chave intacta para a tela', () => {
+    const comCorte = { ...V2_COMPLETO, tabelasTruncadas: { saidas: corte } }
+    const { aceitas, recusas } = conferirValores([comCorte], FORMA_SNAPSHOT, [])
+    expect(recusas).toEqual([])
+    const lido = aceitas[0]
+    expect('tabelasTruncadas' in lido ? lido.tabelasTruncadas : null).toEqual({ saidas: corte })
+  })
+
+  it('aceita o v2 com as três tabelas cortadas', () => {
+    expect(
+      aceita({
+        ...V2_COMPLETO,
+        tabelasTruncadas: { saidas: corte, entradas: corte, transferencias: corte },
+      }),
+    ).toBe(true)
+  })
+
+  it('recusa o corte com número que não é número (a chave não afrouxa a forma)', () => {
+    expect(aceita({ ...V2_COMPLETO, tabelasTruncadas: { saidas: { mostradas: 2_000, total: '2412' } } })).toBe(false)
+    expect(aceita({ ...V2_COMPLETO, tabelasTruncadas: { entradas: { mostradas: 2_000 } } })).toBe(false)
+  })
+
+  it('recusa o snapshot com a chave e `meta.schema: 3` — a chave nova NÃO carimba schema novo', () => {
+    expect(
+      aceita({
+        ...V2_COMPLETO,
+        meta: { ...V2_COMPLETO.meta, schema: 3 },
+        tabelasTruncadas: { saidas: corte },
+      }),
+    ).toBe(false)
+  })
+})

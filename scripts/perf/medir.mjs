@@ -314,8 +314,17 @@ function montarRotas(ctx) {
     add('/movimentacoes', '/movimentacoes', 'operador', cookieOperador)
     add('/movimentacoes/nova', '/movimentacoes/nova', 'operador', cookieOperador)
     add('/itens', '/itens', 'operador', cookieOperador)
+    // F60 (16/09/2026): as três rotas que a fase toca e que o harness não media
+    // — o saldo multi-filial do histórico, a contagem da conferência e a lista
+    // de colaboradores com a fila de consolidação. Entram ANTES da linha de
+    // base, para o "antes" e o "depois" cobrirem as mesmas rotas. A de admin só
+    // mede com conta de nível administrador; com outra, sai o 307 do layout, e
+    // o relatório o mostra em vez de fingir que mediu.
+    add('/itens/historico', '/itens/historico', 'operador', cookieOperador)
+    add('/itens/conferencia', '/itens/conferencia', 'operador', cookieOperador)
     add('/pendencias', '/pendencias', 'operador', cookieOperador)
     add('/ajuda', '/ajuda', 'operador', cookieOperador)
+    add('/admin/colaboradores', '/admin/colaboradores', 'operador', cookieOperador)
     add('/relatorios/geral', '/relatorios/geral', 'operador', cookieOperador)
     if (ctx.filialSlug)
       add('/relatorios/[filial]', `/relatorios/${ctx.filialSlug}`, 'operador', cookieOperador)

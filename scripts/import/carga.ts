@@ -18,7 +18,12 @@ import { chavePatrimonio } from '../../src/lib/patrimonio'
 // do laço (`for (let de = 0; ; de += PAGE)`), cada uma sem o teto anti-loop e
 // cada uma com a mesma suposição frágil de que o servidor sempre devolve 1.000
 // por página — a correção do paginador teria de ser reaplicada à mão em todas.
-import { paginarTodos } from '../../src/lib/queries/relatorios/comum'
+import {
+  CAP_ATIVOS,
+  CAP_LANCAMENTOS_ITEM,
+  CAP_MOVIMENTACOES,
+  paginarTodos,
+} from '../../src/lib/queries/relatorios/comum'
 import { assertCargaGuards, createAdminClient, resolverAdmin } from './guard'
 import { montarPlanoItens, type PlanoItens } from './itens'
 import { chaveServiceTag, statusAposMovimentacao, SLUG_POR_FILIAL, mapearUnidade } from './normalizar'
@@ -165,14 +170,23 @@ type AtivoDb = {
 
 async function buscarAtivosExistentes(db: Db): Promise<Map<string, AtivoDb>> {
   const mapa = new Map<string, AtivoDb>()
-  const linhas = await paginarTodos<AtivoDb>('Falha ao ler ativos', (from, to) =>
-    db
-      .from('ativos')
-      .select(
-        'id, patrimonio, service_tag, status, filial_id, colaborador_atual, setor_atual, termo_assinado, termo_data, marca, modelo, fornecedor, hostname, memoria, armazenamento, processador, patrimonio_original, pendencia, observacoes',
-      )
-      .order('id')
-      .range(from, to),
+  // Keyset pelo `id` (F60 · PLAN §2.1, #1): a ordem já era a PK, então a saída é a mesma.
+  const linhas = await paginarTodos<AtivoDb>(
+    'Falha ao ler ativos',
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = db
+          .from('ativos')
+          .select(
+            'id, patrimonio, service_tag, status, filial_id, colaborador_atual, setor_atual, termo_assinado, termo_data, marca, modelo, fornecedor, hostname, memoria, armazenamento, processador, patrimonio_original, pendencia, observacoes',
+          )
+          .order('id')
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (a) => a.id,
+    },
+    CAP_ATIVOS,
   )
   for (const a of linhas) {
     mapa.set(chavePatrimonio(a.patrimonio, chaveServiceTag(a.service_tag)), a)
@@ -190,13 +204,18 @@ async function buscarMovimentacoesExistentes(db: Db): Promise<{
 }> {
   const chaves = new Map<string, number>()
   const comprasPorAtivo = new Map<string, number>()
-  type LinhaMov = { ativo_id: string; tipo: string; data: string; chamado: string | null }
-  const linhas = await paginarTodos<LinhaMov>('Falha ao ler movimentações', (from, to) =>
-    db
-      .from('movimentacoes')
-      .select('ativo_id, tipo, data, chamado')
-      .order('id')
-      .range(from, to),
+  // Keyset pelo `id` (F60 · PLAN §2.1, #2): o `id` entra no `select` só como cursor.
+  type LinhaMov = { id: string; ativo_id: string; tipo: string; data: string; chamado: string | null }
+  const linhas = await paginarTodos<LinhaMov>(
+    'Falha ao ler movimentações',
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = db.from('movimentacoes').select('id, ativo_id, tipo, data, chamado').order('id').limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (m) => m.id,
+    },
+    CAP_MOVIMENTACOES,
   )
   for (const m of linhas) {
     const k = `${m.ativo_id}|${m.tipo}|${m.data}|${m.chamado ?? ''}`
@@ -466,16 +485,24 @@ async function executarItens(
   // tabela de evento. Se o conjunto passasse de 1.000, o corte do PostgREST
   // faria a carga achar que uma abertura ainda não existe e lançá-la DE NOVO —
   // o oposto do que este `Set` existe para garantir.
-  const aberturas = await paginarTodos<{ item_id: number; filial_id: number }>(
+  //
+  // Keyset pelo `id` (F60 · PLAN §2.1, #3): o `id` entra no `select` só como cursor.
+  const aberturas = await paginarTodos<{ id: string; item_id: number; filial_id: number }>(
     'Falha ao ler lançamentos',
-    (from, to) =>
-      db
-        .from('lancamentos_item')
-        .select('item_id, filial_id')
-        .eq('tipo', 'entrada')
-        .eq('observacao', OBS_SALDO_INICIAL)
-        .order('id')
-        .range(from, to),
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = db
+          .from('lancamentos_item')
+          .select('id, item_id, filial_id')
+          .eq('tipo', 'entrada')
+          .eq('observacao', OBS_SALDO_INICIAL)
+          .order('id')
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (l) => l.id,
+    },
+    CAP_LANCAMENTOS_ITEM,
   )
   const jaLancado = new Set(aberturas.map((l) => `${l.item_id}|${l.filial_id}`))
 

@@ -1,0 +1,21 @@
+     × a leitura de `drop` enxerga o nome citado (guarda da guarda) 9ms
+     × a leitura de `drop` enxerga o esquema e o nome citados (guarda da guarda) 1ms
+     × a leitura de `drop` enxerga `drop routine` (guarda da guarda) 1ms
+     × a leitura de `drop` enxerga `DROP ROUTINE` em maiúsculas, nu, com `cascade` (guarda da guarda) 1ms
+     × a leitura de `drop` enxerga vírgula e parêntese dentro de citado, tipo citado e tipo com precisão (guarda da guarda) 1ms
+     × um derrubado citado com OUTRA grafia não vira a intocável (o Postgres distingue, a guarda também) 1ms
+     × a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: um `&` depois do nome (o `U&"…"`) 2ms
+     × a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: aspa sem fecho 0ms
+     × a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: parêntese sem fecho 0ms
+     × a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: nome que não é identificador 0ms
+     × a leitura de `create function` enxerga o nome citado e LANÇA sem a lista de argumentos (guarda da guarda) 1ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected [ 'public' ] to deeply equal [ 'rel_saldo_itens_filiais' ]
+AssertionError: expected [] to deeply equal [ 'rel_estoque_asof_filiais' ]
+AssertionError: expected [] to deeply equal [ 'rel_mov_itens_filiais' ]
+AssertionError: expected [] to deeply equal [ 'transferir_item' ]
+AssertionError: expected [ 'a', 'public', 'c', …(1) ] to deeply equal [ 'a', 'b,c)', 'aplicar_movimentacao' ]
+AssertionError: expected [] to deeply equal [ 'Rel_Saldo_Itens' ]
+AssertionError: expected [Function] to throw an error
+AssertionError: expected [ 'public' ] to deeply equal [ 'aplicar_movimentacao' ]
+      Tests  11 failed | 15 passed (26)

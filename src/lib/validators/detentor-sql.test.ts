@@ -9,7 +9,7 @@ import type { StatusAtivo } from '@/lib/dominio'
 //
 // `STATUS_COM_DETENTOR` (dominio.ts) se declara espelho de `status_tem_detentor`, a
 // função de vocabulário criada na migration 0110 — a fonte única do zeramento de
-// colaborador/setor em `aplicar_movimentacao`, `rel_estoque_asof` e
+// colaborador/setor em `aplicar_movimentacao`, `rel_estoque_asof_filiais` e
 // `forcar_estado_ativo`. Sem uma trava, um estado novo (ou um estado que mudasse de
 // lado) divergiria em silêncio: o banco apagaria o detentor e a tela continuaria
 // prometendo que ele sobrevive ali, ou o contrário.

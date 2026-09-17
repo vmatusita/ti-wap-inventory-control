@@ -1,0 +1,451 @@
+SABOTAGEM D — O ORÇAMENTO DO AS-OF (F60 · decisão iii) — saída integral
+gerado em: 2026-09-17T02:05:48Z · HEAD 6650ec9 · arquivos da trava ainda não commitados
+
+COMO: o teste lê as migrations e o JSON a partir de process.cwd() (RAIZ). Cada situação roda o
+MESMO arquivo de teste do repositório (vitest --root <repo>) com o cwd num ESPELHO fora do repositório,
+que tem só os dados: supabase/migrations/*.sql copiadas da árvore e, conforme a situação,
+docs/perf/asof-orcamento.json. Nada foi escrito no repositório (nenhuma migration sintética em
+supabase/migrations/, nenhum JSON movido). Espelho: <scratchpad>/l2-3/{sem-json,um-byte,restaurado}.
+
+A situação 2 grava no espelho 9999_sintetica_orcamento_asof.sql = drop da assinatura + a definição
+VIVA do replay com 'limit 1' → 'limit 2' (UM byte do corpo; o cabeçalho idêntico).
+
+⚠ Nas situações 1 e 2 as guardas EM MEMÓRIA também ficam vermelhas, e isso é esperado: elas partem
+da MESMA coleta do disco (sem JSON, as que precisam do JSON real viram 'ausente'; com a sintética no
+disco, a 'cadeia real' já é a mutada). O veredito que importa é o do describe 1.
+
+==============================================================================================
+SITUAÇÃO 1 — SEM O JSON  (espelho sem docs/perf/asof-orcamento.json) → esperado: VERMELHO 'NÃO EXISTE'
+==============================================================================================
+
+ RUN  v4.1.11 <repo>
+
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 1. o estado do repositório — o corpo vivo do as-of é o corpo medido > docs/perf/asof-orcamento.json existe, é um orçamento completo e o hash é o do corpo vivo pelo replay 7ms
+   → 
+docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.
+: expected 'ausente' to be 'ok' // Object.is equality
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > a guarda tem sujeito: o replay acha a definição viva, e a âncora do byte está nela uma vez 1ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM o JSON → vermelho, "ausente" 0ms
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > migration sintética que muda UM BYTE do corpo → vermelho, "velho" 1ms
+   → docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'velho' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM a sintética → verde (a cadeia real, o mesmo JSON) 1ms
+   → docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'ok' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > "ausente" e "velho" têm mensagens DIFERENTES — pedem ações diferentes 1ms
+   → expected 'docs/perf/asof-orcamento.json NÃO EXI…' not to be 'docs/perf/asof-orcamento.json NÃO EXI…' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 3. nunca por calendário > a mesma medição datada de 2000, com o corpo vivo igual ao medido → verde 1ms
+   → docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'ok' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > a mesma definição só com espaço e quebra de linha a mais → verde (o controle da guarda do byte) 1ms
+   → docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'ok' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o hash trocado DO LADO DO JSON também é "velho" — a identidade vale nos dois sentidos 0ms
+   → expected 'ausente' to be 'velho' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o as-of derrubado pelo replay, com o orçamento ainda citando a assinatura → vermelho, "sem-corpo-vivo" 0ms
+   → docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'sem-corpo-vivo' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > sem `medicao` → vermelho, "incompleto" 0ms
+   → expected 'ausente' to be 'incompleto' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > orçando outra assinatura (a velha, que a 0145 derruba) → vermelho, "outra-funcao" 0ms
+   → expected 'ausente' to be 'outra-funcao' // Object.is equality
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > JSON quebrado → vermelho, "ilegivel" 0ms
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > cada vermelho tem a sua mensagem — nenhuma repetida 1ms
+   → tipos: ausente, ausente, ausente, ausente, ausente, ilegivel: expected 2 to be 6 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 1. o estado do repositório — o corpo vivo do as-of é o corpo medido > docs/perf/asof-orcamento.json existe, é um orçamento completo e o hash é o do corpo vivo pelo replay
+AssertionError: 
+docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.
+: expected 'ausente' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:302:65
+    300| describe('1. o estado do repositório — o corpo vivo do as-of é o corpo…
+    301|   it(`${ROTULO_ORCAMENTO} existe, é um orçamento completo e o hash é o…
+    302|     expect(VEREDITO_REAL.tipo, `\n${VEREDITO_REAL.mensagem}\n`).toBe('…
+       |                                                                 ^
+    303|   })
+    304| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > migration sintética que muda UM BYTE do corpo → vermelho, "velho"
+AssertionError: docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'velho' // Object.is equality
+
+Expected: "velho"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:318:64
+    316|
+    317|   it('migration sintética que muda UM BYTE do corpo → vermelho, "velho…
+    318|     expect(VEREDITO_UM_BYTE?.tipo, VEREDITO_UM_BYTE?.mensagem).toBe('v…
+       |                                                                ^
+    319|     expect(VEREDITO_UM_BYTE?.mensagem).toMatch(/VELHO/)
+    320|     expect(VEREDITO_UM_BYTE?.mensagem).toMatch(/9999_sintetica_orcamen…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM a sintética → verde (a cadeia real, o mesmo JSON)
+AssertionError: docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:327:56
+    325|     // das duas guardas acima, sem a migration sintética. É o veredito…
+    326|     // propósito que seja o MESMO objeto — as três situações partem de…
+    327|     expect(VEREDITO_REAL.tipo, VEREDITO_REAL.mensagem).toBe('ok')
+       |                                                        ^
+    328|   })
+    329|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > "ausente" e "velho" têm mensagens DIFERENTES — pedem ações diferentes
+AssertionError: expected 'docs/perf/asof-orcamento.json NÃO EXI…' not to be 'docs/perf/asof-orcamento.json NÃO EXI…' // Object.is equality
+ ❯ src/lib/validators/asof-orcamento.test.ts:331:44
+    329|
+    330|   it('"ausente" e "velho" têm mensagens DIFERENTES — pedem ações difer…
+    331|     expect(VEREDITO_SEM_JSON.mensagem).not.toBe(VEREDITO_UM_BYTE?.mens…
+       |                                            ^
+    332|     expect(VEREDITO_SEM_JSON.mensagem).not.toMatch(/VELHO/)
+    333|     expect(VEREDITO_UM_BYTE?.mensagem).not.toMatch(/NÃO EXISTE/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 3. nunca por calendário > a mesma medição datada de 2000, com o corpo vivo igual ao medido → verde
+AssertionError: docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:339:70
+    337| describe('3. nunca por calendário', () => {
+    338|   it('a mesma medição datada de 2000, com o corpo vivo igual ao medido…
+    339|     expect(VEREDITO_DATA_ANTIGA.tipo, VEREDITO_DATA_ANTIGA.mensagem).t…
+       |                                                                      ^
+    340|   })
+    341| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > a mesma definição só com espaço e quebra de linha a mais → verde (o controle da guarda do byte)
+AssertionError: docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:345:66
+    343| describe('4. o que conta como "o corpo mudou"', () => {
+    344|   it('a mesma definição só com espaço e quebra de linha a mais → verde…
+    345|     expect(VEREDITO_SO_ESPACO.tipo, VEREDITO_SO_ESPACO.mensagem).toBe(…
+       |                                                                  ^
+    346|     // Verde PELA SINTÉTICA, não apesar dela: o corpo julgado é o que …
+    347|     // Sem isto, um replay que ignorasse o `drop`+`create` deixaria es…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o hash trocado DO LADO DO JSON também é "velho" — a identidade vale nos dois sentidos
+AssertionError: expected 'ausente' to be 'velho' // Object.is equality
+
+Expected: "velho"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:352:48
+    350|
+    351|   it('o hash trocado DO LADO DO JSON também é "velho" — a identidade v…
+    352|     expect(VEREDITO_HASH_DO_JSON_TROCADO.tipo).toBe('velho')
+       |                                                ^
+    353|   })
+    354|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o as-of derrubado pelo replay, com o orçamento ainda citando a assinatura → vermelho, "sem-corpo-vivo"
+AssertionError: docs/perf/asof-orcamento.json NÃO EXISTE. O custo do as-of fica sem orçamento preso ao corpo medido (decisão iii da F60). Recrie o arquivo com a medição do corpo VIVO de public.rel_estoque_asof_filiais(smallint[], date) — método e campos em PLAN-F60 §7.5 — e com o hash desse corpo; não há valor padrão que o substitua.: expected 'ausente' to be 'sem-corpo-vivo' // Object.is equality
+
+Expected: "sem-corpo-vivo"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:356:66
+    354|
+    355|   it('o as-of derrubado pelo replay, com o orçamento ainda citando a a…
+    356|     expect(VEREDITO_DERRUBADA.tipo, VEREDITO_DERRUBADA.mensagem).toBe(…
+       |                                                                  ^
+    357|   })
+    358| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > sem `medicao` → vermelho, "incompleto"
+AssertionError: expected 'ausente' to be 'incompleto' // Object.is equality
+
+Expected: "incompleto"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:362:35
+    360| describe('5. o arquivo tem de ser um orçamento, não um hash solto', ()…
+    361|   it('sem `medicao` → vermelho, "incompleto"', () => {
+    362|     expect(VEREDITO_SO_HASH.tipo).toBe('incompleto')
+       |                                   ^
+    363|     expect(VEREDITO_SO_HASH.mensagem).toMatch(/medicao\.alvo/)
+    364|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > orçando outra assinatura (a velha, que a 0145 derruba) → vermelho, "outra-funcao"
+AssertionError: expected 'ausente' to be 'outra-funcao' // Object.is equality
+
+Expected: "outra-funcao"
+Received: "ausente"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:367:40
+    365|
+    366|   it('orçando outra assinatura (a velha, que a 0145 derruba) → vermelh…
+    367|     expect(VEREDITO_OUTRA_FUNCAO.tipo).toBe('outra-funcao')
+       |                                        ^
+    368|   })
+    369|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > cada vermelho tem a sua mensagem — nenhuma repetida
+AssertionError: tipos: ausente, ausente, ausente, ausente, ausente, ilegivel: expected 2 to be 6 // Object.is equality
+
+- Expected
++ Received
+
+- 6
++ 2
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:384:63
+    382|     ]
+    383|     const tipos = vermelhos.map((v) => v?.tipo)
+    384|     expect(new Set(tipos).size, `tipos: ${tipos.join(', ')}`).toBe(ver…
+       |                                                               ^
+    385|     expect(new Set(vermelhos.map((v) => v?.mensagem)).size).toBe(verme…
+    386|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  11 failed | 3 passed (14)
+   Start at  23:05:49
+   Duration  518ms (transform 108ms, setup 0ms, import 269ms, tests 17ms, environment 0ms)
+
+[código de saída do vitest: 1]
+
+==============================================================================================
+SITUAÇÃO 2 — MIGRATION SINTÉTICA MUDANDO UM BYTE DO CORPO → esperado: VERMELHO 'VELHO'
+==============================================================================================
+--- diff da definição viva (0143) × a da sintética, normalizada ---
+sintética: limit 2
+0143     : limit 1
+
+ RUN  v4.1.11 <repo>
+
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 1. o estado do repositório — o corpo vivo do as-of é o corpo medido > docs/perf/asof-orcamento.json existe, é um orçamento completo e o hash é o do corpo vivo pelo replay 8ms
+   → 
+o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.
+: expected 'velho' to be 'ok' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > a guarda tem sujeito: o replay acha a definição viva, e a âncora do byte está nela uma vez 2ms
+   → "limit 1" não aparece exatamente uma vez na definição viva: expected false to be true // Object.is equality
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM o JSON → vermelho, "ausente" 0ms
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > migration sintética que muda UM BYTE do corpo → vermelho, "velho" 1ms
+   → expected undefined to be 'velho' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM a sintética → verde (a cadeia real, o mesmo JSON) 1ms
+   → o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.: expected 'velho' to be 'ok' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > "ausente" e "velho" têm mensagens DIFERENTES — pedem ações diferentes 1ms
+   → .toMatch() expects to receive a string, but got undefined
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 3. nunca por calendário > a mesma medição datada de 2000, com o corpo vivo igual ao medido → verde 1ms
+   → o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.: expected 'velho' to be 'ok' // Object.is equality
+ × |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > a mesma definição só com espaço e quebra de linha a mais → verde (o controle da guarda do byte) 1ms
+   → o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.: expected 'velho' to be 'ok' // Object.is equality
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o hash trocado DO LADO DO JSON também é "velho" — a identidade vale nos dois sentidos 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o as-of derrubado pelo replay, com o orçamento ainda citando a assinatura → vermelho, "sem-corpo-vivo" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > sem `medicao` → vermelho, "incompleto" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > orçando outra assinatura (a velha, que a 0145 derruba) → vermelho, "outra-funcao" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > JSON quebrado → vermelho, "ilegivel" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > cada vermelho tem a sua mensagem — nenhuma repetida 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 1. o estado do repositório — o corpo vivo do as-of é o corpo medido > docs/perf/asof-orcamento.json existe, é um orçamento completo e o hash é o do corpo vivo pelo replay
+AssertionError: 
+o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.
+: expected 'velho' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "velho"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:302:65
+    300| describe('1. o estado do repositório — o corpo vivo do as-of é o corpo…
+    301|   it(`${ROTULO_ORCAMENTO} existe, é um orçamento completo e o hash é o…
+    302|     expect(VEREDITO_REAL.tipo, `\n${VEREDITO_REAL.mensagem}\n`).toBe('…
+       |                                                                 ^
+    303|   })
+    304| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > a guarda tem sujeito: o replay acha a definição viva, e a âncora do byte está nela uma vez
+AssertionError: "limit 1" não aparece exatamente uma vez na definição viva: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:309:92
+    307|   it('a guarda tem sujeito: o replay acha a definição viva, e a âncora…
+    308|     expect(DEFINICAO_VIVA, `o replay não achou ${CHAVE_REPLAY} — as gu…
+    309|     expect(ANCORA_OK, `"${ANCORA_BYTE}" não aparece exatamente uma vez…
+       |                                                                                            ^
+    310|   })
+    311|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > migration sintética que muda UM BYTE do corpo → vermelho, "velho"
+AssertionError: expected undefined to be 'velho' // Object.is equality
+
+- Expected:
+"velho"
+
++ Received:
+undefined
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:318:64
+    316|
+    317|   it('migration sintética que muda UM BYTE do corpo → vermelho, "velho…
+    318|     expect(VEREDITO_UM_BYTE?.tipo, VEREDITO_UM_BYTE?.mensagem).toBe('v…
+       |                                                                ^
+    319|     expect(VEREDITO_UM_BYTE?.mensagem).toMatch(/VELHO/)
+    320|     expect(VEREDITO_UM_BYTE?.mensagem).toMatch(/9999_sintetica_orcamen…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM a sintética → verde (a cadeia real, o mesmo JSON)
+AssertionError: o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.: expected 'velho' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "velho"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:327:56
+    325|     // das duas guardas acima, sem a migration sintética. É o veredito…
+    326|     // propósito que seja o MESMO objeto — as três situações partem de…
+    327|     expect(VEREDITO_REAL.tipo, VEREDITO_REAL.mensagem).toBe('ok')
+       |                                                        ^
+    328|   })
+    329|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > "ausente" e "velho" têm mensagens DIFERENTES — pedem ações diferentes
+TypeError: .toMatch() expects to receive a string, but got undefined
+ ❯ src/lib/validators/asof-orcamento.test.ts:333:44
+    331|     expect(VEREDITO_SEM_JSON.mensagem).not.toBe(VEREDITO_UM_BYTE?.mens…
+    332|     expect(VEREDITO_SEM_JSON.mensagem).not.toMatch(/VELHO/)
+    333|     expect(VEREDITO_UM_BYTE?.mensagem).not.toMatch(/NÃO EXISTE/)
+       |                                            ^
+    334|   })
+    335| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 3. nunca por calendário > a mesma medição datada de 2000, com o corpo vivo igual ao medido → verde
+AssertionError: o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.: expected 'velho' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "velho"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:339:70
+    337| describe('3. nunca por calendário', () => {
+    338|   it('a mesma medição datada de 2000, com o corpo vivo igual ao medido…
+    339|     expect(VEREDITO_DATA_ANTIGA.tipo, VEREDITO_DATA_ANTIGA.mensagem).t…
+       |                                                                      ^
+    340|   })
+    341| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > a mesma definição só com espaço e quebra de linha a mais → verde (o controle da guarda do byte)
+AssertionError: o orçamento do as-of está VELHO: o corpo vivo de public.rel_estoque_asof_filiais(smallint[], date) (supabase/migrations/9999_sintetica_orcamento_asof.sql:2) não é o corpo medido. sha256 vivo 7e126e3f453ee6ce325d7c3a6a78ca98ef75994eafe7071db5af5dc8403b6464 ≠ 78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7 em docs/perf/asof-orcamento.json (medido de supabase/migrations/0143_rel_filiais.sql). MEÇA O CORPO NOVO pelo método de `medicao.metodo` e grave medição e hash JUNTOS — trocar só o `corpo.hash` para caber é apagar a prova de que o custo foi aceito.: expected 'velho' to be 'ok' // Object.is equality
+
+Expected: "ok"
+Received: "velho"
+
+ ❯ src/lib/validators/asof-orcamento.test.ts:345:66
+    343| describe('4. o que conta como "o corpo mudou"', () => {
+    344|   it('a mesma definição só com espaço e quebra de linha a mais → verde…
+    345|     expect(VEREDITO_SO_ESPACO.tipo, VEREDITO_SO_ESPACO.mensagem).toBe(…
+       |                                                                  ^
+    346|     // Verde PELA SINTÉTICA, não apesar dela: o corpo julgado é o que …
+    347|     // Sem isto, um replay que ignorasse o `drop`+`create` deixaria es…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 7 passed (14)
+   Start at  23:05:50
+   Duration  923ms (transform 119ms, setup 0ms, import 662ms, tests 18ms, environment 0ms)
+
+[código de saída do vitest: 1]
+
+==============================================================================================
+SITUAÇÃO 3 — RESTAURADO (espelho com o JSON e sem a sintética) → esperado: VERDE
+==============================================================================================
+
+ RUN  v4.1.11 <repo>
+
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 1. o estado do repositório — o corpo vivo do as-of é o corpo medido > docs/perf/asof-orcamento.json existe, é um orçamento completo e o hash é o do corpo vivo pelo replay 2ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > a guarda tem sujeito: o replay acha a definição viva, e a âncora do byte está nela uma vez 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM o JSON → vermelho, "ausente" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > migration sintética que muda UM BYTE do corpo → vermelho, "velho" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM a sintética → verde (a cadeia real, o mesmo JSON) 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > "ausente" e "velho" têm mensagens DIFERENTES — pedem ações diferentes 1ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 3. nunca por calendário > a mesma medição datada de 2000, com o corpo vivo igual ao medido → verde 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > a mesma definição só com espaço e quebra de linha a mais → verde (o controle da guarda do byte) 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o hash trocado DO LADO DO JSON também é "velho" — a identidade vale nos dois sentidos 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o as-of derrubado pelo replay, com o orçamento ainda citando a assinatura → vermelho, "sem-corpo-vivo" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > sem `medicao` → vermelho, "incompleto" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > orçando outra assinatura (a velha, que a 0145 derruba) → vermelho, "outra-funcao" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > JSON quebrado → vermelho, "ilegivel" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > cada vermelho tem a sua mensagem — nenhuma repetida 0ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  23:05:52
+   Duration  863ms (transform 111ms, setup 0ms, import 663ms, tests 6ms, environment 0ms)
+
+[código de saída do vitest: 0]
+
+==============================================================================================
+E NO PRÓPRIO REPOSITÓRIO (cwd = raiz), a trava e as guardas em memória → esperado: VERDE
+==============================================================================================
+
+ RUN  v4.1.11 <repo>
+
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 1. o estado do repositório — o corpo vivo do as-of é o corpo medido > docs/perf/asof-orcamento.json existe, é um orçamento completo e o hash é o do corpo vivo pelo replay 2ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > a guarda tem sujeito: o replay acha a definição viva, e a âncora do byte está nela uma vez 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM o JSON → vermelho, "ausente" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > migration sintética que muda UM BYTE do corpo → vermelho, "velho" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > SEM a sintética → verde (a cadeia real, o mesmo JSON) 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 2. a guarda do próprio teste — EM MEMÓRIA, sem tocar o disco > "ausente" e "velho" têm mensagens DIFERENTES — pedem ações diferentes 1ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 3. nunca por calendário > a mesma medição datada de 2000, com o corpo vivo igual ao medido → verde 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > a mesma definição só com espaço e quebra de linha a mais → verde (o controle da guarda do byte) 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o hash trocado DO LADO DO JSON também é "velho" — a identidade vale nos dois sentidos 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 4. o que conta como "o corpo mudou" > o as-of derrubado pelo replay, com o orçamento ainda citando a assinatura → vermelho, "sem-corpo-vivo" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > sem `medicao` → vermelho, "incompleto" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > orçando outra assinatura (a velha, que a 0145 derruba) → vermelho, "outra-funcao" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > JSON quebrado → vermelho, "ilegivel" 0ms
+ ✓ |puro| src/lib/validators/asof-orcamento.test.ts > 5. o arquivo tem de ser um orçamento, não um hash solto > cada vermelho tem a sua mensagem — nenhuma repetida 0ms
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  23:05:55
+   Duration  942ms (transform 125ms, setup 0ms, import 700ms, tests 6ms, environment 0ms)
+
+[código de saída do vitest: 0]

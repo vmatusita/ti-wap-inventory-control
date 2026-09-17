@@ -219,6 +219,18 @@ const LINHA_TRANSFERENCIA = z.looseObject({
   ...RASTRO_ESTORNO,
 })
 
+// F60 — o corte das três tabelas no teto (`CorteDeTabela`/`TabelasTruncadas`). Tudo `.optional()`:
+// a chave inteira só existe no snapshot em que alguma tabela passou do teto, e dentro dela só a
+// tabela cortada. Não há refinamento de `total > mostradas` aqui, pela regra do bloco acima (leitura
+// de dado CONGELADO, nenhum teto nem refinamento de escrita) — quem garante a relação é
+// `corteComTotal` na geração.
+const CORTE_DE_TABELA = z.looseObject({ mostradas: n, total: n })
+const TABELAS_TRUNCADAS = z.looseObject({
+  saidas: CORTE_DE_TABELA.optional(),
+  entradas: CORTE_DE_TABELA.optional(),
+  transferencias: CORTE_DE_TABELA.optional(),
+})
+
 const LINHA_LANCAMENTO_ITEM = z.looseObject({
   id: s,
   data: s,
@@ -269,6 +281,7 @@ const SNAPSHOT_V2 = z.looseObject({
   saidas: z.array(LINHA_SAIDA),
   entradas: z.array(LINHA_ENTRADA),
   transferencias: z.array(LINHA_TRANSFERENCIA),
+  tabelasTruncadas: TABELAS_TRUNCADAS.optional(),
   movimentacoesItens: z.array(LINHA_LANCAMENTO_ITEM).optional(),
   resumo: RESUMO_PERIODO,
 })

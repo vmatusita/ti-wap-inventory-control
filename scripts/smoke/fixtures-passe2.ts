@@ -248,18 +248,24 @@ export async function criarDevolucaoComItemFaltante(
 // Leituras — as MESMAS fontes que a tela usa, nunca uma query paralela
 // ---------------------------------------------------------------------------
 
-/** Saldo do item na filial — a RPC `rel_saldo_itens`, a mesma que `/itens` e
- *  `smoke-prod.mjs` já leem (0037+). `p_ate` é a data de corte (hoje). */
+/** Saldo do item na filial — a RPC `rel_saldo_itens_filiais`, a mesma que `/itens` e
+ *  `smoke-prod.mjs` já leem (0143). `p_ate` é a data de corte (hoje).
+ *
+ *  F60: o recorte é a LISTA `[filialId]`, e a RPC devolve DOIS níveis — a linha da filial e o nível do
+ *  total (`filial_id` null), iguais para uma filial só. Lê-se a linha DA FILIAL, explicitamente: um
+ *  `find` só pelo item pegaria a primeira das duas, qualquer que fosse. */
 export async function lerSaldoItemNaFilial(
   sessao: Sessao,
   args: { itemId: number; filialId: number; ate: string },
 ): Promise<{ total: number; estoque: number; atrelados: number; falta: number } | null> {
-  const { data, error } = await sessao.rpc('rel_saldo_itens', {
-    p_filial: args.filialId,
+  const { data, error } = await sessao.rpc('rel_saldo_itens_filiais', {
+    p_filiais: [args.filialId],
     p_ate: args.ate,
   })
   if (error) throw new Error(`Falha ao ler o saldo do item: ${error.message}`)
-  const linha = (data ?? []).find((l: { item_id: number }) => l.item_id === args.itemId)
+  const linha = (data ?? []).find(
+    (l: { item_id: number; filial_id: number | null }) => l.item_id === args.itemId && l.filial_id === args.filialId,
+  )
   return linha ? { total: linha.total, estoque: linha.estoque, atrelados: linha.atrelados, falta: linha.falta } : null
 }
 

@@ -134,9 +134,46 @@ const DA_F38 = [
   // `delete from public.ativos` — a trava da F51 (`import-uma-porta.test.ts`)
   // é quem prova isso, não esta lista.
   '0140',
+  // F60 · Frente B (16/09/2026) — a `0141` cria UMA função nova de leitura,
+  // `rel_contagem_status_filiais(smallint[])` (os KPIs do dashboard numa ida só), com
+  // `revoke … from public, anon` e `grant … to authenticated, service_role`. Mesmo motivo de
+  // sempre: a lista é COBERTURA. Não recria função existente (passa pela guarda de intocáveis
+  // sem exceção), não mexe em enum, não tem DELETE/UPDATE de topo, e entra também na lista de
+  // funções NOVAS `security invoker`, mais abaixo.
+  '0141',
+  // F60 · Frente B (16/09/2026) — a `0142` é só um índice parcial em `lancamentos_item`
+  // (`lanc_item_criado_por_idx`, o "último lançamento" de /itens), o que a medição de plano no
+  // ensaio pediu (R-REL-33). Mesmo motivo da `0135`: COBERTURA — não cria nem recria função, não
+  // mexe em enum, não tem DELETE/UPDATE de topo.
+  '0142',
+  // F60 · Frente D (16/09/2026) — a `0143` CRIA as sete `rel_*_filiais` (o recorte como lista
+  // obrigatória), com `revoke … from public, anon` e `grant … to authenticated, service_role` cada.
+  // Três delas SUCEDEM intocáveis (`rel_saldo_itens`, `rel_mov_itens`, `rel_estoque_asof`) e herdam
+  // a intocabilidade — por isso a criação passa pela exceção nominal `RECRIACOES_AUTORIZADAS`, e
+  // as sete entram na lista de funções novas `security invoker`, mais abaixo.
+  '0143',
+  // F60 · Frente D — a `0144` é um `create or replace view` de `v_colaboradores_textos` (a chave por
+  // nome distinto, mesmas colunas). Mesmo motivo de sempre: COBERTURA — não cria nem recria
+  // função, não mexe em enum, não tem DELETE/UPDATE de topo.
+  '0144',
+  // F60 · Frente D — a `0145` DERRUBA as sete assinaturas velhas das `rel_*`, três delas
+  // intocáveis. É a primeira migration desta faixa com `drop function`, e foi ela que mostrou que a
+  // guarda de intocáveis só lia `create` (PLAN-F60 §1.2 (m)): um `drop` passaria calado. A guarda
+  // agora lê os dois, e o drop mora numa exceção nominal própria, `REMOCOES_AUTORIZADAS`.
+  '0145',
 ]
 
-/** As dez que a ordem nomeia como intocáveis. */
+/**
+ * As dez que a ordem da F38 nomeia como intocáveis — e, desde a F60, as SUCESSORAS das três
+ * `rel_*` que a `0145` derruba.
+ *
+ * ⚠ Por que as sucessoras entram: a lista protege o que a função FAZ (o saldo, o movimento de
+ * itens, o estado as-of), não uma grafia de nome. Depois do drop, `rel_saldo_itens` não existe
+ * mais; se a sucessora ficasse de fora, uma migration futura poderia recriar
+ * `rel_saldo_itens_filiais` com outro corpo e esta guarda — que provava "nenhuma migration mexe no
+ * saldo sem exceção declarada" — passaria a provar nada. As velhas FICAM na lista: recriar o nome
+ * antigo continua sendo um desvio a declarar.
+ */
 const INTOCAVEIS = [
   'aplicar_movimentacao',
   'guarda_acervo',
@@ -148,6 +185,10 @@ const INTOCAVEIS = [
   'transferir_item',
   'criar_compra_lote',
   'devolver_ao_fornecedor',
+  // F60 (0143) — as sucessoras, com o recorte como lista obrigatória.
+  'rel_saldo_itens_filiais',
+  'rel_mov_itens_filiais',
+  'rel_estoque_asof_filiais',
 ] as const
 
 function arquivosDaFase(): { nome: string; sql: string }[] {
@@ -175,15 +216,147 @@ function semCorposDeFuncao(sql: string): string {
   return sql.replace(/\$\$[\s\S]*?\$\$/g, '\n/* corpo de função */\n')
 }
 
+// ---------------------------------------------------------------------------------------------------
+// A LEITURA DO NOME DE UMA ROTINA — um leitor só, para `create` e para `drop` (F60 · revisão do lote 2)
+// ---------------------------------------------------------------------------------------------------
+// Até a revisão do lote 2 as duas guardas liam o nome por regex, `(?:public\.)?([a-z_][a-z0-9_]*)`, e
+// a regex só enxergava nome NU. Medido pelo revisor 3: `drop function public."rel_saldo_itens_filiais"(…)`
+// devolvia `["public"]` (o esquema fazia as vezes de nome), `drop function "public"."rel_estoque_asof_filiais"(…)`
+// devolvia `[]`, e `drop routine public.rel_mov_itens_filiais(…)` — que no Postgres derruba FUNÇÃO
+// tanto quanto `drop function` — nem era lido. As três derrubariam uma intocável com "NENHUMA função
+// intocável é derrubada" verde. `create function public."x"(…)` tinha a mesma cegueira desde a F38.
+//
+// O leitor abaixo lê o que o Postgres lê: `[esquema.]nome`, cada parte NUA (dobrada para minúsculas, como
+// o parser faz) ou CITADA (exata, com `""` → `"` — `"Rel_Saldo_Itens"` é OUTRA função, e não pode virar
+// `rel_saldo_itens` por excesso de zelo), espaço permitido em volta do ponto. E FALHA FECHADA: o que ele
+// não sabe ler (aspa sem fecho, parêntese sem fecho, um `&` de `U&"…"` depois do nome) LANÇA com o
+// trecho, em vez de devolver uma lista menor — uma guarda que pula o que não entendeu é a mesma cegueira
+// com outra cara. Medido na revisão: sobre as 144 migrations da cadeia, as duas leituras novas devolvem
+// EXATAMENTE o que as regex devolviam, e nenhuma lança.
+
+/** O trecho em volta de `i`, numa linha, para a mensagem de falha. */
+function ilegivel(sql: string, i: number, comando: string): Error {
+  return new Error(`${comando} ilegível para a guarda perto de «${sql.slice(Math.max(0, i - 40), i + 60).replace(/\s+/g, ' ')}»`)
+}
+
+function pularEspacos(sql: string, i: number): number {
+  while (i < sql.length && /\s/.test(sql[i])) i++
+  return i
+}
+
+/** Onde termina o citado que abre em `i` (identificador `"…"` ou texto `'…'`, com a aspa dobrada), ou -1. */
+function fimDoCitado(sql: string, i: number): number {
+  const aspa = sql[i]
+  for (let j = i + 1; j < sql.length; j++) {
+    if (sql[j] !== aspa) continue
+    if (sql[j + 1] === aspa) {
+      j++
+      continue
+    }
+    return j + 1
+  }
+  return -1
+}
+
+/** Um identificador em `i`: nu (minúsculas) ou citado (exato). */
+function lerIdentificador(sql: string, i: number): { valor: string; fim: number } | null {
+  if (sql[i] === '"') {
+    const fim = fimDoCitado(sql, i)
+    return fim < 0 ? null : { valor: sql.slice(i + 1, fim - 1).replaceAll('""', '"'), fim }
+  }
+  const nu = /^[A-Za-z_][A-Za-z0-9_$]*/.exec(sql.slice(i, i + 128))
+  return nu ? { valor: nu[0].toLowerCase(), fim: i + nu[0].length } : null
+}
+
+/** `[esquema.]nome` a partir de `i`: o NOME (a última parte) e onde a leitura parou. */
+function lerNomeDeRotina(sql: string, i: number): { nome: string; fim: number } | null {
+  let atual = lerIdentificador(sql, pularEspacos(sql, i))
+  if (!atual) return null
+  for (;;) {
+    const ponto = pularEspacos(sql, atual.fim)
+    if (sql[ponto] !== '.') return { nome: atual.valor, fim: atual.fim }
+    const proximo = lerIdentificador(sql, pularEspacos(sql, ponto + 1))
+    if (!proximo) return null
+    atual = proximo
+  }
+}
+
+/** Onde termina o `( … )` que abre em `i`, atravessando citados (um tipo `"char"`, um nome com `)`), ou -1. */
+function fimDosParenteses(sql: string, i: number): number {
+  let profundidade = 0
+  for (let j = i; j < sql.length; j++) {
+    const c = sql[j]
+    if (c === '"' || c === "'") {
+      const fim = fimDoCitado(sql, j)
+      if (fim < 0) return -1
+      j = fim - 1
+    } else if (c === '(') {
+      profundidade++
+    } else if (c === ')' && --profundidade === 0) {
+      return j + 1
+    }
+  }
+  return -1
+}
+
 /**
  * Os nomes de função que um SQL DEFINE — só `create [or replace] function`, e só
  * fora de comentário de linha. Comentário citando o nome de uma função (que as
- * migrations desta casa fazem o tempo todo) não conta como recriação.
+ * migrations desta casa fazem o tempo todo) não conta como recriação. O nome é lido
+ * por `lerNomeDeRotina` (nu ou citado, com ou sem esquema), e o que vem depois dele
+ * tem de ser a lista de argumentos — senão a leitura LANÇA.
  */
 function funcoesDefinidas(sql: string): string[] {
-  const re = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z0-9_]*)/gi
+  const texto = semComentarios(sql)
   const nomes: string[] = []
-  for (const m of semComentarios(sql).matchAll(re)) nomes.push(m[1].toLowerCase())
+  for (const m of texto.matchAll(/\bcreate\s+(?:or\s+replace\s+)?function\s+/gi)) {
+    const lido = lerNomeDeRotina(texto, m.index + m[0].length)
+    if (!lido || texto[pularEspacos(texto, lido.fim)] !== '(') throw ilegivel(texto, m.index, '`create function`')
+    nomes.push(lido.nome)
+  }
+  return nomes
+}
+
+/**
+ * Os nomes de função que um SQL DERRUBA — `drop function|routine [if exists] a[(…)][, b[(…)]…]
+ * [cascade|restrict]`, fora de comentário de linha. (F60, PLAN §1.2 (m).)
+ *
+ * ⚠ POR QUE ELA EXISTE: até a F60 a guarda de intocáveis só lia `create`. A `0145` derruba três
+ * intocáveis (`rel_saldo_itens`, `rel_mov_itens`, `rel_estoque_asof`) e passaria sem acusar nada —
+ * "nenhuma migration toca uma intocável" continuaria verde com três delas fora do banco. Derrubar é
+ * tocar, e mais do que recriar.
+ *
+ * ⚠ `drop routine` ENTRA, e `drop procedure` não: `routine` derruba função (e procedimento), então é
+ * a mesma remoção com outra palavra; `procedure` só derruba procedimento — o Postgres RECUSA
+ * `drop procedure` sobre uma função ("is not a procedure"), e as intocáveis são todas funções.
+ *
+ * A lista é lida por posição, não partida por vírgula: a vírgula ENTRE os tipos fica dentro dos
+ * parênteses (atravessados por `fimDosParenteses`, que respeita citados), e a de ENTRE as rotinas é a
+ * que sobra depois deles. Os parênteses são opcionais (`drop function x;` vale quando o nome é único).
+ */
+function funcoesDerrubadas(sql: string): string[] {
+  const texto = semComentarios(sql)
+  const nomes: string[] = []
+  for (const m of texto.matchAll(/\bdrop\s+(?:function|routine)\s+(?:if\s+exists\s+)?/gi)) {
+    let i = m.index + m[0].length
+    for (;;) {
+      const lido = lerNomeDeRotina(texto, i)
+      if (!lido) throw ilegivel(texto, m.index, '`drop function`/`drop routine`')
+      nomes.push(lido.nome)
+      i = pularEspacos(texto, lido.fim)
+      if (texto[i] === '(') {
+        i = fimDosParenteses(texto, i)
+        if (i < 0) throw ilegivel(texto, m.index, '`drop function`/`drop routine`')
+        i = pularEspacos(texto, i)
+      }
+      if (texto[i] === ',') {
+        i++
+        continue
+      }
+      if (i >= texto.length || texto[i] === ';' || /^(?:cascade|restrict)\b/i.test(texto.slice(i, i + 9))) break
+      throw ilegivel(texto, m.index, '`drop function`/`drop routine`')
+    }
+  }
   return nomes
 }
 
@@ -221,6 +394,35 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // F53 — a `0134` troca o desempate. `aplicar_movimentacao` é intocável; `rel_estoque_asof`
     // não está em INTOCAVEIS, mas é nomeada aqui para que a exceção seja EXAUSTIVA.
     '0134': ['aplicar_movimentacao', 'rel_estoque_asof'],
+    // F60 — a `0143` CRIA as sete `rel_*_filiais` (nome novo, não `create or replace`). Três são
+    // intocáveis desde que nasceram (as sucessoras — ver INTOCAVEIS); as outras quatro são nomeadas
+    // para que a exceção seja EXAUSTIVA, como na `0134`. O que a torna aceitável é o diff contra o
+    // corpo vivo de cada velha, escrito no cabeçalho dela e provado pela equivalência velho × novo
+    // (1.004 células iguais nos dois bancos, PLAN-F60 §8).
+    '0143': [
+      'rel_mov_por_mes_filiais',
+      'rel_por_motivo_filiais',
+      'rel_resumo_filiais',
+      'rel_frescor_itens_filiais',
+      'rel_mov_itens_filiais',
+      'rel_saldo_itens_filiais',
+      'rel_estoque_asof_filiais',
+    ],
+  }
+
+  // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
+  // derruba as sete assinaturas velhas das `rel_*` — três delas intocáveis — porque as sucessoras já
+  // existem (`0143`) e o app deixou de chamá-las (PLAN-F60 §9, a janela do drop).
+  const REMOCOES_AUTORIZADAS: Record<string, readonly string[]> = {
+    '0145': [
+      'rel_estoque_asof',
+      'rel_saldo_itens',
+      'rel_mov_itens',
+      'rel_frescor_itens',
+      'rel_mov_por_mes',
+      'rel_por_motivo',
+      'rel_resumo',
+    ],
   }
 
   it('NENHUMA função intocável é recriada pelas migrations da fase', () => {
@@ -246,6 +448,98 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
         [...liberadas].sort(),
       )
     }
+  })
+
+  it('NENHUMA função intocável é derrubada pelas migrations da fase, fora da exceção nominal (F60)', () => {
+    for (const { nome, sql } of arquivosDaFase()) {
+      const derrubadas = funcoesDerrubadas(sql)
+      const liberadas = REMOCOES_AUTORIZADAS[nome.slice(0, 4)] ?? []
+      for (const proibida of INTOCAVEIS) {
+        if (liberadas.includes(proibida)) continue
+        expect(derrubadas, `${nome} derruba ${proibida}`).not.toContain(proibida)
+      }
+    }
+  })
+
+  it('a exceção de remoção é exaustiva — a migration liberada não derruba nada além do declarado', () => {
+    for (const [num, liberadas] of Object.entries(REMOCOES_AUTORIZADAS)) {
+      const arquivo = arquivosDaFase().find((a) => a.nome.startsWith(num))
+      expect(arquivo, `${num} está em REMOCOES_AUTORIZADAS mas não existe no disco`).toBeDefined()
+      expect(funcoesDerrubadas(arquivo!.sql).sort(), `${num} derruba função fora da exceção declarada`).toEqual(
+        [...liberadas].sort(),
+      )
+    }
+  })
+
+  // O contrato passa adiante: uma intocável só sai do banco se a SUCESSORA dela (`<nome>_filiais`)
+  // nasceu numa migration da fase ANTERIOR ao drop, e é ela mesma intocável. Sem isto, a exceção
+  // de remoção deixaria a próxima fase derrubar o saldo de itens sem pôr nada no lugar.
+  it('toda intocável derrubada tem a sucessora criada ANTES, e a sucessora é intocável (F60)', () => {
+    const fase = arquivosDaFase()
+    for (const [i, { nome, sql }] of fase.entries()) {
+      for (const derrubada of funcoesDerrubadas(sql).filter((f) => (INTOCAVEIS as readonly string[]).includes(f))) {
+        const sucessora = `${derrubada}_filiais`
+        expect(INTOCAVEIS as readonly string[], `${nome}: a sucessora de ${derrubada} não é intocável`).toContain(sucessora)
+        const criadaAntes = fase.slice(0, i).some((a) => funcoesDefinidas(a.sql).includes(sucessora))
+        expect(criadaAntes, `${nome} derruba ${derrubada} sem ${sucessora} criada antes`).toBe(true)
+      }
+    }
+  })
+
+  it('a leitura de `drop function` acha o que o apply derruba, e só isso (guarda da guarda)', () => {
+    // Sem esta asserção, uma `funcoesDerrubadas` que devolvesse sempre `[]` deixaria as três acima
+    // verdes por vácuo — o mesmo defeito que a guarda tinha antes de ler `drop`.
+    const sql = [
+      '-- drop function public.status_tem_detentor(public.status_ativo);',
+      'drop function public.rel_saldo_itens(smallint, date);',
+      'drop function if exists public.guarda_acervo(), transferir_item(uuid, numeric(10, 2), text);',
+      'create or replace function public.x() returns void language sql as $$ select 1 $$;',
+    ].join('\n')
+    expect(funcoesDerrubadas(sql)).toEqual(['rel_saldo_itens', 'guarda_acervo', 'transferir_item'])
+    // e a 0145 real é vista inteira (sete), não só a primeira linha
+    const real = arquivosDaFase().find((a) => a.nome.startsWith('0145'))
+    expect(funcoesDerrubadas(real!.sql)).toHaveLength(7)
+  })
+
+  // F60 · revisão do lote 2 (revisor 3, achado 2): as três grafias que a regex de nome NU deixava passar
+  // — e cada uma derruba uma intocável de verdade no Postgres. Os casos são os que o revisor rodou.
+  it.each([
+    ['o nome citado', 'drop function public."rel_saldo_itens_filiais"(smallint[], date);', ['rel_saldo_itens_filiais']],
+    ['o esquema e o nome citados', 'drop function "public"."rel_estoque_asof_filiais"(smallint[], date);', ['rel_estoque_asof_filiais']],
+    ['`drop routine`', 'drop routine public.rel_mov_itens_filiais(smallint[], date, date);', ['rel_mov_itens_filiais']],
+    ['`DROP ROUTINE` em maiúsculas, nu, com `cascade`', 'DROP ROUTINE PUBLIC.TRANSFERIR_ITEM(uuid) CASCADE;', ['transferir_item']],
+    ['sem a lista de argumentos', 'drop function public.status_tem_detentor;', ['status_tem_detentor']],
+    ['espaço em volta do ponto e dos parênteses, com `restrict`', 'drop function if exists public . guarda_acervo ( ) restrict;', ['guarda_acervo']],
+    [
+      'vírgula e parêntese dentro de citado, tipo citado e tipo com precisão',
+      'drop function public.a("char", character varying(10)), public."b,c)"(int), aplicar_movimentacao;',
+      ['a', 'b,c)', 'aplicar_movimentacao'],
+    ],
+  ])('a leitura de `drop` enxerga %s (guarda da guarda)', (_nome, sql, esperado) => {
+    expect(funcoesDerrubadas(sql)).toEqual(esperado)
+  })
+
+  it('um derrubado citado com OUTRA grafia não vira a intocável (o Postgres distingue, a guarda também)', () => {
+    // `"Rel_Saldo_Itens"` é outra função: dobrar o citado para minúsculas acusaria uma remoção que não
+    // aconteceu — e ensinaria a desligar a guarda.
+    expect(funcoesDerrubadas('drop function "Rel_Saldo_Itens"(smallint, date);')).toEqual(['Rel_Saldo_Itens'])
+  })
+
+  it.each([
+    ['um `&` depois do nome (o `U&"…"`)', 'drop function public.x & y;'],
+    ['aspa sem fecho', 'drop function public."x(int);'],
+    ['parêntese sem fecho', 'drop function public.x(int;'],
+    ['nome que não é identificador', 'drop routine 42;'],
+  ])('a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: %s', (_nome, sql) => {
+    expect(() => funcoesDerrubadas(sql)).toThrow(/ilegível para a guarda/)
+  })
+
+  it('a leitura de `create function` enxerga o nome citado e LANÇA sem a lista de argumentos (guarda da guarda)', () => {
+    expect(
+      funcoesDefinidas('create or replace function public."aplicar_movimentacao"(p uuid) returns void language sql as $$ select 1 $$;'),
+    ).toEqual(['aplicar_movimentacao'])
+    expect(funcoesDefinidas('CREATE FUNCTION "public"."Guarda_Acervo"() returns trigger')).toEqual(['Guarda_Acervo'])
+    expect(() => funcoesDefinidas('create function public.x returns void')).toThrow(/ilegível para a guarda/)
   })
 
   it('a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118', () => {
@@ -328,6 +622,20 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       // também para ele: RPC de acervo desta casa é `security invoker`, e a
       // permissão por filial é da policy, nunca de um `definer` que a contorne.
       'lancar_itens_lote',
+      // F60 (0141) — os KPIs do dashboard. `rel_*` desta casa é `security invoker` (a RLS de
+      // `ativos` vale como valia para o `select` que ela substitui), e a trava do recorte (bloco 7
+      // de `catalogo_secdef.sql`) cobra o mesmo no catálogo; aqui a prova é no disco.
+      'rel_contagem_status_filiais',
+      // F60 (0143) — as sete substitutas das `rel_*` que recortavam por `p_filial`. Mesmo motivo:
+      // `security invoker` (o as-of volta a escrever a palavra, que a `0109` perdeu), e o bloco 7
+      // (7d) cobra o mesmo no catálogo.
+      'rel_mov_por_mes_filiais',
+      'rel_por_motivo_filiais',
+      'rel_resumo_filiais',
+      'rel_frescor_itens_filiais',
+      'rel_mov_itens_filiais',
+      'rel_saldo_itens_filiais',
+      'rel_estoque_asof_filiais',
     ]
     const tudo = arquivosDaFase()
       .map((a) => a.sql)

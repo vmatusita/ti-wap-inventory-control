@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import { CAP_COLABORADORES, paginarTodos } from '@/lib/queries/relatorios/comum'
 import {
   MIN_PREFIXO_SUGESTAO,
   prefixoSeguro,
@@ -95,17 +95,22 @@ export async function listarColaboradoresAdmin(): Promise<ColaboradorAdmin[]> {
     movimentacoes: { count: number }[]
     lancamentos_item: { count: number }[]
   }
-  const linhas = await paginarTodos<Row>('Falha ao listar colaboradores', (from, to) =>
-    supabase
-      .from('colaboradores')
-      .select(
-        'id, nome, matricula, setor, filial_id, ativo, nome_chave, created_at, movimentacoes(count), lancamentos_item(count)',
-      )
-      // `nome` NÃO é único (a chave é `nome_chave`), então sozinho ele não é ordem
-      // TOTAL — o `id` é o desempate que torna a paginação determinística.
-      .order('nome', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, to),
+  // OFFSET, não keyset (F60 · PLAN §2.1, #4): lista de TELA, com ordem composta `nome, id` — o
+  // cursor simples pelo `id` mudaria a ordem visível, que é alfabética.
+  const linhas = await paginarTodos<Row>(
+    'Falha ao listar colaboradores',
+    (from, to) =>
+      supabase
+        .from('colaboradores')
+        .select(
+          'id, nome, matricula, setor, filial_id, ativo, nome_chave, created_at, movimentacoes(count), lancamentos_item(count)',
+        )
+        // `nome` NÃO é único (a chave é `nome_chave`), então sozinho ele não é ordem
+        // TOTAL — o `id` é o desempate que torna a paginação determinística.
+        .order('nome', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    CAP_COLABORADORES,
   )
   return linhas.map((r) => ({
     id: r.id,

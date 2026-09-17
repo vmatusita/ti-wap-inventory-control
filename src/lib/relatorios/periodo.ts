@@ -106,7 +106,7 @@ export type PeriodoResolvido = {
 // A validação é `dataISO` (@/lib/url-params), não o regex de FORMATO: uma data
 // que só case `^\d{4}-\d{2}-\d{2}$` pode não existir (`2026-02-30`) ou estar fora
 // da faixa que o Postgres aceita (`0000-01-01`), e o período segue direto para a
-// RPC `rel_estoque_asof` e para os `.gte('data', …)` — o banco devolve 22008 e a
+// RPC `rel_estoque_asof_filiais` e para os `.gte('data', …)` — o banco devolve 22008 e a
 // página inteira do relatório cai no error boundary, para o operador E para o
 // visualizador por senha. É a mesma classe do achado F12-W4-04, que já havia sido
 // encerrada em /ativos, /itens, /movimentacoes e nos exports; faltava aqui.

@@ -39,6 +39,7 @@ import { corpoVigente } from '../db/corpo-vigente.mjs'
 import { CATALOGO } from '../../src/lib/queries/formas/catalogo'
 import { conferirValores, type ProblemaDeForma } from '../../src/lib/supabase/forma'
 import type { LeituraDeRelacao, LeituraDeRpc, MatrizDeRpc } from '../../src/lib/supabase/leitura'
+import { idsDeFiliais, listaDoConsolidado } from './filiais-da-matriz'
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const opcao = (nome: string) => process.argv.find((a) => a.startsWith(`--${nome}=`))?.slice(nome.length + 3)
@@ -245,7 +246,22 @@ const segunda = (() => {
 })()
 
 // Os valores de filial e de pessoa passam pela memória e NUNCA saem: a célula é rotulada por ordem.
-const filiaisAtivas = ((await db.from('filiais').select('id').eq('ativo', true).order('id')).data ?? []).map((f) => f.id as number)
+//
+// F60 — o consolidado das `rel_*_filiais` é a lista de TODAS as filiais, inclusive desativadas (a
+// mesma régua de `filiaisDoConsolidado`, `src/lib/queries/relatorios/recorte-filiais.ts`).
+//
+// ⚠ Revisão do lote 1 (revisor 3, achado 4): as duas leituras que MONTAM células descartavam o
+// `error` (`… .data ?? []`). Com a do consolidado falhando, a célula recebia `p_filiais: []`, lia zero
+// linhas por construção e saía verde — a regra de não-provado só dispara com `count > 0`. Agora elas
+// passam por `filiais-da-matriz.ts`: erro, lista truncada ou consolidado vazio RECUSAM a rodada.
+let filiaisAtivas: number[] = []
+let todasAsFiliais: number[] = []
+try {
+  filiaisAtivas = idsDeFiliais(await db.from('filiais').select('id', { count: 'exact' }).eq('ativo', true).order('id'), 'as filiais ativas')
+  todasAsFiliais = listaDoConsolidado(await db.from('filiais').select('id', { count: 'exact' }).order('id'), 'o consolidado das rel_*_filiais')
+} catch (e) {
+  recusar((e as Error).message)
+}
 const maisAntiga = ((await db.from('movimentacoes').select('data').order('data', { ascending: true }).limit(1)).data ?? [])[0]?.data as string | undefined
 const inicio = maisAntiga ?? menos(365)
 const meio = (() => {
@@ -257,24 +273,29 @@ const pessoas = ((await db.from('colaboradores').select('id').order('id').limit(
 
 type Celula = { rotulo: string; args: Record<string, unknown> }
 function celulas(m: MatrizDeRpc): Celula[] {
-  const recortes: { rotulo: string; filial: number | null }[] = [
-    { rotulo: 'consolidado', filial: null },
-    ...filiaisAtivas.map((id, i) => ({ rotulo: `filial #${i + 1}`, filial: id })),
+  // F60 — o recorte é sempre a LISTA explícita (nunca NULL): o consolidado com TODAS as filiais
+  // (inclusive desativadas), e uma célula por filial ativa com `[id]`. As mesmas células que a matriz
+  // antiga (`p_filial` NULL + um id por filial ativa) montava — a grade de datas e janelas não muda.
+  const recortes: { rotulo: string; filiais: number[] }[] = [
+    { rotulo: 'consolidado', filiais: todasAsFiliais },
+    ...filiaisAtivas.map((id, i) => ({ rotulo: `filial #${i + 1}`, filiais: [id] })),
   ]
   switch (m.tipo) {
     case 'sem-argumentos':
       return [{ rotulo: 'única', args: {} }]
     case 'colaborador':
       return pessoas.map((id, i) => ({ rotulo: `pessoa #${i + 1}`, args: { [m.colaborador]: id } }))
-    case 'filial-e-data':
+    case 'filiais':
+      return recortes.map((r) => ({ rotulo: r.rotulo, args: { [m.filiais]: r.filiais } }))
+    case 'filiais-e-data':
       return recortes.flatMap((r) =>
-        [hoje, inicio, meio].map((data, j) => ({ rotulo: `${r.rotulo} · data ${j + 1}`, args: { [m.filial]: r.filial, [m.data]: data } })),
+        [hoje, inicio, meio].map((data, j) => ({ rotulo: `${r.rotulo} · data ${j + 1}`, args: { [m.filiais]: r.filiais, [m.data]: data } })),
       )
-    case 'filial-e-periodo':
+    case 'filiais-e-periodo':
       return recortes.flatMap((r) =>
         [[segunda, hoje], [inicio, hoje], [meio, hoje]].map(([de, ate], j) => ({
           rotulo: `${r.rotulo} · janela ${j + 1}`,
-          args: { [m.filial]: r.filial, [m.de]: de, [m.ate]: ate },
+          args: { [m.filiais]: r.filiais, [m.de]: de, [m.ate]: ate },
         })),
       )
   }
@@ -308,8 +329,9 @@ async function conferirRpc(d: LeituraDeRpc): Promise<Ponto[]> {
       acumular(p, conf.recusas)
       continue
     }
-    // POST com count exato e UMA linha: o HEAD iria por GET, e `null` num argumento (o consolidado) não se expressa
-    // na query string — a rodada cedo no ensaio perdeu todas as células consolidadas assim.
+    // POST com count exato e UMA linha: o HEAD iria por GET, e `null` num argumento (o consolidado de antes da F60) não
+    // se expressa na query string — a rodada cedo no ensaio perdeu todas as células consolidadas assim. A lista
+    // `p_filiais` das `rel_*_filiais` vai no corpo do POST do mesmo jeito, sem depender de serialização na URL.
     const c = await db.rpc(d.rpc, cel.args, { count: 'exact' }).range(0, 0)
     if (c.error) {
       p.erros.push(`count: ${erroDe(c.error, c.status)}`)

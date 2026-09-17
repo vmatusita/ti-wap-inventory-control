@@ -10,7 +10,14 @@ import type {
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
-import { paginarTodos, type DbClient } from './comum'
+import {
+  CAP_ITENS,
+  CAP_LANCAMENTOS_ITEM,
+  CAP_SALDO_ITENS_EM_NIVEIS,
+  paginarTodos,
+  type DbClient,
+} from './comum'
+import { recorteDeFiliais } from './recorte-filiais'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import {
@@ -65,19 +72,79 @@ async function lerMinimosDoCatalogo(
   client: DbClient,
 ): Promise<{ id: number; estoque_minimo: number }[]> {
   try {
-    return await paginarTodos<{ id: number; estoque_minimo: number }>(
+    // Keyset pelo `id` (F60 · PLAN §2.1, #42): a ordem já era a PK. O cursor aqui é INTEIRO
+    // (`itens.id` é serial), e é por isso que o segundo argumento de tipo diz `number` — a guarda
+    // da chave compara número com número; como texto, "10" viria antes de "9" e lançaria.
+    return await paginarTodos<{ id: number; estoque_minimo: number }, number>(
       'Falha ao ler o mínimo do catálogo de itens',
-      (from, to) =>
-        client
-          .from('itens')
-          .select('id, estoque_minimo')
-          .order('id', { ascending: true })
-          .range(from, to),
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client.from('itens').select('id, estoque_minimo').order('id', { ascending: true }).limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (r) => r.id,
+      },
+      CAP_ITENS,
     )
   } catch (e) {
     registrarFalha({ escopo: 'relatorios.minimos-catalogo', erro: e })
     return []
   }
+}
+
+// ---------------------------------------------------------------------------
+// O SALDO EM DOIS NÍVEIS — a ÚNICA leitura de `rel_saldo_itens_filiais` do app (F60 · revisão do lote 2)
+// ---------------------------------------------------------------------------
+// ⚠ PAGINADA, e é o conserto de um corte CALADO. Até a F59 cada chamada de `rel_saldo_itens` devolvia no
+// máximo uma linha por item, e ler numa ida só era "seguro estruturalmente" (a premissa escrita em
+// `docs/PLANO-CORRECAO-TRUNCAMENTO-1000.md` §2.2): o catálogo teria de passar de 1.000 itens para o
+// `max-rows` do PostgREST cortar. A `0143` derrubou a premissa sem pôr nada no lugar — a função nova
+// devolve (filiais do recorte + 1) × itens linhas NUMA resposta, ordenada `filial_id nulls first`, e o
+// corte cai em silêncio nas linhas das filiais de id MAIS ALTO. Com as seis filiais de 16/09, a partir de
+// 143 itens (7 × 143 = 1.001): em `/itens` a última coluna sai zerada e `estoqueForaDasColunas` acende
+// "inclui N de filial fora desta lista" sem filial desativada nenhuma; na multi-seleção do histórico a
+// soma sai menor; o CSV herda os dois. Nada lançava. (Achado dos três revisores da revisão adversarial do
+// lote 2 — a equivalência velho × novo não o pegaria: ela emula o corpo em SQL, sem passar pelo PostgREST.)
+//
+// Por isso esta leitura passa por `paginarTodos` como toda leitura que pode passar do `max-rows` — o fim
+// pela página curta contra o teto OBSERVADO, e o `cap` que LANÇA acima do domínio —, e é a ÚNICA do app:
+// o relatório (abaixo) e `/itens` (`queries/itens.ts`: a tela, o histórico, o CSV, o dashboard, a
+// conferência e as duas actions) chegam aqui, e `itens.test.ts` desta pasta reprova uma segunda chamada
+// da RPC em `src/**` — a leitura sem página voltaria por ela.
+//
+// ⚠ A ORDEM É A DA FUNÇÃO, IMPOSTA NA CHAMADA, E TOTAL. OFFSET sem ordem total repete e perde linha quando
+// o plano muda entre duas páginas (o bloco de `paginarTodos` em `comum.ts`). O corpo da `0143` ordena por
+// `filial_id nulls first, grupo, ordem, nome`; a chamada repete exatamente essas chaves — `item` é o
+// `itens.nome` (text, collation padrão, a mesma da coluna) e `grupo` o enum, ordenado pela declaração do
+// tipo como no corpo — e fecha com `item_id`, que é único dentro de um nível. É o que mantém a ordem de
+// exibição que `combinarSaldosPorFilial` e `somarSaldosDeFiliais` herdam da leitura (grupo/ordem/nome).
+//
+// OFFSET, não keyset (F60 · PLAN §2.1): a fonte é RPC, e o builder que a porta devolve não tem filtro no
+// TIPO (`rpc.ts`). O CUSTO do conserto é uma ida a mais por leitura — a primeira página nunca é conclusiva
+// sozinha, e a segunda (vazia, no volume de hoje) é a prova de que o dado acabou; a mesma conta que o as-of
+// paga desde 19/08. Continua sendo UMA leitura por recorte, e não o `1 + N` que a F60 tirou: cada página
+// executa a MESMA função com os MESMOS argumentos, e nenhuma lê um recorte diferente da outra.
+//
+// Lista vazia não vai ao banco: a RPC daria zero linhas de qualquer jeito (a CTE `alvo` vazia).
+//
+// A linha passa pela forma (`LEITURA_REL_SALDO_ITENS`): a linha fora do formato LANÇA, e o conferidor de
+// formas a prova contra produção na matriz de filiais.
+export async function lerSaldoItensEmNiveis(client: DbClient, filiais: readonly number[], ate: string) {
+  if (filiais.length === 0) return []
+  const p_filiais = [...filiais]
+  const brutas = await paginarTodos(
+    'Falha nos saldos de itens',
+    (from, to) =>
+      chamarRpc(client, 'rel_saldo_itens_filiais', { p_filiais, p_ate: ate })
+        .order('filial_id', { ascending: true, nullsFirst: true })
+        .order('grupo', { ascending: true })
+        .order('ordem', { ascending: true })
+        .order('item', { ascending: true })
+        .order('item_id', { ascending: true })
+        .range(from, to),
+    CAP_SALDO_ITENS_EM_NIVEIS,
+  )
+  return linhasDe(brutas, LEITURA_REL_SALDO_ITENS.forma, LEITURA_REL_SALDO_ITENS.rotulo)
 }
 
 // Grupos 2–3: saldo as-of + movimentação no período + frescor + última obs.
@@ -86,16 +153,28 @@ export async function getGruposItens(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<GrupoRelatorio[]> {
+  // F60 · lote 2 — o recorte das três `rel_*_filiais` é a LISTA (`recorteDeFiliais`: `null` → todas
+  // as filiais, inclusive desativadas; um id → `[id]`), a MESMA para as três. A leitura da lista fica
+  // EM VOO e as três RPCs encadeiam nela: as observações e o catálogo, que não dependem do recorte,
+  // saem já, em vez de esperar a lista (no consolidado, a leitura de `filiais` é memoizada por request
+  // e compartilhada com o as-of e com o período).
+  const recorte = recorteDeFiliais(client, filialId)
   const [saldos, movs, frescor, obsRows, catalogo] = await Promise.all([
-    chamarRpc(client, 'rel_saldo_itens', { p_filial: filialId, p_ate: periodo.ate }),
-    chamarRpc(client, 'rel_mov_itens', { p_filial: filialId, p_de: periodo.de, p_ate: periodo.ate }),
-    chamarRpc(client, 'rel_frescor_itens', { p_filial: filialId, p_ate: periodo.ate }),
+    // paginada (ver `lerSaldoItensEmNiveis`, acima): LANÇA com o rótulo, e já devolve a linha conferida
+    recorte.then((p_filiais) => lerSaldoItensEmNiveis(client, p_filiais, periodo.ate)),
+    recorte.then((p_filiais) =>
+      chamarRpc(client, 'rel_mov_itens_filiais', { p_filiais, p_de: periodo.de, p_ate: periodo.ate }),
+    ),
+    recorte.then((p_filiais) => chamarRpc(client, 'rel_frescor_itens_filiais', { p_filiais, p_ate: periodo.ate })),
     // Paginada de verdade — o comentário no alto do arquivo já dizia "como as
     // outras quatro", mas esta usava `.limit(1000)` FIXO. Com o preset "Tudo"
     // (plurianual), o 1.001º lançamento com observação sumia sem aviso, e a
     // "última observação" de um item podia ficar de fora por estar atrás da
     // janela. Desempate por `id`: `created_at` sozinho empata dentro do mesmo
     // lote de lançamentos, e empate não pagina.
+    //
+    // OFFSET, não keyset (F60 · PLAN §2.1, #43): ordem composta `created_at desc, id desc` sem
+    // cursor simples — "a última observação" é a primeira linha de cada item.
     paginarTodos<{ item_id: number; observacao: string | null }>(
       'Falha nas observações dos itens',
       (from, to) => {
@@ -117,6 +196,7 @@ export async function getGruposItens(
           .order('id', { ascending: false })
           .range(from, to)
       },
+      CAP_LANCAMENTOS_ITEM,
     ),
     // Só a aba CONSOLIDADA (filialId null) tem medidor de mínimo — ver o comentário
     // de `lerMinimosDoCatalogo` acima para o motivo. Nas abas de filial nem vale ler
@@ -129,22 +209,29 @@ export async function getGruposItens(
       // Promise.all fica mais frágil do que precisa.
       : Promise.resolve<{ id: number; estoque_minimo: number }[]>([]),
   ])
-  if (saldos.error) throw new Error(`Falha nos saldos de itens: ${saldos.error.message}`)
   if (movs.error) throw new Error(`Falha na movimentação de itens: ${movs.error.message}`)
   // As outras duas leituras também LANÇAM: um `data` nulo silencioso faria o
   // relatório afirmar "nenhum lançamento no grupo" (frescor) e apagar a última
   // observação de cada item — e a geração de snapshot congelaria a afirmação.
   if (frescor.error)
     throw new Error(`Falha no frescor dos itens: ${frescor.error.message}`)
-  // `obsRows` não tem `.error` para conferir: `paginarTodos` LANÇA com o rótulo
-  // em qualquer página, que é o mesmo contrato que este `throw` garantia.
+  // `saldos` e `obsRows` não têm `.error` para conferir: `paginarTodos` LANÇA com o
+  // rótulo em qualquer página, que é o mesmo contrato que este `throw` garantia.
   // `catalogo` já chega como array pronto (ou vazio): `lerMinimosDoCatalogo`
   // absorve o próprio erro (ver comentário acima do Promise.all), então não há
   // `.error` para conferir aqui.
 
   // F58: as três `rel_*` passam pela forma — a linha fora do formato LANÇA, pelo mesmo caminho
-  // dos `throw` acima (a geração de snapshot não congela dado incompleto).
-  const linhasSaldo = linhasDe(saldos.data, LEITURA_REL_SALDO_ITENS.forma, LEITURA_REL_SALDO_ITENS.rotulo)
+  // dos `throw` acima (a geração de snapshot não congela dado incompleto). A do saldo já chega
+  // conferida de `lerSaldoItensEmNiveis`.
+  //
+  // O saldo lê o NÍVEL DO TOTAL (`filial_id` NULL): `rel_saldo_itens_filiais` devolve, numa chamada, uma
+  // linha por (filial do recorte, item) E uma por item com o total do recorte — que é o número que a
+  // velha `rel_saldo_itens` devolvia, para qualquer recorte (`0143`). Sem o filtro, o relatório
+  // contaria cada item duas vezes (na aba de uma filial: a linha dela e o total, iguais) — ou, no
+  // consolidado, uma vez por filial e mais uma. Nunca a soma das linhas por filial: os clamps do total
+  // não são aditivos quando um chamado atravessa filiais.
+  const linhasSaldo = saldos.filter((s) => s.filial_id === null)
   const linhasMov = linhasDe(movs.data, LEITURA_REL_MOV_ITENS.forma, LEITURA_REL_MOV_ITENS.rotulo)
   const linhasFrescor = linhasDe(frescor.data, LEITURA_REL_FRESCOR_ITENS.forma, LEITURA_REL_FRESCOR_ITENS.rotulo)
 
@@ -215,7 +302,7 @@ export async function getGruposItens(
 
 // ===========================================================================
 // B5 (F6B) — tabela de movimentações de ITENS por quantidade no período (seção
-// própria). Ao contrário de rel_mov_itens (agregado Σ por item), esta é lançamento
+// própria). Ao contrário de rel_mov_itens_filiais (agregado Σ por item), esta é lançamento
 // a lançamento: PostgREST direto em lancamentos_item com os embeds de item e
 // filial, filtrada pela janela. Recebe o client resolvido (serve operador E
 // viewer por senha, como as demais leituras de relatório). Traz o período
@@ -275,16 +362,24 @@ async function buscarLancEstornadosAteData(
   client: DbClient,
   ate: string,
 ): Promise<Map<string, string>> {
-  const rows = await paginarTodos<{ estorna_id: string | null; data: string }>(
+  // Keyset pelo `id` (F60 · PLAN §2.1, #44): a ordem já era a PK — e o "primeiro estorno visto"
+  // do `Map` abaixo continua sendo o mesmo. O `id` entra no `select` só como cursor.
+  const rows = await paginarTodos<{ id: string; estorna_id: string | null; data: string }>(
     'Falha ao ler estornos de itens',
-    (from, to) =>
-      client
-        .from('lancamentos_item')
-        .select('estorna_id, data')
-        .not('estorna_id', 'is', null)
-        .lte('data', ate)
-        .order('id', { ascending: true })
-        .range(from, to),
+    {
+      porChave: (depoisDe, tamanho) => {
+        const q = client
+          .from('lancamentos_item')
+          .select('id, estorna_id, data')
+          .not('estorna_id', 'is', null)
+          .lte('data', ate)
+          .order('id', { ascending: true })
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_LANCAMENTOS_ITEM,
   )
   const map = new Map<string, string>()
   for (const r of rows) if (r.estorna_id && !map.has(r.estorna_id)) map.set(r.estorna_id, r.data)
@@ -298,6 +393,9 @@ export async function getLancamentosItensPeriodo(
 ): Promise<LinhaLancamentoItem[]> {
   // Período COMPLETO, paginado como buscarLinhasPeriodo (Saídas/Entradas/Transf.):
   // sem teto próprio que truncaria em silêncio e enganaria o contador da seção.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #45): ordem composta tripla `data desc, created_at
+  // desc, id desc` — é a ordem VISÍVEL da tabela, sem cursor simples.
   const [brutas, estornados] = await Promise.all([
     paginarTodos(
       'Falha ao listar movimentações de itens',
@@ -322,7 +420,7 @@ export async function getLancamentosItensPeriodo(
           // COM a justificativa escrita pelo dev impressa e exportada no CSV.
           //
           // O saldo em si CONTINUA contando com o ajuste (é o ponto de forçar o saldo): quem
-          // soma é `rel_saldo_itens`, que não passa por aqui. O que se exclui é a linha do
+          // soma é `rel_saldo_itens_filiais`, que não passa por aqui. O que se exclui é a linha do
           // relatório de MOVIMENTO do período, não o efeito no estoque.
           .eq('forcado', false)
         if (filialId) q = q.eq('filial_id', filialId)
@@ -332,6 +430,7 @@ export async function getLancamentosItensPeriodo(
           .order('id', { ascending: false })
           .range(from, to)
       },
+      CAP_LANCAMENTOS_ITEM,
     ),
     buscarLancEstornadosAteData(client, periodo.ate),
   ])

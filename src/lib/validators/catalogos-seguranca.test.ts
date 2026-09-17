@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { listarMigrations } from '../../../scripts/db/corpo-vigente.mjs'
 import { lerExcecoesDoCatalogo } from '../../../scripts/db/predicado-policies.mjs'
+import { lerExcecoesDeRecorte } from '../../../scripts/db/recorte-rel.mjs'
 
 // A TRAVA DE MESA DOS CATÁLOGOS DE SEGURANÇA — F48. RODA SEM BANCO, e é essa a razão
 // de ela existir.
@@ -146,6 +147,15 @@ describe('3. toda exceção NOMINAL vem com motivo escrito e a migration que a c
     // acusaria — corretamente — que a varredura passou a olhar quase nada.
     { arquivo: 'catalogo_secdef', array: 'k_invoker_revogadas' },
   ]
+  // F60 — `k_excecoes_recorte` (bloco 7 de `catalogo_secdef.sql`) NÃO entra nesta
+  // lista: o formato dela é INLINE (motivo/migration/destino na MESMA linha do
+  // literal, "'nome', -- NNNN · motivo: … · destino: …") — o mesmo formato de
+  // `k_excecoes_predicado`, que por isso também está FORA de `ARRAYS` e ganha o
+  // describe 11 abaixo, com `lerExcecoesDeRecorte`. `linhaComMotivoEProcedencia`
+  // exige uma linha que COMECE com `--` (comentário PRÓPRIO, separado do literal)
+  // — a forma de `k_sem_select`/`k_invoker_anon`/`k_invoker_revogadas`; testar
+  // isso contra o formato inline reprovaria por incompatibilidade de convenção,
+  // não por ausência de procedência (medido nesta sessão).
 
   /** Os literais de um `<nome> text[] := array[ … ];` do roteiro. */
   function nomesDoArray(arquivo: string, array: string): string[] {
@@ -258,6 +268,10 @@ describe('4. cada catálogo lê a superfície que promete ler', () => {
         'has_function_privilege', // o alcance de anon
         "'anon'",
         'valida_lancamento_item', // a exceção nominal que impede o ✗ permanente
+        'p_filiais', // F60 bloco 7 — o parâmetro de recorte obrigatório das rel_*
+        'proargnames', // F60 — onde o nome do parâmetro é lido, sem parsear texto
+        'prosrc', // F60 — a prova (fraca, declarada) sobre o corpo em texto
+        'proargtypes', // F60 (revisão adversarial) — o fallback quando proallargtypes é nulo (sem `returns table`)
       ],
     },
     {
@@ -392,7 +406,7 @@ describe('7. os catálogos são DERIVADOS, não listas que afirmam', () => {
       arquivo: 'catalogo_policies',
       conjuntos: ['k_negocio', 'k_infra', 'k_sem_select', 'k_storage', 'k_realtime', 'k_policies_public', 'k_excecoes_predicado'],
     },
-    { arquivo: 'catalogo_secdef', conjuntos: ['k_secdef', 'k_invoker_anon'] },
+    { arquivo: 'catalogo_secdef', conjuntos: ['k_secdef', 'k_invoker_anon', 'k_excecoes_recorte'] },
   ]
 
   const pares = SIMETRIAS.flatMap((s) => s.conjuntos.map((c) => [s.arquivo, c] as const))
@@ -614,6 +628,45 @@ describe('10. a lista única de exceções da doutrina do predicado (F59)', () =
       "    'public.t / p / f', -- 0063 · motivo: curto · destino: F66", // motivo raso
     ]) {
       expect(lerExcecoesDoCatalogo(embrulhar(ruim)).problemas.length, ruim).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('11. a lista única de exceções do recorte das rel_* (F60, bloco 7)', () => {
+  // `k_excecoes_recorte` (catalogo_secdef.sql) é a fonte única da exceção ao
+  // recorte obrigatório de `public.rel_*` — mesmo padrão do describe 10
+  // (Decisão 2 da F48: a mesa lê o `.sql` como texto, nunca copia a lista para
+  // TypeScript), com o leitor próprio da F60 (`recorte-rel.mjs::lerExcecoesDeRecorte`),
+  // porque o formato é por NOME de função — um campo só —, não por ocorrência de
+  // três campos como `k_excecoes_predicado`.
+  const lidas = lerExcecoesDeRecorte(fonte('catalogo_secdef'))
+  const MIGRATIONS = new Set(listarMigrations(RAIZ).map((f) => f.slice(0, 4)))
+
+  it('há exceções para conferir, e nenhuma fora do formato (guarda do próprio teste)', () => {
+    expect(lidas.entradas.length, 'k_excecoes_recorte vazio: a leitura quebrou?').toBeGreaterThan(0)
+    expect(lidas.problemas).toEqual([])
+  })
+
+  it('toda entrada é um nome rel_* e aponta uma migration que existe', () => {
+    for (const e of lidas.entradas) {
+      expect(e.nome, `"${e.nome}" não parece nome de função rel_*`).toMatch(/^rel_[a-z_0-9]*$/)
+      expect(MIGRATIONS.has(e.migration), `"${e.nome}" cita a migration ${e.migration}, que não existe`).toBe(true)
+      expect(e.destino).toMatch(/^(F\d+[A-Z]?|permanente)$/)
+    }
+  })
+
+  it('a régua do formato sabe reprovar (guarda do próprio teste)', () => {
+    const embrulhar = (linhas: string) => `k_excecoes_recorte text[] := array[\n${linhas}\n  ];`
+    const ok = "    'rel_x', -- 0063 · motivo: uma frase honesta com mais de quarenta caracteres de verdade · destino: F66"
+    expect(lerExcecoesDeRecorte(embrulhar(ok)).problemas).toEqual([])
+    for (const ruim of [
+      "    'rel_x', -- 0063 · motivo: uma frase honesta com mais de quarenta caracteres de verdade", // sem destino
+      "    'rel_x', -- 0063 · destino: F66", // sem motivo
+      "    'rel_x', -- motivo: uma frase honesta com mais de quarenta caracteres de verdade · destino: F66", // sem migration
+      "    'rel_x', -- 0063 · motivo: uma frase honesta com mais de quarenta caracteres de verdade · destino: depois", // destino inventado
+      "    'rel_x', -- 0063 · motivo: curto · destino: F66", // motivo raso
+    ]) {
+      expect(lerExcecoesDeRecorte(embrulhar(ruim)).problemas.length, ruim).toBeGreaterThan(0)
     }
   })
 })

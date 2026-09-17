@@ -1,0 +1,62 @@
+F60 — PRODUÇÃO (pbtjcalbmepmrqzprusb), ANTES do merge, 17/09/2026, canal MCP da Supabase. Só números, hashes e nomes.
+A 1.64.0 seguiu no ar durante tudo isto: as três migrations são aditivas e ela não chama nome nenhum delas.
+
+0. PRÉ-VOO (só leitura)
+   rotulo_de_ambiente() = null (produção) · rel_* vivas: as sete velhas + rel_saldo_colaborador · lanc_item_criado_por_idx: não
+   existia · ativos 1.635 · movimentações 3.578 · lançamentos 155 · filiais 6 (0 desativadas).
+
+1. APPLY (ledger: rel_contagem_status, lanc_item_criado_por_idx, rel_filiais)
+   0141 → success · 0142 → success · 0143 → success. A 0144 e a 0145 NÃO foram aplicadas (esperam o deploy e a janela).
+
+2. VERIFICAÇÃO PÓS-APPLY — a mesma consulta do ensaio, os mesmos valores:
+   as 8 _filiais com anon f · authenticated t · service_role t · prosecdef f · provolatile s · proisstrict f ·
+   proconfig {search_path=public} · sem PUBLIC=X; md5 normalizado IGUAL ao versionado nas oito
+   (695b38a8… 54943d2f… edd2fa35… 55be37e2… f961349d… 4340acc3… ad948cbb… 01aa17a8…).
+   NULL e '{}' → 0 nas oito, sem erro. Consolidado da contagem = count(*) de ativos → true.
+   rel_estoque_asof_filiais(todas, hoje) = 1.624 linhas = rel_estoque_asof(null, hoje).
+   lanc_item_criado_por_idx com a definição certa: 1. notify pgrst → ok.
+   get_advisors(security): os mesmos achados de antes (rls_enabled_no_policy ×3, security definer ×28, leaked password ×1),
+   nenhum sobre as funções ou o índice novos.
+
+3. EQUIVALÊNCIA COM A FUNÇÃO DE VERDADE (docs/perf/f60-equivalencia-real.json — ensaio e produção no mesmo arquivo)
+   produção:  mov_por_mes 168/168 · por_motivo 168/168 · resumo 168/168 · mov_itens 168/168 · frescor 84/84 ·
+              saldo_itens 156/156 · estoque_asof 84/84 · contagem_status 8/8  →  1.004 células · 1.004 iguais · 0 divergentes
+   NULL e '{}' → 0 linhas nas oito; a velha com NULL: as-of 1.624, saldo 23, mov_itens 23, resumo 59, por_motivo 11,
+   mov_por_mes 8, frescor 2 (o fail-open que a fase fecha). 6 filiais, nenhuma desativada. Papel authenticated.
+
+4. O CONFERIDOR DE FORMAS (scripts/formas/conferir.mts --alvo=producao; docs/f60-evidencias/conferidor-producao-f60.json)
+   271 pontos · 100.408 linhas · 0 recusadas · 0 com erro · 0 reprovados; as sete relatorios.rel-* ×21 pontos cada e
+   dashboard.rel-contagem-status ×7, todos ok. Sem linha no alvo (forma não exercitada): admin.senhas-acesso, kits.ativos,
+   kits.admin — os mesmos da F58.
+
+5. O EXPLAIN "DEPOIS" (medir-rel.mjs gerar-a1 com as _filiais + analisar-a1 --conjunto=depois;
+   docs/perf/f60-producao-depois-rel.json), contra docs/perf/f60-producao-antes-rel.json — mediana de execução (ms) e
+   buffers da raiz, forma (a) = a chamada como o PostgREST faz:
+   rel_estoque_asof   consolidado·hoje   35,8 → 55,9 ms ·   378 → 18.648 buffers · 1.624 = 1.624 linhas
+                      filial_b·hoje      15,9 → 29,0 ms ·   378 → 18.648         ·     5 =     5
+                      consolidado·hoje-60 24,9 → 40,7 ms ·  259 → 12.511
+   rel_saldo_itens    consolidado·hoje    2,1 →  3,7 ms ·     8 →     17 buffers ·    23 →   161 linhas (DOIS NÍVEIS numa
+                                                                                  ida: 6 filiais × 23 + o total)
+   rel_mov_itens      consolidado·365d    1,5 →  2,1 ms ·    48 →     20
+   rel_frescor_itens  consolidado·hoje    1,0 →  1,0 ms ·     8 →     15
+   rel_mov_por_mes    filial_a·365d       2,1 →  2,1 ms ·   201 →    201
+   rel_por_motivo     consolidado·365d    3,4 →  3,1 ms ·   700 →    700
+   rel_resumo         consolidado·365d    6,2 →  6,1 ms · 1.714 →  1.466
+   LEITURA HONESTA: (i) o as-of custa o que a 0143 declarou (~1,6–1,9×; a lateral visita cada ativo — a filial é calculada
+   na data, então o recorte não pode cortar a varredura de ativos); (ii) nas três de movimentações o plano genérico, no
+   volume de hoje, escolhe movimentacoes_data_ordem_idx e filtra a filial — a recorte de UMA filial em 365 dias lê os mesmos
+   201 buffers do consolidado. O recorte ficou sargável (a forma = any), mas o "corte de scan" não aparece nessas três com
+   3.578 movimentações; não é regressão (mesmos buffers, mesmo tempo). (iii) as de itens usam lanc_item_filial_data_idx.
+
+6. O CUSTO REAL E A CONFIRMAÇÃO DO ORÇAMENTO (equivalencia-rel.mjs gerar-custo-real --hoje=2026-09-17 +
+   analisar-custo --real --confirmar-orcamento; docs/perf/f60-custo-real-producao.json)
+   rel_estoque_asof_filiais · consolidado·hoje · corpo APLICADO (md5 do prosrc conferido 54943d2f…): mediana 54,758 ms ·
+   p95 59,817 · 18.638 buffers · 1.624 linhas · mov_ativo_idx; a CHAMADA pelo nome: mediana 57,826 ms · p95 67,1.
+   → gravado em docs/perf/asof-orcamento.json › medicao.confirmacao; razão sobre a medida emulada (65,722): 0,833.
+     O hash do corpo não mudou; asof-orcamento.test.ts 20/20 verde.
+   rel_contagem_status_filiais · consolidado: corpo 1,669 ms · chamada 1,355 ms · 272 buffers · Index Only Scan
+   ativos_filial_status_idx · 9 linhas (o "depois" do B1: antes, duas páginas de 1.000 + 622 linhas de ativos).
+   ⚠ Declarado: o bloco custo-asof-consolidado foi executado com as três células (hoje, hoje-7, hoje-60) num laço
+   `for` em vez de três trechos copiados — os mesmos comandos, na mesma ordem, a mesma saída; os blocos
+   custo-asof-f1, custo-asof-fN, custo-saldo-itens e custo-mov-itens NÃO foram executados (as quatro pendências do
+   analisador): o explain "depois" do item 5 já mede essas células pela chamada da função.

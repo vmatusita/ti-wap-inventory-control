@@ -1,0 +1,2841 @@
+{
+  "rotulo": "f60-custo-corpos-novos-producao",
+  "alvo": "producao",
+  "sha_codigo": "4b5bcde1490ee3a99d16cf777d401a9f74e97721",
+  "gerado_em": "2026-09-16T21:56:49.467Z",
+  "metodo": "forma (b) do medir-rel.mjs sobre o corpo NOVO: prepare com $1/$2/$3, plan_cache_mode=force_generic_plan, explain (analyze, buffers, format json) execute, 1 aquecimento + N; estatística agregada dentro do bloco; buffers do nó raiz; identidade authenticated admin/dev; só leitura. Antigo = mediana da forma (b) de f60-producao-antes-rel.json (filial_a = menor id ATIVA ≙ f1, filial_b = maior id ATIVA ≙ fN só quando não há filial desativada).",
+  "celulas": [
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje",
+      "novo": {
+        "execucao_ms": {
+          "max": 85.543,
+          "min": 58.469,
+          "p95": 80.677,
+          "mediana": 65.722
+        },
+        "planejamento_ms": {
+          "max": 0.049,
+          "min": 0.027,
+          "p95": 0.049,
+          "mediana": 0.03
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18638,
+          "read_mediana": 0
+        },
+        "linhas": 1624,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 35.834,
+          "min": 32.594,
+          "p95": 35.3,
+          "mediana": 32.997
+        },
+        "planejamento_ms": {
+          "max": 0.05,
+          "min": 0.023,
+          "p95": 0.043,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 368,
+          "read_mediana": 0
+        },
+        "linhas": 1624
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.992,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 40.755,
+            "min": 34.02,
+            "p95": 40.422,
+            "mediana": 38.867
+          },
+          "planejamento_ms": {
+            "max": 0.037,
+            "min": 0.024,
+            "p95": 0.036,
+            "mediana": 0.028
+          },
+          "buffers_raiz": {
+            "hit_mediana": 368,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 43.072,
+            "min": 36,
+            "p95": 42.302,
+            "mediana": 39.272
+          },
+          "planejamento_ms": {
+            "max": 0.101,
+            "min": 0.061,
+            "p95": 0.093,
+            "mediana": 0.066
+          },
+          "buffers_raiz": {
+            "hit_mediana": 378,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.691,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.674,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "lateral": {
+        "ordenacoes": [
+          {
+            "tipo": "Incremental Sort",
+            "loops": 1635,
+            "sort_key": [
+              "m.data DESC",
+              "m.ordem DESC"
+            ],
+            "presorted_key": [
+              "m.data"
+            ],
+            "sort_method": null
+          }
+        ],
+        "sort_por_ativo_dentro_da_lateral": true,
+        "anti_join": [
+          {
+            "tipo": "Nested Loop",
+            "juncao": "Anti",
+            "loops": 1635
+          }
+        ],
+        "loops_max": 3224
+      },
+      "nos_detalhe": [
+        {
+          "hit": 18638,
+          "tipo": "Nested Loop",
+          "loops": 1,
+          "juncao": "Inner",
+          "linhas": 1624
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "subplano": "InitPlan 1"
+        },
+        {
+          "hit": 108,
+          "pai": "Outer",
+          "tipo": "Seq Scan",
+          "loops": 1,
+          "linhas": 1635,
+          "relacao": "ativos"
+        },
+        {
+          "hit": 18530,
+          "pai": "Inner",
+          "tipo": "Subquery Scan",
+          "loops": 1635,
+          "linhas": 1
+        },
+        {
+          "hit": 18530,
+          "pai": "Subquery",
+          "tipo": "Limit",
+          "loops": 1635,
+          "linhas": 1
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "subplano": "InitPlan 2"
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "subplano": "InitPlan 3"
+        },
+        {
+          "hit": 18530,
+          "pai": "Outer",
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "presorted_key": [
+            "m.data"
+          ]
+        },
+        {
+          "hit": 18530,
+          "pai": "Outer",
+          "tipo": "Nested Loop",
+          "loops": 1635,
+          "juncao": "Anti",
+          "linhas": 2
+        },
+        {
+          "hit": 6020,
+          "pai": "Outer",
+          "tipo": "Index Scan",
+          "loops": 1635,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes"
+        },
+        {
+          "hit": 12510,
+          "pai": "Inner",
+          "tipo": "Index Scan",
+          "loops": 3224,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes"
+        }
+      ],
+      "replica_mesma_forma": {
+        "nota": "o MESMO bloco reexecutado em seguida (outra sessão MCP), para medir o ruído entre execuções",
+        "novo": {
+          "execucao_ms": {
+            "max": 59.235,
+            "min": 50.06,
+            "p95": 58.531,
+            "mediana": 54.658
+          },
+          "planejamento_ms": {
+            "max": 0.039,
+            "min": 0.024,
+            "p95": 0.036,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18638,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7
+        },
+        "velho_corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 36.48,
+            "min": 30.52,
+            "p95": 36.226,
+            "mediana": 34.676
+          },
+          "planejamento_ms": {
+            "max": 0.029,
+            "min": 0.021,
+            "p95": 0.029,
+            "mediana": 0.026
+          },
+          "buffers_raiz": {
+            "hit_mediana": 368,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7
+        },
+        "velho_chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 34.5,
+            "min": 30.603,
+            "p95": 34.465,
+            "mediana": 32.43
+          },
+          "planejamento_ms": {
+            "max": 0.076,
+            "min": 0.061,
+            "p95": 0.074,
+            "mediana": 0.064
+          },
+          "buffers_raiz": {
+            "hit_mediana": 378,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7
+        },
+        "razao_mediana_novo_sobre_velho_corpo": 1.576,
+        "razao_mediana_novo_sobre_velho_chamada": 1.685
+      }
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje-7",
+      "novo": {
+        "execucao_ms": {
+          "max": 78.971,
+          "min": 52.973,
+          "p95": 75.999,
+          "mediana": 62.854
+        },
+        "planejamento_ms": {
+          "max": 0.038,
+          "min": 0.025,
+          "p95": 0.038,
+          "mediana": 0.029
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18398,
+          "read_mediana": 0
+        },
+        "linhas": 1610,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 38.088,
+          "min": 31.088,
+          "p95": 37.028,
+          "mediana": 33.583
+        },
+        "planejamento_ms": {
+          "max": 0.045,
+          "min": 0.026,
+          "p95": 0.041,
+          "mediana": 0.028
+        },
+        "buffers_raiz": {
+          "hit_mediana": 319,
+          "read_mediana": 0
+        },
+        "linhas": 1610
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.872,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 45.449,
+            "min": 33.488,
+            "p95": 43.763,
+            "mediana": 37.632
+          },
+          "planejamento_ms": {
+            "max": 0.037,
+            "min": 0.027,
+            "p95": 0.036,
+            "mediana": 0.03
+          },
+          "buffers_raiz": {
+            "hit_mediana": 319,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 42.28,
+            "min": 35.162,
+            "p95": 41.496,
+            "mediana": 39.104
+          },
+          "planejamento_ms": {
+            "max": 0.074,
+            "min": 0.061,
+            "p95": 0.073,
+            "mediana": 0.067
+          },
+          "buffers_raiz": {
+            "hit_mediana": 329,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.67,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.607,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "replica_mesma_forma": {
+        "nota": "o MESMO bloco reexecutado em seguida (outra sessão MCP), para medir o ruído entre execuções",
+        "novo": {
+          "execucao_ms": {
+            "max": 61.119,
+            "min": 52.664,
+            "p95": 60.59,
+            "mediana": 54.949
+          },
+          "planejamento_ms": {
+            "max": 0.032,
+            "min": 0.028,
+            "p95": 0.032,
+            "mediana": 0.029
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18398,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7
+        },
+        "velho_corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 38.783,
+            "min": 31.686,
+            "p95": 37.939,
+            "mediana": 33.002
+          },
+          "planejamento_ms": {
+            "max": 0.029,
+            "min": 0.024,
+            "p95": 0.028,
+            "mediana": 0.025
+          },
+          "buffers_raiz": {
+            "hit_mediana": 319,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7
+        },
+        "velho_chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 38.045,
+            "min": 30.709,
+            "p95": 38.045,
+            "mediana": 35.062
+          },
+          "planejamento_ms": {
+            "max": 0.178,
+            "min": 0.062,
+            "p95": 0.15,
+            "mediana": 0.07
+          },
+          "buffers_raiz": {
+            "hit_mediana": 329,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7
+        },
+        "razao_mediana_novo_sobre_velho_corpo": 1.665,
+        "razao_mediana_novo_sobre_velho_chamada": 1.567
+      }
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje-60",
+      "novo": {
+        "execucao_ms": {
+          "max": 54.574,
+          "min": 40.126,
+          "p95": 52.383,
+          "mediana": 46.092
+        },
+        "planejamento_ms": {
+          "max": 0.04,
+          "min": 0.026,
+          "p95": 0.038,
+          "mediana": 0.029
+        },
+        "buffers_raiz": {
+          "hit_mediana": 12459,
+          "read_mediana": 0
+        },
+        "linhas": 1116,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 26.708,
+          "min": 21.136,
+          "p95": 26.268,
+          "mediana": 24.323
+        },
+        "planejamento_ms": {
+          "max": 0.043,
+          "min": 0.026,
+          "p95": 0.042,
+          "mediana": 0.028
+        },
+        "buffers_raiz": {
+          "hit_mediana": 249,
+          "read_mediana": 0
+        },
+        "linhas": 1116
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.895,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 32.718,
+            "min": 21.757,
+            "p95": 30.733,
+            "mediana": 25.324
+          },
+          "planejamento_ms": {
+            "max": 0.346,
+            "min": 0.025,
+            "p95": 0.257,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 249,
+            "read_mediana": 0
+          },
+          "linhas": 1116,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 28.018,
+            "min": 21.01,
+            "p95": 27.404,
+            "mediana": 25.612
+          },
+          "planejamento_ms": {
+            "max": 0.078,
+            "min": 0.062,
+            "p95": 0.077,
+            "mediana": 0.067
+          },
+          "buffers_raiz": {
+            "hit_mediana": 259,
+            "read_mediana": 0
+          },
+          "linhas": 1116,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.82,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.8,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "replica_mesma_forma": {
+        "nota": "o MESMO bloco reexecutado em seguida (outra sessão MCP), para medir o ruído entre execuções",
+        "novo": {
+          "execucao_ms": {
+            "max": 48.16,
+            "min": 36.127,
+            "p95": 46.237,
+            "mediana": 38.071
+          },
+          "planejamento_ms": {
+            "max": 0.041,
+            "min": 0.027,
+            "p95": 0.038,
+            "mediana": 0.03
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12459,
+            "read_mediana": 0
+          },
+          "linhas": 1116,
+          "n": 7
+        },
+        "velho_corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 25.925,
+            "min": 20.246,
+            "p95": 25.329,
+            "mediana": 22.007
+          },
+          "planejamento_ms": {
+            "max": 0.034,
+            "min": 0.022,
+            "p95": 0.033,
+            "mediana": 0.03
+          },
+          "buffers_raiz": {
+            "hit_mediana": 249,
+            "read_mediana": 0
+          },
+          "linhas": 1116,
+          "n": 7
+        },
+        "velho_chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 25.525,
+            "min": 20.771,
+            "p95": 24.893,
+            "mediana": 22.575
+          },
+          "planejamento_ms": {
+            "max": 0.148,
+            "min": 0.063,
+            "p95": 0.132,
+            "mediana": 0.08
+          },
+          "buffers_raiz": {
+            "hit_mediana": 259,
+            "read_mediana": 0
+          },
+          "linhas": 1116,
+          "n": 7
+        },
+        "razao_mediana_novo_sobre_velho_corpo": 1.73,
+        "razao_mediana_novo_sobre_velho_chamada": 1.686
+      }
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "f1",
+      "celula": "hoje",
+      "novo": {
+        "execucao_ms": {
+          "max": 57.069,
+          "min": 45.328,
+          "p95": 56.932,
+          "mediana": 55.045
+        },
+        "planejamento_ms": {
+          "max": 0.036,
+          "min": 0.026,
+          "p95": 0.035,
+          "mediana": 0.029
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18638,
+          "read_mediana": 0
+        },
+        "linhas": 1146,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 30.615,
+          "min": 28.038,
+          "p95": 30.3,
+          "mediana": 29.022
+        },
+        "planejamento_ms": {
+          "max": 0.032,
+          "min": 0.026,
+          "p95": 0.031,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 368,
+          "read_mediana": 0
+        },
+        "linhas": 1146
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.897,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 33.04,
+            "min": 28.183,
+            "p95": 32.976,
+            "mediana": 32.773
+          },
+          "planejamento_ms": {
+            "max": 0.027,
+            "min": 0.024,
+            "p95": 0.027,
+            "mediana": 0.026
+          },
+          "buffers_raiz": {
+            "hit_mediana": 368,
+            "read_mediana": 0
+          },
+          "linhas": 1146,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 33.119,
+            "min": 28.707,
+            "p95": 33.111,
+            "mediana": 30.886
+          },
+          "planejamento_ms": {
+            "max": 0.087,
+            "min": 0.066,
+            "p95": 0.082,
+            "mediana": 0.07
+          },
+          "buffers_raiz": {
+            "hit_mediana": 378,
+            "read_mediana": 0
+          },
+          "linhas": 1146,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.68,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.782,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "lateral": {
+        "ordenacoes": [
+          {
+            "tipo": "Incremental Sort",
+            "loops": 1635,
+            "sort_key": [
+              "m.data DESC",
+              "m.ordem DESC"
+            ],
+            "presorted_key": [
+              "m.data"
+            ],
+            "sort_method": null
+          }
+        ],
+        "sort_por_ativo_dentro_da_lateral": true,
+        "anti_join": [
+          {
+            "tipo": "Nested Loop",
+            "juncao": "Anti",
+            "loops": 1635
+          }
+        ],
+        "loops_max": 3224
+      },
+      "nos_detalhe": [
+        {
+          "hit": 18638,
+          "tipo": "Nested Loop",
+          "loops": 1,
+          "juncao": "Inner",
+          "linhas": 1146
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "subplano": "InitPlan 1"
+        },
+        {
+          "hit": 108,
+          "pai": "Outer",
+          "tipo": "Seq Scan",
+          "loops": 1,
+          "linhas": 1635,
+          "relacao": "ativos"
+        },
+        {
+          "hit": 18530,
+          "pai": "Inner",
+          "tipo": "Subquery Scan",
+          "loops": 1635,
+          "linhas": 1
+        },
+        {
+          "hit": 18530,
+          "pai": "Subquery",
+          "tipo": "Limit",
+          "loops": 1635,
+          "linhas": 1
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "subplano": "InitPlan 2"
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "subplano": "InitPlan 3"
+        },
+        {
+          "hit": 18530,
+          "pai": "Outer",
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "presorted_key": [
+            "m.data"
+          ]
+        },
+        {
+          "hit": 18530,
+          "pai": "Outer",
+          "tipo": "Nested Loop",
+          "loops": 1635,
+          "juncao": "Anti",
+          "linhas": 2
+        },
+        {
+          "hit": 6020,
+          "pai": "Outer",
+          "tipo": "Index Scan",
+          "loops": 1635,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes"
+        },
+        {
+          "hit": 12510,
+          "pai": "Inner",
+          "tipo": "Index Scan",
+          "loops": 3224,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes"
+        }
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "f1",
+      "celula": "hoje-7",
+      "novo": {
+        "execucao_ms": {
+          "max": 62.187,
+          "min": 45.48,
+          "p95": 60.116,
+          "mediana": 49.184
+        },
+        "planejamento_ms": {
+          "max": 0.039,
+          "min": 0.026,
+          "p95": 0.038,
+          "mediana": 0.03
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18398,
+          "read_mediana": 0
+        },
+        "linhas": 1131,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 30.601,
+          "min": 27.134,
+          "p95": 30.337,
+          "mediana": 28.77
+        },
+        "planejamento_ms": {
+          "max": 0.039,
+          "min": 0.026,
+          "p95": 0.037,
+          "mediana": 0.028
+        },
+        "buffers_raiz": {
+          "hit_mediana": 319,
+          "read_mediana": 0
+        },
+        "linhas": 1131
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.71,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 49.068,
+            "min": 26.157,
+            "p95": 44.087,
+            "mediana": 29.165
+          },
+          "planejamento_ms": {
+            "max": 0.032,
+            "min": 0.025,
+            "p95": 0.032,
+            "mediana": 0.029
+          },
+          "buffers_raiz": {
+            "hit_mediana": 319,
+            "read_mediana": 0
+          },
+          "linhas": 1131,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 39.543,
+            "min": 25.042,
+            "p95": 37.514,
+            "mediana": 31.388
+          },
+          "planejamento_ms": {
+            "max": 0.093,
+            "min": 0.06,
+            "p95": 0.088,
+            "mediana": 0.071
+          },
+          "buffers_raiz": {
+            "hit_mediana": 329,
+            "read_mediana": 0
+          },
+          "linhas": 1131,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.686,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.567,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "f1",
+      "celula": "hoje-60",
+      "novo": {
+        "execucao_ms": {
+          "max": 70.549,
+          "min": 33.641,
+          "p95": 61.644,
+          "mediana": 36.987
+        },
+        "planejamento_ms": {
+          "max": 0.043,
+          "min": 0.025,
+          "p95": 0.041,
+          "mediana": 0.029
+        },
+        "buffers_raiz": {
+          "hit_mediana": 12459,
+          "read_mediana": 0
+        },
+        "linhas": 839,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 21.971,
+          "min": 17.979,
+          "p95": 21.427,
+          "mediana": 18.74
+        },
+        "planejamento_ms": {
+          "max": 0.032,
+          "min": 0.025,
+          "p95": 0.032,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 249,
+          "read_mediana": 0
+        },
+        "linhas": 839
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.974,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 22.514,
+            "min": 18.259,
+            "p95": 22.495,
+            "mediana": 21.135
+          },
+          "planejamento_ms": {
+            "max": 0.032,
+            "min": 0.024,
+            "p95": 0.032,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 249,
+            "read_mediana": 0
+          },
+          "linhas": 839,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 27.301,
+            "min": 18.549,
+            "p95": 25.944,
+            "mediana": 22.211
+          },
+          "planejamento_ms": {
+            "max": 0.079,
+            "min": 0.063,
+            "p95": 0.077,
+            "mediana": 0.07
+          },
+          "buffers_raiz": {
+            "hit_mediana": 259,
+            "read_mediana": 0
+          },
+          "linhas": 839,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.75,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.665,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "fN",
+      "celula": "hoje",
+      "novo": {
+        "execucao_ms": {
+          "max": 35.6,
+          "min": 28.31,
+          "p95": 35.374,
+          "mediana": 32.973
+        },
+        "planejamento_ms": {
+          "max": 0.035,
+          "min": 0.027,
+          "p95": 0.034,
+          "mediana": 0.033
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18638,
+          "read_mediana": 0
+        },
+        "linhas": 5,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 18.498,
+          "min": 14.803,
+          "p95": 18.085,
+          "mediana": 16.379
+        },
+        "planejamento_ms": {
+          "max": 0.073,
+          "min": 0.024,
+          "p95": 0.062,
+          "mediana": 0.028
+        },
+        "buffers_raiz": {
+          "hit_mediana": 368,
+          "read_mediana": 0
+        },
+        "linhas": 5
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 2.013,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 22.36,
+            "min": 15.09,
+            "p95": 21.342,
+            "mediana": 16.878
+          },
+          "planejamento_ms": {
+            "max": 0.061,
+            "min": 0.021,
+            "p95": 0.054,
+            "mediana": 0.029
+          },
+          "buffers_raiz": {
+            "hit_mediana": 368,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 18.565,
+            "min": 15.163,
+            "p95": 18.467,
+            "mediana": 16.913
+          },
+          "planejamento_ms": {
+            "max": 0.103,
+            "min": 0.064,
+            "p95": 0.101,
+            "mediana": 0.07
+          },
+          "buffers_raiz": {
+            "hit_mediana": 378,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.954,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.95,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "fN",
+      "celula": "hoje-7",
+      "novo": {
+        "execucao_ms": {
+          "max": 34.26,
+          "min": 29.254,
+          "p95": 33.227,
+          "mediana": 29.445
+        },
+        "planejamento_ms": {
+          "max": 0.03,
+          "min": 0.023,
+          "p95": 0.03,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18398,
+          "read_mediana": 0
+        },
+        "linhas": 5,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 16.873,
+          "min": 15.399,
+          "p95": 16.598,
+          "mediana": 15.51
+        },
+        "planejamento_ms": {
+          "max": 0.032,
+          "min": 0.023,
+          "p95": 0.032,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 319,
+          "read_mediana": 0
+        },
+        "linhas": 5
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.898,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 17.252,
+            "min": 14.488,
+            "p95": 17.174,
+            "mediana": 15.33
+          },
+          "planejamento_ms": {
+            "max": 0.045,
+            "min": 0.023,
+            "p95": 0.041,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 319,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 16.753,
+            "min": 14.316,
+            "p95": 16.723,
+            "mediana": 15.423
+          },
+          "planejamento_ms": {
+            "max": 0.071,
+            "min": 0.056,
+            "p95": 0.07,
+            "mediana": 0.062
+          },
+          "buffers_raiz": {
+            "hit_mediana": 329,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 1.921,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 1.909,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "fN",
+      "celula": "hoje-60",
+      "novo": {
+        "execucao_ms": {
+          "max": 25.833,
+          "min": 20.83,
+          "p95": 25.514,
+          "mediana": 22.928
+        },
+        "planejamento_ms": {
+          "max": 0.036,
+          "min": 0.024,
+          "p95": 0.035,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 12459,
+          "read_mediana": 0
+        },
+        "linhas": 0,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 11.313,
+          "min": 9.336,
+          "p95": 11.048,
+          "mediana": 9.968
+        },
+        "planejamento_ms": {
+          "max": 0.034,
+          "min": 0.027,
+          "p95": 0.033,
+          "mediana": 0.028
+        },
+        "buffers_raiz": {
+          "hit_mediana": 249,
+          "read_mediana": 0
+        },
+        "linhas": 0
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 2.3,
+      "velho_mesma_sessao": {
+        "corpo_0134_forma_b": {
+          "execucao_ms": {
+            "max": 12.143,
+            "min": 9.309,
+            "p95": 11.528,
+            "mediana": 10.013
+          },
+          "planejamento_ms": {
+            "max": 0.061,
+            "min": 0.026,
+            "p95": 0.052,
+            "mediana": 0.028
+          },
+          "buffers_raiz": {
+            "hit_mediana": 249,
+            "read_mediana": 0
+          },
+          "linhas": 0,
+          "n": 7
+        },
+        "chamada_postgrest_forma_a": {
+          "execucao_ms": {
+            "max": 11.335,
+            "min": 9.425,
+            "p95": 11.314,
+            "mediana": 10.637
+          },
+          "planejamento_ms": {
+            "max": 0.111,
+            "min": 0.061,
+            "p95": 0.099,
+            "mediana": 0.065
+          },
+          "buffers_raiz": {
+            "hit_mediana": 259,
+            "read_mediana": 0
+          },
+          "linhas": 0,
+          "n": 7
+        },
+        "tipos_de_no_corpo": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados_corpo": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "razao_mediana_novo_sobre_velho_corpo_mesma_sessao": 2.29,
+      "razao_mediana_novo_sobre_velho_chamada_mesma_sessao": 2.155,
+      "linhas_iguais_novo_velho": true,
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ]
+    },
+    {
+      "funcao": "rel_saldo_itens_filiais",
+      "recorte": "f1",
+      "celula": "hoje",
+      "novo": {
+        "execucao_ms": {
+          "max": 1.96,
+          "min": 1.233,
+          "p95": 1.843,
+          "mediana": 1.418
+        },
+        "planejamento_ms": {
+          "max": 0.036,
+          "min": 0.025,
+          "p95": 0.034,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 9,
+          "read_mediana": 0
+        },
+        "linhas": 46,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 0.969,
+          "min": 0.725,
+          "p95": 0.936,
+          "mediana": 0.774
+        },
+        "planejamento_ms": {
+          "max": 0.042,
+          "min": 0.019,
+          "p95": 0.036,
+          "mediana": 0.021
+        },
+        "buffers_raiz": {
+          "hit_mediana": 7,
+          "read_mediana": 0
+        },
+        "linhas": 23
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.832,
+      "tipos_de_no": [
+        "Aggregate",
+        "Append",
+        "CTE Scan",
+        "Hash",
+        "Hash Join",
+        "Index Scan",
+        "Materialize",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Sort",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "filiais",
+        "itens"
+      ],
+      "indices_usados": [
+        "lanc_item_filial_data_idx"
+      ]
+    },
+    {
+      "funcao": "rel_saldo_itens_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje",
+      "novo": {
+        "execucao_ms": {
+          "max": 2.623,
+          "min": 1.996,
+          "p95": 2.559,
+          "mediana": 2.051
+        },
+        "planejamento_ms": {
+          "max": 0.038,
+          "min": 0.027,
+          "p95": 0.037,
+          "mediana": 0.033
+        },
+        "buffers_raiz": {
+          "hit_mediana": 16,
+          "read_mediana": 0
+        },
+        "linhas": 161,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 1.758,
+          "min": 0.861,
+          "p95": 1.65,
+          "mediana": 1.018
+        },
+        "planejamento_ms": {
+          "max": 0.31,
+          "min": 0.019,
+          "p95": 0.224,
+          "mediana": 0.021
+        },
+        "buffers_raiz": {
+          "hit_mediana": 7,
+          "read_mediana": 0
+        },
+        "linhas": 23
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 2.015,
+      "tipos_de_no": [
+        "Aggregate",
+        "Append",
+        "CTE Scan",
+        "Hash",
+        "Hash Join",
+        "Index Scan",
+        "Materialize",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Sort",
+        "Subquery Scan"
+      ],
+      "relacoes_com_seq_scan": [
+        "filiais",
+        "itens"
+      ],
+      "indices_usados": [
+        "lanc_item_filial_data_idx"
+      ]
+    },
+    {
+      "funcao": "rel_mov_itens_filiais",
+      "recorte": "consolidado",
+      "celula": "365d",
+      "novo": {
+        "execucao_ms": {
+          "max": 1.432,
+          "min": 0.848,
+          "p95": 1.358,
+          "mediana": 0.917
+        },
+        "planejamento_ms": {
+          "max": 0.022,
+          "min": 0.015,
+          "p95": 0.021,
+          "mediana": 0.018
+        },
+        "buffers_raiz": {
+          "hit_mediana": 14,
+          "read_mediana": 0
+        },
+        "linhas": 23,
+        "n": 7
+      },
+      "antigo": {
+        "execucao_ms": {
+          "max": 0.925,
+          "min": 0.647,
+          "p95": 0.875,
+          "mediana": 0.698
+        },
+        "planejamento_ms": {
+          "max": 0.023,
+          "min": 0.014,
+          "p95": 0.022,
+          "mediana": 0.015
+        },
+        "buffers_raiz": {
+          "hit_mediana": 42,
+          "read_mediana": 0
+        },
+        "linhas": 23
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": 1.314,
+      "tipos_de_no": [
+        "Aggregate",
+        "Hash",
+        "Hash Join",
+        "Index Scan",
+        "Result",
+        "Seq Scan",
+        "Sort"
+      ],
+      "relacoes_com_seq_scan": [
+        "filiais",
+        "itens"
+      ],
+      "indices_usados": [
+        "lanc_item_filial_data_idx"
+      ]
+    },
+    {
+      "funcao": "rel_contagem_status_filiais",
+      "recorte": "consolidado",
+      "celula": "atual",
+      "novo": {
+        "execucao_ms": {
+          "max": 2,
+          "min": 1.203,
+          "p95": 1.865,
+          "mediana": 1.34
+        },
+        "planejamento_ms": {
+          "max": 0.056,
+          "min": 0.007,
+          "p95": 0.044,
+          "mediana": 0.009
+        },
+        "buffers_raiz": {
+          "hit_mediana": 265,
+          "read_mediana": 0
+        },
+        "linhas": 9,
+        "n": 7
+      },
+      "antigo": {
+        "nota": "caminho antigo = paginarTodos sobre ativos (duas páginas) — soma das medianas; e a agregação única medida como alternativa",
+        "execucao_ms_paginas_soma": 3.616,
+        "buffers_hit_paginas_soma": 2643,
+        "agregacao_unica": {
+          "execucao_ms": {
+            "mediana": 1.433,
+            "p95": 2.009,
+            "min": 1.311,
+            "max": 2.009,
+            "n": 7
+          },
+          "buffers_raiz": {
+            "hit_mediana": 265,
+            "read_mediana": 0
+          }
+        }
+      },
+      "razao_mediana_execucao_novo_sobre_antigo": null,
+      "tipos_de_no": [
+        "Aggregate",
+        "Index Only Scan",
+        "Result",
+        "Sort"
+      ],
+      "relacoes_com_seq_scan": [],
+      "indices_usados": [
+        "ativos_filial_status_idx"
+      ]
+    }
+  ],
+  "pendencias": [],
+  "ab_asof_mesma_sessao": {
+    "metodo": "consolidado, hoje; 6 variantes intercaladas por repetição (1 aquecimento + N); velho = corpo 0134 com p_filial nulo; novo = corpo novo com todas as filiais; nl_anti = corpo novo com enable_mergejoin/enable_hashjoin off só enquanto o plano genérico nasce; timing off = sem relógio por nó; total_ms = Actual Total Time × loops. (Resposta da revisão anterior do gerador, que desenrolava as variantes — mesma medição; md5 dos corpos crus, chaves md5_corpo_novo/velho.)",
+    "md5": {
+      "md5_corpo_novo_normalizado": "497f7784f4062bda1093ee2bb0daa9e3",
+      "md5_corpo_velho_normalizado": "6873ee567177a9cd3808633958555d16"
+    },
+    "total_ativos": 1635,
+    "variantes": {
+      "novo_timing_on": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 72.951,
+          "min": 66.141,
+          "p95": 72.623,
+          "mediana": 69.952
+        },
+        "planejamento_ms": {
+          "p95": 0.031,
+          "mediana": 0.027
+        },
+        "buffers_raiz_hit": 19829
+      },
+      "novo_timing_off": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 72.997,
+          "min": 60.051,
+          "p95": 71.248,
+          "mediana": 66.403
+        },
+        "planejamento_ms": {
+          "p95": 0.033,
+          "mediana": 0.027
+        },
+        "buffers_raiz_hit": 19829
+      },
+      "velho_timing_on": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 38.598,
+          "min": 32.253,
+          "p95": 38.116,
+          "mediana": 35.459
+        },
+        "planejamento_ms": {
+          "p95": 0.029,
+          "mediana": 0.025
+        },
+        "buffers_raiz_hit": 368
+      },
+      "velho_timing_off": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 36.173,
+          "min": 30.422,
+          "p95": 36.058,
+          "mediana": 33.405
+        },
+        "planejamento_ms": {
+          "p95": 0.036,
+          "mediana": 0.025
+        },
+        "buffers_raiz_hit": 368
+      },
+      "novo_nl_anti_timing_on": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 52.01,
+          "min": 46.404,
+          "p95": 51.683,
+          "mediana": 49.273
+        },
+        "planejamento_ms": {
+          "p95": 0.034,
+          "mediana": 0.024
+        },
+        "buffers_raiz_hit": 12584
+      },
+      "novo_nl_anti_timing_off": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 49.84,
+          "min": 42.57,
+          "p95": 48.87,
+          "mediana": 43.492
+        },
+        "planejamento_ms": {
+          "p95": 0.052,
+          "mediana": 0.025
+        },
+        "buffers_raiz_hit": 12584
+      }
+    },
+    "nos": {
+      "novo_timing_on": {
+        "tipos_de_no": [
+          "Index Scan",
+          "Limit",
+          "Merge Join",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "novo_timing_off": {
+        "tipos_de_no": [
+          "Index Scan",
+          "Limit",
+          "Merge Join",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "velho_timing_on": {
+        "tipos_de_no": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "velho_timing_off": {
+        "tipos_de_no": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "novo_nl_anti_timing_on": {
+        "tipos_de_no": [
+          "Incremental Sort",
+          "Index Scan",
+          "Limit",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "novo_nl_anti_timing_off": {
+        "tipos_de_no": [
+          "Incremental Sort",
+          "Index Scan",
+          "Limit",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      }
+    },
+    "ordenacoes_na_lateral": {
+      "novo_timing_on": [
+        {
+          "hit": 19721,
+          "pai": "Outer",
+          "tipo": "Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "total_ms": 39.24,
+          "sort_method": "top-N heapsort"
+        },
+        {
+          "hit": 6286,
+          "pai": "Inner",
+          "tipo": "Sort",
+          "loops": 1635,
+          "linhas": 2,
+          "sort_key": [
+            "m.id"
+          ],
+          "total_ms": 14.715,
+          "sort_method": "quicksort"
+        }
+      ],
+      "novo_nl_anti_timing_on": [
+        {
+          "hit": 12476,
+          "pai": "Outer",
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "total_ms": 21.255
+        }
+      ]
+    },
+    "detalhe": {
+      "novo_timing_on": [
+        {
+          "hit": 19829,
+          "tipo": "Nested Loop",
+          "loops": 1,
+          "juncao": "Inner",
+          "linhas": 1624,
+          "total_ms": 69.276
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.22
+        },
+        {
+          "hit": 108,
+          "pai": "Outer",
+          "tipo": "Seq Scan",
+          "loops": 1,
+          "linhas": 1635,
+          "relacao": "ativos",
+          "total_ms": 1.083
+        },
+        {
+          "hit": 19721,
+          "pai": "Inner",
+          "tipo": "Subquery Scan",
+          "loops": 1635,
+          "linhas": 1,
+          "total_ms": 44.145
+        },
+        {
+          "hit": 19721,
+          "pai": "Subquery",
+          "tipo": "Limit",
+          "loops": 1635,
+          "linhas": 1,
+          "total_ms": 40.875
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.157
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.165
+        },
+        {
+          "hit": 19721,
+          "pai": "Outer",
+          "tipo": "Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "total_ms": 39.24,
+          "sort_method": "top-N heapsort"
+        },
+        {
+          "hit": 19721,
+          "pai": "Outer",
+          "tipo": "Merge Join",
+          "loops": 1635,
+          "juncao": "Right Anti",
+          "linhas": 2,
+          "total_ms": 34.335
+        },
+        {
+          "hit": 13435,
+          "pai": "Outer",
+          "tipo": "Index Scan",
+          "loops": 1635,
+          "indice": "movimentacoes_estorno_de_idx",
+          "linhas": 7,
+          "relacao": "movimentacoes",
+          "total_ms": 14.715
+        },
+        {
+          "hit": 6286,
+          "pai": "Inner",
+          "tipo": "Sort",
+          "loops": 1635,
+          "linhas": 2,
+          "sort_key": [
+            "m.id"
+          ],
+          "total_ms": 14.715,
+          "sort_method": "quicksort"
+        },
+        {
+          "hit": 6286,
+          "pai": "Outer",
+          "tipo": "Index Scan",
+          "loops": 1635,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes",
+          "total_ms": 9.81
+        }
+      ],
+      "novo_nl_anti_timing_on": [
+        {
+          "hit": 12584,
+          "tipo": "Nested Loop",
+          "loops": 1,
+          "juncao": "Inner",
+          "linhas": 1624,
+          "total_ms": 50.64
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.228
+        },
+        {
+          "hit": 108,
+          "pai": "Outer",
+          "tipo": "Seq Scan",
+          "loops": 1,
+          "linhas": 1635,
+          "relacao": "ativos",
+          "total_ms": 1.145
+        },
+        {
+          "hit": 12476,
+          "pai": "Inner",
+          "tipo": "Subquery Scan",
+          "loops": 1635,
+          "linhas": 1,
+          "total_ms": 26.16
+        },
+        {
+          "hit": 12476,
+          "pai": "Subquery",
+          "tipo": "Limit",
+          "loops": 1635,
+          "linhas": 1,
+          "total_ms": 22.89
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.167
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.323
+        },
+        {
+          "hit": 12476,
+          "pai": "Outer",
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "total_ms": 21.255
+        },
+        {
+          "hit": 12476,
+          "pai": "Outer",
+          "tipo": "Nested Loop",
+          "loops": 1635,
+          "juncao": "Anti",
+          "linhas": 2,
+          "total_ms": 17.985
+        },
+        {
+          "hit": 6020,
+          "pai": "Outer",
+          "tipo": "Index Scan",
+          "loops": 1635,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes",
+          "total_ms": 9.81
+        },
+        {
+          "hit": 6456,
+          "pai": "Inner",
+          "tipo": "Index Scan",
+          "loops": 3224,
+          "indice": "movimentacoes_estorno_de_idx",
+          "linhas": 0,
+          "relacao": "movimentacoes",
+          "total_ms": 3.224
+        }
+      ]
+    }
+  },
+  "ab_asof_alternativas": {
+    "metodo": "hoje, 8 variantes timing off intercaladas (velho/novo/alt_a/alt_c × consolidado/fN) + alt_a timing on com detalhe; alt_a = corpo novo com o not exists trocado por m.id <> all (array(...)) (InitPlan único); alt_c = corpo 0134 só com filial_id = any ($1). md5 calculado no banco sobre o texto preparado. Alternativas NÃO são o corpo aprovado e NÃO passaram pela equivalência.",
+    "md5": {
+      "md5_corpo_a_normalizado": "78952351daae7bc481fd60e9031a8eeb",
+      "md5_corpo_c_normalizado": "02e49bbc720cb7a0d7a293bda0c6acfb",
+      "md5_corpo_n_normalizado": "75e1f99b53f6a19064e67f18f2a3745a",
+      "md5_corpo_v_normalizado": "4a830f77469bec450b3fa698fffbc6a1"
+    },
+    "total_ativos": 1635,
+    "variantes": {
+      "novo·fN": {
+        "n": 7,
+        "linhas": 5,
+        "execucao_ms": {
+          "max": 40.251,
+          "min": 34.637,
+          "p95": 40.15,
+          "mediana": 38.035
+        },
+        "planejamento_ms": {
+          "p95": 0.031,
+          "mediana": 0.029
+        },
+        "buffers_raiz_hit": 19829
+      },
+      "alt_a·fN": {
+        "n": 7,
+        "linhas": 5,
+        "execucao_ms": {
+          "max": 18.015,
+          "min": 13.526,
+          "p95": 17.89,
+          "mediana": 14.272
+        },
+        "planejamento_ms": {
+          "p95": 0.053,
+          "mediana": 0.028
+        },
+        "buffers_raiz_hit": 6138
+      },
+      "alt_c·fN": {
+        "n": 7,
+        "linhas": 5,
+        "execucao_ms": {
+          "max": 17.594,
+          "min": 14.147,
+          "p95": 17.313,
+          "mediana": 15.054
+        },
+        "planejamento_ms": {
+          "p95": 0.046,
+          "mediana": 0.034
+        },
+        "buffers_raiz_hit": 368
+      },
+      "velho·fN": {
+        "n": 7,
+        "linhas": 5,
+        "execucao_ms": {
+          "max": 18.404,
+          "min": 14.665,
+          "p95": 18.115,
+          "mediana": 15.131
+        },
+        "planejamento_ms": {
+          "p95": 0.092,
+          "mediana": 0.027
+        },
+        "buffers_raiz_hit": 368
+      },
+      "novo·consolidado": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 68.75,
+          "min": 60.2,
+          "p95": 68.098,
+          "mediana": 64.171
+        },
+        "planejamento_ms": {
+          "p95": 0.033,
+          "mediana": 0.027
+        },
+        "buffers_raiz_hit": 19829
+      },
+      "alt_a·consolidado": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 42.474,
+          "min": 33.632,
+          "p95": 41.415,
+          "mediana": 36.534
+        },
+        "planejamento_ms": {
+          "p95": 0.045,
+          "mediana": 0.026
+        },
+        "buffers_raiz_hit": 6138
+      },
+      "alt_c·consolidado": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 36.558,
+          "min": 30.709,
+          "p95": 36.433,
+          "mediana": 32.345
+        },
+        "planejamento_ms": {
+          "p95": 0.03,
+          "mediana": 0.028
+        },
+        "buffers_raiz_hit": 368
+      },
+      "velho·consolidado": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 33.467,
+          "min": 29.881,
+          "p95": 33.253,
+          "mediana": 31.592
+        },
+        "planejamento_ms": {
+          "p95": 0.04,
+          "mediana": 0.026
+        },
+        "buffers_raiz_hit": 368
+      },
+      "alt_a·consolidado·timing_on": {
+        "n": 7,
+        "linhas": 1624,
+        "execucao_ms": {
+          "max": 41.755,
+          "min": 37.657,
+          "p95": 41.67,
+          "mediana": 41.007
+        },
+        "planejamento_ms": {
+          "p95": 0.051,
+          "mediana": 0.028
+        },
+        "buffers_raiz_hit": 6138
+      }
+    },
+    "nos": {
+      "novo·fN": {
+        "tipos_de_no": [
+          "Index Scan",
+          "Limit",
+          "Merge Join",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "alt_a·fN": {
+        "tipos_de_no": [
+          "Incremental Sort",
+          "Index Scan",
+          "Limit",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "alt_c·fN": {
+        "tipos_de_no": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "velho·fN": {
+        "tipos_de_no": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "novo·consolidado": {
+        "tipos_de_no": [
+          "Index Scan",
+          "Limit",
+          "Merge Join",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "alt_a·consolidado": {
+        "tipos_de_no": [
+          "Incremental Sort",
+          "Index Scan",
+          "Limit",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "alt_c·consolidado": {
+        "tipos_de_no": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "velho·consolidado": {
+        "tipos_de_no": [
+          "Hash",
+          "Hash Join",
+          "Index Scan",
+          "Merge Join",
+          "Result",
+          "Seq Scan",
+          "Sort",
+          "Subquery Scan",
+          "Unique"
+        ],
+        "indices_usados": [
+          "movimentacoes_data_ordem_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      },
+      "alt_a·consolidado·timing_on": {
+        "tipos_de_no": [
+          "Incremental Sort",
+          "Index Scan",
+          "Limit",
+          "Nested Loop",
+          "Result",
+          "Seq Scan",
+          "Subquery Scan"
+        ],
+        "indices_usados": [
+          "mov_ativo_idx",
+          "movimentacoes_estorno_de_idx"
+        ]
+      }
+    },
+    "ordenacoes_na_lateral": {
+      "alt_a·consolidado·timing_on": [
+        {
+          "hit": 6030,
+          "pai": "Outer",
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "total_ms": 14.715
+        }
+      ]
+    },
+    "detalhe": {
+      "alt_a·consolidado·timing_on": [
+        {
+          "hit": 6138,
+          "tipo": "Nested Loop",
+          "loops": 1,
+          "juncao": "Inner",
+          "linhas": 1624,
+          "total_ms": 41.185
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.244
+        },
+        {
+          "hit": 108,
+          "pai": "Outer",
+          "tipo": "Seq Scan",
+          "loops": 1,
+          "linhas": 1635,
+          "relacao": "ativos",
+          "total_ms": 1.063
+        },
+        {
+          "hit": 6030,
+          "pai": "Inner",
+          "tipo": "Subquery Scan",
+          "loops": 1635,
+          "linhas": 1,
+          "total_ms": 17.985
+        },
+        {
+          "hit": 6030,
+          "pai": "Subquery",
+          "tipo": "Limit",
+          "loops": 1635,
+          "linhas": 1,
+          "total_ms": 16.35
+        },
+        {
+          "hit": 10,
+          "pai": "InitPlan",
+          "tipo": "Index Scan",
+          "loops": 1,
+          "indice": "movimentacoes_estorno_de_idx",
+          "linhas": 8,
+          "relacao": "movimentacoes",
+          "total_ms": 0.174
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.154
+        },
+        {
+          "hit": 1,
+          "pai": "InitPlan",
+          "tipo": "Result",
+          "loops": 1,
+          "linhas": 1,
+          "total_ms": 0.161
+        },
+        {
+          "hit": 6030,
+          "pai": "Outer",
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "linhas": 1,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "total_ms": 14.715
+        },
+        {
+          "hit": 6030,
+          "pai": "Outer",
+          "tipo": "Index Scan",
+          "loops": 1635,
+          "indice": "mov_ativo_idx",
+          "linhas": 2,
+          "relacao": "movimentacoes",
+          "total_ms": 9.81
+        }
+      ]
+    }
+  },
+  "leitura_lateral": {
+    "nota": "derivado de ab_asof_mesma_sessao/ab_asof_alternativas (timing on, 1 execução, consolidado, hoje); tempo próprio = total do nó − total do filho direto",
+    "corpo_novo": {
+      "execucao_total_ms": 69.276,
+      "loops_da_lateral": 1635,
+      "sort_data_ordem_por_ativo": {
+        "metodo": "top-N heapsort",
+        "proprio_ms": 4.905
+      },
+      "merge_right_anti_join_com_filhos_ms": 34.335,
+      "index_scan_estorno_de_por_ativo": {
+        "total_ms": 14.715,
+        "hit": 13435
+      },
+      "index_scan_mov_ativo_idx": {
+        "total_ms": 9.81,
+        "hit": 6286
+      },
+      "fora_da_lateral_ms": 24.048,
+      "buffers_raiz_hit": 19829
+    },
+    "corpo_novo_anti_join_forcado_nl": {
+      "execucao_total_ms": 50.64,
+      "incremental_sort_proprio_ms": 3.27,
+      "buffers_raiz_hit": 12584
+    },
+    "alt_a_initplan": {
+      "execucao_total_ms": 41.185,
+      "incremental_sort_proprio_ms": 4.905,
+      "index_scan_estorno_de_loops": 1,
+      "fora_da_lateral_ms": 22.137,
+      "buffers_raiz_hit": 6138
+    },
+    "medianas_timing_off_mesma_sessao_ms": {
+      "diagnostico": {
+        "novo_timing_on": 69.952,
+        "novo_timing_off": 66.403,
+        "velho_timing_on": 35.459,
+        "velho_timing_off": 33.405,
+        "novo_nl_anti_timing_on": 49.273,
+        "novo_nl_anti_timing_off": 43.492
+      },
+      "alternativas": {
+        "novo·fN": 38.035,
+        "alt_a·fN": 14.272,
+        "alt_c·fN": 15.054,
+        "velho·fN": 15.131,
+        "novo·consolidado": 64.171,
+        "alt_a·consolidado": 36.534,
+        "alt_c·consolidado": 32.345,
+        "velho·consolidado": 31.592,
+        "alt_a·consolidado·timing_on": 41.007
+      }
+    }
+  },
+  "asof_rodada_2": {
+    "medido_em": "2026-09-16T22:19:55.982Z",
+    "sha_codigo": "4b5bcde1490ee3a99d16cf777d401a9f74e97721",
+    "corpo": "§7 de corpos-novos.sql — not exists correlacionado ao ativo (x.ativo_id = a.id) e status_tem_detentor uma vez por linha (lateral d)",
+    "md5_corpo_novo_normalizado": "54943d2f41e17dd1c648b32e10fd43f4",
+    "substitui_corpo_md5": "497f7784f4062bda1093ee2bb0daa9e3",
+    "md5_preparado_no_banco": {
+      "novo": "87fb686892c577ce6c012fbe4a5b5f8e",
+      "velho_0134": "4a830f77469bec450b3fa698fffbc6a1"
+    },
+    "velho_de": "supabase/migrations/0134_desempate_por_ordem.sql (corpo-vigente.mjs)",
+    "metodo": "um bloco do $f60$ por recorte (consolidado, f1, fN), só leitura, identidade authenticated admin/dev escolhida no banco; novo e velho (corpo 0134) preparados com plan_cache_mode=force_generic_plan; 1 aquecimento + 7; em cada repetição, para cada data (hoje, hoje-7, hoje-60), intercalados: explain (analyze, buffers, format json) execute novo · execute velho corpo · chamada da função velha como o PostgREST chama (json_to_record + lateral public.rel_estoque_asof(...)); estatística e md5 dos pedaços do payload calculados no banco; deallocate antes do raise (e no caminho de erro). O consolidado foi reexecutado uma vez (replica_mesma_forma).",
+    "transcricao_conferida": "md5(amostras/nos/detalhe) do banco = md5 do texto cru gravado em respostas/r2-custo-asof-*.resposta.txt",
+    "respostas": [
+      "respostas/r2-custo-asof-consolidado-producao.resposta.txt",
+      "respostas/r2-custo-asof-consolidado-producao.replica.resposta.txt",
+      "respostas/r2-custo-asof-f1-producao.resposta.txt",
+      "respostas/r2-custo-asof-fN-producao.resposta.txt"
+    ],
+    "nota_blocos_ab_anteriores": "ab_asof_mesma_sessao, ab_asof_alternativas e leitura_lateral medem o corpo ANTERIOR (md5 497f7784…) e ficam como histórico",
+    "volume": {
+      "ativos": 1635,
+      "movimentacoes": 3578,
+      "lancamentos_item": 155,
+      "filiais": 6
+    },
+    "tabela_resumo_medianas_ms": [
+      {
+        "recorte": "consolidado",
+        "celula": "hoje",
+        "linhas": 1624,
+        "novo_med": 65.722,
+        "novo_p95": 80.677,
+        "novo_hit": 18638,
+        "velho_corpo_med": 38.867,
+        "velho_corpo_hit": 368,
+        "velho_chamada_med": 39.272,
+        "razao_corpo": 1.691,
+        "razao_chamada": 1.674,
+        "replica_novo_med": 54.658,
+        "replica_velho_corpo_med": 34.676,
+        "replica_razao": 1.576
+      },
+      {
+        "recorte": "consolidado",
+        "celula": "hoje-7",
+        "linhas": 1610,
+        "novo_med": 62.854,
+        "novo_p95": 75.999,
+        "novo_hit": 18398,
+        "velho_corpo_med": 37.632,
+        "velho_corpo_hit": 319,
+        "velho_chamada_med": 39.104,
+        "razao_corpo": 1.67,
+        "razao_chamada": 1.607,
+        "replica_novo_med": 54.949,
+        "replica_velho_corpo_med": 33.002,
+        "replica_razao": 1.665
+      },
+      {
+        "recorte": "consolidado",
+        "celula": "hoje-60",
+        "linhas": 1116,
+        "novo_med": 46.092,
+        "novo_p95": 52.383,
+        "novo_hit": 12459,
+        "velho_corpo_med": 25.324,
+        "velho_corpo_hit": 249,
+        "velho_chamada_med": 25.612,
+        "razao_corpo": 1.82,
+        "razao_chamada": 1.8,
+        "replica_novo_med": 38.071,
+        "replica_velho_corpo_med": 22.007,
+        "replica_razao": 1.73
+      },
+      {
+        "recorte": "f1",
+        "celula": "hoje",
+        "linhas": 1146,
+        "novo_med": 55.045,
+        "novo_p95": 56.932,
+        "novo_hit": 18638,
+        "velho_corpo_med": 32.773,
+        "velho_corpo_hit": 368,
+        "velho_chamada_med": 30.886,
+        "razao_corpo": 1.68,
+        "razao_chamada": 1.782
+      },
+      {
+        "recorte": "f1",
+        "celula": "hoje-7",
+        "linhas": 1131,
+        "novo_med": 49.184,
+        "novo_p95": 60.116,
+        "novo_hit": 18398,
+        "velho_corpo_med": 29.165,
+        "velho_corpo_hit": 319,
+        "velho_chamada_med": 31.388,
+        "razao_corpo": 1.686,
+        "razao_chamada": 1.567
+      },
+      {
+        "recorte": "f1",
+        "celula": "hoje-60",
+        "linhas": 839,
+        "novo_med": 36.987,
+        "novo_p95": 61.644,
+        "novo_hit": 12459,
+        "velho_corpo_med": 21.135,
+        "velho_corpo_hit": 249,
+        "velho_chamada_med": 22.211,
+        "razao_corpo": 1.75,
+        "razao_chamada": 1.665
+      },
+      {
+        "recorte": "fN",
+        "celula": "hoje",
+        "linhas": 5,
+        "novo_med": 32.973,
+        "novo_p95": 35.374,
+        "novo_hit": 18638,
+        "velho_corpo_med": 16.878,
+        "velho_corpo_hit": 368,
+        "velho_chamada_med": 16.913,
+        "razao_corpo": 1.954,
+        "razao_chamada": 1.95
+      },
+      {
+        "recorte": "fN",
+        "celula": "hoje-7",
+        "linhas": 5,
+        "novo_med": 29.445,
+        "novo_p95": 33.227,
+        "novo_hit": 18398,
+        "velho_corpo_med": 15.33,
+        "velho_corpo_hit": 319,
+        "velho_chamada_med": 15.423,
+        "razao_corpo": 1.921,
+        "razao_chamada": 1.909
+      },
+      {
+        "recorte": "fN",
+        "celula": "hoje-60",
+        "linhas": 0,
+        "novo_med": 22.928,
+        "novo_p95": 25.514,
+        "novo_hit": 12459,
+        "velho_corpo_med": 10.013,
+        "velho_corpo_hit": 249,
+        "velho_chamada_med": 10.637,
+        "razao_corpo": 2.29,
+        "razao_chamada": 2.155
+      }
+    ]
+  }
+}

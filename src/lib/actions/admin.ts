@@ -650,8 +650,9 @@ export async function atualizarFilial(input: {
   //
   // Por que a segunda: `listarFiliais()` filtra `ativo = true`, então desativar
   // uma filial tira a coluna dela de /itens?visao=filiais e a opção do select do
-  // lançamento — mas a RPC `rel_saldo_itens` NÃO junta com `filiais` e continua
-  // somando aquele estoque no Total. Resultado: N mouses que ninguém consegue
+  // lançamento — mas o Total vem do nível do total de `rel_saldo_itens_filiais`
+  // chamada com a lista de TODAS as filiais (`filiaisDoConsolidado`, inclusive as
+  // desativadas), e continua somando aquele estoque. Resultado: N mouses que ninguém consegue
   // movimentar, com uma linha cinza "inclui N de filial desativada" como única
   // pista. O guarda só contava `ativos`, então isso passava.
   //
@@ -661,7 +662,7 @@ export async function atualizarFilial(input: {
   if (!ativo) {
     const [{ count, error: eContagem }, saldos] = await Promise.all([
       client.from('ativos').select('*', { count: 'exact', head: true }).eq('filial_id', id),
-      getSaldosItens(id),
+      getSaldosItens([id]),
     ])
     // Sem isto o guarda falha ABERTO: em erro o PostgREST devolve `count: null`,
     // `(null ?? 0) > 0` é falso e a desativação passa como se a filial estivesse

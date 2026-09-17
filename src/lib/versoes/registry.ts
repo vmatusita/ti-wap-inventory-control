@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.65.0',
+    data: '2026-09-17',
+    fase: 'F60',
+    titulo: 'Relatórios, Itens e o Dashboard passaram a buscar só as filiais pedidas, com os mesmos números',
+    mudancas: [
+      'Nenhum número de tela mudou nesta versão. O que mudou é como os relatórios, a tela de Itens e o Dashboard buscam os dados: cada busca passa a levar a lista das filiais que quer ver — o total geral é a lista de todas, inclusive das desativadas —, e uma lista vazia devolve nada, nunca "tudo". As buscas novas foram reproduzidas lado a lado com as de antes sobre os dados de verdade, em 12 datas, no total geral e em cada filial: 1.004 comparações, nenhuma diferença.',
+      'O Dashboard deixou de carregar o cadastro inteiro de equipamentos só para contar quantos há em cada situação: a contagem chega pronta, numa busca só, no lugar de duas páginas com 1.622 equipamentos.',
+      'A tela de Itens passou a montar as colunas de cada filial e o total com duas buscas ao banco, no lugar das sete de antes (uma para o total e uma para cada filial).',
+      'Em Administração › Colaboradores, a lista "Nomes digitados que ainda não têm cadastro" passou a ser montada em cerca de metade do tempo — de uns 100 para uns 50 milésimos de segundo no banco —, com exatamente os mesmos nomes.',
+      'As tabelas Saídas, Entradas e Transferências dos relatórios passam a avisar quando o período tiver mais de 2.000 linhas, mostrando as mais recentes e o total exato. Hoje o maior período possível tem 155 linhas, então o aviso não aparece.',
+      'Nos relatórios, o estado do estoque numa data passada — o gráfico "Evolução do estoque" e o relatório de um período que já terminou — ficou mais caro de montar no banco. No total de todas as filiais, leva de 1,6 a 1,8 vezes o tempo de antes no volume de hoje, dois a três centésimos de segundo a mais por data; numa filial só, de 1,7 a 2,3 vezes, com uma diferença menor, de um a dois centésimos de segundo. Em troca, essa conta deixa de crescer com o histórico de cada equipamento.',
+    ],
+  },
+  {
     versao: '1.64.0',
     data: '2026-09-16',
     fase: 'F59',

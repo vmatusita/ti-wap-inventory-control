@@ -3,6 +3,7 @@ import { formatDate } from '@/lib/format'
 import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/tipos'
 import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
 import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
+import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
 import { MAX_PONTOS_SERIE_ESTADO, MAX_SEMANAS_SERIE_ESTADO } from '@/lib/relatorios/serie-estado'
 import { recorteParaSegmento } from '@/lib/relatorios/cliques-grafico'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
@@ -95,14 +96,17 @@ export function CorpoRelatorioV2({
       {/* F32/RV-13+RV-14 — os chips passaram a dizer quanto tem em cada seção
           (responde "vale rolar até lá?" ANTES do gesto) e qual seção está na
           tela (scroll-spy por IntersectionObserver). Os números já estavam todos
-          no snapshot: nenhuma leitura nova. */}
+          no snapshot: nenhuma leitura nova.
+          F60 — o número das três tabelas é o do TÍTULO da seção (`totalDaTabela`): com corte no
+          teto, o total exato do período, nunca o tamanho da lista cortada. O chip que dissesse
+          "Saídas · 2.000" levaria a uma seção que diz "2.412 no período". */}
       <ChipsAncora
         contagens={{
           acessorios: acessorios?.itens.length,
           componentes: componentes?.itens.length,
-          saidas: s.saidas.length,
-          entradas: s.entradas.length,
-          transferencias: s.transferencias.length,
+          saidas: totalDaTabela(s.saidas, s.tabelasTruncadas?.saidas),
+          entradas: totalDaTabela(s.entradas, s.tabelasTruncadas?.entradas),
+          transferencias: totalDaTabela(s.transferencias, s.tabelasTruncadas?.transferencias),
           movItens: s.movimentacoesItens?.length ?? 0,
           temObservacao: Boolean(s.meta.observacao && s.meta.observacao.trim()),
         }}
@@ -394,18 +398,31 @@ export function CorpoRelatorioV2({
         </section>
       )}
 
-      {/* 6–7. Tabelas detalhadas */}
-      <TabelaSaidas rows={s.saidas} ehGeral={s.meta.ehGeral} ehOperador={ehOperador} />
+      {/* 6–7. Tabelas detalhadas. F60 — `corte` só existe para a tabela que a leitura cortou no
+          teto (`tabelasTruncadas`, chave opcional da V2): ausente no volume de hoje e em todo
+          snapshot anterior à F60, e aí as tabelas ficam exatamente como eram. `aoVivo` escolhe a
+          frase final do aviso — encurtar o período só é conselho na rota ao vivo. */}
+      <TabelaSaidas
+        rows={s.saidas}
+        ehGeral={s.meta.ehGeral}
+        ehOperador={ehOperador}
+        corte={s.tabelasTruncadas?.saidas}
+        aoVivo={aoVivo}
+      />
       <TabelaEntradas
         rows={s.entradas}
         ehGeral={s.meta.ehGeral}
         rotulosTipo={rotulosTipo}
         ehOperador={ehOperador}
+        corte={s.tabelasTruncadas?.entradas}
+        aoVivo={aoVivo}
       />
       <TabelaTransferencias
         rows={s.transferencias}
         ehGeral={s.meta.ehGeral}
         ehOperador={ehOperador}
+        corte={s.tabelasTruncadas?.transferencias}
+        aoVivo={aoVivo}
       />
 
       {/* 8. Movimentações de itens por quantidade (B5 — seção própria) */}

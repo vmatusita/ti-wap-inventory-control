@@ -1,0 +1,23 @@
+# SABOTAGEM C — o cap obrigatório (F60 · L1-1)
+# data: 2026-09-16T19:19:08-03:00 · branch: f60-recorte-que-corta-scan · HEAD: 4b5bcde (árvore com o lote L1-1 ainda sem commit)
+
+## 1) com o arquivo temporário src/lib/queries/relatorios/__sabotagem-cap.ts
+$ cat src/lib/queries/relatorios/__sabotagem-cap.ts
+import 'server-only'
+import { paginarTodos, type DbClient } from './comum'
+
+// SABOTAGEM C (F60) — arquivo TEMPORÁRIO, apagado logo depois: uma chamada de `paginarTodos` SEM o
+// terceiro argumento (o teto). Tem de ser erro de `tsc`, não um teto herdado em silêncio.
+export async function semTeto(client: DbClient) {
+  return paginarTodos('Falha de sabotagem', (from, to) => client.from('itens').select('id').order('id').range(from, to))
+}
+
+$ npx tsc --noEmit
+src/lib/queries/relatorios/__sabotagem-cap.ts(7,10): error TS2554: Expected 3 arguments, but got 2.
+[exit code: 2]
+
+## 2) depois de APAGAR o arquivo temporário
+$ test -e src/lib/queries/relatorios/__sabotagem-cap.ts || echo "apagado"
+apagado
+$ npx tsc --noEmit
+[exit code: 0]

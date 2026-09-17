@@ -484,7 +484,7 @@ describe('estoque mínimo e kits documentados (OS-F12)', () => {
   })
 
   // ⚠ E A DIVERGÊNCIA COM O PAINEL INICIAL TEM DE ESTAR ESCRITA. O card "Itens
-  // para repor" da home lê SEMPRE o consolidado (`getSaldosItens(null)`, em
+  // para repor" da home lê SEMPRE o consolidado (`getSaldosItens` com a lista de todas as filiais, em
   // `src/app/(app)/page.tsx`) e não tem filtro de filial — desde a F44 ele pode
   // discordar da contagem de `/itens` filtrada, e as duas estão certas. Ajuda que
   // não avisa isso transforma uma diferença legítima em suspeita de defeito.

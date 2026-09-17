@@ -1,0 +1,26 @@
+# medir-rel.mjs — o 'antes' continua reproduzível depois do conjunto 'depois' (lote 2 da F60)
+# versão do lote 1 (HEAD 4d4bad2, sha256 LF 9974c99d…, 47.341 bytes) × versão do lote 2 (sha256 LF fd8183d2…, 53.098 bytes)
+# os 11 comandos do conjunto velho: gerar-a1 ×7 (as sete rel_* velhas), gerar-a2, gerar-a3-bruto, gerar-a3-contagens, gerar-a4
+a1-rel_estoque_asof.sql
+a1-rel_frescor_itens.sql
+a1-rel_mov_itens.sql
+a1-rel_mov_por_mes.sql
+a1-rel_por_motivo.sql
+a1-rel_resumo.sql
+a1-rel_saldo_itens.sql
+a2-pgss.sql
+a3-bruto.sql
+a3-contagens.sql
+a4-datas.sql
+diff -r gen-head gen-novo: 0 linha(s)
+
+# o conjunto 'depois' gerado (validarBlocoDo/validarConsultaSimples aceitaram todos):
+a1-rel_estoque_asof_filiais.sql
+a1-rel_frescor_itens_filiais.sql
+a1-rel_mov_itens_filiais.sql
+a1-rel_mov_por_mes_filiais.sql
+a1-rel_por_motivo_filiais.sql
+a1-rel_resumo_filiais.sql
+a1-rel_saldo_itens_filiais.sql
+a2-pgss-depois.sql
+a4-datas-depois.sql

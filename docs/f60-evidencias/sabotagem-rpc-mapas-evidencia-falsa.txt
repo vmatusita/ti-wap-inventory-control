@@ -1,0 +1,10 @@
+# sabotagem: duas evidências falsas em rpc.ts (uma letra cada) — rel_estoque_asof_filiais.colaborador e rel_saldo_itens_filiais.filial_id
+     × rel_estoque_asof_filiais.colaborador 6ms
+     × rel_saldo_itens_filiais.filial_id 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: rel_estoque_asof_filiais.colaborador: a evidência não existe no corpo vivo: expected false to be true // Object.is equality
+AssertionError: rel_saldo_itens_filiais.filial_id: a evidência não existe no corpo vivo: expected false to be true // Object.is equality
+      Tests  2 failed | 20 passed (22)
+
+# restaurado
+      Tests  22 passed (22)

@@ -197,7 +197,7 @@ describe('resolverPeriodo', () => {
   })
 
   // O regex de FORMATO não basta: estas datas o satisfazem, passam no `de <= ate`
-  // e seguem direto para a RPC `rel_estoque_asof` e para os `.gte('data', …)`. O
+  // e seguem direto para a RPC `rel_estoque_asof_filiais` e para os `.gte('data', …)`. O
   // Postgres devolve 22008 e a página INTEIRA do relatório cai no error boundary
   // — para o operador e para o visualizador por senha. Mesma classe do achado
   // F12-W4-04, que já havia sido encerrada em /ativos, /itens e nos exports.

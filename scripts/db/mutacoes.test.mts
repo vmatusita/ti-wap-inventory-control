@@ -100,7 +100,26 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 85 mutações ATIVAS', () => {
+  it('tem entre 20 e 95 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 85 PARA 95 NA F60 (16/09/2026). A trava do recorte obrigatório das
+    // `rel_*` pôs SETE asserções novas em `catalogo_secdef.sql` (bloco 7, rótulos 7a–7g) e a
+    // fase escreveu DOIS cenários de comportamento que o catálogo não enxerga (o transferido
+    // depois da data, `11a` de `asof_desempate.sql`; a filial desativada, `2a` de
+    // `f60_recorte.sql`). Tudo nasceu VERDE contra a cadeia com a `0143`/`0145` — e a régua da
+    // F59 vale igual: uma quebra por rótulo. OITO mutações novas (`F60_RECORTE`): uma por
+    // rótulo do bloco 7, com 7a/7b numa só (a `rel_*` nova sem recorte cai pelos dois lados), e
+    // uma por cenário. As duas da F53 que miravam `rel_estoque_asof` foram REANCORADAS na
+    // assinatura nova e não somam — já estavam no lote. 82 + 8 = 90.
+    //
+    // 95 e não 91, e o motivo é escrito para não virar hábito. A conta do PLAN-F60 (§7.4) era
+    // SETE novas, 89, teto 90 — e ela já furou UMA vez dentro da própria fase: a revisão
+    // adversarial da trava achou a exceção por NOME (a `7g`) e trouxe a oitava mutação. A
+    // revisão adversarial do lote 2 ainda roda, e o que ela achar no bloco 7 ou nos cenários
+    // novos ganha quebra própria pela mesma régua. Teto colado no número de hoje reabriria esta
+    // decisão no mesmo PR, que é como um teto vira ritual; cinco de folga cobre essa rodada sem
+    // virar teto frouxo — a régua de DESENHO continua sendo a quarentena abaixo de um terço, e o
+    // injetor rodando INCONDICIONALMENTE no `banco-sem-docker`.
+    //
     // ⚠ O TETO SUBIU DE 75 PARA 85 NA F59 (16/09/2026). A doutrina do predicado pôs dez
     // asserções novas em `catalogo_policies.sql` (bloco 4, rótulos 10a–14), todas nascidas
     // VERDES — o censo mediu zero policy fora da régua. Asserção que nasce verde e nunca
@@ -230,7 +249,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(85)
+    expect(MUTACOES.length).toBeLessThanOrEqual(95)
   })
 
   it('os `id` são únicos', () => {

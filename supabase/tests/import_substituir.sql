@@ -60,6 +60,17 @@
 -- (patrimonio, coalesce(service_tag,'')); "WAP0001234" só no cenário 1, pareado a
 -- uma tag ZZF19 única → o par nunca colide). NUNCA dado real.
 -- =============================================================
+--
+-- F60 (16/09/2026) — O SALDO PELA ASSINATURA NOVA (migrations 0143/0145). As duas leituras
+-- de saldo deste roteiro passaram de `rel_saldo_itens(<filial>, <data>)`, dropada na 0145,
+-- para `rel_saldo_itens_filiais(array[<filial>], <data>) where filial_id is null`. A função
+-- nova devolve DOIS níveis numa chamada — uma linha por (filial do recorte, item) e o nível do
+-- TOTAL do recorte, com `filial_id` nulo — e o filtro de nível é o que mantém cada asserção
+-- provando a MESMA coisa: o total do recorte é, por construção, o número que a chamada velha
+-- devolvia para aquele recorte (para uma filial só, ele é igual à linha dela, e
+-- `f60_recorte.sql` 4a/4b prova isso item a item). Sem o filtro, `select … into` passaria a
+-- escolher entre linhas de níveis diferentes sem avisar, e `count(*)` contaria cada item uma
+-- vez por nível. Nenhum rótulo mudou.
 
 begin;
 
@@ -594,7 +605,7 @@ begin
 
   -- ---- o saldo ANTES (a régua "desvincular ≠ mudar saldo", fato 32) --------
   select estoque into v_saldo_item_antes
-    from public.rel_saldo_itens(v_fd, current_date) where item_id = v_item_d;
+    from public.rel_saldo_itens_filiais(array[v_fd], current_date) where filial_id is null and item_id = v_item_d;
   select com_a_pessoa into v_saldo_colab_antes
     from public.rel_saldo_colaborador(v_colab_d) where item_id = v_item_d and filial_id = v_fd;
 
@@ -749,7 +760,7 @@ begin
 
   -- ---- 5j — o saldo do item em D é IDÊNTICO antes × depois -----------------
   select estoque into v_saldo_item_depois
-    from public.rel_saldo_itens(v_fd, current_date) where item_id = v_item_d;
+    from public.rel_saldo_itens_filiais(array[v_fd], current_date) where filial_id is null and item_id = v_item_d;
   if v_saldo_item_depois = v_saldo_item_antes then
     v_ok := v_ok + 1;
     raise notice '✓ 5j saldo do item em D idêntico antes/depois (%): desvincular não mudou quantidade', v_saldo_item_antes;

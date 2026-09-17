@@ -45,19 +45,84 @@ export function modeloDe(marca: string | null, modelo: string | null): string {
 }
 
 // Paginação única do PostgREST (que corta selects em 1.000 linhas). Uma única
-// constante de página e um teto único: o maior domínio hoje é "todos os ativos"
-// (~1,6 mil) e "movimentações de um período"; 100 páginas dão ~60× de folga
-// sobre o pior caso atual. (Antes: 4 loops com tetos divergentes 20k/50k/100k;
-// unificar em 100k só AMPLIA o menor, nunca trunca o que já passava.)
+// constante de página; o TETO é de cada chamada (F60, abaixo).
 //
 // O teto NÃO é um limite de leitura: ULTRAPASSÁ-LO lança — não alcançá-lo. Ver
 // o off-by-one corrigido em `paginarTodos` (19/08/2026, revisão): um acervo de
-// exatamente CAP_PAGINACAO linhas precisa CONCLUIR a leitura, não abortar; só
-// uma linha 100.001 é excedente de verdade. Um teto que corta dado e devolve o
+// exatamente `cap` linhas precisa CONCLUIR a leitura, não abortar; só a linha
+// `cap + 1` é excedente de verdade. Um teto que corta dado e devolve o
 // acumulado seria a mesma falha silenciosa que esta paginação existe para
 // eliminar — só que num número maior e mais convincente.
 const PAGINA = 1000
-const CAP_PAGINACAO = 100_000
+
+// ⚠ F60 (fato 15 · PLAN-F60 §2.1 e §10, decisão 5) — O TETO É POR CHAMADA, E É OBRIGATÓRIO.
+//
+// Até a F59 havia um `CAP_PAGINACAO = 100_000` só, para as 48 chamadas: a leitura dos 23 itens
+// do catálogo e a de todas as movimentações tinham o MESMO teto, e ele não dizia nada sobre
+// nenhuma das duas — um laço que lesse o catálogo mil vezes maior do que é passaria calado
+// até 100 mil linhas. Agora o `cap` é o terceiro parâmetro (o quarto em `paginarPorIds`), SEM
+// valor padrão: esquecer é erro de `tsc`, não um teto herdado. E cada chamada passa a constante
+// do DOMÍNIO que ela lê, com a conta escrita aqui — a régua do plano:
+//
+//   teto = o menor valor da série 1–2–5 × 10ⁿ que seja ≥ 20 × o volume de produção de 16/09/2026,
+//          com PISO de 10.000.
+//
+// Por que 20×: o domínio precisa crescer mais de uma ordem de grandeza para o teto disparar em
+// operação legítima, e um laço ou um filtro esquecido (que multiplica a leitura, não a soma) ainda
+// estoura na primeira execução. Por que o piso: abaixo de ~500 linhas, 20× é ruído — um único
+// import de startup de filial passa dele —, e um teto que dispara em operação legítima vira
+// exceção na cara do gestor. Leitura em LOTE de 100 ids: máx. por ativo × 100 × 20, com o mesmo
+// piso (o `cap` vale por lote, como sempre valeu — o `paginarTodos` interno o recebe).
+//
+// Quando um domínio passar do teto de verdade, a correção é refazer a conta aqui, com o volume
+// novo e a data — nunca trocar a constante da chamada por uma maior "que cabe".
+
+/** O piso da régua: nenhum teto abaixo disto (ver a conta acima). */
+export const CAP_PISO = 10_000
+/**
+ * `ativos` — 1.635 em 16/09 × 20 = 32.700 → 50.000 (30,6× de folga). Vale também para o as-of
+ * (`rel_estoque_asof_filiais`: no máximo UMA linha por ativo) e para `v_conflitos_filiais` (no máximo UM
+ * lado por ativo): os dois são limitados pelo número de ativos, não por um volume próprio.
+ */
+export const CAP_ATIVOS = 50_000
+/** `movimentacoes` — 3.578 em 16/09 × 20 = 71.560 → 100.000 (27,9×). É o teto único de antes. */
+export const CAP_MOVIMENTACOES = 100_000
+/** `lancamentos_item` — 155 em 16/09 × 20 = 3.100 → piso (64,5×). */
+export const CAP_LANCAMENTOS_ITEM = CAP_PISO
+/** `termos_gerados` — 107 em 16/09 × 20 = 2.140 → piso (93×). */
+export const CAP_TERMOS_GERADOS = CAP_PISO
+/** `colaboradores` — 34 em 16/09 → piso (294×). */
+export const CAP_COLABORADORES = CAP_PISO
+/** `itens` (o catálogo) — 23 em 16/09 → piso (434×). */
+export const CAP_ITENS = CAP_PISO
+/**
+ * O saldo de itens em DOIS NÍVEIS (`rel_saldo_itens_filiais`, F60 · revisão do lote 2) — uma linha por
+ * (nível, item), e os níveis são as filiais do recorte MAIS o total: no consolidado de 16/09, (6 + 1) ×
+ * 23 = 161 linhas × 20 = 3.220 → piso (62×). Não é `CAP_ITENS`: o volume desta leitura cresce com o
+ * catálogo E com o número de filiais, e cada filial nova o multiplica.
+ */
+export const CAP_SALDO_ITENS_EM_NIVEIS = CAP_PISO
+/** `anotacoes` — 16 em 16/09 → piso (625×). */
+export const CAP_ANOTACOES = CAP_PISO
+/** `pendencias_item` — 17 em 16/09 → piso (588×). */
+export const CAP_PENDENCIAS_ITEM = CAP_PISO
+/**
+ * As movimentações de UM ativo (a linha do tempo da ficha) — máx. 9 por ativo em 16/09 × 20 = 180
+ * → piso.
+ */
+export const CAP_MOVIMENTACOES_DO_ATIVO = CAP_PISO
+/**
+ * Um LOTE de 100 ids lido em `movimentacoes` por `ativo_id` — máx. 9 por ativo em 16/09:
+ * 9 × 100 × 20 = 18.000 → 20.000.
+ */
+export const CAP_LOTE_MOVIMENTACOES = 20_000
+/**
+ * Um LOTE de 100 ids em qualquer outra tabela — `anotacoes` (máx. 2 por ativo), `ativos` por `id`
+ * ou por `substitui_ativo_id`, estornos (≤ 1 por movimentação), `termos_gerados`,
+ * `pendencias_item`, lançamentos por movimentação/pendência e `v_conflitos_filiais` por ativo:
+ * ≤ 200 linhas por lote × 20 = 4.000 → piso.
+ */
+export const CAP_LOTE = CAP_PISO
 
 // ⚠ EXIGE ORDEM TOTAL na consulta paginada — não é detalhe de estilo.
 //
@@ -70,7 +135,7 @@ const CAP_PAGINACAO = 100_000
 //
 // Por isso toda chamada daqui ordena por algo ÚNICO, ou por um critério de
 // exibição seguido de um desempate único (`id`). Quando a fonte é uma RPC que
-// não tem `order by` no corpo — o caso de `rel_estoque_asof` —, a ordem é
+// não tem `order by` no corpo — o caso de `rel_estoque_asof_filiais` —, a ordem é
 // imposta AQUI, na chamada: o builder de RPC do supabase-js aceita `.order()` e
 // `.range()` como qualquer select, então não é preciso mexer na função SQL.
 //
@@ -107,35 +172,137 @@ const CAP_PAGINACAO = 100_000
 // `paginarTodos<X>` escrevia QUALQUER `X`, e uma coluna ausente do `select` virava `undefined`
 // silencioso. Agora `Row` sai do tipo que o supabase-js infere do `select` literal, e um `<X>`
 // explícito no chamador só compila se a linha real couber nele.
-export async function paginarTodos<Row>(
+//
+// ⚠ F60 — DUAS FORMAS DE PEDIR A PÁGINA, UM LAÇO SÓ (PLAN-F60 §2.1 e §10, decisão 5).
+//
+// · OFFSET — `fazPagina(from, to)` com `.range(from, to)`: a forma de sempre. Fica onde o keyset
+//   não cabe, e cada uma dessas chamadas diz o motivo ao lado: ordem COMPOSTA sem cursor simples
+//   (trocar `created_at desc, id desc` por `ordem desc` muda a ordem visível no empate — o backlog
+//   das "duas réguas" da F53), fonte RPC (a porta devolve builder sem filtro no TIPO — `rpc.ts`),
+//   lista de tela de página única, ou view sem unicidade declarada.
+//
+// · KEYSET — `{ porChave(depoisDe, tamanho), chaveDe(linha) }`: onde a ordem de hoje já é UMA
+//   coluna única (o `id`). A consulta ordena ASC por ela, filtra `.gt(coluna, depoisDe)` quando
+//   `depoisDe` não é `null` e pede `.limit(tamanho)`; `chaveDe` devolve o valor dessa coluna na
+//   linha, e o laço guarda o da última linha como o `depoisDe` da página seguinte. A ordem de
+//   saída é a MESMA do OFFSET por `id` — o que muda é o custo da página N: o OFFSET lê e
+//   DESCARTA as linhas das N−1 páginas anteriores a cada pedido, e o `gt` as deixa de fora no
+//   próprio filtro. No volume de 16/09 (uma ou duas páginas por leitura) a diferença não se mede;
+//   o que se compra é a forma, que para de crescer com o número da página.
+//
+// O FIM é o MESMO critério nas duas — a página menor que o teto OBSERVADO, documentado acima — e o
+// laço é um só (`lerPaginas`, abaixo): duplicá-lo seria reabrir, numa cópia, o off-by-one do teto
+// e o `continue` da primeira página que a revisão de 19/08 levou três achados para acertar.
+//
+// ⚠ A GUARDA DA CHAVE (só no keyset): toda chave que CHEGA ao laço tem de ser ESTRITAMENTE maior
+// que a anterior — dentro da página e da última linha de uma página para a primeira da seguinte.
+// Não é zelo. Um `.gt` esquecido devolve a mesma primeira página para sempre (laço até o teto, com
+// linhas repetidas no meio); um `.order` DESC ou esquecido faz o `.gt` pular linhas que ainda não
+// vieram. Os dois são corte ou duplicata SILENCIOSOS no resultado, e a guarda os transforma em
+// exceção na primeira página que mostra o defeito. A comparação é a do JavaScript no tipo da chave,
+// e casa com a do Postgres nos dois cursores que existem: inteiro (número com número) e uuid (o
+// texto canônico que o PostgREST devolve é minúsculo, com os hífens nas mesmas posições, e
+// `'0'…'9' < 'a'…'f'` em código de caractere — então a ordem do texto é a ordem dos 128 bits, que
+// é a do `uuid_cmp`). Uma coluna de TEXTO com collation não tem essa garantia: não use keyset nela
+// sem refazer esta conta — a guarda lançaria (alto, nunca calado), mas lançaria em operação legítima.
+//
+// ⚠ O QUE A GUARDA NÃO VÊ — e é por isso que o cursor é SÓ a chave primária de uma tabela. Coluna
+// que repete só é acusada quando o empate cai DENTRO de uma página. Quando ele cai na VIRADA (a
+// última linha da página N e a gêmea que abriria a N+1 têm a mesma chave), o `.gt` da página
+// seguinte exclui a gêmea NO BANCO: ela nunca chega ao laço para ser comparada, e a leitura termina
+// com uma linha a menos, sem exceção. Medido na revisão do lote 1 (16/09/2026): chaves 1…1000, 1000
+// de novo, 1001…1500, com `max-rows` 1.000 → 1.500 linhas lidas de 1.501, nenhum erro (o caso está
+// em `comum.test.ts`). Nenhuma guarda do lado do cliente fecha isso sem pagar outra consulta por
+// página. A garantia, então, é ESTRUTURAL, e travada fora daqui: o cursor é o `id` de uma TABELA
+// cuja chave primária é o `id` — unicidade imposta por constraint, nunca pela construção de uma
+// view ou de uma RPC, que ninguém impede de mudar —, e `comum.test.ts` reprova a chamada keyset que
+// saia dessa forma (fonte fora da lista de tabelas, cuja PK a própria trava lê nas migrations;
+// `.order` que não seja só `id` ascendente; `.gt` que não seja no `id` pelo cursor; `chaveDe` que não
+// devolva `.id`; página que não esteja escrita na própria chamada).
+type RespostaDePagina<Row> = { data: readonly Row[] | null; error: { message: string } | null }
+
+/** O valor do cursor do keyset: o `id` inteiro ou uuid (ver a guarda da chave, acima). */
+export type ChaveDeKeyset = string | number
+
+/** OFFSET: a janela `[from, to]` vira `.range(from, to)`. */
+export type PaginaPorOffset<Row> = (from: number, to: number) => PromiseLike<RespostaDePagina<Row>>
+
+/** KEYSET: a página das linhas com chave `> depoisDe` (`null` = a primeira), em ordem ASC, até `tamanho`. */
+export type PaginaPorChave<Row, K extends ChaveDeKeyset> = {
+  porChave: (depoisDe: K | null, tamanho: number) => PromiseLike<RespostaDePagina<Row>>
+  chaveDe: (linha: Row) => K
+}
+
+export async function paginarTodos<Row, K extends ChaveDeKeyset = string>(
   rotuloErro: string,
-  fazPagina: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: readonly Row[] | null; error: { message: string } | null }>,
+  fazPagina: PaginaPorOffset<Row> | PaginaPorChave<Row, K>,
+  cap: number,
 ): Promise<Row[]> {
+  if (typeof fazPagina === 'function') {
+    return lerPaginas(rotuloErro, cap, (lidas) => fazPagina(lidas, lidas + PAGINA - 1), () => {})
+  }
+  const { porChave, chaveDe } = fazPagina
+  let depoisDe: K | null = null
+  return lerPaginas(
+    rotuloErro,
+    cap,
+    () => porChave(depoisDe, PAGINA),
+    (rows) => {
+      for (const linha of rows) {
+        const chave = chaveDe(linha)
+        if (depoisDe !== null && !chaveCresce(depoisDe, chave))
+          throw new Error(
+            `${rotuloErro}: a chave do keyset não cresceu (${String(depoisDe)} → ${String(chave)}). ` +
+              'A consulta tem de ordenar ASC pela coluna do cursor e filtrar `gt` nela — ' +
+              'seguir leria linha repetida ou pularia linha, em silêncio.',
+          )
+        depoisDe = chave
+      }
+    },
+  )
+}
+
+/** Estritamente maior, e no MESMO tipo: chave que troca de tipo no meio da leitura também é defeito. */
+function chaveCresce(anterior: ChaveDeKeyset, atual: ChaveDeKeyset): boolean {
+  if (typeof anterior === 'number' && typeof atual === 'number') return atual > anterior
+  if (typeof anterior === 'string' && typeof atual === 'string') return atual > anterior
+  return false
+}
+
+// O laço das duas formas. `pedir(lidas)` busca a próxima página (o OFFSET usa `lidas` como
+// `from`; o keyset ignora e usa o cursor que `aceitar` avançou); `aceitar(rows)` roda ANTES de a
+// página entrar no acumulado — é onde o keyset confere a ordem e move o cursor.
+async function lerPaginas<Row>(
+  rotuloErro: string,
+  cap: number,
+  pedir: (lidas: number) => PromiseLike<RespostaDePagina<Row>>,
+  aceitar: (rows: readonly Row[]) => void,
+): Promise<Row[]> {
+  // O `cap` é obrigatório no TIPO; aqui se recusa o valor que o esvaziaria sem erro de
+  // compilação — `0`, negativo, `NaN` (divisão por zero numa conta) ou `Infinity`.
+  if (!Number.isSafeInteger(cap) || cap <= 0)
+    throw new Error(`${rotuloErro}: teto de paginação inválido (${cap}) — passe a constante CAP_* do domínio.`)
   const acc: Row[] = []
-  let from = 0
   // Teto de linhas por página OBSERVADO na primeira resposta do servidor —
   // não é `PAGINA` (o que pedimos), é o que ele de fato entregou. `null` até a
   // primeira página chegar. Ver o comentário acima.
   let teto: number | null = null
   for (;;) {
-    const { data, error } = await fazPagina(from, from + PAGINA - 1)
+    const { data, error } = await pedir(acc.length)
     if (error) throw new Error(`${rotuloErro}: ${error.message}`)
     const rows = data ?? []
     if (rows.length === 0) break
+    aceitar(rows)
     acc.push(...rows)
-    from += rows.length
     // Teto sobre o EXCEDENTE, não sobre o total exato — ACHADO 6, 19/08/2026
-    // (revisão). `>`, não `>=`: um acervo de exatamente CAP_PAGINACAO linhas
-    // (100 páginas de 1.000) faz `from` chegar a 100.000 na última página
-    // cheia, e `100000 > 100000` é falso — a leitura conclui. Com `>=` esse
-    // mesmo acervo, que COUBE certinho no teto, virava exceção como se tivesse
-    // estourado; só uma linha 100.001 de verdade deve lançar.
-    if (from > CAP_PAGINACAO)
+    // (revisão). `>`, não `>=`: um acervo de exatamente `cap` linhas (por
+    // exemplo 100 páginas de 1.000 com `cap` 100.000) faz o acumulado chegar a
+    // `cap` na última página cheia, e `cap > cap` é falso — a leitura conclui.
+    // Com `>=` esse mesmo acervo, que COUBE certinho no teto, virava exceção
+    // como se tivesse estourado; só a linha `cap + 1` de verdade deve lançar.
+    if (acc.length > cap)
       throw new Error(
-        `${rotuloErro}: teto de paginação atingido (${CAP_PAGINACAO} linhas). ` +
+        `${rotuloErro}: teto de paginação atingido (${cap} linhas). ` +
           'A leitura foi abortada de propósito — devolver o acumulado seria afirmar ' +
           'um número truncado com cara de certo.',
       )
@@ -245,20 +412,38 @@ export async function mapComLimite<T, R>(
 // piora a cada filial nova importada. LIMITE_LOTES_PARALELOS = 6 dá folga
 // sobre o pico de hoje sem devolver ao custo do fan-out serial — ACHADO 5,
 // 19/08/2026 (revisão).
-export async function paginarPorIds<Row>(
+//
+// F60 — as MESMAS duas formas de `paginarTodos`, agora recebendo o lote na frente: OFFSET
+// `(lote, from, to)` ou KEYSET `{ porChave(lote, depoisDe, tamanho), chaveDe }`. O cursor do keyset
+// é POR LOTE (cada lote é uma leitura paginada independente, que começa em `null`), e o `cap`
+// também — é o teto de UM lote, como o de antes (as constantes `CAP_LOTE*` carregam essa conta).
+export type PaginaPorOffsetDoLote<Row> = (
+  lote: string[],
+  from: number,
+  to: number,
+) => PromiseLike<RespostaDePagina<Row>>
+
+export type PaginaPorChaveDoLote<Row, K extends ChaveDeKeyset> = {
+  porChave: (lote: string[], depoisDe: K | null, tamanho: number) => PromiseLike<RespostaDePagina<Row>>
+  chaveDe: (linha: Row) => K
+}
+
+export async function paginarPorIds<Row, K extends ChaveDeKeyset = string>(
   rotuloErro: string,
   ids: readonly string[],
-  fazPagina: (
-    lote: string[],
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: readonly Row[] | null; error: { message: string } | null }>,
+  fazPagina: PaginaPorOffsetDoLote<Row> | PaginaPorChaveDoLote<Row, K>,
+  cap: number,
 ): Promise<Row[]> {
   if (ids.length === 0) return []
   const lotes: string[][] = []
   for (let i = 0; i < ids.length; i += LOTE_IDS) lotes.push(ids.slice(i, i + LOTE_IDS))
+  const pagina = (lote: string[]): PaginaPorOffset<Row> | PaginaPorChave<Row, K> => {
+    if (typeof fazPagina === 'function') return (from, to) => fazPagina(lote, from, to)
+    const { porChave, chaveDe } = fazPagina
+    return { porChave: (depoisDe, tamanho) => porChave(lote, depoisDe, tamanho), chaveDe }
+  }
   const partes = await mapComLimite(lotes, LIMITE_LOTES_PARALELOS, (lote) =>
-    paginarTodos<Row>(rotuloErro, (from, to) => fazPagina(lote, from, to)),
+    paginarTodos<Row, K>(rotuloErro, pagina(lote), cap),
   )
   return partes.flat()
 }

@@ -173,6 +173,11 @@ export async function getSnapshotRelatorioV2(
     saidas: tabelas.saidas,
     entradas: tabelas.entradas,
     transferencias: tabelas.transferencias,
+    // F60 — o corte das três tabelas no teto, com o total exato. Chave OPCIONAL na V2, pelo mesmo
+    // espalhamento condicional de `serieEstado`: sem corte (o caso de todo relatório de hoje) ela
+    // não existe, e o JSON congelado sai idêntico ao de antes. NUNCA `meta.schema: 3` — ver
+    // `SnapshotRelatorioV2.tabelasTruncadas` em `lib/relatorios/tipos.ts`.
+    ...(tabelas.tabelasTruncadas ? { tabelasTruncadas: tabelas.tabelasTruncadas } : {}),
     movimentacoesItens: movsItens,
     resumo,
   }

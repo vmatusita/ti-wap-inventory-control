@@ -16,6 +16,16 @@ export const metadata = {
   description: 'Documentação do operador do Estoque TI WAP.',
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// Esta página não lê `lib/queries`, mas não é estática: chama `getOperador()` (Auth +
+// `profiles`) e roda debaixo de `(app)/layout.tsx`, que lê o banco a cada request (filiais
+// e os dois selos). O pendurado que o teto corta é o mesmo das outras rotas.
+// Esta página não hospeda Server Action própria.
+export const maxDuration = 60
+
 // A CHAVE pesquisável de cada página desce no `data-ajuda-texto` do card — é
 // sobre esses atributos que `AjudaBusca` filtra, no cliente. A chave é título,
 // resumo, os sinônimos curados e o vocabulário derivado do domínio (rótulos de

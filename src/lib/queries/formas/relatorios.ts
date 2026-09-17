@@ -7,9 +7,13 @@ import { leituraDeRelacao, leituraDeRpc } from '@/lib/supabase/leitura'
 //
 // É a superfície que o VISUALIZADOR POR SENHA percorre com o client administrativo — a mais
 // exposta a um dado de formato inesperado, e por isso a primeira. As `rel_*` chegam com o tipo JÁ
-// corrigido pela porta de RPC (`rpc.ts`: `colaborador`/`setor`/`marca`/`modelo` anuláveis no as-of);
-// a forma daqui confere em runtime o que o tipo afirma, e o conferidor a roda na matriz de filiais ×
-// datas contra produção.
+// corrigido pela porta de RPC (`rpc.ts`: `colaborador`/`setor`/`marca`/`modelo` anuláveis no as-of,
+// `filial_id` anulável no saldo de itens); a forma daqui confere em runtime o que o tipo afirma, e o
+// conferidor a roda na matriz de filiais × datas contra produção.
+//
+// F60 · lote 2 — as sete `rel_*_filiais` (0143): o recorte é a LISTA `p_filiais` (a matriz
+// `filiais-e-data`/`filiais-e-periodo`: o consolidado com TODAS as filiais, inclusive desativadas, e
+// uma célula por filial ativa com `[id]`), nunca NULL.
 //
 // Os `select` moram aqui como LITERAIS (template de constantes, nunca `+`): é o literal que faz o
 // supabase-js inferir a linha contra a qual `linhasDe` amarra a forma. Até a F58 dois deles eram
@@ -25,7 +29,7 @@ const n = z.number()
 
 export const LEITURA_REL_ESTOQUE_ASOF = leituraDeRpc({
   rotulo: 'relatorios.rel-estoque-asof',
-  rpc: 'rel_estoque_asof',
+  rpc: 'rel_estoque_asof_filiais',
   forma: z.strictObject({
     ativo_id: s,
     categoria: ENUM.categoriaAtivo,
@@ -37,15 +41,17 @@ export const LEITURA_REL_ESTOQUE_ASOF = leituraDeRpc({
     setor: sn,
   }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-data', filial: 'p_filial', data: 'p_data' },
-  // uma linha por ativo: `distinct on (e.ativo_id)` no corpo vivo (0134)
+  matriz: { tipo: 'filiais-e-data', filiais: 'p_filiais', data: 'p_data' },
+  // uma linha por ativo: a lateral ancorada em `ativos` com `limit 1` no corpo vivo (0143)
   ordem: ['ativo_id'],
 })
 
 export const LEITURA_REL_SALDO_ITENS = leituraDeRpc({
   rotulo: 'relatorios.rel-saldo-itens',
-  rpc: 'rel_saldo_itens',
+  rpc: 'rel_saldo_itens_filiais',
   forma: z.strictObject({
+    // o NÍVEL: o id da filial nas linhas por filial, NULL na linha do total do recorte (0143)
+    filial_id: n.nullable(),
     item_id: n,
     item: s,
     grupo: ENUM.grupoItem,
@@ -56,50 +62,52 @@ export const LEITURA_REL_SALDO_ITENS = leituraDeRpc({
     falta: n,
   }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-data', filial: 'p_filial', data: 'p_ate' },
-  // uma linha por item: o agregado final é `group by item_id` (0027)
-  ordem: ['item_id'],
+  matriz: { tipo: 'filiais-e-data', filiais: 'p_filiais', data: 'p_ate' },
+  // uma linha por (nível, item): `niveis × itens` no corpo vivo (0143) — o nível é `filial_id`, NULL no
+  // total. `filial_id` vem PRIMEIRO na ordem porque é assim que a função ordena (`nulls first`), e
+  // `item_id` sozinho repetiria entre níveis.
+  ordem: ['filial_id', 'item_id'],
 })
 
 export const LEITURA_REL_MOV_ITENS = leituraDeRpc({
   rotulo: 'relatorios.rel-mov-itens',
-  rpc: 'rel_mov_itens',
+  rpc: 'rel_mov_itens_filiais',
   forma: z.strictObject({ item_id: n, item: s, grupo: ENUM.grupoItem, ordem: n, entradas: n, saidas: n }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-periodo', filial: 'p_filial', de: 'p_de', ate: 'p_ate' },
-  // uma linha por item: `group by i.id, …` (0016)
+  matriz: { tipo: 'filiais-e-periodo', filiais: 'p_filiais', de: 'p_de', ate: 'p_ate' },
+  // uma linha por item: `group by i.id, …` (0143, o mesmo agregado da 0016)
   ordem: ['item_id'],
 })
 
 export const LEITURA_REL_FRESCOR_ITENS = leituraDeRpc({
   rotulo: 'relatorios.rel-frescor-itens',
-  rpc: 'rel_frescor_itens',
+  rpc: 'rel_frescor_itens_filiais',
   forma: z.strictObject({ grupo: ENUM.grupoItem, ultima: s }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-data', filial: 'p_filial', data: 'p_ate' },
-  // uma linha por grupo: `group by i.grupo` (0016)
+  matriz: { tipo: 'filiais-e-data', filiais: 'p_filiais', data: 'p_ate' },
+  // uma linha por grupo: `group by i.grupo` (0143, o mesmo agregado da 0016)
   ordem: ['grupo'],
 })
 
 export const LEITURA_REL_MOV_POR_MES = leituraDeRpc({
   rotulo: 'relatorios.rel-mov-por-mes',
-  rpc: 'rel_mov_por_mes',
+  rpc: 'rel_mov_por_mes_filiais',
   forma: z.strictObject({ mes: s, tipo: ENUM.tipoMovimentacao, total: n }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-periodo', filial: 'p_filial', de: 'p_de', ate: 'p_ate' },
+  matriz: { tipo: 'filiais-e-periodo', filiais: 'p_filiais', de: 'p_de', ate: 'p_ate' },
 })
 
 export const LEITURA_REL_POR_MOTIVO = leituraDeRpc({
   rotulo: 'relatorios.rel-por-motivo',
-  rpc: 'rel_por_motivo',
+  rpc: 'rel_por_motivo_filiais',
   forma: z.strictObject({ tipo: ENUM.tipoMovimentacao, motivo: s, total: n }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-periodo', filial: 'p_filial', de: 'p_de', ate: 'p_ate' },
+  matriz: { tipo: 'filiais-e-periodo', filiais: 'p_filiais', de: 'p_de', ate: 'p_ate' },
 })
 
 export const LEITURA_REL_RESUMO = leituraDeRpc({
   rotulo: 'relatorios.rel-resumo',
-  rpc: 'rel_resumo',
+  rpc: 'rel_resumo_filiais',
   forma: z.strictObject({
     tipo: ENUM.tipoMovimentacao,
     filial_slug: s,
@@ -109,7 +117,7 @@ export const LEITURA_REL_RESUMO = leituraDeRpc({
     total: n,
   }),
   retorno: 'linhas',
-  matriz: { tipo: 'filial-e-periodo', filial: 'p_filial', de: 'p_de', ate: 'p_ate' },
+  matriz: { tipo: 'filiais-e-periodo', filiais: 'p_filiais', de: 'p_de', ate: 'p_ate' },
 })
 
 // ---------------------------------------------------------------------------

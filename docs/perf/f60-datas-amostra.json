@@ -1,0 +1,117 @@
+{
+  "rotulo": "f60-datas-amostra",
+  "alvo": "producao",
+  "sha_codigo": "96fc43f12ca90c4b5d6dfab87083c703708e0a40",
+  "gerado_em": "2026-09-16T20:39:50.952Z",
+  "metodo": "datas escolhidas por consulta de contagem (min/max/group by), sem ler linha; datas não são dado pessoal (regra 4).",
+  "datas": [
+    {
+      "data": "2024-01-07",
+      "motivo": "vespera da primeira movimentacao (min(data)-1)",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 0,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-07-27",
+      "motivo": "dia do go-live (compra mais numerosa em julho/2026, 259 compras; nenhum registro com observacao carga go-live)",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 512,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-08-31",
+      "motivo": "fim de mes - substitui repeticao com o go-live (2026-07-27 e tambem o dia do lote R-REL-33)",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 10,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-08-17",
+      "motivo": "maior no de transferencias no dia",
+      "contagens": {
+        "estornos_no_dia": 2,
+        "movimentacoes_no_dia": 34,
+        "transferencias_no_dia": 4
+      }
+    },
+    {
+      "data": "2026-08-28",
+      "motivo": "2o maior no de transferencias no dia",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 4,
+        "transferencias_no_dia": 2
+      }
+    },
+    {
+      "data": "2026-09-04",
+      "motivo": "maior no de estornos no dia (empate desfeito por data mais recente)",
+      "contagens": {
+        "estornos_no_dia": 2,
+        "movimentacoes_no_dia": 4,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-07-31",
+      "motivo": "fim de mes - substitui repeticao do 2o maior dia de estorno (2026-08-17, mesmo dia do maior no de transferencias)",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 378,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-09-15",
+      "motivo": "ultima data com transferencia",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 7,
+        "transferencias_no_dia": 1
+      }
+    },
+    {
+      "data": "2026-09-14",
+      "motivo": "dia anterior a ultima transferencia",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 11,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-09-09",
+      "motivo": "hoje menos 7",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 18,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-06-30",
+      "motivo": "fim de mes - substitui repeticao de hoje-1 (2026-09-15, mesmo dia da ultima transferencia)",
+      "contagens": {
+        "estornos_no_dia": 0,
+        "movimentacoes_no_dia": 1,
+        "transferencias_no_dia": 0
+      }
+    },
+    {
+      "data": "2026-09-16",
+      "motivo": "hoje",
+      "contagens": {
+        "estornos_no_dia": 1,
+        "movimentacoes_no_dia": 26,
+        "transferencias_no_dia": 0
+      }
+    }
+  ]
+}

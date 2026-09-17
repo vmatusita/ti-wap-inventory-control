@@ -64,6 +64,26 @@
 -- equivalência total um universo limpo (as próprias linhas que 3a acabou de
 -- inserir), sem tocar uma linha do que já existia.
 -- ================================================================
+--
+-- ================================================================
+-- F60 (16/09/2026) — o as-of com recorte OBRIGATÓRIO (migrations 0143/0145).
+-- ================================================================
+-- As cinco chamadas de antes passaram para `rel_estoque_asof_filiais(smallint[], date)`, que
+-- a 0143 criou e a 0145 deixou sozinha (a assinatura velha, `smallint` com nulo = tudo, foi
+-- dropada). O nulo virou a lista de TODAS as filiais, inclusive as desativadas, lida na hora
+-- da chamada — `(select array_agg(f.id order by f.id) from public.filiais f)` —, que é o
+-- conjunto exato que o nulo cobria (toda linha de `ativos`/`movimentacoes` tem `filial_id`
+-- com FK para `filiais`). Os rótulos 1 a 10c provam a MESMA coisa de antes, sobre o corpo
+-- novo: o desempate continua `data desc, ordem desc`, agora dentro da lateral.
+--
+-- Acrescenta TRÊS rótulos — 11a, 11b, 11c — para o que a 0143 mudou de verdade: o corpo é
+-- um `cross join lateral` ancorado em `ativos`, e a filial de cada linha é CALCULADA na data
+-- (a da última movimentação efetiva até ela), nunca a de hoje. O recorte se aplica sobre a
+-- filial calculada. O cenário 11 é o ativo TRANSFERIDO DEPOIS DA DATA — o único arranjo em
+-- que "pré-filtrar `ativos` pela filial de hoje para cortar scan" muda o resultado (ver o
+-- comentário do cenário). Nenhum dos três é prefixo de rótulo existente, e ele roda por
+-- ÚLTIMO (depois de 3b e de 7a, que olham a tabela inteira de `movimentacoes`).
+-- ================================================================
 
 begin;
 
@@ -114,6 +134,19 @@ declare
   v_corpo10c       text;
   v_pos_recusa     int;
   v_pos_comparacao int;
+
+  -- ---- F60: variáveis do cenário 11 (o transferido depois da data) ----
+  t11              uuid;       -- o ativo: em A (a matriz) na data D, em B depois dela
+  v_destino11      smallint;   -- B: filial fictícia que nasce no cenário
+  v_hoje11         smallint;   -- ativos.filial_id depois da transferência (a filial de HOJE)
+  v_em_a_antes     bigint;     -- linhas do ativo no as-of de D, recorte [A]
+  v_em_b_antes     bigint;     -- idem, recorte [B]
+  v_em_a_depois    bigint;     -- as-of de D+k, recorte [A]
+  v_em_b_depois    bigint;     -- as-of de D+k, recorte [B]
+  v_cons_antes     bigint;     -- as-of de D, consolidado
+  v_cons_depois    bigint;     -- as-of de D+k, consolidado
+  v_filial_antes   smallint;   -- a filial CALCULADA no consolidado em D
+  v_filial_depois  smallint;   -- idem em D+k
 begin
   -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
   -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
@@ -180,7 +213,7 @@ begin
             'F53 3a: reconciliacao de import (mesmo instante da compra)', v_prof)
     returning ordem into v_ordem_ajuste;
 
-  select status into v_asof3a from public.rel_estoque_asof(null, current_date) where ativo_id = h;
+  select status into v_asof3a from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where ativo_id = h;
 
   if v_ordem_ajuste is distinct from v_ordem_compra and v_ordem_ajuste > v_ordem_compra
      and v_asof3a = 'em_uso' then
@@ -252,7 +285,7 @@ begin
             date '2026-06-01', v_matriz, 'em_uso',
             'reconciliacao de import (teste F19)', v_prof, timestamptz '2026-06-01 10:00:00+00');
 
-  select status into v_asof  from public.rel_estoque_asof(null, current_date) where ativo_id = a;
+  select status into v_asof  from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where ativo_id = a;
   select status into v_ativo from public.ativos where id = a;
   if v_asof = 'em_uso' and v_asof = v_ativo then
     v_ok := v_ok + 1; raise notice '✓ 1 desempate (0054): ajuste vence a compra no empate (data,created_at); as-of=% = ativos=%',
@@ -283,8 +316,8 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at, estorno_de)
     values (b, 'estorno', date '2026-06-20', v_matriz, v_prof, timestamptz '2026-06-01 10:02:00+00', v_saida);
 
-  select status into v_d1  from public.rel_estoque_asof(null, date '2026-06-10') where ativo_id = b;
-  select status into v_now from public.rel_estoque_asof(null, current_date)      where ativo_id = b;
+  select status into v_d1  from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2026-06-10') where ativo_id = b;
+  select status into v_now from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date)      where ativo_id = b;
   select status into v_cur from public.ativos where id = b;
 
   if v_d1 = 'em_uso' then
@@ -498,7 +531,7 @@ begin
     values (k, 'ajuste', date '2026-01-01', v_matriz, 'em_manutencao', 'F53 6a: M2, retroativa, lancada DEPOIS de M1', v_prof, timestamptz '2026-01-01 09:00:00+00');
 
   -- as-of numa data POSTERIOR às duas (2026-08-15): as duas estão em `efetivas`.
-  select status into v_asof6a from public.rel_estoque_asof(null, date '2026-08-15') where ativo_id = k;
+  select status into v_asof6a from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2026-08-15') where ativo_id = k;
 
   -- a MESMA pergunta, respondida só por `ordem desc` (a régua REJEITADA):
   select m.status_resultante into v_puro6a
@@ -681,6 +714,90 @@ begin
   else
     v_falhas := v_falhas + 1;
     raise warning '✗ 10c posicoes inesperadas: recusa=% comparacao=% (releia o corpo de apagar_movimentacao antes de mexer nesta excecao)', v_pos_recusa, v_pos_comparacao;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- CENARIO 11 (F60) — O TRANSFERIDO DEPOIS DA DATA.
+  --
+  -- POR QUE ELE EXISTE: a 0143 trocou o as-of (antes uma CTE sobre `movimentacoes` inteira,
+  -- 368 buffers para 5 linhas ou para 1.624) por uma lateral ancorada em `ativos`. Com a
+  -- âncora em `ativos`, o atalho óbvio para o recorte "cortar scan" é pré-filtrar
+  -- `ativos.filial_id = any (p_filiais)` antes da lateral. Esse atalho está ERRADO, e só
+  -- este arranjo mostra por quê: `ativos.filial_id` é a filial de HOJE, e o as-of responde
+  -- "onde o ativo estava NA DATA". Um ativo que estava em A na data D e foi transferido para B
+  -- depois de D:
+  --   · sumiria do relatório de A em D (o pré-filtro o descarta: hoje ele é de B);
+  --   · e o de B em D não o ganharia de volta, porque a filial calculada em D é A.
+  -- Ele simplesmente desapareceria do passado. Nenhum dos rótulos 1 a 10c pega isso: todos
+  -- os ativos deles ficam na matriz a vida inteira, e aí a filial de hoje e a da data coincidem.
+  -- A mutação `f60-asof-pre-filtra-pela-filial-de-hoje` injeta o pré-filtro e cai em 11a.
+  --
+  -- MONTAGEM: compra na matriz (A) @2025-03-01; transferência A→B @2025-03-20. D = 2025-03-10
+  -- (entre as duas), D+k = 2025-03-25 (depois da transferência). `created_at` EXPLÍCITO e
+  -- crescente (a regra da pendência nº 5 da F37: duas movimentações do mesmo ativo na mesma
+  -- transação). B é fictícia e nasce aqui — o arquivo só tem a matriz como pré-requisito.
+  -- ---------------------------------------------------------------
+  insert into public.filiais (slug, nome)
+    values ('zzf60-asof-destino', 'ZZF60 AsOf Destino')
+    returning id into v_destino11;
+
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('ZZF6000311', 'notebook', v_matriz)
+    returning id into t11;
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (t11, 'compra', date '2025-03-01', v_matriz, v_prof, timestamptz '2025-03-01 10:00:00+00');
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
+    values (t11, 'transferencia', date '2025-03-20', v_matriz, v_destino11, v_prof, timestamptz '2025-03-20 10:00:00+00');
+
+  -- A premissa do cenário: HOJE o ativo é de B. Sem isto, 11a não discriminaria nada (a
+  -- filial de hoje e a da data seriam a mesma, como nos cenários acima).
+  select filial_id into v_hoje11 from public.ativos where id = t11;
+
+  select count(*) into v_em_a_antes
+    from public.rel_estoque_asof_filiais(array[v_matriz], date '2025-03-10') r where r.ativo_id = t11;
+  select count(*) into v_em_b_antes
+    from public.rel_estoque_asof_filiais(array[v_destino11], date '2025-03-10') r where r.ativo_id = t11;
+  select count(*) into v_em_a_depois
+    from public.rel_estoque_asof_filiais(array[v_matriz], date '2025-03-25') r where r.ativo_id = t11;
+  select count(*) into v_em_b_depois
+    from public.rel_estoque_asof_filiais(array[v_destino11], date '2025-03-25') r where r.ativo_id = t11;
+
+  if v_hoje11 = v_destino11 and v_em_a_antes = 1 and v_em_b_antes = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 11a as-of ANTES da transferencia (2025-03-10): o ativo esta no recorte da ORIGEM e nao no do destino, embora HOJE ele seja do destino — a filial e a CALCULADA na data, sem pre-filtro pela de hoje';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 11a as-of de 2025-03-10: esperado hoje=destino, 1 linha em [origem] e 0 em [destino]; obtido hoje=% (destino=%), [origem]=%, [destino]=% — um pre-filtro por ativos.filial_id tira do passado o ativo que saiu depois da data',
+      v_hoje11, v_destino11, v_em_a_antes, v_em_b_antes;
+  end if;
+
+  if v_em_b_depois = 1 and v_em_a_depois = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 11b as-of DEPOIS da transferencia (2025-03-25): o ativo esta no recorte do DESTINO e nao no da origem';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 11b as-of de 2025-03-25: esperado 1 linha em [destino] e 0 em [origem], obtido [destino]=% [origem]=%',
+      v_em_b_depois, v_em_a_depois;
+  end if;
+
+  -- O consolidado não depende de filial nenhuma para CONTER o ativo, mas depende da filial
+  -- calculada para o que MOSTRA: exatamente uma linha em cada data, cada uma com a filial de
+  -- então. Duas linhas seriam a lateral multiplicando; zero, o recorte perdendo o ativo.
+  select count(*), min(r.filial_id) into v_cons_antes, v_filial_antes
+    from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2025-03-10') r
+   where r.ativo_id = t11;
+  select count(*), min(r.filial_id) into v_cons_depois, v_filial_depois
+    from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2025-03-25') r
+   where r.ativo_id = t11;
+
+  if v_cons_antes = 1 and v_cons_depois = 1
+     and v_filial_antes = v_matriz and v_filial_depois = v_destino11 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 11c consolidado: o ativo aparece UMA vez em cada data, com a filial de entao (origem em 2025-03-10, destino em 2025-03-25)';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 11c consolidado: esperado 1 linha por data com filial origem→destino, obtido %/% linhas e filial %→% (origem=%, destino=%)',
+      v_cons_antes, v_cons_depois, v_filial_antes, v_filial_depois, v_matriz, v_destino11;
   end if;
 
   raise notice 'FIM asof_desempate: % asserções, % falhas', v_ok + v_falhas, v_falhas;

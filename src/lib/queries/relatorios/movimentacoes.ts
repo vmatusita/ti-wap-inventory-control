@@ -13,6 +13,7 @@ import {
   type LinhaSerieCurta,
 } from '@/lib/relatorios/serie'
 import type {
+  CorteDeTabela,
   LinhaEntrada,
   LinhaSaida,
   LinhaTransferencia,
@@ -23,9 +24,18 @@ import type {
   ResumoPeriodo,
   ResumoTipo,
   SerieMovimentacoes,
+  TabelasTruncadas,
 } from '@/lib/relatorios/tipos'
 import { marcaEstorno } from '@/lib/relatorios/estorno'
-import { modeloDe, paginarTodos, type DbClient } from './comum'
+import {
+  TETO_LINHAS_TABELA,
+  corteComTotal,
+  decidirCorte,
+  montarTabelasTruncadas,
+  paginaAteOLimite,
+} from '@/lib/relatorios/teto-tabela'
+import { CAP_LOTE, CAP_MOVIMENTACOES, modeloDe, paginarPorIds, paginarTodos, type DbClient } from './comum'
+import { recorteDeFiliais } from './recorte-filiais'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import {
@@ -45,14 +55,15 @@ import {
 // ---- Série de movimentações adaptativa ao período (OS-F3 melhoria) ----
 // A granularidade acompanha a duração do período (dia/semana/mês).
 
-// Mensal: agregação no banco (rel_mov_por_mes) — uma linha por (mês, tipo).
+// Mensal: agregação no banco (rel_mov_por_mes_filiais) — uma linha por (mês, tipo). O recorte é a LISTA
+// (`recorteDeFiliais`: `null` → todas as filiais, inclusive desativadas; um id → `[id]` — F60).
 async function serieMensal(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
 ): Promise<SerieMovimentacoes> {
-  const { data, error } = await chamarRpc(client, 'rel_mov_por_mes', {
-    p_filial: filialId,
+  const { data, error } = await chamarRpc(client, 'rel_mov_por_mes_filiais', {
+    p_filiais: await recorteDeFiliais(client, filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -68,6 +79,7 @@ async function serieCurta(
   periodo: Periodo,
   gran: 'dia' | 'semana',
 ): Promise<SerieMovimentacoes> {
+  // OFFSET, não keyset (F60 · PLAN §2.1, #46): ordem composta `data, id` sem cursor simples.
   const linhas = await paginarTodos<LinhaSerieCurta>(
     'Falha na série de movimentações',
     (from, to) => {
@@ -83,6 +95,7 @@ async function serieCurta(
         .order('id', { ascending: true })
         .range(from, to)
     },
+    CAP_MOVIMENTACOES,
   )
   return montarSerieCurta(linhas, periodo, gran)
 }
@@ -103,8 +116,8 @@ export async function getPorMotivo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<PorMotivo> {
-  const { data, error } = await chamarRpc(client, 'rel_por_motivo', {
-    p_filial: filialId,
+  const { data, error } = await chamarRpc(client, 'rel_por_motivo_filiais', {
+    p_filiais: await recorteDeFiliais(client, filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -125,8 +138,8 @@ export async function getResumoPeriodo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<ResumoPeriodo> {
-  const { data, error } = await chamarRpc(client, 'rel_resumo', {
-    p_filial: filialId,
+  const { data, error } = await chamarRpc(client, 'rel_resumo_filiais', {
+    p_filiais: await recorteDeFiliais(client, filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -271,49 +284,108 @@ type RawTabelaRow = RawMovBase & {
   motivoRotulo: { rotulo: string } | null
 }
 
+// A consulta de UMA tabela do período — select, tipos, período, exclusões e filial —, SEM ordem e
+// SEM faixa. É uma função só para a LEITURA e para a CONTAGEM do teto (F60, abaixo), e é isso que
+// faz o total do aviso ser o do mesmo recorte que a lista mostra: filtro escrito duas vezes é filtro
+// que diverge na primeira fase que mexer num dos dois (o achado F12-W4-03, tela × CSV).
+//
+// A contagem usa o MESMO `select`, com embeds, e não um `select('id')` mais enxuto: o precedente é
+// `queryLista` de `queries/ativos.ts`, e a doc do PostgREST (Resource Embedding, "Top-level
+// Filtering") é explícita — embed sem `!inner` não mexe nas linhas do nível de cima, então a conta
+// é a das movimentações filtradas. Nenhum embed daqui tem `!inner`
+// (`LEITURA_TABELA_DO_PERIODO`, `queries/formas/relatorios.ts`); quem acrescentar um muda a lista E
+// a contagem juntos, que é o certo. `head: true` (supabase-js, `select` com `count`) faz um HEAD:
+// só o total volta, nenhuma linha.
+//
+// Devolve uma consulta NOVA a cada chamada: o builder do postgrest-js é mutável e não se reexecuta
+// com segurança (a mesma nota de `queryLista`).
+function consultaDaTabela(
+  client: DbClient,
+  filialId: number | null,
+  periodo: Periodo,
+  tipos: TipoMovimentacao[],
+  incluirDestino: boolean,
+  contagem?: { count: 'exact'; head: true },
+) {
+  let q = client
+    .from('movimentacoes')
+    .select(LEITURA_TABELA_DO_PERIODO.select, contagem)
+    .in('tipo', tipos)
+    .gte('data', periodo.de)
+    .lte('data', periodo.ate)
+    // F6A-A1: exclui a carga go-live (compras sintéticas). Uniforme p/
+    // Saídas/Entradas/Transferências — nenhuma mov legítima carrega esse
+    // texto exato. .or null-safe preserva linhas com observacao IS NULL;
+    // fica ANDado com o .or() de origem/destino da transferência abaixo.
+    .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
+    // F7/F8: exclui TODAS as movimentações do import de startup — a COMPRA de
+    // abertura (SEMPRE marcada, com ou sem data, desde a F8/0036) e o AJUSTE. A data
+    // real da compra vale só p/ o histórico as-of e a ficha; entrada "de verdade" é a
+    // lançada manualmente (sem marcador). [A F7H/0035 expunha a compra datada nas
+    // Entradas; REVERTIDA pela F8.] Observação `import startup dd/MM/yyyy` → filtro por
+    // PREFIXO (not.like, `*`). Cada .or() é ANDado no topo → preserva a null-safety e o
+    // .or() de origem/destino.
+    .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
+  if (filialId) {
+    // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.
+    q = incluirDestino
+      ? q.or(`filial_id.eq.${filialId},filial_destino_id.eq.${filialId}`)
+      : q.eq('filial_id', filialId)
+  }
+  return q
+}
+
+// ⚠ F60 (fato 16 · PLAN-F60 §10, decisão 6) — A TABELA TEM TETO, E O TETO AVISA.
+//
+// Até a F59 cada tabela lia o período INTEIRO. Agora lê no máximo `TETO_LINHAS_TABELA + 1` linhas
+// (`paginaAteOLimite`: a janela OFFSET encurta na última página e o laço de `paginarTodos` para
+// nela), e a linha a mais é a prova de que o período passa do teto — sem contar nada. Só nesse caso
+// a tabela é cortada nas `TETO_LINHAS_TABELA` mais recentes (a ordem da consulta) e se paga a
+// SEGUNDA ida ao banco, o `count exact` da MESMA consulta, que dá o total EXATO do aviso. No volume
+// de 16/09/2026 (máx. 155 linhas numa tabela em 365 dias) a contagem nunca roda: o custo do teto,
+// hoje, é zero.
+//
+// Por que contar em vez de dizer "mais de 2.000": a régua da casa (a fila de consolidação, o CSV,
+// o `count` de `/ativos`) é número exato ou nenhum — "as 2.000 mais recentes de 2.412" responde "vale
+// encurtar o período?", "mais de 2.000" não. E por que não `linhas.length`: é o número que o corte
+// acabou de truncar.
+//
+// OFFSET, não keyset (F60 · PLAN §2.1, #47): ordem composta tripla `data desc, created_at desc,
+// id desc` — a ordem VISÍVEL das três tabelas, sem cursor simples. O `cap` do domínio continua o de
+// movimentações: a janela nunca deixa a leitura passar de `TETO_LINHAS_TABELA + 1`, então ele só
+// dispararia se a janela quebrasse — e aí lançar é o certo.
 async function buscarLinhasPeriodo(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
   tipos: TipoMovimentacao[],
   incluirDestino = false,
-): Promise<RawTabelaRow[]> {
-  const brutas = await paginarTodos(
+): Promise<{ linhas: RawTabelaRow[]; corte?: CorteDeTabela }> {
+  const lidas = await paginarTodos(
     'Falha ao montar tabela do período',
-    (from, to) => {
-      let q = client
-        .from('movimentacoes')
-        .select(LEITURA_TABELA_DO_PERIODO.select)
-        .in('tipo', tipos)
-        .gte('data', periodo.de)
-        .lte('data', periodo.ate)
-        // F6A-A1: exclui a carga go-live (compras sintéticas). Uniforme p/
-        // Saídas/Entradas/Transferências — nenhuma mov legítima carrega esse
-        // texto exato. .or null-safe preserva linhas com observacao IS NULL;
-        // fica ANDado com o .or() de origem/destino da transferência abaixo.
-        .or(`observacao.is.null,observacao.neq."${OBS_CARGA_GOLIVE}"`)
-        // F7/F8: exclui TODAS as movimentações do import de startup — a COMPRA de
-        // abertura (SEMPRE marcada, com ou sem data, desde a F8/0036) e o AJUSTE. A data
-        // real da compra vale só p/ o histórico as-of e a ficha; entrada "de verdade" é a
-        // lançada manualmente (sem marcador). [A F7H/0035 expunha a compra datada nas
-        // Entradas; REVERTIDA pela F8.] Observação `import startup dd/MM/yyyy` → filtro por
-        // PREFIXO (not.like, `*`). Cada .or() é ANDado no topo → preserva a null-safety e o
-        // .or() de origem/destino.
-        .or(`observacao.is.null,observacao.not.like."${OBS_IMPORT_STARTUP}*"`)
-      if (filialId) {
-        // Transferência aparece nas DUAS filiais (regra 5): origem OU destino.
-        q = incluirDestino
-          ? q.or(`filial_id.eq.${filialId},filial_destino_id.eq.${filialId}`)
-          : q.eq('filial_id', filialId)
-      }
-      return q
-        .order('data', { ascending: false })
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
-        .range(from, to)
-    },
+    paginaAteOLimite(
+      (from, to) =>
+        consultaDaTabela(client, filialId, periodo, tipos, incluirDestino)
+          .order('data', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, to),
+      TETO_LINHAS_TABELA + 1,
+    ),
+    CAP_MOVIMENTACOES,
   )
-  return linhasDe(brutas, LEITURA_TABELA_DO_PERIODO.forma, LEITURA_TABELA_DO_PERIODO.rotulo)
+  const { linhas, cortou } = decidirCorte(
+    linhasDe(lidas, LEITURA_TABELA_DO_PERIODO.forma, LEITURA_TABELA_DO_PERIODO.rotulo),
+    TETO_LINHAS_TABELA,
+  )
+  if (!cortou) return { linhas }
+
+  const { count, error } = await consultaDaTabela(client, filialId, periodo, tipos, incluirDestino, {
+    count: 'exact',
+    head: true,
+  })
+  if (error) throw new Error(`Falha ao contar a tabela do período: ${error.message}`)
+  return { linhas, corte: corteComTotal(TETO_LINHAS_TABELA, count) }
 }
 
 // F16/T1 — quais movimentações do período FORAM estornadas, e quando. Sem coluna
@@ -321,36 +393,72 @@ async function buscarLinhasPeriodo(
 // original), como a ficha (linha-do-tempo.tsx) já infere. Aqui a mesma doutrina no
 // relatório: um Map `estorno_de → data do estorno`. Bounded por `ate` (as-of): um
 // snapshot congelado não passa a exibir um estorno feito DEPOIS de gerado; e o par
-// mov+estorno é coerente com a reconstrução as-of do estado. Sem filtro de filial —
-// o estorno de um ativo transferido pode ter filial diferente da original, e o
-// volume de estornos (válvula administrativa rara) é pequeno; a interseção é por id.
-async function buscarEstornosAteData(
+// mov+estorno é coerente com a reconstrução as-of do estado.
+//
+// ⚠ F60 · lote 2 (fato 20 · PLAN-F60 §6.7) — A LEITURA MUDOU DE FORMA. Até aqui ela lia TODO
+// estorno até a data, no mesmo `Promise.all` das três tabelas, e cruzava por id em memória — uma
+// leitura que crescia com o HISTÓRICO inteiro. Agora ela recebe os ids que as três tabelas JÁ
+// leram (deduplicados, e só eles) e busca por `.in('estorno_de', lote)` em lotes de 100
+// (`paginarPorIds`, pelo limite de URL do PostgREST), em KEYSET pelo `id` dentro de cada lote (P6):
+// cresce com o PERÍODO. Custo medido em produção (B6): 305 ids de 365 dias → 4 lotes de ~0,36 ms,
+// contra 0,28 ms da leitura de todos os 8 estornos — mudança de forma, não de tempo, no volume de
+// hoje. Por isso ela roda DEPOIS das três tabelas, e não mais ao lado delas.
+//
+// ⚠ SEM FILTRO DE FILIAL, e não é esquecimento: o estorno grava a filial ATUAL do ativo
+// (`aplicar_movimentacao`, 0122), e um ativo transferido depois da saída tem o estorno dela gravado
+// na filial NOVA. Filtrar por filial apagaria a marca "estornada" no relatório da filial de origem.
+// A interseção é por id da movimentação, que já vem recortada — é o `movimentacoes.test.ts` desta
+// pasta que prova a marca com o estorno em outra filial. Ordem por `id` dentro do lote: um id
+// nunca se divide entre dois lotes, então "o primeiro estorno por id" é o mesmo de antes.
+//
+// Teto por LOTE (`CAP_LOTE`): no máximo um estorno por movimentação, ≤ 100 por lote.
+export async function buscarEstornosAteData(
   client: DbClient,
+  ids: readonly string[],
   ate: string,
 ): Promise<Map<string, string>> {
-  const rows = await paginarTodos<{ estorno_de: string | null; data: string }>(
+  const rows = await paginarPorIds<{ id: string; estorno_de: string | null; data: string }>(
     'Falha ao ler estornos',
-    (from, to) =>
-      client
-        .from('movimentacoes')
-        .select('estorno_de, data')
-        .eq('tipo', 'estorno')
-        .not('estorno_de', 'is', null)
-        .lte('data', ate)
-        .order('id', { ascending: true })
-        .range(from, to),
+    [...new Set(ids)],
+    {
+      porChave: (lote, depoisDe, tamanho) => {
+        const q = client
+          .from('movimentacoes')
+          .select('id, estorno_de, data')
+          .in('estorno_de', lote)
+          .eq('tipo', 'estorno')
+          .lte('data', ate)
+          .order('id', { ascending: true })
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_LOTE,
   )
   const map = new Map<string, string>()
   for (const r of rows) if (r.estorno_de && !map.has(r.estorno_de)) map.set(r.estorno_de, r.data)
   return map
 }
 
+export type TabelasFinais = {
+  saidas: LinhaSaida[]
+  entradas: LinhaEntrada[]
+  transferencias: LinhaTransferencia[]
+  /** F60 — só quando alguma das três foi cortada no teto (ver `buscarLinhasPeriodo`). */
+  tabelasTruncadas?: TabelasTruncadas
+}
+
 export async function getTabelasFinais(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
-): Promise<{ saidas: LinhaSaida[]; entradas: LinhaEntrada[]; transferencias: LinhaTransferencia[] }> {
-  const [saidasRaw, entradasRaw, transfRaw, estornos] = await Promise.all([
+): Promise<TabelasFinais> {
+  const [
+    { linhas: saidasRaw, corte: corteSaidas },
+    { linhas: entradasRaw, corte: corteEntradas },
+    { linhas: transfRaw, corte: corteTransferencias },
+  ] = await Promise.all([
     buscarLinhasPeriodo(client, filialId, periodo, ['saida', 'emprestimo']),
     // F15: `troca` (nascimento do substituto) é ENTRADA real do período, como a compra
     // e a devolução — aparece nas Entradas rotulada "Troca" (nunca contada como compra).
@@ -358,8 +466,13 @@ export async function getTabelasFinais(
     // observação própria (nunca os marcadores de go-live/import) e o import não gera troca.
     buscarLinhasPeriodo(client, filialId, periodo, ['devolucao', 'compra', 'troca']),
     buscarLinhasPeriodo(client, filialId, periodo, ['transferencia'], true),
-    buscarEstornosAteData(client, periodo.ate),
   ])
+  // F60 · lote 2 — DEPOIS das três tabelas, com os ids que elas leram (ver `buscarEstornosAteData`).
+  const estornos = await buscarEstornosAteData(
+    client,
+    [...saidasRaw, ...entradasRaw, ...transfRaw].map((r) => r.id),
+    periodo.ate,
+  )
 
   const modeloRow = (r: RawTabelaRow) =>
     r.ativo ? modeloDe(r.ativo.marca, r.ativo.modelo) : '—'
@@ -412,5 +525,17 @@ export async function getTabelasFinais(
     ...marcaEstorno(estornos.get(r.id)),
   }))
 
-  return { saidas, entradas, transferencias }
+  // A chave só entra quando houve corte — sem ela, o objeto (e o snapshot que o congela) sai com a
+  // mesma forma de antes da F60.
+  const tabelasTruncadas = montarTabelasTruncadas({
+    saidas: corteSaidas,
+    entradas: corteEntradas,
+    transferencias: corteTransferencias,
+  })
+  return {
+    saidas,
+    entradas,
+    transferencias,
+    ...(tabelasTruncadas ? { tabelasTruncadas } : {}),
+  }
 }

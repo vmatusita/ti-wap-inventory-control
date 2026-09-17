@@ -1685,8 +1685,17 @@ export type Database = {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
         Returns: boolean
       }
-      rel_estoque_asof: {
-        Args: { p_data: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0141 ainda não foi aplicada em banco real)
+      rel_contagem_status_filiais: {
+        Args: { p_filiais: number[] }
+        Returns: {
+          status: Database["public"]["Enums"]["status_ativo"]
+          total: number
+        }[]
+      }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_estoque_asof_filiais: {
+        Args: { p_data: string; p_filiais: number[] }
         Returns: {
           ativo_id: string
           categoria: Database["public"]["Enums"]["categoria_ativo"]
@@ -1698,15 +1707,17 @@ export type Database = {
           status: Database["public"]["Enums"]["status_ativo"]
         }[]
       }
-      rel_frescor_itens: {
-        Args: { p_ate: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_frescor_itens_filiais: {
+        Args: { p_ate: string; p_filiais: number[] }
         Returns: {
           grupo: Database["public"]["Enums"]["grupo_item"]
           ultima: string
         }[]
       }
-      rel_mov_itens: {
-        Args: { p_ate: string; p_de: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_mov_itens_filiais: {
+        Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
           entradas: number
           grupo: Database["public"]["Enums"]["grupo_item"]
@@ -1716,24 +1727,27 @@ export type Database = {
           saidas: number
         }[]
       }
-      rel_mov_por_mes: {
-        Args: { p_ate: string; p_de: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_mov_por_mes_filiais: {
+        Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
           mes: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao"]
           total: number
         }[]
       }
-      rel_por_motivo: {
-        Args: { p_ate: string; p_de: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_por_motivo_filiais: {
+        Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
           motivo: string
           tipo: Database["public"]["Enums"]["tipo_movimentacao"]
           total: number
         }[]
       }
-      rel_resumo: {
-        Args: { p_ate: string; p_de: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_resumo_filiais: {
+        Args: { p_ate: string; p_de: string; p_filiais: number[] }
         Returns: {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
           filial_nome: string
@@ -1753,12 +1767,14 @@ export type Database = {
           item_id: number
         }[]
       }
-      rel_saldo_itens: {
-        Args: { p_ate: string; p_filial: number }
+      // hand-fix F60 — substituído pela regeneração do ensaio (16/09/2026: a 0143 e a 0145 ainda não foram aplicadas em banco real)
+      rel_saldo_itens_filiais: {
+        Args: { p_ate: string; p_filiais: number[] }
         Returns: {
           atrelados: number
           estoque: number
           falta: number
+          filial_id: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           item: string
           item_id: number

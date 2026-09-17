@@ -16,8 +16,10 @@ import { selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
 import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import { podeEscrever } from '@/lib/auth/papeis'
-import { getKpis, getUltimasMovimentacoes } from '@/lib/queries/relatorios'
+import { getUltimasMovimentacoes } from '@/lib/queries/relatorios'
+import { getKpisDoDashboard } from '@/lib/queries/dashboard'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
+import { filiaisDoConsolidado } from '@/lib/queries/relatorios/recorte-filiais'
 import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { itensParaRepor, minimosDoCatalogo } from '@/lib/itens/repor'
 import { hojeISO, formatDate } from '@/lib/format'
@@ -36,6 +38,13 @@ import { LEITURA_FILA_PENDENCIAS_DASHBOARD } from '@/lib/queries/formas/dashboar
 export const metadata = {
   title: 'Dashboard',
 }
+
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// Esta página não hospeda Server Action própria.
+export const maxDuration = 60
 
 // `escrita: true` = o atalho leva a um formulário que GRAVA — some para o cargo
 // Consulta (F21), que continua com os dois atalhos de leitura.
@@ -70,8 +79,9 @@ const ACOES = [
 
 // Destino de cada KPI (OS-F9 / T2) — só no dashboard. Os valores são os do enum
 // `status_ativo` (STATUS_ORDEM em dominio.ts), que é o que /ativos aceita em
-// `status` (CSV). "Total de ativos" lista os 7 status que o KPI soma — `kpisDeEstado`
-// pula as baixas `descartado` e `devolvido_fornecedor` (estoque.ts), e apontar para
+// `status` (CSV). "Total de ativos" lista os 7 status que o KPI soma — `kpisDeContagens`
+// (F60; a mesma regra de `kpisDeEstado`) pula as baixas `descartado` e
+// `devolvido_fornecedor` (estoque.ts), e apontar para
 // /ativos sem filtro faria a lista mostrar um número maior que o do tile clicado
 // (achado da revisão adversarial). O estado terminal novo (F14) fica FORA por isso.
 // F25 — o `&filial=todas` é obrigatório aqui: os KPIs deste painel são GLOBAIS, e
@@ -111,9 +121,11 @@ export default async function DashboardPage() {
   const hrefRelatorios = await rotaRelatorioPadrao(operador)
 
   // As duas leituras do ponto de reposição (F12 · I5) entram no MESMO
-  // `Promise.all` das outras — nada de cascata sequencial na home. `null` em
-  // `getSaldosItens` é o consolidado de todas as filiais, que é justamente com
-  // quem o mínimo compara (decisão do Johnny 22/07/2026).
+  // `Promise.all` das outras — nada de cascata sequencial na home. O saldo é o
+  // CONSOLIDADO de todas as filiais, que é justamente com quem o mínimo compara
+  // (decisão do Johnny 22/07/2026). F60: o consolidado é a LISTA de todas as filiais,
+  // inclusive desativadas (`filiaisDoConsolidado`) — nunca mais `null` —, encadeada
+  // na própria leitura para não sair do `Promise.all`.
   // F25 — o RECORTE do card de pendências. A régua desta tela: número do ACERVO é
   // global (os KPIs somam todas as filiais, e por isso os links deles declaram
   // ); LISTA DE TRABALHO é recortada como a pessoa a verá. O card de
@@ -135,7 +147,9 @@ export default async function DashboardPage() {
 
   const [kpis, pendenciasRes, ultimas, saldosItens, catalogoItens, conflitos] =
     await Promise.all([
-      getKpis(client, null),
+      // F60 (fato 13) — uma contagem agregada no banco, com a lista de TODAS as filiais, no lugar
+      // de ler `ativos` inteira para contar oito números (`queries/dashboard.ts`).
+      getKpisDoDashboard(),
       // F18: a MESMA fonte do selo da sidebar e de /pendencias (v_fila_pendencias) —
       // inclui as pendências de item faltante (uma linha por item). Ler v_pendencias
       // aqui esconderia os itens (o backfill 0053 tirou o texto do campo livre) e a
@@ -149,7 +163,7 @@ export default async function DashboardPage() {
         .order('ordem', { ascending: true })
         .limit(5),
       getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
-      getSaldosItens(null),
+      filiaisDoConsolidado(client).then(getSaldosItens),
       listarItensAtivos(),
       // FLX-04 — MESMO recorte de filial da fila acima (unidadesDoOperador): o
       // selo da sidebar soma fila + conflitos com este recorte por cargo

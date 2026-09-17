@@ -13,7 +13,7 @@ import {
   type AtivoResumo,
   type RawAtivoResumo,
 } from '@/lib/queries/ativos'
-import { paginarTodos } from '@/lib/queries/relatorios/comum'
+import { CAP_MOVIMENTACOES_DO_ATIVO, paginarTodos } from '@/lib/queries/relatorios/comum'
 import type { UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 import { recortarPorUnidade } from '@/lib/queries/recorte-consulta'
 import {
@@ -93,6 +93,10 @@ export async function listarMovimentacoesDoAtivo(
   // linha do tempo faltando história, sem aviso nenhum. Desempate por `ordem`
   // porque `created_at` empata quando um lote grava tudo na mesma transação,
   // e ordenação com empate não pagina — `ordem` é o único total (F53).
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #36): lista de TELA (≤ 9 linhas por ativo hoje, uma
+  // página) com ordem composta `created_at desc, ordem desc` — trocar por `ordem desc` sozinha
+  // mudaria a ordem visível no empate (as "duas réguas" da F53, fora desta fase).
   const brutas = await paginarTodos(
     'Falha ao carregar a linha do tempo',
     (from, to) =>
@@ -103,6 +107,7 @@ export async function listarMovimentacoesDoAtivo(
         .order('created_at', { ascending: false })
         .order('ordem', { ascending: false })
         .range(from, to),
+    CAP_MOVIMENTACOES_DO_ATIVO,
   )
   const rows = linhasDe(brutas, LEITURA_LINHA_DO_TEMPO.forma, LEITURA_LINHA_DO_TEMPO.rotulo)
   return rows.map((r) => {

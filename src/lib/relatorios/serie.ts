@@ -97,7 +97,7 @@ export function baldesCurtos(periodo: Periodo, gran: 'dia' | 'semana'): string[]
 type Contagem = { saidas: number; devolucoes: number }
 const zero = (): Contagem => ({ saidas: 0, devolucoes: 0 })
 
-// Mensal: uma linha por (mês, tipo) já agregada no banco (rel_mov_por_mes). O
+// Mensal: uma linha por (mês, tipo) já agregada no banco (rel_mov_por_mes_filiais). O
 // eixo é preenchido com todos os meses (até MESES_MAX_EIXO_PREENCHIDO); acima
 // disso mostra só os meses com registro, ordenados.
 export type LinhaSerieMensal = { mes: string; tipo: string; total: number }

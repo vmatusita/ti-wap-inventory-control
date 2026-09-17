@@ -6,7 +6,7 @@ import { precisaRepor } from '@/lib/validators/item'
 // mora em `precisaRepor` (validators/item.ts); aqui é só o cruzamento.
 //
 // Por que um mapa: `estoque_minimo` é dado do ITEM (vem de `listarItensAtivos`,
-// catálogo) e o estoque vem da RPC `rel_saldo_itens` (saldo) — duas leituras que
+// catálogo) e o estoque vem da RPC `rel_saldo_itens_filiais` (saldo) — duas leituras que
 // se encontram por `item_id`.
 //
 // ARMADILHA tratada aqui: `listarItensAtivos` só traz item ATIVO, enquanto a RPC

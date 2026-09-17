@@ -1,6 +1,17 @@
 import 'server-only'
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { paginarPorIds, paginarTodos } from '@/lib/queries/relatorios/comum'
+import { memoizarPorUnidades } from '@/lib/queries/memo-do-request'
+import {
+  CAP_ANOTACOES,
+  CAP_ATIVOS,
+  CAP_LOTE,
+  CAP_MOVIMENTACOES,
+  CAP_PENDENCIAS_ITEM,
+  CAP_TERMOS_GERADOS,
+  paginarPorIds,
+  paginarTodos,
+} from '@/lib/queries/relatorios/comum'
 import { registrarFalha } from '@/lib/observabilidade'
 import type { CategoriaAtivo, StatusAtivo } from '@/lib/dominio'
 import type { DbClient } from '@/lib/auth/acesso'
@@ -101,6 +112,8 @@ async function chavesDasFiliais(
   client: DbClient,
   filialSlugs: readonly string[],
 ): Promise<string[]> {
+  // OFFSET, não keyset (F60 · PLAN §2.1, #5): ordem composta `chave, ativo_id` sem cursor
+  // simples, sobre view sem unicidade declarada. Teto: ≤ 1 lado por ativo.
   const rows = await paginarTodos<{ chave: string | null }>(
     'Falha ao listar as chaves de conflito da filial',
     (from, to) =>
@@ -114,6 +127,7 @@ async function chavesDasFiliais(
         // empate na fronteira das 1.000 linhas some sem aviso. `ativo_id` é único na view.
         .order('ativo_id')
         .range(from, to),
+    CAP_ATIVOS,
   )
   return [...new Set(chavesNaoNulas(rows))]
 }
@@ -223,15 +237,8 @@ export async function contarGruposConflito(
   return count ?? 0
 }
 
-/**
- * Contagem para o badge da sidebar. Falha de leitura NÃO derruba o shell — devolve 0 e
- * registra no log, exatamente como `contarPendenciasAbertas` faz desde a F9.
- */
-export async function contarConflitosAbertos(
-  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
-  // vai mostrar para quem está olhando. F57 — `UnidadesEfetivas`, sem padrão silencioso.
-  unidades: UnidadesEfetivas<'slug'>,
-): Promise<number> {
+/** A leitura de verdade do selo — sem memória. Ver `contarConflitosAbertos`. */
+async function lerConflitosAbertos(unidades: UnidadesEfetivas<'slug'>): Promise<number> {
   try {
     const client = await createClient()
     return await contarGruposConflito(client, unidades)
@@ -239,6 +246,31 @@ export async function contarConflitosAbertos(
     registrarFalha({ escopo: 'conflitos.contar-abertos', erro: e })
     return 0
   }
+}
+
+// F60 (fato 12) — a memória POR REQUEST da contagem do selo. `cache()` SEM argumento: devolve o
+// MESMO `Map` durante um request e um novo no seguinte (é o React quem invalida). A chave de
+// cada entrada é `chaveDasUnidades`, primitiva — ver `queries/memo-do-request.ts` para o porquê de
+// não ser `cache(lerConflitosAbertos)`, que compararia o objeto e nunca acertaria.
+const conflitosAbertosDoRequest = cache((): Map<string, Promise<number>> => new Map())
+const contarConflitosDoRequest = memoizarPorUnidades(conflitosAbertosDoRequest, lerConflitosAbertos)
+
+/**
+ * Contagem para o badge da sidebar. Falha de leitura NÃO derruba o shell — devolve 0 e
+ * registra no log, exatamente como `contarPendenciasAbertas` faz desde a F9.
+ *
+ * ⚠ F60 — MEMOIZADA POR REQUEST, pela chave das unidades. O layout do grupo `(app)` e a página do
+ * dashboard a chamam no MESMO request com a mesma vista em objetos diferentes; antes eram duas
+ * idas ao banco (e, com duas ou mais filiais no recorte, até duas varreduras de chaves), agora é
+ * uma. `contarPendenciasAbertas` NÃO entra: medido, ela tem um chamador só por request (o layout),
+ * e memória sem segunda chamada é só mais um lugar para envelhecer.
+ */
+export function contarConflitosAbertos(
+  // F25 — mesmo recorte do badge de pendências: o selo tem de contar o que a mesa
+  // vai mostrar para quem está olhando. F57 — `UnidadesEfetivas`, sem padrão silencioso.
+  unidades: UnidadesEfetivas<'slug'>,
+): Promise<number> {
+  return contarConflitosDoRequest(unidades)
 }
 
 /**
@@ -260,6 +292,8 @@ async function chavesPorBusca(client: DbClient, termo: string): Promise<Set<stri
   const esc = termo.replace(/[%_*,()\\]/g, ' ').trim()
   if (esc === '') return new Set()
 
+  // OFFSET, não keyset (F60 · PLAN §2.1, #6): ordem composta `chave, ativo_id` sem cursor
+  // simples, sobre view sem unicidade declarada. Teto: ≤ 1 lado por ativo.
   const rows = await paginarTodos<{ chave: string | null }>(
     'Falha ao buscar conflitos',
     (from, to) =>
@@ -278,6 +312,7 @@ async function chavesPorBusca(client: DbClient, termo: string): Promise<Set<stri
         // esta paginação existe para impedir.
         .order('ativo_id')
         .range(from, to),
+    CAP_ATIVOS,
   )
   return new Set(chavesNaoNulas(rows))
 }
@@ -364,6 +399,9 @@ export async function listarConflitos(opts: {
   // Os lados dos grupos VISÍVEIS. `chaves` tem no máximo PAGE_SIZE (20) itens e um grupo
   // tem 2–3 lados, então isto cabe folgado numa página do PostgREST — mas pagina do mesmo
   // jeito, para o teto nunca ser uma suposição.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #7): lista de tela de página única por construção,
+  // com ordem composta `chave, filial_id`. Teto: ≤ 1 lado por ativo.
   const ladosBrutos = await paginarTodos(
     'Falha ao ler os lados do conflito',
     (from, to) =>
@@ -374,6 +412,7 @@ export async function listarConflitos(opts: {
         .order('chave', { ascending: true })
         .order('filial_id', { ascending: true })
         .range(from, to),
+    CAP_ATIVOS,
   )
   const lados: RowLado[] = linhasDe(ladosBrutos, LEITURA_LADOS_DE_CONFLITO.forma, LEITURA_LADOS_DE_CONFLITO.rotulo)
 
@@ -438,16 +477,23 @@ export async function listarConflitosParaExport(opts: {
   // Paginado: o export não tem teto de tela, e um import errado pode ter aberto centenas
   // de conflitos de uma vez. O corte de 1.000 do PostgREST sairia como arquivo incompleto
   // sem nenhum aviso — e um export truncado em silêncio é pior que um export que falha.
-  const ladosBrutos = await paginarTodos('Falha ao exportar conflitos', (from, to) => {
-    let q = client
-      .from('v_conflitos_filiais')
-      .select(LEITURA_LADOS_DE_CONFLITO.select)
-      .order('chave', { ascending: true })
-      .order('filial_id', { ascending: true })
-      .range(from, to)
-    if (chaves) q = q.in('chave', chaves)
-    return q
-  })
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, #8): ordem composta `chave, filial_id` sem cursor
+  // simples, sobre view sem unicidade declarada. Teto: ≤ 1 lado por ativo.
+  const ladosBrutos = await paginarTodos(
+    'Falha ao exportar conflitos',
+    (from, to) => {
+      let q = client
+        .from('v_conflitos_filiais')
+        .select(LEITURA_LADOS_DE_CONFLITO.select)
+        .order('chave', { ascending: true })
+        .order('filial_id', { ascending: true })
+        .range(from, to)
+      if (chaves) q = q.in('chave', chaves)
+      return q
+    },
+    CAP_ATIVOS,
+  )
   const lados = linhasDe(ladosBrutos, LEITURA_LADOS_DE_CONFLITO.forma, LEITURA_LADOS_DE_CONFLITO.rotulo)
 
   return lados.map((r) => ({ chave: r.chave, lado: mapearLado(r) }))
@@ -483,38 +529,91 @@ export async function acervoDosAtivos(
   // confere que o call-site lê a MESMA relação do descritor — e cada lote de linhas pela forma frouxa
   // do backup (`formas/conflitos.ts`). Até aqui era `paginarTodos<unknown>` sobre um nome em variável:
   // nenhuma forma, e fora do conferidor.
+  //
+  // F60 (PLAN §2.1, #9–#13): as cinco por KEYSET pelo `id` — a ordem já era a PK, então a saída
+  // (e o backup) sai idêntica. Movimentações com o teto do domínio inteiro, não o de lote: aqui
+  // o `.in()` leva todos os ids de uma vez.
   const [ativosBrutos, movimentacoesBrutas, anotacoesBrutas, pendenciasBrutas, termosBrutos] = await Promise.all([
-    paginarTodos('Falha ao exportar ativos do backup', (from, to) =>
-      client.from('ativos').select(LEITURA_BACKUP_ATIVOS_CONFLITO.select).in('id', ativoIds).order('id').range(from, to),
+    paginarTodos(
+      'Falha ao exportar ativos do backup',
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('ativos')
+            .select(LEITURA_BACKUP_ATIVOS_CONFLITO.select)
+            .in('id', ativoIds)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (a) => a.id,
+      },
+      CAP_ATIVOS,
     ),
-    paginarTodos('Falha ao exportar movimentacoes do backup', (from, to) =>
-      client
-        .from('movimentacoes')
-        .select(LEITURA_BACKUP_MOVIMENTACOES_CONFLITO.select)
-        .in('ativo_id', ativoIds)
-        .order('id')
-        .range(from, to),
+    paginarTodos(
+      'Falha ao exportar movimentacoes do backup',
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('movimentacoes')
+            .select(LEITURA_BACKUP_MOVIMENTACOES_CONFLITO.select)
+            .in('ativo_id', ativoIds)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (m) => m.id,
+      },
+      CAP_MOVIMENTACOES,
     ),
-    paginarTodos('Falha ao exportar anotacoes do backup', (from, to) =>
-      client
-        .from('anotacoes')
-        .select(LEITURA_BACKUP_ANOTACOES_CONFLITO.select)
-        .in('ativo_id', ativoIds)
-        .order('id')
-        .range(from, to),
+    paginarTodos(
+      'Falha ao exportar anotacoes do backup',
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('anotacoes')
+            .select(LEITURA_BACKUP_ANOTACOES_CONFLITO.select)
+            .in('ativo_id', ativoIds)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (a) => a.id,
+      },
+      CAP_ANOTACOES,
     ),
-    paginarTodos('Falha ao exportar pendencias_item do backup', (from, to) =>
-      client
-        .from('pendencias_item')
-        .select(LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO.select)
-        .in('ativo_id', ativoIds)
-        .order('id')
-        .range(from, to),
+    paginarTodos(
+      'Falha ao exportar pendencias_item do backup',
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('pendencias_item')
+            .select(LEITURA_BACKUP_PENDENCIAS_ITEM_CONFLITO.select)
+            .in('ativo_id', ativoIds)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (p) => p.id,
+      },
+      CAP_PENDENCIAS_ITEM,
     ),
     // `termos_gerados.ativo_ids` é array de uuid (sem FK), então o recorte é em memória —
     // mesmo caminho de `exportarAcervoFilial`.
-    paginarTodos('Falha ao exportar termos do backup', (from, to) =>
-      client.from('termos_gerados').select(LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO.select).order('id').range(from, to),
+    paginarTodos(
+      'Falha ao exportar termos do backup',
+      {
+        porChave: (depoisDe, tamanho) => {
+          const q = client
+            .from('termos_gerados')
+            .select(LEITURA_BACKUP_TERMOS_GERADOS_CONFLITO.select)
+            .order('id')
+            .limit(tamanho)
+          return depoisDe === null ? q : q.gt('id', depoisDe)
+        },
+        chaveDe: (t) => t.id,
+      },
+      CAP_TERMOS_GERADOS,
     ),
   ])
   const ativos = linhasDe(ativosBrutos, LEITURA_BACKUP_ATIVOS_CONFLITO.forma, LEITURA_BACKUP_ATIVOS_CONFLITO.rotulo)
@@ -555,6 +654,24 @@ export async function ladosDosAtivos(
   // Set antes de chegar aqui. Como é a leitura que diz ao operador quanta coisa
   // será destruída, um corte silencioso subestimaria justamente o número que o
   // diálogo existe para mostrar.
+  //
+  // OFFSET, não keyset (F60 · PLAN §2.1, P1) — e o motivo é de FORMA, não de correção.
+  //
+  // Revisão do lote 1 (revisor 2, achado 3, 16/09/2026): o texto de antes dizia que keyset "pularia a
+  // linha empatada" porque a view não declara unicidade de `ativo_id`. Era incoerente: este OFFSET
+  // ordena SÓ por `ativo_id`, e com `ativo_id` repetido a ordem deixaria de ser total e ele também
+  // perderia ou repetiria linha na virada. As duas formas dependem da MESMA unicidade — e ela vale:
+  // a view dá UMA linha por ativo por construção (`0134`: `ident` tem uma linha por ativo, `grupos`
+  // uma por chave, `ativos` e `filiais` entram pela PK, e as duas laterais são agregados sem `group
+  // by`), a mesma premissa em que `chavesDasFiliais` apoia o desempate.
+  //
+  // O que decide são duas outras coisas:
+  //  · o keyset não compraria nada: o lote tem ≤ 100 ids e, portanto, ≤ 100 linhas — UMA página com
+  //    qualquer `max-rows` ≥ 100, e o custo que o keyset corta (descartar as páginas anteriores) não
+  //    existe sem página seguinte;
+  //  · a régua do keyset da casa é o `id` de uma TABELA — unicidade por CONSTRAINT —, travada em
+  //    `relatorios/comum.test.ts`, porque a guarda da chave não enxerga a repetição que cai na virada
+  //    da página. Unicidade só de construção, como a desta view, fica fora da régua por definição.
   const linhas = await paginarPorIds(
     'Falha ao ler os cadastros em conflito',
     ativoIds,
@@ -565,6 +682,7 @@ export async function ladosDosAtivos(
         .in('ativo_id', lote)
         .order('ativo_id', { ascending: true })
         .range(from, to),
+    CAP_LOTE,
   )
   return linhasDe(linhas, LEITURA_LADOS_DE_CONFLITO.forma, LEITURA_LADOS_DE_CONFLITO.rotulo).map(mapearLado)
 }

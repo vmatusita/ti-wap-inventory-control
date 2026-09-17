@@ -1,0 +1,17 @@
+{
+  "rotulo": "f60-asof-variantes-producao",
+  "alvo": "producao",
+  "data": "2026-09-16",
+  "metodo": "blocos do $f60$ só leitura (transaction_read_only; rotulo_de_ambiente() is null; authenticated com identidade escolhida no banco; termina em raise exception); prepare + plan_cache_mode = force_generic_plan + explain (analyze, buffers, format json), 1 aquecimento + 5; consolidado (todas as filiais), hoje; linhas e md5 do conjunto contra rel_estoque_asof(null, hoje) — só contagem e hash",
+  "velho_rel_estoque_asof_chamada_ms": [34.892, 31.991, 32.095, 32.413, 35.614],
+  "variantes": {
+    "lateral_not_exists_global": {"exec_ms": [79.383, 72.251, 68.550, 69.147, 73.730], "hit": 19829, "igual_ao_velho": true, "trava_R4": "passa", "nota": "merge right anti join relendo o índice de estorno_de a cada ativo"},
+    "lateral_not_exists_por_ativo_a": {"exec_ms": [62.507, 54.283, 58.732, 50.683, 50.713], "hit": 18638, "igual_ao_velho": true, "trava_R4": "passa"},
+    "lateral_not_exists_por_ativo_m": {"exec_ms": [53.715, 54.255, 53.669, 62.400, 52.147], "hit": 18638, "igual_ao_velho": true, "trava_R4": "passa"},
+    "lateral_not_in_hash_global": {"exec_ms": [38.964, 38.840, 36.860, 38.276, 43.973], "hit": 6138, "igual_ao_velho": true, "trava_R4": "reprova (subconsulta sem correlação lendo movimentacoes)"},
+    "lateral_por_ativo_detentor_uma_vez": {"exec_ms": [50.303, 50.304, 48.925, 48.573, 51.310], "igual_ao_velho": true, "trava_R4": "passa", "escolhida": true},
+    "uma_lateral_so_por_ativo": {"exec_ms": [52.373, 54.742, 53.235, 58.184, 54.364], "hit": 18638, "equivalencia_5_datas_x_7_recortes": "35 de 35 iguais", "trava_R4": "passa"},
+    "diagnostico_sem_projecao_do_detentor": {"exec_ms": [35.391, 31.425, 31.717, 32.971, 30.298], "nota": "só diagnóstico, não é corpo candidato"}
+  },
+  "decisao": "lateral_por_ativo_detentor_uma_vez — a única família que a trava aceita; +~17 ms sobre o corpo 0134 no volume de hoje; o custo passa a crescer com o número de ativos, não com o histórico de movimentações de cada um. Índice (ativo_id, data desc, ordem desc) não entra: o Incremental Sort por ativo é ~10% do corpo."
+}

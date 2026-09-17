@@ -25,6 +25,13 @@ export const metadata = {
   title: 'Movimentações',
 }
 
+// F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
+// ele a rota fica com os 300 s da Vercel, e 300 s só acontece quando a conexão com o Supabase
+// PENDURA (24/07/2026; o raciocínio inteiro está em relatorios/[filial]/page.tsx): 60 s troca
+// cinco minutos de spinner por um erro rápido.
+// Esta página não hospeda Server Action própria.
+export const maxDuration = 60
+
 type SearchParams = { [key: string]: string | string[] | undefined }
 
 function texto(v: string | string[] | undefined): string | undefined {

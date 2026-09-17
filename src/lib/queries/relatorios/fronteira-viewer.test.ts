@@ -141,6 +141,13 @@ const SUPERFICIE: Record<string, string> = {
   'queries/relatorios/movimentacoes.ts': 'transitiva por getSnapshotRelatorioV2',
   'queries/relatorios/pendencias.ts': 'transitiva por getSnapshotRelatorioV2',
   'queries/relatorios/snapshot.ts': 'getSnapshotRelatorioV2, chamada em [filial]/page.tsx:126',
+  // F60 — `filiaisDoConsolidado(client)` e `recorteDeFiliais(client, filialId)`: a lista de TODAS as
+  // filiais que substitui o recorte nulo. Nasceu DECLARADA na superfície no lote 1 (só o dashboard a
+  // chamava, com o client da sessão) porque o lote 2 a pôs sob `getSnapshotRelatorioV2` — é por ela
+  // que as `rel_*_filiais` de `estoque.ts`, `itens.ts` e `movimentacoes.ts` recebem a lista, com o
+  // client do visualizador inclusive. Lê só `filiais`, que já está na lista branca.
+  'queries/relatorios/recorte-filiais.ts':
+    'recorteDeFiliais/filiaisDoConsolidado — transitiva por getSnapshotRelatorioV2 (estoque.ts, itens.ts, movimentacoes.ts) e queries/dashboard.ts (sessão)',
   'queries/relatorios/index.ts':
     're-export da pasta; sem query própria hoje, mas varrido para que uma query nova aqui não escape',
   'queries/gerados.ts': 'gerados/page.tsx:75 e gerados/[id]/page.tsx:41,63',
@@ -202,14 +209,17 @@ const TABELAS: Record<string, string> = {
   tipos_item: 'o catálogo de TIPOS de item — rótulo do item faltante (F39)',
 }
 
+// F60 · lote 2 — troca 1:1 pelos nomes novos (as `rel_*_filiais`, 0143): as MESMAS sete leituras, com
+// o recorte como lista obrigatória. A catraca `≤ 7` não se mexe — a RPC dos KPIs
+// (`rel_contagem_status_filiais`) mora em `queries/dashboard.ts`, fora da superfície.
 const RPCS: Record<string, string> = {
-  rel_resumo: 'os KPIs do período',
-  rel_estoque_asof: 'o estado do acervo numa data',
-  rel_mov_por_mes: 'a série mensal de movimentações',
-  rel_por_motivo: 'a quebra por motivo',
-  rel_saldo_itens: 'saldo de itens por filial',
-  rel_mov_itens: 'lançamentos de item no período',
-  rel_frescor_itens: 'a data do último lançamento por item',
+  rel_resumo_filiais: 'os KPIs do período',
+  rel_estoque_asof_filiais: 'o estado do acervo numa data',
+  rel_mov_por_mes_filiais: 'a série mensal de movimentações',
+  rel_por_motivo_filiais: 'a quebra por motivo',
+  rel_saldo_itens_filiais: 'saldo de itens por filial e o total do recorte',
+  rel_mov_itens_filiais: 'lançamentos de item no período',
+  rel_frescor_itens_filiais: 'a data do último lançamento por item',
 }
 
 // `.from('literal')` / `.rpc('literal', …)` — e SÓ o literal INTEIRO.
@@ -404,15 +414,15 @@ describe('fronteira do viewer (A5): queries de relatório não tocam tabelas sen
   // as mesmas três fugas (variável, template, concatenação) que já valiam para `.rpc(`.
   it('a lista branca enxerga `chamarRpc(client, \'nome\', …)`, a forma da porta única', () => {
     expect(
-      chamadasLiterais("chamarRpc(client, 'rel_resumo', { p_filial: null })", 'rpc'),
+      chamadasLiterais("chamarRpc(client, 'rel_resumo', { p_filiais: [1] })", 'rpc'),
     ).toEqual(['rel_resumo'])
     expect(
-      chamadasNaoLiterais("chamarRpc(client, 'rel_resumo', { p_filial: null })", 'rpc'),
+      chamadasNaoLiterais("chamarRpc(client, 'rel_resumo', { p_filiais: [1] })", 'rpc'),
     ).toEqual([])
 
     // Variável: o nome não está escrito na fonte — não há como saber qual RPC é sem
     // rodar o programa, então a lista branca não pode confiar nela.
-    const porVariavel = 'chamarRpc(client, nomeDaRpc, { p_filial: null })'
+    const porVariavel = 'chamarRpc(client, nomeDaRpc, { p_filiais: [1] })'
     expect(chamadasLiterais(porVariavel, 'rpc'), 'variável foi lida como literal').toEqual([])
     expect(chamadasNaoLiterais(porVariavel, 'rpc').length, 'variável não foi acusada').toBe(1)
 

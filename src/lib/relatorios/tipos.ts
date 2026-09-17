@@ -237,9 +237,26 @@ export type LinhaTransferencia = {
   estornoData?: string
 }
 
+// F60 (fato 16 · PLAN-F60 §10, decisão 6) — o CORTE de uma das três tabelas acima.
+//
+// Cada tabela lê no máximo `TETO_LINHAS_TABELA` linhas (`lib/relatorios/teto-tabela.ts`). Quando
+// o período tem mais, a tabela mostra as `mostradas` mais recentes e o `total` é o número EXATO
+// do período — um `count exact` da MESMA consulta no banco, nunca o tamanho da lista, que é
+// justamente o número truncado.
+export type CorteDeTabela = { mostradas: number; total: number }
+
+// A chave só existe para a tabela que foi cortada, e o objeto inteiro só existe quando alguma
+// foi: no volume de 16/09/2026 (máx. 155 linhas numa tabela em 365 dias) ele não aparece em
+// relatório nenhum, e o JSON congelado de hoje sai byte a byte igual ao de antes.
+export type TabelasTruncadas = {
+  saidas?: CorteDeTabela
+  entradas?: CorteDeTabela
+  transferencias?: CorteDeTabela
+}
+
 // B5 (F6B): uma linha da tabela de movimentações de ITENS por quantidade no
 // período (seção própria — só para acessórios/componentes; os ativos não mudam).
-// Lançamento a lançamento (ao contrário de rel_mov_itens, que agrega por item).
+// Lançamento a lançamento (ao contrário de rel_mov_itens_filiais, que agrega por item).
 export type LinhaLancamentoItem = {
   id: string
   data: string
@@ -299,6 +316,12 @@ export type SnapshotRelatorioV2 = {
   saidas: LinhaSaida[]
   entradas: LinhaEntrada[]
   transferencias: LinhaTransferencia[]
+  // F60: quais das três tabelas acima foram CORTADAS no teto, com o total exato do período.
+  // Campo OPCIONAL — mantém `schema: 2` (precedentes: `serieEstado?`, `movimentacoesItens?`), e é
+  // de propósito que NÃO vira `schema: 3`: a tela de gerados recusa todo snapshot fora de V2|V1
+  // (F58 §11), e um carimbo novo tornaria ilegível o snapshot que só acrescentou um aviso.
+  // Ausente = nenhuma tabela cortada, que é também o que todo snapshot anterior à F60 diz.
+  tabelasTruncadas?: TabelasTruncadas
   // B5 (F6B): tabela de movimentações de itens do período. Campo OPCIONAL —
   // snapshots gerados antes da F6B não têm o campo e a seção não renderiza.
   // Mantém `schema: 2` (precedentes: `emprestado?`, `total?/estoque?`).

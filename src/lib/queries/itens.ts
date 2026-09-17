@@ -4,6 +4,8 @@ import { registrarFalha } from '@/lib/observabilidade'
 import { hojeISO } from '@/lib/format'
 import { BLOCO_EXPORT, CAP_EXPORT, MAX_BLOCOS_EXPORT } from '@/lib/csv'
 import { listarFiliais, type Filial } from '@/lib/queries/filiais'
+import { filiaisDoConsolidado } from '@/lib/queries/relatorios/recorte-filiais'
+import { lerSaldoItensEmNiveis } from '@/lib/queries/relatorios/itens'
 import type { GrupoItem, TipoLancamento } from '@/lib/dominio'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
@@ -135,40 +137,113 @@ export async function listarItensAdmin(): Promise<ItemAdmin[]> {
   }))
 }
 
-// Saldo/atrelados/falta por item (as-of hoje) para a filial selecionada, ou
-// consolidado (filialId null). Reaproveita a RPC rel_saldo_itens (0016).
-export async function getSaldosItens(filialId: number | null): Promise<SaldoItem[]> {
+// ---------------------------------------------------------------------------
+// O SALDO EM DOIS NÍVEIS (F60 · lote 2 · PLAN-F60 §6.4)
+// ---------------------------------------------------------------------------
+// `rel_saldo_itens_filiais` (0143) devolve, NUMA chamada, uma linha por (filial do recorte, item) e
+// o NÍVEL DO TOTAL do recorte (`filial_id` NULL), com os mesmos clamps do corpo antigo aplicados ao
+// CONJUNTO. Até a F59 isto eram 1 + N chamadas de `rel_saldo_itens` por render de `/itens` (uma
+// consolidada, com o recorte nulo, e uma por filial ativa — 7 com as seis filiais de hoje).
+//
+// ⚠ O TOTAL NÃO É A SOMA DAS LINHAS POR FILIAL, e é por isso que ele vem do banco. Os clamps não são
+// aditivos quando um chamado atravessa filiais: reserva de 5 no chamado X na filial A e liberação
+// de 5 do mesmo chamado na B dão 5 atrelados somando as filiais, e 0 no total. Quem precisa do
+// número do recorte INTEIRO lê o nível do total; quem precisa de colunas lê as linhas por filial.
+
+/** Uma linha de `rel_saldo_itens_filiais`: o NÍVEL é `filial_id` — o id nas linhas por filial, `null` no total. */
+export type SaldoItemNivel = SaldoItem & { filial_id: number | null }
+
+/** Os dois níveis de UMA chamada, separados. */
+export type NiveisDeSaldo = {
+  /** O nível do total do recorte (as linhas `filial_id` NULL), na ordem da RPC. */
+  total: SaldoItem[]
+  /** As linhas de cada filial do recorte, na ordem da RPC, por `filial_id`. */
+  porFilial: ReadonlyMap<number, SaldoItem[]>
+}
+
+function semNivel(s: SaldoItemNivel): SaldoItem {
+  return {
+    item_id: s.item_id,
+    item: s.item,
+    grupo: s.grupo,
+    ordem: s.ordem,
+    total: s.total,
+    estoque: s.estoque,
+    atrelados: s.atrelados,
+    falta: s.falta,
+  }
+}
+
+/** Separa as linhas de uma chamada pelo nível, preservando a ordem da RPC dentro de cada um. Pura. */
+export function separarNiveisDeSaldo(linhas: readonly SaldoItemNivel[]): NiveisDeSaldo {
+  const total: SaldoItem[] = []
+  const porFilial = new Map<number, SaldoItem[]>()
+  for (const l of linhas) {
+    if (l.filial_id === null) {
+      total.push(semNivel(l))
+      continue
+    }
+    const lista = porFilial.get(l.filial_id) ?? []
+    lista.push(semNivel(l))
+    porFilial.set(l.filial_id, lista)
+  }
+  return { total, porFilial }
+}
+
+/**
+ * Os saldos de uma MULTI-SELEÇÃO de filiais a partir de UMA chamada com a lista: as linhas por
+ * filial de cada id pedido, somadas por `somarSaldosDeFiliais` na ordem pedida — o MESMO número de
+ * antes, que somava N chamadas de uma filial (e não o nível do total da lista, que difere quando um
+ * chamado atravessa filiais). Pura.
+ */
+export function somarSaldosDaSelecao(
+  ids: readonly number[],
+  linhas: readonly SaldoItemNivel[],
+): SaldoItem[] {
+  const { porFilial } = separarNiveisDeSaldo(linhas)
+  return somarSaldosDeFiliais(ids.map((id) => porFilial.get(id) ?? []))
+}
+
+/**
+ * A leitura de `rel_saldo_itens_filiais` (as-of hoje) com a lista dada — os dois níveis juntos.
+ *
+ * ⚠ `filiais` NUNCA é `null` aqui: o tipo o recusa, e quem chama resolve o "todas" pela lista
+ * explícita (`filiaisDoConsolidado`, inclusive desativadas). Lista vazia não vai ao banco: a RPC
+ * daria zero linhas de qualquer jeito.
+ *
+ * ⚠ PAGINADA, por `lerSaldoItensEmNiveis` (`relatorios/itens.ts`) — a única leitura da RPC no app. Até
+ * a revisão do lote 2 esta era uma ida só, e a resposta de (filiais + 1) × itens linhas passava do
+ * `max-rows` do PostgREST a partir de 143 itens com as seis filiais de hoje: o corte caía, calado, nas
+ * colunas das filiais de id mais alto (a coluna zerada, o "fora das colunas" aceso sem filial
+ * desativada, a soma da multi-seleção menor). O porquê inteiro está lá.
+ */
+async function lerSaldosEmNiveis(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  filiais: readonly number[],
+): Promise<SaldoItemNivel[]> {
+  return lerSaldoItensEmNiveis(supabase, filiais, hojeISO())
+}
+
+// Saldo/atrelados/falta por item (as-of hoje) do RECORTE `ids` inteiro — o nível do total de UMA
+// chamada. Uma filial: `[id]` (o total de uma filial só é a própria linha dela). O consolidado: a
+// lista de TODAS as filiais (`filiaisDoConsolidado`), nunca `null` (F60). Chamadores: a conferência,
+// o dashboard, `actions/admin.ts` e `actions/itens.ts`.
+export async function getSaldosItens(ids: readonly number[]): Promise<SaldoItem[]> {
   const supabase = await createClient()
-  const { data, error } = await chamarRpc(supabase, 'rel_saldo_itens', {
-    p_filial: filialId,
-    p_ate: hojeISO(),
-  })
-  if (error) throw new Error(`Falha ao ler saldos: ${error.message}`)
-  return (data ?? []).map((r) => ({
-    item_id: r.item_id,
-    item: r.item,
-    grupo: r.grupo,
-    ordem: r.ordem,
-    total: Number(r.total),
-    estoque: Number(r.estoque),
-    atrelados: Number(r.atrelados),
-    falta: Number(r.falta),
-  }))
+  return separarNiveisDeSaldo(await lerSaldosEmNiveis(supabase, ids)).total
 }
 
 // ---------------------------------------------------------------------------
 // F25 — saldos de um SUBCONJUNTO de filiais (filtro multi-seleção)
 // ---------------------------------------------------------------------------
-// `rel_saldo_itens` (0016) recebe UMA filial ou NULL (consolidado) — não há
-// `p_filiais`. Com o filtro virando multi, a soma passou a ser em memória: N
-// chamadas + `somar`, exatamente o que `combinarSaldosPorFilial` já faz para a
-// tabela lado a lado. Nenhuma RPC muda (§1.3 da ordem F25).
+// Desde a F60 a multi-seleção é UMA chamada com a lista (`somarSaldosDaSelecao`, acima) — antes, N
+// chamadas de uma filial. A soma continua em memória, célula a célula, porque é o número que a tela
+// sempre mostrou.
 //
 // ⚠ Somar `falta` entre filiais é a leitura que esta casa JÁ adota: é o que
 // `combinarSaldosPorFilial` faz no ramo do item sem consolidado, e o comentário de
-// `estoqueForaDasColunas` registra que "as fórmulas da RPC são aditivas por
-// filial". Faltar 2 na Serra e 1 em Linhares é faltar 3 nas duas — o que a coluna
-// NÃO significa é "falta 3 num lugar só".
+// `estoqueForaDasColunas` registra a mesma soma. Faltar 2 na Serra e 1 em Linhares é faltar 3 nas
+// duas — o que a coluna NÃO significa é "falta 3 num lugar só".
 
 /** Junta N leituras por filial numa lista só, somando célula a célula. Pura. */
 export function somarSaldosDeFiliais(porFilial: SaldoItem[][]): SaldoItem[] {
@@ -192,21 +267,24 @@ export function somarSaldosDeFiliais(porFilial: SaldoItem[][]): SaldoItem[] {
 }
 
 /**
- * Saldos das unidades efetivas. `todas` = o consolidado, uma unidade = a RPC direta, 2+ = N
- * leituras somadas. Todo lançamento de item tem filial, então não há saldo "sem unidade" a
- * mostrar: `somente-sem-unidade` e `nenhuma` devolvem a lista vazia de SALDOS (não de filtro).
+ * Saldos das unidades efetivas. `todas` = o nível do total com a lista de TODAS as filiais
+ * (inclusive desativadas); uma lista = as linhas por filial dela, somadas (`somarSaldosDaSelecao`),
+ * numa chamada só. Todo lançamento de item tem filial, então não há saldo "sem unidade" a mostrar:
+ * `somente-sem-unidade` e `nenhuma` devolvem a lista vazia de SALDOS (não de filtro), sem ir ao banco.
  */
 export async function getSaldosItensDeFiliais(
   unidades: UnidadesEfetivas<'id'>,
 ): Promise<SaldoItem[]> {
   const vista = lerUnidades(unidades)
   switch (vista.modo) {
-    case 'todas':
-      return getSaldosItens(null)
+    case 'todas': {
+      const supabase = await createClient()
+      const linhas = await lerSaldosEmNiveis(supabase, await filiaisDoConsolidado(supabase))
+      return separarNiveisDeSaldo(linhas).total
+    }
     case 'lista': {
-      if (vista.valores.length === 1) return getSaldosItens(vista.valores[0])
-      const porFilial = await Promise.all(vista.valores.map((id) => getSaldosItens(id)))
-      return somarSaldosDeFiliais(porFilial)
+      const supabase = await createClient()
+      return somarSaldosDaSelecao(vista.valores, await lerSaldosEmNiveis(supabase, vista.valores))
     }
     case 'somente-sem-unidade':
     case 'nenhuma':
@@ -218,8 +296,9 @@ export async function getSaldosItensDeFiliais(
 // Saldos das filiais LADO A LADO (F11 · I4)
 // ---------------------------------------------------------------------------
 // "Onde tem mouse sobrando?" exigia trocar o filtro de filial uma vez por
-// filial. Aqui a leitura é FIXA: 1 chamada por filial + 1 consolidada — nunca
-// uma por item, e sem view/RPC nova (reusa `rel_saldo_itens`, migration 0027).
+// filial. Aqui a leitura é FIXA — nunca uma por item. Até a F59, 1 chamada por
+// filial + 1 consolidada; desde a F60, UMA chamada de `rel_saldo_itens_filiais`
+// com todas as filiais, nos dois níveis (`montarSaldosPorFilial`, abaixo).
 
 // Os quatro números que a RPC devolve para um item numa filial (ou consolidado).
 export type CelulaSaldo = {
@@ -237,7 +316,7 @@ export type SaldoItemFiliais = {
   // Saldo em cada filial, indexado por `filial.id`. Filial sem nenhum lançamento
   // do item não vem na RPC — a tabela mostra zero, não buraco.
   porFilial: Record<number, CelulaSaldo>
-  // A MESMA RPC com `p_filial null`: é a coluna "Total" da tabela.
+  // O NÍVEL DO TOTAL da mesma chamada (todas as filiais, inclusive desativadas): a coluna "Total".
   consolidado: CelulaSaldo
 }
 
@@ -266,7 +345,7 @@ function somar(a: CelulaSaldo, b: CelulaSaldo): CelulaSaldo {
   }
 }
 
-// Junta as N+1 leituras numa linha por item (pura — testada em itens.test.ts).
+// Junta as colunas e o consolidado numa linha por item (pura — testada em itens.test.ts).
 // A ORDEM e o conjunto de itens saem da leitura consolidada, que é superconjunto
 // das por filial: a RPC devolve `i.ativo = true OR tem lançamento no recorte`, e
 // "lançamento nesta filial" ⊂ "lançamento em qualquer filial". Item que apareça
@@ -318,7 +397,7 @@ export function combinarSaldosPorFilial(
 
 // Quanto do estoque do Total NÃO está em nenhuma das colunas da tabela (F11).
 // As colunas vêm de `listarFiliais()`, que só devolve filial ATIVA; o Total vem
-// da mesma RPC com `p_filial null`, que soma os lançamentos de QUALQUER filial —
+// do nível do total da mesma chamada, com a lista de TODAS as filiais (F60) — que soma os lançamentos de QUALQUER filial —
 // inclusive uma desativada com saldo (o guarda de admin/filiais só conta ativos
 // patrimoniados, então isso é alcançável). Como as fórmulas da RPC são aditivas
 // por filial (o trigger 0027 garante saldo ≥ 0 em cada uma), a diferença é
@@ -336,18 +415,44 @@ export function estoqueForaDasColunas(
   return fora > 0 ? fora : 0
 }
 
+/**
+ * A tabela lado a lado a partir de UMA chamada com TODAS as filiais: as COLUNAS são as linhas por
+ * filial das `filiais` pedidas (as ativas, de `listarFiliais`), e o CONSOLIDADO é o NÍVEL DO TOTAL —
+ * que inclui a filial desativada. É esta a emenda que mantém `estoqueForaDasColunas` > 0 exatamente
+ * quando há estoque fora das colunas: com o consolidado montado pela soma das colunas, a diferença
+ * seria sempre 0 e a tela mentiria calada, com o teste da função pura verde (`itens.test.ts` desfaz a
+ * emenda e prova o vermelho). `combinarSaldosPorFilial` e `estoqueForaDasColunas` não mudaram. Pura.
+ */
+export function montarSaldosPorFilial(
+  filiais: Filial[],
+  linhas: readonly SaldoItemNivel[],
+): SaldoItemFiliais[] {
+  const { total, porFilial } = separarNiveisDeSaldo(linhas)
+  return combinarSaldosPorFilial(
+    filiais,
+    total,
+    filiais.map((f) => porFilial.get(f.id) ?? []),
+  )
+}
+
 // Saldo de TODAS as filiais (as-of hoje) + o consolidado, prontos para a tabela
-// lado a lado de /itens?visao=filiais. `filiaisConhecidas` evita reconsultar a
-// lista quando a página já a carregou.
+// lado a lado de /itens. `filiaisConhecidas` evita reconsultar a lista quando a
+// página já a carregou.
+//
+// F60 · lote 2 — UMA chamada (antes, 1 + N): a lista de TODAS as filiais, inclusive as desativadas
+// (`filiaisDoConsolidado`), e não a de `filiaisConhecidas` — que são as COLUNAS (as ativas). Com a
+// lista das ativas o consolidado perderia, em silêncio, o estoque da filial desativada que
+// `estoqueForaDasColunas` existe para denunciar.
 export async function getSaldosPorFilial(
   filiaisConhecidas?: Filial[],
 ): Promise<SaldosPorFilial> {
-  const filiais = filiaisConhecidas ?? (await listarFiliais())
-  const [consolidado, ...porFilial] = await Promise.all([
-    getSaldosItens(null),
-    ...filiais.map((f) => getSaldosItens(f.id)),
+  const supabase = await createClient()
+  const [filiais, todas] = await Promise.all([
+    filiaisConhecidas ?? listarFiliais(),
+    filiaisDoConsolidado(supabase),
   ])
-  return { filiais, itens: combinarSaldosPorFilial(filiais, consolidado, porFilial) }
+  const linhas = await lerSaldosEmNiveis(supabase, todas)
+  return { filiais, itens: montarSaldosPorFilial(filiais, linhas) }
 }
 
 // F58: `item_id`/`filial_id`/`criado_por` são not null (migration 0015) → os três embeds saem
