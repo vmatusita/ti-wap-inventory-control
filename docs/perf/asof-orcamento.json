@@ -1,0 +1,232 @@
+{
+  "rotulo": "asof-orcamento",
+  "fase": "F60",
+  "funcao": "public.rel_estoque_asof_filiais(smallint[], date)",
+  "corpo": {
+    "hash": "78e967373c5364d19191dd324520d9f0a848caf7c49312ad3f1a891e956dfca7",
+    "algoritmo": "sha256",
+    "normalizacao": "todo trecho de espaço em branco colapsado em um espaço (/\\s+/g → ' ') e as pontas aparadas; sha256 hex do UTF-8",
+    "fonte": "a definição VIVA da assinatura pelo replay das migrations (scripts/db/recorte-rel.mjs, replayFuncoesRel) — o texto do create function até o $$; que o fecha; o replay conhece drop, ao contrário de corpo-vigente.mjs",
+    "arquivo": "supabase/migrations/0143_rel_filiais.sql",
+    "bytes_normalizados": 1740,
+    "md5_prosrc_normalizado": "54943d2f41e17dd1c648b32e10fd43f4",
+    "substitui_md5_prosrc_normalizado": "497f7784f4062bda1093ee2bb0daa9e3"
+  },
+  "medicao": {
+    "alvo": "producao",
+    "data": "2026-09-16",
+    "medido_em": "2026-09-16T22:19:55.982Z",
+    "metodo": "corpo EMULADO inline, antes do apply da 0143 (só leitura): prepare + plan_cache_mode=force_generic_plan + explain (analyze, buffers, format json) execute; 1 aquecimento + 7 medidas, intercaladas na mesma sessão com o corpo da 0134 (forma b) e a chamada da função velha (forma a)",
+    "confirmacao": "pendente — depois do apply da 0143, chamar a função de verdade pelo mesmo método e conferir que o custo cabe na réplica abaixo; o hash não muda (o corpo aplicado é o do arquivo, conferido por md5_prosrc_normalizado)",
+    "postgres": "17.6",
+    "papel": "authenticated",
+    "recorte": "consolidado — a lista de todas as filiais, inclusive desativadas (hoje nenhuma desativada)",
+    "volume": {
+      "ativos": 1635,
+      "movimentacoes": 3578,
+      "lancamentos_item": 155,
+      "filiais": 6
+    },
+    "n": 7,
+    "execucao_ms": {
+      "mediana": 65.722,
+      "p95": 80.677,
+      "min": 58.469,
+      "max": 85.543
+    },
+    "planejamento_ms": {
+      "mediana": 0.03,
+      "p95": 0.049,
+      "min": 0.027,
+      "max": 0.049
+    },
+    "buffers_raiz": {
+      "hit_mediana": 18638,
+      "read_mediana": 0
+    },
+    "linhas": 1624,
+    "nos_do_plano": [
+      "Incremental Sort",
+      "Index Scan",
+      "Limit",
+      "Nested Loop",
+      "Result",
+      "Seq Scan",
+      "Subquery Scan"
+    ],
+    "indices_usados": [
+      "mov_ativo_idx"
+    ],
+    "relacoes_com_seq_scan": [
+      "ativos"
+    ],
+    "lateral": {
+      "ordenacoes": [
+        {
+          "tipo": "Incremental Sort",
+          "loops": 1635,
+          "sort_key": [
+            "m.data DESC",
+            "m.ordem DESC"
+          ],
+          "presorted_key": [
+            "m.data"
+          ]
+        }
+      ],
+      "sort_por_ativo_dentro_da_lateral": true,
+      "anti_join": [
+        {
+          "tipo": "Nested Loop",
+          "juncao": "Anti",
+          "loops": 1635
+        }
+      ],
+      "loops_max": 3224
+    },
+    "velho_mesma_sessao": {
+      "corpo_0134_forma_b": {
+        "n": 7,
+        "execucao_ms": {
+          "mediana": 38.867,
+          "p95": 40.422,
+          "min": 34.02,
+          "max": 40.755
+        },
+        "planejamento_ms": {
+          "mediana": 0.028,
+          "p95": 0.036,
+          "min": 0.024,
+          "max": 0.037
+        },
+        "buffers_raiz": {
+          "hit_mediana": 368,
+          "read_mediana": 0
+        },
+        "linhas": 1624
+      },
+      "chamada_postgrest_forma_a": {
+        "n": 7,
+        "execucao_ms": {
+          "mediana": 39.272,
+          "p95": 42.302,
+          "min": 36,
+          "max": 43.072
+        },
+        "planejamento_ms": {
+          "mediana": 0.066,
+          "p95": 0.093,
+          "min": 0.061,
+          "max": 0.101
+        },
+        "buffers_raiz": {
+          "hit_mediana": 378,
+          "read_mediana": 0
+        },
+        "linhas": 1624
+      },
+      "nos_do_plano_corpo": [
+        "Hash",
+        "Hash Join",
+        "Index Scan",
+        "Merge Join",
+        "Result",
+        "Seq Scan",
+        "Sort",
+        "Subquery Scan",
+        "Unique"
+      ],
+      "indices_usados_corpo": [
+        "movimentacoes_data_ordem_idx",
+        "movimentacoes_estorno_de_idx"
+      ]
+    },
+    "razao_mediana_novo_sobre_velho_corpo": 1.691,
+    "razao_mediana_novo_sobre_velho_chamada": 1.674
+  },
+  "replica": {
+    "nota": "o MESMO bloco reexecutado logo em seguida, noutra sessão, para medir o ruído entre execuções — a medição de referência é a de cima (a primeira rodada)",
+    "novo": {
+      "n": 7,
+      "execucao_ms": {
+        "mediana": 54.658,
+        "p95": 58.531,
+        "min": 50.06,
+        "max": 59.235
+      },
+      "planejamento_ms": {
+        "mediana": 0.027,
+        "p95": 0.036,
+        "min": 0.024,
+        "max": 0.039
+      },
+      "buffers_raiz": {
+        "hit_mediana": 18638,
+        "read_mediana": 0
+      },
+      "linhas": 1624
+    },
+    "velho_corpo_0134_forma_b": {
+      "n": 7,
+      "execucao_ms": {
+        "mediana": 34.676,
+        "p95": 36.226,
+        "min": 30.52,
+        "max": 36.48
+      },
+      "planejamento_ms": {
+        "mediana": 0.026,
+        "p95": 0.029,
+        "min": 0.021,
+        "max": 0.029
+      },
+      "buffers_raiz": {
+        "hit_mediana": 368,
+        "read_mediana": 0
+      },
+      "linhas": 1624
+    },
+    "velho_chamada_postgrest_forma_a": {
+      "n": 7,
+      "execucao_ms": {
+        "mediana": 32.43,
+        "p95": 34.465,
+        "min": 30.603,
+        "max": 34.5
+      },
+      "planejamento_ms": {
+        "mediana": 0.064,
+        "p95": 0.074,
+        "min": 0.061,
+        "max": 0.076
+      },
+      "buffers_raiz": {
+        "hit_mediana": 378,
+        "read_mediana": 0
+      },
+      "linhas": 1624
+    },
+    "razao_mediana_novo_sobre_velho_corpo": 1.576,
+    "razao_mediana_novo_sobre_velho_chamada": 1.685
+  },
+  "linha_de_base_antes": {
+    "nota": "o corpo da 0134 (forma b) medido antes, fora da sessão intercalada — a linha de base de PLAN-F60 §3.2",
+    "execucao_ms": {
+      "mediana": 32.997,
+      "p95": 35.3,
+      "min": 32.594,
+      "max": 35.834
+    },
+    "planejamento_ms": {
+      "mediana": 0.027,
+      "p95": 0.043,
+      "min": 0.023,
+      "max": 0.05
+    },
+    "buffers_raiz": {
+      "hit_mediana": 368,
+      "read_mediana": 0
+    },
+    "linhas": 1624
+  }
+}
