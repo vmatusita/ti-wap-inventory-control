@@ -655,8 +655,23 @@ export async function ladosDosAtivos(
   // será destruída, um corte silencioso subestimaria justamente o número que o
   // diálogo existe para mostrar.
   //
-  // OFFSET, não keyset (F60 · PLAN §2.1, P1): a view não declara unicidade de `ativo_id`, e
-  // keyset sobre coluna que PODE repetir pularia a linha empatada na virada da página.
+  // OFFSET, não keyset (F60 · PLAN §2.1, P1) — e o motivo é de FORMA, não de correção.
+  //
+  // Revisão do lote 1 (revisor 2, achado 3, 16/09/2026): o texto de antes dizia que keyset "pularia a
+  // linha empatada" porque a view não declara unicidade de `ativo_id`. Era incoerente: este OFFSET
+  // ordena SÓ por `ativo_id`, e com `ativo_id` repetido a ordem deixaria de ser total e ele também
+  // perderia ou repetiria linha na virada. As duas formas dependem da MESMA unicidade — e ela vale:
+  // a view dá UMA linha por ativo por construção (`0134`: `ident` tem uma linha por ativo, `grupos`
+  // uma por chave, `ativos` e `filiais` entram pela PK, e as duas laterais são agregados sem `group
+  // by`), a mesma premissa em que `chavesDasFiliais` apoia o desempate.
+  //
+  // O que decide são duas outras coisas:
+  //  · o keyset não compraria nada: o lote tem ≤ 100 ids e, portanto, ≤ 100 linhas — UMA página com
+  //    qualquer `max-rows` ≥ 100, e o custo que o keyset corta (descartar as páginas anteriores) não
+  //    existe sem página seguinte;
+  //  · a régua do keyset da casa é o `id` de uma TABELA — unicidade por CONSTRAINT —, travada em
+  //    `relatorios/comum.test.ts`, porque a guarda da chave não enxerga a repetição que cai na virada
+  //    da página. Unicidade só de construção, como a desta view, fica fora da régua por definição.
   const linhas = await paginarPorIds(
     'Falha ao ler os cadastros em conflito',
     ativoIds,

@@ -225,7 +225,7 @@ declarada. T = tela · L = leitura em lote/servidor.
 
 | # | arquivo:linha (`paginarPorIds`) | função | fonte · filtro do lote | ordem | keyset cabe? | T/L | volume hoje | cap por lote | decisão |
 |---|---|---|---|---|---|---|---|---|---|
-| P1 | `src/lib/queries/conflitos.ts:558` | `ladosDosAtivos` | `v_conflitos_filiais` · `.in('ativo_id')` | `ativo_id` | view sem unicidade declarada | L (resumo antes de apagar) | ≤ 100/lote | 10.000 | OFFSET [V] |
+| P1 | `src/lib/queries/conflitos.ts:558` | `ladosDosAtivos` | `v_conflitos_filiais` · `.in('ativo_id')` | `ativo_id` | unicidade só por construção (`0134`), não por constraint — ver a nota da revisão abaixo | L (resumo antes de apagar) | ≤ 100/lote = 1 página | 10.000 | OFFSET [V] |
 | P2 | `src/lib/queries/relatorios/estoque.ts:305` | `dadosAtivos` | `ativos` · `.in('id')` | `id` | coluna única | L (snapshot) | ≤ 100/lote | 10.000 | **KEYSET** |
 | P3 | `src/lib/queries/relatorios/estoque.ts:331` | `chamadoAteData` | `movimentacoes` · `.in('ativo_id')` + chamado + data | `created_at desc, id desc` | composta | L | ≤ 900/lote | 20.000 | OFFSET [C] |
 | P4 | `src/lib/queries/relatorios/estoque.ts:486` | envios de manutenção | `movimentacoes` · `.in('ativo_id')` + tipo + data | `created_at desc, id desc` | composta | L | ≤ 900/lote | 20.000 | OFFSET [C] |
@@ -237,6 +237,15 @@ declarada. T = tela · L = leitura em lote/servidor.
 OFFSET por motivo, somando as duas tabelas: [C] 15 · [T] 3 · [R] 1 · [V] 4 (as marcas se somam onde há dois motivos).
 Nenhuma chamada de hoje ordena por uma composta que `movimentacoes.ordem` substitua sem mudar a ordem visível — por isso o
 cursor da F53 não entra em chamada nenhuma desta fase, e o motivo fica escrito.
+
+**Nota da revisão do lote 1 (16/09/2026) — o que [V] quer dizer, e por que P1 fica em OFFSET.** A justificativa original de
+P1 ("keyset sobre coluna que pode repetir pularia a linha empatada") era incoerente: o OFFSET de P1 ordena só por `ativo_id`,
+e com `ativo_id` repetido ele também erraria na virada. As duas formas dependem da mesma unicidade, e ela vale por construção
+(`0134`: uma linha por ativo). [V] passa a significar *unicidade só de construção, sem constraint* — fora da régua do keyset,
+que é o `id` de uma tabela, porque a guarda da chave de `paginarTodos` **não enxerga a repetição que cai na virada da página**
+(medido: 1.500 de 1.501 linhas, sem exceção). A régua virou trava por AST em `src/lib/queries/relatorios/comum.test.ts` (fonte =
+tabela com PK `id` lida nas migrations, `.order` só `id` ascendente, `.gt('id', cursor)`, `chaveDe` → `.id`, página escrita na
+chamada). E em P1 o keyset não compraria nada: o lote de ≤ 100 ids é uma página só. As contagens acima não mudam.
 
 ### 2.2 A tabela dos consumidores das sete `rel_*` (fato 10)
 
