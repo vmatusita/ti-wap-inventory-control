@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -19,6 +19,17 @@ import {
   passoForaDaEscala,
   temRaio,
 } from '@/lib/layout/regua-de-classes'
+import {
+  DEVOLVIDOS_F61B,
+  DIRETORIOS_SEM_ISENCAO,
+  PENDENTES,
+  PENDENTES_CONGELADOS,
+  SISTEMA,
+  SOB_REGRA_CONGELADA,
+  conferirCatraca,
+  ehDoSistema,
+  ehPendente,
+} from '@/lib/layout/pendentes-da-regua'
 
 // O SISTEMA DE LAYOUT, ESCRITO COMO TESTE (F40).
 //
@@ -44,93 +55,9 @@ const RAIZ = process.cwd()
 const APP = join(RAIZ, 'src', 'app')
 const COMPONENTES = join(RAIZ, 'src', 'components')
 
-/** Os arquivos do SISTEMA — os únicos que podem definir casco, título e moldura. */
-const SISTEMA = [
-  'src/components/layout/pagina.tsx',
-  'src/components/layout/casco-de-autenticacao.tsx',
-  'src/components/layout/cartao-de-metrica.tsx',
-  'src/components/layout/quadro-de-tabela.tsx',
-  'src/components/layout/confirmacao-digitada.tsx',
-  'src/components/layout/estado-vazio.tsx',
-  'src/components/layout/aviso.tsx',
-]
-
-/**
- * A LISTA DE EXCEÇÕES — o que ainda NÃO foi migrado, agrupado por frente.
- *
- * A F40 entregou a fundação e o piloto (`/ativos`). As outras 29 rotas seguem
- * como estavam, e reprová-las hoje deixaria o teste vermelho por semanas — que é
- * o oposto do que este repositório faz.
- *
- * **CADA FRENTE SEGUINTE APAGA AS SUAS LINHAS.** A lista só encolhe; acrescentar
- * um prefixo aqui é dizer "desisti de uma tela que já estava sob a régua", e
- * isso precisa de ata em `docs/DECISOES.md`.
- *
- * A exceção é por PREFIXO de caminho, e vale só para as regras 1, 2, 6, 7 e 8 —
- * as que exigem os componentes novos. A escala de espaçamento e os valores
- * arbitrários (regras 3, 4 e 5) também estão aqui porque as 29 rotas ainda os
- * carregam; a diferença é que elas somem tela a tela, sem depender de componente.
- *
- * ⚠ Arquivo do SISTEMA nunca é pendente (ver `ehPendente`): as regras de escala
- * valem para ele desde o primeiro dia.
- */
-const PENDENTES = [
-  // ---- frente a · acervo (home, pendências, movimentações) ----------------
-  'src/app/(app)/page.tsx',
-  'src/app/(app)/pendencias/',
-  'src/app/(app)/movimentacoes/',
-  'src/components/pendencias/',
-  'src/components/movimentacoes/',
-  // ---- frente b · relatórios ----------------------------------------------
-  // ⚠ `relatorios/acesso` e `components/relatorios/acesso-form.tsx` moram aqui
-  // mas são PORTA de autenticação, não relatório: pertencem à frente d.
-  'src/app/(app)/relatorios/',
-  'src/components/relatorios/',
-  // ---- frente c · admin + itens -------------------------------------------
-  'src/app/(app)/admin/',
-  'src/components/admin/',
-  // ---- frente d · dev, ajuda, versões, telas públicas e a casca do app -----
-  'src/app/(app)/dev/',
-  'src/app/(app)/ajuda/',
-  'src/app/(app)/versoes/',
-  'src/app/(app)/layout.tsx',
-  'src/app/(app)/loading.tsx',
-  'src/app/(app)/error.tsx',
-  'src/app/(app)/not-found.tsx',
-  'src/app/layout.tsx',
-  'src/app/error.tsx',
-  'src/app/global-error.tsx',
-  'src/app/not-found.tsx',
-  'src/app/login/',
-  'src/app/auth/',
-  'src/components/dev/',
-  'src/components/ajuda/',
-  // ⚠ A CASCA DO APP É POR ARQUIVO, NÃO POR PREFIXO. Um `src/components/layout/`
-  // inteiro na lista isentaria também o componente de SISTEMA que alguém criasse
-  // amanhã e esquecesse de pôr em `SISTEMA` — ele nasceria fora de todas as 8
-  // regras, em silêncio. Estes cinco são os únicos arquivos legados da pasta que
-  // hoje violam alguma regra; qualquer arquivo novo ali já nasce sob a régua.
-  'src/components/layout/app-header.tsx',
-  'src/components/layout/atalhos-dialog.tsx',
-  'src/components/layout/aviso-sem-escrita.tsx',
-  'src/components/layout/esqueleto-relatorio.tsx',
-  'src/components/layout/painel-erro.tsx',
-  'src/components/layout/paleta-comandos.tsx',
-  'src/components/layout/sidebar-nav.tsx',
-  // ---- fora de escopo por DECISÃO, não por frente -------------------------
-  // 1.412 linhas e 30 `useState`: formulário é outra frente, e mexer nele junto
-  // com o layout é trocar dívida conhecida por risco de regressão (ordem F40).
-  'src/components/ativos/nova-compra-form.tsx',
-]
-
-function ehDoSistema(arquivo: string): boolean {
-  return SISTEMA.includes(arquivo)
-}
-
-function ehPendente(arquivo: string): boolean {
-  if (ehDoSistema(arquivo)) return false
-  return PENDENTES.some((p) => (p.endsWith('/') ? arquivo.startsWith(p) : arquivo === p))
-}
+// A LISTA DE EXCEÇÕES, O SISTEMA E A CATRACA moram em `pendentes-da-regua.ts`
+// desde a F61 — ver o cabeçalho de lá. Este teste continua sendo a régua: as
+// regras, as mensagens e a varredura dos arquivos de verdade.
 
 /** Todo `.tsx` de `src/app` e `src/components`, menos os do kit do shadcn. */
 function fontes(): { arquivo: string; texto: string }[] {
@@ -207,7 +134,7 @@ describe('o varredor acha o que tem de achar', () => {
 
   it('toda linha de PENDENTES aponta para arquivo que existe', () => {
     const nomes = FONTES.map((f) => f.arquivo)
-    for (const p of PENDENTES) {
+    for (const { caminho: p } of PENDENTES) {
       const alcanca = p.endsWith('/')
         ? nomes.some((n) => n.startsWith(p))
         : nomes.includes(p)
@@ -301,6 +228,126 @@ describe('o varredor acha o que tem de achar', () => {
       linhas: texto.split('\n').filter((l) => /^\s*\/\//.test(l)).length,
     })).filter((f) => f.linhas > 0)
     expect(comSobras).toEqual([])
+  })
+})
+
+// 0 · A CATRACA — NINGUÉM SAI DA RÉGUA EM SILÊNCIO (F61) ------------------
+//
+// `conferirCatraca` mora em `pendentes-da-regua.ts` (função pura, tudo por
+// parâmetro). Os casos abaixo são as SABOTAGENS da ordem F61 guardadas como
+// teste: cada um monta, em memória, a situação que a catraca existe para
+// recusar — e confere que ela recusa. Um arquivo sintético nunca vai ao disco.
+
+describe('a catraca da regua (F61)', () => {
+  const arquivos = FONTES.map((f) => f.arquivo)
+  const existe = (caminho: string) => existsSync(join(RAIZ, caminho))
+
+  it('a catraca de hoje esta verde', () => {
+    expect(conferirCatraca({ arquivos, existe })).toEqual([])
+  })
+
+  it('os dois diretorios estao inteiros sob a regua', () => {
+    const sob = new Set(SOB_REGRA.map((f) => f.arquivo))
+    for (const dir of DIRETORIOS_SEM_ISENCAO) {
+      const doDiretorio = arquivos.filter((a) => a.startsWith(dir))
+      expect(doDiretorio.length, `o varredor nao achou nada em ${dir}`).toBeGreaterThan(30)
+      for (const arquivo of doDiretorio) {
+        if (DEVOLVIDOS_F61B.some((d) => d.arquivo === arquivo)) continue
+        expect(sob.has(arquivo), `${arquivo} escapou da regua`).toBe(true)
+      }
+    }
+  })
+
+  it.each(DIRETORIOS_SEM_ISENCAO)(
+    'arquivo NOVO em %s nasce sob a regua, e a moldura a mao dele reprova',
+    (dir) => {
+      const sintetico = `${dir}sintetico-f61.tsx`
+      expect(ehPendente(sintetico)).toBe(false)
+      const moldura = classNames('<div className="rounded-lg border p-3" />').filter(({ valor }) =>
+        ehMolduraAMao(valor),
+      )
+      expect(moldura).toHaveLength(1)
+      // A catraca não reclama do arquivo novo: ele já está sob a régua, e quem o
+      // reprova é a regra 6 — a mesma que varre os arquivos de verdade.
+      expect(conferirCatraca({ arquivos: [...arquivos, sintetico], existe })).toEqual([])
+    },
+  )
+
+  it('devolver components/relatorios/ para PENDENTES reprova, mesmo tocando o retrato', () => {
+    const recusas = conferirCatraca({
+      arquivos,
+      existe,
+      pendentes: [
+        ...PENDENTES,
+        { caminho: 'src/components/relatorios/', frente: 'b', motivo: 'sabotagem da catraca F61' },
+      ],
+      pendentesCongelados: [...PENDENTES_CONGELADOS, 'src/components/relatorios/'],
+    })
+    expect(recusas.join('\n')).toMatch(/reabre a isenção de src\/components\/relatorios\//)
+    expect(recusas.join('\n')).toMatch(/fora da régua sem passar por DEVOLVIDOS_F61B/)
+  })
+
+  it('isentar UM arquivo dos dois diretorios pelo nome tambem reprova', () => {
+    const alvo = arquivos.find((a) => a.startsWith('src/components/admin/'))!
+    const recusas = conferirCatraca({
+      arquivos,
+      existe,
+      pendentes: [...PENDENTES, { caminho: alvo, frente: 'c', motivo: 'sabotagem da catraca F61' }],
+      pendentesCongelados: [...PENDENTES_CONGELADOS, alvo],
+    })
+    expect(recusas.join('\n')).toContain(`reabre a isenção de src/components/admin/: "${alvo}"`)
+  })
+
+  it('entrada nova em PENDENTES reprova, mesmo fora dos dois diretorios', () => {
+    const recusas = conferirCatraca({
+      arquivos,
+      existe,
+      pendentes: [
+        ...PENDENTES,
+        { caminho: 'src/components/itens/', frente: 'c', motivo: 'sabotagem da catraca F61' },
+      ],
+    })
+    expect(recusas.join('\n')).toContain('PENDENTES ganhou entrada nova')
+  })
+
+  it('a valvula recusa entrada sem medicao, sem evidencia ou nova', () => {
+    const alvo = arquivos.find((a) => a.startsWith('src/components/relatorios/'))!
+    const recusas = conferirCatraca({
+      arquivos,
+      existe,
+      devolvidos: [{ arquivo: alvo, defeito: 'feio', evidencia: 'docs/f61-evidencias/nao-existe.txt' }],
+    }).join('\n')
+    expect(recusas).toContain('sem o defeito medido')
+    expect(recusas).toContain('sem evidência gravada')
+    expect(recusas).toContain('ganhou entrada nova')
+  })
+
+  it('apagar um arquivo que estava sob a regua NAO reprova', () => {
+    expect(SOB_REGRA_CONGELADA.length).toBeGreaterThan(0)
+    const apagado = SOB_REGRA_CONGELADA.find((a) => a.startsWith('src/components/relatorios/'))!
+    expect(arquivos).toContain(apagado)
+    const semEle = arquivos.filter((a) => a !== apagado)
+    expect(conferirCatraca({ arquivos: semEle, existe })).toEqual([])
+  })
+
+  it('um arquivo do piso que volta a ser isento reprova', () => {
+    const alvo = SOB_REGRA_CONGELADA.find((a) => a.startsWith('src/components/itens/'))!
+    const recusas = conferirCatraca({
+      arquivos,
+      existe,
+      pendentes: [...PENDENTES, { caminho: alvo, frente: 'c', motivo: 'sabotagem da catraca F61' }],
+      pendentesCongelados: [...PENDENTES_CONGELADOS, alvo],
+    })
+    expect(recusas.join('\n')).toContain(`${alvo} saiu da régua sem ter sido apagado`)
+  })
+
+  it('o piso nominal e o que esta sob a regua hoje, e cada entrada de PENDENTES diz por que', () => {
+    const sob = SOB_REGRA.map((f) => f.arquivo)
+    // Todo caminho do retrato que ainda existe está sob a régua (é a regra 5 da
+    // catraca, conferida aqui pelo caminho de fora). Arquivo NOVO sob a régua não
+    // precisa entrar no retrato: o piso é o que já estava, não o que chega.
+    expect(SOB_REGRA_CONGELADA.filter((a) => arquivos.includes(a)).every((a) => sob.includes(a))).toBe(true)
+    for (const p of PENDENTES) expect(p.motivo.length, p.caminho).toBeGreaterThanOrEqual(10)
   })
 })
 
