@@ -141,6 +141,11 @@ const DA_F38 = [
   // sem exceção), não mexe em enum, não tem DELETE/UPDATE de topo, e entra também na lista de
   // funções NOVAS `security invoker`, mais abaixo.
   '0141',
+  // F60 · Frente B (16/09/2026) — a `0142` é só um índice parcial em `lancamentos_item`
+  // (`lanc_item_criado_por_idx`, o "último lançamento" de /itens), o que a medição de plano no
+  // ensaio pediu (R-REL-33). Mesmo motivo da `0135`: COBERTURA — não cria nem recria função, não
+  // mexe em enum, não tem DELETE/UPDATE de topo.
+  '0142',
 ]
 
 /** As dez que a ordem nomeia como intocáveis. */

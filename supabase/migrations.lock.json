@@ -143,6 +143,7 @@
     "0138_resumo_integridade_e_rotulo.sql": "07c486f6593b7274f0e86af21c8845b55c9ff1e9b9ea1ffd16dbdc95723d88fa",
     "0139_vocabulario_import.sql": "0b67fb972daba05f36e832b582473569c5d7ba891219817cf328396e9696e889",
     "0140_import_desarma_fk.sql": "13966efbfc64fbb6daa7de693d33ff836d4f53fc6041fd9eac1a1de396b72b32",
-    "0141_rel_contagem_status.sql": "7d73824d68d88f48e2f40a2d37ec8cc026b45d828658291b9fce1aa586d7ce18"
+    "0141_rel_contagem_status.sql": "7d73824d68d88f48e2f40a2d37ec8cc026b45d828658291b9fce1aa586d7ce18",
+    "0142_lanc_item_criado_por_idx.sql": "44332b82dc10d454db4d2549b6c4d34a446352d23818e1915ea75448c4955401"
   }
 }
