@@ -19,3 +19,8 @@
 -- 4 · O portao de classes, com o template interpolado visivel e a tabela ausente alta e clara:
 ref: v1.65.0 · tabela: 242 linha(s) em docs/f61-evidencias/mudancas-de-proposito.json
 ✔ nenhuma diferença sem linha, nenhuma linha sem diferença.
+
+-- 5 · POS-DEPLOY, com a 1.66.0 no ar (17/09/2026)
+GET /api/saude -> {"ok":true,"versao":"1.66.0","commit":"c7d1a23","banco":"ok"}
+node scripts/smoke/smoke-prod.mjs -> RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha
+   (o aviso e o de `kits_modelos`, de sempre — nao e regressao desta fase)

@@ -68,6 +68,10 @@ quadro, é [`G-pixels.txt`](f61-evidencias/G-pixels.txt).
 
 ### Rollback — se precisar
 
+**Pós-deploy, conferido:** `/api/saude` responde `1.66.0` / `c7d1a23`, banco ok; `scripts/smoke/smoke-prod.mjs`
+deu **109 OK · 1 aviso · 0 falha** — o aviso é o de `kits_modelos`, de sempre, não regressão desta fase
+([`M-revisao-adversarial.txt`](f61-evidencias/M-revisao-adversarial.txt), bloco 5).
+
 `git revert` do merge. A fase é **só código**: nenhuma migration, nenhum dado, nenhuma chave de storage renomeada (as
 sete são byte a byte as de antes — é o que `assinatura-realtime.test.ts` prova). Reverter não perde rascunho de ninguém.
 
