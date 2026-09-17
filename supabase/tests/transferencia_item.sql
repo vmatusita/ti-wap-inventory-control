@@ -37,6 +37,19 @@
 -- de sessão única não as tem. O que o 3 garante é que o passo anti-deadlock continua no
 -- corpo e continua vindo antes dos inserts — quem o remover verá este roteiro falhar.
 -- =============================================================
+--
+-- F60 (16/09/2026) — O SALDO PELA ASSINATURA NOVA (migrations 0143/0145). As oito leituras de
+-- saldo passaram de `rel_saldo_itens`, dropada na 0145, para `rel_saldo_itens_filiais`:
+--   · o Total CONSOLIDADO (0, 2a, 2c) — o nulo de antes virou a lista de TODAS as filiais,
+--     inclusive as desativadas, lida na hora da chamada,
+--     `(select array_agg(f.id order by f.id) from public.filiais f)` — o conjunto exato que o
+--     nulo cobria;
+--   · o estoque de cada lado (2b) — `array[v_f1]` e `array[v_f2]`.
+-- Todas com `where filial_id is null`: a função nova devolve DOIS níveis numa chamada (uma linha
+-- por filial do recorte e o TOTAL do recorte, com `filial_id` nulo), e o total é o número que a
+-- chamada velha devolvia. No consolidado isso não é detalhe: sem o filtro, o `select … into` do
+-- caso 2a poderia ler a linha de UMA filial no lugar do Total e comparar a coisa errada. Nenhum
+-- rótulo mudou.
 
 begin;
 
@@ -128,8 +141,8 @@ begin
   -- Total estava preservado sem que nada tivesse sido medido. Quem o pegou foram o 2b e o
   -- 2c, que esperam números concretos. Daí a âncora logo abaixo: ela existe para que este
   -- roteiro nunca mais consiga passar comparando dois zeros.
-  select total into v_total_a0 from public.rel_saldo_itens(null, current_date) where item_id = v_itemA;
-  select total into v_total_b0 from public.rel_saldo_itens(null, current_date) where item_id = v_itemB;
+  select total into v_total_a0 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemA;
+  select total into v_total_b0 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemB;
 
   if coalesce(v_total_a0, 0) = 30 and coalesce(v_total_b0, 0) = 12 then
     v_ok := v_ok + 1;
@@ -192,8 +205,8 @@ begin
   -- =========================================================================
   -- 2 — A RAZÃO DE EXISTIR DO RECURSO: o Total consolidado NÃO muda
   -- =========================================================================
-  select total into v_total_a1 from public.rel_saldo_itens(null, current_date) where item_id = v_itemA;
-  select total into v_total_b1 from public.rel_saldo_itens(null, current_date) where item_id = v_itemB;
+  select total into v_total_a1 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemA;
+  select total into v_total_b1 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemB;
 
   if v_total_a1 = v_total_a0 and v_total_b1 = v_total_b0 then
     v_ok := v_ok + 1;
@@ -205,8 +218,8 @@ begin
       v_total_a0, v_total_a1, v_total_b0, v_total_b1;
   end if;
 
-  select estoque into v_est_o from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
-  select estoque into v_est_d from public.rel_saldo_itens(v_f2, current_date) where item_id = v_itemA;
+  select estoque into v_est_o from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
+  select estoque into v_est_d from public.rel_saldo_itens_filiais(array[v_f2], current_date) where filial_id is null and item_id = v_itemA;
   if v_est_o = 20 and v_est_d = 10 then
     v_ok := v_ok + 1; raise notice '✓ 2b o estoque mexeu dos dois lados: origem 30→20, destino 0→10';
   else
@@ -225,11 +238,11 @@ begin
       values ('TESTE F31 Item C', 'acessorio', 992) returning id into v_itemC;
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
       values (v_itemC, v_f1, 'entrada', 30, current_date, k_admin);
-    select total into v_total_c0 from public.rel_saldo_itens(null, current_date) where item_id = v_itemC;
+    select total into v_total_c0 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemC;
     insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
       values (v_itemC, v_f1, 'saida',   10, current_date, k_admin),
              (v_itemC, v_f2, 'entrada', 10, current_date, k_admin);
-    select total into v_total_c1 from public.rel_saldo_itens(null, current_date) where item_id = v_itemC;
+    select total into v_total_c1 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemC;
     if v_total_c1 = v_total_c0 + 10 then
       v_ok := v_ok + 1;
       raise notice '✓ 2c o caminho "intuitivo" INFLA o Total (%→%) — é isto que a transferência evita',

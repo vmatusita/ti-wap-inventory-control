@@ -45,6 +45,12 @@
 -- anterior à limpeza da 0111. `update` em `ativos` é operação normal (a `guarda_acervo`
 -- da 0081 é `before delete`).
 -- =============================================================
+--
+-- F60 (16/09/2026) — O AS-OF PELA ASSINATURA NOVA (migrations 0143/0145). As duas leituras do
+-- cenário i passaram de `rel_estoque_asof(v_matriz, …)`, dropada na 0145, para
+-- `rel_estoque_asof_filiais(array[v_matriz], …)`: o recorte virou LISTA obrigatória, e uma
+-- filial é a lista de um elemento. O corpo novo (lateral ancorada em `ativos`, filial calculada
+-- na data) mantém o mesmo `case` do detentor — i1/i2 provam a mesma coisa. Nenhum rótulo mudou.
 
 begin;
 
@@ -301,7 +307,7 @@ begin
     values (a, 'ajuste', current_date - 2, 'em_estoque', 'F36 cenario i: acerto (teste)', v_matriz, k_dev);
 
   select r.status, r.colaborador, r.setor into v_status, v_colab, v_setor
-    from public.rel_estoque_asof(v_matriz, current_date) r where r.ativo_id = a;
+    from public.rel_estoque_asof_filiais(array[v_matriz], current_date) r where r.ativo_id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
     v_ok := v_ok + 1; raise notice '✓ i1 a leitura as-of de HOJE concorda com o ao vivo (em_estoque, sem dono)';
   else
@@ -310,7 +316,7 @@ begin
   end if;
 
   select r.status, r.colaborador, r.setor into v_status, v_colab, v_setor
-    from public.rel_estoque_asof(v_matriz, current_date - 5) r where r.ativo_id = a;
+    from public.rel_estoque_asof_filiais(array[v_matriz], current_date - 5) r where r.ativo_id = a;
   if v_status = 'em_uso' and v_colab = 'Fulano AsOf' and v_setor = 'TI' then
     v_ok := v_ok + 1; raise notice '✓ i2 a leitura as-of ANTES do ajuste continua mostrando o período como ele foi';
   else

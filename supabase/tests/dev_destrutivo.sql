@@ -89,6 +89,21 @@
 -- gravado logo depois do reset) — asserção de "nada mudou" precisa provar que a operação
 -- ACONTECEU antes de afirmar que ela foi cirúrgica.
 -- =============================================================
+--
+-- F60 (16/09/2026) — OS RELATÓRIOS PELA ASSINATURA NOVA (migrations 0143/0145). As dez chamadas
+-- deste roteiro às `rel_*` passaram às `rel_*_filiais`, com o recorte como LISTA obrigatória:
+--   · o saldo (a leitura de antes de 5a que 5b confere, e 10a/10b):
+--     `rel_saldo_itens_filiais(array[v_f1], …) where filial_id is null` — o nível do TOTAL do
+--     recorte, que é o que a função velha devolvia. A nova devolve também uma linha por filial;
+--     sem o filtro, o `count(*)` de 5b contaria o item uma vez por nível e o `select … into`
+--     escolheria entre os dois níveis sem avisar;
+--   · os três de período (9a, 9e): o nulo de antes virou a lista de TODAS as filiais, inclusive
+--     as desativadas, lida na hora da chamada —
+--     `(select array_agg(f.id order by f.id) from public.filiais f)` —, o conjunto exato que o
+--     nulo cobria (toda movimentação tem `filial_id` com FK para `filiais`).
+-- 10a/10b leem o saldo sob `set local role authenticated`: a função nova lê `public.filiais`
+-- (a CTE do recorte), e o `grant select` do bloco de privilégios abaixo já cobre essa tabela.
+-- Nenhum rótulo mudou.
 
 begin;
 
@@ -1100,7 +1115,7 @@ begin
   values (v_item5, v_f1, 'entrada', 7, current_date - 5, k_dev);
   insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
   values (v_item5, v_f1, 'entrada', 5, current_date - 4, k_dev);
-  select total into v_s1 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_item5;
+  select total into v_s1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item5;
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -1115,7 +1130,7 @@ begin
 
   select count(*) into v_n from public.lancamentos_item where item_id = v_item5;
   select count(*) into v_c1 from public.itens where id = v_item5;
-  select count(*) into v_c2 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_item5;
+  select count(*) into v_c2 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item5;
   if v_s1 = 12 and v_n = 0 and v_c1 = 0 and v_c2 = 0 then
     v_ok := v_ok + 1; raise notice '✓ 5b saldo era 12; item, lançamentos e a linha do saldo sumiram juntos';
   else
@@ -1134,9 +1149,9 @@ begin
   values (v_at_k, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days');
 
   -- ANTES: os três relatórios que a ordem manda comparar (critério 6).
-  select coalesce(sum(total), 0) into v_r1 from public.rel_resumo(null::smallint, v_de, v_ate);
-  select coalesce(sum(total), 0) into v_r2 from public.rel_mov_por_mes(null::smallint, v_de, v_ate);
-  select coalesce(sum(total), 0) into v_r3 from public.rel_por_motivo(null::smallint, v_de, v_ate);
+  select coalesce(sum(total), 0) into v_r1 from public.rel_resumo_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
+  select coalesce(sum(total), 0) into v_r2 from public.rel_mov_por_mes_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
+  select coalesce(sum(total), 0) into v_r3 from public.rel_por_motivo_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -1181,9 +1196,9 @@ begin
   end if;
 
   -- 9e. E NÃO CONTA COMO OPERAÇÃO NORMAL — prova por CONSULTA, nos três relatórios.
-  select coalesce(sum(total), 0) into v_s1 from public.rel_resumo(null::smallint, v_de, v_ate);
-  select coalesce(sum(total), 0) into v_s2 from public.rel_mov_por_mes(null::smallint, v_de, v_ate);
-  select coalesce(sum(total), 0) into v_s3 from public.rel_por_motivo(null::smallint, v_de, v_ate);
+  select coalesce(sum(total), 0) into v_s1 from public.rel_resumo_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
+  select coalesce(sum(total), 0) into v_s2 from public.rel_mov_por_mes_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
+  select coalesce(sum(total), 0) into v_s3 from public.rel_por_motivo_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
   if v_s1 = v_r1 and v_s2 = v_r2 and v_s3 = v_r3 then
     v_ok := v_ok + 1; raise notice '✓ 9e os três relatórios devolvem os MESMOS números antes e depois de forçar (%/%/%)', v_r1, v_r2, v_r3;
   else
@@ -1232,7 +1247,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
     select public.forcar_saldo_item(v_item10, v_f1, 12, 'justificativa ficticia do roteiro F23') into v_j;
-    select total into v_s1 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_item10;
+    select total into v_s1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item10;
     if v_s1 = 12 and (v_j->>'delta')::int = 9 then
       v_ok := v_ok + 1; raise notice '✓ 10a forçar o saldo de 3 para 12 grava o lançamento de delta 9';
     else
@@ -1246,7 +1261,7 @@ begin
 
   begin
     perform public.forcar_saldo_item(v_item10, v_f1, 5, 'justificativa ficticia do roteiro F23');
-    select total into v_s1 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_item10;
+    select total into v_s1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item10;
     select count(*) into v_n from public.lancamentos_item where item_id = v_item10 and forcado and tipo = 'ajuste';
     if v_s1 = 5 and v_n = 2 then
       v_ok := v_ok + 1; raise notice '✓ 10b forçar PARA BAIXO também chega ao alvo (5), por lançamento marcado';

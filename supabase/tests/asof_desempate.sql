@@ -64,6 +64,18 @@
 -- equivalência total um universo limpo (as próprias linhas que 3a acabou de
 -- inserir), sem tocar uma linha do que já existia.
 -- ================================================================
+--
+-- ================================================================
+-- F60 (16/09/2026) — o as-of com recorte OBRIGATÓRIO (migrations 0143/0145).
+-- ================================================================
+-- As cinco chamadas de antes passaram para `rel_estoque_asof_filiais(smallint[], date)`, que
+-- a 0143 criou e a 0145 deixou sozinha (a assinatura velha, `smallint` com nulo = tudo, foi
+-- dropada). O nulo virou a lista de TODAS as filiais, inclusive as desativadas, lida na hora
+-- da chamada — `(select array_agg(f.id order by f.id) from public.filiais f)` —, que é o
+-- conjunto exato que o nulo cobria (toda linha de `ativos`/`movimentacoes` tem `filial_id`
+-- com FK para `filiais`). Os rótulos 1 a 10c provam a MESMA coisa de antes, sobre o corpo
+-- novo: o desempate continua `data desc, ordem desc`, agora dentro da lateral.
+-- ================================================================
 
 begin;
 
@@ -180,7 +192,7 @@ begin
             'F53 3a: reconciliacao de import (mesmo instante da compra)', v_prof)
     returning ordem into v_ordem_ajuste;
 
-  select status into v_asof3a from public.rel_estoque_asof(null, current_date) where ativo_id = h;
+  select status into v_asof3a from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where ativo_id = h;
 
   if v_ordem_ajuste is distinct from v_ordem_compra and v_ordem_ajuste > v_ordem_compra
      and v_asof3a = 'em_uso' then
@@ -252,7 +264,7 @@ begin
             date '2026-06-01', v_matriz, 'em_uso',
             'reconciliacao de import (teste F19)', v_prof, timestamptz '2026-06-01 10:00:00+00');
 
-  select status into v_asof  from public.rel_estoque_asof(null, current_date) where ativo_id = a;
+  select status into v_asof  from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where ativo_id = a;
   select status into v_ativo from public.ativos where id = a;
   if v_asof = 'em_uso' and v_asof = v_ativo then
     v_ok := v_ok + 1; raise notice '✓ 1 desempate (0054): ajuste vence a compra no empate (data,created_at); as-of=% = ativos=%',
@@ -283,8 +295,8 @@ begin
   insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at, estorno_de)
     values (b, 'estorno', date '2026-06-20', v_matriz, v_prof, timestamptz '2026-06-01 10:02:00+00', v_saida);
 
-  select status into v_d1  from public.rel_estoque_asof(null, date '2026-06-10') where ativo_id = b;
-  select status into v_now from public.rel_estoque_asof(null, current_date)      where ativo_id = b;
+  select status into v_d1  from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2026-06-10') where ativo_id = b;
+  select status into v_now from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date)      where ativo_id = b;
   select status into v_cur from public.ativos where id = b;
 
   if v_d1 = 'em_uso' then
@@ -498,7 +510,7 @@ begin
     values (k, 'ajuste', date '2026-01-01', v_matriz, 'em_manutencao', 'F53 6a: M2, retroativa, lancada DEPOIS de M1', v_prof, timestamptz '2026-01-01 09:00:00+00');
 
   -- as-of numa data POSTERIOR às duas (2026-08-15): as duas estão em `efetivas`.
-  select status into v_asof6a from public.rel_estoque_asof(null, date '2026-08-15') where ativo_id = k;
+  select status into v_asof6a from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2026-08-15') where ativo_id = k;
 
   -- a MESMA pergunta, respondida só por `ordem desc` (a régua REJEITADA):
   select m.status_resultante into v_puro6a

@@ -57,6 +57,23 @@
 -- antes × depois, mesmo servidor): está em docs/RELATORIO-F38.md §5. A prova sobre o
 -- DIFF vive em src/lib/itens/migrations-f38.test.ts, que roda sem banco nenhum.
 -- =============================================================
+--
+-- F60 (16/09/2026) — O SALDO PELA ASSINATURA NOVA (migrations 0143/0145). As nove leituras
+-- de saldo deste roteiro passaram de `rel_saldo_itens(<filial>, <data>)`, dropada na 0145,
+-- para `rel_saldo_itens_filiais(array[<filial>], <data>) where filial_id is null`. A função
+-- nova devolve DOIS níveis numa chamada — uma linha por (filial do recorte, item) e o nível do
+-- TOTAL do recorte, com `filial_id` nulo — e o filtro de nível é o que mantém cada asserção
+-- provando a MESMA coisa: o total do recorte é, por construção, o número que a chamada velha
+-- devolvia para aquele recorte (para uma filial só, ele é igual à linha dela, e
+-- `f60_recorte.sql` 4a/4b prova isso item a item). Sem o filtro, `select … into` passaria a
+-- escolher entre linhas de níveis diferentes sem avisar, e `count(*)` contaria cada item uma
+-- vez por nível. Nenhum rótulo mudou.
+--
+-- E o cenário 14 (as funções que a F38 prometeu não tocar) ganhou as três SUCESSORAS
+-- (`rel_saldo_itens_filiais`, `rel_mov_itens_filiais`, `rel_estoque_asof_filiais`) ao lado dos
+-- nomes velhos: depois da 0145 os três velhos não existem mais no catálogo, e sem as sucessoras a
+-- varredura passaria sobre SETE funções dizendo "dez" — o cenário afrouxaria calado. É o mesmo
+-- movimento de `INTOCAVEIS` em `src/lib/itens/migrations-f38.test.ts`.
 
 begin;
 
@@ -171,7 +188,7 @@ begin
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
 
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
 
   if coalesce(v_total0, 0) = 30 and coalesce(v_est0, 0) = 30 then
     v_ok := v_ok + 1;
@@ -483,7 +500,7 @@ begin
     values (v_itemA, v_f1, 'saida', 1, current_date, v_colab, k_admin);
 
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
   select com_a_pessoa into v_pessoa from public.rel_saldo_colaborador(v_colab)
    where item_id = v_itemA and filial_id = v_f1;
 
@@ -498,7 +515,7 @@ begin
   ) into v_ret;
 
   select total, estoque into v_total1, v_est1
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
 
   if v_total1 = v_total0 and v_est1 = v_est0 + 1 then
     v_ok := v_ok + 1;
@@ -615,7 +632,7 @@ begin
   select id into v_pend from public.pendencias_item where movimentacao_id = v_mov_dev;
 
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
   select com_a_pessoa into v_pessoa from public.rel_saldo_colaborador(v_colab2)
    where item_id = v_itemA and filial_id = v_f1;
 
@@ -631,7 +648,7 @@ begin
   ) into v_ret;
 
   select total, estoque into v_total1, v_est1
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
 
   if (v_ret ->> 'lancamentos')::int = 2 then
     v_ok := v_ok + 1; raise notice '✓ 8a a baixa gravou DOIS lançamentos (retorno + ajuste), não um';
@@ -705,7 +722,7 @@ begin
    where pendencia_item_id = v_pend and tipo::text = 'ajuste' and estorna_id is null;
 
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
 
   begin
     select public.reabrir_pendencias_item_com_estornos(
@@ -732,7 +749,7 @@ begin
   end;
 
   select total, estoque into v_total1, v_est1
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
 
   if v_total1 = v_total0 + 1 and v_est1 = v_est0 then
     v_ok := v_ok + 1;
@@ -770,7 +787,7 @@ begin
   ) into v_ret;
   v_mov := ((v_ret -> 'movimentacoes') ->> 0)::uuid;
 
-  select estoque into v_est0 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+  select estoque into v_est0 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
 
   -- 13a: estorno SEM a lista dos inversos tem de RECUSAR (nunca meio estorno).
   begin
@@ -796,7 +813,7 @@ begin
     k_admin
   ) into v_ret;
 
-  select estoque into v_est1 from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+  select estoque into v_est1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
 
   if (v_ret ->> 'itens')::int = 1 and v_est1 = v_est0 + 3 then
     v_ok := v_ok + 1;
@@ -831,13 +848,19 @@ begin
   -- O que se prova AQUI, e vale em qualquer Postgres: nenhuma das dez funções
   -- intocadas carrega marca da F38 no corpo. Se alguém recriar uma delas para
   -- "só acrescentar o colaborador_id", este cenário cai.
+  --
+  -- ⚠ F60 (0143/0145): as três `rel_*` desta lista foram SUCEDIDAS pelas `rel_*_filiais` (o
+  -- recorte como lista obrigatória) e as velhas foram dropadas. Os nomes velhos ficam — em
+  -- banco anterior à 0145 eles ainda existem e continuam valendo —, e as sucessoras entram ao
+  -- lado: sem elas, depois da 0145 a varredura olharia SETE funções vivas dizendo "dez".
   select count(*) into v_n
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
    where p.proname in (
      'aplicar_movimentacao', 'guarda_acervo', 'rel_saldo_itens', 'rel_mov_itens',
      'rel_estoque_asof', 'status_apos_movimentacao', 'status_tem_detentor',
-     'transferir_item', 'criar_compra_lote', 'devolver_ao_fornecedor')
+     'transferir_item', 'criar_compra_lote', 'devolver_ao_fornecedor',
+     'rel_saldo_itens_filiais', 'rel_mov_itens_filiais', 'rel_estoque_asof_filiais')
      -- ⚠ Os marcadores são os que SÓ a F38 introduziu. `movimentacao_id` ficou de
      -- fora de propósito: `aplicar_movimentacao` já cita essa palavra desde a 0051,
      -- porque insere em `pendencias_item (ativo_id, movimentacao_id, …)` — coluna

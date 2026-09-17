@@ -49,6 +49,17 @@
 -- que é a metade verificável numa sessão só. A outra metade é estrutural e vive em
 -- `src/lib/itens/migrations-f38.test.ts`.
 -- =============================================================
+--
+-- F60 (16/09/2026) — O SALDO PELA ASSINATURA NOVA (migrations 0143/0145). As doze leituras
+-- de saldo deste roteiro passaram de `rel_saldo_itens(<filial>, <data>)`, dropada na 0145,
+-- para `rel_saldo_itens_filiais(array[<filial>], <data>) where filial_id is null`. A função
+-- nova devolve DOIS níveis numa chamada — uma linha por (filial do recorte, item) e o nível do
+-- TOTAL do recorte, com `filial_id` nulo — e o filtro de nível é o que mantém cada asserção
+-- provando a MESMA coisa: o total do recorte é, por construção, o número que a chamada velha
+-- devolvia para aquele recorte (para uma filial só, ele é igual à linha dela, e
+-- `f60_recorte.sql` 4a/4b prova isso item a item). Sem o filtro, `select … into` passaria a
+-- escolher entre linhas de níveis diferentes sem avisar, e `count(*)` contaria cada item uma
+-- vez por nível. Nenhum rótulo mudou.
 
 begin;
 
@@ -167,7 +178,7 @@ begin
   -- 0 — ÂNCORA
   -- =========================================================================
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
   if coalesce(v_total0, 0) = 4 and coalesce(v_est0, 0) = 3 then
     v_ok := v_ok + 1;
     raise notice '✓ 0 âncora: item B com total 4 e estoque 3 (1 em uso)';
@@ -208,7 +219,7 @@ begin
       k_admin);
 
     select total, estoque into v_total1, v_est1
-      from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+      from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
     select count(*) into v_n from public.lancamentos_item
      where item_id = v_itemA and filial_id = v_f1;
     select (v_ret ->> 'unidades_regularizadas')::int into v_reg;
@@ -253,7 +264,7 @@ begin
   --     retorno 1 + ajuste +1, e os três números fecham.
   -- =========================================================================
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
 
   begin
     -- ⚠ INSERT DIRETO, e nao pela RPC: esta saida precede uma devolucao do MESMO
@@ -277,7 +288,7 @@ begin
       k_admin);
 
     select total, estoque into v_total1, v_est1
-      from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+      from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
     select coalesce(sum(case tipo::text when 'saida' then quantidade
                                         when 'retorno' then -quantidade else 0 end), 0)
       into v_uso1
@@ -326,7 +337,7 @@ begin
       k_admin);
 
     select total, estoque into v_total1, v_est1
-      from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemA;
+      from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
     -- Item A tinha total 1 e estoque 1 (do cenário 1). Saem 3: o acerto repõe 2.
     -- Depois: total 3, estoque 0, em uso 3.
     if v_total1 = 3 and v_est1 = 0 then
@@ -380,7 +391,7 @@ begin
         k_admin);
 
       select total, estoque into v_total1, v_est1
-        from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemC;
+        from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemC;
       select count(*) into v_n from public.lancamentos_item
        where item_id = v_itemC and regularizacao;
       -- Item C tinha total 5 / estoque 5 / em uso 0 → o acerto sobe os dois em 1.
@@ -408,7 +419,7 @@ begin
    order by m.created_at desc limit 1;
 
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
 
   -- Monta os inversos de TODOS os lançamentos daquela movimentação — inclusive o
   -- acerto. É o que `planejarEstorno` faz do lado do TypeScript.
@@ -433,7 +444,7 @@ begin
     v_ret := public.estornar_movimentacao_com_itens(
       v_mov, 'Estorno do cenário 5.', v_estornos, k_admin);
     select total, estoque into v_total1, v_est1
-      from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+      from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
     -- Volta ao estado de ANTES da devolução do cenário 2: total −1, estoque −2.
     if v_total1 = v_total0 - 1 and v_est1 = v_est0 - 2 then
       v_ok := v_ok + 1;
@@ -467,7 +478,7 @@ begin
   -- 6 — O AVULSO REGULARIZA IGUAL AO CHECKLIST (critério 12)
   -- =========================================================================
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemC;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemC;
   select count(*) into v_n_lanc0 from public.lancamentos_item where item_id = v_itemC;
 
   begin
@@ -480,7 +491,7 @@ begin
       k_admin);
 
     select total, estoque into v_total1, v_est1
-      from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemC;
+      from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemC;
     select count(*) into v_n from public.lancamentos_item
      where item_id = v_itemC and regularizacao;
     select (v_ret ->> 'unidades_regularizadas')::int into v_reg;
@@ -618,7 +629,7 @@ begin
   end if;
 
   select total, estoque into v_total0, v_est0
-    from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+    from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
 
   begin
     v_ret := public.lancar_itens_lote(
@@ -632,7 +643,7 @@ begin
       k_admin);
     select (v_ret ->> 'unidades_regularizadas')::int into v_reg;
     select total, estoque into v_total1, v_est1
-      from public.rel_saldo_itens(v_f1, current_date) where item_id = v_itemB;
+      from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemB;
 
     -- A primeira devolve de verdade (aberto 1→0); a segunda regulariza (+1 no total).
     if v_reg = 1 and v_total1 = v_total0 + 1 and v_est1 = v_est0 + 2 then
