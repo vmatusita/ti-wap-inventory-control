@@ -96,13 +96,15 @@ import {
   validarBloco,
 } from './equivalencia-rel.mjs'
 
-const CORPOS_REPO = lerCorposDoRepositorio(RAIZ)
+type Definicao = { parametros: { nome: string; tipo: string }[]; colunas: { nome: string; tipo: string }[]; corpo: string }
+const CORPOS_REPO = lerCorposDoRepositorio(RAIZ) as Record<string, Definicao>
+const MODELO_F60 = MODELO as Record<string, { velha: string | null; forma: string }>
 const DATAS = ['2026-09-01', '2026-09-15']
 
 describe('3. o modo real — a equivalência e o custo com a função APLICADA', () => {
-  it.each(Object.keys(MODELO))('%s: o bloco real chama a função pelo nome e confere o prosrc antes de medir', (nome) => {
+  it.each(Object.keys(MODELO_F60))('%s: o bloco real chama a função pelo nome e confere o prosrc antes de medir', (nome) => {
     const def = CORPOS_REPO[nome]
-    const sql = MODELO[nome].forma === 'kpis' ? blocoKpis(def, 'producao', { real: true }) : blocoEquivalencia(nome, def, 'producao', DATAS, { real: true })
+    const sql = MODELO_F60[nome].forma === 'kpis' ? blocoKpis(def, 'producao', { real: true }) : blocoEquivalencia(nome, def, 'producao', DATAS, { real: true })
     expect(() => validarBloco(sql)).not.toThrow()
     expect(sql).toContain(`to_regprocedure('public.${nome}(${def.parametros.map((p) => p.tipo).join(', ')})')`)
     expect(sql).toContain(`if v_md5_vivo <> '${md5Normalizado(def.corpo)}' then`)
@@ -112,7 +114,7 @@ describe('3. o modo real — a equivalência e o custo com a função APLICADA',
     // nenhum pedaço do corpo colado: o lado novo é só a função
     const trecho = def.corpo.trim().split('\n')[0].trim()
     expect(sql.includes(trecho), `o bloco real ainda cola o corpo ("${trecho}")`).toBe(false)
-    if (MODELO[nome].velha) expect(sql).toContain(`'F60_FUNCAO_VELHA_AUSENTE ${MODELO[nome].velha}'`)
+    if (MODELO_F60[nome].velha) expect(sql).toContain(`'F60_FUNCAO_VELHA_AUSENTE ${MODELO_F60[nome].velha}'`)
   })
 
   it('sem `real`, o bloco é a emulação de sempre (corpo colado, marca sem _REAL, sem guarda de prosrc)', () => {
