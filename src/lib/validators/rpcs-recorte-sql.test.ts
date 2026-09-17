@@ -36,10 +36,13 @@ import {
 // F57 — e é exatamente o padrão que `policies-initplan.test.ts` (o molde desta
 // trava) documenta.
 //
-// ⚠ CONTRA A CADEIA DE HOJE (16/09/2026), o describe 3 fica VERMELHO, nomeando as
-// SETE `rel_*` que ainda usam `p_filial smallint`/`is null or` — é o esperado: a
-// trava nasce ANTES da correção (regra 4 do §4 do plano), e só fica verde depois
-// que a Frente D substituir as sete assinaturas. NÃO AFROUXAR essa expectativa.
+// ⚠ A TRAVA NASCEU VERMELHA (commit `4d4bad2`, 16/09/2026): contra a cadeia de então, o
+// describe 3 nomeava as SETE `rel_*` que ainda usavam `p_filial smallint`/`is null or` — a
+// trava veio ANTES da correção (regra 4 do §4 do plano). O lote 2 da Frente D (a `0143` cria
+// as sete `rel_*_filiais`, a `0145` derruba as velhas) a pôs VERDE sem mudar regra nenhuma de
+// `recorte-rel.mjs`: mudaram só os FATOS do universo que o describe 1 confere e a `rel_*` viva
+// sobre a qual o sintético de `alter function` do describe 2 age (a velha não existe mais).
+// NÃO AFROUXAR nenhuma asserção para caber uma `rel_*` nova.
 
 const RAIZ = process.cwd()
 const SQL_CATALOGO = readFileSync(join(RAIZ, ...ARQUIVO_CATALOGO_RECORTE), 'utf8')
@@ -80,33 +83,53 @@ describe('1. o universo — a mesa julga o MESMO conjunto que o replay das migra
     expect(J.consumidos, 'consumidos deveria ser >= encontrados (o replay também consome DDL que o regex frouxo da auto-conferência não casa, ex. "drop function if exists")').toBeGreaterThanOrEqual(J.encontrados)
   })
 
-  it('o universo não contém corpos HISTÓRICOS — a rel_estoque_asof viva vem da migration mais nova que a define', () => {
-    const def = J.vivas.get('public.rel_estoque_asof(smallint,date)')
-    expect(def, 'rel_estoque_asof deveria estar viva hoje (fato 5 da ordem F60)').toBeDefined()
+  it('o universo não contém corpos HISTÓRICOS — a rel_estoque_asof_filiais viva vem da migration mais nova que a define', () => {
+    const def = J.vivas.get('public.rel_estoque_asof_filiais(smallint[],date)')
+    expect(def, 'rel_estoque_asof_filiais deveria estar viva desde a 0143 (F60 · lote 2)').toBeDefined()
     // A migration mais nova que define esta assinatura, medida por varredura direta
     // (sem usar o replay) — se o replay escolhesse um corpo mais antigo, este número
     // seria diferente e o teste acusaria.
-    const definidoras = MIGRATIONS.filter((m) => /create\s+(or\s+replace\s+)?function\s+public\.rel_estoque_asof\s*\(/i.test(m.sql)).map(
-      (m) => m.arquivo,
-    )
+    const definidoras = MIGRATIONS.filter((m) =>
+      /create\s+(or\s+replace\s+)?function\s+public\.rel_estoque_asof_filiais\s*\(/i.test(m.sql),
+    ).map((m) => m.arquivo)
     expect(definidoras.length).toBeGreaterThan(0)
     expect(def!.arquivo, 'o replay pegou um corpo que não é o da migration mais nova').toBe(definidoras.at(-1))
   })
 
-  it('as vivas de hoje batem com o fato 5 da ordem F60 (oito rel_*, sete recortam por smallint, uma por uuid)', () => {
+  // F60 · lote 2 — o replay LÊ `drop function`: a `0134` ainda define `rel_estoque_asof(smallint,
+  // date)` no disco, e é a `0145` que a tira do universo. `corpoVigente` não enxerga o drop (PLAN-F60
+  // §1.2 (l)); a mesa, sim — e é isto que prova.
+  it('as SETE assinaturas velhas saíram do universo pelo drop da 0145, ainda que o create delas continue no disco', () => {
+    for (const velha of [
+      'public.rel_estoque_asof(smallint,date)',
+      'public.rel_saldo_itens(smallint,date)',
+      'public.rel_mov_itens(smallint,date,date)',
+      'public.rel_frescor_itens(smallint,date)',
+      'public.rel_mov_por_mes(smallint,date,date)',
+      'public.rel_por_motivo(smallint,date,date)',
+      'public.rel_resumo(smallint,date,date)',
+    ]) {
+      expect(J.vivas.has(velha), `${velha} continua viva no replay`).toBe(false)
+    }
+    expect(MIGRATIONS.some((m) => /create\s+(or\s+replace\s+)?function\s+public\.rel_estoque_asof\s*\(/i.test(m.sql))).toBe(true)
+  })
+
+  it('as vivas de hoje (F60 · lote 2): as sete rel_*_filiais, a dos KPIs (0141) e a exceção por pessoa — nove', () => {
     const nomes = [...J.vivas.keys()].map((k) => k.split('(')[0])
     for (const esperado of [
-      'public.rel_estoque_asof',
-      'public.rel_saldo_itens',
-      'public.rel_mov_itens',
-      'public.rel_frescor_itens',
-      'public.rel_mov_por_mes',
-      'public.rel_por_motivo',
-      'public.rel_resumo',
+      'public.rel_estoque_asof_filiais',
+      'public.rel_saldo_itens_filiais',
+      'public.rel_mov_itens_filiais',
+      'public.rel_frescor_itens_filiais',
+      'public.rel_mov_por_mes_filiais',
+      'public.rel_por_motivo_filiais',
+      'public.rel_resumo_filiais',
+      'public.rel_contagem_status_filiais',
       'public.rel_saldo_colaborador',
     ]) {
       expect(nomes, `${esperado} não está entre as vivas`).toContain(esperado)
     }
+    expect(J.vivas.size, 'rel_* viva a mais ou a menos que as nove esperadas').toBe(9)
   })
 
   it('nome CITADO ("rel_x") entra no universo como qualquer outro rel_* (revisão adversarial F60 — achado 2 "falsos-positivos": antes, definicoesDeFuncao não lia identificador citado e a falha reprovava com diagnóstico confuso)', () => {
@@ -142,13 +165,22 @@ describe('2. falha fechada — o que o replay não lê reprova, nunca é pulado'
     expect(j.falhas.some((f) => /rename to/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
   })
 
+  // F60 · lote 2: os dois sintéticos de `alter function` agem sobre `rel_saldo_itens_filiais` — a
+  // `rel_saldo_itens(smallint, date)` que eles usavam saiu do universo pela `0145`, e contra uma
+  // `rel_*` que NÃO existe o replay reprova por "não conhece", não por "não replica": o teste de
+  // `strict` ficaria vermelho pelo motivo errado. A régua é a mesma; muda só a função VIVA.
   it('alter function set/security/strict numa rel_* viva → reprova fechado (a trava não replica o efeito)', () => {
-    const j = comSintetica('alter function public.rel_saldo_itens(smallint, date) strict;', '0200_laco_f60.sql')
+    const j = comSintetica('alter function public.rel_saldo_itens_filiais(smallint[], date) strict;', '0200_laco_f60.sql')
     expect(j.falhas.some((f) => /não replica/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
   })
 
+  it('alter function … strict numa rel_* que o drop já tirou do universo → reprova por "não conhece"', () => {
+    const j = comSintetica('alter function public.rel_saldo_itens(smallint, date) strict;', '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => /não conhece/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
+  })
+
   it('alter function owner to numa rel_* viva → NÃO reprova (ignorado, por decisão explícita)', () => {
-    const j = comSintetica('alter function public.rel_saldo_itens(smallint, date) owner to postgres;', '0200_laco_f60.sql')
+    const j = comSintetica('alter function public.rel_saldo_itens_filiais(smallint[], date) owner to postgres;', '0200_laco_f60.sql')
     expect(j.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
   })
 
@@ -169,12 +201,12 @@ describe('2. falha fechada — o que o replay não lê reprova, nunca é pulado'
 })
 
 describe('3. a doutrina, contra as rel_* VIVAS', () => {
-  // ⚠ CONTRA A CADEIA DE HOJE (16/09/2026, antes do lote 2 da Frente D) ESTE TESTE
-  // FICA VERMELHO, nomeando as SETE `rel_*` que ainda usam `p_filial smallint` —
-  // é o esperado (a ordem F60, Frente C, regra 4 do §4 do plano: "trava antes da
-  // correção"). NÃO AFROUXE esta asserção para fazê-la passar hoje: é a Frente D
-  // que a torna verde, substituindo as sete assinaturas. A oitava
-  // (`rel_saldo_colaborador`) não aparece — é exceção declarada (describe 4).
+  // ⚠ Até o lote 2 da Frente D ESTE TESTE FICOU VERMELHO, nomeando as SETE `rel_*`
+  // que usavam `p_filial smallint` — a trava veio antes da correção (a ordem F60,
+  // Frente C, regra 4 do §4 do plano). Desde a `0143`/`0145` ele é VERDE com as
+  // nove vivas. NÃO AFROUXE esta asserção para caber uma `rel_*` nova: é a função
+  // que se corrige. `rel_saldo_colaborador` não aparece — é exceção declarada
+  // (describe 4).
   it('nenhuma rel_* fora de R1–R4, salvo exceção declarada', () => {
     expect(J.violacoes.map(mensagemDeViolacao)).toEqual([])
   })

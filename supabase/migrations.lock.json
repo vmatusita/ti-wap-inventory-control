@@ -144,6 +144,9 @@
     "0139_vocabulario_import.sql": "0b67fb972daba05f36e832b582473569c5d7ba891219817cf328396e9696e889",
     "0140_import_desarma_fk.sql": "13966efbfc64fbb6daa7de693d33ff836d4f53fc6041fd9eac1a1de396b72b32",
     "0141_rel_contagem_status.sql": "7d73824d68d88f48e2f40a2d37ec8cc026b45d828658291b9fce1aa586d7ce18",
-    "0142_lanc_item_criado_por_idx.sql": "44332b82dc10d454db4d2549b6c4d34a446352d23818e1915ea75448c4955401"
+    "0142_lanc_item_criado_por_idx.sql": "44332b82dc10d454db4d2549b6c4d34a446352d23818e1915ea75448c4955401",
+    "0143_rel_filiais.sql": "99f062116f2aeb66e6114a1b31d9c30d8eb1393a64327c87cd3752012dc15cf6",
+    "0144_colaboradores_textos_por_nome.sql": "e7131b510c8b5a65de8e478017f7c08033a4b015bb5167394f9838ede1400e28",
+    "0145_drop_rel_filial.sql": "24a1e782a423003915b8f6c4eefa7751cf949a3e80278681c0e8b25219a1757b"
   }
 }
