@@ -26,20 +26,34 @@
 //        `case`, lista do `select`, argumento de outra função, ramo de `or` ou
 //        sob `not`. E há pelo menos uma ocorrência.
 //   R3 — não-anulável: cada `<colref> = any (p_filiais)` é CONJUNÇÃO DIRETA de um
-//        `where`/`on`/`having` — não uma disjunção, não dentro de `case`. Aceita o
-//        recursivo "grupo entre parênteses que é, ele mesmo, conjunção direta".
-//   R4 — escopo das leituras: cada escopo de `select` só lê tabela-base se ele
-//        mesmo tem uma ligação R2+R3, ou herda cobertura por estar no from/join
-//        (tabela derivada, lateral) ou num where/on/having (exists/in) de um
-//        escopo COBERTO. CTE nunca herda; subconsulta na lista do select/group
-//        by/order by também não. `TABELAS_SEM_FILIAL` é a exceção de vocabulário.
+//        `where`/`on`/`having` — não uma disjunção, não dentro de `case`, e sem `or`
+//        em NENHUM ponto do caminho até o limite da cláusula (a precedência do
+//        `and` sobre o `or` — revisão final). Aceita o recursivo "grupo entre
+//        parênteses que é, ele mesmo, conjunção direta". Referência posicional
+//        (`$1`) reprova por R2.
+//   R4 — escopo das leituras, POR TABELA (revisão final): cada tabela-base lida
+//        precisa estar coberta — por uma ligação R2+R3 sobre ela, por igualdade de
+//        CHAVE com uma tabela coberta (respeitando o lado nulável de LEFT/RIGHT/FULL
+//        JOIN), pela filial calculada de uma lateral coberta, ou por herança de um
+//        alias coberto de fora (derivada lateral, exists/in). CTE nunca herda;
+//        subconsulta na lista do select/group by/order by também não.
+//        `TABELAS_SEM_FILIAL` é a exceção de vocabulário. E o resultado tem de
+//        DEPENDER do recorte: nulo ou vazio não pode devolver linhas. O detalhe está
+//        no cabeçalho da seção R4, abaixo.
 //
 // FALHA FECHADA (o ponto cego da réplica de árvore, que tende a "pular o que não
 // entendeu" — a mesma lição de `predicado-policies.mjs`, F59)
 //
 //   · DDL de `rel_*` montado dinamicamente — `create|alter|drop function` dentro
-//     de literal ou de corpo `$…$` de OUTRA função/bloco `do` — reprova com
-//     arquivo e linha;
+//     de literal ou de corpo `$…$` OU entre aspas simples/E-string (`do '…'`, `as
+//     '…'` — revisão final) de OUTRA função/bloco `do` — reprova com arquivo e linha;
+//   · o corpo julgado é o literal depois do `as` de nível zero (nunca um `default
+//     $d$…$d$` antes dele), e corpo com mais de um comando reprova (a função sql
+//     devolve o ÚLTIMO) — revisão final;
+//   · a identidade da função é a do Postgres: tipos em forma canônica (`int2[]` =
+//     `smallint[]`), `drop`/`alter` sem lista de argumentos resolvem pelo nome
+//     único, e identificador em escape Unicode (`U&"…"`) em DDL de função reprova —
+//     revisão final;
 //   · comando de `rel_*` que o replay não consegue ler reprova, nunca é pulado;
 //   · a auto-conferência prova que TODO `create|alter|drop function rel_*` (e
 //     `alter|drop routine rel_*`) fora de comentário, em toda migration, foi
@@ -139,7 +153,7 @@ function nomeToken(t) {
  * (com o nome, se houver) — exatamente como `definicoesDeFuncao` já faz, só que
  * aqui também guardamos qual token era o nome.
  * @param {string} textoCreate o `d.texto` de uma entrada de `definicoesDeFuncao`
- * @returns {{ nome: string|null, tipo: string }[]}
+ * @returns {{ nome: string|null, tipo: string, modo: string }[]}
  */
 export function argumentosComNome(textoCreate) {
   const { tokens } = lexar(textoCreate)
@@ -178,7 +192,11 @@ export function argumentosComNome(textoCreate) {
 
   return grupos.map((g) => {
     let i = 0
-    if (nomeToken(g[i]) !== null && MODOS_ARGUMENTO.has(nomeToken(g[i]))) i++
+    let modo = 'in'
+    if (nomeToken(g[i]) !== null && MODOS_ARGUMENTO.has(nomeToken(g[i]))) {
+      modo = nomeToken(g[i])
+      i++
+    }
     const textoGrupo = g.length > 0 ? textoCreate.slice(g[0].ini, g.at(-1).fim) : ''
     const tipo = tipoDoArgumento(textoGrupo.slice(g[i]?.ini !== undefined ? g[i].ini - g[0].ini : 0))
     // O NOME existe quando, IGNORANDO o modo, sobra mais de um token e o
@@ -196,7 +214,7 @@ export function argumentosComNome(textoCreate) {
         nome = nomeToken(restoSemModo[0])
       }
     }
-    return { nome, tipo }
+    return { nome, tipo, modo }
   })
 }
 
@@ -204,6 +222,64 @@ export function argumentosComNome(textoCreate) {
 export function ehTipoRecorte(tipo) {
   const s = tipo.trim().toLowerCase().replace(/\s+/g, '')
   return s === 'smallint[]' || s === 'int2[]' || s === '_int2'
+}
+
+/**
+ * Os apelidos de tipo que o Postgres trata como o MESMO tipo — o nome que `format_type` escreve à
+ * direita. Conjunto fechado de propósito (a trava é de vocabulário fechado): tipo fora da lista
+ * segue com a grafia que tem.
+ */
+const APELIDOS_DE_TIPO = new Map([
+  ['int2', 'smallint'],
+  ['int', 'integer'],
+  ['int4', 'integer'],
+  ['int8', 'bigint'],
+  ['bool', 'boolean'],
+  ['float4', 'real'],
+  ['float8', 'double precision'],
+  ['decimal', 'numeric'],
+  ['varchar', 'character varying'],
+  ['char', 'character'],
+  ['bpchar', 'character'],
+  ['varbit', 'bit varying'],
+  ['timestamptz', 'timestamp with time zone'],
+  ['timestamp', 'timestamp without time zone'],
+  ['timetz', 'time with time zone'],
+  ['time', 'time without time zone'],
+])
+
+/**
+ * O tipo de um argumento na forma CANÔNICA da identidade da função — a chave do replay.
+ *
+ * Revisão final da F60 (achado "orçamento verde com corpo morto"): a chave usava a grafia CRUA de
+ * `tipoDoArgumento`, e o Postgres trata `int2[]`, `smallint []`, `smallint[]` e `_int2` — ou
+ * `pg_catalog.date` e `date` — como a MESMA assinatura. Um `create or replace` com outra grafia
+ * SUBSTITUI a função no banco, mas no replay virava uma segunda chave, e a definição velha
+ * continuava "viva" para quem a procurasse pela chave de sempre (`asof-orcamento.test.ts`). Aqui a
+ * grafia colapsa: esquema `pg_catalog.`/`public.`, aspas, `typmod` (`varchar(10)`), dimensões de
+ * array (`[3]`, `[][]`, `array`), prefixo `_` e os apelidos de `APELIDOS_DE_TIPO`.
+ * @param {string} tipo o tipo já sem nome e sem modo (`tipoDoArgumento`)
+ */
+export function tipoCanonico(tipo) {
+  let s = tipo.trim().toLowerCase().replace(/"/g, '').replace(/\s+/g, ' ')
+  s = s.replace(/^(pg_catalog|public)\s*\.\s*/, '')
+  s = s.replace(/\s*\([^()]*\)/g, '')
+  let array = false
+  if (/\s+array(\s*\[\s*\d*\s*\])?$/.test(s)) {
+    array = true
+    s = s.replace(/\s+array(\s*\[\s*\d*\s*\])?$/, '')
+  }
+  if (/(\s*\[\s*\d*\s*\])+$/.test(s)) {
+    array = true
+    s = s.replace(/(\s*\[\s*\d*\s*\])+$/, '')
+  }
+  s = s.trim()
+  if (s.startsWith('_')) {
+    array = true
+    s = s.slice(1)
+  }
+  s = APELIDOS_DE_TIPO.get(s) ?? s
+  return array ? `${s}[]` : s
 }
 
 // -----------------------------------------------------------------------------
@@ -278,10 +354,32 @@ function tiposDaListaTexto(texto) {
     atual += c
   }
   if (atual.trim() !== '') partes.push(atual)
-  return partes.map((p) => p.trim()).filter((p) => p !== '').map(tipoDoArgumento)
+  // Argumento `out` não faz parte da identidade da função (o Postgres o ignora em `drop`/`alter`).
+  return partes
+    .map((p) => p.trim())
+    .filter((p) => p !== '' && !/^out\s/i.test(p))
+    .map(tipoDoArgumento)
 }
 
-const assinaturaDe = (schema, nome, tipos) => `${schema}.${nome}(${tipos.join(',')})`
+/** A chave do replay — tipos na forma CANÔNICA (`tipoCanonico`), a identidade que o Postgres usa. */
+const assinaturaDe = (schema, nome, tipos) => `${schema}.${nome}(${tipos.map(tipoCanonico).join(',')})`
+
+/**
+ * `drop`/`alter` SEM lista de argumentos (`drop function if exists public.rel_x;`) — válido no
+ * Postgres quando o nome é único no esquema. Revisão final da F60: o replay montava a chave
+ * `rel_x()`, que não casava com a assinatura viva, e o `drop` não derrubava nada — a função
+ * seguia "viva" no replay e o orçamento do as-of ficava verde sobre um corpo que o banco não tem.
+ * Devolve a chave viva (nome único), `null` quando não há nenhuma, e reprova a ambiguidade.
+ */
+function chavePorNomeUnico(vivas, schema, nome, falhar, pos, comando) {
+  const prefixo = `${schema}.${nome}(`
+  const candidatas = [...vivas.keys()].filter((k) => k.startsWith(prefixo))
+  if (candidatas.length > 1) {
+    falhar(pos, `${comando} ${schema}.${nome} sem lista de argumentos, e há ${candidatas.length} assinaturas vivas (${candidatas.join(', ')}) — o Postgres recusa ("not unique"); escreva a assinatura`)
+    return { ambigua: true, chave: null }
+  }
+  return { ambigua: false, chave: candidatas[0] ?? null }
+}
 
 /**
  * Reproduz, em ordem, o que as migrations fazem com `public.rel_*` (e detecta,
@@ -299,6 +397,7 @@ export function replayFuncoesRel(migrations) {
     const falhar = (pos, motivo) => falhas.push({ arquivo, linha: linhaDe(sql, pos), motivo })
     const inicios = new Set()
     const literais = []
+    const corposEntreAspas = []
     const semComentario = sql.split('')
 
     let i = 0
@@ -314,7 +413,11 @@ export function replayFuncoesRel(migrations) {
         continue
       }
       for (const [a, b] of lexado.comentarios) for (let k = a; k < b; k++) semComentario[k] = ' '
-      for (const t of lexado.tokens) if (t.tipo === 'str' || t.tipo === 'dollar') literais.push(t)
+      lexado.tokens.forEach((t, k) => {
+        if (t.tipo !== 'str' && t.tipo !== 'dollar') return
+        literais.push(t)
+        if (t.tipo === 'str' && ehCorpoDeCodigo(lexado.tokens, k)) corposEntreAspas.push(t)
+      })
       const tk = lexado.tokens.filter((t) => !(t.tipo === 'punct' && t.v === ';'))
       if (tk.length > 0) {
         const consumiu = aplicarComandoFuncao(tk, sql, arquivo, vivas, falhar)
@@ -337,6 +440,18 @@ export function replayFuncoesRel(migrations) {
       const tag = /^\$[A-Za-z0-9_]*\$/.exec(sql.slice(t.ini))?.[0] ?? '$$'
       for (const p of executesSuspeitosFuncaoRel(t.v)) falhar(t.ini + tag.length + p.pos, p.motivo)
     }
+    // O MESMO julgamento para o corpo de código escrito entre ASPAS SIMPLES — `do '…'`, `do E'…'`,
+    // `language plpgsql as '…'` (revisão final da F60). Até aqui só o corpo `$…$` era julgado, e
+    // um bloco `do` entre aspas com o nome partido (`'re' || 'l_x'`) ou escrito com escape de
+    // E-string (`\x72el_x`) criava uma `rel_*` fora do replay sem falha nenhuma: nem a regex da
+    // auto-conferência (texto cru) nem este laço o viam. O léxico já DECODIFICA a string (`''` e os
+    // escapes de E-string), então o texto julgado é o que o Postgres executa. Só corpo de CÓDIGO
+    // entra (literal logo depois de `as`/`do`): um `comment on … is 'execute …'` não é SQL. A
+    // posição é aproximada ao começo do literal — a linha é a que importa.
+    for (const t of corposEntreAspas) {
+      const prefixo = /^[eE]'/.test(sql.slice(t.ini, t.ini + 2)) ? 2 : 1
+      for (const p of executesSuspeitosFuncaoRel(t.v)) falhar(Math.min(t.ini + prefixo + p.pos, t.fim - 1), p.motivo)
+    }
 
     // AUTO-CONFERÊNCIA: todo `create|alter|drop function rel_*` (e `alter|drop
     // routine rel_*`) fora de comentário foi consumido — ou mora em literal/`$…$` e já reprovou acima
@@ -358,6 +473,18 @@ export function replayFuncoesRel(migrations) {
   }
 
   return { vivas, consumidos, encontrados, falhas }
+}
+
+/**
+ * O literal entre aspas em `tokens[k]` é CORPO DE CÓDIGO? `do '…'`, `do language x '…'` e o corpo
+ * de função `as '…'`. O `as` de coluna/tipo nunca é seguido de literal — `cast(x as text)` é
+ * seguido de identificador —, então a regra não confunde texto com código.
+ */
+function ehCorpoDeCodigo(tokens, k) {
+  const ant = tokens[k - 1]
+  if (ant?.tipo !== 'ident') return false
+  if (ant.v === 'as' || ant.v === 'do') return true
+  return tokens[k - 2]?.tipo === 'ident' && tokens[k - 2].v === 'language' && tokens[k - 3]?.tipo === 'ident' && tokens[k - 3].v === 'do'
 }
 
 /**
@@ -429,6 +556,18 @@ export function executesSuspeitosFuncaoRel(corpo) {
  */
 function aplicarComandoFuncao(tk, sql, arquivo, vivas, falhar) {
   const p0 = nomeDeToken(tk[0])
+  const ehDdlDeFuncao =
+    (p0 === 'create' && (nomeDeToken(tk[1]) === 'function' || (tk[1]?.v === 'or' && tk[2]?.v === 'replace' && nomeDeToken(tk[3]) === 'function'))) ||
+    ((p0 === 'drop' || p0 === 'alter') && PALAVRAS_DE_FUNCAO.has(nomeDeToken(tk[1])))
+  // Identificador com escape Unicode (`U&"\0072el_x"`, com ou sem UESCAPE) — revisão final da F60.
+  // O léxico não o decodifica (vira `u` + `&` + identificador citado), então o nome real é
+  // desconhecido: um `rename to U&"…"` levava uma função SEM recorte para dentro do prefixo rel_
+  // sem falha, e um `drop function U&"…"(…)` deixava a rel_* viva no replay. Falha fechada em todo
+  // DDL de função — a trava não pula o nome que não lê.
+  if (ehDdlDeFuncao && tk.some((t, i) => t.tipo === 'ident' && t.v === 'u' && tk[i + 1]?.tipo === 'op' && tk[i + 1].v.startsWith('&'))) {
+    falhar(tk[0].ini, `DDL de função com identificador em escape Unicode (U&"…") — o replay não decodifica o nome e não sabe se ele é rel_*; escreva o nome por extenso`)
+    return true
+  }
   if (p0 === 'create') return criarFuncao(tk, sql, arquivo, vivas, falhar)
   const palavra = nomeDeToken(tk[1])
   if (!PALAVRAS_DE_FUNCAO.has(palavra)) return false
@@ -480,13 +619,20 @@ function criarFuncao(tk, sql, arquivo, vivas, falhar) {
   }
   const def = defs[defs.length - 1]
   const argumentos = argumentosComNome(def.texto)
-  const dollar = lexarPrimeiroDollar(def.texto)
-  const chave = assinaturaDe(q.schema, q.nome, def.tipos)
+  const corpo = corpoDaDefinicao(def.texto)
+  if (corpo === null) {
+    falhar(tk[0].ini, `"create function ${q.nome}" sem corpo legível depois de "as" ($…$ ou '…') — a trava não julga o que não lê`)
+    return true
+  }
+  // A identidade: os tipos dos argumentos que NÃO são `out` (o Postgres os ignora na assinatura),
+  // na forma canônica. `def.tipos` e `argumentos` saem do mesmo texto; os argumentos trazem o modo.
+  const tiposDaIdentidade = argumentos.length === def.tipos.length ? def.tipos.filter((_, k) => argumentos[k].modo !== 'out') : def.tipos
+  const chave = assinaturaDe(q.schema, q.nome, tiposDaIdentidade)
   vivas.set(chave, {
     esquema: q.schema,
     nome: q.nome,
     argumentos,
-    corpo: dollar,
+    corpo,
     definicao: def.texto,
     arquivo,
     linha: linhaDe(sql, tk[0].ini),
@@ -494,10 +640,29 @@ function criarFuncao(tk, sql, arquivo, vivas, falhar) {
   return true
 }
 
-function lexarPrimeiroDollar(textoCreate) {
+/**
+ * O CORPO de um `create function`: o literal (`$…$` ou `'…'`) que vem logo depois do `as` de
+ * NÍVEL ZERO de parênteses — nunca um literal da lista de argumentos (`default $d$…$d$`), de
+ * `returns table (…)` ou de `set <guc> = $x$…$x$`. Revisão final da F60: a versão anterior pegava o
+ * PRIMEIRO `$…$` do comando, e um `default` com texto-isca antes do corpo fazia a mesa aprovar a
+ * isca enquanto o corpo de verdade, depois do `as`, nunca era lido. `null` quando não há corpo
+ * legível (a função vira falha fechada em quem chama).
+ * @param {string} textoCreate
+ * @returns {string|null}
+ */
+function corpoDaDefinicao(textoCreate) {
   const { tokens } = lexar(textoCreate)
-  const t = tokens.find((tk) => tk.tipo === 'dollar')
-  return t ? t.v : ''
+  let prof = 0
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]
+    if (t.tipo === 'punct' && t.v === '(') prof++
+    else if (t.tipo === 'punct' && t.v === ')') prof--
+    else if (prof === 0 && t.tipo === 'ident' && t.v === 'as') {
+      const prox = tokens[i + 1]
+      if (prox && (prox.tipo === 'dollar' || prox.tipo === 'str')) return prox.v
+    }
+  }
+  return null
 }
 
 function dropFuncao(tk, sql, arquivo, vivas, falhar, palavra) {
@@ -519,10 +684,17 @@ function dropFuncao(tk, sql, arquivo, vivas, falhar, palavra) {
     const relevante = PREFIXO_REL.test(q.nome)
     if (relevante) {
       algumRelevante = true
-      const tipos = args ? tiposDaListaTexto(args.texto) : []
-      const chave = assinaturaDe(q.schema, q.nome, tipos)
-      if (!vivas.delete(chave) && !seExiste) {
-        falhar(tk[0].ini, `drop ${palavra} de uma rel_* que o replay não conhece (${chave}) — o Postgres recusaria`)
+      if (args) {
+        const chave = assinaturaDe(q.schema, q.nome, tiposDaListaTexto(args.texto))
+        if (!vivas.delete(chave) && !seExiste) {
+          falhar(tk[0].ini, `drop ${palavra} de uma rel_* que o replay não conhece (${chave}) — o Postgres recusaria`)
+        }
+      } else {
+        const { ambigua, chave } = chavePorNomeUnico(vivas, q.schema, q.nome, falhar, tk[0].ini, `drop ${palavra}`)
+        if (chave) vivas.delete(chave)
+        else if (!ambigua && !seExiste) {
+          falhar(tk[0].ini, `drop ${palavra} de uma rel_* que o replay não conhece (${q.schema}.${q.nome}, sem lista de argumentos) — o Postgres recusaria`)
+        }
       }
     }
     if (tk[j]?.tipo === 'punct' && tk[j].v === ',') {
@@ -544,13 +716,30 @@ function alterFuncao(tk, sql, arquivo, vivas, falhar, palavra) {
   if (!q) return false
   const args = tiposEntreParenteses(tk, q.prox, sql)
   j = args ? args.prox : q.prox
-  const tipos = args ? tiposDaListaTexto(args.texto) : []
-  const chaveOrigem = assinaturaDe(q.schema, q.nome, tipos)
   const origemRel = PREFIXO_REL.test(q.nome)
+  let tipos = args ? tiposDaListaTexto(args.texto) : []
+  let chaveOrigem = assinaturaDe(q.schema, q.nome, tipos)
+  if (!args && origemRel) {
+    // `alter function rel_x rename to …` sem lista de argumentos: o nome único resolve (revisão
+    // final da F60, o mesmo caso do `drop`).
+    const { ambigua, chave } = chavePorNomeUnico(vivas, q.schema, q.nome, falhar, tk[0].ini, `alter ${palavra}`)
+    if (ambigua) return true
+    if (chave) {
+      chaveOrigem = chave
+      tipos = chave.slice(chave.indexOf('(') + 1, -1).split(',').filter((t) => t !== '')
+    }
+  }
 
   // rename to <novo>
-  if (tk[j]?.v === 'rename' && tk[j + 1]?.v === 'to' && nomeDeToken(tk[j + 2]) !== null && j + 3 === tk.length) {
-    const novoNome = nomeDeToken(tk[j + 2])
+  if (tk[j]?.v === 'rename' && tk[j + 1]?.v === 'to') {
+    // O destino tem de ser UM identificador legível. Revisão final da F60: `rename to U&"\0072el_x"`
+    // (três tokens) não casava a forma e caía no "irrelevante" abaixo — uma função sem recorte
+    // entrava no prefixo rel_ em silêncio. Destino ilegível reprova, venha a origem de onde vier.
+    const novoNome = j + 3 === tk.length ? nomeDeToken(tk[j + 2]) : null
+    if (novoNome === null) {
+      falhar(tk[0].ini, `alter ${palavra} ${chaveOrigem} rename to <destino que o replay não lê> — a trava não sabe se o nome novo é rel_*; escreva o destino como um identificador simples`)
+      return true
+    }
     const destinoRel = PREFIXO_REL.test(novoNome)
     if (!origemRel && destinoRel) {
       // FALHA FECHADA (escolha da spec, a mais estrita): renomear de FORA do
@@ -617,8 +806,8 @@ export function checarR1(argumentos) {
 // R2 / R3 — a ligação exata e a conjunção direta (busca FLAT sobre os tokens)
 // -----------------------------------------------------------------------------
 
-const ENDERS_CLAUSULA = new Set([
-  'and',
+/** Palavras que, logo DEPOIS da ligação, fecham a cláusula dela (além de `and`, `)` e `,`). */
+const FIM_DE_CLAUSULA = new Set([
   'group',
   'order',
   'limit',
@@ -633,15 +822,74 @@ const ENDERS_CLAUSULA = new Set([
   'inner',
   'full',
   'cross',
+  'natural',
   'where',
+  'having',
+  'on',
   'returning',
+  'fetch',
+  'for',
 ])
+
+/** Onde uma conjunção direta pode começar. */
+const ABRE_CLAUSULA = new Set(['where', 'on', 'having'])
+
+/** Palavras de junção que também são nome de função (`left(x, 3)`): seguidas de `(`, não são junção. */
+const TAMBEM_NOME_DE_FUNCAO = new Set(['left', 'right'])
+
+/**
+ * Palavras que, no caminho da ligação até o COMEÇO da cláusula, provam que ela não é conjunção
+ * direta dessa cláusula: um `or` (a precedência do `and` torna a ligação opcional), ou o sinal de
+ * que o caminho saiu da expressão booleana (lista do `select`, `case`, junção…).
+ */
+const QUEBRA_A_ESQUERDA = new Set([
+  'or',
+  'select',
+  'from',
+  'case',
+  'when',
+  'then',
+  'else',
+  'join',
+  'left',
+  'right',
+  'inner',
+  'full',
+  'cross',
+  'natural',
+  'lateral',
+  'group',
+  'order',
+  'limit',
+  'offset',
+  'window',
+  'union',
+  'intersect',
+  'except',
+  'returning',
+  'using',
+  'values',
+  'into',
+  'set',
+])
+
+/** O mesmo, no caminho da ligação até o FIM da cláusula (`case … end` inteiro é pulado antes). */
+const QUEBRA_A_DIREITA = new Set(['or', 'select', 'from', 'when', 'then', 'else', 'end', 'values', 'into', 'set'])
 
 const PALAVRAS_ANTES_DE_GRUPO = new Set(['and', 'or', 'not', 'where', 'having', 'on'])
 const PALAVRAS_QUE_REPROVAM_GRUPO = new Set(['case', 'when', 'then', 'else', 'select'])
 
 function ehIdentTok(t) {
   return t && (t.tipo === 'ident' || t.tipo === 'qident')
+}
+
+/** Palavra-chave: só `ident` (um `"where"` citado é nome, não cláusula). */
+function ehPalavra(t, ...palavras) {
+  return t?.tipo === 'ident' && (palavras.length === 0 || palavras.includes(t.v))
+}
+
+function ehPunct(t, v) {
+  return t?.tipo === 'punct' && t.v === v
 }
 
 function valorTok(t) {
@@ -661,16 +909,127 @@ function fecharGrupo(tk, idxAbre) {
   return -1
 }
 
+/** Índice do `(` que abre o `)` em `tk[idxFecha]`. */
+function abrirGrupo(tk, idxFecha) {
+  let prof = 0
+  for (let j = idxFecha; j >= 0; j--) {
+    if (tk[j].tipo === 'punct' && tk[j].v === ')') prof++
+    else if (tk[j].tipo === 'punct' && tk[j].v === '(') {
+      prof--
+      if (prof === 0) return j
+    }
+  }
+  return -1
+}
+
+/** O `case` do `end` em `tk[idxEnd]`, na mesma profundidade de parênteses (grupos pulados). */
+function caseDoEnd(tk, idxEnd) {
+  let prof = 0
+  for (let j = idxEnd; j >= 0; j--) {
+    if (ehPunct(tk[j], ')')) {
+      j = abrirGrupo(tk, j)
+      if (j === -1) return -1
+      continue
+    }
+    if (ehPunct(tk[j], '(')) return -1
+    if (ehPalavra(tk[j], 'end')) prof++
+    else if (ehPalavra(tk[j], 'case')) {
+      prof--
+      if (prof === 0) return j
+    }
+  }
+  return -1
+}
+
+/** O `end` do `case` em `tk[idxCase]`, na mesma profundidade de parênteses (grupos pulados). */
+function endDoCase(tk, idxCase) {
+  let prof = 0
+  for (let j = idxCase; j < tk.length; j++) {
+    if (ehPunct(tk[j], '(')) {
+      j = fecharGrupo(tk, j)
+      if (j === -1) return -1
+      continue
+    }
+    if (ehPunct(tk[j], ')')) return -1
+    if (ehPalavra(tk[j], 'case')) prof++
+    else if (ehPalavra(tk[j], 'end')) {
+      prof--
+      if (prof === 0) return j
+    }
+  }
+  return -1
+}
+
+/** `from` de `is [not] distinct from` não é a cláusula FROM. */
+const ehFromDeDistinct = (tk, i) => ehPalavra(tk[i], 'from') && ehPalavra(tk[i - 1], 'distinct')
+
+/**
+ * Anda da ligação para a ESQUERDA, na mesma profundidade, até o começo da cláusula: `where`/`on`/
+ * `having` (`{ tipo: 'clausula' }`) ou o `(` de um grupo que a contém (`{ tipo: 'grupo' }`). Grupos
+ * inteiros e `case … end` são pulados. Devolve `null` quando o caminho cruza um `or` ou sai da
+ * expressão booleana.
+ */
+function limiteEsquerdo(tk, inicio) {
+  for (let i = inicio - 1; i >= 0; i--) {
+    const t = tk[i]
+    if (t.tipo === 'punct') {
+      if (t.v === ')') {
+        i = abrirGrupo(tk, i)
+        if (i === -1) return null
+        continue
+      }
+      if (t.v === '(') return { tipo: 'grupo', idx: i }
+      if (t.v === ',' || t.v === ';') return null
+      continue
+    }
+    if (t.tipo !== 'ident') continue
+    if (ABRE_CLAUSULA.has(t.v)) return { tipo: 'clausula', idx: i }
+    if (t.v === 'end') {
+      i = caseDoEnd(tk, i)
+      if (i === -1) return null
+      continue
+    }
+    if (ehFromDeDistinct(tk, i)) continue
+    if (TAMBEM_NOME_DE_FUNCAO.has(t.v) && ehPunct(tk[i + 1], '(')) continue
+    if (QUEBRA_A_ESQUERDA.has(t.v)) return null
+  }
+  return null
+}
+
+/** O espelho de `limiteEsquerdo`: até o fim da cláusula (`{ tipo: 'clausula'|'grupo'|'fim' }`) ou `null`. */
+function limiteDireito(tk, fim) {
+  for (let i = fim + 1; i < tk.length; i++) {
+    const t = tk[i]
+    if (t.tipo === 'punct') {
+      if (t.v === '(') {
+        i = fecharGrupo(tk, i)
+        if (i === -1) return null
+        continue
+      }
+      if (t.v === ')') return { tipo: 'grupo', idx: i }
+      if (t.v === ',' || t.v === ';') return { tipo: 'clausula', idx: i }
+      continue
+    }
+    if (t.tipo !== 'ident') continue
+    if (t.v === 'case') {
+      i = endDoCase(tk, i)
+      if (i === -1) return null
+      continue
+    }
+    if (ehFromDeDistinct(tk, i)) continue
+    if (TAMBEM_NOME_DE_FUNCAO.has(t.v) && ehPunct(tk[i + 1], '(')) continue
+    if (FIM_DE_CLAUSULA.has(t.v)) return { tipo: 'clausula', idx: i }
+    if (QUEBRA_A_DIREITA.has(t.v)) return null
+  }
+  return { tipo: 'fim', idx: tk.length }
+}
+
 /**
  * Acha, a partir do índice `k` de uma ocorrência de `p_filiais`, se ela está na
  * forma `<colref> = any ( p_filiais )` (R2). Devolve o span `[inicioColref,
  * fechaAny]` (índices de token, inclusive), mais o NOME da coluna e o
  * QUALIFICADOR (o `ident` antes do `.`, ou `null` se `<colref>` for um `ident`
- * solto) — usados pelo R4 (`colunaValida`) para provar que a ligação é de fato
- * sobre a coluna de filial, não sobre um identificador qualquer que só POR
- * COINCIDÊNCIA satisfaz a forma sintática (achado "Furo 3" da revisão
- * adversarial, F60: um `join` decorativo filtrando `mov.id` em vez de
- * `mov.filial_id`) — ou `null` se a forma não casar.
+ * solto) — ou `null` se a forma não casar.
  */
 function casarLigacao(tk, k) {
   if (!(tk[k - 1]?.tipo === 'punct' && tk[k - 1].v === '(')) return null
@@ -695,44 +1054,57 @@ function casarLigacao(tk, k) {
 
 /**
  * R3 — a comparação `[inicio, fim]` é conjunção direta de `where`/`on`/`having`?
- * Recursivo: se o token antes é `(`, o GRUPO inteiro precisa satisfazer a mesma
- * regra, e o `(` não pode ser chamada de função nem `case/when/then/else/select`.
+ *
+ * Revisão final da F60 (achados "precedência do or"): a versão anterior olhava só o token VIZINHO
+ * de cada lado — `and` bastava. Como o `and` liga mais forte que o `or`, `where x or y and
+ * col = any (p_filiais)` é `x or (y and …)`, e `where col = any (p_filiais) and true or true` é
+ * `(… and true) or true`: a ligação fica opcional e nulo/vazio devolve tudo, com a mesa verde.
+ * Agora o vizinho imediato continua exigido (`and`/`where`/`on`/`having`/`(` antes; `and`/`)`/`,`/
+ * fim de cláusula depois — o que barra `not`, operador e cast colados), E a varredura anda até o
+ * limite REAL da cláusula nos dois sentidos, na mesma profundidade, pulando grupos e `case … end`:
+ * um `or` no caminho reprova. Se o limite à esquerda é um `(`, o grupo inteiro precisa fechar
+ * exatamente no limite à direita e ser, ele mesmo, conjunção direta (recursivo), e o `(` não pode
+ * ser chamada de função nem `case/when/then/else/select`.
  */
 function ehConjuncaoDireta(tk, inicio, fim) {
   const antes = tk[inicio - 1]
   const depois = tk[fim + 1]
-
-  const antesClausula = ehIdentTok(antes) && ['where', 'on', 'having', 'and'].includes(valorTok(antes))
-  const antesAbreGrupo = antes?.tipo === 'punct' && antes.v === '('
-  if (!antesClausula && !antesAbreGrupo) return false
-
+  const antesOk = ehPalavra(antes, 'where', 'on', 'having', 'and') || ehPunct(antes, '(')
+  if (!antesOk) return false
   const depoisOk =
     depois === undefined ||
-    (depois.tipo === 'punct' && depois.v === ')') ||
-    (ehIdentTok(depois) && ENDERS_CLAUSULA.has(valorTok(depois)))
+    ehPunct(depois, ')') ||
+    ehPunct(depois, ',') ||
+    (depois.tipo === 'ident' && (depois.v === 'and' || FIM_DE_CLAUSULA.has(depois.v)))
   if (!depoisOk) return false
 
-  if (antesClausula) return true
+  const esq = limiteEsquerdo(tk, inicio)
+  const dir = limiteDireito(tk, fim)
+  if (!esq || !dir) return false
+  if (esq.tipo === 'clausula') return true
 
-  const idxAbre = inicio - 1
-  const preAbre = tk[idxAbre - 1]
-  if (ehIdentTok(preAbre)) {
-    const v = valorTok(preAbre)
-    if (PALAVRAS_QUE_REPROVAM_GRUPO.has(v)) return false
-    if (!PALAVRAS_ANTES_DE_GRUPO.has(v)) return false // identificador solto = chamada de função
+  // O limite à esquerda é um `(`: o grupo tem de fechar exatamente onde a varredura à direita parou.
+  if (dir.tipo !== 'grupo' || fecharGrupo(tk, esq.idx) !== dir.idx) return false
+  const preAbre = tk[esq.idx - 1]
+  if (preAbre?.tipo === 'qident') return false // "fn"(…) é chamada de função
+  if (preAbre?.tipo === 'ident') {
+    if (PALAVRAS_QUE_REPROVAM_GRUPO.has(preAbre.v)) return false
+    if (!PALAVRAS_ANTES_DE_GRUPO.has(preAbre.v)) return false // identificador solto = chamada de função
   }
-  const idxFecha = fecharGrupo(tk, idxAbre)
-  if (idxFecha === -1) return false
-  return ehConjuncaoDireta(tk, idxAbre, idxFecha)
+  return ehConjuncaoDireta(tk, esq.idx, dir.idx)
 }
 
 /**
  * Todas as ocorrências de `p_filiais` num corpo, julgadas por R2+R3.
+ *
+ * Revisão final da F60: referência POSICIONAL (`$1`, `$2`…) reprova por R2. Numa função `language
+ * sql` ela é o próprio argumento — `where … or $1 is null` é o nulo-é-tudo com outra grafia —, e a
+ * trava só enxerga o parâmetro de recorte pelo nome. Nenhuma `rel_*` viva usa `$n`.
  * @param {string} corpo
  * @returns {{
  *   ok: boolean,
  *   ocorrencias: number,
- *   passantes: { inicioColref: number, fechaAny: number, onde: number }[],
+ *   passantes: { inicioColref: number, fechaAny: number, onde: number, coluna: string, qualificador: string|null }[],
  *   falhas: { pos: number, motivo: string }[],
  * }}
  */
@@ -745,6 +1117,13 @@ export function ligacoesDoParametro(corpo) {
 
   for (let k = 0; k < tk.length; k++) {
     const t = tk[k]
+    if (t.tipo === 'param') {
+      falhas.push({
+        pos: t.ini,
+        motivo: `referência posicional "${t.v}" no corpo — numa função sql ela pode ser o próprio p_filiais fora da forma exata; use o nome do parâmetro (R2)`,
+      })
+      continue
+    }
     if (!((t.tipo === 'ident' && t.v === 'p_filiais') || (t.tipo === 'qident' && t.v.toLowerCase() === 'p_filiais'))) continue
     ocorrencias++
     const lig = casarLigacao(tk, k)
@@ -758,7 +1137,7 @@ export function ligacoesDoParametro(corpo) {
     if (!ehConjuncaoDireta(tk, lig.inicioColref, lig.fechaAny)) {
       falhas.push({
         pos: t.ini,
-        motivo: 'a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção, negação ou cláusula errada no caminho (R3)',
+        motivo: 'a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por precedência do and sobre o or), negação ou cláusula errada no caminho (R3)',
       })
       continue
     }
@@ -771,9 +1150,83 @@ export function ligacoesDoParametro(corpo) {
 // -----------------------------------------------------------------------------
 // R4 — escopo das leituras (o nível do total)
 // -----------------------------------------------------------------------------
+//
+// A COBERTURA É POR TABELA, NÃO POR ESCOPO (revisão final da F60). Até a revisão, um escopo inteiro
+// ficava "coberto" quando QUALQUER ligação válida aparecia em QUALQUER lugar dele, e isso deixava
+// passar três famílias de fail-open, medidas:
+//   · a ligação no `on` de um LEFT/RIGHT/FULL JOIN — ela não filtra o lado PRESERVADO, e com
+//     p_filiais nulo o lado preservado sai inteiro (`ativos a left join filiais f on … and f.id =
+//     any (p_filiais)`);
+//   · a junção decorativa — `movimentacoes m cross join filiais f where f.id = any (p_filiais)`
+//     (ou `cross join ativos a where a.filial_id = any (…)`): a tabela coberta não tem relação
+//     nenhuma com a outra;
+//   · a correlação decidida só pelo NOME do alias, sem saber se a tabela derivada é `lateral` nem
+//     se o alias foi redeclarado por dentro (sombreamento).
+// A decisão da F60 que recusou a cobertura por tabela (docs/DECISOES.md) tinha um motivo certo —
+// `rel_resumo_filiais` lê `ativos`/`filiais` por JOIN de chave primária a partir de `movimentacoes`
+// recortada, sem repetir o filtro — e esse motivo é o que a regra de PROPAGAÇÃO abaixo preserva.
+//
+// A REGRA, por ramo de `select`:
+//   1. Cada entrada do FROM (tabela, CTE, derivada, função) sabe COMO entrou: base, vírgula, inner,
+//      cross, left, right, full — e se é `lateral`. Junção entre parênteses, chamada de função que
+//      lê tabela e `from` repetido reprovam como ilegíveis (falha fechada).
+//   2. Uma ligação passante (R2+R3) cobre a entrada do seu QUALIFICADOR quando a coluna é
+//      `filial_id`, ou `id` da tabela `filiais`. No where/having e no `on` de inner/cross, cobre
+//      qualquer entrada até ali; no `on` de LEFT JOIN, só a entrada juntada (o lado que pode
+//      sumir); no de RIGHT JOIN, só as anteriores; no de FULL JOIN, nada. Ligação sem qualificador
+//      só cobre quando o FROM tem uma entrada só.
+//   3. A cobertura PROPAGA por igualdade de CHAVE entre dois aliases — `x.id = y.<algo>_id`, `x.id =
+//      y.id` ou `x.filial_id = y.filial_id`, conjunção direta —: no where/having e no `on` de inner,
+//      nos dois sentidos; no `on` de LEFT JOIN, só do lado preservado para a entrada juntada; no de
+//      RIGHT JOIN, só da entrada juntada para as anteriores; no de FULL JOIN, não propaga.
+//   4. Uma derivada `lateral` (inner/cross/vírgula) COBERTA cobre as entradas anteriores cujo
+//      `filial_id` ela lê — é a filial CALCULADA do as-of (`corpos-novos.sql §7`).
+//   5. Um escopo filho herda cobertura só pela mesma igualdade de chave com um alias COBERTO de fora:
+//      derivada `lateral` vê as entradas anteriores do FROM e os ancestrais; derivada não-lateral só
+//      os ancestrais; `exists`/`in` no where/having/on veem o escopo e os ancestrais; CTE, lista do
+//      select, group/order/limit/… nunca herdam. O alias local SOMBREIA o de fora.
+//   6. Toda tabela-base não coberta, fora de `TABELAS_SEM_FILIAL`, é violação.
+//
+// E O RESULTADO TEM DE DEPENDER DO RECORTE (a regra positiva do fato 7, NULL e '{}' → nada): cada
+// ramo do select de topo precisa de UMA destas — ligação no where/having; entrada coberta que não
+// seja o lado nulável de uma junção externa; CTE ou derivada não-nulável que dependa do recorte; ou
+// a guarda `exists (<subconsulta que depende do recorte>)` como conjunção direta do where/having.
+// Sem isso, `itens i left join lancamentos_item l on … and l.filial_id = any (p_filiais)` devolve o
+// catálogo inteiro com p_filiais nulo — é exatamente o que a guarda `exists` de
+// `rel_mov_itens_filiais` (0143) impede, e agora a mesa sabe disso.
+//
+// LIMITE DECLARADO (não é prova semântica): uma coluna CALCULADA que se chame `filial_id` numa
+// lateral é aceita pela regra 4 como a filial calculada do as-of — a mesa não prova o que a
+// expressão calcula. Quem prova o resultado das oito vivas é o roteiro `f60_recorte.sql` (1a–1h).
 
 const CLAUSULAS_TOPO = new Set(['from', 'where', 'group', 'having', 'order', 'limit', 'offset', 'window', 'fetch', 'for'])
-const JUNCAO = new Set(['join', 'inner', 'left', 'right', 'full', 'outer', 'cross', 'natural', 'lateral', 'only'])
+const PALAVRAS_DE_JUNCAO = new Set(['join', 'inner', 'left', 'right', 'full', 'outer', 'cross', 'natural', 'lateral'])
+
+/**
+ * Funções de conjunto do catálogo que não leem tabela — as únicas aceitas no FROM (sem esquema ou
+ * com `pg_catalog.`). Qualquer outra chamada de função no FROM é ilegível para o R4: a mesa não lê
+ * o que ela lê por dentro (revisão final da F60: `union all select * from public.le_tudo()` passava).
+ */
+const FUNCOES_DE_FROM_SEM_LEITURA = new Set([
+  'unnest',
+  'generate_series',
+  'generate_subscripts',
+  'jsonb_array_elements',
+  'jsonb_array_elements_text',
+  'json_array_elements',
+  'json_array_elements_text',
+  'jsonb_each',
+  'jsonb_each_text',
+  'json_each',
+  'json_each_text',
+  'jsonb_to_record',
+  'jsonb_to_recordset',
+  'json_to_record',
+  'json_to_recordset',
+  'regexp_split_to_table',
+  'regexp_matches',
+  'string_to_table',
+])
 
 function ehInicioSelect(tk, i) {
   return ehIdentTok(tk[i]) && ['select', 'with', 'values'].includes(valorTok(tk[i]))
@@ -810,13 +1263,17 @@ const ehSubselectGrupo = (g) => ehGrupo(g) && ehInicioSelect(g.itens, 0)
  * Separa os itens (já sem o `select`/`with` inicial) nas clausulas de topo,
  * preservando SIBLINGS de `union`/`intersect`/`except` como ramos distintos.
  * Cada bloco de `resto` carrega sua CLÁUSULA (`where`/`having`/`group`/`order`/
- * `limit`/`offset`/`window`/`fetch`/`for`) — antes do reparo desta revisão, os
- * nove eram um blob só e uma subconsulta em GROUP BY/ORDER BY (que a spec
- * proíbe expressamente de herdar) era tratada como se estivesse em WHERE
- * (achado 1 da revisão adversarial, "revisor catálogo", F60).
- * @returns {{ ramos: { alvo: any[], from: any[]|null, resto: {clausula:string, itens:any[]}[] }[] }}
+ * `limit`/`offset`/`window`/`fetch`/`for`) — uma subconsulta em GROUP BY/ORDER BY
+ * nunca herda (achado 1 da revisão adversarial, "revisor catálogo", F60).
+ *
+ * Revisão final da F60: `is [not] distinct from` não abre cláusula (antes, o `from` dele virava um
+ * bloco de resto e ESCONDIA as junções seguintes do FROM), e um segundo `from` de verdade no mesmo
+ * ramo é ilegível — nunca um bloco que ninguém lê como leitura de tabela.
+ * @param {any[]} itens
+ * @param {string[]} ilegiveis acumulador
+ * @returns {{ alvo: any[], from: any[]|null, resto: {clausula:string, itens:any[]}[] }[]}
  */
-function segmentarComUniao(itens) {
+function segmentarComUniao(itens, ilegiveis) {
   const ramos = []
   let atualAlvo = []
   let atualFrom = null
@@ -833,27 +1290,35 @@ function segmentarComUniao(itens) {
 
   for (let i = 0; i < itens.length; i++) {
     const it = itens[i]
-    if (ehIdentTok(it) && ['union', 'intersect', 'except'].includes(valorTok(it))) {
+    if (ehPalavra(it, 'union', 'intersect', 'except')) {
       fecharRamo()
       let j = i + 1
-      if (ehIdentTok(itens[j]) && valorTok(itens[j]) === 'all') j++
-      if (ehInicioSelect(itens, j) && valorTok(itens[j]) === 'select') {
+      if (ehPalavra(itens[j], 'all', 'distinct')) j++
+      if (ehPalavra(itens[j], 'select')) {
         i = j // o próximo item processado é o token depois de "select"
         continue
       }
-      // ramo não-select (ex.: values, ou outro select composto) — trata os
-      // itens restantes do ramo como alvo cru; R4 não filtra tabela aqui.
+      // ramo entre parênteses ou `values` — o R4 não lê a forma: falha fechada.
+      ilegiveis.push('ramo de union/intersect/except que não começa com "select" — o R4 não lê a forma; escreva o ramo como select simples')
       continue
     }
-    if (ehIdentTok(it) && CLAUSULAS_TOPO.has(valorTok(it))) {
-      if (valorTok(it) === 'from' && atualFrom === null) {
-        atualFrom = []
-        atual = atualFrom
-      } else {
-        const bloco = { clausula: valorTok(it), itens: [] }
-        atualResto.push(bloco)
-        atual = bloco.itens
+    if (ehPalavra(it) && CLAUSULAS_TOPO.has(it.v)) {
+      if (it.v === 'from' && ehPalavra(itens[i - 1], 'distinct')) {
+        atual.push(it)
+        continue
       }
+      if (it.v === 'from') {
+        if (atualFrom === null) {
+          atualFrom = []
+          atual = atualFrom
+        } else {
+          ilegiveis.push('"from" repetido no mesmo select — o R4 não lê a forma')
+        }
+        continue
+      }
+      const bloco = { clausula: it.v, itens: [] }
+      atualResto.push(bloco)
+      atual = bloco.itens
       continue
     }
     atual.push(it)
@@ -870,88 +1335,128 @@ function lerCadeiaItens(itens, i) {
     partes.push(itens[j + 1])
     j += 2
   }
-  return { nome: partes.map(valorTok).join('.'), ultima: valorTok(partes.at(-1)), prox: j }
+  return { nome: partes.map(valorTok).join('.'), ultima: valorTok(partes.at(-1)), prox: j, qualificado: partes.length > 1 }
+}
+
+/** O alias (e a lista de colunas `x(a, b)`) depois de uma entrada do FROM — devolve o novo índice. */
+function lerAlias(itens, i, entrada) {
+  if (ehPalavra(itens[i], 'as')) i++
+  const t = itens[i]
+  const ehReservada = ehPalavra(t) && (PALAVRAS_DE_JUNCAO.has(t.v) || ['on', 'using', 'only'].includes(t.v))
+  if (ehIdentTok(t) && !ehReservada) {
+    entrada.alias = valorTok(t)
+    i++
+    if (ehGrupo(itens[i]) && !ehSubselectGrupo(itens[i])) i++ // lista de colunas do alias
+  }
+  return i
 }
 
 /**
- * Lê o FROM de um ramo: tabelas-base (nome, alias — exceto nome de CTE visível,
- * que não é leitura de tabela-base), tabelas derivadas/laterais (grupo select —
- * vira escopo filho ELEGÍVEL a herdar) e chamadas de função (ignoradas). A
- * condição de `on` é INTEIRAMENTE pulada aqui (ela não é FROM — é procurada por
- * `temLigacaoPropria` direto nos itens crus do `from`, por fora desta função) —
- * sem isso, "t.filial_id = any(p_filiais) and …" seria lido token a token como
- * se cada identificador fosse uma nova tabela (o defeito medido nesta sessão).
+ * Lê o FROM de um ramo em ENTRADAS, cada uma com o tipo (`tabela`/`cte`/`derivada`/`funcao`), o
+ * alias, a junção por que entrou (`base`, `virgula`, `inner`, `cross`, `left`, `right`, `full`,
+ * `desconhecida`), a marca `lateral` e os itens da condição `on`.
  * @param {any[]} itens
  * @param {Set<string>} nomesCte
+ * @param {string[]} ilegiveis acumulador
  */
-function lerFromLocal(itens, nomesCte) {
+function lerFromLocal(itens, nomesCte, ilegiveis) {
   const entradas = []
+  let palavras = []
+  let virgula = false
+
+  const novaEntrada = (e) => {
+    let juncao
+    if (entradas.length === 0) juncao = 'base'
+    else if (virgula) juncao = 'virgula'
+    else if (palavras.includes('full')) juncao = 'full'
+    else if (palavras.includes('left')) juncao = 'left'
+    else if (palavras.includes('right')) juncao = 'right'
+    else if (palavras.includes('cross')) juncao = 'cross'
+    else if (palavras.includes('join')) juncao = 'inner'
+    else juncao = 'desconhecida'
+    if (juncao === 'desconhecida') ilegiveis.push(`entrada do FROM sem junção reconhecível antes de "${e.nome ?? e.alias ?? 'subconsulta'}" — o R4 não lê a forma`)
+    e.juncao = juncao
+    e.lateral = palavras.includes('lateral')
+    e.natural = palavras.includes('natural')
+    e.on = null
+    entradas.push(e)
+    palavras = []
+    virgula = false
+  }
+
   let i = 0
   while (i < itens.length) {
     const it = itens[i]
-    if (it?.tipo === 'punct' && it.v === ',') {
+    if (ehPunct(it, ',')) {
+      virgula = true
       i++
       continue
     }
-    if (ehIdentTok(it) && JUNCAO.has(valorTok(it))) {
+    if (ehPalavra(it) && PALAVRAS_DE_JUNCAO.has(it.v) && !(TAMBEM_NOME_DE_FUNCAO.has(it.v) && ehGrupo(itens[i + 1]))) {
+      palavras.push(it.v)
       i++
       continue
     }
-    if (ehIdentTok(it) && valorTok(it) === 'on') {
-      // pula a condição INTEIRA, até a próxima vírgula ou palavra de junção do
-      // FROM (a mesma régua de `predicado-policies.mjs::lerFrom`) — um `grupo`
-      // aninhado já é opaco aqui, então uma vírgula DENTRO de uma chamada de
-      // função na condição não interrompe a varredura por engano.
+    if (ehPalavra(it, 'only')) {
       i++
-      while (i < itens.length && !(itens[i]?.tipo === 'punct' && itens[i].v === ',') && !(ehIdentTok(itens[i]) && JUNCAO.has(valorTok(itens[i])))) {
+      continue
+    }
+    if (ehPalavra(it, 'on')) {
+      // a condição INTEIRA, até a próxima vírgula ou palavra de junção do FROM — um `grupo`
+      // aninhado é opaco, então vírgula dentro de chamada de função não interrompe a varredura.
+      i++
+      const condicao = []
+      while (
+        i < itens.length &&
+        !ehPunct(itens[i], ',') &&
+        !(ehPalavra(itens[i]) && PALAVRAS_DE_JUNCAO.has(itens[i].v) && !(TAMBEM_NOME_DE_FUNCAO.has(itens[i].v) && ehGrupo(itens[i + 1])))
+      ) {
+        condicao.push(itens[i])
         i++
       }
+      if (entradas.length > 0) entradas.at(-1).on = condicao
       continue
     }
-    if (ehIdentTok(it) && valorTok(it) === 'using' && ehGrupo(itens[i + 1])) {
-      i += 2
+    if (ehPalavra(it, 'using') && ehGrupo(itens[i + 1])) {
+      i += 2 // igualdade implícita — não propaga cobertura (a mesa não sabe de que lado vem a coluna)
       continue
     }
     if (ehGrupo(it)) {
       if (ehSubselectGrupo(it)) {
-        // O ALIAS é capturado (não só pulado) porque o R4 precisa dele para
-        // duas coisas novas desta revisão: resolver o QUALIFICADOR de uma
-        // ligação `<alias>.id = any (p_filiais)` até a tabela real (a exceção
-        // de `filiais.id`, abaixo) e reconhecer CORRELAÇÃO (`referenciaAlgumAlias`)
-        // — sem o alias, uma tabela derivada/lateral herdava cobertura só por
-        // estar "por perto" do escopo coberto, sem nenhuma relação com ele
-        // (achados "Furo 2"/"Furo 3" da revisão adversarial, F60).
-        const entradaDerivada = { tipo: 'derivada', grupo: it, alias: null }
-        entradas.push(entradaDerivada)
-        i++
-        if (ehIdentTok(itens[i]) && valorTok(itens[i]) === 'as') i++
-        if (ehIdentTok(itens[i]) && !JUNCAO.has(valorTok(itens[i])) && valorTok(itens[i]) !== 'on') {
-          entradaDerivada.alias = valorTok(itens[i])
-          i++
-        }
+        const e = { tipo: 'derivada', grupo: it, alias: null }
+        novaEntrada(e)
+        i = lerAlias(itens, i + 1, e)
+      } else if (ehPalavra(it.itens[0], 'table') && ehIdentTok(it.itens[1]) && lerCadeiaItens(it.itens, 1).prox === it.itens.length) {
+        // `(table public.movimentacoes) m` é `select * from public.movimentacoes` — leitura de
+        // tabela como outra qualquer (revisão final da F60: era "pulada com segurança").
+        const c = lerCadeiaItens(it.itens, 1)
+        const ehCte = !c.qualificado && nomesCte.has(c.ultima)
+        const e = ehCte ? { tipo: 'cte', nome: c.ultima, alias: c.ultima } : { tipo: 'tabela', nome: c.ultima, nomeCompleto: c.nome, alias: c.ultima }
+        novaEntrada(e)
+        i = lerAlias(itens, i + 1, e)
       } else {
-        i++ // junção entre parênteses — não esperado nos corpos desta fase; ignora com segurança
+        ilegiveis.push('junção ou expressão entre parênteses no FROM — o R4 não lê a forma; escreva as junções sem parênteses')
+        i++
       }
       continue
     }
     if (ehIdentTok(it)) {
-      const { nome, ultima, prox } = lerCadeiaItens(itens, i)
-      if (ehGrupo(itens[prox])) {
-        i = prox + 1 // chamada de função no FROM — não é leitura de tabela-base
+      const c = lerCadeiaItens(itens, i)
+      if (ehGrupo(itens[c.prox])) {
+        const doCatalogo = !c.qualificado || c.nome.startsWith('pg_catalog.')
+        if (!(doCatalogo && FUNCOES_DE_FROM_SEM_LEITURA.has(c.ultima))) {
+          ilegiveis.push(`chamada de função no FROM ("${c.nome}(…)") — o R4 não lê o que ela lê por dentro; leia as tabelas no próprio corpo`)
+        }
+        const e = { tipo: 'funcao', nome: c.ultima, alias: c.ultima }
+        novaEntrada(e)
+        i = lerAlias(itens, c.prox + 1, e)
         continue
       }
-      const ehCte = nomesCte.has(ultima)
+      const ehCte = !c.qualificado && nomesCte.has(c.ultima)
       // alias por omissão = o próprio nome da tabela/CTE, como o Postgres resolve.
-      const entradaFrom = ehCte
-        ? { tipo: 'cte', nome: ultima, alias: ultima }
-        : { tipo: 'tabela', nome: ultima, nomeCompleto: nome, alias: ultima }
-      entradas.push(entradaFrom)
-      i = prox
-      if (ehIdentTok(itens[i]) && valorTok(itens[i]) === 'as') i++
-      if (ehIdentTok(itens[i]) && !JUNCAO.has(valorTok(itens[i])) && valorTok(itens[i]) !== 'on') {
-        entradaFrom.alias = valorTok(itens[i])
-        i++
-      }
+      const e = ehCte ? { tipo: 'cte', nome: c.ultima, alias: c.ultima } : { tipo: 'tabela', nome: c.ultima, nomeCompleto: c.nome, alias: c.ultima }
+      novaEntrada(e)
+      i = lerAlias(itens, c.prox, e)
       continue
     }
     i++
@@ -960,244 +1465,308 @@ function lerFromLocal(itens, nomesCte) {
 }
 
 /**
- * A coluna de uma ligação passante é de fato a coluna do RECORTE, ou só
- * coincide sintaticamente com a forma `<colref> = any (p_filiais)` sem ser
- * semanticamente uma coluna de filial ("Furo 3" da revisão adversarial, F60:
- * `mov.id = any (p_filiais)` — um JOIN decorativo cujo comparador não tem
- * NADA a ver com filial, mas casa R2/R3 igualzinho a `mov.filial_id`)?
- *
- * A régua: o nome da coluna precisa ser `filial_id` (a convenção universal do
- * banco — 976 ocorrências nas migrations, contra zero de qualquer variante
- * como `filial`/`id_filial`), OU o nome pode ser `id` quando — e só quando —
- * o QUALIFICADOR resolve, dentro do MESMO escopo onde a ligação está escrita,
- * para a própria tabela `filiais` (o padrão-guarda do módulo B/D da spec:
- * `where exists (select 1 from public.filiais f where f.id = any (p_filiais))`
- * — ali `f.id` É o identificador da filial, não um substituto qualquer).
- *
- * Sem esta régua, R2/R3 aceitam QUALQUER `<colref>` — inclusive `mov.id`,
- * `ativo.numero_serie` (se fosse smallint) ou qualquer outra coluna que só por
- * COINCIDÊNCIA de tipo compile contra `smallint[]` — e o R4 (que só olha "há
- * uma ligação passante neste escopo?", nunca QUAL coluna) trata isso como
- * cobertura plena do escopo inteiro. Fechado aqui, na origem, em vez de tentar
- * modelar "cobertura por tabela" (que quebraria o padrão LEGÍTIMO, também
- * medido nesta revisão, de `rel_resumo_filiais`: `movimentacoes` recorta por
- * `m.filial_id`, e `ativos`/`filiais` entram por JOIN de chave primária sem
- * precisar repetir o filtro — a garantia ali é a igualdade de chave, não uma
- * segunda comparação; ver docs/DECISOES.md, decisão F60).
- * @param {{ coluna: string, qualificador: string|null }} lig
- * @param {Map<string,string>} aliasParaTabela alias → tabela, NESTE escopo
- */
-function colunaValida(lig, aliasParaTabela) {
-  if (!lig) return false
-  if (lig.coluna === 'filial_id') return true
-  if (lig.coluna === 'id' && lig.qualificador && aliasParaTabela.get(lig.qualificador) === 'filiais') return true
-  return false
-}
-
-/**
- * Varre um conjunto de itens (podendo conter grupos) buscando ocorrências
- * PASSANTES de `p_filiais` — que já passaram R2+R3 (`posicoesPassantes`) E cuja
- * coluna é de fato a do recorte (`colunaValida`) — que pertencem DIRETAMENTE a
- * este nível — não dentro de um grupo que é ele mesmo uma subquery (essas
- * formam escopo próprio e são tratadas por quem chama), mas SIM dentro de um
- * grupo de agrupamento comum (parênteses booleanos) e dentro de argumentos de
- * EXISTS/IN cujo conteúdo já foi decidido pertencer a outro escopo — por isso
- * este walker só entra em grupos NÃO-select.
+ * As CONJUNÇÕES DIRETAS de uma condição (itens aninhados): divide no `and` de topo — o de
+ * `between … and …` e os de dentro de `case … end` não contam —, abre grupos que são, eles mesmos,
+ * conjunção pura, e devolve NADA quando há `or` de topo (nenhuma parte é garantida).
  * @param {any[]} itens
- * @param {Set<number>} posicoesPassantes posições (ini) de ocorrências que já
- *   passaram R2+R3 em toda a função (calculado uma vez, globalmente)
- * @param {Map<string, {coluna:string, qualificador:string|null}>} posicaoParaLigacao
- * @param {Map<string,string>} aliasParaTabela alias → tabela, NESTE escopo
- * @returns {boolean} true se achou ao menos uma ocorrência passante e válida neste nível
+ * @returns {any[][]}
  */
-function temLigacaoPropria(itens, posicoesPassantes, posicaoParaLigacao, aliasParaTabela) {
-  let achou = false
+function conjuncoesDiretas(itens) {
+  const partes = []
+  let atual = []
+  let between = false
+  let casos = 0
   for (const it of itens) {
-    if (ehGrupo(it)) {
-      if (ehSubselectGrupo(it)) continue // escopo próprio — não desce
-      if (temLigacaoPropria(it.itens, posicoesPassantes, posicaoParaLigacao, aliasParaTabela)) achou = true
-      continue
-    }
-    if ((it.tipo === 'ident' && it.v === 'p_filiais') || (it.tipo === 'qident' && it.v.toLowerCase() === 'p_filiais')) {
-      if (posicoesPassantes.has(it.ini) && colunaValida(posicaoParaLigacao.get(it.ini), aliasParaTabela)) achou = true
-    }
-  }
-  return achou
-}
-
-/**
- * Uma referência de coluna QUALIFICADA (`<alias>.<coluna>`) em `itens` aponta
- * para algum alias em `aliasesVisiveis`? Usada para exigir CORRELAÇÃO antes de
- * herdar cobertura do pai — sem isso, um `exists (select ... de qualquer
- * tabela, sem relação nenhuma com o pai)` herdava cobertura só por estar
- * sintaticamente dentro de um `where` coberto ("Furo 2" da revisão
- * adversarial, F60), e o mesmo valia para uma tabela derivada solta no FROM
- * ("Furo 3"). O `cross join lateral` legítimo (`corpos-novos.sql §7`)
- * continua passando porque ele de fato CORRELACIONA — a lateral interna lê
- * `m.ativo_id = a.id`, uma referência qualificada ao alias externo `a`.
- * @param {any[]} itens
- * @param {Set<string>} aliasesVisiveis
- */
-function referenciaAlgumAlias(itens, aliasesVisiveis) {
-  if (aliasesVisiveis.size === 0) return false
-  for (let i = 0; i < itens.length; i++) {
-    const it = itens[i]
-    if (ehGrupo(it)) {
-      if (referenciaAlgumAlias(it.itens, aliasesVisiveis)) return true
-      continue
-    }
-    if (ehIdentTok(it) && itens[i + 1]?.tipo === 'punct' && itens[i + 1].v === '.' && ehIdentTok(itens[i + 2])) {
-      if (aliasesVisiveis.has(valorTok(it))) return true
-    }
-  }
-  return false
-}
-
-/**
- * Extrai, recursivamente, os ESCOPOS de `select` de um corpo — cada um com suas
- * tabelas-base lidas e se está coberto (R4), respeitando herança (from/lateral,
- * where/on/having-exists/in — SÓ quando correlacionada, ver `referenciaAlgumAlias`)
- * e não-herança (CTE, lista do select/group/order, e agora também group/order/
- * limit/offset/window/fetch/for — ver `ambiente.nomesCte`/`segmentarComUniao`).
- * @param {any[]} itensSelect itens de UM `select` (sem o `select` inicial em si,
- *   já sem `with`), i.e. o corpo INTEIRO da consulta a partir do primeiro token
- *   depois de `select`/`with … select`.
- * @param {{ herdaDoPai: boolean, coberturaDoPai: boolean }} contexto
- * @param {Set<number>} posicoesPassantes
- * @param {{ nome: string, coberto: boolean, tabelas: string[] }[]} saida acumulador
- * @param {{ nomesCte: Set<string>, aliasesAncestrais: Set<string>, posicaoParaLigacao: Map<number,any> }} ambiente
- */
-function processarEscopo(itensAPartirDoSelect, contexto, posicoesPassantes, saida, ambiente) {
-  const { nomesCte, aliasesAncestrais, posicaoParaLigacao } = ambiente
-  // itensAPartirDoSelect começa DEPOIS do "select" (já consumido por quem chama).
-  const ramos = segmentarComUniao(itensAPartirDoSelect)
-  for (const ramo of ramos) {
-    const entradasFrom = ramo.from ? lerFromLocal(ramo.from, nomesCte) : []
-    const tabelasBase = entradasFrom.filter((e) => e.tipo === 'tabela').map((e) => e.nome)
-    const derivadas = entradasFrom.filter((e) => e.tipo === 'derivada')
-
-    // alias → tabela, só das tabelas-base DESTE escopo (para resolver a exceção
-    // `filiais.id` de `colunaValida`); aliases DESTE escopo (tabela, derivada
-    // OU cte) — para saber quem uma subquery filha pode correlacionar.
-    const aliasParaTabela = new Map(entradasFrom.filter((e) => e.tipo === 'tabela' && e.alias).map((e) => [e.alias, e.nome]))
-    const aliasesDesteEscopo = new Set(entradasFrom.filter((e) => e.alias).map((e) => e.alias))
-    const aliasesVisiveisDaqui = new Set([...aliasesAncestrais, ...aliasesDesteEscopo])
-    const ambienteFilho = { nomesCte, aliasesAncestrais: aliasesVisiveisDaqui, posicaoParaLigacao }
-
-    // ligação própria: no FROM (nas condições ON, que ficam misturadas nos
-    // itens do from — cobertas por temLigacaoPropria também), no WHERE e no
-    // HAVING deste ramo.
-    const proprioNoFrom = ramo.from ? temLigacaoPropria(ramo.from, posicoesPassantes, posicaoParaLigacao, aliasParaTabela) : false
-    const proprioNoResto = ramo.resto.some((bloco) => temLigacaoPropria(bloco.itens, posicoesPassantes, posicaoParaLigacao, aliasParaTabela))
-    const selfCoberto = proprioNoFrom || proprioNoResto
-
-    const coberto = selfCoberto || (contexto.herdaDoPai && contexto.coberturaDoPai)
-
-    saida.push({ tabelas: tabelasBase, coberto })
-
-    // tabelas derivadas/laterais no FROM: escopo filho que HERDA esta cobertura
-    // SÓ quando correlacionada a um alias visível (ancestral ou deste próprio
-    // FROM) — nunca de graça. Os subselects DENTRO de cada derivada são
-    // achados por ela mesma quando recursamos (não pela busca solta abaixo,
-    // que exclui o que já é derivada).
-    for (const d of derivadas) {
-      const itensSemSelect = d.grupo.itens.slice(1) // remove o token "select"/"with"
-      const correlacionada = referenciaAlgumAlias(d.grupo.itens, aliasesVisiveisDaqui)
-      processarEscopo(itensSemSelect, { herdaDoPai: correlacionada, coberturaDoPai: coberto }, posicoesPassantes, saida, ambienteFilho)
-    }
-
-    // subqueries em WHERE/HAVING/ON via exists()/in(): herdam esta cobertura
-    // SÓ quando (a) vêm de fato envolvidas por exists()/in() — a forma que a
-    // spec descreve, não qualquer subconsulta solta na cláusula — E (b) são
-    // CORRELACIONADAS a um alias visível. GROUP BY/ORDER BY/LIMIT/OFFSET/
-    // WINDOW/FETCH/FOR NUNCA entram aqui (ver o bloco seguinte) — antes do
-    // reparo, os nove tipos de cláusula vinham misturados num só balde e uma
-    // subconsulta em ORDER BY herdava como se estivesse em WHERE (achado 1 da
-    // revisão "revisor catálogo", F60).
-    const gruposDeDerivadas = new Set(derivadas.map((d) => d.grupo))
-    const blocosOndeHaving = ramo.resto.filter((b) => b.clausula === 'where' || b.clausula === 'having').map((b) => b.itens)
-    for (const bloco of [...blocosOndeHaving, ramo.from ?? []]) {
-      for (const achado of acharSubselectsSoltosComContexto(bloco, gruposDeDerivadas)) {
-        const itensSemSelect = achado.grupo.itens.slice(1)
-        const elegivel = achado.wrapper !== null && referenciaAlgumAlias(achado.grupo.itens, aliasesVisiveisDaqui)
-        processarEscopo(itensSemSelect, { herdaDoPai: elegivel, coberturaDoPai: coberto }, posicoesPassantes, saida, ambienteFilho)
-      }
-    }
-
-    // subquery em GROUP BY/ORDER BY/LIMIT/OFFSET/WINDOW/FETCH/FOR: NUNCA herda
-    // (a mesma régua da lista do SELECT) — a spec fala expressamente de
-    // "group by/order by" e o defeito medido cobria os outros cinco também.
-    const blocosSemHeranca = ramo.resto.filter((b) => !(b.clausula === 'where' || b.clausula === 'having')).map((b) => b.itens)
-    for (const bloco of blocosSemHeranca) {
-      for (const sub of acharSubselectsSoltos(bloco, gruposDeDerivadas)) {
-        const itensSemSelect = sub.itens.slice(1)
-        processarEscopo(itensSemSelect, { herdaDoPai: false, coberturaDoPai: false }, posicoesPassantes, saida, ambienteFilho)
-      }
-    }
-
-    // subquery na lista do SELECT (alvo): NUNCA herda.
-    for (const sub of acharSubselectsSoltos(ramo.alvo, gruposDeDerivadas)) {
-      const itensSemSelect = sub.itens.slice(1)
-      processarEscopo(itensSemSelect, { herdaDoPai: false, coberturaDoPai: false }, posicoesPassantes, saida, ambienteFilho)
-    }
-  }
-}
-
-/**
- * Acha, dentro de uma lista de itens (podendo ter grupos comuns aninhados), todo
- * grupo-select que NÃO é uma "derivada" de FROM já tratada por `lerFromLocal`
- * (essas ficam em `excluir`, por identidade de objeto) — usado para
- * select-list/group/order/limit/offset/window/fetch/for, onde todo OUTRO
- * grupo-select achado é subquery e NUNCA herda. Não desce dentro de um
- * grupo-select achado — o corpo dele pertence ao ESCOPO FILHO, processado
- * recursivamente por quem chama, não a este nível.
- */
-function acharSubselectsSoltos(itens, excluir = new Set()) {
-  const achados = []
-  const andar = (lista) => {
-    for (const it of lista) {
-      if (ehGrupo(it)) {
-        if (ehSubselectGrupo(it)) {
-          if (!excluir.has(it)) achados.push(it)
-        } else {
-          andar(it.itens)
+    if (ehPalavra(it)) {
+      if (it.v === 'case') casos++
+      else if (it.v === 'end' && casos > 0) casos--
+      else if (casos === 0) {
+        if (it.v === 'or') return []
+        if (it.v === 'between') between = true
+        else if (it.v === 'and') {
+          if (between) between = false
+          else {
+            partes.push(atual)
+            atual = []
+            continue
+          }
         }
       }
     }
+    atual.push(it)
   }
-  andar(itens)
-  return achados
+  partes.push(atual)
+  const saida = []
+  for (const p of partes) {
+    if (p.length === 1 && ehGrupo(p[0]) && !ehSubselectGrupo(p[0])) saida.push(...conjuncoesDiretas(p[0].itens))
+    else if (p.length > 0) saida.push(p)
+  }
+  return saida
+}
+
+const ehTokenPFiliais = (t) => (t?.tipo === 'ident' && t.v === 'p_filiais') || (t?.tipo === 'qident' && t.v.toLowerCase() === 'p_filiais')
+
+/** A conjunção é uma ligação passante (`[q.]col = any (p_filiais)`, já aprovada por R2+R3)? */
+function lerLigacaoConjuncao(p, posicoesPassantes) {
+  const n = p.length
+  const g = p[n - 1]
+  if (!ehGrupo(g) || g.itens.length !== 1 || !ehTokenPFiliais(g.itens[0]) || !posicoesPassantes.has(g.itens[0].ini)) return null
+  if (!ehPalavra(p[n - 2], 'any') || !(p[n - 3]?.tipo === 'op' && p[n - 3].v === '=')) return null
+  if (n === 6 && ehIdentTok(p[0]) && ehPunct(p[1], '.') && ehIdentTok(p[2])) return { qualificador: valorTok(p[0]), coluna: valorTok(p[2]) }
+  if (n === 4 && ehIdentTok(p[0])) return { qualificador: null, coluna: valorTok(p[0]) }
+  return null
+}
+
+/** A conjunção é uma igualdade `a.x = b.y` entre dois aliases? */
+function lerIgualdadeConjuncao(p) {
+  if (p.length !== 7) return null
+  const ok =
+    ehIdentTok(p[0]) && ehPunct(p[1], '.') && ehIdentTok(p[2]) && p[3]?.tipo === 'op' && p[3].v === '=' && ehIdentTok(p[4]) && ehPunct(p[5], '.') && ehIdentTok(p[6])
+  return ok ? { a: valorTok(p[0]), colA: valorTok(p[2]), b: valorTok(p[4]), colB: valorTok(p[6]) } : null
+}
+
+/** A igualdade é de CHAVE (a que liga linha a linha, não por coincidência de valor)? */
+function ehIgualdadeDeChave(colA, colB) {
+  const fk = (c) => c === 'id' || c.endsWith('_id')
+  return (colA === 'id' && fk(colB)) || (colB === 'id' && fk(colA)) || (colA === 'filial_id' && colB === 'filial_id')
 }
 
 /**
- * A mesma varredura de `acharSubselectsSoltos`, mas para WHERE/HAVING/ON —
- * aqui cada achado também diz se veio imediatamente precedido de `exists`/`in`
- * (o `wrapper`) na MESMA lista onde apareceu — só essa forma é elegível a
- * herdar cobertura (módulo B da spec: "numa condição where/on/having (exists,
- * in) de um escopo COBERTO"); uma subconsulta ESCALAR solta no meio do WHERE
- * (`and (select max(x) from y) > 100`), sem exists/in, não é o caso que a spec
- * descreve — vira escopo próprio, como select-list.
+ * A coluna da ligação é a do RECORTE da entrada? `filial_id` (a convenção universal do banco), ou
+ * `id` quando a entrada é a própria tabela `filiais` (o padrão-guarda `where exists (select 1 from
+ * public.filiais f where f.id = any (p_filiais))`) — "Furo 3" da revisão adversarial: `mov.id =
+ * any (p_filiais)` casa R2/R3 e não é filial nenhuma.
  */
-function acharSubselectsSoltosComContexto(itens, excluir = new Set()) {
+function colunaValida(lig, entrada) {
+  if (lig.coluna === 'filial_id') return true
+  return lig.coluna === 'id' && entrada.tipo === 'tabela' && entrada.nome === 'filiais'
+}
+
+/** Referências qualificadas `alias.coluna` em qualquer profundidade de `itens`. */
+function referenciasQualificadas(itens, saida = []) {
+  for (let i = 0; i < itens.length; i++) {
+    const it = itens[i]
+    if (ehGrupo(it)) {
+      referenciasQualificadas(it.itens, saida)
+      continue
+    }
+    if (ehIdentTok(it) && ehPunct(itens[i + 1], '.') && ehIdentTok(itens[i + 2])) saida.push({ alias: valorTok(it), coluna: valorTok(itens[i + 2]) })
+  }
+  return saida
+}
+
+/** Os aliases que o FROM de topo de uma subconsulta declara — o que sombreia os de fora. */
+function aliasesDeclarados(grupo, nomesCte) {
+  const s = new Set()
+  for (const r of segmentarComUniao(grupo.itens.slice(1), [])) {
+    if (!r.from) continue
+    for (const e of lerFromLocal(r.from, nomesCte, [])) if (e.alias) s.add(e.alias)
+  }
+  return s
+}
+
+/**
+ * Acha, dentro de uma lista de itens (podendo ter grupos comuns aninhados), todo grupo-select que
+ * NÃO é uma derivada de FROM (essas ficam em `excluir`, por identidade de objeto), dizendo se veio
+ * imediatamente precedido de `exists`/`in` (o `wrapper`) na MESMA lista. Não desce dentro de um
+ * grupo-select achado — o corpo dele é do escopo filho.
+ */
+function acharSubselects(itens, excluir = new Set()) {
   const achados = []
   const andar = (lista) => {
     for (let i = 0; i < lista.length; i++) {
       const it = lista[i]
-      if (ehGrupo(it)) {
-        if (ehSubselectGrupo(it)) {
-          if (!excluir.has(it)) {
-            const anterior = lista[i - 1]
-            const wrapper = ehIdentTok(anterior) && ['exists', 'in'].includes(valorTok(anterior)) ? valorTok(anterior) : null
-            achados.push({ grupo: it, wrapper })
-          }
-        } else {
-          andar(it.itens)
-        }
+      if (!ehGrupo(it)) continue
+      if (ehSubselectGrupo(it)) {
+        if (excluir.has(it)) continue
+        const anterior = lista[i - 1]
+        const wrapper = ehPalavra(anterior, 'exists', 'in') ? anterior.v : null
+        achados.push({ grupo: it, wrapper })
+      } else {
+        andar(it.itens)
       }
     }
   }
   andar(itens)
   return achados
+}
+
+/**
+ * Processa um `select` (itens depois do `select`), acumulando em `ambiente.violacoes` as tabelas
+ * lidas fora do recorte e em `ambiente.ilegiveis` o que o R4 não lê. Devolve se TODO ramo depende
+ * do recorte (a regra positiva — ver o cabeçalho da seção).
+ * @param {any[]} itensAPartirDoSelect
+ * @param {{ herda: boolean, visiveis: Set<string>, cobertos: Set<string> }} contexto `visiveis`: os
+ *   aliases de fora que este escopo enxerga; `cobertos`: os que, entre eles, estão cobertos.
+ * @param {{ nomesCte: Set<string>, ctesDependentes: Map<string, boolean>, posicoesPassantes: Set<number>, ilegiveis: string[], violacoes: {tabela:string}[] }} ambiente
+ * @returns {boolean}
+ */
+function processarEscopo(itensAPartirDoSelect, contexto, ambiente) {
+  const { nomesCte, ctesDependentes, posicoesPassantes, ilegiveis, violacoes } = ambiente
+  const cobertosDeFora = contexto.herda ? contexto.cobertos : new Set()
+  let todosDependem = true
+
+  for (const ramo of segmentarComUniao(itensAPartirDoSelect, ilegiveis)) {
+    const entradas = ramo.from ? lerFromLocal(ramo.from, nomesCte, ilegiveis) : []
+    const locais = new Map()
+    entradas.forEach((e, k) => {
+      if (e.alias && !locais.has(e.alias)) locais.set(e.alias, k)
+    })
+    // O alias LOCAL sombreia o de fora; um alias que não é de ninguém não resolve.
+    const resolver = (q) => {
+      if (q === null) return entradas.length === 1 ? { local: 0 } : null
+      if (locais.has(q)) return { local: locais.get(q) }
+      if (contexto.visiveis.has(q)) return { fora: q }
+      return null
+    }
+
+    // O lado NULÁVEL de cada junção externa, ao fim da cadeia de junções.
+    const nulavel = entradas.map(() => false)
+    entradas.forEach((e, k) => {
+      if (e.juncao === 'left') nulavel[k] = true
+      else if (e.juncao === 'right') for (let j = 0; j < k; j++) nulavel[j] = true
+      else if (e.juncao === 'full') for (let j = 0; j <= k; j++) nulavel[j] = true
+    })
+
+    const blocosOnde = ramo.resto.filter((b) => b.clausula === 'where' || b.clausula === 'having')
+    /** @type {{ c: any[], k: number|null }[]} `k`: a entrada em cujo `on` a conjunção está; `null` = where/having */
+    const fatos = []
+    for (const b of blocosOnde) for (const c of conjuncoesDiretas(b.itens)) fatos.push({ c, k: null })
+    entradas.forEach((e, k) => {
+      if (e.on) for (const c of conjuncoesDiretas(e.on)) fatos.push({ c, k })
+    })
+
+    const juncaoDe = (k) => (k === null ? 'where' : entradas[k].juncao)
+    const ehInterna = (j) => ['where', 'base', 'virgula', 'inner', 'cross'].includes(j)
+
+    const cobertos = new Set()
+    let depende = false
+
+    // 2. ligações
+    for (const { c, k } of fatos) {
+      const lig = lerLigacaoConjuncao(c, posicoesPassantes)
+      if (!lig) continue
+      if (k === null) depende = true // no where/having, nulo ou vazio zera o ramo
+      const r = resolver(lig.qualificador)
+      if (!r || r.local === undefined || !colunaValida(lig, entradas[r.local])) continue
+      const j = juncaoDe(k)
+      const cobre = ehInterna(j) ? k === null || r.local <= k : j === 'left' ? r.local === k : j === 'right' ? r.local < k : false
+      if (cobre) cobertos.add(r.local)
+    }
+
+    // 3–5. propagação até parar de mudar
+    const igualdades = fatos
+      .map(({ c, k }) => ({ ig: lerIgualdadeConjuncao(c), k }))
+      .filter((x) => x.ig !== null && ehIgualdadeDeChave(x.ig.colA, x.ig.colB))
+    const lateraisLidas = entradas
+      .map((e, k) => {
+        if (e.tipo !== 'derivada' || !e.lateral || !ehInterna(e.juncao)) return null
+        const sombra = aliasesDeclarados(e.grupo, nomesCte)
+        const lidas = new Set()
+        for (const ref of referenciasQualificadas(e.grupo.itens)) {
+          if (ref.coluna !== 'filial_id' || sombra.has(ref.alias) || !locais.has(ref.alias)) continue
+          const alvo = locais.get(ref.alias)
+          if (alvo < k) lidas.add(alvo)
+        }
+        return { k, lidas }
+      })
+      .filter(Boolean)
+
+    /** A igualdade escrita em `k` leva a cobertura de `de` (local, ou `null` = de fora) para `para`? */
+    const propaga = (k, de, para) => {
+      const j = juncaoDe(k)
+      if (ehInterna(j)) return k === null || ((de === null || de <= k) && para <= k)
+      if (j === 'left') return para === k && (de === null || de < k)
+      if (j === 'right') return para < k && (de === null || de === k)
+      return false
+    }
+
+    let mudou = true
+    while (mudou) {
+      mudou = false
+      const cobrir = (idx) => {
+        if (!cobertos.has(idx)) {
+          cobertos.add(idx)
+          mudou = true
+        }
+      }
+      for (const { ig, k } of igualdades) {
+        const ra = resolver(ig.a)
+        const rb = resolver(ig.b)
+        if (!ra || !rb) continue
+        for (const [de, para] of [
+          [ra, rb],
+          [rb, ra],
+        ]) {
+          if (para.local === undefined) continue
+          if (de.local !== undefined) {
+            if (de.local !== para.local && cobertos.has(de.local) && propaga(k, de.local, para.local)) cobrir(para.local)
+          } else if (cobertosDeFora.has(de.fora) && propaga(k, null, para.local)) {
+            cobrir(para.local)
+          }
+        }
+      }
+      for (const { k, lidas } of lateraisLidas) {
+        if (!cobertos.has(k)) continue
+        for (const idx of lidas) cobrir(idx)
+      }
+    }
+
+    // 6. violações
+    entradas.forEach((e, k) => {
+      if (e.tipo === 'tabela' && !cobertos.has(k) && !TABELAS_SEM_FILIAL.includes(e.nome)) violacoes.push({ tabela: e.nome })
+    })
+
+    // a regra positiva — entrada coberta fora do lado nulável, ou CTE não-nulável que depende
+    if ([...cobertos].some((k) => !nulavel[k])) depende = true
+    if (entradas.some((e, k) => e.tipo === 'cte' && !nulavel[k] && ctesDependentes.get(e.nome) === true)) depende = true
+
+    // os escopos filhos
+    const aliasCobertos = new Set([...cobertos].map((k) => entradas[k].alias).filter(Boolean))
+    const gruposDerivadas = new Set()
+    entradas.forEach((e, k) => {
+      if (e.tipo !== 'derivada') return
+      gruposDerivadas.add(e.grupo)
+      if (!ehPalavra(e.grupo.itens[0], 'select', 'values')) {
+        ilegiveis.push('"with" dentro de subconsulta — o R4 não lê a forma; suba a CTE para o topo do corpo')
+        return
+      }
+      const anteriores = e.lateral ? entradas.slice(0, k) : []
+      const visiveis = new Set([...contexto.visiveis, ...anteriores.map((x) => x.alias).filter(Boolean)])
+      const cobertosFilho = new Set([...cobertosDeFora, ...anteriores.map((x, j) => (cobertos.has(j) ? x.alias : null)).filter(Boolean)])
+      const dependeFilho = processarEscopo(e.grupo.itens.slice(1), { herda: true, visiveis, cobertos: cobertosFilho }, ambiente)
+      if (dependeFilho && !nulavel[k]) depende = true
+    })
+
+    const visiveisSub = new Set([...contexto.visiveis, ...locais.keys()])
+    const cobertosSub = new Set([...cobertosDeFora, ...aliasCobertos])
+    const guardas = new Set(
+      fatos
+        .filter((f) => f.k === null && f.c.length === 2 && ehPalavra(f.c[0], 'exists') && ehSubselectGrupo(f.c[1]))
+        .map((f) => f.c[1]),
+    )
+    const processarSub = (grupo, herda) => {
+      if (!ehPalavra(grupo.itens[0], 'select', 'values')) {
+        ilegiveis.push('"with" dentro de subconsulta — o R4 não lê a forma; suba a CTE para o topo do corpo')
+        return false
+      }
+      return processarEscopo(grupo.itens.slice(1), { herda, visiveis: visiveisSub, cobertos: herda ? cobertosSub : new Set() }, ambiente)
+    }
+    // where/having e as condições `on` (que moram nos itens do from): exists/in herdam
+    for (const bloco of [...blocosOnde.map((b) => b.itens), ramo.from ?? []]) {
+      for (const achado of acharSubselects(bloco, gruposDerivadas)) {
+        const dependeSub = processarSub(achado.grupo, achado.wrapper !== null)
+        if (dependeSub && guardas.has(achado.grupo)) depende = true
+      }
+    }
+    // group/order/limit/offset/window/fetch/for e a lista do select: NUNCA herdam
+    for (const bloco of [...ramo.resto.filter((b) => b.clausula !== 'where' && b.clausula !== 'having').map((b) => b.itens), ramo.alvo]) {
+      for (const achado of acharSubselects(bloco, gruposDerivadas)) processarSub(achado.grupo, false)
+    }
+
+    if (!depende) todosDependem = false
+  }
+  return todosDependem
 }
 
 /**
@@ -1216,6 +1785,8 @@ function lerWith(itensAPartirDoWith) {
     if (ehGrupo(itensAPartirDoWith[i]) && !ehSubselectGrupo(itensAPartirDoWith[i])) i++ // lista de colunas opcional
     if (!(ehIdentTok(itensAPartirDoWith[i]) && valorTok(itensAPartirDoWith[i]) === 'as')) return null
     i++
+    if (ehPalavra(itensAPartirDoWith[i], 'not') && ehPalavra(itensAPartirDoWith[i + 1], 'materialized')) i += 2
+    else if (ehPalavra(itensAPartirDoWith[i], 'materialized')) i++
     if (!ehSubselectGrupo(itensAPartirDoWith[i])) return null
     ctes.push({ nome, grupo: itensAPartirDoWith[i] })
     i++
@@ -1230,51 +1801,89 @@ function lerWith(itensAPartirDoWith) {
 }
 
 /**
- * Julga R4 para um corpo: devolve `{ ok, violacoes:[{ tabela }] }`.
+ * Quantos comandos de topo há num corpo — `;` fora de parênteses separa comandos.
+ * @param {{tipo:string, v:string}[]} tokens
+ */
+function contarComandosDeTopo(tokens) {
+  let prof = 0
+  let comandos = 0
+  let noComando = false
+  for (const t of tokens) {
+    if (ehPunct(t, ';') && prof === 0) {
+      noComando = false
+      continue
+    }
+    if (!noComando) {
+      comandos++
+      noComando = true
+    }
+    if (ehPunct(t, '(')) prof++
+    else if (ehPunct(t, ')')) prof--
+  }
+  return comandos
+}
+
+/**
+ * Julga R4 para um corpo: `{ ok, violacoes: [{ tabela }], dependeDoRecorte, ilegivel? }`.
  * @param {string} corpo
- * @param {{ inicioColref: number, fechaAny: number, onde: number, coluna: string, qualificador: string|null }[]} ligacoesPassantes
+ * @param {{ onde: number }[]} ligacoesPassantes as que passaram R2+R3 (`ligacoesDoParametro`)
  */
 export function checarR4(corpo, ligacoesPassantes) {
   const { tokens } = lexar(corpo)
+  // Revisão final da F60: com mais de um comando, uma função `language sql` devolve o resultado do
+  // ÚLTIMO — e o R4, que tirava os `;` e lia tudo como um select só, julgava o primeiro (recortado)
+  // e deixava o segundo (sem recorte) escondido num bloco que ninguém lia.
+  const comandos = contarComandosDeTopo(tokens)
+  if (comandos > 1) {
+    return {
+      ok: false,
+      violacoes: [],
+      dependeDoRecorte: false,
+      ilegivel: `corpo com ${comandos} comandos — função sql devolve o resultado do ÚLTIMO, e o R4 julga um select só; escreva o corpo como um único comando`,
+    }
+  }
   const tk = tokens.filter((t) => !(t.tipo === 'punct' && t.v === ';'))
-  const posicoesPassantes = new Set(ligacoesPassantes.map((l) => l.onde))
-  const posicaoParaLigacao = new Map(ligacoesPassantes.map((l) => [l.onde, l]))
   let itens
   try {
     itens = aninharLocal(tk)
   } catch (err) {
-    return { ok: false, violacoes: [], ilegivel: err.message }
+    return { ok: false, violacoes: [], dependeDoRecorte: false, ilegivel: err.message }
   }
 
-  const saida = []
-  const ambienteBase = { nomesCte: new Set(), aliasesAncestrais: new Set(), posicaoParaLigacao }
-  if (ehIdentTok(itens[0]) && valorTok(itens[0]) === 'with') {
+  const ambiente = {
+    nomesCte: new Set(),
+    ctesDependentes: new Map(),
+    posicoesPassantes: new Set(ligacoesPassantes.map((l) => l.onde)),
+    ilegiveis: [],
+    violacoes: [],
+  }
+  const semHeranca = () => ({ herda: false, visiveis: new Set(), cobertos: new Set() })
+  let depende
+  if (ehPalavra(itens[0], 'with')) {
     const w = lerWith(itens.slice(1))
-    if (!w) return { ok: false, violacoes: [], ilegivel: 'corpo com "with" em formato que o R4 não lê' }
-    // todo nome de CTE fica visível para as OUTRAS ctes e para o select final —
-    // sem isso, "from niveis n" seria lido como leitura da tabela-base "niveis".
-    const nomesCte = new Set(w.ctes.map((c) => c.nome))
-    const ambienteComCte = { ...ambienteBase, nomesCte }
-    // cada CTE é escopo PRÓPRIO — nunca herda de ninguém.
+    if (!w) return { ok: false, violacoes: [], dependeDoRecorte: false, ilegivel: 'corpo com "with" em formato que o R4 não lê' }
+    // todo nome de CTE fica visível para as OUTRAS ctes e para o select final — sem isso, "from
+    // niveis n" seria lido como leitura da tabela-base "niveis". Cada CTE é escopo PRÓPRIO, nunca
+    // herda; e se ela DEPENDE do recorte fica anotado para quem a lê depois.
+    for (const c of w.ctes) ambiente.nomesCte.add(c.nome)
     for (const cte of w.ctes) {
-      processarEscopo(cte.grupo.itens.slice(1), { herdaDoPai: false, coberturaDoPai: false }, posicoesPassantes, saida, ambienteComCte)
+      if (!ehPalavra(cte.grupo.itens[0], 'select')) {
+        ambiente.ilegiveis.push(`CTE "${cte.nome}" que não é select simples — o R4 não lê a forma`)
+        continue
+      }
+      ambiente.ctesDependentes.set(cte.nome, processarEscopo(cte.grupo.itens.slice(1), semHeranca(), ambiente))
     }
-    processarEscopo(w.itensSelectPrincipal, { herdaDoPai: false, coberturaDoPai: false }, posicoesPassantes, saida, ambienteComCte)
-  } else if (ehIdentTok(itens[0]) && valorTok(itens[0]) === 'select') {
-    processarEscopo(itens.slice(1), { herdaDoPai: false, coberturaDoPai: false }, posicoesPassantes, saida, ambienteBase)
+    depende = processarEscopo(w.itensSelectPrincipal, semHeranca(), ambiente)
+  } else if (ehPalavra(itens[0], 'select')) {
+    depende = processarEscopo(itens.slice(1), semHeranca(), ambiente)
   } else {
-    return { ok: false, violacoes: [], ilegivel: 'corpo que não começa com "select" nem "with" — R4 não lê' }
+    return { ok: false, violacoes: [], dependeDoRecorte: false, ilegivel: 'corpo que não começa com "select" nem "with" — R4 não lê' }
   }
 
-  const violacoes = []
-  for (const escopo of saida) {
-    if (escopo.coberto) continue
-    for (const tabela of escopo.tabelas) {
-      if (TABELAS_SEM_FILIAL.includes(tabela)) continue
-      violacoes.push({ tabela })
-    }
+  if (ambiente.ilegiveis.length > 0) {
+    return { ok: false, violacoes: ambiente.violacoes, dependeDoRecorte: depende, ilegivel: [...new Set(ambiente.ilegiveis)].join('; ') }
   }
-  return { ok: violacoes.length === 0, violacoes }
+  return { ok: ambiente.violacoes.length === 0 && depende, violacoes: ambiente.violacoes, dependeDoRecorte: depende }
 }
 
 // -----------------------------------------------------------------------------
@@ -1416,14 +2025,6 @@ export function julgarRecorte({ migrations, sqlCatalogo }) {
     }
 
     const lig = ligacoesDoParametro(def.corpo)
-    if (lig.ocorrencias === 0) {
-      violacoes.push({
-        funcao,
-        regra: 'R2',
-        mensagem: `${chave} (${def.arquivo}:${def.linha}) — R2: declara "p_filiais" e não usa no corpo`,
-      })
-      continue
-    }
     if (lig.falhas.length > 0) {
       for (const f of lig.falhas) {
         const linha = linhaDe(def.definicao, f.pos)
@@ -1435,6 +2036,14 @@ export function julgarRecorte({ migrations, sqlCatalogo }) {
       }
       continue
     }
+    if (lig.ocorrencias === 0) {
+      violacoes.push({
+        funcao,
+        regra: 'R2',
+        mensagem: `${chave} (${def.arquivo}:${def.linha}) — R2: declara "p_filiais" e não usa no corpo`,
+      })
+      continue
+    }
 
     const r4 = checarR4(def.corpo, lig.passantes)
     if (r4.ilegivel) {
@@ -1442,12 +2051,15 @@ export function julgarRecorte({ migrations, sqlCatalogo }) {
       continue
     }
     if (!r4.ok) {
-      const tabelas = [...new Set(r4.violacoes.map((v) => v.tabela))].join(', ')
-      violacoes.push({
-        funcao,
-        regra: 'R4',
-        mensagem: `${chave} (${def.arquivo}:${def.linha}) — R4: lê ${tabelas} fora do recorte (escopo sem ligação própria nem herdada)`,
-      })
+      // UMA violação por função, com as duas metades do R4 quando houver as duas.
+      const partes = []
+      if (r4.violacoes.length > 0) {
+        partes.push(`lê ${[...new Set(r4.violacoes.map((v) => v.tabela))].join(', ')} fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)`)
+      }
+      if (!r4.dependeDoRecorte) {
+        partes.push('o resultado não depende do recorte — com p_filiais nulo ou vazio algum ramo do select de topo ainda devolve linhas (fato 7)')
+      }
+      violacoes.push({ funcao, regra: 'R4', mensagem: `${chave} (${def.arquivo}:${def.linha}) — R4: ${partes.join('; ')}` })
     }
   }
 

@@ -295,6 +295,39 @@ const VEREDITO_OUTRA_FUNCAO = conferirOrcamento(
 )
 const VEREDITO_ILEGIVEL = conferirOrcamento('{ "funcao": ', MIGRATIONS)
 
+// A IDENTIDADE É A DO POSTGRES, NÃO A GRAFIA (revisão final da F60). O Postgres trata `int2[]`,
+// `smallint []` e `smallint[]` — e `pg_catalog.date` e `date` — como a MESMA assinatura, e aceita
+// `drop function <nome>;` sem lista quando o nome é único. Antes da revisão, o replay montava a
+// chave com a grafia crua: um `create or replace` com outra grafia SUBSTITUÍA o as-of no banco e
+// virava uma SEGUNDA chave no replay, e o `drop` sem lista não derrubava nada — nos dois casos a
+// chave medida seguia apontando para a definição da 0143 e esta trava dava "ok" sobre um corpo que
+// o banco não tem. As sintéticas abaixo recriam o as-of com a definição viva, só trocando a grafia
+// dos tipos no cabeçalho por `create or replace` — o texto muda, então o veredito certo é "velho".
+const CABECALHO_VIVO = /create function public\.rel_estoque_asof_filiais\(\s*p_filiais\s+smallint\[\],\s*p_data\s+date\s*\)/
+const CABECALHO_OK = DEFINICAO_VIVA !== null && CABECALHO_VIVO.test(DEFINICAO_VIVA)
+function recriadaComGrafia(argumentos: string): Migration[] {
+  if (DEFINICAO_VIVA === null || !CABECALHO_OK) return MIGRATIONS
+  return [
+    ...MIGRATIONS,
+    {
+      arquivo: '9999_sintetica_orcamento_asof.sql',
+      sql: `${DEFINICAO_VIVA.replace(CABECALHO_VIVO, `create or replace function public.rel_estoque_asof_filiais(${argumentos})`)}\n`,
+    },
+  ]
+}
+const VEREDITOS_GRAFIA = (
+  [
+    ['int2[]', 'p_filiais int2[], p_data date'],
+    ['smallint []', 'p_filiais smallint [], p_data date'],
+    ['_int2', 'p_filiais _int2, p_data date'],
+    ['pg_catalog.date', 'p_filiais smallint[], p_data pg_catalog.date'],
+  ] as const
+).map(([nome, args]) => ({ nome, veredito: conferirOrcamento(TEXTO_ORCAMENTO, recriadaComGrafia(args)) }))
+const VEREDITO_DROP_SEM_LISTA = conferirOrcamento(TEXTO_ORCAMENTO, [
+  ...MIGRATIONS,
+  { arquivo: '9999_sintetica_orcamento_asof.sql', sql: 'drop function if exists public.rel_estoque_asof_filiais;\n' },
+])
+
 // -----------------------------------------------------------------------------
 
 describe('1. o estado do repositório — o corpo vivo do as-of é o corpo medido', () => {
@@ -383,5 +416,23 @@ describe('5. o arquivo tem de ser um orçamento, não um hash solto', () => {
     const tipos = vermelhos.map((v) => v?.tipo)
     expect(new Set(tipos).size, `tipos: ${tipos.join(', ')}`).toBe(vermelhos.length)
     expect(new Set(vermelhos.map((v) => v?.mensagem)).size).toBe(vermelhos.length)
+  })
+})
+
+describe('6. a identidade do as-of é a do Postgres, não a grafia (revisão final da F60)', () => {
+  it('a guarda tem sujeito: o cabeçalho vivo tem a forma que as sintéticas trocam', () => {
+    expect(CABECALHO_OK, 'o cabeçalho da definição viva mudou — reescreva CABECALHO_VIVO').toBe(true)
+  })
+
+  it.each(VEREDITOS_GRAFIA.map((v) => [v.nome, v.veredito] as const))(
+    'create or replace com %s substitui o as-of → vermelho, "velho" (antes: "ok" sobre a definição da 0143)',
+    (_nome, veredito) => {
+      expect(veredito.tipo, veredito.mensagem).toBe('velho')
+      expect(veredito.mensagem).toMatch(/9999_sintetica_orcamento_asof\.sql/)
+    },
+  )
+
+  it('drop function if exists SEM lista de argumentos → vermelho, "sem-corpo-vivo"', () => {
+    expect(VEREDITO_DROP_SEM_LISTA.tipo, VEREDITO_DROP_SEM_LISTA.mensagem).toBe('sem-corpo-vivo')
   })
 })

@@ -583,3 +583,200 @@ describe('6. ligacoesDoParametro e checarR1/checarR4 — casos unitários (sem r
     expect(r.ilegivel).toBeDefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// 7. A REVISÃO FINAL DA F60 (17/09/2026) — furos da trava medidos pela revisão adversarial e
+// confirmados por um cético, cada um com a forma que a mesa deixava passar. Toda forma que
+// reprova abaixo devolve o acervo inteiro (ou, no mínimo, linhas) com `p_filiais` nulo ou vazio,
+// ou esconde da mesa o corpo de verdade — e a mesa estava VERDE para ela. NÃO AFROUXAR: a função
+// que precisar de uma dessas formas é que se reescreve.
+// ---------------------------------------------------------------------------
+
+describe('7a. R3 julga a PRECEDÊNCIA — o `and` liga mais forte que o `or`', () => {
+  it.each([
+    ['or à esquerda de uma cadeia de and', 'select m.id from public.movimentacoes m where m.data >= current_date or true and m.filial_id = any (p_filiais);'],
+    ['or à esquerda, dois termos antes', "select m.id from public.movimentacoes m where 1 = 1 or m.tipo = 'saida' and m.filial_id = any (p_filiais);"],
+    ['or à direita, depois de um and', 'select m.id from public.movimentacoes m where m.filial_id = any (p_filiais) and true or true;'],
+    ['or à direita, com termo no meio', 'select m.id from public.movimentacoes m where m.filial_id = any (p_filiais) and m.id is not null or true;'],
+    ['no on de uma junção', 'select l.id from public.itens i join public.lancamentos_item l on l.item_id = i.id or true and l.filial_id = any (p_filiais);'],
+    ['o as-of disfarçado', 'select e.filial_id from public.ativos e where e.filial_id is not null or true and e.filial_id = any (p_filiais);'],
+    ['negação colada na ligação', "select 1 from public.movimentacoes m where m.tipo = 'x' and not m.filial_id = any (p_filiais);"],
+  ])('%s → reprova R3', (_nome, corpo) => {
+    const novas = violacoesNovas(funcaoRel('rel_f60_prec', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R3'])
+  })
+
+  it.each([
+    ['$1 is null depois da ligação', 'select m.id from public.movimentacoes m where m.filial_id = any (p_filiais) and true or $1 is null;'],
+    ['$1 is null antes da ligação', 'select m.id from public.movimentacoes m where $1 is null or true and m.filial_id = any (p_filiais);'],
+  ])('referência POSICIONAL — %s → reprova R2 (o $1) e R3 (o or)', (_nome, corpo) => {
+    const novas = violacoesNovas(funcaoRel('rel_f60_pos', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra).sort()).toEqual(['R2', 'R3'])
+    expect(novas.some((v) => /posicional "\$1"/.test(v.mensagem))).toBe(true)
+  })
+
+  it.each([
+    ['grupo que é conjunção', "select 1 from public.movimentacoes m where (m.filial_id = any (p_filiais) and m.tipo = 'x');"],
+    ['or AGRUPADO antes da ligação', "select 1 from public.movimentacoes m where (m.tipo = 'a' or m.tipo = 'b') and m.filial_id = any (p_filiais);"],
+    ['case … end com or por dentro, antes', "select 1 from public.movimentacoes m where case when m.tipo = 'a' or m.tipo = 'b' then true else false end and m.filial_id = any (p_filiais);"],
+    ['case … end com or por dentro, depois', "select 1 from public.movimentacoes m where m.filial_id = any (p_filiais) and case when m.tipo = 'a' or m.tipo = 'b' then true else false end;"],
+    ['is not distinct from no caminho', 'select 1 from public.movimentacoes m where m.estorno_de is not distinct from null and m.filial_id = any (p_filiais);'],
+    ['left()/right() são funções, não junções', "select 1 from public.movimentacoes m where left(m.tipo::text, 1) = 's' and m.filial_id = any (p_filiais) and right(m.tipo::text, 1) = 'a';"],
+  ])('%s → passa', (_nome, corpo) => {
+    expect(violacoesNovas(funcaoRel('rel_f60_prec_ok', 'p_filiais smallint[]', corpo))).toEqual([])
+  })
+})
+
+describe('7b. R4 por TABELA — junção externa, junção decorativa e correlação de verdade', () => {
+  it.each([
+    ['LEFT JOIN: a ligação no on não filtra o lado preservado (ativos)', 'select a.id from public.ativos a left join public.filiais f on f.id = a.filial_id and f.id = any (p_filiais);'],
+    ['LEFT JOIN: contagem por ativo, movimentações recortadas no on', 'select a.id, count(m.id) from public.ativos a left join public.movimentacoes m on m.ativo_id = a.id and m.filial_id = any (p_filiais) group by a.id;'],
+    ['LEFT JOIN: o recorte no on do lado juntado, preservando movimentacoes', 'select m.id from public.movimentacoes m left join public.ativos a on a.id = m.ativo_id and a.filial_id = any (p_filiais);'],
+    ['LEFT JOIN: a ligação do lado preservado dentro do on', 'select m.id from public.movimentacoes m left join public.ativos a on a.id = m.ativo_id and m.filial_id = any (p_filiais);'],
+    ['RIGHT JOIN: preserva o lado direito', 'select a.id from public.movimentacoes m right join public.ativos a on m.filial_id = any (p_filiais);'],
+    ['FULL JOIN: não restringe lado nenhum', 'select a.id from public.movimentacoes m full join public.ativos a on a.id = m.ativo_id and m.filial_id = any (p_filiais);'],
+    ['cross join decorativo com filiais', 'select distinct m.id from public.movimentacoes m cross join public.filiais f where f.id = any (p_filiais);'],
+    ['vírgula decorativa com filiais', 'select m.id from public.movimentacoes m, public.filiais f where f.id = any (p_filiais);'],
+    ['cross join decorativo com uma tabela que TEM filial_id', 'select m.id from public.movimentacoes m cross join public.ativos a where a.filial_id = any (p_filiais);'],
+    ['igualdade que não é de chave', 'select a.id from public.movimentacoes m join public.ativos a on a.categoria = m.categoria where m.filial_id = any (p_filiais);'],
+    ['(table x) no FROM é leitura de tabela', 'select m.id from public.filiais f, (table public.movimentacoes) m where f.id = any (p_filiais);'],
+    ['derivada NÃO-lateral com alias que sombreia o de fora', 'select x.id from public.filiais f, (select f.id from public.ativos f) x where f.id = any (p_filiais);'],
+    ['exists que só MENCIONA o alias de fora, sem igualdade de chave', "select a.id from public.ativos a where a.filial_id = any (p_filiais) and exists (select 1 from public.movimentacoes m where m.tipo = 'x' and a.id is not null);"],
+    ['lateral com "filial_id" constante, sem ler a filial de ninguém', 'select m.id from public.movimentacoes m cross join lateral (select 1::smallint as filial_id where m.id is not null) e where e.filial_id = any (p_filiais);'],
+    ['is not distinct from não esconde mais as junções seguintes do FROM', 'select m.id from public.movimentacoes m join public.ativos a on a.id = m.ativo_id and a.estorno_de is not distinct from m.id join public.lancamentos_item l on true where m.filial_id = any (p_filiais);'],
+  ])('%s → reprova R4', (_nome, corpo) => {
+    const novas = violacoesNovas(funcaoRel('rel_f60_r4', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R4'])
+  })
+
+  it.each([
+    ['função que lê tabela no FROM, num ramo de union', 'select null::int from public.filiais f where f.id = any (p_filiais) union all select * from public.le_tudo();'],
+    ['função no FROM com alias', 'select m.id from public.movimentacoes m cross join public.le(m.id) x where m.filial_id = any (p_filiais);'],
+    ['junção entre parênteses', 'select m.id from (public.movimentacoes m join public.ativos a on a.id = m.ativo_id) where m.filial_id = any (p_filiais);'],
+  ])('%s → reprova R4 como ILEGÍVEL (falha fechada)', (_nome, corpo) => {
+    const novas = violacoesNovas(funcaoRel('rel_f60_ileg', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R4'])
+    expect(novas[0].mensagem).toMatch(/ilegível/)
+  })
+
+  it.each([
+    ['filiais recortada e movimentacoes por chave', 'select m.id from public.filiais f join public.movimentacoes m on m.filial_id = f.id where f.id = any (p_filiais);'],
+    ['LEFT JOIN do lado juntado por chave a partir do recortado', 'select m.id, a.id from public.movimentacoes m left join public.ativos a on a.id = m.ativo_id where m.filial_id = any (p_filiais);'],
+    ['RIGHT JOIN por chave a partir do recortado', 'select m.id from public.ativos a right join public.movimentacoes m on a.id = m.ativo_id where m.filial_id = any (p_filiais);'],
+    ['vírgula com a igualdade de chave no where', 'select m.id from public.movimentacoes m, public.ativos a where a.id = m.ativo_id and m.filial_id = any (p_filiais);'],
+    ['having na coluna de filial', 'select l.filial_id, count(*) from public.lancamentos_item l group by l.filial_id having l.filial_id = any (p_filiais);'],
+    ['unnest no FROM (função do catálogo que não lê tabela)', 'select m.id from public.movimentacoes m cross join unnest(array[1, 2]) u(n) where m.filial_id = any (p_filiais);'],
+    ['in (subconsulta) correlacionada por chave', 'select m.id from public.movimentacoes m where m.filial_id = any (p_filiais) and m.ativo_id in (select a.id from public.ativos a where a.id = m.ativo_id);'],
+    ['a forma VIVA de rel_mov_itens_filiais (left join recortado + guarda exists)', 'select i.id, count(l.id) from public.itens i left join public.lancamentos_item l on l.item_id = i.id and l.filial_id = any (p_filiais) where exists (select 1 from public.filiais f where f.id = any (p_filiais)) group by i.id;'],
+  ])('%s → passa', (_nome, corpo) => {
+    expect(violacoesNovas(funcaoRel('rel_f60_r4_ok', 'p_filiais smallint[]', corpo))).toEqual([])
+  })
+})
+
+describe('7c. o resultado tem de DEPENDER do recorte (nulo ou vazio → nada)', () => {
+  it('rel_mov_itens_filiais SEM a guarda exists → reprova: o catálogo inteiro sai com p_filiais nulo', () => {
+    const corpo =
+      'select i.id, count(l.id) from public.itens i left join public.lancamentos_item l on l.item_id = i.id and l.filial_id = any (p_filiais) group by i.id;'
+    const novas = violacoesNovas(funcaoRel('rel_f60_sem_guarda', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R4'])
+    expect(novas[0].mensagem).toMatch(/não depende do recorte/)
+  })
+
+  it('NOT exists não é guarda (nulo → verdadeiro) → reprova', () => {
+    const corpo = 'select i.id from public.itens i where not exists (select 1 from public.filiais f where f.id = any (p_filiais));'
+    const novas = violacoesNovas(funcaoRel('rel_f60_not_exists', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R4'])
+    expect(novas[0].mensagem).toMatch(/não depende do recorte/)
+  })
+
+  it('um ramo de union só com vocabulário → reprova, mesmo com o outro ramo recortado', () => {
+    const corpo = 'select l.item_id from public.lancamentos_item l where l.filial_id = any (p_filiais) union all select i.id from public.itens i;'
+    const novas = violacoesNovas(funcaoRel('rel_f60_ramo_vocab', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R4'])
+    expect(novas[0].mensagem).toMatch(/não depende do recorte/)
+  })
+})
+
+describe('7d. o corpo julgado é o corpo que o Postgres executa', () => {
+  it('dois comandos (o último é o que a função devolve) → reprova R4 como ilegível, mesmo com R3 verde no primeiro', () => {
+    const corpo = 'select m.id from public.movimentacoes m where m.filial_id = any (p_filiais) order by 1; select m2.id from public.movimentacoes m2;'
+    const novas = violacoesNovas(funcaoRel('rel_f60_dois_comandos', 'p_filiais smallint[]', corpo))
+    expect(novas.map((v) => v.regra)).toEqual(['R4'])
+    expect(novas[0].mensagem).toMatch(/2 comandos/)
+    const lig = ligacoesDoParametro(corpo)
+    expect(lig.falhas).toEqual([])
+    expect(checarR4(corpo, lig.passantes).ilegivel).toMatch(/2 comandos/)
+  })
+
+  it('um default $d$…$d$ com texto-isca ANTES do corpo → a mesa lê o corpo depois do "as" (e reprova o or dele)', () => {
+    const sql =
+      'create function public.rel_f60_isca(p_filiais smallint[], p_isca text default $d$select 1 from public.movimentacoes m where m.filial_id = any (p_filiais)$d$) returns table (x uuid) language sql stable security invoker set search_path = public as $$ select m.id from public.movimentacoes m where true or m.filial_id = any (p_filiais) $$;'
+    expect(violacoesNovas(sql).map((v) => v.regra)).toEqual(['R3'])
+  })
+
+  it('corpo entre ASPAS SIMPLES também é lido', () => {
+    const sql =
+      "create function public.rel_f60_aspas(p_filiais smallint[]) returns table (x uuid) language sql stable security invoker set search_path = public as 'select m.id from public.movimentacoes m where true or m.filial_id = any (p_filiais)';"
+    expect(violacoesNovas(sql).map((v) => v.regra)).toEqual(['R3'])
+  })
+})
+
+describe('7e. o replay não pula DDL de rel_* escrito de outro jeito', () => {
+  const BS = String.fromCharCode(92)
+  it.each([
+    ['bloco do entre aspas com o nome partido por concatenação', "do 'begin execute ''create function public.re'' || ''l_f60_do(p_filiais smallint[]) returns setof int language sql as $b$ select 1 $b$''; end';"],
+    ['bloco do em E-string com o nome em escape', `do E'begin execute ${BS}'create function public.${BS}x72el_f60_do(p_filiais smallint[]) returns setof int language sql as $b$ select 1 $b$${BS}'; end';`],
+    ['função plpgsql com corpo entre aspas que monta a rel_*', "create function public.fabrica_f60() returns void language plpgsql as 'begin execute ''create function public.re'' || ''l_f60_fab() returns setof int language sql as $b$ select 1 $b$''; end';"],
+  ])('%s → falha fechada com arquivo', (_nome, sql) => {
+    const j = comSintetica(sql, '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => f.arquivo === '0200_laco_f60.sql' && /rel_/.test(f.motivo))).toBe(true)
+  })
+
+  it('texto comum que cita "execute" (comentário de função) NÃO é código e não reprova', () => {
+    const j = comSintetica("comment on function public.rel_saldo_itens_filiais(smallint[], date) is 'execute com cuidado: rel_ de itens';", '0200_laco_f60.sql')
+    expect(j.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
+  })
+
+  it.each([
+    ['rename para U&"…" (o nome real não é lido)', 'alter function public.x_sem_recorte_f60() rename to U&"\\0072el_x_f60";'],
+    ['drop de U&"…"', 'drop function U&"\\0072el_saldo_itens_filiais"(smallint[], date);'],
+  ])('identificador em escape Unicode — %s → falha fechada', (_nome, ddl) => {
+    const sql = [
+      'create function public.x_sem_recorte_f60() returns table (x int) language sql stable security invoker set search_path = public as $$ select 1 from public.movimentacoes m; $$;',
+      ddl,
+    ].join('\n')
+    const j = comSintetica(sql, '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => f.arquivo === '0200_laco_f60.sql' && /U&/.test(f.motivo))).toBe(true)
+    expect(j.vivas.has('public.rel_x_f60()')).toBe(false)
+  })
+})
+
+describe('7f. a identidade da função é a do Postgres, não a grafia', () => {
+  it.each([
+    ['int2[]', 'p_filiais int2[], p_data date'],
+    ['smallint []', 'p_filiais smallint [], p_data date'],
+    ['_int2', 'p_filiais _int2, p_data date'],
+    ['pg_catalog.date', 'p_filiais smallint[], p_data pg_catalog.date'],
+  ])('create or replace com %s SUBSTITUI a viva (não cria uma segunda chave)', (_nome, args) => {
+    const sql = `create or replace function public.rel_saldo_itens_filiais(${args}) returns table (x int) language sql stable security invoker set search_path = public as $$ select 1 from public.lancamentos_item l where l.filial_id = any (p_filiais); $$;`
+    const j = comSintetica(sql, '0200_laco_f60.sql')
+    expect(j.vivas.size).toBe(J.vivas.size)
+    expect(j.vivas.get('public.rel_saldo_itens_filiais(smallint[],date)')?.arquivo).toBe('0200_laco_f60.sql')
+  })
+
+  it('drop SEM lista de argumentos (nome único) derruba a viva', () => {
+    const j = comSintetica('drop function if exists public.rel_saldo_itens_filiais;', '0200_laco_f60.sql')
+    expect(j.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
+    expect(j.vivas.has('public.rel_saldo_itens_filiais(smallint[],date)')).toBe(false)
+    expect(j.vivas.size).toBe(J.vivas.size - 1)
+  })
+
+  it('drop SEM lista de argumentos com dois overloads vivos → falha fechada (o Postgres recusa)', () => {
+    const sql = [
+      funcaoRel('rel_saldo_itens_filiais', 'p_filiais smallint[]', 'select 1 from public.lancamentos_item l where l.filial_id = any (p_filiais);'),
+      'drop function public.rel_saldo_itens_filiais;',
+    ].join('\n')
+    const j = comSintetica(sql, '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => f.arquivo === '0200_laco_f60.sql' && /not unique/.test(f.motivo))).toBe(true)
+  })
+})
