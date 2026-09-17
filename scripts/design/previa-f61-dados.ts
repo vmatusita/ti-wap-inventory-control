@@ -370,7 +370,7 @@ export const ERROS_AVISO_PREVIA: ErroImport[] = [
 
 export const CORRECOES_APLICADAS_PREVIA: CorrecaoImport[] = [
   { op: 'substituir', campo: 'tipo', de: 'NOTE', para: 'notebook' },
-  { op: 'editar', linha: 4, campo: 'patrimonio', para: 'WAP0009981' },
+  { op: 'editar', linha: 4, campo: 'patrimonio', para: 'WAP0001244' },
 ]
 
 export const CORRECOES_POR_OP_PREVIA: number[] = [1, 1]
@@ -383,7 +383,7 @@ const REGISTRO_IMPORT_BASE: RegistroImport = {
   modelo: 'ThinkPad T14',
   fornecedor: 'Fornecedora Fictícia Ltda',
   serviceTag: 'PREV-SVC-0002',
-  patrimonio: 'WAP0009981',
+  patrimonio: 'WAP0001244',
   memoria: '16 GB',
   armazenamento: '512 GB SSD',
   processador: 'Intel Core i5',
@@ -496,7 +496,7 @@ export const LINHAS_SAIDA_PREVIA: LinhaSaida[] = [
     filial: FILIAL_AURORA.nome,
     categoria: 'celular',
     modelo: 'Samsung Galaxy A54',
-    patrimonio: 'WAP0004491',
+    patrimonio: 'WAP0001238',
     tipo: 'emprestimo',
     motivo: 'Viagem a serviço',
     chamado: null,
@@ -522,7 +522,7 @@ export const LINHAS_ENTRADA_PREVIA: LinhaEntrada[] = [
     filial: FILIAL_CERRADO_ALTO.nome,
     categoria: 'notebook',
     modelo: 'Lenovo ThinkPad T14',
-    patrimonio: 'WAP0007765',
+    patrimonio: 'WAP0001241',
     tipo: 'devolucao',
     motivo: 'Desligamento',
     colaborador: CICLANO,
@@ -537,7 +537,7 @@ export const LINHAS_ENTRADA_PREVIA: LinhaEntrada[] = [
     filial: FILIAL_DUNAS.nome,
     categoria: 'monitor',
     modelo: 'Dell 24"',
-    patrimonio: 'WAP0002210',
+    patrimonio: 'WAP0001236',
     tipo: 'compra',
     motivo: null,
     colaborador: null,
@@ -555,7 +555,7 @@ export const LINHAS_TRANSFERENCIA_PREVIA: LinhaTransferencia[] = [
     para: FILIAL_CERRADO_ALTO.nome,
     categoria: 'notebook',
     modelo: 'Dell Latitude 5420',
-    patrimonio: 'WAP0003321',
+    patrimonio: 'WAP0001237',
     chamado: '8433',
     obs: null,
     ativoId: '00000000-0000-4000-8000-000000000004',
@@ -635,7 +635,7 @@ export const SALDOS_ITEM_PERIODO_PREVIA: SaldoItemPeriodo[] = [
 
 export const MANUTENCAO_CASOS_PREVIA: ManutencaoCaso[] = [
   {
-    patrimonio: 'WAP0005512',
+    patrimonio: 'WAP0001239',
     modelo: 'HP ProBook 440',
     filial: FILIAL_CERRADO_ALTO.nome,
     chamado: '7710',
@@ -650,7 +650,7 @@ export const MANUTENCAO_CASOS_PREVIA: ManutencaoCaso[] = [
     ativoId: '00000000-0000-4000-8000-000000000005',
   },
   {
-    patrimonio: 'WAP0006623',
+    patrimonio: 'WAP0001240',
     modelo: 'Lenovo ThinkPad E14',
     filial: FILIAL_AURORA.nome,
     chamado: '7699',
@@ -668,7 +668,7 @@ export const MANUTENCAO_CASOS_PREVIA: ManutencaoCaso[] = [
 ]
 
 export const ITENS_MANUTENCAO_PREVIA: ItemManutencao[] = [
-  { patrimonio: 'WAP0005512', modelo: 'HP ProBook 440', observacao: 'Tela trincada.' },
+  { patrimonio: 'WAP0001239', modelo: 'HP ProBook 440', observacao: 'Tela trincada.' },
 ]
 
 export const ITENS_MODELO_PREVIA: ItemModelo[] = [
@@ -682,8 +682,8 @@ export const MODELOS_POR_CATEGORIA_PREVIA: ModelosPorCategoria[] = [
 ]
 
 export const ITENS_RESERVADOS_PREVIA: ItemReservado[] = [
-  { patrimonio: 'WAP0008834', modelo: 'Dell Latitude 5420', chamado: '8501' },
-  { patrimonio: 'WAP0008835', modelo: 'Dell Latitude 5420', chamado: null },
+  { patrimonio: 'WAP0001242', modelo: 'Dell Latitude 5420', chamado: '8501' },
+  { patrimonio: 'WAP0001243', modelo: 'Dell Latitude 5420', chamado: null },
 ]
 
 export const RESUMO_PERIODO_PREVIA: ResumoPeriodo = {
