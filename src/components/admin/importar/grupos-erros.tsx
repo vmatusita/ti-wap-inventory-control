@@ -4,7 +4,9 @@ import { useId, useMemo, useState } from 'react'
 import { CheckCheck, ChevronDown, ChevronRight, Eraser, Trash2, Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import {
   Select,
   SelectContent,
@@ -88,7 +90,7 @@ function LinhasContexto({
   if (regs.length === 0) return null
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <QuadroDeTabela className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead className="bg-muted/50 text-muted-foreground">
           <tr>
@@ -119,7 +121,7 @@ function LinhasContexto({
           ))}
         </tbody>
       </table>
-    </div>
+    </QuadroDeTabela>
   )
 }
 
@@ -149,7 +151,7 @@ function CardGrupo({
   const temContexto = grupo.linhas.some((l) => !!contexto[l])
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <Card className="gap-3 p-4">
       <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* F7F — três vias: bloqueante = vermelho; aviso = ÂMBAR (não cinza);
@@ -206,7 +208,7 @@ function CardGrupo({
       </div>
 
       {aberto && <LinhasContexto linhas={grupo.linhas} contexto={contexto} />}
-    </div>
+    </Card>
   )
 }
 
@@ -519,7 +521,7 @@ function LinhaPatrimonio({
   const hostnamePatrimonio = extrairPatrimonioDoHostname(reg?.hostname, prefixosPatrimonio)
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
+    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-3">
       <span className="w-14 shrink-0 text-xs text-muted-foreground tabular-nums">
         linha {linha}
       </span>
@@ -608,7 +610,7 @@ function LinhaPatrimonio({
           <Trash2 className="size-3.5" />
         </Button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -709,7 +711,7 @@ function LinhaDuplicata({
   }
 
   return (
-    <div className="space-y-2 rounded-md border p-3">
+    <Card size="sm" className="gap-2 p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground tabular-nums">
           linha {linha}
@@ -778,7 +780,7 @@ function LinhaDuplicata({
           Corrigir esta linha
         </Button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -914,7 +916,7 @@ function LinhaData({
   const ok = dataValida(valor)
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
+    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-3">
       <span className="w-14 shrink-0 text-xs text-muted-foreground tabular-nums">
         linha {linha}
       </span>
@@ -940,7 +942,7 @@ function LinhaData({
           Definir
         </Button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -967,7 +969,7 @@ function LinhaColaborador({
   const valor = rascunho[chave] ?? original
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2.5">
+    <Card size="sm" className="flex-row flex-wrap items-center gap-2 p-3">
       <span className="w-14 shrink-0 text-xs text-muted-foreground tabular-nums">
         linha {linha}
       </span>
@@ -990,7 +992,7 @@ function LinhaColaborador({
           Corrigir
         </Button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -1078,7 +1080,7 @@ export function GruposErros({
   return (
     <div className="space-y-3">
       {opsGlobais.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
+        <Card size="sm" className="flex-row flex-wrap items-center justify-between gap-2 bg-muted/40 p-3">
           <div className="min-w-0">
             <p className="text-sm font-medium">Aplicar tudo o que está pronto</p>
             <p className="text-xs text-muted-foreground">
@@ -1104,7 +1106,7 @@ export function GruposErros({
             <CheckCheck className="size-4" />
             Aplicar todas as correções ({opsGlobais.length.toLocaleString('pt-BR')})
           </Button>
-        </div>
+        </Card>
       )}
 
       {grupos.map((grupo) => {

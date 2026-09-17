@@ -21,7 +21,7 @@
 // velho. E o ACUMULADO por item também não viaja: ver o comentário do campo
 // `registrou`, abaixo, e `linhasDaConferencia` em `lib/itens/conferencia.ts`.
 
-const PREFIXO_RASCUNHO_CONFERENCIA = 'wap:itens:conferencia'
+import { chaveDeStorage } from '@/lib/escopo/chave'
 
 /**
  * A chave é POR FILIAL, e isso não é enfeite (3ª volta da revisão adversarial da
@@ -30,9 +30,12 @@ const PREFIXO_RASCUNHO_CONFERENCIA = 'wap:itens:conferencia'
  * digitada em B, o rascunho de A — que ainda tinha contagens não registradas.
  * A leitura já recusava rascunho de outra filial; era a ESCRITA que passava por
  * cima. Com um espaço por filial, as duas convivem.
+ *
+ * F61 — montada por `chaveDeStorage`, com a filial no sufixo: `wap:itens:conferencia:<id>`,
+ * byte a byte a de antes.
  */
 export function chaveRascunhoConferencia(filialId: number): string {
-  return `${PREFIXO_RASCUNHO_CONFERENCIA}:${filialId}`
+  return chaveDeStorage(`itens:conferencia:${filialId}`)
 }
 
 export type RascunhoConferencia = {

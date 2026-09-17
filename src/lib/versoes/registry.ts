@@ -23,6 +23,20 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.0',
+    data: '2026-09-17',
+    fase: 'F61',
+    titulo: 'As telas de Administração e de Relatórios entraram no padrão visual do resto do sistema',
+    mudancas: [
+      'As telas de Administração e de Relatórios passaram a usar as mesmas medidas do resto do sistema: os textos miúdos (de 10, 11 e 13 pontos) viraram um tamanho só, as caixas e as tabelas ganharam o mesmo canto arredondado e o mesmo respiro das outras telas, e as caixas de aviso passaram a ser as mesmas do app inteiro. Nenhum número, nome ou texto de tela mudou — o que mudou é a forma.',
+      'A confirmação de apagar cadastros em duplicidade (Pendências › conflitos entre filiais) passou a dizer o que está errado quando o texto digitado não confere. Antes o botão apenas ficava desabilitado, sem explicar por quê.',
+      'Os cadastros de Administração (filial, kit, motivo, item, tipo de item, colaborador e usuário) e o "Gerar relatório" passaram a abrir sempre com o que a tela mostra naquele momento: "Novo" abre em branco, e "Editar" mostra o valor atual mesmo depois de salvar e reabrir na mesma visita. Antes o formulário podia vir preenchido com o cadastro anterior, ou mostrar o valor de antes da última correção.',
+      'Os filtros das telas de Ativos e de Pendências pararam de perder uma escolha quando duas são trocadas em sequência rápida. E o filtro de filial escolhido em Itens não aparece mais sozinho ao abrir o Histórico de lançamentos.',
+      'O título da aba do navegador ficou igual em todas as telas ("… · Estoque TI WAP"). Nas duas telas de convite e de definição de senha ele dizia "Estoque TI · WAP".',
+      'O verde de "Ativo", das caixas de sucesso e das telas de conclusão passou a sair de um lugar só, com a mesma cor de antes — e agora essa cor é conferida automaticamente contra o piso de legibilidade, nos temas claro e escuro.',
+    ],
+  },
+  {
     versao: '1.65.0',
     data: '2026-09-17',
     fase: 'F60',

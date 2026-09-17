@@ -4,6 +4,7 @@ import { getOperador } from '@/lib/auth/acesso'
 import { formatDate } from '@/lib/format'
 import { VERSOES, versaoAtual } from '@/lib/versoes/registry'
 import { CreditoAutor } from '@/components/layout/credito-autor'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 import { LinkAjuda } from '@/components/layout/link-ajuda'
 import { Badge } from '@/components/ui/badge'
 
@@ -16,7 +17,7 @@ import { Badge } from '@/components/ui/badge'
 // `/relatorios/**`, e esta rota vive no grupo `(app)`.
 export const metadata = {
   title: 'Versões',
-  description: 'O que mudou em cada versão do Estoque TI WAP.',
+  description: `O que mudou em cada versão do ${identidadeDoSistema().nomeCompleto}.`,
 }
 
 // F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem
@@ -112,9 +113,16 @@ export default async function VersoesPage() {
         })}
       </ol>
 
+      {/* F61 — o nome sai da fonte única, e o crédito desligado nela não deixa o
+          separador " · " pendurado no fim da linha. */}
       <p className="border-t pt-4 text-xs text-muted-foreground">
-        Estoque TI WAP · <span className="tabular-nums">v{atual.versao}</span> ·{' '}
-        <CreditoAutor />
+        {identidadeDoSistema().nomeCompleto} · <span className="tabular-nums">v{atual.versao}</span>
+        {identidadeDoSistema().credito ? (
+          <>
+            {' '}·{' '}
+            <CreditoAutor />
+          </>
+        ) : null}
       </p>
     </div>
   )

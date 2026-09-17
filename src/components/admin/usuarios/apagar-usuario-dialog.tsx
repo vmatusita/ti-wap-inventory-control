@@ -4,8 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { ConfirmacaoDigitada } from '@/components/layout/confirmacao-digitada'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { apagarUsuario } from '@/lib/actions/dev'
-import { dicaConfirmacaoNaoConfere } from '@/lib/validators/confirmacao-digitada'
 
 // F22 — APAGAR a conta de um usuário. É a única ação IRREVERSÍVEL desta tela e é privativa
 // do cargo Desenvolvedor (a lista só monta este diálogo para um dev; a action refaz a
@@ -53,8 +51,7 @@ export function ApagarUsuarioDialog({
     email !== null && confirmacao.trim().toLowerCase() === email.trim().toLowerCase()
   // ADM-07 (F27) — dica quando o texto digitado não bate com o e-mail. A régua de
   // igualdade (trim + caixa) já era a mesma de `validarExclusaoDeUsuario` (action) —
-  // só a MENSAGEM estava faltando; antes o botão só ficava desabilitado, em silêncio.
-  const dicaConfirmacao = email !== null ? dicaConfirmacaoNaoConfere(confirmacao, confere, email) : null
+  // só a MENSAGEM estava faltando. F61 — a dica sai de `<ConfirmacaoDigitada>`.
 
   function mudarAberto(o: boolean) {
     if (!o) setConfirmacao('')
@@ -101,7 +98,7 @@ export function ApagarUsuarioDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+        <ul className="list-disc space-y-2 pl-6 text-sm text-muted-foreground">
           <li>
             A conta <strong>deixa de existir</strong> e esta pessoa{' '}
             <strong>não entra mais no sistema</strong> — não há &quot;reativar&quot; depois,
@@ -118,38 +115,30 @@ export function ApagarUsuarioDialog({
           </li>
         </ul>
 
-        <div className="space-y-2">
-          <Label htmlFor="dev-apagar-confirmacao">
-            Para confirmar, digite o e-mail da conta
-          </Label>
-          {email ? (
-            <p className="text-xs text-muted-foreground break-all">{email}</p>
-          ) : (
-            /* F29/UXG-05 — a irmã desta caixa (a dica da confirmação digitada) já
-               tinha `role="alert"`; esta ficou de fora e é a que EXPLICA por que o
-               diálogo não vai concluir. */
-            <p role="alert" className="text-xs text-destructive">
-              Não foi possível ler o e-mail desta conta agora — sem ele não dá para
-              confirmar qual conta seria apagada. Atualize a página e tente de novo.
-            </p>
-          )}
-          <Input
-            id="dev-apagar-confirmacao"
-            value={confirmacao}
-            autoComplete="off"
-            placeholder={email ?? ''}
-            onChange={(e) => setConfirmacao(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && apagar()}
-            disabled={apagando || email === null}
-            aria-invalid={!!dicaConfirmacao}
-            aria-describedby={dicaConfirmacao ? 'dev-apagar-confirmacao-dica' : undefined}
-          />
-          {dicaConfirmacao && (
-            <p id="dev-apagar-confirmacao-dica" role="alert" className="text-sm text-destructive">
-              {dicaConfirmacao}
-            </p>
-          )}
-        </div>
+        {/* F61 · decisão ii — a caixa única das quatro confirmações. O Enter continua
+            executando (só aqui), o campo continua desabilitado sem e-mail, e o aviso
+            dessa conta sem e-mail ocupa o lugar da linha do esperado. */}
+        <ConfirmacaoDigitada
+          id="dev-apagar-confirmacao"
+          rotulo="Para confirmar, digite o e-mail da conta"
+          esperado={email ?? ''}
+          aviso={
+            email ? undefined : (
+              /* F29/UXG-05 — a irmã desta caixa (a dica da confirmação digitada) já
+                 tinha `role="alert"`; esta ficou de fora e é a que EXPLICA por que o
+                 diálogo não vai concluir. */
+              <p role="alert" className="text-xs text-destructive">
+                Não foi possível ler o e-mail desta conta agora — sem ele não dá para
+                confirmar qual conta seria apagada. Atualize a página e tente de novo.
+              </p>
+            )
+          }
+          valor={confirmacao}
+          confere={confere}
+          onChange={setConfirmacao}
+          onEnter={apagar}
+          desabilitado={apagando || email === null}
+        />
 
         <DialogFooter>
           <Button

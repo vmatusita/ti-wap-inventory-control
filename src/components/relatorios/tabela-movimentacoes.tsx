@@ -20,6 +20,7 @@ import {
   PREFIXO_FILTROS,
   type CampoFiltro,
 } from '@/components/relatorios/use-filtros-tabela'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import type { MovimentacaoRelatorio } from '@/lib/relatorios/tipos'
 
 const CAMPOS: CampoFiltro[] = ['filial', 'categoria', 'tipo']
@@ -64,7 +65,7 @@ export function TabelaMovimentacoes({
           Nenhuma movimentação no período.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
               encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
               a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
@@ -102,7 +103,7 @@ export function TabelaMovimentacoes({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
     </div>
   )

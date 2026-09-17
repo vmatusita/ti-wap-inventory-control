@@ -1,3 +1,4 @@
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 import { cn } from '@/lib/utils'
 
 // Credito de autoria (F35). Componente unico, sem estado, usado nos TRES pontos
@@ -13,26 +14,33 @@ import { cn } from '@/lib/utils'
 // Cor: `text-muted-foreground` sobre `background` e sobre `card`, os dois pares
 // ja medidos e exigidos em `scripts/contraste.mjs` (bloco F29) nos dois temas.
 // NENHUM recurso externo — sem logo, sem imagem, sem fonte, sem script.
-// Constantes de MODULO, sem `export`: o credito vive nos tres pontos acima e
-// sempre por este componente. Exporta-las convidaria um quarto ponto a montar o
-// link a mao, fora do `rel="noopener noreferrer"` e da cor ja medida.
-const AUTOR = 'vmatusita'
-const SITE_AUTOR = 'https://www.vmatusita.com.br'
+//
+// F61 — O CRÉDITO SAIU DE UMA CONSTANTE PRIVADA para a fonte única da identidade
+// (`src/lib/identidade/sistema.ts`), e ficou DESLIGÁVEL: com `credito: null` lá,
+// este componente não renderiza NADA — e cada um dos três pontos (login, pé da
+// sidebar, `/versoes`) confere o mesmo `credito` antes de desenhar a moldura, o
+// separador ou a linha dele, para não sobrar órfão. O padrão continua LIGADO,
+// igual a hoje: o que exibir para outros clientes é decisão do Johnny
+// (PLANO-MULTIEMPRESA §10, item 3), e a F70 liga a fonte à configuração da empresa.
+// Continua valendo: o crédito vive nos três pontos e sempre por este componente —
+// ninguém monta o link à mão, fora do `rel` e da cor já medida.
 
 type CreditoAutorProps = {
-  /** `longa` = "Desenvolvido por vmatusita"; `curta` = so o nome (pe da sidebar). */
+  /** `longa` = "Desenvolvido por <autor>"; `curta` = so o nome (pe da sidebar). */
   variante?: 'longa' | 'curta'
   className?: string
 }
 
 export function CreditoAutor({ variante = 'longa', className }: CreditoAutorProps) {
+  const { credito } = identidadeDoSistema()
+  if (!credito) return null
   const longa = variante === 'longa'
   return (
     <a
-      href={SITE_AUTOR}
+      href={credito.site}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`Desenvolvido por ${AUTOR} — abre o site em nova aba`}
+      aria-label={`Desenvolvido por ${credito.autor} — abre o site em nova aba`}
       className={cn(
         'text-xs text-muted-foreground underline-offset-4 transition-colors',
         'hover:text-foreground hover:underline',
@@ -40,7 +48,7 @@ export function CreditoAutor({ variante = 'longa', className }: CreditoAutorProp
         className,
       )}
     >
-      {longa ? `Desenvolvido por ${AUTOR}` : AUTOR}
+      {longa ? `Desenvolvido por ${credito.autor}` : credito.autor}
     </a>
   )
 }

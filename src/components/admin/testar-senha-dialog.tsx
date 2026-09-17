@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Aviso } from '@/components/layout/aviso'
 import { testarSenhaAcesso } from '@/lib/actions/senhas'
 
 // F29/ADM-05b — "essa senha ainda é a que eu passei?".
@@ -98,23 +99,15 @@ export function TestarSenhaDialog({ id, rotulo }: { id: string; rotulo: string }
         </div>
 
         {veredito === 'confere' && (
-          <p
-            role="status"
-            className="flex items-center gap-2 rounded-md border border-green-600/40 bg-green-50 p-3 text-sm text-green-900 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
-          >
-            <Check className="size-4 shrink-0" aria-hidden />
+          <Aviso intencao="sucesso" icone={<Check className="size-4 shrink-0" aria-hidden />}>
             Confere — é esta a senha ativa deste rótulo.
-          </p>
+          </Aviso>
         )}
         {veredito === 'nao-confere' && (
-          <p
-            role="status"
-            className="flex items-center gap-2 rounded-md border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-          >
-            <X className="size-4 shrink-0" aria-hidden />
+          <Aviso intencao="atencao" icone={<X className="size-4 shrink-0" aria-hidden />}>
             Não confere. A senha deste rótulo é outra — para trocá-la, revogue esta e
             crie uma nova.
-          </p>
+          </Aviso>
         )}
 
         <DialogFooter>

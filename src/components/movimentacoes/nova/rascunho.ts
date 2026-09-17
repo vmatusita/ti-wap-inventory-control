@@ -23,7 +23,16 @@ import {
   type ItemJunto,
 } from '@/components/movimentacoes/nova/config'
 
-export const CHAVE_RASCUNHO = 'wap:mov:rascunho'
+import { chaveDeStorage } from '@/lib/escopo/chave'
+
+// F61 — a chave é MONTADA por `chaveDeStorage` (`lib/escopo/chave.ts`) no USO, e sai
+// idêntica byte a byte à literal de antes (`wap:mov:rascunho`) — nenhum rascunho ou
+// preferência gravada se perde. Função, não constante: uma constante de módulo
+// congelaria o valor, e o call-site tem de continuar igual quando a chave do escopo
+// deixar de ser fixa (virada multiempresa). Trava: `lib/escopo/chaves-de-storage.test.ts`.
+export function chaveRascunhoMovimentacao(): string {
+  return chaveDeStorage('mov:rascunho')
+}
 
 // F26 — a metade oposta do par troca/upgrade, do jeito que sobrevive no
 // storage: SO os ids (os resumos sao re-buscados, como os da metade principal)
@@ -214,7 +223,7 @@ export function lerRascunho(): Rascunho | null {
   const s = sessao()
   if (!s) return null
   try {
-    return desserializarRascunho(s.getItem(CHAVE_RASCUNHO))
+    return desserializarRascunho(s.getItem(chaveRascunhoMovimentacao()))
   } catch {
     return null
   }
@@ -224,7 +233,7 @@ export function salvarRascunho(r: Rascunho): void {
   const s = sessao()
   if (!s) return
   try {
-    s.setItem(CHAVE_RASCUNHO, JSON.stringify(r))
+    s.setItem(chaveRascunhoMovimentacao(), JSON.stringify(r))
   } catch {
     // Cota estourada / storage bloqueado: segue sem rascunho.
   }
@@ -234,7 +243,7 @@ export function limparRascunho(): void {
   const s = sessao()
   if (!s) return
   try {
-    s.removeItem(CHAVE_RASCUNHO)
+    s.removeItem(chaveRascunhoMovimentacao())
   } catch {
     // idem
   }

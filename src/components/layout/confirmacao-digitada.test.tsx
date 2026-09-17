@@ -75,3 +75,107 @@ describe('ConfirmacaoDigitada — o aria-describedby aponta para um id que exist
     expect(idsPresentes(html)).toContain('confirma-teste-dica')
   })
 })
+
+// ---- F61 · decisão ii — AS QUATRO CONFIRMAÇÕES PASSAM POR AQUI ----------------
+//
+// A mesa de conflitos era a única confirmação MUDA do sistema. Estes casos montam a
+// caixa com as props de cada uma das quatro telas e afirmam o HTML que anuncia o erro.
+// A função `anunciaOErro` é a mesma pergunta que a sabotagem F faz a uma variante SEM
+// os atributos — para provar que o teste reprova o que devia reprovar.
+
+/** O campo anuncia o erro? `aria-invalid="true"`, `aria-describedby` apontando para um
+ *  id que existe, e a dica com `role="alert"` nesse id. */
+function anunciaOErro(html: string): boolean {
+  const alvo = descrevidoPor(html)
+  if (!html.includes('aria-invalid="true"') || !alvo) return false
+  return new RegExp(`<p id="${alvo}" role="alert"`).test(html)
+}
+
+describe('ConfirmacaoDigitada — as props das quatro telas (F61)', () => {
+  it('a MESA: esperado gerado "APAGAR 3", digitado "APAGAR 2" → anuncia o erro, em mono', () => {
+    const html = renderToStaticMarkup(
+      <ConfirmacaoDigitada
+        id="conflito-confirmacao"
+        rotulo="Para confirmar, digite exatamente:"
+        esperado="APAGAR 3"
+        mono
+        valor="APAGAR 2"
+        confere={false}
+        onChange={() => {}}
+      />,
+    )
+    expect(anunciaOErro(html)).toBe(true)
+    expect(descrevidoPor(html)).toBe('conflito-confirmacao-dica')
+    expect(html).toContain('O texto não confere — digite exatamente APAGAR 3')
+    expect(html).toMatch(/<p class="font-mono text-xs break-all text-muted-foreground">APAGAR 3<\/p>/)
+    expect(html).toContain('spellCheck="false"')
+  })
+
+  it('a MESA com o texto certo não acusa nada', () => {
+    const html = renderToStaticMarkup(
+      <ConfirmacaoDigitada rotulo="Para confirmar, digite exatamente:" esperado="APAGAR 3" mono valor="apagar 3 " confere onChange={() => {}} />,
+    )
+    expect(anunciaOErro(html)).toBe(false)
+    expect(html).not.toContain('role="alert"')
+  })
+
+  it('SABOTAGEM F — uma caixa SEM os atributos (a mesa de antes) não passa na pergunta', () => {
+    // A marcação que a mesa de conflitos renderizava até a F61, reproduzida em memória:
+    // rótulo, texto esperado e campo — sem aria-invalid, sem describedby, sem dica.
+    const muda =
+      '<label for="conflito-confirmacao">Para confirmar, digite exatamente:</label>' +
+      '<p class="font-mono text-xs break-all text-muted-foreground">APAGAR 3</p>' +
+      '<input id="conflito-confirmacao" value="APAGAR 2" autoComplete="off" spellCheck="false"/>'
+    expect(anunciaOErro(muda)).toBe(false)
+  })
+
+  it('o IMPORT mostra o nome no rótulo e não repete a linha do esperado', () => {
+    const html = renderToStaticMarkup(
+      <ConfirmacaoDigitada
+        id="import-confirmacao"
+        rotulo={
+          <>
+            Digite <span className="font-mono font-semibold">Cerrado Alto</span> para confirmar
+          </>
+        }
+        esperado="Cerrado Alto"
+        exibirEsperado={false}
+        valor="cerrado"
+        confere={false}
+        onChange={() => {}}
+      />,
+    )
+    expect(html).not.toContain('text-xs break-all')
+    expect(html).toContain('placeholder="Cerrado Alto"')
+    expect(anunciaOErro(html)).toBe(true)
+  })
+
+  it('o APAGAR CONTA sem e-mail mostra o aviso no lugar do esperado, com o campo desabilitado', () => {
+    const html = renderToStaticMarkup(
+      <ConfirmacaoDigitada
+        id="dev-apagar-confirmacao"
+        rotulo="Para confirmar, digite o e-mail da conta"
+        esperado=""
+        aviso={
+          <p role="alert" className="text-xs text-destructive">
+            Não foi possível ler o e-mail desta conta agora.
+          </p>
+        }
+        desabilitado
+        valor=""
+        confere={false}
+        onChange={() => {}}
+      />,
+    )
+    expect(html).toContain('Não foi possível ler o e-mail desta conta agora.')
+    expect(html).not.toContain('text-xs break-all')
+    expect(html).toMatch(/<input[^>]*disabled=""/)
+  })
+
+  it('sem `mono`, o esperado sai na fonte do texto (o apagar conta)', () => {
+    const html = renderToStaticMarkup(
+      <ConfirmacaoDigitada rotulo="Para confirmar, digite o e-mail da conta" esperado="fulano@exemplo.test" valor="" confere={false} onChange={() => {}} />,
+    )
+    expect(html).toMatch(/<p class="text-xs break-all text-muted-foreground">fulano@exemplo\.test<\/p>/)
+  })
+})

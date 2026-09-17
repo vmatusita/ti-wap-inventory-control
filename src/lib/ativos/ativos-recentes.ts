@@ -11,7 +11,17 @@
 // trabalho, e o navegador da TI é compartilhado. Fechou a aba, esvaziou — sem
 // deixar patrimônio de ninguém num navegador emprestado.
 
-export const CHAVE_ATIVOS_RECENTES = 'wap:ativos:recentes'
+import { chaveDeStorage } from '@/lib/escopo/chave'
+
+// F61 — a chave é MONTADA por `chaveDeStorage` (`lib/escopo/chave.ts`) no USO, e sai
+// idêntica byte a byte à literal de antes (`wap:ativos:recentes`) — nenhum rascunho ou
+// preferência gravada se perde. Função, não constante: uma constante de módulo
+// congelaria o valor, e o call-site tem de continuar igual quando a chave do escopo
+// deixar de ser fixa (virada multiempresa). Trava: `lib/escopo/chaves-de-storage.test.ts`.
+export function chaveAtivosRecentes(): string {
+  return chaveDeStorage('ativos:recentes')
+}
+
 export const MAX_ATIVOS_RECENTES = 5
 
 export type AtivoRecente = {
@@ -50,7 +60,7 @@ export function inserirRecente(
 
 export function lerAtivosRecentes(): AtivoRecente[] {
   try {
-    const bruto = sessionStorage.getItem(CHAVE_ATIVOS_RECENTES)
+    const bruto = sessionStorage.getItem(chaveAtivosRecentes())
     if (!bruto) return []
     const dados: unknown = JSON.parse(bruto)
     if (!Array.isArray(dados)) return []
@@ -66,7 +76,7 @@ export function lembrarAtivoRecente(ativo: AtivoRecente): void {
   if (!ehAtivoRecente(ativo)) return
   try {
     sessionStorage.setItem(
-      CHAVE_ATIVOS_RECENTES,
+      chaveAtivosRecentes(),
       JSON.stringify(inserirRecente(lerAtivosRecentes(), ativo)),
     )
   } catch {

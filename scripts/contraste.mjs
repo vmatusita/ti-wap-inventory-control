@@ -337,17 +337,30 @@ const PARES = [
 
   // ---- O header escuro da marca (mesmo pixel nos dois temas) -----------------
   // `--brand-dark` e `--brand-amarelo` NÃO são redefinidos no `.dark`: o chrome é
-  // escuro por design. Um par só, portanto, vale para os dois temas.
-  { item: 'F29', onde: 'amarelo WAP sobre o header escuro', texto: 'brand-amarelo', fundo: 'brand-dark', px: 14, exigir: true },
-  { item: 'F29', onde: 'chip "WAP" — preto sobre o amarelo da marca', texto: 'black', fundo: 'brand-amarelo', px: 12, bold: true, exigir: true },
-  { item: 'F29', onde: 'branco sobre o header escuro', texto: 'white', fundo: 'brand-dark', px: 14, exigir: true },
+  // escuro por design.
+  //
+  // F61 — OS PARES PASSARAM A NOMEAR O TOKEN DO TEXTO. Até aqui o medidor lia
+  // `white` e `black`, que eram exatamente o que o JSX escrevia — e por isso um
+  // `--brand-dark-texto` novo, se não entrasse aqui, seria medido em lugar nenhum
+  // (fato 13 da ordem F61: o contraste mede por NOME). Agora os dois tokens são
+  // declarados com valor LITERAL em `:root` e em `.dark`, e cada par é conferido nos
+  // DOIS temas — as razões têm de sair idênticas às de antes, porque os valores são.
+  { item: 'F29', onde: 'amarelo WAP sobre o header escuro (claro)', texto: 'brand-amarelo', fundo: 'brand-dark', px: 14, exigir: true },
+  { item: 'F29', onde: 'amarelo WAP sobre o header escuro (escuro)', texto: 'brand-amarelo', fundo: 'brand-dark', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F61', onde: 'chip "WAP" — texto da marca sobre o amarelo (claro)', texto: 'brand-amarelo-texto', fundo: 'brand-amarelo', px: 12, bold: true, exigir: true },
+  { item: 'F61', onde: 'chip "WAP" — texto da marca sobre o amarelo (escuro)', texto: 'brand-amarelo-texto', fundo: 'brand-amarelo', px: 12, bold: true, tema: 'escuro', exigir: true },
+  { item: 'F61', onde: 'texto do cromo sobre o header escuro (claro)', texto: 'brand-dark-texto', fundo: 'brand-dark', px: 14, exigir: true },
+  { item: 'F61', onde: 'texto do cromo sobre o header escuro (escuro)', texto: 'brand-dark-texto', fundo: 'brand-dark', px: 14, tema: 'escuro', exigir: true },
   // O texto atenuado do chrome escuro: aba inativa do visualizador, subtítulo das
   // telas de autenticação, rótulo da sessão por senha.
-  { item: 'F29', onde: 'texto atenuado do chrome escuro (70%)', texto: 'white/70', fundo: 'brand-dark', px: 14, exigir: true },
-  { item: 'F29', onde: 'texto atenuado do chrome escuro (80%)', texto: 'white/80', fundo: 'brand-dark', px: 12, exigir: true },
-  // A tecla de atalho no header (`kbd`): branco sobre um véu de 10% que se compõe
-  // com o header. Fundo TRANSLÚCIDO — daí o `sob`.
-  { item: 'F29', onde: 'kbd "Ctrl K" no header', texto: 'white', fundo: 'white/10', sob: ['brand-dark'], px: 10, bold: true, exigir: true },
+  { item: 'F61', onde: 'texto atenuado do cromo (70%) (claro)', texto: 'brand-dark-texto/70', fundo: 'brand-dark', px: 14, exigir: true },
+  { item: 'F61', onde: 'texto atenuado do cromo (70%) (escuro)', texto: 'brand-dark-texto/70', fundo: 'brand-dark', px: 14, tema: 'escuro', exigir: true },
+  { item: 'F61', onde: 'texto atenuado do cromo (80%) (claro)', texto: 'brand-dark-texto/80', fundo: 'brand-dark', px: 12, exigir: true },
+  { item: 'F61', onde: 'texto atenuado do cromo (80%) (escuro)', texto: 'brand-dark-texto/80', fundo: 'brand-dark', px: 12, tema: 'escuro', exigir: true },
+  // A tecla de atalho no header (`kbd`): o texto do cromo sobre um véu de 10% que se
+  // compõe com o header. Fundo TRANSLÚCIDO — daí o `sob`.
+  { item: 'F61', onde: 'kbd "Ctrl K" no header (claro)', texto: 'brand-dark-texto', fundo: 'brand-dark-texto/10', sob: ['brand-dark'], px: 10, bold: true, exigir: true },
+  { item: 'F61', onde: 'kbd "Ctrl K" no header (escuro)', texto: 'brand-dark-texto', fundo: 'brand-dark-texto/10', sob: ['brand-dark'], px: 10, bold: true, tema: 'escuro', exigir: true },
 
   // =========================================================================
   // F32/RV-02 — a paleta de status vira a LÍNGUA da página inteira.
@@ -452,6 +465,27 @@ const PARES = [
   { item: 'F40', onde: 'Aviso atenção (escuro)', texto: 'warning', fundo: 'warning/10', px: 14, tema: 'escuro', exigir: true },
   { item: 'F40', onde: 'Aviso informação (claro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, exigir: true },
   { item: 'F40', onde: 'Aviso informação (escuro)', texto: 'muted-foreground', fundo: 'muted/50', px: 12, tema: 'escuro', exigir: true },
+
+  // ---- F61 · o verde de SUCESSO, pelo nome do significado --------------------
+  // `--sucesso`/`--sucesso-texto` têm os valores de `--selo-em-estoque*` (os mesmos
+  // `oklch` de green-100/800 e green-950/300): a razão TEM de sair igual à do selo
+  // Em estoque acima, na mesma casa decimal — é o que prova que o selo "Ativo", os
+  // círculos de operação concluída, a pílula "voltou em…" e a intenção `sucesso`
+  // do <Aviso> não mudaram de cor ao virar token. 12px: o tamanho do selo.
+  { item: 'F61', onde: 'sucesso — selo "Ativo", círculo, pílula e Aviso (claro)', texto: 'sucesso-texto', fundo: 'sucesso', px: 12, exigir: true },
+  { item: 'F61', onde: 'sucesso — selo "Ativo", círculo, pílula e Aviso (escuro)', texto: 'sucesso-texto', fundo: 'sucesso', px: 12, tema: 'escuro', exigir: true },
+  // O medidor de mínimo: a barra sobre o trilho é OBJETO GRÁFICO (WCAG 1.4.11, piso 3:1),
+  // não texto — e o verde dele significa FOLGA, não "em estoque" nem "sucesso".
+  //
+  // ⚠ O PAR CLARO REPROVA, E ENTRA REGISTRADO: green-600 sobre green-100 mede 2,93:1,
+  // abaixo do piso de 3:1. É a cor que o medidor JÁ pintava antes da F61 — a fase deu
+  // NOME ao par (`--medidor-folga`/`--medidor-folga-barra`, valores idênticos) e não
+  // repinta nada; exigir aqui reprovaria o CI por um defeito que a fase não introduziu e
+  // que se conserta ESCURECENDO a barra, o que é mudança visível de gráfico. Fica como os
+  // outros "ANTES registrados" desta régua, e vira backlog PATCH: agora tem nome, e
+  // quem for consertar mede aqui.
+  { item: 'F61', onde: 'medidor de mínimo — barra de folga sobre o trilho (claro) — ANTES', texto: 'medidor-folga-barra', fundo: 'medidor-folga', px: 12, grafico: true, antes: true },
+  { item: 'F61', onde: 'medidor de mínimo — barra de folga sobre o trilho (escuro)', texto: 'medidor-folga-barra', fundo: 'medidor-folga', px: 12, tema: 'escuro', grafico: true, exigir: true },
 
   // ---- F43 · a tela de itens legível ao bater o olho ----------------------
   // A fase não inventou token nenhum: ela combinou tokens que já existiam em

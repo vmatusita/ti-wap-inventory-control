@@ -49,7 +49,7 @@ export function LegendaManutencao({
   const itens = legendaManutencaoPresente(casos)
   if (itens.length === 0) return null
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2.5 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-xs text-muted-foreground">
       {itens.map((l) => (
         <span key={l.cor} className="inline-flex items-center gap-1.5">
           <span className={cn('inline-block size-2.5 shrink-0 rounded-full', l.classe)} aria-hidden />
@@ -71,7 +71,7 @@ export function GlossarioRelatorio() {
       titulo="Como ler este relatório"
       descricao="glossário dos termos, cores e contagens usados acima"
     >
-      <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
         {verbetes.map((v) => (
           <div key={v.termo} className="break-inside-avoid">
             {/* F32/RV-01b — o glossário EXPLICAVA as cores sem mostrá-las: era o

@@ -6,6 +6,44 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 17/09/2026 — F61 · Os pontos de injeção da UI ✅
+
+**v1.66.0** · **sem migration — fase só de código** · A última fase de preparação. `components/admin/` e
+`components/relatorios/` saíram da isenção da régua de layout e os 45 arquivos que ela reprovava foram convertidos pela
+escala do sistema de design; a sigla, o nome do sistema e o crédito de autoria passaram a sair de uma fonte só, com uma
+grafia; o cromo escuro e o amarelo da marca ganharam par de tokens medido; e cinco correções pequenas que a virada
+tornaria caras foram fechadas — o verde de sucesso, a confirmação digitada única, o diálogo que semeava do render velho,
+o filtro que perdia clique e a chave de storage literal. **Nenhum número de tela mudou, e nenhum pixel mudou fora da
+tabela de mudanças de propósito** (242 linhas, conferidas contra o diff de classes por arquivo e contra a comparação de
+pixel das 8 vitrines da prévia estática). Relatório em [`docs/RELATORIO-F61.md`](docs/RELATORIO-F61.md); plano e censo em
+[`docs/PLAN-F61.md`](docs/PLAN-F61.md); ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- ✅ **A régua sem isenção por construção** — `PENDENTES`, o `SISTEMA` e a catraca saíram do corpo do teste para
+  `src/lib/layout/pendentes-da-regua.ts`, e a catraca compara CONJUNTOS NOMEADOS: nenhum arquivo dos dois diretórios é
+  isento (a única porta é `DEVOLVIDOS_F61B`, que fechou a fase VAZIA), `PENDENTES` só encolhe, e o piso de `SOB_REGRA` é
+  nominal — apagar um arquivo passa, devolvê-lo à isenção reprova. `SOB_REGRA` foi de 77 para 154 arquivos.
+- ✅ **Os 45 convertidos** — 113 violações: texto arbitrário para `text-xs`, espaçamento para a escala (empate sobe),
+  moldura à mão para `QuadroDeTabela`/`Card`/`Aviso`, largura de célula pela escala. O `Aviso` ganhou a quarta intenção
+  (`sucesso`) para as duas caixas verdes escritas à mão. Catraca de cor crua: 473 → **413** (61 → 53 arquivos).
+- ✅ **Os pontos de injeção** — `src/lib/identidade/sistema.ts` (módulo puro, sem ambiente e sem banco) entrega sigla,
+  nome, grafia única, descrição e crédito; a `Marca` recebe sigla e nome por prop; o metadata, a 404, `/versoes`,
+  `/ajuda`, `auth/confirm` e o rótulo do visualizador leem a mesma fonte; o crédito é desligável e, desligado, não deixa
+  separador nem linha órfã. Trava de literais por AST, com lista nominal e catraca.
+- ✅ **O cromo e a marca por par de tokens** — `--brand-dark-texto` e `--brand-amarelo-texto` (valores idênticos a
+  `white`/`black`) nos oito arquivos do cromo; `scripts/contraste.mjs` mede os pares NOVOS nos dois temas, com as razões
+  iguais às de antes. O marcador do smoke (`bg-brand-dark`) não mudou.
+- ✅ **As cinco correções** — `<Badge variant="sucesso">` e o par `--sucesso` nos 12 sítios do verde (o medidor de mínimo
+  ganhou token próprio de FOLGA); as quatro confirmações digitadas passaram por `ConfirmacaoDigitada`, e a da mesa de
+  conflitos — a única muda — passou a anunciar o erro; `useDialogoSemeado` nos oito diálogos de cadastro ("Novo" abre
+  vazio); `src/components/filtros/url.ts` com o pendente POR CAMINHO (o vazamento entre `/itens` e `/itens/historico`
+  nasceu como teste vermelho); e as sete chaves `wap:*` montadas por `chaveDeStorage` no uso, byte a byte as de hoje.
+- ✅ **A prova** — instrumento novo (`scripts/design/previa-f61.tsx`: 8 vitrines, 103 quadros, dados 100% fictícios),
+  `comparar-pixels-f61.mjs` e `diff-classes-f61.ts`; o cromo inteiro deu **zero pixel** de diferença nos dois temas e nas
+  duas larguras. Seis testes de componente novos no rig grau 1, e onze sabotagens com saída real em
+  [`docs/f61-evidencias/`](docs/f61-evidencias).
+
+---
+
 ## 17/09/2026 — F60 · O recorte que corta scan, e o custo do caminho quente ✅
 
 **v1.65.0** · **com migrations `0141`–`0145`, aplicadas no ensaio e em produção** · As sete leituras de relatório que

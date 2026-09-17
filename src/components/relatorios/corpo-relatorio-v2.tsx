@@ -179,7 +179,7 @@ export function CorpoRelatorioV2({
           periodo={periodo}
         />
 
-        <div className="rel-print-cols grid gap-3.5 md:grid-cols-2">
+        <div className="rel-print-cols grid gap-4 md:grid-cols-2">
           <CardRelatorio
             wide
             titulo="Estoque no último dia"
@@ -332,7 +332,7 @@ export function CorpoRelatorioV2({
           descricao="fone, mochila, teclado, mouse, hub, carregadores…"
           icone="acessorios"
         >
-          <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
+          <div className="rel-print-cols grid gap-4 lg:grid-cols-2">
             <CardRelatorio
               titulo="Saldo por item"
               subtitulo="total · em estoque · reservado · Δ · falta"
@@ -362,7 +362,7 @@ export function CorpoRelatorioV2({
           descricao="SSD, memórias por DDR e tamanho…"
           icone="componentes"
         >
-          <div className="rel-print-cols grid gap-3.5 lg:grid-cols-2">
+          <div className="rel-print-cols grid gap-4 lg:grid-cols-2">
             <CardRelatorio
               titulo="Saldo por item"
               subtitulo="total · estoque · Δ · falta"

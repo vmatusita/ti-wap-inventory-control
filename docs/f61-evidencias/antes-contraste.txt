@@ -1,0 +1,163 @@
+
+> estoque-ti-wap@1.65.0 contraste
+> node scripts/contraste.mjs
+
+| Item | Par | Tema | Texto | Fundo | Razão | Exigido | Veredito |
+|---|---|---|---|---|---:|---:|---|
+| P1-3 | Δ KPI verde — ANTES | claro | `green-600` | `card` | 3.22:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P1-3 | Δ KPI verde — DEPOIS | claro | `green-700` | `card` | 4.94:1 | 4.5:1 | ✅ AA |
+| P1-3 | Δ KPI verde escuro (inalterado) | escuro | `green-400` | `card` | 10.09:1 | 4.5:1 | ✅ AAA |
+| P1-3 | Δ KPI vermelho (referência) | claro | `red-600` | `card` | 4.76:1 | 4.5:1 | ✅ AA |
+| P1-3 | Δ KPI vermelho escuro (referência) | escuro | `red-400` | `card` | 6.19:1 | 4.5:1 | ✅ AA |
+| P2-8 | pílula fallback — ANTES | claro | `muted-foreground` | `muted` | 4.34:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-8 | pílula fallback — DEPOIS | claro | `gray-600` | `gray-200` | 6.11:1 | 4.5:1 | ✅ AA |
+| P2-8 | pílula fallback — DEPOIS (escuro) | escuro | `gray-400` | `gray-800` | 5.64:1 | 4.5:1 | ✅ AA |
+| dark: | pílula Saída (claro, inalterado) | claro | `amber-800` | `amber-100` | 6.41:1 | 4.5:1 | ✅ AA |
+| dark: | pílula Saída (escuro, NOVO) | escuro | `amber-300` | `amber-950` | 10.37:1 | 4.5:1 | ✅ AAA |
+| dark: | pílula Devolução (claro, inalterado) | claro | `blue-700` | `blue-100` | 5.59:1 | 4.5:1 | ✅ AA |
+| dark: | pílula Devolução (escuro, NOVO) | escuro | `blue-300` | `blue-950` | 8.13:1 | 4.5:1 | ✅ AAA |
+| verde | badge/pílula verde — ANTES | claro | `green-700` | `green-100` | 4.50:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| verde | badge/pílula verde — DEPOIS | claro | `green-800` | `green-100` | 6.45:1 | 4.5:1 | ✅ AA |
+| verde | badge/pílula verde — escuro (inalterado) | escuro | `green-300` | `green-950` | 10.67:1 | 4.5:1 | ✅ AAA |
+| família | Reservado (violeta) | claro | `violet-700` | `violet-100` | 6.13:1 | 4.5:1 | ✅ AA |
+| família | Em uso (azul) | claro | `blue-700` | `blue-100` | 5.59:1 | 4.5:1 | ✅ AA |
+| família | Emprestado (ciano) | claro | `cyan-700` | `cyan-100` | 4.71:1 | 4.5:1 | ✅ AA |
+| família | Em triagem (laranja — aposentado na F32) | claro | `orange-700` | `orange-100` | 4.56:1 | 4.5:1 | ✅ AA |
+| família | Em manutenção (âmbar) | claro | `amber-800` | `amber-100` | 6.41:1 | 4.5:1 | ✅ AA |
+| família | Descartado (cinza) | claro | `gray-600` | `gray-200` | 6.11:1 | 4.5:1 | ✅ AA |
+| família | Devolvido ao fornecedor (slate) | claro | `slate-700` | `slate-200` | 8.40:1 | 4.5:1 | ✅ AAA |
+| família | Troca (teal) | claro | `teal-700` | `teal-100` | 4.79:1 | 4.5:1 | ✅ AA |
+| dark: | pílula Compra (escuro, NOVO) | escuro | `green-300` | `green-950` | 10.67:1 | 4.5:1 | ✅ AAA |
+| dark: | badge Ativo admin (escuro, NOVO) | escuro | `green-300` | `green-950` | 10.67:1 | 4.5:1 | ✅ AAA |
+| dark: | pendência dashboard (claro, inalterado) | claro | `amber-800` | `card` | 7.13:1 | 4.5:1 | ✅ AAA |
+| dark: | pendência dashboard (escuro, NOVO) | escuro | `amber-300` | `card` | 12.39:1 | 4.5:1 | ✅ AAA |
+| dark: | callout âmbar (claro, inalterado) | claro | `amber-900` | `amber-50` | 8.77:1 | 4.5:1 | ✅ AAA |
+| dark: | callout âmbar (escuro, NOVO) | escuro | `amber-200` | `amber-950/40` | 13.65:1 | 4.5:1 | ✅ AAA |
+| F28 | aviso da mesa de conflitos — ANTES | claro | `destructive` | `destructive/10` | 3.99:1 | 4.5:1 | ❌ reprova |
+| F28 | aviso da mesa de conflitos — DEPOIS | claro | `red-900` | `red-50` | 9.21:1 | 4.5:1 | ✅ AAA |
+| F28 | aviso da mesa de conflitos — DEPOIS (escuro) | escuro | `red-200` | `red-950/40` | 12.21:1 | 4.5:1 | ✅ AAA |
+| P2-7 | rótulo Em estoque — ANTES (branco) | claro | `white` | `#16a34a` | 3.30:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-7 | rótulo Em estoque — DEPOIS (preto) | claro | `black` | `#16a34a` | 6.37:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Reservado — ANTES (branco) | claro | `white` | `#7c3aed` | 5.70:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Reservado — DEPOIS (branco, mantido) | claro | `white` | `#7c3aed` | 5.70:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Em uso — ANTES (branco) | claro | `white` | `#2a78d6` | 4.42:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-7 | rótulo Em uso — DEPOIS (preto) | claro | `black` | `#2a78d6` | 4.76:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Emprestado — ANTES (branco) | claro | `white` | `#0891b2` | 3.68:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-7 | rótulo Emprestado — DEPOIS (preto) | claro | `black` | `#0891b2` | 5.70:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Em triagem — ANTES (branco) | claro | `white` | `#ea580c` | 3.56:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-7 | rótulo Em triagem — DEPOIS (preto) | claro | `black` | `#ea580c` | 5.90:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Em manutenção — ANTES (branco) | claro | `white` | `#d97706` | 3.19:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-7 | rótulo Em manutenção — DEPOIS (preto) | claro | `black` | `#d97706` | 6.59:1 | 4.5:1 | ✅ AA |
+| P2-7 | rótulo Defasado — ANTES (branco) | claro | `white` | `#9ca3af` | 2.54:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-7 | rótulo Defasado — DEPOIS (preto) | claro | `black` | `#9ca3af` | 8.27:1 | 4.5:1 | ✅ AAA |
+| P2-12c | anel :target — ANTES (amber-400) | claro | `amber-400` | `card` | 1.72:1 | 3:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| P2-12c | anel :target — DEPOIS (token warning) | claro | `warning` | `card` | 5.65:1 | 3:1 | ✅ AA |
+| P2-12c | anel :target — DEPOIS (escuro) | escuro | `warning` | `card` | 9.47:1 | 3:1 | ✅ AAA |
+| marca | azul WAP sobre card escuro | escuro | `#2a78d6` | `card` | 4.06:1 | 3:1 | ✅ AA |
+| marca | amarelo WAP sobre card escuro | escuro | `#eda100` | `card` | 8.27:1 | 3:1 | ✅ AAA |
+| F29 | pílula Reservado (violeta, escuro) | escuro | `violet-300` | `violet-950` | 8.21:1 | 4.5:1 | ✅ AAA |
+| F29 | pílula Emprestado (ciano, escuro) | escuro | `cyan-300` | `cyan-950` | 9.27:1 | 4.5:1 | ✅ AAA |
+| F29 | pílula Em triagem (laranja, escuro — aposentado na F32) | escuro | `orange-300` | `orange-950` | 9.20:1 | 4.5:1 | ✅ AAA |
+| F29 | pílula Devolvido ao fornecedor (slate, escuro) | escuro | `slate-300` | `slate-950` | 13.59:1 | 4.5:1 | ✅ AAA |
+| F29 | pílula Troca (teal, escuro) | escuro | `teal-300` | `teal-950` | 9.84:1 | 4.5:1 | ✅ AAA |
+| F29 | texto secundário (claro) | claro | `muted-foreground` | `background` | 4.73:1 | 4.5:1 | ✅ AA |
+| F29 | texto secundário (escuro) | escuro | `muted-foreground` | `background` | 7.63:1 | 4.5:1 | ✅ AAA |
+| F29 | texto secundário sobre card (claro) | claro | `muted-foreground` | `card` | 4.73:1 | 4.5:1 | ✅ AA |
+| F29 | texto secundário sobre card (escuro) | escuro | `muted-foreground` | `card` | 6.91:1 | 4.5:1 | ✅ AA |
+| F29 | botão primário (claro) | claro | `primary-foreground` | `primary` | 17.16:1 | 4.5:1 | ✅ AAA |
+| F29 | botão primário (escuro) | escuro | `primary-foreground` | `primary` | 14.22:1 | 4.5:1 | ✅ AAA |
+| F29 | amarelo WAP sobre o header escuro | claro | `brand-amarelo` | `brand-dark` | 8.73:1 | 4.5:1 | ✅ AAA |
+| F29 | chip "WAP" — preto sobre o amarelo da marca | claro | `black` | `brand-amarelo` | 9.70:1 | 4.5:1 | ✅ AAA |
+| F29 | branco sobre o header escuro | claro | `white` | `brand-dark` | 18.89:1 | 4.5:1 | ✅ AAA |
+| F29 | texto atenuado do chrome escuro (70%) | claro | `white/70` | `brand-dark` | 9.48:1 | 4.5:1 | ✅ AAA |
+| F29 | texto atenuado do chrome escuro (80%) | claro | `white/80` | `brand-dark` | 12.17:1 | 4.5:1 | ✅ AAA |
+| F29 | kbd "Ctrl K" no header | claro | `white` | `white/10` | 14.60:1 | 4.5:1 | ✅ AAA |
+| F32 | chip "foto de dd/MM" (claro) | claro | `gray-600` | `gray-200` | 6.11:1 | 4.5:1 | ✅ AA |
+| F32 | chip "foto de dd/MM" (escuro) | escuro | `gray-400` | `gray-800` | 5.64:1 | 4.5:1 | ✅ AA |
+| F32 | chip "dd/MM – dd/MM" (claro) | claro | `blue-700` | `blue-100` | 5.59:1 | 4.5:1 | ✅ AA |
+| F32 | chip "dd/MM – dd/MM" (escuro) | escuro | `blue-300` | `blue-950` | 8.13:1 | 4.5:1 | ✅ AAA |
+| F32 | rótulo "no limite" do medidor (claro) | claro | `amber-700` | `card` | 5.05:1 | 4.5:1 | ✅ AA |
+| F32 | rótulo "no limite" do medidor (escuro) | escuro | `amber-400` | `card` | 10.43:1 | 4.5:1 | ✅ AAA |
+| F32 | badge Em triagem (rosa, claro — NOVO) | claro | `pink-700` | `pink-100` | 5.01:1 | 4.5:1 | ✅ AA |
+| F32 | badge Em triagem (rosa, escuro — NOVO) | escuro | `pink-300` | `pink-950` | 8.28:1 | 4.5:1 | ✅ AAA |
+| F32 | segmento Em estoque (verde) sobre card | claro | `#16a34a` | `card` | 3.30:1 | 3:1 | ✅ AA |
+| F32 | segmento Em estoque (verde) sobre card escuro | escuro | `#16a34a` | `card` | 5.44:1 | 3:1 | ✅ AA |
+| F32 | segmento Em triagem (rosa) sobre card | claro | `#db2777` | `card` | 4.60:1 | 3:1 | ✅ AA |
+| F32 | segmento Em manutenção (âmbar) sobre card | claro | `#d97706` | `card` | 3.19:1 | 3:1 | ✅ AA |
+| F32 | segmento Em manutenção (âmbar) sobre card escuro | escuro | `#d97706` | `card` | 5.62:1 | 3:1 | ✅ AA |
+| F32 | segmento Emprestado (ciano) sobre card | claro | `#06b6d4` | `card` | 2.43:1 | 3:1 | ⚠️ abaixo do piso (alívio registrado — rótulo, total e legenda em texto) |
+| F32 | segmento Reservado (violeta) sobre card escuro | escuro | `#6d28d9` | `card` | 2.52:1 | 3:1 | ⚠️ abaixo do piso (alívio registrado — rótulo, total e legenda em texto) |
+| F32 | segmento Reservado (violeta) sobre card | claro | `#6d28d9` | `card` | 7.10:1 | 3:1 | ✅ AAA |
+| F32 | segmento Emprestado (ciano) sobre card escuro | escuro | `#06b6d4` | `card` | 7.38:1 | 3:1 | ✅ AAA |
+| F40 | selo Em estoque (claro) | claro | `selo-em-estoque-texto` | `selo-em-estoque` | 6.45:1 | 4.5:1 | ✅ AA |
+| F40 | selo Em estoque (escuro) | escuro | `selo-em-estoque-texto` | `selo-em-estoque` | 10.67:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Reservado (claro) | claro | `selo-reservado-texto` | `selo-reservado` | 6.13:1 | 4.5:1 | ✅ AA |
+| F40 | selo Reservado (escuro) | escuro | `selo-reservado-texto` | `selo-reservado` | 8.21:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Em uso (claro) | claro | `selo-em-uso-texto` | `selo-em-uso` | 5.59:1 | 4.5:1 | ✅ AA |
+| F40 | selo Em uso (escuro) | escuro | `selo-em-uso-texto` | `selo-em-uso` | 8.13:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Emprestado (claro) | claro | `selo-emprestado-texto` | `selo-emprestado` | 4.71:1 | 4.5:1 | ✅ AA |
+| F40 | selo Emprestado (escuro) | escuro | `selo-emprestado-texto` | `selo-emprestado` | 9.27:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Em triagem (claro) | claro | `selo-em-triagem-texto` | `selo-em-triagem` | 5.01:1 | 4.5:1 | ✅ AA |
+| F40 | selo Em triagem (escuro) | escuro | `selo-em-triagem-texto` | `selo-em-triagem` | 8.28:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Em manutenção (claro) | claro | `selo-em-manutencao-texto` | `selo-em-manutencao` | 6.41:1 | 4.5:1 | ✅ AA |
+| F40 | selo Em manutenção (escuro) | escuro | `selo-em-manutencao-texto` | `selo-em-manutencao` | 10.37:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Descartado (claro) | claro | `selo-descartado-texto` | `selo-descartado` | 6.11:1 | 4.5:1 | ✅ AA |
+| F40 | selo Descartado (escuro) | escuro | `selo-descartado-texto` | `selo-descartado` | 5.64:1 | 4.5:1 | ✅ AA |
+| F40 | selo Devolvido ao fornecedor (claro) | claro | `selo-devolvido-fornecedor-texto` | `selo-devolvido-fornecedor` | 8.40:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Devolvido ao fornecedor (escuro) | escuro | `selo-devolvido-fornecedor-texto` | `selo-devolvido-fornecedor` | 9.87:1 | 4.5:1 | ✅ AAA |
+| F40 | selo Troca (claro) | claro | `selo-troca-texto` | `selo-troca` | 4.79:1 | 4.5:1 | ✅ AA |
+| F40 | selo Troca (escuro) | escuro | `selo-troca-texto` | `selo-troca` | 9.84:1 | 4.5:1 | ✅ AAA |
+| F40 | Aviso erro — o véu do rascunho (REPROVA) | claro | `destructive` | `destructive/5` | 4.36:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| F40 | Aviso erro (claro) | claro | `destructive` | `card` | 4.76:1 | 4.5:1 | ✅ AA |
+| F40 | Aviso erro (escuro) | escuro | `destructive` | `card` | 6.19:1 | 4.5:1 | ✅ AA |
+| F40 | Aviso atenção (claro) | claro | `warning` | `warning/10` | 4.92:1 | 4.5:1 | ✅ AA |
+| F40 | Aviso atenção (escuro) | escuro | `warning` | `warning/10` | 7.86:1 | 4.5:1 | ✅ AAA |
+| F40 | Aviso informação (claro) | claro | `muted-foreground` | `muted/50` | 4.53:1 | 4.5:1 | ✅ AA |
+| F40 | Aviso informação (escuro) | escuro | `muted-foreground` | `muted/50` | 6.39:1 | 4.5:1 | ✅ AA |
+| F43 | cinza sobre o chip cinza (RECUSADO na medição) | claro | `muted-foreground` | `muted` | 4.34:1 | 4.5:1 | ❌ reprova (esperado — é o "antes" registrado) |
+| F43 | número do cartão de métrica (claro) | claro | `foreground` | `card` | 19.79:1 | 3:1 | ✅ AAA |
+| F43 | número do cartão de métrica (escuro) | escuro | `foreground` | `card` | 17.16:1 | 3:1 | ✅ AAA |
+| F43 | rótulo e apoio do cartão de métrica (claro) | claro | `muted-foreground` | `card` | 4.73:1 | 4.5:1 | ✅ AA |
+| F43 | rótulo e apoio do cartão de métrica (escuro) | escuro | `muted-foreground` | `card` | 6.91:1 | 4.5:1 | ✅ AA |
+| F43 | classificação sob o nome do item (claro) | claro | `muted-foreground` | `background` | 4.73:1 | 4.5:1 | ✅ AA |
+| F43 | classificação sob o nome do item (escuro) | escuro | `muted-foreground` | `background` | 7.63:1 | 4.5:1 | ✅ AAA |
+| F43 | classificação com o mouse na linha (claro) | claro | `muted-foreground` | `muted/50` | 4.53:1 | 4.5:1 | ✅ AA |
+| F43 | classificação com o mouse na linha (escuro) | escuro | `muted-foreground` | `muted/50` | 6.84:1 | 4.5:1 | ✅ AA |
+| F43 | "Ver as N filiais" com o mouse em cima (claro) | claro | `foreground` | `muted` | 18.15:1 | 4.5:1 | ✅ AAA |
+| F43 | "Ver as N filiais" com o mouse em cima (escuro) | escuro | `foreground` | `muted` | 14.48:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em estoque" na célula (claro) | claro | `selo-em-estoque-texto` | `background` | 7.09:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em estoque" na célula (escuro) | escuro | `selo-em-estoque-texto` | `background` | 14.16:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em estoque" na linha listrada (claro) | claro | `selo-em-estoque-texto` | `muted/25` | 6.94:1 | 4.5:1 | ✅ AA |
+| F44 | número "Em estoque" na linha listrada (escuro) | escuro | `selo-em-estoque-texto` | `muted/25` | 13.50:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em estoque" com o mouse na linha (claro) | claro | `selo-em-estoque-texto` | `muted/50` | 6.80:1 | 4.5:1 | ✅ AA |
+| F44 | número "Em estoque" com o mouse na linha (escuro) | escuro | `selo-em-estoque-texto` | `muted/50` | 12.69:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em estoque" no cartão (claro) | claro | `selo-em-estoque-texto` | `card` | 7.09:1 | 3:1 | ✅ AAA |
+| F44 | número "Em estoque" no cartão (escuro) | escuro | `selo-em-estoque-texto` | `card` | 12.81:1 | 3:1 | ✅ AAA |
+| F44 | número "Em uso" na célula (claro) | claro | `selo-em-uso-texto` | `background` | 6.82:1 | 4.5:1 | ✅ AA |
+| F44 | número "Em uso" na célula (escuro) | escuro | `selo-em-uso-texto` | `background` | 10.93:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em uso" na linha listrada (claro) | claro | `selo-em-uso-texto` | `muted/25` | 6.68:1 | 4.5:1 | ✅ AA |
+| F44 | número "Em uso" na linha listrada (escuro) | escuro | `selo-em-uso-texto` | `muted/25` | 10.42:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em uso" com o mouse na linha (claro) | claro | `selo-em-uso-texto` | `muted/50` | 6.54:1 | 4.5:1 | ✅ AA |
+| F44 | número "Em uso" com o mouse na linha (escuro) | escuro | `selo-em-uso-texto` | `muted/50` | 9.80:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Em uso" no cartão (claro) | claro | `selo-em-uso-texto` | `card` | 6.82:1 | 3:1 | ✅ AA |
+| F44 | número "Em uso" no cartão (escuro) | escuro | `selo-em-uso-texto` | `card` | 9.89:1 | 3:1 | ✅ AAA |
+| F44 | classificação do item na linha listrada (claro) | claro | `muted-foreground` | `muted/25` | 4.63:1 | 4.5:1 | ✅ AA |
+| F44 | classificação do item na linha listrada (escuro) | escuro | `muted-foreground` | `muted/25` | 7.28:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Total" na linha listrada (claro) | claro | `muted-foreground` | `muted/25` | 4.63:1 | 4.5:1 | ✅ AA |
+| F44 | número "Total" na linha listrada (escuro) | escuro | `muted-foreground` | `muted/25` | 7.28:1 | 4.5:1 | ✅ AAA |
+| F44 | número "Falta" no cartão (claro) | claro | `destructive` | `card` | 4.76:1 | 3:1 | ✅ AA |
+| F44 | número "Falta" no cartão (escuro) | escuro | `destructive` | `card` | 6.19:1 | 3:1 | ✅ AA |
+| F44 | chave de cor "Em estoque" (claro) | claro | `selo-em-estoque-texto` | `card` | 7.09:1 | 3:1 | ✅ AAA |
+| F44 | chave de cor "Em estoque" (escuro) | escuro | `selo-em-estoque-texto` | `card` | 12.81:1 | 3:1 | ✅ AAA |
+| F44 | chave de cor "Em uso" (claro) | claro | `selo-em-uso-texto` | `card` | 6.82:1 | 3:1 | ✅ AA |
+| F44 | chave de cor "Em uso" (escuro) | escuro | `selo-em-uso-texto` | `card` | 9.89:1 | 3:1 | ✅ AAA |
+| F44 | chave de cor "Falta" (claro) | claro | `destructive` | `card` | 4.76:1 | 3:1 | ✅ AA |
+| F44 | chave de cor "Falta" (escuro) | escuro | `destructive` | `card` | 6.19:1 | 3:1 | ✅ AA |
+| F44 | chave de cor "Total" (claro) | claro | `muted-foreground` | `card` | 4.73:1 | 3:1 | ✅ AA |
+| F44 | chave de cor "Total" (escuro) | escuro | `muted-foreground` | `card` | 6.91:1 | 3:1 | ✅ AA |
+| F44 | legenda de escopo da tabela (claro) | claro | `muted-foreground` | `card` | 4.73:1 | 4.5:1 | ✅ AA |
+| F44 | legenda de escopo da tabela (escuro) | escuro | `muted-foreground` | `card` | 6.91:1 | 4.5:1 | ✅ AA |
+| F44 | linha de escopo acima dos cartões (claro) | claro | `foreground` | `background` | 19.79:1 | 4.5:1 | ✅ AAA |
+| F44 | linha de escopo acima dos cartões (escuro) | escuro | `foreground` | `background` | 18.96:1 | 4.5:1 | ✅ AAA |
+| F44 | selo "N em aberto" da ficha recolhida (claro) | claro | `warning` | `warning/10` | 4.92:1 | 4.5:1 | ✅ AA |
+| F44 | selo "N em aberto" da ficha recolhida (escuro) | escuro | `warning` | `warning/20` | 6.22:1 | 4.5:1 | ✅ AA |

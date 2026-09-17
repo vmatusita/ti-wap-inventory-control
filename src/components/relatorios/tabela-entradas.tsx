@@ -34,6 +34,7 @@ import { rotuloTipoItem, type MapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { cn } from '@/lib/utils'
 import { LegendaEstorno, LegendaTroca } from '@/components/relatorios/legendas'
 import { AvisoTetoTabela } from '@/components/relatorios/aviso-teto-tabela'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
 import type { CorteDeTabela, LinhaEntrada } from '@/lib/relatorios/tipos'
 
@@ -140,7 +141,7 @@ export function TabelaEntradas({
             : 'Nenhuma entrada no período.'}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
               encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
               a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
@@ -217,7 +218,7 @@ export function TabelaEntradas({
                                 key={it}
                                 // F19 — a borda tinha ficado sem par no escuro:
                                 // amber-300 acendia sobre o fundo amber-950.
-                                className="rounded border border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                className="rounded-full border border-amber-300 bg-amber-50 px-1.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
                               >
                                 {rotuloTipoItem(it, rotulosTipo)}
                               </span>
@@ -237,7 +238,7 @@ export function TabelaEntradas({
               })}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
       {filtradas.some((r) => r.estornada) && <LegendaEstorno />}
       {filtradas.some((r) => r.tipo === 'troca') && <LegendaTroca />}

@@ -16,6 +16,11 @@ const badgeVariants = cva(
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         warning:
           "bg-warning/10 text-warning focus-visible:ring-warning/20 dark:bg-warning/20 dark:focus-visible:ring-warning/40 [a]:hover:bg-warning/20",
+        // Adição do projeto (F61 — ata em docs/DECISOES.md, no molde da do `warning`,
+        // F7F). O PAR de tokens `--sucesso`/`--sucesso-texto`, SEM opacidade: um token
+        // com `/10` (o molde do `warning`) repintaria os selos; este par tem os valores
+        // exatos do verde que os selos "Ativo" já tinham (green-100/800, 950/300).
+        sucesso: "bg-sucesso text-sucesso-texto [a]:hover:bg-sucesso/80",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

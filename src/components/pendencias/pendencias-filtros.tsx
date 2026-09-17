@@ -7,6 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import {
+  baseDosFiltros,
+  registrarFiltrosEnviados,
+  useEsquecerFiltrosAoSair,
+} from '@/components/filtros/url'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import type { Filial } from '@/lib/queries/filiais'
 import type { TipoPendencia } from '@/lib/queries/pendencias-detalhe'
@@ -44,6 +49,9 @@ export function PendenciasFiltros({
   const params = useSearchParams()
   const [isPending, startTransition] = useTransition()
   useReportarNavegacao(isPending)
+  // F61 — a base da próxima URL sai de `src/components/filtros/url.ts` (ver lá o
+  // defeito da troca que se perdia com a navegação pendente).
+  useEsquecerFiltrosAoSair(pathname)
 
   const [busca, setBusca] = useState(q ?? '')
   const [qSync, setQSync] = useState(q ?? '')
@@ -53,24 +61,29 @@ export function PendenciasFiltros({
   }
 
   function aplicar(mudancas: Record<string, string | null>) {
-    const novo = new URLSearchParams(params.toString())
+    const commitada = params.toString()
+    const novo = baseDosFiltros(pathname, commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
     novo.delete('page')
+    registrarFiltrosEnviados(pathname, commitada, novo.toString())
     startTransition(() => router.push(`${pathname}?${novo.toString()}`))
   }
 
   // A busca só é aplicada ao SUBMETER (Enter ou botão "Pesquisar") — nunca a cada
   // tecla (buscar durante a digitação fazia o campo "voltar" ao estado anterior ao
-  // resincronizar com a URL). Lê a URL fresca p/ preservar filtros trocados junto.
+  // resincronizar com a URL). A base é a de `baseDosFiltros`, que preserva os filtros
+  // trocados junto mesmo com a navegação anterior ainda pendente.
   function submeterBusca() {
-    const novo = new URLSearchParams(window.location.search)
+    const commitada = params.toString()
+    const novo = baseDosFiltros(pathname, commitada)
     const termo = busca.trim()
     if (termo) novo.set('q', termo)
     else novo.delete('q')
     novo.delete('page')
+    registrarFiltrosEnviados(pathname, commitada, novo.toString())
     startTransition(() => router.push(`${pathname}?${novo.toString()}`))
   }
 

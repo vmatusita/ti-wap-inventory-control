@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.previa.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../../src/*"],
+      "server-only": ["./vazio-servidor.ts"],
+      "@/components/ui/dialog": ["./duble-dialog.tsx"]
+    }
+  }
+}

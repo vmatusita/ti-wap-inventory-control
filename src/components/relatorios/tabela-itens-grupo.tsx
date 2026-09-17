@@ -19,6 +19,7 @@ import {
   type CampoDetalhe,
 } from '@/components/relatorios/linha-expansivel'
 import { cn } from '@/lib/utils'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { CLASSE_COR_DELTA } from '@/lib/relatorios/delta-kpi'
 import type { SaldoItemPeriodo } from '@/lib/relatorios/tipos'
 
@@ -45,7 +46,7 @@ export function TabelaItensGrupo({
   const temTotalEstoque = itens.some((i) => i.total != null || i.estoque != null)
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <QuadroDeTabela>
       {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
           encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
           a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
@@ -131,7 +132,7 @@ export function TabelaItensGrupo({
                   </TableCell>
                   <TableCell className="text-right">
                     {i.falta > 0 ? (
-                      <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
+                      <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 tabular-nums dark:bg-red-950 dark:text-red-300">
                         faltam {i.falta.toLocaleString('pt-BR')}
                       </span>
                     ) : (
@@ -139,7 +140,7 @@ export function TabelaItensGrupo({
                     )}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell print:table-cell">
-                    <div className="max-w-[220px]">
+                    <div className="w-56">
                       <ObsTooltip texto={i.obs} className="w-full text-xs" />
                     </div>
                   </TableCell>
@@ -152,6 +153,6 @@ export function TabelaItensGrupo({
           })}
         </TableBody>
       </Table>
-    </div>
+    </QuadroDeTabela>
   )
 }

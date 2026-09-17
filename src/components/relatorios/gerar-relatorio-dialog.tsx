@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { FileText, History } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -17,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 import { consultarVersaoDoPeriodo, gerarRelatorio } from '@/lib/actions/relatorios'
 import {
   mensagemVersaoExistente,
@@ -60,12 +62,21 @@ export function GerarRelatorioDialog({
   maxData: string
 }) {
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
   const [de, setDe] = useState(padraoDe)
   const [ate, setAte] = useState(padraoAte)
   const [observacao, setObservacao] = useState('')
   const [escopo, setEscopo] = useState<'atual' | 'geral'>(ehGeral ? 'geral' : 'atual')
   const [enviando, start] = useTransition()
+  // F61 — semeia NA ABERTURA (`useDialogoSemeado`): reabrir o diálogo volta ao período
+  // padrão da tela daquele instante (a semana corrente, ou a que a página recalculou),
+  // em vez de mostrar o que ficou digitado na vez anterior. A RESPOSTA da consulta de
+  // versão não é semeada de propósito: ela já é guardada junto com a pergunta que a
+  // originou (`chaveConsulta`), e zerá-la aqui só faria a consulta rodar de novo.
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setDe(padraoDe)
+    setAte(padraoAte)
+    setEscopo(ehGeral ? 'geral' : 'atual')
+  })
 
   const slugAlvo = escopo === 'geral' ? 'geral' : filialSlug
   const nomeAlvo = escopo === 'geral' ? 'Consolidado' : filialNome
@@ -130,7 +141,7 @@ export function GerarRelatorioDialog({
           return
         }
         toast.success(`Relatório gerado (versão ${res.versao}).`)
-        setAberto(false)
+        mudarAberto(false)
         router.push(`/relatorios/gerados/${res.id}`)
       } catch {
         toast.error(
@@ -143,12 +154,12 @@ export function GerarRelatorioDialog({
   const avisoVersao = mensagemVersaoExistente(jaExiste)
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         <Button
           size="sm"
           aria-label="Gerar relatório"
-          className="h-9 gap-1.5 bg-brand-amarelo text-black hover:bg-brand-amarelo/90 sm:h-7"
+          className="h-9 gap-1.5 bg-brand-amarelo text-brand-amarelo-texto hover:bg-brand-amarelo/90 sm:h-7"
         >
           <FileText className="size-4" />
           <span className="hidden sm:inline">Gerar relatório</span>
@@ -259,7 +270,7 @@ export function GerarRelatorioDialog({
           </p>
         </div>
 
-        <div className="rounded-md border bg-muted/40 p-3 text-sm">
+        <Card size="sm" className="gap-0 bg-muted/40 p-3">
           <p>
             Será congelado: <strong>{nomeAlvo}</strong> · {formatDate(de)} a{' '}
             {formatDate(ate)}.
@@ -275,10 +286,10 @@ export function GerarRelatorioDialog({
                   ? 'Este período ainda não tem nenhuma versão — você criará a v1.'
                   : '')}
           </p>
-        </div>
+        </Card>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button type="button" variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button type="button" onClick={gerar} disabled={enviando || !periodoValido}>

@@ -4,8 +4,8 @@ import { useRef, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmacaoDigitada } from '@/components/layout/confirmacao-digitada'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { MIN_JUSTIFICATIVA, confirmacaoConfere } from '@/lib/validators/dev-destrutivo'
-import { dicaConfirmacaoNaoConfere } from '@/lib/validators/confirmacao-digitada'
 
 // O diálogo de confirmação das SETE ferramentas destrutivas (F23) — um só, para as sete.
 //
@@ -83,11 +82,9 @@ export function DialogoDestrutivo({
   }
 
   const confere = confirmacaoConfere(confirmacao, esperado)
-  // ADM-07 (F27) — a dica que faltava. `confere` já existia e só alimentava `pronto`:
-  // com um caractere errado, o botão ficava desabilitado e MUDO, que é exatamente o
-  // sintoma que o item veio corrigir. A régua (trim + caixa, `confirmacaoConfere`) não
-  // muda — as RPCs 0082/0083 já toleram o mesmo —, só a mensagem entra.
-  const dicaConfirmacao = dicaConfirmacaoNaoConfere(confirmacao, confere, esperado)
+  // ADM-07 (F27) — a dica que faltava; desde a F61 ela sai de `<ConfirmacaoDigitada>`, a
+  // caixa única. A régua (trim + caixa, `confirmacaoConfere`) não muda — as RPCs
+  // 0082/0083 já toleram o mesmo —, e continua SEM Enter: a justificativa vem abaixo.
   const justificativaOk = justificativa.trim().length >= MIN_JUSTIFICATIVA
   const pronto = confere && justificativaOk && !executando
 
@@ -141,26 +138,16 @@ export function DialogoDestrutivo({
 
         {children}
 
-        <div className="space-y-2">
-          <Label htmlFor="destrutivo-confirmacao">Para confirmar, digite exatamente:</Label>
-          <p className="font-mono text-xs break-all text-muted-foreground">{esperado}</p>
-          <Input
-            id="destrutivo-confirmacao"
-            value={confirmacao}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={esperado}
-            onChange={(e) => setConfirmacao(e.target.value)}
-            disabled={executando}
-            aria-invalid={!!dicaConfirmacao}
-            aria-describedby={dicaConfirmacao ? 'destrutivo-confirmacao-dica' : undefined}
-          />
-          {dicaConfirmacao && (
-            <p id="destrutivo-confirmacao-dica" role="alert" className="text-sm text-destructive">
-              {dicaConfirmacao}
-            </p>
-          )}
-        </div>
+        <ConfirmacaoDigitada
+          id="destrutivo-confirmacao"
+          rotulo="Para confirmar, digite exatamente:"
+          esperado={esperado}
+          mono
+          valor={confirmacao}
+          confere={confere}
+          onChange={setConfirmacao}
+          desabilitado={executando}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="destrutivo-justificativa">

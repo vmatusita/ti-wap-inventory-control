@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 import { atualizarItem, criarItem, excluirItem } from '@/lib/actions/itens'
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM, type GrupoItem } from '@/lib/dominio'
 
@@ -43,7 +44,6 @@ type ItemEdit = {
 export function ItemDialog({ item }: { item?: ItemEdit }) {
   const router = useRouter()
   const edicao = !!item
-  const [aberto, setAberto] = useState(false)
   // ADM-01 (F27) — passo de confirmação DENTRO do mesmo Dialog: "Excluir" mora no
   // rodapé do formulário (não é um trigger isolado como em `senha-acoes.tsx`, e o
   // projeto não tem `alert-dialog`), então a confirmação troca o CONTEÚDO do Dialog
@@ -61,8 +61,21 @@ export function ItemDialog({ item }: { item?: ItemEdit }) {
   const podeExcluir = edicao && item.lancamentos === 0
   const valido = nome.trim().length >= 2
 
+  // F61 — o formulário semeia NA ABERTURA, a partir do que a tabela mostra naquele
+  // instante (`useDialogoSemeado`): reabrir depois de salvar mostra o valor novo, e
+  // "Novo item" abre vazio em vez de herdar o cadastro anterior. Fechar continua
+  // voltando ao formulário (ADM-01).
+  const semeado = useDialogoSemeado(() => {
+    setNome(item?.nome ?? '')
+    setGrupo(item?.grupo ?? 'acessorio')
+    setOrdem(String(item?.ordem ?? 0))
+    setEstoqueMinimo(String(item?.estoque_minimo ?? 0))
+    setAtivo(item?.ativo ?? true)
+  })
+  const aberto = semeado.aberto
+
   function mudarAberto(o: boolean) {
-    setAberto(o)
+    semeado.mudarAberto(o)
     if (!o) setConfirmando(false)
   }
 

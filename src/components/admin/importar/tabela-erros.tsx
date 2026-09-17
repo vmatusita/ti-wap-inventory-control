@@ -6,13 +6,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import type { ErroImport } from '@/lib/import'
 
 // Tabela de bloqueantes/avisos do preview (colunas linha·coluna·valor·motivo, do
 // motor W1). Usada duas vezes na tela — uma para bloqueantes, outra para avisos.
 export function TabelaErros({ erros }: { erros: ErroImport[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <QuadroDeTabela>
       <Table>
         <TableHeader>
           <TableRow>
@@ -27,7 +28,7 @@ export function TabelaErros({ erros }: { erros: ErroImport[] }) {
             <TableRow key={`${e.linha}-${e.tipo}-${i}`}>
               <TableCell className="tabular-nums text-muted-foreground">{e.linha}</TableCell>
               <TableCell className="font-medium">{e.coluna}</TableCell>
-              <TableCell className="max-w-40 truncate font-mono text-xs" title={e.valor}>
+              <TableCell className="w-40 truncate font-mono text-xs" title={e.valor}>
                 {e.valor || '—'}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">{e.mensagem}</TableCell>
@@ -35,6 +36,6 @@ export function TabelaErros({ erros }: { erros: ErroImport[] }) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </QuadroDeTabela>
   )
 }

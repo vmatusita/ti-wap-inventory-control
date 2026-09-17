@@ -47,6 +47,7 @@ import {
   limparRascunhoCompra,
   rascunhoVazio,
   salvarRascunhoCompra,
+  chaveCompraDefaults,
   type RascunhoCompra,
 } from '@/components/ativos/rascunho-compra'
 import type { CompraLoteInput } from '@/lib/validators/compra'
@@ -55,7 +56,7 @@ import type { DadosCompraInicial } from '@/lib/queries/compras'
 
 // A5 — memória dos defaults da compra, POR DISPOSITIVO (decisão da OS-F9: sem
 // coluna nova em `profiles`, sem migration). Outro navegador simplesmente não lembra.
-const CHAVE_DEFAULTS = 'wap:compra:defaults'
+// F61 — a chave sai de `chaveCompraDefaults()` (`rascunho-compra.ts`), montada no uso.
 
 // A4 (F10) — sugestões do acervo. Debounce 300ms e mín. 2 caracteres (decisão §2
 // da OS-F10, os mesmos números do combobox de ativos).
@@ -453,7 +454,7 @@ export function NovaCompraForm({
   // no precedente de `ativos-table.tsx`.
   useEffect(() => {
     try {
-      const bruto = window.localStorage.getItem(CHAVE_DEFAULTS)
+      const bruto = window.localStorage.getItem(chaveCompraDefaults())
       if (!bruto) return
       const salvo = JSON.parse(bruto) as {
         categoria?: unknown
@@ -791,7 +792,7 @@ export function NovaCompraForm({
     }
     try {
       window.localStorage.setItem(
-        CHAVE_DEFAULTS,
+        chaveCompraDefaults(),
         JSON.stringify({ categoria, filialId }),
       )
     } catch {
@@ -844,7 +845,7 @@ export function NovaCompraForm({
   if (resultado) {
     return (
       <div className="rounded-lg border bg-card p-6 text-center">
-        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-sucesso text-sucesso-texto">
           <Check className="size-6" />
         </div>
         <h2 className="text-lg font-semibold">

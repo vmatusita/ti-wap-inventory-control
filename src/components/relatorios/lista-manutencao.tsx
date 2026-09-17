@@ -9,12 +9,12 @@ export function ListaManutencao({ itens }: { itens: ItemManutencao[] }) {
       {itens.map((i) => (
         <li
           key={i.patrimonio + i.modelo}
-          className="flex items-baseline gap-3 py-1.5 text-[13px]"
+          className="flex items-baseline gap-3 py-1.5 text-xs"
         >
           <span className="w-24 shrink-0 font-semibold tabular-nums">
             {i.patrimonio}
           </span>
-          <span className="min-w-0 max-w-[45%] truncate text-foreground/70">
+          <span className="min-w-0 w-2/5 truncate text-foreground/70">
             {i.modelo}
           </span>
           <ObsTooltip texto={i.observacao} className="min-w-0 flex-1 text-xs" />

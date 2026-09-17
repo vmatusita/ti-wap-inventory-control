@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 import { atualizarKit, criarKit } from '@/lib/actions/kits'
 import { campoAplica } from '@/lib/validators/movimentacao'
 import {
@@ -87,7 +89,6 @@ export function KitDialog({
   // como "Cópia de {nome}" em vez de repetir o original e falhar no salvar.
   const semente = kit ?? duplicarDe
   const edicao = !!kit
-  const [aberto, setAberto] = useState(false)
   const [nome, setNome] = useState(
     duplicarDe ? `Cópia de ${duplicarDe.nome}`.slice(0, 80) : (kit?.nome ?? ''),
   )
@@ -100,6 +101,18 @@ export function KitDialog({
   )
   const [ativo, setAtivo] = useState(kit?.ativo ?? true)
   const [enviando, start] = useTransition()
+  // F61 — semeia NA ABERTURA (`useDialogoSemeado`), a partir da semente DAQUELE render
+  // (o kit em edição ou o que se duplica): reabrir para editar mostra o valor atual. O
+  // `limpar()` depois de criar continua — os dois momentos são distintos.
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setNome(duplicarDe ? `Cópia de ${duplicarDe.nome}`.slice(0, 80) : (kit?.nome ?? ''))
+    setTipo((semente?.payload.tipo as TipoKit) ?? 'saida')
+    setMotivo(semente?.payload.motivo ?? '')
+    setTermo(semente?.payload.termo ?? '')
+    setObservacao(semente?.payload.observacao ?? '')
+    setCategorias(new Set(semente?.payload.categorias ?? []))
+    setAtivo(kit?.ativo ?? true)
+  })
 
   const motivosAplicaveis = motivos.filter((m) => m.aplica_a.includes(tipo))
   const temTermo = campoAplica(tipo, 'termo')
@@ -174,7 +187,7 @@ export function KitDialog({
           return
         }
         toast.success(edicao ? 'Kit atualizado.' : 'Kit criado.')
-        setAberto(false)
+        mudarAberto(false)
         // Formulário de CRIAÇÃO fica montado depois de salvar: sem a limpeza, o
         // próximo "Novo kit" abriria com o kit anterior inteiro preenchido.
         if (!edicao) limpar()
@@ -188,7 +201,7 @@ export function KitDialog({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         {gatilho ? (
           gatilho
@@ -300,11 +313,12 @@ export function KitDialog({
             {/* Grupo de checkboxes: sem control único, o rótulo se liga por
                 `role="group"` + `aria-labelledby` (padrão do motivo-dialog). */}
             <Label id="kit-categorias">Categorias esperadas</Label>
-            <div
+            <Card
+              size="sm"
               role="group"
               aria-labelledby="kit-categorias"
               aria-describedby="kit-categorias-ajuda"
-              className="grid grid-cols-2 gap-2 rounded-lg border p-3 sm:grid-cols-3"
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3"
             >
               {CATEGORIA_ORDEM.map((c) => (
                 <label key={c} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -315,7 +329,7 @@ export function KitDialog({
                   {rotuloCategoria(c)}
                 </label>
               ))}
-            </div>
+            </Card>
             <p id="kit-categorias-ajuda" className="text-xs text-muted-foreground">
               {categorias.size === 0
                 ? MSG_KIT_SEM_CATEGORIA
@@ -353,7 +367,7 @@ export function KitDialog({
             recebe. Este bloco é a MESMA frase que o passo 2 aplica, montada ao vivo:
             fica no rodapé (logo acima dos botões) porque é o resumo do que se está
             prestes a salvar, no lugar onde as outras telas põem a confirmação. */}
-        <div className="rounded-md border bg-muted/40 p-3 text-sm">
+        <Card size="sm" className="gap-0 bg-muted/40 text-sm">
           <p className="text-xs font-semibold text-muted-foreground">
             Como o kit aplica
           </p>
@@ -363,10 +377,10 @@ export function KitDialog({
               Observação preenchida: “{observacao.trim()}”
             </p>
           )}
-        </div>
+        </Card>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={enviando || !valido}>

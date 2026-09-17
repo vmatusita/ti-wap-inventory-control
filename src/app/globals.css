@@ -40,6 +40,9 @@
   --color-brand-amarelo: var(--brand-amarelo);
   --color-brand-dark: var(--brand-dark);
   --color-brand-azul: var(--brand-azul);
+  /* F61 — o TEXTO de cada superfície da marca, com nome. Ver o `:root`. */
+  --color-brand-dark-texto: var(--brand-dark-texto);
+  --color-brand-amarelo-texto: var(--brand-amarelo-texto);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -88,6 +91,13 @@
   --color-selo-devolvido-fornecedor-texto: var(--selo-devolvido-fornecedor-texto);
   --color-selo-troca: var(--selo-troca);
   --color-selo-troca-texto: var(--selo-troca-texto);
+
+  /* F61 — o verde de "deu certo / está valendo". Apelidos; os valores estão no
+     `:root`/`.dark` abaixo. */
+  --color-sucesso: var(--sucesso);
+  --color-sucesso-texto: var(--sucesso-texto);
+  --color-medidor-folga: var(--medidor-folga);
+  --color-medidor-folga-barra: var(--medidor-folga-barra);
 }
 
 :root {
@@ -148,6 +158,19 @@
   --brand-dark: #111110;
   --brand-azul: #2a78d6;
 
+  /* F61 — O PAR DE CONTRASTE DA MARCA, do lado do texto.
+     O fundo continua sendo o token de sempre (`bg-brand-dark`, `bg-brand-amarelo` —
+     e `bg-brand-dark` é marcador do smoke de produção, `scripts/smoke/smoke-prod.mjs`);
+     o que ganha nome é o texto que se lê SOBRE ele. Até a F61 eram `text-white` e
+     `text-black` crus em oito arquivos do cromo e cinco pontos amarelos: trocar a cor
+     do cromo por empresa (F70) exigiria caçar cada um. VALORES IDÊNTICOS aos de hoje
+     (`white` = #ffffff, `black` = #000000) — nenhum pixel muda, e o
+     `color-mix(in oklab, …)` do modificador `/70` sai o mesmo (compilado e conferido).
+     Repetidos no `.dark` de propósito: o cromo não acompanha o tema, e o
+     `scripts/contraste.mjs` mede os dois temas pelo NOME. */
+  --brand-dark-texto: #ffffff;
+  --brand-amarelo-texto: #000000;
+
   /* ================================================================
      F40 — AS NOVE FAMÍLIAS DE SELO (tema claro).
 
@@ -189,6 +212,32 @@
   --selo-devolvido-fornecedor-texto: oklch(37.2% 0.044 257.287); /* = slate-700 — 8,40:1 */
   --selo-troca: oklch(95.3% 0.051 180.801); /* = teal-100 */
   --selo-troca-texto: oklch(51.1% 0.096 186.391); /* = teal-700 — 4,79:1 */
+
+  /* ================================================================
+     F61 — O VERDE DE SUCESSO, pelo SIGNIFICADO.
+
+     "Deu certo / está valendo": o selo "Ativo/Ativa" de um cadastro, o círculo de
+     operação concluída, a pílula "voltou em…" de um caso de manutenção e a caixa
+     de sucesso (`<Aviso intencao="sucesso">`). Até a F61 esse verde era a paleta
+     crua `bg-green-100 text-green-800` (+ `dark:` 950/300) escrita à mão em doze
+     lugares.
+
+     OS VALORES SÃO OS DE `--selo-em-estoque`, byte a byte — e isso é de
+     propósito, não duplicação por descuido: trocar a classe pelo token não move
+     um pixel. O NOME é outro porque o SIGNIFICADO é outro: "em estoque" é status
+     de um ativo; um cadastro ativo não está "em estoque". No dia em que os dois
+     precisarem divergir, divergem sem tocar um no outro.
+     ================================================================ */
+  --sucesso: oklch(96.2% 0.044 156.743); /* = green-100 */
+  --sucesso-texto: oklch(44.8% 0.119 151.328); /* = green-800 — 6,45:1 */
+
+  /* F61 — A FOLGA DO MEDIDOR DE MÍNIMO, que NÃO é "em estoque" nem "sucesso".
+     O verde de `relatorios/medidor-minimo.tsx` marca estoque bem acima do mínimo — e o
+     preenchimento dele é outro tom (green-600), que token nenhum cobria: `--grafico-em-estoque`
+     é `#16a34a` fixo nos dois temas, diferente do green-600 do Tailwind v4. Dois tokens,
+     com os valores que o medidor já pintava. */
+  --medidor-folga: oklch(96.2% 0.044 156.743); /* = green-100 (o trilho) */
+  --medidor-folga-barra: oklch(62.7% 0.194 149.214); /* = green-600 (o preenchimento) */
 
   /* ================================================================
      F40 — A TINTA DE GRÁFICO, uma por família.
@@ -308,6 +357,18 @@
     --selo-devolvido-fornecedor-texto: oklch(86.9% 0.022 252.894); /* = slate-300 */
     --selo-troca: oklch(27.7% 0.046 192.524); /* = teal-950 */
     --selo-troca-texto: oklch(85.5% 0.138 181.071); /* = teal-300 */
+
+    /* F61 — o texto da marca: o cromo é o mesmo nos dois temas. */
+    --brand-dark-texto: #ffffff;
+    --brand-amarelo-texto: #000000;
+
+    /* F61 — o verde de sucesso no tema escuro (os valores de --selo-em-estoque). */
+    --sucesso: oklch(26.6% 0.065 152.934); /* = green-950 */
+    --sucesso-texto: oklch(87.1% 0.15 154.449); /* = green-300 */
+
+    /* F61 — a folga do medidor no tema escuro (green-950 / green-500). */
+    --medidor-folga: oklch(26.6% 0.065 152.934); /* = green-950 */
+    --medidor-folga-barra: oklch(72.3% 0.219 149.579); /* = green-500 */
   }
 }
 

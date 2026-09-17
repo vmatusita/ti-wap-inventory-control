@@ -32,8 +32,8 @@ export default async function DefinirSenhaPage() {
     <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-10">
       <Card className="w-full max-w-sm gap-0 overflow-hidden p-0">
         <div className="bg-brand-dark px-6 py-8 text-center">
-          <Marca size="lg" labelClassName="text-white" />
-          <p className="mt-3 text-sm text-white/70">
+          <Marca size="lg" labelClassName="text-brand-dark-texto" />
+          <p className="mt-3 text-sm text-brand-dark-texto/70">
             Complete seu cadastro de acesso
           </p>
         </div>

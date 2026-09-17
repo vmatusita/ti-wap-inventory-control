@@ -60,14 +60,14 @@ export function AppHeader({
   const abrirPaleta = useAbrirPaleta()
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-brand-dark px-4 text-white md:px-6 print:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-brand-dark px-4 text-brand-dark-texto md:px-6 print:hidden">
       <Sheet open={aberto} onOpenChange={setAberto}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
             aria-label="Abrir menu"
-            className="size-10 text-white hover:bg-white/10 hover:text-white md:size-8 md:hidden"
+            className="size-10 text-brand-dark-texto hover:bg-brand-dark-texto/10 hover:text-brand-dark-texto md:size-8 md:hidden"
           >
             <Menu className="size-5" />
           </Button>
@@ -126,7 +126,7 @@ export function AppHeader({
               variant="ghost"
               onClick={abrirPaleta}
               aria-label="Buscar ativos e comandos (Ctrl K)"
-              className="size-10 justify-center px-0 text-white hover:bg-white/10 hover:text-white sm:hidden"
+              className="size-10 justify-center px-0 text-brand-dark-texto hover:bg-brand-dark-texto/10 hover:text-brand-dark-texto sm:hidden"
             >
               <Search className="size-5" />
             </Button>
@@ -135,7 +135,7 @@ export function AppHeader({
               variant="ghost"
               onClick={abrirPaleta}
               aria-label="Buscar ativos e comandos (Ctrl K)"
-              className="hidden h-8 w-64 justify-start gap-2 border border-white/20 bg-white/5 px-2.5 font-normal text-white/70 hover:bg-white/10 hover:text-white sm:flex md:w-72"
+              className="hidden h-8 w-64 justify-start gap-2 border border-brand-dark-texto/20 bg-brand-dark-texto/5 px-2.5 font-normal text-brand-dark-texto/70 hover:bg-brand-dark-texto/10 hover:text-brand-dark-texto sm:flex md:w-72"
             >
               <Search className="size-4 shrink-0" aria-hidden />
               {/* `min-w-0 flex-1 truncate`: o `Button` é `whitespace-nowrap` e não
@@ -150,7 +150,7 @@ export function AppHeader({
               </span>
               <kbd
                 aria-hidden
-                className="shrink-0 rounded border border-white/25 bg-white/10 px-1 text-[10px] font-semibold text-white"
+                className="shrink-0 rounded border border-brand-dark-texto/25 bg-brand-dark-texto/10 px-1 text-[10px] font-semibold text-brand-dark-texto"
               >
                 Ctrl K
               </kbd>
@@ -161,7 +161,7 @@ export function AppHeader({
           <Button
             asChild
             size="sm"
-            className="h-10 bg-brand-amarelo text-black hover:bg-brand-amarelo/90 sm:h-7"
+            className="h-10 bg-brand-amarelo text-brand-amarelo-texto hover:bg-brand-amarelo/90 sm:h-7"
           >
             <Link href="/movimentacoes/nova">
               <Plus className="size-4" />

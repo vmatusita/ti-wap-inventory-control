@@ -17,6 +17,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { casaBusca } from '@/lib/ajuda/busca'
+import { Card } from '@/components/ui/card'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { consolidarColaboradores } from '@/lib/actions/colaboradores'
 import type {
   ResumoConsolidacao,
@@ -174,7 +176,7 @@ export function FilaConsolidacao({
       )}
 
       {fila.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           Nenhum nome pendente — todo nome já digitado tem cadastro correspondente.
         </div>
       ) : (
@@ -205,7 +207,7 @@ export function FilaConsolidacao({
             </Button>
           </div>
 
-          <div className="overflow-hidden rounded-lg border">
+          <QuadroDeTabela>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -260,7 +262,7 @@ export function FilaConsolidacao({
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </QuadroDeTabela>
         </>
       )}
     </section>
@@ -277,12 +279,12 @@ function Cartao({
   detalhe: string
 }) {
   return (
-    <div className="rounded-lg border p-3">
+    <Card size="sm" className="gap-0">
       <p className="text-sm text-muted-foreground">{rotulo}</p>
       <p className="text-2xl font-semibold tabular-nums">
         {valor.toLocaleString('pt-BR')}
       </p>
       <p className="text-xs text-muted-foreground">{detalhe}</p>
-    </div>
+    </Card>
   )
 }

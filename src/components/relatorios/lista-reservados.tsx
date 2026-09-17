@@ -9,7 +9,7 @@ export function ListaReservados({ itens }: { itens: ItemReservado[] }) {
       {itens.map((i) => (
         <li
           key={i.patrimonio + i.modelo}
-          className="flex items-baseline gap-3 py-1.5 text-[13px]"
+          className="flex items-baseline gap-3 py-1.5 text-xs"
         >
           <span className="w-24 shrink-0 font-semibold tabular-nums">
             {i.patrimonio}

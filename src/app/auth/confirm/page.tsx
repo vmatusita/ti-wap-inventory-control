@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Marca } from '@/components/layout/marca'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 import { confirmarAcesso } from '@/lib/actions/auth'
 import { tipoOtpValido } from '@/lib/auth/otp'
 import { BotaoAtivar } from './botao-ativar'
@@ -38,8 +39,8 @@ export default async function ConfirmarPage({
     <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-10">
       <Card className="w-full max-w-sm gap-0 overflow-hidden p-0">
         <div className="bg-brand-dark px-6 py-8 text-center">
-          <Marca size="lg" labelClassName="text-white" />
-          <p className="mt-3 text-sm text-white/70">Acesso ao Estoque TI</p>
+          <Marca size="lg" labelClassName="text-brand-dark-texto" />
+          <p className="mt-3 text-sm text-brand-dark-texto/70">Acesso ao {identidadeDoSistema().nome}</p>
         </div>
 
         <div className="px-6 py-6">

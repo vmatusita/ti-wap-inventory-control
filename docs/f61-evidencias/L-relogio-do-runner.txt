@@ -1,0 +1,36 @@
+== As quatro rodadas da MESMA suite, sem mudanca de codigo entre elas (17/09/2026)
+== Rodada 1 (fecho da frente G) — 238 arquivos · 7.022 testes · 0 reprovacao
+== Rodada 2 (16:27) — 2 reprovacoes, as duas por 'Test timed out in 5000ms':
+     src/components/filtros/url.test.ts > nenhum modulo de src/lib/ e "use client"
+     src/lib/ajuda/registry.test.ts > todo alvo usado no app existe no registry
+ Test Files  2 failed | 236 passed (238)
+      Tests  2 failed | 7020 passed (7022)
+
+== Rodada 3 (16:36) — 5 reprovacoes em 3 arquivos, todas por timeout:
+ Test Files  3 failed | 235 passed (238)
+      Tests  5 failed | 7017 passed (7022)
+
+== Rodada 4 (16:40) — 1 reprovacao, por timeout:
+ × A · nenhum literal "wap:" fora de lib/escopo/chave.ts (salvo os dois nomes de evento) 5106ms
+Error: Test timed out in 5000ms.
+ Test Files  1 failed | 237 passed (238)
+      Tests  1 failed | 7021 passed (7022)
+
+== Cada um dos tres arquivos, rodado ISOLADO, verde:
+ Test Files  2 passed (2)   [url.test.ts + registry.test.ts]
+      Tests  41 passed (41)
+   Duration  9.05s
+
+== DEPOIS: testTimeout: 60_000 nos dois projetos de vitest.config.mts
+== (os dois remendos por teste foram REVERTIDOS; registry.test.ts voltou byte a byte)
+
+-- Rodada A --
+ Test Files  238 passed (238)
+      Tests  7022 passed (7022)
+   Duration  302.43s (transform 40.03s, setup 0ms, import 1479.43s, tests 252.42s, environment 187ms)
+-- Rodada B --
+ Test Files  238 passed (238)
+      Tests  7022 passed (7022)
+   Duration  260.14s (transform 46.34s, setup 0ms, import 1346.40s, tests 221.90s, environment 149ms)
+
+== Duas rodadas seguidas, zero reprovacao, zero timeout. O verde deixou de ser sorteio.

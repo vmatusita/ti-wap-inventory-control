@@ -96,7 +96,7 @@ export function UserMenu({
           className="rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-brand-amarelo"
         >
           <Avatar className="size-8">
-            <AvatarFallback className="bg-brand-amarelo text-xs font-semibold text-black">
+            <AvatarFallback className="bg-brand-amarelo text-xs font-semibold text-brand-amarelo-texto">
               {iniciais(nome)}
             </AvatarFallback>
           </Avatar>

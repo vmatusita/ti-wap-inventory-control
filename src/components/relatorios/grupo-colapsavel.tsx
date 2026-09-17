@@ -102,7 +102,7 @@ export function GrupoColapsavel({
         </button>
       </div>
 
-      <div id={conteudoId} className={cn('grupo-conteudo space-y-3.5', !aberto && 'hidden', 'md:block')}>
+      <div id={conteudoId} className={cn('grupo-conteudo space-y-4', !aberto && 'hidden', 'md:block')}>
         {children}
       </div>
     </section>

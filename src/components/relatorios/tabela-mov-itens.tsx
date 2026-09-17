@@ -24,6 +24,7 @@ import {
   type CampoDetalhe,
 } from '@/components/relatorios/linha-expansivel'
 import { useFiltrosTabela, PREFIXO_FILTROS } from '@/components/relatorios/use-filtros-tabela'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import {
   pillTipoLancamento,
   rotuloGrupoItem,
@@ -105,7 +106,7 @@ export function TabelaMovItens({
           Nenhuma movimentação de item encontrada.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
               encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
               a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
@@ -161,14 +162,14 @@ export function TabelaMovItens({
                       <TableCell className="whitespace-nowrap">
                         <span
                           className={cn(
-                            'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                            'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
                             pillTipoLancamento(r.tipo),
                           )}
                         >
                           {rotuloTipoLancamento(r.tipo)}
                         </span>
                         {r.ehEstorno && (
-                          <span className="ml-1 text-[10px] text-muted-foreground">(estorno)</span>
+                          <span className="ml-1 text-xs text-muted-foreground">(estorno)</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">
@@ -188,7 +189,7 @@ export function TabelaMovItens({
               })}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
       {/* A legenda explica OS DOIS marcadores desta tabela: a linha esmaecida
           ("estornada", r.estornada) e o "(estorno)" (r.ehEstorno, o lançamento que

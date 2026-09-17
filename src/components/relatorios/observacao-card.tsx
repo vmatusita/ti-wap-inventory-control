@@ -1,4 +1,5 @@
 import { MessageSquareText } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 
 // B4 (F6B) — observação da semana no final do relatório congelado. Texto livre
 // definido no ato de gerar o snapshot; destaque no acento WAP (#eda100). Só
@@ -7,17 +8,16 @@ import { MessageSquareText } from 'lucide-react'
 export function ObservacaoCard({ texto }: { texto: string | null | undefined }) {
   if (!texto || !texto.trim()) return null
   return (
-    <section
-      id="observacao"
-      className="scroll-mt-28 break-inside-avoid rounded-lg border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4"
-    >
-      <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-        <MessageSquareText className="size-4 text-brand-amarelo" />
-        Observações da semana
-      </h2>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-        {texto}
-      </p>
+    <section id="observacao" className="scroll-mt-28 break-inside-avoid">
+      <Card className="gap-0 border border-l-4 border-brand-amarelo bg-brand-amarelo/5 p-4 ring-0">
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <MessageSquareText className="size-4 text-brand-amarelo" />
+          Observações da semana
+        </h2>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+          {texto}
+        </p>
+      </Card>
     </section>
   )
 }

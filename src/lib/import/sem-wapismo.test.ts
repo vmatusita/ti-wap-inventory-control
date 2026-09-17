@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import ts from 'typescript'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+
+import { coletarLiterais } from '@/lib/varredura/literais'
 
 // A TRAVA `sem-wapismo` (F56 · Decisão 12 do PLAN-F56.md).
 //
@@ -64,38 +65,9 @@ function listarArquivosTs(dir: string): string[] {
   return achados
 }
 
-type Literal = { linha: number; texto: string }
-
-/** Todo nó LITERAL (nunca comentário, nunca identificador) de um arquivo. */
-function coletarLiterais(caminhoAbsoluto: string): Literal[] {
-  const codigo = readFileSync(caminhoAbsoluto, 'utf8')
-  const sf = ts.createSourceFile(
-    caminhoAbsoluto,
-    codigo,
-    ts.ScriptTarget.Latest,
-    true,
-    caminhoAbsoluto.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  )
-  const achados: Literal[] = []
-
-  function visita(no: ts.Node) {
-    if (
-      ts.isStringLiteral(no) ||
-      ts.isNoSubstitutionTemplateLiteral(no) ||
-      ts.isTemplateHead(no) ||
-      ts.isTemplateMiddle(no) ||
-      ts.isTemplateTail(no) ||
-      ts.isJsxText(no)
-    ) {
-      const texto = (no as unknown as { text: string }).text
-      const { line } = sf.getLineAndCharacterOfPosition(no.getStart(sf))
-      achados.push({ linha: line + 1, texto })
-    }
-    ts.forEachChild(no, visita)
-  }
-  visita(sf)
-  return achados
-}
+// A varredura por AST mora em `src/lib/varredura/literais.ts` desde a F61 — a trava
+// dos pontos de injeção (`src/lib/identidade/sem-literais.test.ts`) faz a MESMA
+// pergunta, e duas cópias de um parser divergem em silêncio.
 
 // -----------------------------------------------------------------------------
 // Padrões
@@ -181,9 +153,11 @@ const LINHAS_PERMITIDAS: Record<string, string> = {
   // filial-apelidos.tsx (novo), com um placeholder do mesmo tipo.
   // F56 (revisão adversarial final) — a guarda `if (!filial) return` em
   // `removerApelido` desceu as três uma linha: 170/196/199 → 171/197/200. Mesmo texto.
-  'src/components/admin/filial-dialog.tsx:171': 'exemplo de slug no texto de ajuda do diálogo',
-  'src/components/admin/filial-dialog.tsx:197': 'placeholder de exemplo do campo Cidade',
-  'src/components/admin/filial-dialog.tsx:200': 'exemplo de assinatura de termo no texto de ajuda',
+  // F61 — `useDialogoSemeado` (o diálogo semeia na abertura) desceu as três onze linhas:
+  // 171/197/200 → 182/208/211. Mesmo texto.
+  'src/components/admin/filial-dialog.tsx:182': 'exemplo de slug no texto de ajuda do diálogo',
+  'src/components/admin/filial-dialog.tsx:208': 'placeholder de exemplo do campo Cidade',
+  'src/components/admin/filial-dialog.tsx:211': 'exemplo de assinatura de termo no texto de ajuda',
   'src/components/admin/filial-apelidos.tsx:109': 'placeholder de exemplo do campo "novo apelido"',
   'src/components/admin/criar-senha-dialog.tsx:204': 'placeholder de exemplo do campo Rótulo',
 }

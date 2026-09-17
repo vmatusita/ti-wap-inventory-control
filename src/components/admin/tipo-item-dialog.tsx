@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 import { criarTipoItem, atualizarTipoItem } from '@/lib/actions/tipos-item'
 import { sugerirSlug } from '@/lib/validators/tipo-item'
 import type { TipoItemAdmin } from '@/lib/queries/tipos-item'
@@ -37,7 +38,6 @@ import type { TipoItemAdmin } from '@/lib/queries/tipos-item'
 export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
   const edicao = Boolean(tipo)
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
   const [rotulo, setRotulo] = useState(tipo?.rotulo ?? '')
   const [slug, setSlug] = useState(tipo?.slug ?? '')
   const [slugEditado, setSlugEditado] = useState(false)
@@ -47,7 +47,8 @@ export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
 
   const valido = rotulo.trim().length >= 2 && (edicao || slug.trim().length >= 2)
 
-  // Semeia o formulário na ABERTURA, não no fechamento (revisão de 28/08/2026).
+  // Semeia o formulário na ABERTURA, não no fechamento (revisão de 28/08/2026) — desde a
+  // F61 pela regra com nome, `useDialogoSemeado`, que os outros diálogos de cadastro copiam.
   //
   // Fechar-e-resetar parecia equivalente e não é: `salvar()` chama `mudarAberto(false)`
   // ANTES de o `router.refresh()` trazer os dados novos, então o reset copiava a prop
@@ -55,16 +56,13 @@ export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
   // anterior — e salvar de novo (para mexer só no liga/desliga, por exemplo) desfazia
   // a edição em silêncio. Semeando na abertura, o formulário sempre nasce do que a
   // tabela está exibindo naquele instante.
-  function mudarAberto(v: boolean) {
-    setAberto(v)
-    if (v) {
-      setRotulo(tipo?.rotulo ?? '')
-      setSlug(tipo?.slug ?? '')
-      setSlugEditado(false)
-      setOrdem(String(tipo?.ordem ?? ''))
-      setAtivo(tipo?.ativo ?? true)
-    }
-  }
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setRotulo(tipo?.rotulo ?? '')
+    setSlug(tipo?.slug ?? '')
+    setSlugEditado(false)
+    setOrdem(String(tipo?.ordem ?? ''))
+    setAtivo(tipo?.ativo ?? true)
+  })
 
   // O código acompanha o nome ENQUANTO o admin não digitar um por conta própria —
   // depois disso o campo é dele. Mesmo comportamento do prefill da contrapartida
@@ -159,7 +157,7 @@ export function TipoItemDialog({ tipo }: { tipo?: TipoItemAdmin }) {
           {edicao ? (
             <div className="grid gap-2">
               <Label>Código</Label>
-              <p className="rounded-md border bg-muted/40 px-3 py-2 font-mono text-sm text-muted-foreground">
+              <p className="rounded-md bg-muted/40 px-3 py-2 font-mono text-sm text-muted-foreground">
                 {tipo!.slug}
               </p>
               <p className="text-xs text-muted-foreground">

@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 import { atualizarMotivo, criarMotivo } from '@/lib/actions/admin'
 import { Constants } from '@/lib/types/database'
 import { rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
@@ -45,7 +46,6 @@ type MotivoEdit = {
 export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
   const router = useRouter()
   const edicao = !!motivo
-  const [aberto, setAberto] = useState(false)
   const [rotulo, setRotulo] = useState(motivo?.rotulo ?? '')
   const [codigo, setCodigo] = useState(motivo?.codigo ?? '')
   const [codigoTocado, setCodigoTocado] = useState(edicao)
@@ -54,6 +54,15 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
     new Set(motivo?.aplica_a ?? ['saida']),
   )
   const [enviando, start] = useTransition()
+  // F61 — semeia NA ABERTURA (`useDialogoSemeado`): reabrir para editar mostra o que a
+  // tabela exibe agora, e "Novo motivo" abre vazio.
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setRotulo(motivo?.rotulo ?? '')
+    setCodigo(motivo?.codigo ?? '')
+    setCodigoTocado(edicao)
+    setAtivo(motivo?.ativo ?? true)
+    setAplicaA(new Set(motivo?.aplica_a ?? ['saida']))
+  })
 
   function mudarRotulo(v: string) {
     setRotulo(v)
@@ -89,7 +98,7 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
           return
         }
         toast.success(edicao ? 'Motivo atualizado.' : 'Motivo criado.')
-        setAberto(false)
+        mudarAberto(false)
         router.refresh()
       } catch {
         toast.error(
@@ -100,7 +109,7 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         {edicao ? (
           <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0">
@@ -171,7 +180,7 @@ export function MotivoDialog({ motivo }: { motivo?: MotivoEdit }) {
         )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={enviando || !valido}>

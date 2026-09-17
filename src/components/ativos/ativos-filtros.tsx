@@ -27,6 +27,11 @@ import {
   rotuloStatus,
 } from '@/lib/dominio'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import {
+  baseDosFiltros,
+  registrarFiltrosEnviados,
+  useEsquecerFiltrosAoSair,
+} from '@/components/filtros/url'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import { cn } from '@/lib/utils'
 import type { Filial } from '@/lib/queries/filiais'
@@ -50,6 +55,10 @@ export function AtivosFiltros({
   // Acende a barra global enquanto a navegação por filtro está pendente (roda
   // em startTransition, então NÃO dispara o loading.tsx da rota).
   useReportarNavegacao(isPending)
+  // F61 — a base da próxima URL sai de `src/components/filtros/url.ts`: `params` e
+  // `window.location` só refletem a URL COMMITADA, e duas trocas na mesma janela de
+  // navegação pendente (busca e depois filial, por exemplo) perdiam a primeira.
+  useEsquecerFiltrosAoSair(pathname)
 
   const qAtual = params.get('q') ?? ''
   const categoriaAtual = params.get('categoria') ?? ''
@@ -73,12 +82,14 @@ export function AtivosFiltros({
 
   // Aplica uma alteracao de filtro: reseta a pagina e navega preservando o resto.
   function aplicar(mudancas: Record<string, string | null>) {
-    const novo = new URLSearchParams(params.toString())
+    const commitada = params.toString()
+    const novo = baseDosFiltros(pathname, commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
     novo.delete('page') // qualquer mudanca de filtro volta p/ a pagina 1
+    registrarFiltrosEnviados(pathname, commitada, novo.toString())
     startTransition(() => {
       router.push(`${pathname}?${novo.toString()}`)
     })
@@ -86,14 +97,16 @@ export function AtivosFiltros({
 
   // A busca livre só é aplicada ao SUBMETER (Enter no campo ou botão "Pesquisar") —
   // nunca a cada tecla. Buscar durante a digitação fazia a navegação resincronizar
-  // o campo com a URL e "voltar" o texto para o estado anterior. Lê a URL FRESCA em
-  // window.location (não o `params` do render) p/ preservar outros filtros trocados.
+  // o campo com a URL e "voltar" o texto para o estado anterior. A base é a de
+  // `baseDosFiltros` — `window.location` também só muda quando a navegação termina.
   function submeterBusca() {
-    const novo = new URLSearchParams(window.location.search)
+    const commitada = params.toString()
+    const novo = baseDosFiltros(pathname, commitada)
     const termo = busca.trim()
     if (termo) novo.set('q', termo)
     else novo.delete('q')
     novo.delete('page') // nova busca volta p/ a página 1
+    registrarFiltrosEnviados(pathname, commitada, novo.toString())
     startTransition(() => router.push(`${pathname}?${novo.toString()}`))
   }
 
@@ -121,7 +134,8 @@ export function AtivosFiltros({
   // como o operador volta ao recorte dele. Lá é "há um filtro estreitando a lista?",
   // e a sentinela, que significa SEM recorte, não estreita nada.
   function limpar() {
-    const antigo = new URLSearchParams(params.toString())
+    const commitada = params.toString()
+    const antigo = baseDosFiltros(pathname, commitada)
     const novo = new URLSearchParams()
     for (const chave of ['ord', 'pp']) {
       const valor = antigo.get(chave)
@@ -129,6 +143,7 @@ export function AtivosFiltros({
     }
     setBusca('')
     const qs = novo.toString()
+    registrarFiltrosEnviados(pathname, commitada, qs)
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }
 

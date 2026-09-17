@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 import { criarColaborador, atualizarColaborador } from '@/lib/actions/colaboradores'
 import type { ColaboradorAdmin } from '@/lib/queries/colaboradores'
 import type { Filial } from '@/lib/queries/filiais'
@@ -51,7 +52,6 @@ export function ColaboradorDialog({
 }) {
   const edicao = Boolean(colaborador)
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
   const [nome, setNome] = useState(colaborador?.nome ?? '')
   const [matricula, setMatricula] = useState(colaborador?.matricula ?? '')
   const [setor, setSetor] = useState(colaborador?.setor ?? '')
@@ -63,7 +63,8 @@ export function ColaboradorDialog({
 
   const valido = nome.trim().length >= 2
 
-  // Semeia o formulário na ABERTURA, não no fechamento (revisão de 28/08/2026).
+  // Semeia o formulário na ABERTURA, não no fechamento (revisão de 28/08/2026) — desde a
+  // F61 pela regra com nome, `useDialogoSemeado`.
   //
   // Fechar-e-resetar parecia equivalente e não é: `salvar()` chama `mudarAberto(false)`
   // ANTES de o `router.refresh()` trazer os dados novos, então o reset copiava a prop
@@ -71,18 +72,13 @@ export function ColaboradorDialog({
   // "Editar" mostrava o nome anterior — e salvar de novo revertia a correção sem que
   // ninguém tivesse pedido. Semeando na abertura, o formulário sempre nasce do que a
   // tabela está exibindo naquele instante.
-  function mudarAberto(v: boolean) {
-    setAberto(v)
-    if (v) {
-      setNome(colaborador?.nome ?? '')
-      setMatricula(colaborador?.matricula ?? '')
-      setSetor(colaborador?.setor ?? '')
-      setFilial(
-        colaborador?.filial_id == null ? SEM_FILIAL : String(colaborador.filial_id),
-      )
-      setAtivo(colaborador?.ativo ?? true)
-    }
-  }
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setNome(colaborador?.nome ?? '')
+    setMatricula(colaborador?.matricula ?? '')
+    setSetor(colaborador?.setor ?? '')
+    setFilial(colaborador?.filial_id == null ? SEM_FILIAL : String(colaborador.filial_id))
+    setAtivo(colaborador?.ativo ?? true)
+  })
 
   function salvar() {
     const campos = {

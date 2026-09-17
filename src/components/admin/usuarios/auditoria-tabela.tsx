@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/table'
 import { formatDateTime, ouTraco } from '@/lib/format'
 import { rotuloAcao } from '@/lib/auditoria'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { descreverDetalhe } from '@/components/admin/usuarios/detalhe-evento'
 import type { EventoAdminLinha } from '@/lib/queries/eventos-admin'
 
@@ -25,7 +26,7 @@ export function AuditoriaTabela({
   const nomeFilial = (id: number) => filiais.find((f) => f.id === id)?.nome ?? `filial ${id}`
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <QuadroDeTabela>
       <Table>
         <TableHeader>
           <TableRow>
@@ -56,6 +57,6 @@ export function AuditoriaTabela({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </QuadroDeTabela>
   )
 }
