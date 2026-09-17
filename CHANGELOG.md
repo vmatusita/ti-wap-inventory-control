@@ -6,6 +6,45 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 17/09/2026 — F60 · O recorte que corta scan, e o custo do caminho quente 🚧
+
+**v1.65.0** · **com migrations `0141`–`0145` — aplicação pendente** · As sete leituras de relatório que recortavam por
+filial com "nulo = tudo" passam a receber a LISTA de filiais e a recortar por dentro, sem mudar um número de tela; o
+caminho quente parou de pagar duas vezes o que já era caro. ⚠ **Nenhuma das cinco migrations foi aplicada em banco
+real.** O canal de apply (o conector da Supabase) foi desligado durante a execução e não havia token no ambiente; pela
+ordem da fase, o PR #52 fica ABERTO e SEM merge — o app novo chamaria funções que produção não tem. O apply (ensaio
+primeiro; `0141`–`0143` antes do merge, `0144` e `0145` depois do deploy, pela janela do `drop`), a equivalência com as
+funções de verdade, o conferidor de formas, as medições "depois", o merge e a tag ficam com o Johnny, com os comandos no
+topo de [`docs/RELATORIO-F60.md`](docs/RELATORIO-F60.md). Ata completa em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- ✅ **O recorte obrigatório** — `rel_*_filiais(p_filiais smallint[], …)` no lugar das sete `rel_*(p_filial smallint, …)`
+  (`0143`), e a velha derrubada em arquivo separado (`0145`): `col = any (p_filiais)`, NULL e `'{}'` devolvem 0 linhas; o
+  consolidado é a lista explícita de TODAS as filiais, inclusive desativada. O as-of reescrito por `join lateral` ancorado
+  em `ativos`, com a filial calculada na data. `/itens` em dois níveis numa leitura paginada: **2 idas ao banco por render,
+  em vez de 7**. Equivalência velho × novo **EMULADA** (o corpo novo inline contra a função velha, só leitura): **1.004
+  células por banco**, no ensaio e em produção, zero divergência — a mesma conferência com as funções de verdade depende do
+  apply.
+- ✅ **A trava** — `src/lib/validators/rpcs-recorte-sql.test.ts` (replay, falha fechada, R1–R4, guarda com SQL sintético)
+  e o par no catálogo (`catalogo_secdef.sql` bloco 7, `7a`–`7g`); nasceu vermelha nomeando as sete. Oito mutações novas e
+  duas reancoradas: **90 ativas, 90/90 detectadas pelo rótulo nomeado** no CI, teto do injetor 85 → 95. `f60_recorte.sql`
+  (a filial desativada, o chamado que atravessa filiais, o vazio) e o cenário `11a`–`11c` do as-of (o transferido depois da
+  data) verdes; o banco do CI com 35 roteiros e 855 asserções.
+- ✅ **O custo** — `paginarTodos`/`paginarPorIds` com teto obrigatório por chamada e keyset pela chave primária; as
+  contagens de conflitos do shell memoizadas por chave estável (uma leitura por request, eram duas); os KPIs do dashboard
+  por uma contagem agregada (`0141`: uma ida no lugar de duas páginas com 1.622 linhas); teto de 2.000 linhas com aviso nas
+  três tabelas do período (hoje, no máximo 155); `maxDuration` explícito nas 30 páginas do grupo `(app)`;
+  `lanc_item_criado_por_idx` (`0142`, medido no ensaio: sem ele, quem nunca lançou paga 10,4 ms e 1.286 buffers a 50 mil
+  lançamentos, linear) e a view de colaboradores por nome distinto (`0144`, emulada em produção: ~100 → ~50 ms, o mesmo
+  conjunto).
+- ✅ **O orçamento do as-of** — [`docs/perf/asof-orcamento.json`](docs/perf/asof-orcamento.json), preso ao corpo medido
+  (nunca ao calendário) por `src/lib/validators/asof-orcamento.test.ts`.
+- ⚠ **O que custou** — o as-of novo custa **~1,6–1,7×** o antigo no consolidado, no volume de hoje (corpo emulado em
+  produção, plano genérico: 65,7 × 38,9 ms; réplica 54,7 × 34,7), e deixa de crescer com o histórico de cada ativo; medido
+  e declarado.
+- 🚧 **O que falta** — o apply das cinco migrations nos dois bancos com a verificação pós-apply; a equivalência com as
+  funções de verdade; o conferidor de formas e as medições "depois" em produção; a janela do `drop` pelo
+  `pg_stat_statements`; o merge; a tag `v1.65.0`.
+
 ## 16/09/2026 — F59 · A doutrina do predicado, escrita e travada ✅
 
 **v1.64.0** · **sem migration** · Fase invisível ao operador. A régua que decide a FORMA do predicado de RLS foi escrita
