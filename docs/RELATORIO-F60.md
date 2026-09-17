@@ -3,7 +3,7 @@
 **v1.65.0** · **migrations `0141`–`0145` — NÃO aplicadas em banco nenhum** · 17/09/2026 · SHA de código congelado
 **`c516467`** · branch `f60-recorte-que-corta-scan` · código no
 [PR #52](https://github.com/vmatusita/ti-wap-inventory-control/pull/52), **em rascunho, aberto e SEM merge** (ata (j) de
-`DECISOES.md`) · o CI do PR rodou em `d83f8ec`, **não** sobre o SHA congelado
+`DECISOES.md`) · CI verde sobre o código congelado ([run 35186554796](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35186554796), HEAD `3f10f2e`)
 
 > As sete leituras de relatório que recortavam por filial com "nulo = tudo" — `(p_filial is null or col = p_filial)`,
 > a forma que a R-ACC-71 proíbe e que no caminho real não corta a leitura (o as-of da menor filial lia os mesmos 368
@@ -61,15 +61,11 @@ um padrão escrito na hora (runbook, "O canal"). Nenhum passo abaixo lê dado de
 
 ### 0. Antes do primeiro apply — publicar e ter o CI sobre o SHA que vai ao banco
 
-Os commits de `2aafb30` até o HEAD não foram publicados; o PR #52 aponta `d83f8ec`. A emenda F56 exige o CI rodando a cadeia
-`0001`→`0145` **sobre o que vai ser aplicado** — o run 35178186717 é anterior ao lock regravado da `0143`/`0145`
-(`5094f6f`) e à revisão final.
-
-```bash
-git push origin f60-recorte-que-corta-scan
-gh pr checks 52 --watch            # verificar E banco-sem-docker verdes sobre o HEAD
-gh pr edit 52 --body-file <arquivo> # o corpo atual diz "926 células" e não declara o bloqueio do canal
-```
+✅ **Feito no fim da run.** A branch foi publicada (`3f10f2e`, código congelado `c516467`), o CI rodou a cadeia `0001`→`0145`
+sobre ela — [run 35186554796](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35186554796): `verificar` e
+`banco-sem-docker` verdes, 35 roteiros / 855 asserções / 0 falhas, **90/90 mutações** detectadas, gate de deriva verde
+(`docs/f60-evidencias/ci-sha-congelado.txt`) — e o corpo do PR #52 foi atualizado (1.004 células, o bloqueio, sem merge).
+Se a `main` andar antes do apply, faça rebase e rode o CI de novo: a emenda F56 exige o CI sobre o que vai ser aplicado.
 
 ### 1. O ENSAIO — as cinco na ordem da cadeia (não há app de produção lá: o `drop` não espera deploy)
 
@@ -440,7 +436,7 @@ fica no describe 7, que roda em `npm run test`); o push, o CI sobre `c516467` e 
 
 | # | Critério | Estado | Onde |
 |---|---|---|---|
-| 1 | lint, test, build, tsc, `verificar:actions` | ✅ | `c516467`: 228 / 6.432; `revisao-final-build.txt` |
+| 1 | lint, test, build, tsc, `verificar:actions` | ✅ | `c516467`: 228 / 6.432; `revisao-final-build.txt`; CI verde em `3f10f2e` |
 | 2 | o `PLAN-F60.md` com censo, tabelas, linhas de base, datas | ✅ | PLAN §1–§3, antes dos lotes (§12) |
 | 3 | sete novas com `= any (p_filiais)`, NULL e `'{}'` → 0 em roteiro | ✅ CI · banco real PENDENTE | `f60_recorte.sql` 1a–1h |
 | 4 | grants nos dois bancos, 6a verde | ✅ CI · dois bancos PENDENTE | `catalogo_secdef.sql` 6a, `7e` |
@@ -451,7 +447,7 @@ fica no describe 7, que roda em `npm run test`); o push, o CI sobre `c516467` e 
 | 9 | chamadores migrados, travas verdes | ✅ | `grep-p_filial-pos-lote2.txt` |
 | 10 | 59 chamadas em 8 roteiros; 2 mutações reancoradas | ✅ | `rotulos-roteiros.txt`, CI 90/90 |
 | 11 | `rpcs-recorte-sql.test.ts`: coleta, replay, falha fechada, vermelho gravado | ✅ (reforçado na revisão final) | sabotagens A e B, describe 7 |
-| 12 | par no catálogo verde, mutações pelo rótulo, teto | ✅ em `d83f8ec` · ⚠ CI sobre `c516467` pendente | ata (g) |
+| 12 | par no catálogo verde, mutações pelo rótulo, teto | ✅ CI sobre o código congelado (run 35186554796: bloco 7 verde, 90/90) | `ci-sha-congelado.txt`, ata (g) |
 | 13 | `rel_saldo_colaborador` decidida, uma fonte, dois sentidos | ✅ | R-ACC-76 |
 | 14 | `paginarTodos` sem `cap` não compila; keyset/OFFSET listados | ✅ | sabotagem C, decisão 5 |
 | 15 | as sete velhas dropadas — ou PENDENTE com bloqueio e comando no topo | 🚧 PENDENTE, comando no §1.4 | ata (j) |
