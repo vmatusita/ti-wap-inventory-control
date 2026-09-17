@@ -8,13 +8,16 @@ import type { JsonSerializavel } from '@/lib/supabase/json'
 // `.rpc(` espalhados, e o tipo do que entrava e saía era o do GERADOR — que mente nos dois
 // sentidos:
 //
-//  · no ARGUMENTO, ele não distingue "aceita NULL" de "não aceita". As sete `rel_*` recebem
-//    `p_filial smallint`, não são `strict`, e tratam `p_filial is null` como o relatório
-//    CONSOLIDADO; o gerador emite `p_filial: number`. Até aqui isso era calado por casts —
+//  · no ARGUMENTO, ele não distingue "aceita NULL" de "não aceita". As funções da Zona
+//    destrutiva recebem `p_filial smallint`, não são `strict`, e tratam `p_filial is null` como o
+//    alcance GLOBAL; o gerador emite `p_filial: number`. Até a F58 isso era calado por casts —
 //    `filialParaRpc` (`as unknown as number`, com a história inteira no cabeçalho) e mais três
-//    iguais escritos à mão (`conflitos.ts`, os dois `dev-destrutivo.ts`);
+//    iguais escritos à mão (`conflitos.ts`, os dois `dev-destrutivo.ts`). (Até a F60 as sete
+//    `rel_*` de relatório tinham o mesmo NULL de domínio — o consolidado —; a F60 as trocou pelas
+//    `rel_*_filiais`, com a lista `p_filiais` OBRIGATÓRIA, e elas saíram deste mapa: `null` num
+//    recorte de relatório deixou de compilar);
 //  · no RETORNO, ele tipa toda coluna de `returns table (…)` e todo escalar como NÃO-NULOS.
-//    `rel_estoque_asof` devolve `colaborador`/`setor` NULL para ativo sem detentor, e
+//    `rel_estoque_asof_filiais` devolve `colaborador`/`setor` NULL para ativo sem detentor, e
 //    `papel_atual()` devolve NULL para perfil desativado — o tipo gerado diz que não.
 //
 // A porta corrige as duas mentiras NUM LUGAR SÓ, por MAPAS NOMINAIS — função × parâmetro (ou
@@ -24,10 +27,9 @@ import type { JsonSerializavel } from '@/lib/supabase/json'
 // supunha não-nula uma coluna do mapa passa a não compilar — que é o conserto aparecendo.
 //
 // POR QUE DEVOLVE O BUILDER, E NÃO A PROMESSA RESOLVIDA (fato 4 da ordem): `relatorios/itens.ts`
-// põe três builders num `Promise.all`, `queries/itens.ts` faz `Promise.all` de um `map` de
-// builders, e `relatorios/estoque.ts` encadeia `.order('ativo_id').range(from, to)` no builder
-// de `rel_estoque_asof` dentro de `paginarTodos`. `.single()`/`.maybeSingle()` continuam
-// disponíveis.
+// põe três builders num `Promise.all`, e `relatorios/estoque.ts` encadeia
+// `.order('ativo_id').range(from, to)` no builder de `rel_estoque_asof_filiais` dentro de
+// `paginarTodos`. `.single()`/`.maybeSingle()` continuam disponíveis.
 //
 // ⚠ `.returns<>()` É DE PROPÓSITO, contra o aviso de depreciação da lib. É a ÚNICA forma de
 // trocar o tipo do resultado PRESERVANDO o builder: `.returns()` de `PostgrestTransformBuilder`
@@ -53,20 +55,15 @@ export type EntradaDeMapa = { readonly motivo: string; readonly evidencia: strin
 // 1. ARGUMENTOS que o app passa NULL de propósito — e a função aceita como VALOR DE DOMÍNIO
 // ---------------------------------------------------------------------------
 
-/**
- * O recorte das sete `rel_*`: NULL em `p_filial` é o relatório CONSOLIDADO.
- *
- * ⚠ É ESTA A LINHA QUE A F60 TROCA. Quando `p_filial smallint` virar `p_filiais smallint[]
- * not null`, a entrada deixa de existir (não há mais NULL de domínio) — e as sete `rel_*`
- * mudam juntas, porque todas apontam para esta constante.
- */
-const RECORTE_DO_RELATORIO = {
-  p_filial: {
-    motivo:
-      'NULL é o relatório CONSOLIDADO (todas as filiais) — é o que /relatorios/geral pede desde a F3',
-    evidencia: 'p_filial is null or',
-  },
-} as const satisfies Record<string, EntradaDeMapa>
+// ⚠ F60 — O RECORTE DOS RELATÓRIOS NÃO MORA MAIS AQUI, e a ausência é a regra. Até a F59 as sete
+// `rel_*` apontavam para uma constante `RECORTE_DO_RELATORIO` (NULL em `p_filial` = o consolidado).
+// As substitutas (`rel_*_filiais`, migration 0143) recebem `p_filiais smallint[]` e NÃO tratam o
+// nulo como domínio — NULL e `'{}'` dão zero linhas —, então nenhuma delas pode estar neste mapa:
+// `chamarRpc(client, 'rel_resumo_filiais', { p_filiais: null, … })` não compila
+// (`linhas-tipos.test.ts` prova), e o consolidado é a LISTA de todas as filiais, montada num lugar
+// só (`recorteDeFiliais`, `src/lib/queries/relatorios/recorte-filiais.ts`). Uma `rel_*` que voltar a
+// este mapa estaria declarando um nulo que significa "tudo" — a forma que a F60 existe para proibir
+// (a trava de recorte, `rpcs-recorte-sql.test.ts`, a reprovaria de qualquer jeito no corpo).
 
 /** O alcance da Zona destrutiva (F23): NULL em `p_filial` é o reset GLOBAL. */
 const ALCANCE_DO_RESET = {
@@ -81,13 +78,6 @@ type MapaDeArgumentos = {
 }
 
 export const ARGUMENTOS_ANULAVEIS = {
-  rel_estoque_asof: RECORTE_DO_RELATORIO,
-  rel_saldo_itens: RECORTE_DO_RELATORIO,
-  rel_mov_itens: RECORTE_DO_RELATORIO,
-  rel_frescor_itens: RECORTE_DO_RELATORIO,
-  rel_mov_por_mes: RECORTE_DO_RELATORIO,
-  rel_por_motivo: RECORTE_DO_RELATORIO,
-  rel_resumo: RECORTE_DO_RELATORIO,
   previa_reset: ALCANCE_DO_RESET,
   resetar_acervo: ALCANCE_DO_RESET,
   resetar_itens: ALCANCE_DO_RESET,
@@ -111,14 +101,19 @@ type MapaDeColunas = {
 }
 
 export const COLUNAS_DE_RETORNO_ANULAVEIS = {
-  rel_estoque_asof: {
+  // F60 (0143) — a chave e as evidências migraram 1:1 do as-of velho (`0134`) para o corpo novo, por
+  // lateral: o `status_tem_detentor` passou a ser calculado uma vez por linha (a lateral `d`), e o
+  // `when u.tipo is null then null` não existe mais (o `cross join lateral` já não produz linha sem
+  // movimentação efetiva).
+  rel_estoque_asof_filiais: {
     colaborador: {
       motivo: 'ativo em estado SEM detentor (estoque, triagem…) devolve o detentor NULL na data pedida',
-      evidencia: "when not public.status_tem_detentor(coalesce(u.status_resultante, 'em_estoque')) then null",
+      evidencia: 'when not d.tem_detentor then null',
     },
     setor: {
-      motivo: 'mesma regra do colaborador: sem detentor, sem setor',
-      evidencia: 'when u.tipo is null then null',
+      motivo:
+        'mesma regra do colaborador (sem detentor, sem setor), e o setor lido do retrato anterior sai NULL quando o retrato não o tem',
+      evidencia: "else u.snapshot_anterior ->> 'setor'",
     },
     marca: {
       motivo: '`ativos.marca` é anulável e sai direto na linha',
@@ -127,6 +122,16 @@ export const COLUNAS_DE_RETORNO_ANULAVEIS = {
     modelo: {
       motivo: '`ativos.modelo` é anulável e sai direto na linha',
       evidencia: 'a.modelo',
+    },
+  },
+  // F60 (0143) — o saldo em DOIS NÍVEIS: a linha do NÍVEL DO TOTAL do recorte sai com `filial_id`
+  // NULL (o gerador tipa a coluna de `returns table` como não-nula). Quem lê escolhe o nível pelo
+  // nulo — `queries/itens.ts` e `relatorios/itens.ts`.
+  rel_saldo_itens_filiais: {
+    filial_id: {
+      motivo:
+        'o nível do TOTAL do recorte (uma linha por item) sai com filial_id NULL, ao lado das linhas por filial',
+      evidencia: 'select null::smallint where exists (select 1 from alvo)',
     },
   },
   devolver_ao_fornecedor: {

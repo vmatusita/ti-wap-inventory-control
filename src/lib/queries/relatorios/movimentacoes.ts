@@ -34,7 +34,8 @@ import {
   montarTabelasTruncadas,
   paginaAteOLimite,
 } from '@/lib/relatorios/teto-tabela'
-import { CAP_MOVIMENTACOES, modeloDe, paginarTodos, type DbClient } from './comum'
+import { CAP_LOTE, CAP_MOVIMENTACOES, modeloDe, paginarPorIds, paginarTodos, type DbClient } from './comum'
+import { recorteDeFiliais } from './recorte-filiais'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import {
@@ -54,14 +55,15 @@ import {
 // ---- Série de movimentações adaptativa ao período (OS-F3 melhoria) ----
 // A granularidade acompanha a duração do período (dia/semana/mês).
 
-// Mensal: agregação no banco (rel_mov_por_mes) — uma linha por (mês, tipo).
+// Mensal: agregação no banco (rel_mov_por_mes_filiais) — uma linha por (mês, tipo). O recorte é a LISTA
+// (`recorteDeFiliais`: `null` → todas as filiais, inclusive desativadas; um id → `[id]` — F60).
 async function serieMensal(
   client: DbClient,
   filialId: number | null,
   periodo: Periodo,
 ): Promise<SerieMovimentacoes> {
-  const { data, error } = await chamarRpc(client, 'rel_mov_por_mes', {
-    p_filial: filialId,
+  const { data, error } = await chamarRpc(client, 'rel_mov_por_mes_filiais', {
+    p_filiais: await recorteDeFiliais(client, filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -114,8 +116,8 @@ export async function getPorMotivo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<PorMotivo> {
-  const { data, error } = await chamarRpc(client, 'rel_por_motivo', {
-    p_filial: filialId,
+  const { data, error } = await chamarRpc(client, 'rel_por_motivo_filiais', {
+    p_filiais: await recorteDeFiliais(client, filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -136,8 +138,8 @@ export async function getResumoPeriodo(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<ResumoPeriodo> {
-  const { data, error } = await chamarRpc(client, 'rel_resumo', {
-    p_filial: filialId,
+  const { data, error } = await chamarRpc(client, 'rel_resumo_filiais', {
+    p_filiais: await recorteDeFiliais(client, filialId),
     p_de: periodo.de,
     p_ate: periodo.ate,
   })
@@ -391,29 +393,48 @@ async function buscarLinhasPeriodo(
 // original), como a ficha (linha-do-tempo.tsx) já infere. Aqui a mesma doutrina no
 // relatório: um Map `estorno_de → data do estorno`. Bounded por `ate` (as-of): um
 // snapshot congelado não passa a exibir um estorno feito DEPOIS de gerado; e o par
-// mov+estorno é coerente com a reconstrução as-of do estado. Sem filtro de filial —
-// o estorno de um ativo transferido pode ter filial diferente da original, e o
-// volume de estornos (válvula administrativa rara) é pequeno; a interseção é por id.
-async function buscarEstornosAteData(
+// mov+estorno é coerente com a reconstrução as-of do estado.
+//
+// ⚠ F60 · lote 2 (fato 20 · PLAN-F60 §6.7) — A LEITURA MUDOU DE FORMA. Até aqui ela lia TODO
+// estorno até a data, no mesmo `Promise.all` das três tabelas, e cruzava por id em memória — uma
+// leitura que crescia com o HISTÓRICO inteiro. Agora ela recebe os ids que as três tabelas JÁ
+// leram (deduplicados, e só eles) e busca por `.in('estorno_de', lote)` em lotes de 100
+// (`paginarPorIds`, pelo limite de URL do PostgREST), em KEYSET pelo `id` dentro de cada lote (P6):
+// cresce com o PERÍODO. Custo medido em produção (B6): 305 ids de 365 dias → 4 lotes de ~0,36 ms,
+// contra 0,28 ms da leitura de todos os 8 estornos — mudança de forma, não de tempo, no volume de
+// hoje. Por isso ela roda DEPOIS das três tabelas, e não mais ao lado delas.
+//
+// ⚠ SEM FILTRO DE FILIAL, e não é esquecimento: o estorno grava a filial ATUAL do ativo
+// (`aplicar_movimentacao`, 0122), e um ativo transferido depois da saída tem o estorno dela gravado
+// na filial NOVA. Filtrar por filial apagaria a marca "estornada" no relatório da filial de origem.
+// A interseção é por id da movimentação, que já vem recortada — é o `movimentacoes.test.ts` desta
+// pasta que prova a marca com o estorno em outra filial. Ordem por `id` dentro do lote: um id
+// nunca se divide entre dois lotes, então "o primeiro estorno por id" é o mesmo de antes.
+//
+// Teto por LOTE (`CAP_LOTE`): no máximo um estorno por movimentação, ≤ 100 por lote.
+export async function buscarEstornosAteData(
   client: DbClient,
+  ids: readonly string[],
   ate: string,
 ): Promise<Map<string, string>> {
-  // F60 (PLAN §2.1, #48 e §6.7): só o TETO nesta etapa — a leitura muda de FORMA no lote 2
-  // (`paginarPorIds` por `.in('estorno_de', ids)` depois das três tabelas, P6, em keyset), e
-  // migrar para keyset aqui seria reescrever duas vezes a mesma leitura. Teto do domínio: há no
-  // máximo um estorno por movimentação.
-  const rows = await paginarTodos<{ estorno_de: string | null; data: string }>(
+  const rows = await paginarPorIds<{ id: string; estorno_de: string | null; data: string }>(
     'Falha ao ler estornos',
-    (from, to) =>
-      client
-        .from('movimentacoes')
-        .select('estorno_de, data')
-        .eq('tipo', 'estorno')
-        .not('estorno_de', 'is', null)
-        .lte('data', ate)
-        .order('id', { ascending: true })
-        .range(from, to),
-    CAP_MOVIMENTACOES,
+    [...new Set(ids)],
+    {
+      porChave: (lote, depoisDe, tamanho) => {
+        const q = client
+          .from('movimentacoes')
+          .select('id, estorno_de, data')
+          .in('estorno_de', lote)
+          .eq('tipo', 'estorno')
+          .lte('data', ate)
+          .order('id', { ascending: true })
+          .limit(tamanho)
+        return depoisDe === null ? q : q.gt('id', depoisDe)
+      },
+      chaveDe: (r) => r.id,
+    },
+    CAP_LOTE,
   )
   const map = new Map<string, string>()
   for (const r of rows) if (r.estorno_de && !map.has(r.estorno_de)) map.set(r.estorno_de, r.data)
@@ -437,7 +458,6 @@ export async function getTabelasFinais(
     { linhas: saidasRaw, corte: corteSaidas },
     { linhas: entradasRaw, corte: corteEntradas },
     { linhas: transfRaw, corte: corteTransferencias },
-    estornos,
   ] = await Promise.all([
     buscarLinhasPeriodo(client, filialId, periodo, ['saida', 'emprestimo']),
     // F15: `troca` (nascimento do substituto) é ENTRADA real do período, como a compra
@@ -446,8 +466,13 @@ export async function getTabelasFinais(
     // observação própria (nunca os marcadores de go-live/import) e o import não gera troca.
     buscarLinhasPeriodo(client, filialId, periodo, ['devolucao', 'compra', 'troca']),
     buscarLinhasPeriodo(client, filialId, periodo, ['transferencia'], true),
-    buscarEstornosAteData(client, periodo.ate),
   ])
+  // F60 · lote 2 — DEPOIS das três tabelas, com os ids que elas leram (ver `buscarEstornosAteData`).
+  const estornos = await buscarEstornosAteData(
+    client,
+    [...saidasRaw, ...entradasRaw, ...transfRaw].map((r) => r.id),
+    periodo.ate,
+  )
 
   const modeloRow = (r: RawTabelaRow) =>
     r.ativo ? modeloDe(r.ativo.marca, r.ativo.modelo) : '—'

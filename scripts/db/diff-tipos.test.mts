@@ -257,6 +257,13 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // `database.ts` a ganhou por HAND-FIX datado — a `0141` ainda não foi aplicada em banco
     // real, e o gate de deriva do CI constrói a cadeia inteira; a regeneração do ensaio
     // depois do apply substitui a entrada. O número SUBIU porque o banco ganhou uma função.
+    //
+    // F60 · Frente D · lote 2 (16/09/2026): funções 76 -> 76, e NÃO é que nada mudou. A `0143`
+    // cria as sete `rel_*_filiais` e a `0145` derruba as sete `rel_*` velhas: sete nomes saem,
+    // sete entram — o `database.ts` o faz por HAND-FIX datado (as duas ainda não foram
+    // aplicadas em banco real). O número exato continua sendo a trava certa: um hand-fix que
+    // só acrescentasse as novas (sem tirar as velhas) daria 83 e o teste acusaria; e o gate de
+    // deriva, que só reprova o que o BANCO tem a mais, não pegaria as velhas sobrando no arquivo.
     expect(real.relacoes.size).toBe(34)
     expect(real.funcoes.size).toBe(76)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)

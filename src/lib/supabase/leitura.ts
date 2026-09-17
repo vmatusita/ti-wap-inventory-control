@@ -13,7 +13,7 @@ import type { NomeRpc } from '@/lib/supabase/rpc'
 // pela MESMA forma. Um conferidor com cópia do schema provaria a cópia.
 //
 // ⚠ O NOME da tabela e o da RPC ficam LITERAIS no call-site — `.from('movimentacoes')`,
-// `chamarRpc(client, 'rel_resumo', …)` —, e não `d.origem`/`d.rpc`. É exigência do tripwire do
+// `chamarRpc(client, 'rel_resumo_filiais', …)` —, e não `d.origem`/`d.rpc`. É exigência do tripwire do
 // visualizador por senha (`queries/relatorios/fronteira-viewer.test.ts`), que só aceita nome
 // LITERAL numa lista branca e reprova qualquer nome montado em runtime. A troca não custa a
 // amarração: o literal tem o mesmo tipo do campo do descritor. Quem confere que o call-site e o
@@ -44,18 +44,22 @@ export type LeituraDeRelacao<O extends Relacao = Relacao, S extends string = str
   readonly naoNulas?: readonly string[]
 }
 
-/** Como o conferidor monta os argumentos de uma RPC de LEITURA (nomes reais dos parâmetros). */
+/**
+ * Como o conferidor monta os argumentos de uma RPC de LEITURA (nomes reais dos parâmetros).
+ *
+ * F60 — o recorte é sempre LISTA (`p_filiais smallint[]`): o consolidado é a lista de TODAS as
+ * filiais (inclusive desativadas), e cada filial ativa ganha a sua célula com a lista de um id. Nunca
+ * NULL: nas `rel_*_filiais` o nulo dá zero linhas, e uma célula com NULL não provaria forma nenhuma.
+ * As variantes `filial-e-data`/`filial-e-periodo` (um `smallint` com NULL para o consolidado) saíram
+ * junto com as sete `rel_*` velhas (lote 2): não há mais RPC de leitura cujo recorte aceite nulo, e
+ * deixá-las no tipo seria deixar a porta aberta para a próxima.
+ */
 export type MatrizDeRpc =
   | { readonly tipo: 'sem-argumentos' }
-  | { readonly tipo: 'filial-e-data'; readonly filial: string; readonly data: string }
-  | { readonly tipo: 'filial-e-periodo'; readonly filial: string; readonly de: string; readonly ate: string }
   | { readonly tipo: 'colaborador'; readonly colaborador: string }
-  /**
-   * F60 — o recorte como LISTA (`p_filiais smallint[]`): o consolidado é a lista de TODAS as filiais
-   * (inclusive desativadas), e cada filial ativa ganha a sua célula com a lista de um id. Nunca
-   * NULL: nas `rel_*_filiais` o nulo dá zero linhas, e uma célula com NULL não provaria forma nenhuma.
-   */
   | { readonly tipo: 'filiais'; readonly filiais: string }
+  | { readonly tipo: 'filiais-e-data'; readonly filiais: string; readonly data: string }
+  | { readonly tipo: 'filiais-e-periodo'; readonly filiais: string; readonly de: string; readonly ate: string }
 
 export type LeituraDeRpc<N extends NomeRpc = NomeRpc, F extends z.ZodType = z.ZodType> = {
   readonly tipo: 'rpc'
@@ -66,7 +70,7 @@ export type LeituraDeRpc<N extends NomeRpc = NomeRpc, F extends z.ZodType = z.Zo
   readonly retorno: 'linhas' | 'valor'
   readonly matriz: MatrizDeRpc
   /**
-   * Colunas de ordem TOTAL para paginar o retorno de tabela (`rel_estoque_asof` não tem `order by`):
+   * Colunas de ordem TOTAL para paginar o retorno de tabela (`rel_estoque_asof_filiais` não tem `order by`):
    * a combinação tem de ser única por linha — as colunas do `group by` vivo, ou a chave do
    * `distinct on`. Uma coluna só onde a função agrupa por duas repete e pula linha entre páginas
    * (`rel_saldo_colaborador` agrupa por item E filial — a revisão do lote 2 pegou). O conferidor

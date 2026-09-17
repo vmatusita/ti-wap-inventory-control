@@ -8,8 +8,8 @@ import type { DbClient } from './comum'
 // recebesse NULL por engano devolvia o acervo inteiro sem erro. As `rel_*_filiais` recebem uma
 // LISTA obrigatória (`p_filiais smallint[]`, ligada por `= any`), e NULL ou `'{}'` dão zero linhas.
 // O consolidado passa a ser, então, a lista EXPLÍCITA de todas as filiais — e ela nasce aqui, num
-// lugar só. O lote 1 usa esta leitura nos KPIs do dashboard (`queries/dashboard.ts`); o lote 2
-// acrescenta `recorteDeFiliais` ao lado e a leva para o relatório inteiro.
+// lugar só. O lote 1 a usou nos KPIs do dashboard (`queries/dashboard.ts`); o lote 2 acrescentou
+// `recorteDeFiliais` ao lado, e é por ela que o relatório inteiro chega às `rel_*_filiais`.
 
 /**
  * Os ids de TODAS as filiais, INCLUSIVE as desativadas, em ordem de id — o recorte do CONSOLIDADO.
@@ -55,3 +55,26 @@ export const filiaisDoConsolidado = cache(async function filiaisDoConsolidado(
     )
   return ids
 })
+
+/**
+ * O recorte de uma leitura de relatório como a LISTA que as `rel_*_filiais` exigem — o ÚNICO lugar
+ * onde o `null` da camada de relatório morre (F60 · PLAN-F60 §6.3, decisão 2).
+ *
+ * `null` → `filiaisDoConsolidado(client)`: TODAS as filiais, inclusive as desativadas, que é o que
+ * `p_filial = null` cobria. Um número → `[filialId]`, sem ler nada.
+ *
+ * ⚠ POR QUE A CAMADA CONTINUA `number | null` POR DENTRO: `getSnapshotRelatorioV2` e as leituras
+ * que ele reparte recebem `filialId: number | null` desde a F3, e mudar a assinatura delas todas é
+ * a virada de recorte da F63 (decisão escrita no PLAN). Até lá o nulo continua significando "o
+ * consolidado" DENTRO da camada — mas nunca atravessa a porta: `chamarRpc` recusa `null` em
+ * `p_filiais` em compilação, e toda chamada de `rel_*_filiais` do relatório passa por aqui.
+ *
+ * ⚠ SEM filtro de `ativo` no ramo de um número, de propósito: uma filial desativada pedida pelo id
+ * recorta por ela, como `p_filial = <id>` fazia. E sem conferir se o id existe: um id que não é
+ * filial dá ZERO linhas nas sete (o `= any` não casa nada; em `rel_mov_itens_filiais` e
+ * `rel_saldo_itens_filiais`, a guarda de existência do recorte) — onde as velhas de itens
+ * devolviam o catálogo zerado, que o relatório já escondia por não ter sinal nenhum.
+ */
+export async function recorteDeFiliais(client: DbClient, filialId: number | null): Promise<number[]> {
+  return filialId === null ? filiaisDoConsolidado(client) : [filialId]
+}

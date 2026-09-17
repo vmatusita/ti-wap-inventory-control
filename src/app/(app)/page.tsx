@@ -19,6 +19,7 @@ import { podeEscrever } from '@/lib/auth/papeis'
 import { getUltimasMovimentacoes } from '@/lib/queries/relatorios'
 import { getKpisDoDashboard } from '@/lib/queries/dashboard'
 import { getSaldosItens, listarItensAtivos } from '@/lib/queries/itens'
+import { filiaisDoConsolidado } from '@/lib/queries/relatorios/recorte-filiais'
 import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 import { itensParaRepor, minimosDoCatalogo } from '@/lib/itens/repor'
 import { hojeISO, formatDate } from '@/lib/format'
@@ -120,9 +121,11 @@ export default async function DashboardPage() {
   const hrefRelatorios = await rotaRelatorioPadrao(operador)
 
   // As duas leituras do ponto de reposição (F12 · I5) entram no MESMO
-  // `Promise.all` das outras — nada de cascata sequencial na home. `null` em
-  // `getSaldosItens` é o consolidado de todas as filiais, que é justamente com
-  // quem o mínimo compara (decisão do Johnny 22/07/2026).
+  // `Promise.all` das outras — nada de cascata sequencial na home. O saldo é o
+  // CONSOLIDADO de todas as filiais, que é justamente com quem o mínimo compara
+  // (decisão do Johnny 22/07/2026). F60: o consolidado é a LISTA de todas as filiais,
+  // inclusive desativadas (`filiaisDoConsolidado`) — nunca mais `null` —, encadeada
+  // na própria leitura para não sair do `Promise.all`.
   // F25 — o RECORTE do card de pendências. A régua desta tela: número do ACERVO é
   // global (os KPIs somam todas as filiais, e por isso os links deles declaram
   // ); LISTA DE TRABALHO é recortada como a pessoa a verá. O card de
@@ -160,7 +163,7 @@ export default async function DashboardPage() {
         .order('ordem', { ascending: true })
         .limit(5),
       getUltimasMovimentacoes(client, null, { de: '2000-01-01', ate: hoje }, 5),
-      getSaldosItens(null),
+      filiaisDoConsolidado(client).then(getSaldosItens),
       listarItensAtivos(),
       // FLX-04 — MESMO recorte de filial da fila acima (unidadesDoOperador): o
       // selo da sidebar soma fila + conflitos com este recorte por cargo

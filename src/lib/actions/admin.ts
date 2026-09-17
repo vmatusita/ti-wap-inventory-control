@@ -661,7 +661,7 @@ export async function atualizarFilial(input: {
   if (!ativo) {
     const [{ count, error: eContagem }, saldos] = await Promise.all([
       client.from('ativos').select('*', { count: 'exact', head: true }).eq('filial_id', id),
-      getSaldosItens(id),
+      getSaldosItens([id]),
     ])
     // Sem isto o guarda falha ABERTO: em erro o PostgREST devolve `count: null`,
     // `(null ?? 0) > 0` é falso e a desativação passa como se a filial estivesse

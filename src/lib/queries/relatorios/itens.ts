@@ -11,6 +11,7 @@ import type {
 import { marcaEstorno } from '@/lib/relatorios/estorno'
 import { minimoDoItem, minimosDoCatalogo } from '@/lib/itens/repor'
 import { CAP_ITENS, CAP_LANCAMENTOS_ITEM, paginarTodos, type DbClient } from './comum'
+import { recorteDeFiliais } from './recorte-filiais'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import {
@@ -91,10 +92,18 @@ export async function getGruposItens(
   filialId: number | null,
   periodo: Periodo,
 ): Promise<GrupoRelatorio[]> {
+  // F60 · lote 2 — o recorte das três `rel_*_filiais` é a LISTA (`recorteDeFiliais`: `null` → todas
+  // as filiais, inclusive desativadas; um id → `[id]`), a MESMA para as três. A leitura da lista fica
+  // EM VOO e as três RPCs encadeiam nela: as observações e o catálogo, que não dependem do recorte,
+  // saem já, em vez de esperar a lista (no consolidado, a leitura de `filiais` é memoizada por request
+  // e compartilhada com o as-of e com o período).
+  const recorte = recorteDeFiliais(client, filialId)
   const [saldos, movs, frescor, obsRows, catalogo] = await Promise.all([
-    chamarRpc(client, 'rel_saldo_itens', { p_filial: filialId, p_ate: periodo.ate }),
-    chamarRpc(client, 'rel_mov_itens', { p_filial: filialId, p_de: periodo.de, p_ate: periodo.ate }),
-    chamarRpc(client, 'rel_frescor_itens', { p_filial: filialId, p_ate: periodo.ate }),
+    recorte.then((p_filiais) => chamarRpc(client, 'rel_saldo_itens_filiais', { p_filiais, p_ate: periodo.ate })),
+    recorte.then((p_filiais) =>
+      chamarRpc(client, 'rel_mov_itens_filiais', { p_filiais, p_de: periodo.de, p_ate: periodo.ate }),
+    ),
+    recorte.then((p_filiais) => chamarRpc(client, 'rel_frescor_itens_filiais', { p_filiais, p_ate: periodo.ate })),
     // Paginada de verdade — o comentário no alto do arquivo já dizia "como as
     // outras quatro", mas esta usava `.limit(1000)` FIXO. Com o preset "Tudo"
     // (plurianual), o 1.001º lançamento com observação sumia sem aviso, e a
@@ -153,7 +162,16 @@ export async function getGruposItens(
 
   // F58: as três `rel_*` passam pela forma — a linha fora do formato LANÇA, pelo mesmo caminho
   // dos `throw` acima (a geração de snapshot não congela dado incompleto).
-  const linhasSaldo = linhasDe(saldos.data, LEITURA_REL_SALDO_ITENS.forma, LEITURA_REL_SALDO_ITENS.rotulo)
+  //
+  // O saldo lê o NÍVEL DO TOTAL (`filial_id` NULL): `rel_saldo_itens_filiais` devolve, numa chamada, uma
+  // linha por (filial do recorte, item) E uma por item com o total do recorte — que é o número que a
+  // velha `rel_saldo_itens` devolvia, para qualquer recorte (`0143`). Sem o filtro, o relatório
+  // contaria cada item duas vezes (na aba de uma filial: a linha dela e o total, iguais) — ou, no
+  // consolidado, uma vez por filial e mais uma. Nunca a soma das linhas por filial: os clamps do total
+  // não são aditivos quando um chamado atravessa filiais.
+  const linhasSaldo = linhasDe(saldos.data, LEITURA_REL_SALDO_ITENS.forma, LEITURA_REL_SALDO_ITENS.rotulo).filter(
+    (s) => s.filial_id === null,
+  )
   const linhasMov = linhasDe(movs.data, LEITURA_REL_MOV_ITENS.forma, LEITURA_REL_MOV_ITENS.rotulo)
   const linhasFrescor = linhasDe(frescor.data, LEITURA_REL_FRESCOR_ITENS.forma, LEITURA_REL_FRESCOR_ITENS.rotulo)
 
@@ -224,7 +242,7 @@ export async function getGruposItens(
 
 // ===========================================================================
 // B5 (F6B) — tabela de movimentações de ITENS por quantidade no período (seção
-// própria). Ao contrário de rel_mov_itens (agregado Σ por item), esta é lançamento
+// própria). Ao contrário de rel_mov_itens_filiais (agregado Σ por item), esta é lançamento
 // a lançamento: PostgREST direto em lancamentos_item com os embeds de item e
 // filial, filtrada pela janela. Recebe o client resolvido (serve operador E
 // viewer por senha, como as demais leituras de relatório). Traz o período
@@ -342,7 +360,7 @@ export async function getLancamentosItensPeriodo(
           // COM a justificativa escrita pelo dev impressa e exportada no CSV.
           //
           // O saldo em si CONTINUA contando com o ajuste (é o ponto de forçar o saldo): quem
-          // soma é `rel_saldo_itens`, que não passa por aqui. O que se exclui é a linha do
+          // soma é `rel_saldo_itens_filiais`, que não passa por aqui. O que se exclui é a linha do
           // relatório de MOVIMENTO do período, não o efeito no estoque.
           .eq('forcado', false)
         if (filialId) q = q.eq('filial_id', filialId)

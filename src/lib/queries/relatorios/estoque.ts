@@ -34,11 +34,12 @@ import {
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { linhasDe } from '@/lib/supabase/linhas'
 import { LEITURA_REL_ESTOQUE_ASOF } from '@/lib/queries/formas/relatorios'
+import { recorteDeFiliais } from './recorte-filiais'
 
 // Estoque no fim do período: KPIs, categoria × status, disponíveis por modelo,
 // reservados e manutenção — TUDO derivado do estado reconstruído AS-OF (OS-F3
 // 3.5/3.6). Estado atual = fast path barato (período terminando hoje); passado =
-// reconstrução exata via rel_estoque_asof. Fonte unificada do relatório v2 (ao vivo
+// reconstrução exata via rel_estoque_asof_filiais. Fonte unificada do relatório v2 (ao vivo
 // e snapshot). `descartado` nunca entra (baixa). F60: o dashboard deixou de ler o
 // estado — conta por `rel_contagem_status_filiais` (`queries/dashboard.ts`), com a
 // MESMA regra de KPI em `kpisDeContagens`, logo abaixo de `kpisDeEstado`.
@@ -57,7 +58,7 @@ export type EstadoAtivo = {
 }
 
 // Fast path (§7): período terminando hoje → estado derivado atual (barato).
-// Período no passado → rel_estoque_asof (reconstrução exata, par mov+estorno se
+// Período no passado → rel_estoque_asof_filiais (reconstrução exata, par mov+estorno se
 // anula). `descartado` nunca entra (baixa).
 export async function lerEstadoAtivos(
   client: DbClient,
@@ -114,7 +115,7 @@ export async function lerEstadoAtivos(
   // novos que nunca existiram.
   //
   // A função SQL está CORRETA e devolve tudo — o defeito era só a leitura. O
-  // `.order('ativo_id')` NÃO é enfeite: `rel_estoque_asof` não tem `order by` no
+  // `.order('ativo_id')` NÃO é enfeite: `rel_estoque_asof_filiais` não tem `order by` no
   // corpo, e paginar por OFFSET sem ordem total repete e perde linhas quando o
   // plano muda entre duas páginas (ver o bloco de `paginarTodos` em comum.ts).
   // `ativo_id` é uuid e há uma linha por ativo, então é ordem total.
@@ -126,11 +127,17 @@ export async function lerEstadoAtivos(
   // OFFSET, não keyset (F60 · PLAN §2.1, #39): a fonte é RPC, e o builder que a porta devolve
   // não tem filtro no TIPO (`rpc.ts`) — o `.gt('ativo_id', …)` do keyset não compila. Teto: uma
   // linha por ativo.
+  //
+  // F60 · lote 2 — o recorte é a LISTA (`recorteDeFiliais`: `null` → todas as filiais, inclusive
+  // desativadas; um id → `[id]`), lida UMA vez antes das páginas: todas as páginas recortam pela
+  // MESMA lista. A filial do as-of é a CALCULADA na data (a da última movimentação efetiva), e é
+  // sobre ela que a função recorta — não sobre `ativos.filial_id` de hoje (`0143`).
+  const filiais = await recorteDeFiliais(client, filialId)
   const brutas = await paginarTodos(
     'Falha ao reconstruir o estoque as-of',
     (from, to) =>
-      chamarRpc(client, 'rel_estoque_asof', {
-        p_filial: filialId,
+      chamarRpc(client, 'rel_estoque_asof_filiais', {
+        p_filiais: filiais,
         p_data: ate,
       })
         .order('ativo_id', { ascending: true })
@@ -155,7 +162,7 @@ export async function lerEstadoAtivos(
 //
 // SEM migration e SEM RPC nova (restrição da ordem): cada ponto é uma chamada de
 // `lerEstadoAtivos`, que já sabe escolher entre o fast path (data ≥ hoje) e a
-// reconstrução exata via `rel_estoque_asof`. As datas vêm da régua pura
+// reconstrução exata via `rel_estoque_asof_filiais`. As datas vêm da régua pura
 // `datasDaSerieEstado`, que TAMBÉM é o teto de custo — ver ali o orçamento novo
 // (6 leituras no pior caso, não mais 9).
 //
@@ -176,7 +183,7 @@ export async function lerEstadoAtivos(
 // DEGRADAÇÃO: o card é opcional e decorativo (`serieEstado?` em tipos.ts) — ele
 // não pode derrubar as contagens que não dependem dele. Por isso o corpo inteiro
 // vive num try/catch: se qualquer uma das reconstruções as-of falhar (a RPC
-// `rel_estoque_asof` lança em erro, ver `lerEstadoAtivos`), a rejeição é
+// `rel_estoque_asof_filiais` lança em erro, ver `lerEstadoAtivos`), a rejeição é
 // registrada com `registrarFalha` e a função devolve `undefined` — o mesmo valor
 // que "período curto demais" já produz, e que o resto do sistema já sabe tratar
 // como "sem card". Sem o try/catch, essa rejeição subiria pelo `Promise.all` de

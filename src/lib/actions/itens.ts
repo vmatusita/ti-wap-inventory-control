@@ -498,7 +498,7 @@ export async function buscarSaldosItens(filialId: number): Promise<SaldosDaFilia
     const supabase = await createClient()
     const aut = await exigirPapel(supabase, 'consulta')
     if (!aut.ok) return vazio
-    const saldos = await getSaldosItens(filialId)
+    const saldos = await getSaldosItens([filialId])
     const emUso: Record<number, number> = {}
     for (const s of saldos) emUso[s.item_id] = emUsoDoSaldo(s)
     return { estoque: estoquePorItem(saldos), emUso }

@@ -82,12 +82,14 @@ async function contarAsofBruto(filialId: number | null, data: string): Promise<n
   let total = 0
   let from = 0
   let primeiraPagina: number | null = null
+  // F60 · lote 2 — o recorte é a LISTA que `rel_estoque_asof_filiais` exige (NULL nela dá ZERO
+  // linhas, não o consolidado). A lista do consolidado é lida AQUI, por `listaDeTodasAsFiliais`, e
+  // não por `recorteDeFiliais` de src/ — pela mesma regra do laço à mão logo abaixo: o oráculo não
+  // compartilha código com o motor que ele valida.
+  const filiais = filialId === null ? await listaDeTodasAsFiliais() : [filialId]
   for (;;) {
-    // `p_filial: filialId` preserva o NULL (= consolidado) — a porta aceita null aqui
-    // por `RECORTE_DO_RELATORIO` (src/lib/supabase/rpc.ts). Passar `undefined`
-    // OMITE o argumento do payload, e o PostgREST não acha a sobrecarga.
-    const { data: pag, error } = await chamarRpc(client, 'rel_estoque_asof', {
-      p_filial: filialId,
+    const { data: pag, error } = await chamarRpc(client, 'rel_estoque_asof_filiais', {
+      p_filiais: filiais,
       p_data: data,
     })
       .order('ativo_id', { ascending: true })
@@ -110,6 +112,20 @@ async function contarAsofBruto(filialId: number | null, data: string): Promise<n
       )
   }
   return total
+}
+
+/**
+ * TODAS as filiais, inclusive as desativadas, em ordem de id — o consolidado das `rel_*_filiais`,
+ * lido independentemente do motor. `count` exato na MESMA consulta: uma lista truncada pelo
+ * `max-rows` daria um consolidado menor com cara de certo, e aqui isso LANÇA.
+ */
+async function listaDeTodasAsFiliais(): Promise<number[]> {
+  const { data, error, count } = await client.from('filiais').select('id', { count: 'exact' }).order('id')
+  if (error) throw new Error(`Leitura das filiais falhou: ${error.message}`)
+  const ids = (data ?? []).map((f) => f.id)
+  if (count === null || count !== ids.length || ids.length === 0)
+    throw new Error(`Leitura das filiais incompleta: ${ids.length} de ${count ?? '?'}.`)
+  return ids
 }
 
 /** Contagem oficial do acervo vivo (count exact — não sofre max-rows). */

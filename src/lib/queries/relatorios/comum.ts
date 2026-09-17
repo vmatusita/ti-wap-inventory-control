@@ -81,7 +81,7 @@ const PAGINA = 1000
 export const CAP_PISO = 10_000
 /**
  * `ativos` — 1.635 em 16/09 × 20 = 32.700 → 50.000 (30,6× de folga). Vale também para o as-of
- * (`rel_estoque_asof`: no máximo UMA linha por ativo) e para `v_conflitos_filiais` (no máximo UM
+ * (`rel_estoque_asof_filiais`: no máximo UMA linha por ativo) e para `v_conflitos_filiais` (no máximo UM
  * lado por ativo): os dois são limitados pelo número de ativos, não por um volume próprio.
  */
 export const CAP_ATIVOS = 50_000
@@ -128,7 +128,7 @@ export const CAP_LOTE = CAP_PISO
 //
 // Por isso toda chamada daqui ordena por algo ÚNICO, ou por um critério de
 // exibição seguido de um desempate único (`id`). Quando a fonte é uma RPC que
-// não tem `order by` no corpo — o caso de `rel_estoque_asof` —, a ordem é
+// não tem `order by` no corpo — o caso de `rel_estoque_asof_filiais` —, a ordem é
 // imposta AQUI, na chamada: o builder de RPC do supabase-js aceita `.order()` e
 // `.range()` como qualquer select, então não é preciso mexer na função SQL.
 //

@@ -133,7 +133,7 @@ export default async function ConferenciaPage({
     )
   }
 
-  const saldos = await getSaldosItens(filial.id)
+  const saldos = await getSaldosItens([filial.id])
 
   if (saldos.length === 0) {
     return (
