@@ -11,7 +11,7 @@ export function ListaModelo({ itens }: { itens: ItemModelo[] }) {
       {itens.map((i) => (
         <li
           key={i.modelo}
-          className="flex items-baseline gap-3 py-1.5 text-[13px]"
+          className="flex items-baseline gap-3 py-1.5 text-xs"
         >
           <span className="w-8 shrink-0 font-bold tabular-nums">
             {pad2(i.total)}×

@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Aviso } from '@/components/layout/aviso'
 import { gerarLinkDeAcesso } from '@/lib/actions/admin'
 
 // F29/ADM-02b — "Gerar novo link de acesso" na PRÓPRIA linha do usuário.
@@ -101,14 +102,7 @@ export function GerarLinkAcesso({ email, nome }: { email: string; nome: string }
             </DialogDescription>
           </DialogHeader>
 
-          {aviso && (
-            <p
-              role="alert"
-              className="rounded-md border border-amber-400/60 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-            >
-              {aviso}
-            </p>
-          )}
+          {aviso && <Aviso intencao="atencao">{aviso}</Aviso>}
 
           {/* A mesma nota do reenvio pelo diálogo de convite: gerar link NÃO mexe em
               cargo nem em filiais — seria um atalho para rebaixar alguém por fora das
@@ -119,7 +113,7 @@ export function GerarLinkAcesso({ email, nome }: { email: string; nome: string }
             mudar cargo ou filiais, use <strong>Editar</strong> nesta mesma linha.
           </p>
 
-          <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
+          <div className="flex items-center gap-2 rounded-md bg-muted/40 p-3">
             <code className="min-w-0 flex-1 break-all font-mono text-xs">{link}</code>
             <Button
               size="sm"

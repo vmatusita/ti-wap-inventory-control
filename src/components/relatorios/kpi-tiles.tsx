@@ -82,11 +82,11 @@ export function DeltaKpi({
 }) {
   const conteudo =
     delta === 0 ? (
-      <span className="text-[11px] text-muted-foreground tabular-nums">→ 0</span>
+      <span className="text-xs text-muted-foreground tabular-nums">→ 0</span>
     ) : (
       <span
         className={cn(
-          'inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums',
+          'inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
           CLASSE_COR_DELTA[corDelta(chave, delta)],
         )}
       >
@@ -123,7 +123,7 @@ export function KpiTiles({
   periodo?: Periodo
 }) {
   return (
-    <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-7">
+    <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
       {TILES.map((t) => {
         const valor = kpis[t.chave] ?? 0
         const valorAnterior = anterior ? (anterior[t.chave] ?? 0) : null
@@ -131,7 +131,7 @@ export function KpiTiles({
         const href = links?.[t.chave]
         const acento = acentoDoTile(t.chave)
         const classe = cn(
-          'rounded-xl border bg-card px-3.5 py-3',
+          'rounded-xl border bg-card px-4 py-3',
           // 7 tiles (nº primo) deixariam um órfão em quase todo breakpoint;
           // "Total de ativos" ocupa a linha cheia (menos no xl, onde os 7 cabem).
           t.chave === 'total' && 'col-span-2 sm:col-span-3 xl:col-span-1',
@@ -157,7 +157,7 @@ export function KpiTiles({
                 />
               )}
             </div>
-            <div className="text-[11px] text-muted-foreground">{t.sub}</div>
+            <div className="text-xs text-muted-foreground">{t.sub}</div>
           </>
         )
 
@@ -212,7 +212,7 @@ export function GrupoKpis({
   periodo?: Periodo
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {GRUPO_TILES.map((t) => {
         const valor = kpis[t.chave] ?? 0
         const valorAnterior = anterior ? (anterior[t.chave] ?? 0) : null
@@ -226,7 +226,7 @@ export function GrupoKpis({
         // `text-2xl` do tile principal) rebaixam o peso visual sem mudar o
         // conteúdo. A perda da classe `border` é a armadilha do acento — ver o
         // comentário de `acentoDoTile`.
-        const classe = 'rounded-lg bg-muted/40 px-3 py-2.5'
+        const classe = 'rounded-lg bg-muted/40 px-3 py-3'
         const conteudo = (
           <>
             <div className="text-xs font-medium text-muted-foreground">{t.rotulo}</div>
@@ -244,7 +244,7 @@ export function GrupoKpis({
                 />
               )}
             </div>
-            <div className="text-[11px] text-muted-foreground">{t.sub}</div>
+            <div className="text-xs text-muted-foreground">{t.sub}</div>
           </>
         )
         // Sem `links` (snapshot/viewer): a <div> de sempre. Com link (ao vivo,

@@ -137,7 +137,7 @@ export function CriarSenhaDialog() {
                 <p className="text-xs font-semibold text-muted-foreground">
                   Endereço de entrada
                 </p>
-                <code className="block break-all rounded-md border bg-muted/40 p-3 font-mono text-xs">
+                <code className="block break-all rounded-md bg-muted/40 p-3 font-mono text-xs">
                   {url}
                 </code>
               </div>
@@ -145,7 +145,7 @@ export function CriarSenhaDialog() {
 
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground">Senha</p>
-              <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
+              <div className="flex items-center gap-2 rounded-md bg-muted/40 p-3">
                 <code className="min-w-0 flex-1 break-all font-mono text-sm">
                   {criada}
                 </code>

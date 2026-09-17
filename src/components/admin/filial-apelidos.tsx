@@ -67,13 +67,13 @@ export function FilialApelidos({
       </p>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="rounded-md border bg-muted/50 px-2 py-1 text-sm">
+        <span className="rounded-full border bg-muted/50 px-2 py-1 text-sm">
           {filialNome}
           <span className="ml-1.5 text-xs text-muted-foreground">(nome próprio)</span>
         </span>
 
         {apelidos.map((a) => (
-          <span key={a.id} className="flex items-center gap-1 rounded-md border px-2 py-1 text-sm">
+          <span key={a.id} className="flex items-center gap-1 rounded-full border px-2 py-1 text-sm">
             {a.apelido}
             <Button
               type="button"

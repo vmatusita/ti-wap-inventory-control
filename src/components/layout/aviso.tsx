@@ -49,7 +49,13 @@ import { cn } from '@/lib/utils'
 // `--foreground` são o MESMO valor nos dois temas (`globals.css:95/97` e
 // `242/245`). Nenhuma das seis razões medidas em `npm run contraste` se move.
 
-export type IntencaoDoAviso = 'erro' | 'atencao' | 'informacao'
+// F61 — A QUARTA INTENÇÃO, `sucesso`. A conversão de `components/admin/` para a régua
+// achou duas caixas VERDES escritas à mão (o "tudo certo" do import e o "senha
+// confere" do teste de senha), e o componente não tinha para onde levá-las. A tinta
+// é o par `--sucesso`/`--sucesso-texto` (`globals.css`, medido 6,45:1 no claro), sem
+// variante `dark:` — o token troca sozinho no `.dark`, como os outros. O papel é
+// `status`: sucesso informa, não interrompe.
+export type IntencaoDoAviso = 'erro' | 'atencao' | 'informacao' | 'sucesso'
 
 /**
  * A tinta de cada intenção — TODA MEDIDA antes de ser escrita
@@ -80,13 +86,15 @@ const TOM: Record<IntencaoDoAviso, string> = {
   atencao: 'border-warning/40 bg-warning/10 text-warning',
   // Sem tinta própria: a borda é a `border-border` padrão que a caixa já traz.
   informacao: 'bg-muted/50',
+  sucesso: 'border-sucesso-texto/40 bg-sucesso text-sucesso-texto',
 }
 
-/** Erro interrompe; atenção informa; informação não anuncia. */
+/** Erro interrompe; atenção e sucesso informam; informação não anuncia. */
 const PAPEL: Record<IntencaoDoAviso, 'alert' | 'status' | undefined> = {
   erro: 'alert',
   atencao: 'status',
   informacao: undefined,
+  sucesso: 'status',
 }
 
 export function Aviso({

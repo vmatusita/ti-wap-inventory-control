@@ -22,11 +22,11 @@ export function AcessoForm({ next }: { next: string }) {
   }, [state])
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-10">
+    <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-12">
       <Card className="w-full max-w-sm gap-0 overflow-hidden p-0">
         <div className="bg-brand-dark px-6 py-8 text-center">
-          <Marca size="lg" labelClassName="text-white" />
-          <p className="mt-2 text-sm text-white/70">Relatórios · acesso por senha</p>
+          <Marca size="lg" labelClassName="text-brand-dark-texto" />
+          <p className="mt-2 text-sm text-brand-dark-texto/70">Relatórios · acesso por senha</p>
         </div>
 
         <div className="px-6 py-6">

@@ -23,7 +23,16 @@
 // por um regex fechado (minúsculas, dígitos e hífen, sem `.`, `/`, `:` nem `%`) e
 // qualquer entrada que não bata cai no fallback `/relatorios/geral`.
 
-export const CHAVE_RELATORIO_VISITADO = 'wap:relatorios:ultimo'
+import { chaveDeStorage } from '@/lib/escopo/chave'
+
+// F61 — a chave é MONTADA por `chaveDeStorage` (`lib/escopo/chave.ts`) no USO, e sai
+// idêntica byte a byte à literal de antes (`wap:relatorios:ultimo`) — nenhum rascunho ou
+// preferência gravada se perde. Função, não constante: uma constante de módulo
+// congelaria o valor, e o call-site tem de continuar igual quando a chave do escopo
+// deixar de ser fixa (virada multiempresa). Trava: `lib/escopo/chaves-de-storage.test.ts`.
+export function chaveRelatorioVisitado(): string {
+  return chaveDeStorage('relatorios:ultimo')
+}
 
 // O destino seguro quando não há memória, ou a memória é inválida/hostil.
 const HREF_FALLBACK = '/relatorios/geral'
@@ -72,7 +81,7 @@ export function hrefDoRelatorioVisitado(bruto: unknown): string {
 export function lembrarRelatorioVisitado(slug: string): void {
   if (!ehSlugDeRelatorio(slug)) return
   try {
-    sessionStorage.setItem(CHAVE_RELATORIO_VISITADO, slug)
+    sessionStorage.setItem(chaveRelatorioVisitado(), slug)
     notificarOuvintes()
   } catch {
     // Modo privado ou quota: sem memória do "Ao vivo" — o header cai no
@@ -82,7 +91,7 @@ export function lembrarRelatorioVisitado(slug: string): void {
 
 export function lerHrefAoVivo(): string {
   try {
-    return hrefDoRelatorioVisitado(sessionStorage.getItem(CHAVE_RELATORIO_VISITADO))
+    return hrefDoRelatorioVisitado(sessionStorage.getItem(chaveRelatorioVisitado()))
   } catch {
     // Modo privado, storage indisponível: mesmo fallback de uma leitura vazia.
     return HREF_FALLBACK

@@ -11,6 +11,7 @@ import {
   pillTipoLancamento,
 } from '@/lib/dominio'
 import { semComentarios } from '@/lib/layout/texto-fonte'
+import { EXCECOES_DE_TINTA, conferirTinta } from '@/lib/layout/regra-de-tinta'
 import { TOKEN_PARA_HEX } from '@/lib/relatorios/rotulo-grafico'
 
 // A CATRACA DA COR CRUA (F40) — e a trava TS↔CSS dos tokens de selo.
@@ -56,6 +57,7 @@ const PALETA_DO_TAILWIND =
  * | 30/08/2026, antes da F40 | 555 | **550** | 60 |
  * | F40 — só a fundação (tokens + `dominio.ts`) | 491 | **479** | 60 |
  * | F42 — as telas de item no casco | — | **473** | **61** |
+ * | F61 — a régua em admin/ e relatorios/, o verde de sucesso e o cromo por token | — | **413** | **53** |
  *
  * A F42 baixou o TOTAL em 6 e SUBIU a contagem de arquivos em 1, e as duas coisas
  * são a mesma mudança vista de dois ângulos:
@@ -79,8 +81,8 @@ const PALETA_DO_TAILWIND =
  *
  * A meta ao fim das cinco frentes é o teto abaixo de 120 (plano §7).
  */
-const TETO_PALETA_CRUA = 473
-const ARQUIVOS_COM_PALETA = 61
+const TETO_PALETA_CRUA = 413
+const ARQUIVOS_COM_PALETA = 53
 
 /**
  * Todo `.ts`/`.tsx` de `src`, SEM comentários — a mesma abrangência do grep do
@@ -318,5 +320,62 @@ describe('a tinta de grafico atravessa a fronteira CSS -> Vitest', () => {
         `TOKEN_PARA_HEX divergiu do globals.css em --${familia}`,
       ).toBe(hex.toLowerCase())
     }
+  })
+})
+
+// 5 · A REGRA DE TINTA — o par que virou token não volta a ser escrito (F61) ----
+//
+// A catraca da seção 2 guarda o TOTAL; esta guarda o NOME. Para os pares que a F61
+// transformou em token (o verde de sucesso; o texto do cromo e o texto sobre o
+// amarelo da marca), a volta é proibida com lista de exceções NOMEADA — ver o
+// cabeçalho de `src/lib/layout/regra-de-tinta.ts`, que explica por que a lista não é
+// derivada dos comentários do CSS (proibiria 204 usos legítimos, 136 deles âmbar).
+
+describe('a regra de tinta (F61)', () => {
+  // Código de PRODUÇÃO: um teste que cita o par cru para provar que a regra o recusa
+  // (como os casos abaixo) não é tela.
+  const fontes = fontesDeSrc().filter((f) => !/\.test\.tsx?$/.test(f.arquivo))
+
+  it('nenhum par proibido fora da lista de excecoes, e nenhuma excecao morta', () => {
+    expect(conferirTinta(fontes)).toEqual([])
+  })
+
+  it('a lista de excecoes so encolhe (fechou a F61 vazia)', () => {
+    expect(EXCECOES_DE_TINTA.length).toBeLessThanOrEqual(0)
+  })
+
+  // SABOTAGEM D, guardada como teste — código sintético em memória.
+  it('o par cru do verde de sucesso num selo sintetico reprova', () => {
+    const selo = {
+      arquivo: 'src/components/admin/selo-sintetico.tsx',
+      texto: '<Badge className="border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">Ativo</Badge>',
+    }
+    const recusas = conferirTinta([...fontes, selo])
+    expect(recusas.filter((r) => r.startsWith(selo.arquivo))).toHaveLength(4)
+  })
+
+  it('texto branco ou preto cru reprova, com qualquer variante', () => {
+    const cromo = {
+      arquivo: 'src/components/layout/cromo-sintetico.tsx',
+      texto: '<header className="bg-brand-dark text-white hover:text-white/80"><b className="text-black">WAP</b></header>',
+    }
+    expect(conferirTinta([cromo], [])).toHaveLength(3)
+  })
+
+  it('uma excecao que nao casa com nada reprova', () => {
+    const morta = { arquivo: 'src/components/x.tsx', trecho: 'bg-green-100', motivo: 'exceção inventada para a sabotagem' }
+    expect(conferirTinta(fontes, [morta])).toContain(
+      'exceção de tinta que não casa com nada: src/components/x.tsx "bg-green-100"',
+    )
+  })
+
+  it('um callout ambar legitimo e o veu verde translucido passam', () => {
+    const callouts = {
+      arquivo: 'src/components/admin/callout-sintetico.tsx',
+      texto:
+        '<p className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" />' +
+        '<div className="bg-green-950/30 border-green-600/40 text-green-700" />',
+    }
+    expect(conferirTinta([callouts], [])).toEqual([])
   })
 })

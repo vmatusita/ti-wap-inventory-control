@@ -19,12 +19,14 @@ import {
 const TRILHO: Record<NivelMedidor, string> = {
   falta: 'bg-red-100 dark:bg-red-950',
   limite: 'bg-amber-100 dark:bg-amber-950',
-  folga: 'bg-green-100 dark:bg-green-950',
+  // F61 — a folga tem token PRÓPRIO: o verde aqui significa "estoque bem acima do
+  // mínimo", não "em estoque" nem "deu certo". Mesmos valores de antes.
+  folga: 'bg-medidor-folga',
 }
 const PREENCHIMENTO: Record<NivelMedidor, string> = {
   falta: 'bg-red-600 dark:bg-red-500',
   limite: 'bg-amber-600 dark:bg-amber-500',
-  folga: 'bg-green-600 dark:bg-green-500',
+  folga: 'bg-medidor-folga-barra',
 }
 
 export function MedidorMinimo({
@@ -56,7 +58,7 @@ export function MedidorMinimo({
           coluna ao lado, e 'folga' não é alerta — anunciar os três encheria a
           tabela de ruído justamente onde não há nada a fazer. */}
       {nivel === 'limite' && (
-        <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
           no limite
         </span>
       )}

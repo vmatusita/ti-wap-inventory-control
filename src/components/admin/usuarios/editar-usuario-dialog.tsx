@@ -19,6 +19,7 @@ import { editarUsuario } from '@/lib/actions/admin'
 import { exigeVinculoDeFilial, validarVinculosDoPapel } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { CargoEFiliais, type FilialOpcao } from '@/components/admin/usuarios/cargo-e-filiais'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 
 // Editar CARGO e FILIAIS DE ESCRITA de quem já existe (F21). Não edita nome nem e-mail: o
 // nome é a própria pessoa que informa em /auth/definir-senha, e trocar e-mail é criar outro
@@ -55,7 +56,6 @@ export function EditarUsuarioDialog({
   bloqueio?: string | null
 }) {
   const router = useRouter()
-  const [aberto, setAberto] = useState(false)
   const [papel, setPapel] = useState<PapelUsuario>(papelAtual)
 
   // Vínculo só entra no formulário para o cargo que REALMENTE o usa (Operador).
@@ -84,6 +84,13 @@ export function EditarUsuarioDialog({
 
   const [escolhidas, setEscolhidas] = useState<number[]>(() => vinculosIniciais(papelAtual))
   const [salvando, start] = useTransition()
+  // Reabrir volta ao estado do servidor — nunca ao rascunho abandonado da vez anterior.
+  // F61 — a mesma regra, agora com nome (`useDialogoSemeado`), chamada ANTES do
+  // retorno antecipado da linha bloqueada (regra dos hooks).
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setPapel(papelAtual)
+    setEscolhidas(vinculosIniciais(papelAtual))
+  })
 
   const erroCargo = validarVinculosDoPapel(papel, escolhidas)
 
@@ -100,15 +107,6 @@ export function EditarUsuarioDialog({
         </Button>
       </Dica>
     )
-  }
-
-  function abrir(open: boolean) {
-    setAberto(open)
-    // Reabrir volta ao estado do servidor — nunca ao rascunho abandonado da vez anterior.
-    if (open) {
-      setPapel(papelAtual)
-      setEscolhidas(vinculosIniciais(papelAtual))
-    }
   }
 
   function trocarPapel(p: PapelUsuario) {
@@ -132,7 +130,7 @@ export function EditarUsuarioDialog({
         }
         if (res.aviso) toast.warning(res.aviso, { duration: 12000 })
         else toast.success('Cargo e filiais atualizados.')
-        setAberto(false)
+        mudarAberto(false)
         router.refresh()
       } catch {
         toast.error(
@@ -143,7 +141,7 @@ export function EditarUsuarioDialog({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={abrir}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -177,7 +175,7 @@ export function EditarUsuarioDialog({
         />
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={salvando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={salvando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={salvando || !!erroCargo}>

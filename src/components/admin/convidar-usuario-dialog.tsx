@@ -162,7 +162,7 @@ export function ConvidarUsuarioDialog({
                 mudar cargo ou filiais, use <strong>Editar</strong> na lista de usuários.
               </p>
             )}
-            <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
+            <div className="flex items-center gap-2 rounded-md bg-muted/40 p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-xs">
                 {gerado.link}
               </code>

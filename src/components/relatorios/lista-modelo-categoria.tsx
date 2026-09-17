@@ -24,7 +24,7 @@ export function ListaModeloCategoria({ grupos }: { grupos: ModelosPorCategoria[]
           </div>
           <ul className="space-y-1">
             {g.modelos.map((m) => (
-              <li key={m.modelo} className="flex items-center gap-2 text-[13px]">
+              <li key={m.modelo} className="flex items-center gap-2 text-xs">
                 <span className="w-40 shrink-0 truncate sm:w-52" title={m.modelo}>
                   {m.modelo}
                 </span>

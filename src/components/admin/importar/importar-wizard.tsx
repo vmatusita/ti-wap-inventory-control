@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Aviso } from '@/components/layout/aviso'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import {
   Select,
   SelectContent,
@@ -39,10 +41,8 @@ import type {
 } from '@/lib/import'
 import { extrairPatrimonioDoHostname } from '@/lib/import/deparas'
 import { TAMANHO_MAX_ARQUIVO, TAMANHO_MAX_ROTULO } from '@/lib/import/limites'
-import {
-  confirmacaoImportConfere,
-  dicaConfirmacaoNaoConfere,
-} from '@/lib/validators/confirmacao-digitada'
+import { confirmacaoImportConfere } from '@/lib/validators/confirmacao-digitada'
+import { ConfirmacaoDigitada } from '@/components/layout/confirmacao-digitada'
 import { TabelaErros } from '@/components/admin/importar/tabela-erros'
 import { GruposErros } from '@/components/admin/importar/grupos-erros'
 import { CorrecoesAplicadas } from '@/components/admin/importar/correcoes-aplicadas'
@@ -93,7 +93,7 @@ function NumeroGrande({
   tom?: 'neutro' | 'destrutivo' | 'positivo' | 'aviso'
 }) {
   return (
-    <div className="rounded-lg border p-4">
+    <Card className="gap-0 p-4">
       <div
         className={cn(
           'text-3xl font-semibold tabular-nums',
@@ -105,7 +105,7 @@ function NumeroGrande({
         {valor.toLocaleString('pt-BR')}
       </div>
       <div className="mt-1 text-sm text-muted-foreground">{rotulo}</div>
-    </div>
+    </Card>
   )
 }
 
@@ -127,7 +127,7 @@ function PainelHostname({
   if (doHostname.length === 0) return null
   const n = doHostname.length
   return (
-    <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+    <Card className="gap-2 bg-muted/30 p-4">
       <div className="flex items-center gap-2 font-medium">
         <Wand2 className="size-4 text-muted-foreground" />
         {n.toLocaleString('pt-BR')} {n === 1 ? 'patrimônio preenchido' : 'patrimônios preenchidos'}{' '}
@@ -140,7 +140,7 @@ function PainelHostname({
         correção automática, não um aviso: nada a fazer aqui. A lista abaixo (com o valor
         original) é só para conferência — confira se o número bate com o aparelho físico.
       </p>
-      <div className="overflow-x-auto rounded-md border bg-background">
+      <QuadroDeTabela className="overflow-x-auto bg-background">
         <table className="w-full text-xs">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
@@ -166,8 +166,8 @@ function PainelHostname({
             })}
           </tbody>
         </table>
-      </div>
-    </div>
+      </QuadroDeTabela>
+    </Card>
   )
 }
 
@@ -182,7 +182,7 @@ function Stepper({ passo }: { passo: number }) {
             <span
               className={cn(
                 'flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
-                estado === 'atual' && 'bg-brand-amarelo text-black',
+                estado === 'atual' && 'bg-brand-amarelo text-brand-amarelo-texto',
                 estado === 'feito' && 'bg-foreground text-background',
                 estado === 'futuro' && 'bg-muted text-muted-foreground',
               )}
@@ -312,9 +312,8 @@ export function ImportarWizard({
   // action e banco — leem a mesma função, que é a regra que a fase inteira defende:
   // duas réguas para a mesma pergunta é o defeito.
   const confereConfirmacao = confirmacaoImportConfere(confirmacao, previa?.filial.nome ?? '')
-  const dicaConfirmacao = previa
-    ? dicaConfirmacaoNaoConfere(confirmacao, confereConfirmacao, previa.filial.nome)
-    : null
+  // F61 · decisão ii — a DICA sai de `<ConfirmacaoDigitada>`, a caixa única das quatro
+  // confirmações; a régua (`confirmacaoImportConfere`) continua aqui e no servidor.
 
   function mudarFilial(v: string) {
     setFilialId(v)
@@ -506,7 +505,7 @@ export function ImportarWizard({
         <CardTitle className="text-base">Importar acervo por arquivo</CardTitle>
         <Stepper passo={passo} />
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-6">
         {/* -------- Passo 1: Configurar -------- */}
         {passo === 1 && (
           <div className="space-y-4">
@@ -526,7 +525,7 @@ export function ImportarWizard({
               </Select>
             </div>
 
-            <div className="rounded-lg border bg-muted/30 p-4">
+            <Card className="gap-0 bg-muted/30 p-4">
               <div className="flex items-center gap-2 font-medium">
                 <FileWarning className="size-4 text-destructive" />
                 Substituir tudo — go-live da filial
@@ -538,7 +537,7 @@ export function ImportarWizard({
                 de relatório já congelados permanecem. Use apenas na virada
                 (go-live) de uma filial — não é uma atualização incremental.
               </p>
-            </div>
+            </Card>
 
             <div className="flex justify-end">
               <Button
@@ -612,7 +611,7 @@ export function ImportarWizard({
 
         {/* -------- Passo 3: Preview -------- */}
         {passo === 3 && previa && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {/* Barra de status do ciclo de correção (F7B) */}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums">
               <span
@@ -662,30 +661,24 @@ export function ImportarWizard({
                 números acima e os totais dos grupos continuam certos, só a LISTA
                 de erro a erro é que veio parcial. */}
             {detalheReduzido && (
-              <div
-                role="status"
-                className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"
-              >
+              <Aviso intencao="atencao">
                 Este arquivo tem erros demais para listar um a um — os totais acima
                 e as linhas de cada grupo estão certos, mas alguns cards mostram só
                 uma amostra dos erros individuais daquele tipo. Corrija em massa
                 pelos cards abaixo (eles valem para TODAS as linhas do grupo) em vez
                 de rolar a lista completa.
-              </div>
+              </Aviso>
             )}
 
             {aplicavel ? (
               <>
-                <div className="rounded-lg border border-green-600/40 bg-green-50 p-4 dark:border-green-400/30 dark:bg-green-950/30">
-                  <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-400">
-                    <CheckCircle2 className="size-4" />
-                    Pronto para aplicar
-                  </div>
+                <Aviso intencao="sucesso" icone={<CheckCircle2 className="size-4" />}>
+                  <p className="font-medium">Pronto para aplicar</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Nenhum bloqueante. Confira os números abaixo e avance para a
                     confirmação.
                   </p>
-                </div>
+                </Aviso>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <NumeroGrande
                     valor={previa.validacao.resumo.criar}
@@ -781,11 +774,8 @@ export function ImportarWizard({
                 </div>
               </>
             ) : (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
-                <div className="flex items-center gap-2 font-medium text-destructive">
-                  <AlertTriangle className="size-4" />
-                  Import bloqueado
-                </div>
+              <Aviso intencao="erro" icone={<AlertTriangle className="size-4" />}>
+                <p className="font-medium">Import bloqueado</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {totalBloqueantes > 0
                     ? 'Corrija os erros abaixo — em massa ou linha a linha. O arquivo enviado não é alterado: a análise refaz sozinha a cada correção.'
@@ -793,7 +783,7 @@ export function ImportarWizard({
                       ? 'Há termo(s) que misturam esta filial com outra. Resolva os termos antes de substituir.'
                       : 'Nenhum ativo a criar: o arquivo não tem nenhuma linha aproveitável. O import de startup precisa de ao menos 1 ativo — confira se o CSV é o da filial certa.'}
                 </p>
-              </div>
+              </Aviso>
             )}
 
             {previa.termosMultiFilial.length > 0 && (
@@ -801,14 +791,16 @@ export function ImportarWizard({
                 <h3 className="text-sm font-semibold">
                   Termos multi-filial ({previa.termosMultiFilial.length})
                 </h3>
-                <ul className="rounded-lg border divide-y text-sm">
-                  {previa.termosMultiFilial.map((t) => (
-                    <li key={t.id} className="flex items-center justify-between gap-3 p-2.5">
-                      <span className="font-medium">{t.colaborador ?? '—'}</span>
-                      <span className="text-muted-foreground">{t.tipo}</span>
-                    </li>
-                  ))}
-                </ul>
+                <QuadroDeTabela>
+                  <ul className="divide-y text-sm">
+                    {previa.termosMultiFilial.map((t) => (
+                      <li key={t.id} className="flex items-center justify-between gap-3 p-3">
+                        <span className="font-medium">{t.colaborador ?? '—'}</span>
+                        <span className="text-muted-foreground">{t.tipo}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </QuadroDeTabela>
               </div>
             )}
 
@@ -881,7 +873,7 @@ export function ImportarWizard({
             </div>
 
             {listaAberta && (
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {totalBloqueantes > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-destructive">
@@ -927,11 +919,8 @@ export function ImportarWizard({
         {/* -------- Passo 4: Confirmar -------- */}
         {passo === 4 && previa && aplicavel && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
-              <div className="flex items-center gap-2 font-semibold text-destructive">
-                <AlertTriangle className="size-4" />
-                Esta ação é irreversível
-              </div>
+            <Aviso intencao="erro" icone={<AlertTriangle className="size-4" />}>
+              <p className="font-semibold">Esta ação é irreversível</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Ao confirmar, o acervo atual da filial{' '}
                 <strong>{previa.filial.nome}</strong> será apagado permanentemente e
@@ -997,30 +986,25 @@ export function ImportarWizard({
                   </li>
                 )}
               </ul>
-            </div>
+            </Aviso>
 
-            <div className="space-y-2">
-              <Label htmlFor="import-confirmacao">
-                Digite <span className="font-mono font-semibold">{previa.filial.nome}</span>{' '}
-                para confirmar
-              </Label>
-              <Input
-                id="import-confirmacao"
-                value={confirmacao}
-                onChange={(e) => setConfirmacao(e.target.value)}
-                placeholder={previa.filial.nome}
-                autoComplete="off"
-                aria-invalid={!!dicaConfirmacao}
-                aria-describedby={dicaConfirmacao ? 'import-confirmacao-dica' : undefined}
-              />
-              {/* ADM-07 (F27) — antes o botão só ficava desabilitado, sem dizer por quê
-                  ("linhares" ≠ "Linhares" não dava nenhuma pista). */}
-              {dicaConfirmacao && (
-                <p id="import-confirmacao-dica" role="alert" className="text-sm text-destructive">
-                  {dicaConfirmacao}
-                </p>
-              )}
-            </div>
+            {/* ADM-07 (F27) — antes o botão só ficava desabilitado, sem dizer por quê. F61 —
+                a caixa é a única das quatro confirmações: o nome da filial continua DENTRO
+                do rótulo (por isso `exibirEsperado={false}`), sem Enter e sem desabilitar. */}
+            <ConfirmacaoDigitada
+              id="import-confirmacao"
+              rotulo={
+                <>
+                  Digite <span className="font-mono font-semibold">{previa.filial.nome}</span>{' '}
+                  para confirmar
+                </>
+              }
+              esperado={previa.filial.nome}
+              exibirEsperado={false}
+              valor={confirmacao}
+              confere={confereConfirmacao}
+              onChange={setConfirmacao}
+            />
 
             {erroAcao && (
               <p role="alert" className="text-sm text-destructive">
@@ -1052,7 +1036,7 @@ export function ImportarWizard({
 
         {/* -------- Passo 5: Resultado -------- */}
         {passo === 5 && resultado && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
               <CheckCircle2 className="size-5" />
               <span className="font-medium">
@@ -1109,14 +1093,13 @@ export function ImportarWizard({
                 fonte que a mesa lê), e não do preview: entre o preview e o apply o acervo
                 de outra filial pode ter mudado. */}
             {resultado.resultado.conflitosAbertos > 0 && (
-              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4">
-                <div className="flex items-center gap-2 font-medium text-warning">
-                  <AlertTriangle className="size-4" />
+              <Aviso intencao="atencao" icone={<AlertTriangle className="size-4" />}>
+                <p className="font-medium">
                   {resultado.resultado.conflitosAbertos.toLocaleString('pt-BR')}{' '}
                   {resultado.resultado.conflitosAbertos === 1
                     ? 'conflito entre filiais aberto'
                     : 'conflitos entre filiais abertos'}
-                </div>
+                </p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {resultado.resultado.conflitosAbertos === 1
                     ? 'Um aparelho desta filial tem cadastro também em outra.'
@@ -1124,22 +1107,19 @@ export function ImportarWizard({
                   Em Pendências dá para ver os cadastros lado a lado, com o histórico de
                   cada um, e apagar o que estiver errado.
                 </p>
-              </div>
+              </Aviso>
             )}
 
             {/* F54 — os documentos de responsabilidade que NÃO puderam ser copiados para o
                 arquivo de segurança não são mais apagados. Quando isso acontece, o
                 operador tem de saber: o cadastro sumiu, mas o documento continua lá. */}
             {resultado.resultado.avisoTermos && (
-              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4">
-                <div className="flex items-center gap-2 font-medium text-warning">
-                  <AlertTriangle className="size-4" />
-                  Documentos de responsabilidade
-                </div>
+              <Aviso intencao="atencao" icone={<AlertTriangle className="size-4" />}>
+                <p className="font-medium">Documentos de responsabilidade</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {resultado.resultado.avisoTermos}
                 </p>
-              </div>
+              </Aviso>
             )}
 
             {resultado.resultado.correcoesAplicadas > 0 && (

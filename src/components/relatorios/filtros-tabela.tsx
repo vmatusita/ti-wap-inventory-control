@@ -53,7 +53,7 @@ export function FiltrosTabela({
   return (
     <div className={cn('flex flex-wrap items-center gap-2 print:hidden', className)}>
       {setBusca && (
-        <div className="relative w-full sm:w-[220px]">
+        <div className="relative w-full sm:w-56">
           <Search
             aria-hidden
             className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -64,7 +64,7 @@ export function FiltrosTabela({
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar nesta tabela…"
             aria-label="Buscar nesta tabela"
-            className="h-8 pl-7 text-sm"
+            className="h-8 pl-8 text-sm"
           />
         </div>
       )}
@@ -118,7 +118,7 @@ export function ChipsResumo({
   return (
     <div className={cn('flex flex-wrap gap-1.5', !imprimir && 'print:hidden')}>
       {resumo.map(([chave, n]) => (
-        <span key={chave} className="rounded-full bg-muted px-2.5 py-0.5 text-xs">
+        <span key={chave} className="rounded-full bg-muted px-3 py-0.5 text-xs">
           {chave}: <span className="font-semibold tabular-nums">{n}</span>
         </span>
       ))}

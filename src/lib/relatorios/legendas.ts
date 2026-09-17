@@ -49,7 +49,10 @@ export type LegendaManutencaoItem = { cor: CorManutencao; classe: string; texto:
 export const LEGENDA_MANUTENCAO: readonly LegendaManutencaoItem[] = [
   { cor: 'amber', classe: 'bg-amber-100 dark:bg-amber-900', texto: 'em manutenção (em andamento)' },
   { cor: 'red', classe: 'bg-red-100 dark:bg-red-900', texto: `parado há ${MANUTENCAO_ALERTA_DIAS}+ dias` },
-  { cor: 'green', classe: 'bg-green-100 dark:bg-green-900', texto: 'voltou ao estoque' },
+  // F61 — o verde de "voltou" é o token de sucesso, o MESMO da pílula de
+  // `manutencao-casos.tsx` que esta legenda explica (antes: `dark:bg-green-900`, um
+  // tom que a pílula não tinha).
+  { cor: 'green', classe: 'bg-sucesso', texto: 'voltou ao estoque' },
   {
     cor: 'slate',
     classe: 'bg-slate-200 dark:bg-slate-700',

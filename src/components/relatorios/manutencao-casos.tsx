@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { CheckCircle2, Clock, PackageX, StickyNote } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 import { formatDate, formatDateTime, ouTraco } from '@/lib/format'
 import { manutencaoEmAlerta } from '@/lib/relatorios/manutencao-alerta'
 import { cn } from '@/lib/utils'
@@ -21,9 +22,10 @@ export function ManutencaoCasos({
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {casos.map((c, i) => (
-        <div
+        <Card
           key={`${c.patrimonio}-${i}`}
-          className="break-inside-avoid rounded-lg border bg-card p-3"
+          size="sm"
+          className="break-inside-avoid gap-0 p-3"
         >
           <div className="flex flex-wrap items-center gap-2">
             {ehOperador && c.ativoId ? (
@@ -38,13 +40,13 @@ export function ManutencaoCasos({
             )}
             <span className="min-w-0 truncate text-sm text-muted-foreground">{c.modelo}</span>
             {c.desfecho === 'devolvido_fornecedor' ? (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                 <PackageX className="size-3" />
                 devolvido ao fornecedor{' '}
                 {c.retornoData ? `em ${formatDate(c.retornoData)}` : ''}
               </span>
             ) : c.fechado ? (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-sucesso px-2 py-0.5 text-xs font-medium text-sucesso-texto">
                 <CheckCircle2 className="size-3" />
                 voltou {c.retornoData ? `em ${formatDate(c.retornoData)}` : ''}
               </span>
@@ -54,7 +56,7 @@ export function ManutencaoCasos({
                 // dias parado. Badge é público: viewer também vê. `Clock` mantido.
                 <span
                   className={cn(
-                    'ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                    'ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
                     manutencaoEmAlerta(c)
                       ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
                       : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
@@ -109,7 +111,7 @@ export function ManutencaoCasos({
           </p>
 
           {/* mini-linha do tempo */}
-          <ul className="mt-2 space-y-1.5 border-l pl-3 text-[13px]">
+          <ul className="mt-2 space-y-1.5 border-l pl-3 text-xs">
             {c.obsEnvio && (
               <li>
                 <span className="text-muted-foreground">Envio:</span>{' '}
@@ -148,7 +150,7 @@ export function ManutencaoCasos({
               <li className="text-muted-foreground">Sem observações registradas.</li>
             )}
           </ul>
-        </div>
+        </Card>
       ))}
     </div>
   )

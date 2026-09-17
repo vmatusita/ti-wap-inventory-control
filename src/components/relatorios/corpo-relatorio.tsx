@@ -111,12 +111,12 @@ function CorpoRelatorioV1({
   const serieMov = serieDoSnapshot(s)
   const temMovimentacao = serieMov.pontos.some((p) => p.saidas > 0 || p.devolucoes > 0)
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       <KpiTiles kpis={s.kpis} />
 
       {ehOperador && <PendenciasChips pendencias={s.pendencias} />}
 
-      <div className="rel-print-cols grid gap-3.5 md:grid-cols-2">
+      <div className="rel-print-cols grid gap-4 md:grid-cols-2">
         <CardRelatorio
           wide
           titulo="Movimentações"

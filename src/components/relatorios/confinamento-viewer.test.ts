@@ -58,7 +58,8 @@ const RAIZES = [
 // arquivo inteiro passaria a varrer quase nada — verde, e sem rede. A catraca só
 // SOBE: quando a superfície crescer de verdade, atualize o número e diga por quê.
 //
-// F50 (08/09/2026): medido **134** arquivos no fecho, contra 46 da varredura por
+// F50 (08/09/2026): medido **134** arquivos no fecho (hoje **158** — ver a nota F61
+// abaixo), contra 46 da varredura por
 // pasta. Sete deles vêm de `components/layout/` — `filtro-filial`, `link-ajuda`,
 // `marca`, `nav-rolavel`, `progresso-navegacao`, `viewer-header`, `viewer-nav` —, e
 // é essa faixa que a pasta não cobria.
@@ -69,14 +70,24 @@ const RAIZES = [
 // abaixo do piso, então ela reprova.
 //
 // ⚠ A folga é de NOVE, e o número acima tem de acompanhar o fecho. A revisão
-// adversarial desta fase pegou as duas coisas erradas de uma vez: o comentário dizia
+// adversarial da F50 pegou as duas coisas erradas de uma vez: o comentário dizia
 // 131 (o fecho no commit que criou a trava) enquanto o fecho já era 134 — a própria
 // F50 acrescentou `lib/escopo/chave.ts`, `auto-refresh-decisao.ts` e
 // `assinatura-realtime.ts` depois —, e o piso 120 dava folga de 14, o que tornava a
 // frase "uma queda de dez" literalmente falsa. Comentário que promete uma margem que
 // o número não entrega é pior do que comentário nenhum: quem lê acha que está
 // protegido de algo de que não está.
-const SUPERFICIE_MINIMA = 125
+//
+// F61 (17/09/2026): o fecho é **158**, e o piso passa a **149** — os dois números
+// escritos aqui de propósito, porque a folga de nove só é verdade enquanto o piso
+// acompanhar o fecho. A F61 acrescentou três arquivos à superfície, e todos pela
+// conversão dos componentes de relatório para os componentes de SISTEMA (é a
+// dependência que a ficha da fase declarava): `components/layout/quadro-de-tabela.tsx`
+// e `components/ui/card.tsx` (as seis tabelas do relatório), e
+// `lib/identidade/sistema.ts` (a `Marca`, que já estava no fecho, passou a ler a
+// sigla e o nome da fonte única). Nenhum deles escreve `href`, que é o que esta
+// trava mede — a varredura abaixo continua valendo arquivo por arquivo.
+const SUPERFICIE_MINIMA = 149
 
 const EXTENSOES = ['.ts', '.tsx', '/index.ts', '/index.tsx']
 

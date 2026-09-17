@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  CHAVE_RELATORIO_VISITADO,
+  chaveRelatorioVisitado,
   assinarRelatorioVisitado,
   ehSlugDeRelatorio,
   hrefDoRelatorioVisitado,
@@ -75,7 +75,7 @@ if (typeof globalThis.sessionStorage === 'undefined') {
 }
 
 beforeEach(() => {
-  sessionStorage.removeItem(CHAVE_RELATORIO_VISITADO)
+  sessionStorage.removeItem(chaveRelatorioVisitado())
 })
 
 afterEach(() => {
@@ -83,7 +83,7 @@ afterEach(() => {
   // degradação deixa `sessionStorage` stubado como `undefined`, e chamar
   // `removeItem` antes de desfazer o stub lançaria aqui no afterEach.
   vi.unstubAllGlobals()
-  sessionStorage.removeItem(CHAVE_RELATORIO_VISITADO)
+  sessionStorage.removeItem(chaveRelatorioVisitado())
 })
 
 describe('ehSlugDeRelatorio', () => {
@@ -183,7 +183,7 @@ describe('I/O (lembrarRelatorioVisitado / lerHrefAoVivo) — contra storage real
 
   it('grava e lê de volta — o caminho feliz', () => {
     lembrarRelatorioVisitado('matriz')
-    expect(sessionStorage.getItem(CHAVE_RELATORIO_VISITADO)).toBe('matriz')
+    expect(sessionStorage.getItem(chaveRelatorioVisitado())).toBe('matriz')
     expect(lerHrefAoVivo()).toBe('/relatorios/matriz')
   })
 
@@ -201,12 +201,12 @@ describe('I/O (lembrarRelatorioVisitado / lerHrefAoVivo) — contra storage real
   })
 
   it('lê hostil já sentado no storage (editado por fora, ex. devtools) → fallback', () => {
-    sessionStorage.setItem(CHAVE_RELATORIO_VISITADO, '../admin')
+    sessionStorage.setItem(chaveRelatorioVisitado(), '../admin')
     expect(lerHrefAoVivo()).toBe('/relatorios/geral')
   })
 
   it('a chave é a esperada pelo padrão de nome de ativos-recentes.ts', () => {
-    expect(CHAVE_RELATORIO_VISITADO).toBe('wap:relatorios:ultimo')
+    expect(chaveRelatorioVisitado()).toBe('wap:relatorios:ultimo')
   })
 
   // O roteiro da ordem pede degradação sem storage (modo privado/quota) — aqui

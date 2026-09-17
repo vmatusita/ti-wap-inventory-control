@@ -21,6 +21,7 @@ import { Aviso } from '@/components/layout/aviso'
 import { atualizarFilial, criarFilial } from '@/lib/actions/admin'
 import { incluirApelidoUnidade, removerApelidoUnidade } from '@/lib/actions/unidades-apelidos'
 import { FilialApelidos, type ApelidoDeFilial } from '@/components/admin/filial-apelidos'
+import { useDialogoSemeado } from '@/components/dialogos/use-dialogo-semeado'
 
 function slugify(s: string): string {
   return s
@@ -48,7 +49,6 @@ type FilialEdit = {
 export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   const router = useRouter()
   const edicao = !!filial
-  const [aberto, setAberto] = useState(false)
   const [nome, setNome] = useState(filial?.nome ?? '')
   const [slug, setSlug] = useState(filial?.slug ?? '')
   const [slugTocado, setSlugTocado] = useState(edicao)
@@ -58,6 +58,17 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   // F29/UXG-05 — a recusa do servidor vive na TELA, não só num toast que some.
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, start] = useTransition()
+  // F61 — semeia NA ABERTURA (`useDialogoSemeado`): reabrir para editar mostra o que a
+  // tabela exibe agora, e "Nova filial" abre vazia em vez de herdar o cadastro anterior.
+  // Os APELIDOS ficam de fora de propósito: eles não vêm do `router.refresh()`, vêm do
+  // retorno de cada ação (ver abaixo), e semeá-los da prop apagaria o que acabou de entrar.
+  const { aberto, mudarAberto } = useDialogoSemeado(() => {
+    setNome(filial?.nome ?? '')
+    setSlug(filial?.slug ?? '')
+    setSlugTocado(edicao)
+    setAtivo(filial?.ativo ?? true)
+    setCidade(filial?.cidade ?? '')
+  })
 
   // F56 (Frente E · Decisão 13) — os apelidos da coluna Site do import. Estado
   // LOCAL atualizado pelo RETORNO da action (`res.apelidos`), no molde de
@@ -138,7 +149,7 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
           return
         }
         toast.success(edicao ? 'Filial atualizada.' : 'Filial criada.')
-        setAberto(false)
+        mudarAberto(false)
         router.refresh()
       } catch {
         const msg =
@@ -150,7 +161,7 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
         {edicao ? (
           <Button variant="outline" size="sm" className="min-h-10 gap-1.5 sm:min-h-0">
@@ -246,17 +257,10 @@ export function FilialDialog({ filial }: { filial?: FilialEdit }) {
           </label>
         )}
 
-        {erro && (
-          <p
-            role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
-          >
-            {erro}
-          </p>
-        )}
+        {erro && <Aviso intencao="erro">{erro}</Aviso>}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setAberto(false)} disabled={enviando}>
+          <Button variant="ghost" onClick={() => mudarAberto(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={salvar} disabled={enviando || !valido}>

@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { LegendaEstorno } from '@/components/relatorios/legendas'
 import { paresDeTransferencia } from '@/lib/relatorios/transferencias-resumo'
 import { AvisoTetoTabela } from '@/components/relatorios/aviso-teto-tabela'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
 import type { CorteDeTabela, LinhaTransferencia } from '@/lib/relatorios/tipos'
 
@@ -135,7 +136,7 @@ export function TabelaTransferencias({
           Nenhuma transferência encontrada.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           {/* REL-01 — `rel-print-compacta` só age em @media print (globals.css):
               encolhe fonte/padding e solta o `whitespace-nowrap` para as colunas que
               a tela esconde (`print:table-cell`) caberem em A4 retrato. */}
@@ -198,7 +199,7 @@ export function TabelaTransferencias({
               })}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
       {filtradas.some((r) => r.estornada) && <LegendaEstorno />}
     </section>

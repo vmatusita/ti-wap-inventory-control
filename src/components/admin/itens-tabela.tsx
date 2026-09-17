@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { GRUPO_ITEM_META } from '@/lib/dominio'
 import { casaBusca } from '@/lib/ajuda/busca'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import type { ItemAdmin } from '@/lib/queries/itens'
 import type { TipoItem } from '@/lib/queries/tipos-item'
 import { ItemDialog } from '@/components/admin/item-dialog'
@@ -75,13 +76,13 @@ export function ItensTabela({
       </div>
 
       {visiveis.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           {itens.length === 0
             ? 'Nenhum item cadastrado ainda — use "Novo item" para criar o primeiro.'
             : `Nenhum item casa com “${busca.trim()}”.`}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           <Table>
             <TableHeader>
               <TableRow>
@@ -144,9 +145,7 @@ export function ItensTabela({
                   </TableCell>
                   <TableCell>
                     {it.ativo ? (
-                      <Badge className="border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
-                        Ativo
-                      </Badge>
+                      <Badge variant="sucesso">Ativo</Badge>
                     ) : (
                       <Badge variant="secondary">Inativo</Badge>
                     )}
@@ -158,7 +157,7 @@ export function ItensTabela({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
     </div>
   )

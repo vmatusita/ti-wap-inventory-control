@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 
 // Largura máxima PADRONIZADA da coluna de observação. Antes variava sem critério
 // (160/200/220/240) — unificada em 220px (decisão registrada em DECISOES).
-const OBS_MAX_W = 'max-w-[220px]'
+const OBS_MAX_W = 'w-56'
 
 // Cabeçalho das seções de tabela detalhada: "<titulo> — N no período" e, quando
 // há filtro ativo, a contagem "M exibida(s)".
@@ -56,7 +56,7 @@ export function PilulaTipo({ tipo }: { tipo: TipoMovimentacao }) {
   return (
     <span
       className={cn(
-        'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold',
+        'inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold',
         pillTipo(tipo),
       )}
     >
@@ -74,7 +74,7 @@ export function BadgeEstornada({ data }: { data?: string }) {
   return (
     <Dica
       texto={data ? `Estornada em ${formatDate(data)}` : 'Movimentação estornada'}
-      className="inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
+      className="inline-flex items-center rounded-full bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive"
     >
       estornada
     </Dica>

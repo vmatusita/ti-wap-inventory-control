@@ -17,6 +17,7 @@ import { casaBusca } from '@/lib/ajuda/busca'
 import { aguardandoPrimeiroAcesso } from '@/lib/validators/admin'
 import { PAPEL_ROTULO, eAdmin, eDev } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import type { FilialParaVinculo, UsuarioAdmin } from '@/lib/queries/admin'
 import { EditarUsuarioDialog } from '@/components/admin/usuarios/editar-usuario-dialog'
 import { StatusUsuarioAcoes } from '@/components/admin/usuarios/status-usuario-acoes'
@@ -154,11 +155,11 @@ export function UsuariosTabela({
       </div>
 
       {visiveis.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           Nenhum usuário casa com “{busca.trim()}”.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <QuadroDeTabela>
           <Table>
             <TableHeader>
               <TableRow>
@@ -290,7 +291,7 @@ export function UsuariosTabela({
               })}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
     </div>
   )

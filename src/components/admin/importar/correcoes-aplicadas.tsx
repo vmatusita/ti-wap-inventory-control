@@ -3,6 +3,7 @@
 import { Undo2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import type { CorrecaoImport } from '@/lib/import'
 import { descreverCorrecao } from '@/components/admin/importar/rotulos'
 
@@ -36,41 +37,43 @@ export function CorrecoesAplicadas({
       <h3 className="text-sm font-semibold">
         Correções aplicadas ({correcoes.length.toLocaleString('pt-BR')})
       </h3>
-      <ul className="divide-y rounded-lg border">
-        {correcoes.map((op, i) => {
-          const linhas = porOp[i] ?? 0
-          return (
-            <li
-              key={`${i}-${op.op}`}
-              className="flex flex-wrap items-center justify-between gap-2 p-2.5"
-            >
-              <span className="text-sm">{descreverCorrecao(op)}</span>
-              <div className="ml-auto flex items-center gap-2">
-                {linhas === 0 ? (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    sem efeito
-                  </Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {linhas} {linhas === 1 ? 'linha' : 'linhas'}
-                  </span>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={pendente}
-                  onClick={() => onDesfazer(i)}
-                >
-                  <Undo2 className="size-3.5" />
-                  Desfazer
-                </Button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      <QuadroDeTabela>
+        <ul className="divide-y">
+          {correcoes.map((op, i) => {
+            const linhas = porOp[i] ?? 0
+            return (
+              <li
+                key={`${i}-${op.op}`}
+                className="flex flex-wrap items-center justify-between gap-2 p-3"
+              >
+                <span className="text-sm">{descreverCorrecao(op)}</span>
+                <div className="ml-auto flex items-center gap-2">
+                  {linhas === 0 ? (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      sem efeito
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {linhas} {linhas === 1 ? 'linha' : 'linhas'}
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={pendente}
+                    onClick={() => onDesfazer(i)}
+                  >
+                    <Undo2 className="size-3.5" />
+                    Desfazer
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </QuadroDeTabela>
       {patrimonioDoHostname > 0 && (
         <p className="text-xs text-muted-foreground">
           + {patrimonioDoHostname.toLocaleString('pt-BR')}{' '}

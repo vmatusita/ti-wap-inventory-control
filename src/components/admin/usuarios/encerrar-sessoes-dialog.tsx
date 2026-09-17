@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Aviso } from '@/components/layout/aviso'
 import { encerrarSessoes } from '@/lib/actions/dev'
 
 // F22 — encerra as SESSÕES ABERTAS de um usuário (apaga as linhas de `auth.sessions` pela
@@ -86,13 +87,13 @@ export function EncerrarSessoesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <p className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+        <Aviso intencao="atencao">
           <strong>Isto não corta o acesso na hora.</strong> O que cai é a{' '}
           <strong>renovação</strong> do acesso: se ela estiver com o sistema aberto no
           navegador neste momento, aquela sessão pode continuar valendo por{' '}
           <strong>até cerca de 1 hora</strong>. Para cortar imediatamente — leitura e escrita
           —, o caminho é <strong>Desativar</strong> o acesso desta pessoa.
-        </p>
+        </Aviso>
 
         {eVoceMesmo && (
           <p className="text-sm text-muted-foreground">

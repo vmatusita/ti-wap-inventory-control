@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { casaBusca } from '@/lib/ajuda/busca'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { ColaboradorDialog } from '@/components/admin/colaborador-dialog'
 import { ComEstaPessoaLinha } from '@/components/admin/com-esta-pessoa-linha'
 import type { ColaboradorAdmin } from '@/lib/queries/colaboradores'
@@ -107,13 +108,13 @@ export function ColaboradoresTabela({
       </div>
 
       {visiveis.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           {colaboradores.length === 0
             ? 'Nenhum colaborador cadastrado ainda. Use a fila abaixo para transformar em cadastro os nomes que já foram digitados, ou crie um com "Novo colaborador".'
             : 'Nenhum colaborador casa com esse filtro.'}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           <Table>
             <TableHeader>
               <TableRow>
@@ -153,9 +154,7 @@ export function ColaboradoresTabela({
                     </TableCell>
                     <TableCell>
                       {c.ativo ? (
-                        <Badge className="border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
-                          Ativo
-                        </Badge>
+                        <Badge variant="sucesso">Ativo</Badge>
                       ) : (
                         <Badge variant="secondary">Inativo</Badge>
                       )}
@@ -170,7 +169,7 @@ export function ColaboradoresTabela({
               })}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
     </div>
   )

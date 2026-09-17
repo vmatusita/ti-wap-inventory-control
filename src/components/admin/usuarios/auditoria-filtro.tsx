@@ -41,7 +41,7 @@ export function AuditoriaFiltro({ acao }: { acao: string | null }) {
         Ação
       </Label>
       <Select value={acao ?? TODAS} onValueChange={trocar} disabled={pending}>
-        <SelectTrigger id="auditoria-acao" className="w-[260px]">
+        <SelectTrigger id="auditoria-acao" className="w-64">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

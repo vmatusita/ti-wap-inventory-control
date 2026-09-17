@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { casaBusca } from '@/lib/ajuda/busca'
+import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { TipoItemDialog } from '@/components/admin/tipo-item-dialog'
 import type { TipoItemAdmin } from '@/lib/queries/tipos-item'
 
@@ -55,13 +56,13 @@ export function TiposItemTabela({ tipos }: { tipos: readonly TipoItemAdmin[] }) 
       </div>
 
       {visiveis.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           {tipos.length === 0
             ? 'Nenhum tipo cadastrado ainda — use "Novo tipo" para criar o primeiro.'
             : `Nenhum tipo casa com “${busca.trim()}”.`}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <QuadroDeTabela>
           <Table>
             <TableHeader>
               <TableRow>
@@ -91,9 +92,7 @@ export function TiposItemTabela({ tipos }: { tipos: readonly TipoItemAdmin[] }) 
                   </TableCell>
                   <TableCell>
                     {t.ativo ? (
-                      <Badge className="border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
-                        Ativo
-                      </Badge>
+                      <Badge variant="sucesso">Ativo</Badge>
                     ) : (
                       <Badge variant="secondary">Inativo</Badge>
                     )}
@@ -105,7 +104,7 @@ export function TiposItemTabela({ tipos }: { tipos: readonly TipoItemAdmin[] }) 
               ))}
             </TableBody>
           </Table>
-        </div>
+        </QuadroDeTabela>
       )}
     </div>
   )
