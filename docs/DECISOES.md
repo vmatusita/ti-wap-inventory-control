@@ -12079,3 +12079,104 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   5. as medições "depois" (duas rodadas de `medir.mjs`, contra a faixa A/A da Frente A), o PR de documentação com essas
      evidências e a tag anotada `v1.65.0`, publicada.
 - **Reversível?** Não há o que reverter: nada tocou banco real. Se a fase for abandonada, fechar o PR basta.
+
+## 2026-09-17 · F60 · (k) A revisão final — a trava por tabela, o passo real da equivalência, e o que os documentos diziam dos rodapés
+
+- **Contexto.** A revisão adversarial final da fase (subagentes em contexto fresco contra a ordem, o `PLAN-F60.md` e os 34
+  critérios; cada achado passou por um cético instruído a refutá-lo) manteve **22 achados** — onze na trava de mesa, cinco
+  na medição/rollback, seis nos documentos. Nenhum banco foi consultado e nenhuma migration aplicada (o canal segue
+  bloqueado, ata (j)). As migrations `0001`–`0145` e o lock **não** foram tocados por esta revisão. Commits: `36b6486` (a
+  trava), `754d1d4` (o registry), `e8befbe`, `74ec025` e `c516467` (o instrumento), e os de documentação que seguem.
+
+- **1. A trava de mesa — onze furos, todos medidos com a mesa VERDE e a `rel_*` devolvendo o acervo** (os achados 1–11;
+  antes × depois em `docs/f60-evidencias/revisao-final-trava-antes-depois.txt`). **Escolha, na causa:**
+  1. **R3 julga a precedência.** A varredura anda da ligação até o limite REAL da cláusula nos dois sentidos, na mesma
+     profundidade, pulando grupos e `case … end`, e um `or` em qualquer ponto reprova — antes, só o token vizinho contava, e
+     `x or y and col = any (p_filiais)` (= `x or (y and …)`) e `… and true or true` passavam. Referência posicional `$n`
+     reprova por R2 (numa função `sql` ela pode ser o próprio `p_filiais`).
+  2. **R4 passa a ser POR TABELA — revoga o "Por que não fechei diferente" da ata de 16/09.** Aquela ata recusou a cobertura
+     por tabela porque ela reprovaria `rel_resumo_filiais`; o que a torna possível sem esse efeito é a PROPAGAÇÃO por
+     igualdade de chave (`x.id = y.<algo>_id`, `x.id = y.id`, `x.filial_id = y.filial_id`), que é exatamente a garantia que
+     aquela ata descrevia ("a igualdade de chave"). A régua respeita o tipo de junção: ligação ou igualdade no `on` de LEFT
+     JOIN só cobre a entrada juntada; de RIGHT JOIN, só as anteriores; de FULL JOIN, nada. Uma lateral coberta cobre as
+     entradas cujo `filial_id` ela lê (a filial calculada do as-of). Herança de escopo filho só por igualdade de chave com
+     alias COBERTO de fora; o alias local sombreia; derivada não-lateral não vê as irmãs do FROM. Fecha o LEFT JOIN que
+     preservava `ativos`/`movimentacoes`, o `cross join filiais` decorativo e a correlação por nome sombreado.
+  3. **O resultado tem de DEPENDER do recorte** — a regra positiva do fato 7 chegou à mesa: cada ramo do select de topo
+     precisa de ligação no `where`/`having`, de entrada coberta fora do lado nulável, de CTE/derivada que dependa, ou da
+     guarda `exists (…)` como conjunção direta. `itens left join lancamentos_item … and l.filial_id = any (p_filiais)` SEM a
+     guarda de `rel_mov_itens_filiais` passava e devolvia o catálogo para NULL; agora reprova.
+  4. **Mais falha fechada:** chamada de função no FROM (fora de uma lista de funções de conjunto do catálogo que não leem
+     tabela), junção entre parênteses, `from` repetido e corpo com DOIS comandos (a função `sql` devolve o ÚLTIMO) reprovam
+     como ilegíveis; `(table x)` é leitura de tabela; `is [not] distinct from` deixou de esconder as junções seguintes do
+     FROM; o corpo julgado é o literal depois do `as` de nível zero (um `default $d$…$d$` antes dele era julgado no lugar do
+     corpo), inclusive entre aspas simples; DDL dinâmico em corpo entre aspas/E-string (`do '…'`, `as '…'`) entra na falha
+     fechada; identificador `U&"…"` em DDL de função reprova.
+  5. **A identidade da função é a do Postgres:** a chave do replay usa o tipo CANÔNICO (`int2[]` = `smallint []` = `_int2`
+     = `smallint[]`; `pg_catalog.date` = `date`; `typmod` e `out` fora), e `drop`/`alter` sem lista resolvem pelo nome
+     único (ambíguo reprova). Antes, `create or replace` com outra grafia virava uma SEGUNDA chave e `drop function if
+     exists public.rel_estoque_asof_filiais;` não derrubava nada — nos dois casos `asof-orcamento.test.ts` dava "ok" sobre um
+     corpo que o banco não teria (describe 6 novo).
+  - **Motivo.** Todos os onze estão dentro do requisito declarado da Frente C ("nenhum `or` que torne a ligação opcional",
+    "a regra julga o que o parâmetro FAZ") e do critério 11; a trava existe para a PRÓXIMA `rel_*`, e cada forma acima
+    passaria por ela. As nove vivas continuam com zero violação, e as 16 formas legítimas da bateria seguem passando.
+  - **O preço, declarado.** A régua nova é mais estrita que a semântica em formas que nenhuma viva usa: um `exists`
+    correlacionado não cobre o PAI (semi-join não é modelado); uma ligação no `where` sobre o lado nulável não propaga de
+    volta ao preservado pelo `on` do LEFT JOIN; `using (…)` não propaga; ligação sem qualificador só cobre FROM de uma
+    entrada; CTE nunca cobre por propagação; `with` dentro de subconsulta é ilegível. **Limite:** uma coluna CALCULADA
+    chamada `filial_id` numa lateral, que leia o `filial_id` de uma entrada, é aceita como a filial calculada — a mesa não
+    prova o que a expressão calcula; o resultado das vivas é provado por `f60_recorte.sql` 1a–1h.
+  - **Não feito, e por quê:** nenhuma mutação nova no injetor. Mutação de `scripts/db/mutacoes.mjs` só entra com o controle
+    verde e a sonda rodados num banco descartável (F47), e esta revisão não tem banco; a regressão da mesa fica travada pelo
+    describe 7 de `rpcs-recorte-sql.test.ts`, que roda em `npm run test`. Fica para a próxima fase que tocar o injetor.
+
+- **2. O passo depois do apply vira comando** (achados 12 e 16). O portão do merge — a equivalência com a FUNÇÃO aplicada
+  — e o "depois" do B1 da `rel_contagem_status_filiais` e a confirmação do orçamento do as-of só existiam em prosa.
+  **Escolha:** modos `gerar-equivalencia-real`, `gerar-custo-real`, `analisar-equivalencia --real` e `analisar-custo --real
+  [--confirmar-orcamento]` em `scripts/perf/equivalencia-rel.mjs`; os corpos vêm das migrations `0141`+`0143` do
+  repositório, e cada bloco recusa ANTES de medir função nova ausente, `prosrc` aplicado com `md5` diferente do versionado e
+  função velha já derrubada; e o leitor de argumentos deixou de engolir a opção seguinte a uma marca sem valor (`--real --dir=…`
+  deixava `--dir` vazio — achado ao escrever o roteiro do relatório, `c516467`). **Motivo:** o apply é do Johnny, e SQL escrito à mão contra produção perde as guardas de alvo,
+  identidade e só-número dos blocos da fase. A emulação não mudou: os 28 blocos saem byte a byte iguais (`diff -r` vazio,
+  `docs/f60-evidencias/equivalencia-rel-modo-real.txt`); o sha256 novo e a diferença estão no `PLAN-F60.md` §0.
+
+- **3. O registry** (achado 22). A mudança da `1.65.0` generalizava "1,6 a 1,7 vezes, dois a três centésimos" para os
+  relatórios; a medição dá 1,6–1,8× e +21–27 ms no consolidado e 1,7–2,3× com +13–22 ms numa filial só
+  (`f60-custo-corpos-novos-producao.json`, `asof_rodada_2`). O texto traz as duas faixas. Mesma versão (nada publicado).
+
+- **4. Os documentos de rollback, da janela e do canal.**
+  - **Rollback** (achados 13, 14, 21): o §11 do `PLAN-F60.md` ainda mandava "`git revert` do merge"; corrigido. E a
+    migration de reversão, com a exceção declarada em `k_excecoes_recorte`, continua reprovando o CI por guardas que fixam o
+    universo de hoje (`rpcs-recorte-sql.test.ts` describe 1 — medido: dez vivas —, `asof-orcamento.test.ts`, as listas de
+    `migrations-f38.test.ts`, e os chamadores das novas se elas forem derrubadas). O Anexo A do runbook agora as lista, a
+    reconciliar no MESMO commit, com ata — reescrever a régua, nunca desligá-la. E o escopo de "reverter o app" ganhou o
+    caso do commit que mistura `supabase/**` com `src/**` (`b5c4587`): desfaz-se por trecho.
+  - **A janela** (achado 15): Δ = 0 em `service_role` era aceito pela FALTA de tráfego (nenhum instrumento gera tráfego de
+    visualizador sem senha ativa resolvida). Agora exige a prova ESTÁTICA — o `git grep` das sete velhas pelo nome vazio e
+    `fronteira-viewer.test.ts` verde —, no runbook e no plano.
+  - **O canal** (achado 17): "o caminho da `0131`" não é script do repositório; o runbook diz que é um padrão a reescrever
+    e que o token não mora mais no `.env.local` desde a F55.
+  - **O SHA e o CI** (achado 20): o SHA de código congelado é **`c516467`**, gravado no plano, no runbook, no relatório e
+    na evidência; o run 35178186717 é de `d83f8ec` e NÃO cobre os commits seguintes. O runbook deixou de dar a
+    pré-condição da F56 por cumprida.
+
+- **5. `5094f6f`, registrado** (achado 19). Depois da ata (`2d5cb14`) e da emenda (`9757cdd`), o commit `5094f6f` corrigiu
+  os rodapés de ROLLBACK da `0143` e da `0145` ("nunca `git revert` do merge inteiro") e o cabeçalho de
+  `supabase/tests/f60_recorte.sql` (1.004 células; nenhuma filial desativada em 16/09), **regravando o lock das duas
+  migrations com `--regravar-alterada`**, e nenhuma ata registrou a mudança. **Escolha registrada agora:** vale a edição —
+  as duas migrations não tinham tocado banco real, e o SQL executável não mudou (o hash do as-of `78e96737…` segue o do
+  orçamento, `asof-orcamento.test.ts` verde; os `md5` normalizados dos oito corpos seguem os da evidência). Isso **revoga**,
+  como descrição do estado atual, a última frase do "Reversível?" da decisão 1 ("as duas migrations … ficam como estão"),
+  o "o roteiro fica para a próxima fase" de (i).5 e o que (i).10 e (i).11 dizem do texto dos rodapés e do roteiro — as
+  atas ficam como estão, esta as corrige. A matriz marca as duas entradas como corrigidas, e o runbook deixou de dizer que
+  os rodapés "escrevem" o `git revert` do merge. **Reversível?** Sim — comentário.
+
+- **6. O relatório** (achado 18). `docs/RELATORIO-F60.md` não existia, embora o `CHANGELOG.md`, o índice e a ata (j)
+  apontassem para ele; criado, com os comandos do apply, da equivalência e da janela no topo.
+
+- **Verificação.** `npx vitest run` inteiro **228 arquivos, 6.432 testes** (eram 6.350), `npm run lint`, `npx tsc
+  --noEmit`, `npm run build` e `npm run verificar:actions` verdes sobre `c516467`
+  (`docs/f60-evidencias/revisao-final-build.txt`).
+
+- **O que esta revisão NÃO fez (efeito remoto):** o push da branch, o CI sobre `c516467` e a atualização da descrição do
+  PR #52 (que ainda diz "926 células" e não declara o bloqueio do canal). Estão no topo do `RELATORIO-F60.md`.
