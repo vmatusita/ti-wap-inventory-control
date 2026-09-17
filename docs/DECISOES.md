@@ -11538,3 +11538,27 @@ refutá-lo. Três rodadas acharam lacunas reais de correção; a quarta, sobre o
     checagens de saldo; `scripts/smoke/fixtures-passe2.ts`, `lerSaldoItemNaFilial`, só no ensaio; `scripts/seed.ts`, só
     em desenvolvimento) têm o mesmo limite, latente em centenas de itens, e falham ALTO (FALHA no smoke, saldo não
     achado na fixture), não calados. `.mjs` e `tsx` não alcançam `paginarTodos` (`server-only`); fica para o backlog.
+
+- **Achado 2 (BAIXO, revisor 3) — a guarda de `drop` de `migrations-f38.test.ts` não enxergava nome citado nem
+  `drop routine`.** Confirmado com os casos do revisor: `drop function public."rel_saldo_itens_filiais"(…)` lia
+  `["public"]`, `drop function "public"."rel_estoque_asof_filiais"(…)` lia `[]`, e `drop routine
+  public.rel_mov_itens_filiais(…)` — que derruba função no Postgres — nem era lido; as três deixariam "NENHUMA função
+  intocável é derrubada" verde. `funcoesDefinidas` (a guarda de recriação, desde a F38) tinha a mesma cegueira de nome.
+  - **Escolha:** UM leitor de nome de rotina para as duas guardas (`lerNomeDeRotina`): `[esquema.]nome`, cada parte nua
+    (dobrada para minúsculas, como o parser do Postgres) ou citada (exata, `""` → `"` — `"Rel_Saldo_Itens"` é outra
+    função e NÃO vira a intocável), espaço em volta do ponto; a lista do `drop` lida por posição (parênteses
+    atravessados respeitando citados, `cascade`/`restrict`, sem lista de argumentos); `drop routine` entra, `drop
+    procedure` não (o Postgres recusa `drop procedure` sobre função). E FALHA FECHADA: o que o leitor não sabe ler
+    (aspa ou parêntese sem fecho, `U&"…"`, `create function` sem lista de argumentos) LANÇA com o trecho, em vez de
+    devolver uma lista menor.
+  - **Prova de que nada mudou na cadeia real:** sobre as 144 migrations, as leituras novas devolvem exatamente o que as
+    regex devolviam, nas duas guardas, e nenhuma lança. Guarda da guarda com 13 casos novos (as três grafias do
+    revisor, maiúsculas, sem argumentos, vírgula e parêntese dentro de citado, a grafia citada distinta e quatro
+    ilegíveis). Sabotagem (as regex de volta, os casos novos mantidos): 11 dos 26 vermelhos —
+    `<scratchpad>/evidencias/sabotagem-revisao-lote2-guarda-drop.txt`.
+  - **Visto e NÃO consertado aqui (outra trava, da Frente C, `4d4bad2`):** `scripts/db/recorte-rel.mjs` também não lê
+    `routine`. `alter routine public.<função sem recorte>() rename to rel_x` entra no prefixo `rel_` com a trava de mesa
+    verde (`vivas` 9, zero violações), e `drop routine` de uma `rel_*` a deixa viva no replay —
+    `<scratchpad>/evidencias/revisao-lote2-recorte-rel-routine.txt`. No CI o par no catálogo (bloco 7, `7a`) lê
+    `pg_proc` e reprovaria a primeira; a mesa não. Fica para o orquestrador decidir, porque a ordem trata aquela trava
+    como fechada.
