@@ -1,4 +1,12 @@
-=== HEAD 74ec025 — npm run build
+=== HEAD b7fd981 (código = c516467) — npm run lint
+
+> estoque-ti-wap@1.65.0 lint
+> eslint
+
+lint-exit=0
+=== npx tsc --noEmit
+tsc-exit=0
+=== npm run build
 
 > estoque-ti-wap@1.65.0 build
 > next build
@@ -9,15 +17,15 @@
   · serverActions
 
   Creating an optimized production build ...
-✓ Compiled successfully in 15.7s
+✓ Compiled successfully in 17.3s
   Running TypeScript ...
-  Finished TypeScript in 33.8s ...
+  Finished TypeScript in 35.9s ...
   Collecting page data using 7 workers ...
   Generating static pages using 7 workers (0/32) ...
   Generating static pages using 7 workers (8/32) 
   Generating static pages using 7 workers (16/32) 
   Generating static pages using 7 workers (24/32) 
-✓ Generating static pages using 7 workers (32/32) in 1796ms
+✓ Generating static pages using 7 workers (32/32) in 1661ms
   Finalizing page optimization ...
 
 Route (app)
@@ -72,3 +80,5 @@ build-exit=0
 [gate] chunks com Server Actions varridos: 23
 [gate] VERDE — nenhum identificador registrado sem binding.
 verificar-exit=0
+ Test Files  228 passed (228)
+      Tests  6432 passed (6432)

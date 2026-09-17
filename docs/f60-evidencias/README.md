@@ -79,4 +79,4 @@ Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da
 | `lote1-build.txt` | `npm run build` do lote 1 corrigido (`1e604e3`), saída 0 |
 | `lote2-build.txt` | `npm run build` do lote 2, saída 0 |
 | `lote2-build-final.txt` | Depois da revisão do lote 2 (`2020641`): `vitest` inteiro (228 arquivos, 6.343 testes), `lint`, `tsc`, `verificar:actions` antes e depois do build, e `build` — todos com saída 0 |
-| `revisao-final-build.txt` | Depois da revisão final (`c516467`): `build` e `verificar:actions` com saída 0 (`vitest` inteiro 228 arquivos / 6.432 testes, `lint` e `tsc` verdes na mesma sessão — ata (k)) |
+| `revisao-final-build.txt` | Depois da revisão final (código `c516467`): `lint`, `tsc`, `build` e `verificar:actions` com saída 0, e `vitest` inteiro 228 arquivos / 6.432 testes |
