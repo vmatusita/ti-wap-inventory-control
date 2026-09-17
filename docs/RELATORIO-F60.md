@@ -1,5 +1,11 @@
 # Relatório F60 — O recorte que corta scan, e o custo do caminho quente
 
+> **Retomada (17/09/2026, mesmo dia — ata (l) de `DECISOES.md`):** o canal voltou. **Ensaio:** `0141`→`0145` aplicadas,
+> equivalência com as funções de verdade 1.004/1.004, harness de itens "depois" e tipos conferidos. **Produção:** `0141`,
+> `0142` e `0143` aplicadas antes do merge, equivalência real 1.004/1.004, conferidor 271 pontos sem reprovação, `explain`
+> "depois" e orçamento do as-of confirmado. Faltam, nesta ordem: merge, conferência pós-deploy, janela do `drop` (`0144`
+> e `0145`), TTFB "depois", PR de documentação e tag. O texto abaixo é o do bloqueio e fica até o fecho.
+
 **v1.65.0** · **migrations `0141`–`0145` — NÃO aplicadas em banco nenhum** · 17/09/2026 · SHA de código congelado
 **`c516467`** · branch `f60-recorte-que-corta-scan` · código no
 [PR #52](https://github.com/vmatusita/ti-wap-inventory-control/pull/52), **em rascunho, aberto e SEM merge** (ata (j) de

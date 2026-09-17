@@ -12180,3 +12180,37 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
 
 - **O que esta revisão NÃO fez (efeito remoto):** o push da branch, o CI sobre `c516467` e a atualização da descrição do
   PR #52 (que ainda diz "926 células" e não declara o bloqueio do canal). Estão no topo do `RELATORIO-F60.md`.
+
+## 2026-09-17 · F60 · (l) O canal voltou — ensaio inteiro e produção antes do merge
+
+- **Contexto.** O Johnny reabilitou o conector da Supabase no mesmo dia. A fase retomou do ponto da ata (j), pelos passos do
+  `RELATORIO-F60.md` §1, sem refazer o que já estava provado. `main` não tinha andado (0 commits à frente da branch), então
+  o CI da run 35186554796 sobre o código congelado `c516467` continuou valendo para o apply.
+- **Ensaio — a cadeia inteira** (`docs/f60-evidencias/apply-ensaio.txt`): `0141`→`0145` aplicadas por `apply_migration`,
+  com a verificação pós-apply (os oito `md5` iguais aos versionados), a equivalência com as FUNÇÕES DE VERDADE entre a
+  `0143` e a `0145` (**1.004 células, 0 divergentes**), a sonda da `0144` antes e depois (780 linhas, mesmo `md5`, e o
+  resumo idêntico), a prova de ausência das sete velhas, o "depois" do harness de itens (o "último lançamento" de quem
+  nunca lançou: **10,4 ms → 0,017 ms** com 50 mil linhas, sem nó de sort, buffers 3; limpeza conferida, 35 lançamentos de
+  volta) e os tipos do ensaio **byte a byte iguais** ao `database.ts` do commit sem as 8 linhas de comentário do hand-fix.
+- **Produção, antes do merge** (`docs/f60-evidencias/apply-producao-antes-do-merge.txt`): só `0141`, `0142` e `0143`
+  (aditivas; a `1.64.0` não chama nome nenhum delas), a verificação pós-apply idêntica à do ensaio, a equivalência com as
+  funções de verdade (**1.004 células, 0 divergentes** — `docs/perf/f60-equivalencia-real.json`), o conferidor de formas
+  (271 pontos, 0 reprovados), o `explain` "depois" das sete (`docs/perf/f60-producao-depois-rel.json`) e a confirmação do
+  orçamento do as-of chamando a função (54,8 ms contra 65,7 ms emulados, razão 0,833; o hash não muda).
+- **Dois achados da medição "depois", escritos em vez de maquiados.**
+  1. O as-of custa o que a `0143` declarou: consolidado de hoje **35,8 → 55,9 ms**, 378 → 18.648 buffers. Nada novo.
+  2. Nas três de movimentações (`mov_por_mes`, `por_motivo`, `resumo`), o plano genérico com `= any ($1)` escolhe, no
+     volume de hoje, `movimentacoes_data_ordem_idx` e filtra a filial: UMA filial em 365 dias lê os mesmos **201**
+     buffers do consolidado, como antes. O recorte ficou sargável e obrigatório — o que a trava prova —, mas o "corta
+     scan" do título **não aparece nessas três** com 3.578 movimentações. Não é regressão (mesmos buffers, mesmo tempo),
+     e nenhum índice entra por suposição (R-REL-33): quem medir com volume maior decide.
+- **Dois desvios de forma, declarados.** (i) O classificador recusou UMA consulta que juntava `notify pgrst` com a prova
+  de ausência no ensaio ("[Blind Apply]"); as duas partes separadas passaram — não houve reformulação da AÇÃO, só a
+  separação de uma leitura e de um `notify`. (ii) O bloco `custo-asof-consolidado` rodou as três células num laço `for`
+  em vez de três trechos copiados (mesmos comandos, mesma saída), e quatro blocos de custo real não rodaram — o `explain`
+  "depois" já mede as mesmas células pela chamada da função.
+- **Tipos.** Sem `SUPABASE_ACCESS_TOKEN`, a CLI fixada (2.109.1) não tem canal; os tipos do ensaio vieram do MCP
+  `generate_typescript_types`, e a igualdade byte a byte com o arquivo do commit dispensa regenerar agora. Os de produção,
+  depois do `drop`, pelo mesmo caminho.
+- **Reversível?** Sim, pelo Anexo A do runbook: em produção, antes do deploy, derrubar as oito `_filiais` e o índice não
+  toca a `1.64.0`. No ensaio, a ordem de rollback da fase.

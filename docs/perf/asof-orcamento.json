@@ -17,7 +17,38 @@
     "data": "2026-09-16",
     "medido_em": "2026-09-16T22:19:55.982Z",
     "metodo": "corpo EMULADO inline, antes do apply da 0143 (só leitura): prepare + plan_cache_mode=force_generic_plan + explain (analyze, buffers, format json) execute; 1 aquecimento + 7 medidas, intercaladas na mesma sessão com o corpo da 0134 (forma b) e a chamada da função velha (forma a)",
-    "confirmacao": "pendente — depois do apply da 0143, em produção: node scripts/perf/equivalencia-rel.mjs gerar-custo-real --alvo=producao --hoje=AAAA-MM-DD --dir=<fora-do-repo>, executar os blocos, e analisar-custo --real --dir=<…> --saida=<…> --confirmar-orcamento=docs/perf/asof-orcamento.json, que grava aqui a medição do corpo APLICADO (conferido por md5 do prosrc) e da chamada; o hash não muda",
+    "confirmacao": {
+      "data": "2026-09-17",
+      "medido_em": "2026-09-17T11:14:24.287Z",
+      "alvo": "producao",
+      "metodo": "modo real: guarda de md5 do prosrc APLICADO contra a migration do repositório; forma (b) sobre esse corpo (prepare + force_generic_plan + explain analyze buffers execute, 1 aquecimento + N) E a CHAMADA da função pelo nome (prepare \"select * from public.<fn>($1…)\", mesmo método), intercaladas por célula; identidade authenticated admin/dev; só leitura.",
+      "md5_prosrc_conferido": "54943d2f41e17dd1c648b32e10fd43f4",
+      "execucao_ms": {
+        "max": 61.3,
+        "min": 52.63,
+        "p95": 59.817,
+        "mediana": 54.758
+      },
+      "planejamento_ms": {
+        "max": 0.033,
+        "min": 0.022,
+        "p95": 0.032,
+        "mediana": 0.028
+      },
+      "buffers_raiz": {
+        "hit_mediana": 18638,
+        "read_mediana": 0
+      },
+      "chamada_execucao_ms": {
+        "p95": 67.1,
+        "mediana": 57.826
+      },
+      "linhas": 1624,
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "razao_mediana_sobre_a_medida": 0.833
+    },
     "postgres": "17.6",
     "papel": "authenticated",
     "recorte": "consolidado — a lista de todas as filiais, inclusive desativadas (hoje nenhuma desativada)",

@@ -1,0 +1,2834 @@
+{
+  "rotulo": "f60-motor-depois-producao",
+  "alvo": "producao",
+  "sha_codigo": "53cd3e76bfacdac54cb819a1ac08939f279b56d6",
+  "gerado_em": "2026-09-17T11:11:08.553Z",
+  "metodo": "explain (analyze, buffers, format json); forma (a) = chamada como o PostgREST chama (json_to_record + lateral); forma (b) = corpo emulado, prepare/execute com plan_cache_mode=force_generic_plan; 1 aquecimento + N repetições intercaladas a/b; mediana e p95 por posto mais próximo; buffers do nó raiz do plano.",
+  "funcoes": [
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 53.963,
+            "min": 45.634,
+            "p95": 53.834,
+            "mediana": 50.156
+          },
+          "planejamento_ms": {
+            "max": 0.107,
+            "min": 0.064,
+            "p95": 0.101,
+            "mediana": 0.067
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18648,
+            "read_mediana": 0
+          },
+          "linhas": 1146,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 62.664,
+            "min": 47.038,
+            "p95": 59.621,
+            "mediana": 51.666
+          },
+          "planejamento_ms": {
+            "max": 0.056,
+            "min": 0.027,
+            "p95": 0.052,
+            "mediana": 0.036
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18638,
+            "read_mediana": 0
+          },
+          "linhas": 1146,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 30.498,
+            "min": 26.584,
+            "p95": 30.484,
+            "mediana": 28.965
+          },
+          "planejamento_ms": {
+            "max": 0.112,
+            "min": 0.066,
+            "p95": 0.101,
+            "mediana": 0.069
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18648,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 36.314,
+            "min": 28.64,
+            "p95": 36.019,
+            "mediana": 32.318
+          },
+          "planejamento_ms": {
+            "max": 0.034,
+            "min": 0.027,
+            "p95": 0.034,
+            "mediana": 0.029
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18638,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje-7",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 59.586,
+            "min": 46.204,
+            "p95": 56.735,
+            "mediana": 48.944
+          },
+          "planejamento_ms": {
+            "max": 0.075,
+            "min": 0.064,
+            "p95": 0.075,
+            "mediana": 0.066
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18473,
+            "read_mediana": 0
+          },
+          "linhas": 1131,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje-7",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 61.382,
+            "min": 47.724,
+            "p95": 60.663,
+            "mediana": 54.758
+          },
+          "planejamento_ms": {
+            "max": 0.043,
+            "min": 0.027,
+            "p95": 0.042,
+            "mediana": 0.036
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18463,
+            "read_mediana": 0
+          },
+          "linhas": 1131,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje-7",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 35.071,
+            "min": 24.79,
+            "p95": 34.36,
+            "mediana": 28.083
+          },
+          "planejamento_ms": {
+            "max": 0.085,
+            "min": 0.065,
+            "p95": 0.082,
+            "mediana": 0.072
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18473,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje-7",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 38.787,
+            "min": 30.928,
+            "p95": 38.035,
+            "mediana": 32.184
+          },
+          "planejamento_ms": {
+            "max": 0.065,
+            "min": 0.028,
+            "p95": 0.064,
+            "mediana": 0.033
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18463,
+            "read_mediana": 0
+          },
+          "linhas": 5,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 63.59,
+            "min": 54.88,
+            "p95": 63.48,
+            "mediana": 55.889
+          },
+          "planejamento_ms": {
+            "max": 0.076,
+            "min": 0.05,
+            "p95": 0.074,
+            "mediana": 0.065
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18648,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 69.591,
+            "min": 54.26,
+            "p95": 67.089,
+            "mediana": 59.327
+          },
+          "planejamento_ms": {
+            "max": 0.817,
+            "min": 0.029,
+            "p95": 0.586,
+            "mediana": 0.036
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18638,
+            "read_mediana": 0
+          },
+          "linhas": 1624,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje-60",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 38.124,
+            "min": 32.364,
+            "p95": 37.954,
+            "mediana": 35.779
+          },
+          "planejamento_ms": {
+            "max": 0.098,
+            "min": 0.062,
+            "p95": 0.093,
+            "mediana": 0.071
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12511,
+            "read_mediana": 0
+          },
+          "linhas": 845,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje-60",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 43.775,
+            "min": 35.078,
+            "p95": 42.732,
+            "mediana": 38.215
+          },
+          "planejamento_ms": {
+            "max": 0.029,
+            "min": 0.025,
+            "p95": 0.029,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12501,
+            "read_mediana": 0
+          },
+          "linhas": 845,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje-60",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 25.027,
+            "min": 19.501,
+            "p95": 24.618,
+            "mediana": 20.577
+          },
+          "planejamento_ms": {
+            "max": 0.117,
+            "min": 0.065,
+            "p95": 0.111,
+            "mediana": 0.071
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12511,
+            "read_mediana": 0
+          },
+          "linhas": 0,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje-60",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 31.717,
+            "min": 22.542,
+            "p95": 30.333,
+            "mediana": 25.558
+          },
+          "planejamento_ms": {
+            "max": 0.033,
+            "min": 0.027,
+            "p95": 0.032,
+            "mediana": 0.03
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12501,
+            "read_mediana": 0
+          },
+          "linhas": 0,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje-7",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 65.653,
+            "min": 52.867,
+            "p95": 63.055,
+            "mediana": 55.427
+          },
+          "planejamento_ms": {
+            "max": 0.099,
+            "min": 0.062,
+            "p95": 0.094,
+            "mediana": 0.07
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18473,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje-7",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 56.907,
+            "min": 51.382,
+            "p95": 56.878,
+            "mediana": 55.285
+          },
+          "planejamento_ms": {
+            "max": 0.047,
+            "min": 0.027,
+            "p95": 0.043,
+            "mediana": 0.03
+          },
+          "buffers_raiz": {
+            "hit_mediana": 18463,
+            "read_mediana": 0
+          },
+          "linhas": 1610,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje-60",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 45.325,
+            "min": 37.922,
+            "p95": 45.235,
+            "mediana": 40.74
+          },
+          "planejamento_ms": {
+            "max": 0.269,
+            "min": 0.066,
+            "p95": 0.222,
+            "mediana": 0.087
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12511,
+            "read_mediana": 0
+          },
+          "linhas": 1122,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_estoque_asof_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje-60",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 48.906,
+            "min": 40.197,
+            "p95": 47.482,
+            "mediana": 42.435
+          },
+          "planejamento_ms": {
+            "max": 0.031,
+            "min": 0.027,
+            "p95": 0.031,
+            "mediana": 0.029
+          },
+          "buffers_raiz": {
+            "hit_mediana": 12501,
+            "read_mediana": 0
+          },
+          "linhas": 1122,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Result",
+            "Seq Scan",
+            "Subquery Scan",
+            "Limit",
+            "Incremental Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "ativos"
+          ],
+          "indices_usados": [
+            "mov_ativo_idx"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    },
+    {
+      "funcao": "rel_saldo_itens_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_saldo_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 4.391,
+            "min": 2.66,
+            "p95": 4.195,
+            "mediana": 2.95
+          },
+          "planejamento_ms": {
+            "max": 0.073,
+            "min": 0.047,
+            "p95": 0.072,
+            "mediana": 0.055
+          },
+          "buffers_raiz": {
+            "hit_mediana": 10,
+            "read_mediana": 0
+          },
+          "linhas": 46,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_saldo_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.452,
+            "min": 1.154,
+            "p95": 1.413,
+            "mediana": 1.235
+          },
+          "planejamento_ms": {
+            "max": 0.06,
+            "min": 0.028,
+            "p95": 0.053,
+            "mediana": 0.032
+          },
+          "buffers_raiz": {
+            "hit_mediana": 9,
+            "read_mediana": 0
+          },
+          "linhas": 46,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Index Scan",
+            "Hash Join",
+            "Nested Loop",
+            "Materialize",
+            "Append",
+            "CTE Scan",
+            "Hash",
+            "Subquery Scan",
+            "Aggregate"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_saldo_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 3.199,
+            "min": 2.34,
+            "p95": 3.108,
+            "mediana": 2.745
+          },
+          "planejamento_ms": {
+            "max": 0.149,
+            "min": 0.043,
+            "p95": 0.132,
+            "mediana": 0.07
+          },
+          "buffers_raiz": {
+            "hit_mediana": 8,
+            "read_mediana": 0
+          },
+          "linhas": 46,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_saldo_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 2.114,
+            "min": 0.856,
+            "p95": 1.841,
+            "mediana": 0.972
+          },
+          "planejamento_ms": {
+            "max": 0.038,
+            "min": 0.023,
+            "p95": 0.036,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 7,
+            "read_mediana": 0
+          },
+          "linhas": 46,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Index Scan",
+            "Hash Join",
+            "Nested Loop",
+            "Materialize",
+            "Append",
+            "CTE Scan",
+            "Hash",
+            "Subquery Scan",
+            "Aggregate"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_saldo_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 6.422,
+            "min": 3.542,
+            "p95": 5.86,
+            "mediana": 3.733
+          },
+          "planejamento_ms": {
+            "max": 0.116,
+            "min": 0.05,
+            "p95": 0.105,
+            "mediana": 0.066
+          },
+          "buffers_raiz": {
+            "hit_mediana": 17,
+            "read_mediana": 0
+          },
+          "linhas": 161,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_saldo_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 3.955,
+            "min": 1.885,
+            "p95": 3.597,
+            "mediana": 2.055
+          },
+          "planejamento_ms": {
+            "max": 0.052,
+            "min": 0.028,
+            "p95": 0.048,
+            "mediana": 0.034
+          },
+          "buffers_raiz": {
+            "hit_mediana": 16,
+            "read_mediana": 0
+          },
+          "linhas": 161,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Index Scan",
+            "Hash Join",
+            "Nested Loop",
+            "Materialize",
+            "Append",
+            "CTE Scan",
+            "Hash",
+            "Subquery Scan",
+            "Aggregate"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    },
+    {
+      "funcao": "rel_mov_itens_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.317,
+            "min": 1.601,
+            "p95": 2.269,
+            "mediana": 1.7
+          },
+          "planejamento_ms": {
+            "max": 0.064,
+            "min": 0.042,
+            "p95": 0.06,
+            "mediana": 0.043
+          },
+          "buffers_raiz": {
+            "hit_mediana": 13,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.881,
+            "min": 0.749,
+            "p95": 0.856,
+            "mediana": 0.765
+          },
+          "planejamento_ms": {
+            "max": 0.028,
+            "min": 0.017,
+            "p95": 0.027,
+            "mediana": 0.019
+          },
+          "buffers_raiz": {
+            "hit_mediana": 7,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Aggregate",
+            "Hash Join",
+            "Hash",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.194,
+            "min": 1.414,
+            "p95": 2.155,
+            "mediana": 1.578
+          },
+          "planejamento_ms": {
+            "max": 0.07,
+            "min": 0.043,
+            "p95": 0.066,
+            "mediana": 0.047
+          },
+          "buffers_raiz": {
+            "hit_mediana": 11,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.258,
+            "min": 0.484,
+            "p95": 1.146,
+            "mediana": 0.619
+          },
+          "planejamento_ms": {
+            "max": 0.037,
+            "min": 0.02,
+            "p95": 0.034,
+            "mediana": 0.023
+          },
+          "buffers_raiz": {
+            "hit_mediana": 5,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Aggregate",
+            "Hash Join",
+            "Hash",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.476,
+            "min": 1.641,
+            "p95": 2.32,
+            "mediana": 1.84
+          },
+          "planejamento_ms": {
+            "max": 0.062,
+            "min": 0.043,
+            "p95": 0.06,
+            "mediana": 0.048
+          },
+          "buffers_raiz": {
+            "hit_mediana": 15,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.337,
+            "min": 0.812,
+            "p95": 1.252,
+            "mediana": 0.964
+          },
+          "planejamento_ms": {
+            "max": 0.03,
+            "min": 0.017,
+            "p95": 0.028,
+            "mediana": 0.02
+          },
+          "buffers_raiz": {
+            "hit_mediana": 9,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Aggregate",
+            "Hash Join",
+            "Hash",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.159,
+            "min": 1.653,
+            "p95": 2.146,
+            "mediana": 2.013
+          },
+          "planejamento_ms": {
+            "max": 0.057,
+            "min": 0.045,
+            "p95": 0.055,
+            "mediana": 0.049
+          },
+          "buffers_raiz": {
+            "hit_mediana": 13,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.905,
+            "min": 0.78,
+            "p95": 0.903,
+            "mediana": 0.85
+          },
+          "planejamento_ms": {
+            "max": 0.028,
+            "min": 0.021,
+            "p95": 0.027,
+            "mediana": 0.022
+          },
+          "buffers_raiz": {
+            "hit_mediana": 7,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Aggregate",
+            "Hash Join",
+            "Hash",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.763,
+            "min": 1.43,
+            "p95": 2.597,
+            "mediana": 1.669
+          },
+          "planejamento_ms": {
+            "max": 0.05,
+            "min": 0.041,
+            "p95": 0.048,
+            "mediana": 0.042
+          },
+          "buffers_raiz": {
+            "hit_mediana": 15,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.851,
+            "min": 0.69,
+            "p95": 0.837,
+            "mediana": 0.774
+          },
+          "planejamento_ms": {
+            "max": 0.04,
+            "min": 0.019,
+            "p95": 0.035,
+            "mediana": 0.02
+          },
+          "buffers_raiz": {
+            "hit_mediana": 9,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Aggregate",
+            "Hash Join",
+            "Hash",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.651,
+            "min": 1.799,
+            "p95": 2.509,
+            "mediana": 2.102
+          },
+          "planejamento_ms": {
+            "max": 0.096,
+            "min": 0.042,
+            "p95": 0.086,
+            "mediana": 0.056
+          },
+          "buffers_raiz": {
+            "hit_mediana": 20,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.115,
+            "min": 0.942,
+            "p95": 1.082,
+            "mediana": 0.979
+          },
+          "planejamento_ms": {
+            "max": 0.03,
+            "min": 0.018,
+            "p95": 0.028,
+            "mediana": 0.02
+          },
+          "buffers_raiz": {
+            "hit_mediana": 14,
+            "read_mediana": 0
+          },
+          "linhas": 23,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Seq Scan",
+            "Result",
+            "Aggregate",
+            "Hash Join",
+            "Hash",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais",
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    },
+    {
+      "funcao": "rel_frescor_itens_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_frescor_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.552,
+            "min": 0.991,
+            "p95": 1.465,
+            "mediana": 1.035
+          },
+          "planejamento_ms": {
+            "max": 0.062,
+            "min": 0.035,
+            "p95": 0.058,
+            "mediana": 0.043
+          },
+          "buffers_raiz": {
+            "hit_mediana": 8,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_frescor_itens_filiais",
+          "recorte": "filial_a",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.662,
+            "min": 0.482,
+            "p95": 0.637,
+            "mediana": 0.554
+          },
+          "planejamento_ms": {
+            "max": 0.023,
+            "min": 0.014,
+            "p95": 0.022,
+            "mediana": 0.018
+          },
+          "buffers_raiz": {
+            "hit_mediana": 7,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Hash Join",
+            "Index Scan",
+            "Hash",
+            "Seq Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_frescor_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.2,
+            "min": 1.027,
+            "p95": 1.199,
+            "mediana": 1.138
+          },
+          "planejamento_ms": {
+            "max": 0.05,
+            "min": 0.039,
+            "p95": 0.05,
+            "mediana": 0.042
+          },
+          "buffers_raiz": {
+            "hit_mediana": 6,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_frescor_itens_filiais",
+          "recorte": "filial_b",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.575,
+            "min": 0.444,
+            "p95": 0.552,
+            "mediana": 0.458
+          },
+          "planejamento_ms": {
+            "max": 0.019,
+            "min": 0.016,
+            "p95": 0.019,
+            "mediana": 0.017
+          },
+          "buffers_raiz": {
+            "hit_mediana": 5,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Hash Join",
+            "Index Scan",
+            "Hash",
+            "Seq Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_frescor_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.385,
+            "min": 0.928,
+            "p95": 1.369,
+            "mediana": 1.006
+          },
+          "planejamento_ms": {
+            "max": 0.097,
+            "min": 0.034,
+            "p95": 0.081,
+            "mediana": 0.043
+          },
+          "buffers_raiz": {
+            "hit_mediana": 15,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_frescor_itens_filiais",
+          "recorte": "consolidado",
+          "celula": "hoje",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.947,
+            "min": 0.533,
+            "p95": 0.89,
+            "mediana": 0.608
+          },
+          "planejamento_ms": {
+            "max": 0.032,
+            "min": 0.012,
+            "p95": 0.028,
+            "mediana": 0.017
+          },
+          "buffers_raiz": {
+            "hit_mediana": 14,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Hash Join",
+            "Index Scan",
+            "Hash",
+            "Seq Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "itens"
+          ],
+          "indices_usados": [
+            "lanc_item_filial_data_idx"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    },
+    {
+      "funcao": "rel_mov_por_mes_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 0.9,
+            "min": 0.697,
+            "p95": 0.89,
+            "mediana": 0.749
+          },
+          "planejamento_ms": {
+            "max": 0.042,
+            "min": 0.036,
+            "p95": 0.041,
+            "mediana": 0.039
+          },
+          "buffers_raiz": {
+            "hit_mediana": 38,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.289,
+            "min": 0.252,
+            "p95": 0.287,
+            "mediana": 0.264
+          },
+          "planejamento_ms": {
+            "max": 0.014,
+            "min": 0.011,
+            "p95": 0.014,
+            "mediana": 0.013
+          },
+          "buffers_raiz": {
+            "hit_mediana": 38,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.291,
+            "min": 0.677,
+            "p95": 1.22,
+            "mediana": 0.946
+          },
+          "planejamento_ms": {
+            "max": 0.057,
+            "min": 0.037,
+            "p95": 0.054,
+            "mediana": 0.039
+          },
+          "buffers_raiz": {
+            "hit_mediana": 38,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.508,
+            "min": 0.242,
+            "p95": 0.477,
+            "mediana": 0.275
+          },
+          "planejamento_ms": {
+            "max": 0.03,
+            "min": 0.013,
+            "p95": 0.026,
+            "mediana": 0.014
+          },
+          "buffers_raiz": {
+            "hit_mediana": 38,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.581,
+            "min": 1.86,
+            "p95": 2.532,
+            "mediana": 2.079
+          },
+          "planejamento_ms": {
+            "max": 0.059,
+            "min": 0.041,
+            "p95": 0.057,
+            "mediana": 0.05
+          },
+          "buffers_raiz": {
+            "hit_mediana": 201,
+            "read_mediana": 0
+          },
+          "linhas": 6,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.794,
+            "min": 1.349,
+            "p95": 1.77,
+            "mediana": 1.509
+          },
+          "planejamento_ms": {
+            "max": 0.062,
+            "min": 0.015,
+            "p95": 0.05,
+            "mediana": 0.02
+          },
+          "buffers_raiz": {
+            "hit_mediana": 201,
+            "read_mediana": 0
+          },
+          "linhas": 6,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.335,
+            "min": 1.625,
+            "p95": 2.28,
+            "mediana": 1.88
+          },
+          "planejamento_ms": {
+            "max": 0.055,
+            "min": 0.04,
+            "p95": 0.054,
+            "mediana": 0.05
+          },
+          "buffers_raiz": {
+            "hit_mediana": 201,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.461,
+            "min": 1.072,
+            "p95": 1.438,
+            "mediana": 1.223
+          },
+          "planejamento_ms": {
+            "max": 0.03,
+            "min": 0.014,
+            "p95": 0.027,
+            "mediana": 0.016
+          },
+          "buffers_raiz": {
+            "hit_mediana": 201,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 0.924,
+            "min": 0.763,
+            "p95": 0.92,
+            "mediana": 0.854
+          },
+          "planejamento_ms": {
+            "max": 0.071,
+            "min": 0.04,
+            "p95": 0.067,
+            "mediana": 0.046
+          },
+          "buffers_raiz": {
+            "hit_mediana": 38,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.54,
+            "min": 0.275,
+            "p95": 0.486,
+            "mediana": 0.322
+          },
+          "planejamento_ms": {
+            "max": 0.02,
+            "min": 0.014,
+            "p95": 0.019,
+            "mediana": 0.017
+          },
+          "buffers_raiz": {
+            "hit_mediana": 38,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.843,
+            "min": 2.225,
+            "p95": 2.826,
+            "mediana": 2.593
+          },
+          "planejamento_ms": {
+            "max": 0.067,
+            "min": 0.041,
+            "p95": 0.065,
+            "mediana": 0.056
+          },
+          "buffers_raiz": {
+            "hit_mediana": 201,
+            "read_mediana": 0
+          },
+          "linhas": 8,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_mov_por_mes_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 2.377,
+            "min": 1.433,
+            "p95": 2.3,
+            "mediana": 1.775
+          },
+          "planejamento_ms": {
+            "max": 0.029,
+            "min": 0.014,
+            "p95": 0.027,
+            "mediana": 0.019
+          },
+          "buffers_raiz": {
+            "hit_mediana": 201,
+            "read_mediana": 0
+          },
+          "linhas": 8,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    },
+    {
+      "funcao": "rel_por_motivo_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.605,
+            "min": 1.065,
+            "p95": 1.521,
+            "mediana": 1.137
+          },
+          "planejamento_ms": {
+            "max": 0.08,
+            "min": 0.037,
+            "p95": 0.07,
+            "mediana": 0.039
+          },
+          "buffers_raiz": {
+            "hit_mediana": 55,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.972,
+            "min": 0.505,
+            "p95": 0.95,
+            "mediana": 0.552
+          },
+          "planejamento_ms": {
+            "max": 0.018,
+            "min": 0.014,
+            "p95": 0.018,
+            "mediana": 0.017
+          },
+          "buffers_raiz": {
+            "hit_mediana": 55,
+            "read_mediana": 0
+          },
+          "linhas": 2,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Result",
+            "Aggregate",
+            "Nested Loop",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.49,
+            "min": 1.005,
+            "p95": 1.463,
+            "mediana": 1.13
+          },
+          "planejamento_ms": {
+            "max": 0.041,
+            "min": 0.036,
+            "p95": 0.041,
+            "mediana": 0.038
+          },
+          "buffers_raiz": {
+            "hit_mediana": 43,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.575,
+            "min": 0.473,
+            "p95": 0.569,
+            "mediana": 0.508
+          },
+          "planejamento_ms": {
+            "max": 0.018,
+            "min": 0.013,
+            "p95": 0.018,
+            "mediana": 0.015
+          },
+          "buffers_raiz": {
+            "hit_mediana": 43,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Result",
+            "Aggregate",
+            "Nested Loop",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 3.921,
+            "min": 2.886,
+            "p95": 3.815,
+            "mediana": 3.262
+          },
+          "planejamento_ms": {
+            "max": 0.077,
+            "min": 0.055,
+            "p95": 0.073,
+            "mediana": 0.06
+          },
+          "buffers_raiz": {
+            "hit_mediana": 566,
+            "read_mediana": 0
+          },
+          "linhas": 11,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 3.547,
+            "min": 2.379,
+            "p95": 3.435,
+            "mediana": 2.761
+          },
+          "planejamento_ms": {
+            "max": 0.032,
+            "min": 0.02,
+            "p95": 0.032,
+            "mediana": 0.025
+          },
+          "buffers_raiz": {
+            "hit_mediana": 566,
+            "read_mediana": 0
+          },
+          "linhas": 11,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Result",
+            "Aggregate",
+            "Nested Loop",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 3.361,
+            "min": 2.311,
+            "p95": 3.26,
+            "mediana": 2.591
+          },
+          "planejamento_ms": {
+            "max": 0.068,
+            "min": 0.045,
+            "p95": 0.067,
+            "mediana": 0.054
+          },
+          "buffers_raiz": {
+            "hit_mediana": 210,
+            "read_mediana": 0
+          },
+          "linhas": 3,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 2.336,
+            "min": 1.366,
+            "p95": 2.128,
+            "mediana": 1.524
+          },
+          "planejamento_ms": {
+            "max": 0.033,
+            "min": 0.016,
+            "p95": 0.031,
+            "mediana": 0.024
+          },
+          "buffers_raiz": {
+            "hit_mediana": 210,
+            "read_mediana": 0
+          },
+          "linhas": 3,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Result",
+            "Aggregate",
+            "Nested Loop",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 1.365,
+            "min": 1.008,
+            "p95": 1.329,
+            "mediana": 1.098
+          },
+          "planejamento_ms": {
+            "max": 0.084,
+            "min": 0.035,
+            "p95": 0.074,
+            "mediana": 0.038
+          },
+          "buffers_raiz": {
+            "hit_mediana": 83,
+            "read_mediana": 0
+          },
+          "linhas": 6,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 0.625,
+            "min": 0.498,
+            "p95": 0.623,
+            "mediana": 0.581
+          },
+          "planejamento_ms": {
+            "max": 0.022,
+            "min": 0.014,
+            "p95": 0.022,
+            "mediana": 0.016
+          },
+          "buffers_raiz": {
+            "hit_mediana": 83,
+            "read_mediana": 0
+          },
+          "linhas": 6,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Result",
+            "Aggregate",
+            "Nested Loop",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 3.345,
+            "min": 3.002,
+            "p95": 3.329,
+            "mediana": 3.125
+          },
+          "planejamento_ms": {
+            "max": 0.061,
+            "min": 0.047,
+            "p95": 0.06,
+            "mediana": 0.055
+          },
+          "buffers_raiz": {
+            "hit_mediana": 700,
+            "read_mediana": 0
+          },
+          "linhas": 11,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_por_motivo_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 2.932,
+            "min": 2.398,
+            "p95": 2.877,
+            "mediana": 2.505
+          },
+          "planejamento_ms": {
+            "max": 0.028,
+            "min": 0.018,
+            "p95": 0.027,
+            "mediana": 0.022
+          },
+          "buffers_raiz": {
+            "hit_mediana": 700,
+            "read_mediana": 0
+          },
+          "linhas": 11,
+          "n": 7,
+          "tipos_de_no": [
+            "Sort",
+            "Result",
+            "Aggregate",
+            "Nested Loop",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    },
+    {
+      "funcao": "rel_resumo_filiais",
+      "migration_de_origem": "0143_rel_filiais.sql",
+      "postgres": "17.6",
+      "papel": "authenticated",
+      "total_movimentacoes": 3578,
+      "total_lancamentos_item": 155,
+      "celulas": [
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.973,
+            "min": 2.441,
+            "p95": 2.885,
+            "mediana": 2.523
+          },
+          "planejamento_ms": {
+            "max": 0.085,
+            "min": 0.044,
+            "p95": 0.075,
+            "mediana": 0.047
+          },
+          "buffers_raiz": {
+            "hit_mediana": 98,
+            "read_mediana": 0
+          },
+          "linhas": 4,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_a",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.228,
+            "min": 0.86,
+            "p95": 1.22,
+            "mediana": 1.115
+          },
+          "planejamento_ms": {
+            "max": 0.037,
+            "min": 0.022,
+            "p95": 0.035,
+            "mediana": 0.025
+          },
+          "buffers_raiz": {
+            "hit_mediana": 82,
+            "read_mediana": 0
+          },
+          "linhas": 4,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Materialize",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais"
+          ],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "ativos_pkey",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 2.753,
+            "min": 2.135,
+            "p95": 2.744,
+            "mediana": 2.228
+          },
+          "planejamento_ms": {
+            "max": 0.239,
+            "min": 0.045,
+            "p95": 0.199,
+            "mediana": 0.057
+          },
+          "buffers_raiz": {
+            "hit_mediana": 68,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_b",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 1.413,
+            "min": 0.908,
+            "p95": 1.402,
+            "mediana": 0.987
+          },
+          "planejamento_ms": {
+            "max": 0.033,
+            "min": 0.024,
+            "p95": 0.033,
+            "mediana": 0.028
+          },
+          "buffers_raiz": {
+            "hit_mediana": 52,
+            "read_mediana": 0
+          },
+          "linhas": 1,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Materialize",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais"
+          ],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "ativos_pkey",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 7.768,
+            "min": 4.957,
+            "p95": 7.402,
+            "mediana": 5.552
+          },
+          "planejamento_ms": {
+            "max": 0.172,
+            "min": 0.062,
+            "p95": 0.142,
+            "mediana": 0.067
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1131,
+            "read_mediana": 0
+          },
+          "linhas": 26,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_a",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 8.258,
+            "min": 4.004,
+            "p95": 7.437,
+            "mediana": 4.527
+          },
+          "planejamento_ms": {
+            "max": 0.265,
+            "min": 0.03,
+            "p95": 0.197,
+            "mediana": 0.032
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1115,
+            "read_mediana": 0
+          },
+          "linhas": 26,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Materialize",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais"
+          ],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "ativos_pkey",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 5.081,
+            "min": 3.494,
+            "p95": 4.99,
+            "mediana": 4.411
+          },
+          "planejamento_ms": {
+            "max": 0.059,
+            "min": 0.046,
+            "p95": 0.059,
+            "mediana": 0.049
+          },
+          "buffers_raiz": {
+            "hit_mediana": 241,
+            "read_mediana": 0
+          },
+          "linhas": 3,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "filial_b",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 3.241,
+            "min": 1.848,
+            "p95": 3.234,
+            "mediana": 2.392
+          },
+          "planejamento_ms": {
+            "max": 0.175,
+            "min": 0.023,
+            "p95": 0.134,
+            "mediana": 0.027
+          },
+          "buffers_raiz": {
+            "hit_mediana": 225,
+            "read_mediana": 0
+          },
+          "linhas": 3,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Materialize",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais"
+          ],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "ativos_pkey",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 4.048,
+            "min": 2.017,
+            "p95": 3.675,
+            "mediana": 2.632
+          },
+          "planejamento_ms": {
+            "max": 0.117,
+            "min": 0.05,
+            "p95": 0.107,
+            "mediana": 0.053
+          },
+          "buffers_raiz": {
+            "hit_mediana": 168,
+            "read_mediana": 0
+          },
+          "linhas": 14,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "consolidado",
+          "celula": "7d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 2.427,
+            "min": 1.127,
+            "p95": 2.326,
+            "mediana": 1.341
+          },
+          "planejamento_ms": {
+            "max": 0.032,
+            "min": 0.023,
+            "p95": 0.031,
+            "mediana": 0.025
+          },
+          "buffers_raiz": {
+            "hit_mediana": 152,
+            "read_mediana": 0
+          },
+          "linhas": 14,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Materialize",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais"
+          ],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "ativos_pkey",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "chamada_rpc",
+          "execucao_ms": {
+            "max": 7.117,
+            "min": 5.796,
+            "p95": 6.994,
+            "mediana": 6.087
+          },
+          "planejamento_ms": {
+            "max": 0.083,
+            "min": 0.062,
+            "p95": 0.078,
+            "mediana": 0.064
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1466,
+            "read_mediana": 0
+          },
+          "linhas": 59,
+          "n": 7,
+          "tipos_de_no": [
+            "Nested Loop",
+            "Function Scan"
+          ],
+          "relacoes_com_seq_scan": [],
+          "indices_usados": [],
+          "linhas_conferem": true
+        },
+        {
+          "funcao": "rel_resumo_filiais",
+          "recorte": "consolidado",
+          "celula": "365d",
+          "forma": "corpo_emulado",
+          "execucao_ms": {
+            "max": 6.986,
+            "min": 4.606,
+            "p95": 6.622,
+            "mediana": 5.377
+          },
+          "planejamento_ms": {
+            "max": 0.035,
+            "min": 0.029,
+            "p95": 0.035,
+            "mediana": 0.03
+          },
+          "buffers_raiz": {
+            "hit_mediana": 1450,
+            "read_mediana": 0
+          },
+          "linhas": 59,
+          "n": 7,
+          "tipos_de_no": [
+            "Aggregate",
+            "Result",
+            "Sort",
+            "Nested Loop",
+            "Seq Scan",
+            "Materialize",
+            "Index Scan"
+          ],
+          "relacoes_com_seq_scan": [
+            "filiais"
+          ],
+          "indices_usados": [
+            "movimentacoes_data_ordem_idx",
+            "ativos_pkey",
+            "motivos_pkey"
+          ],
+          "linhas_conferem": true
+        }
+      ]
+    }
+  ],
+  "pendencias": []
+}

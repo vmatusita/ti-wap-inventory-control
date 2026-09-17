@@ -1,0 +1,222 @@
+{
+  "rotulo": "f60-custo-funcao-real",
+  "alvo": "producao",
+  "sha_codigo": "53cd3e76bfacdac54cb819a1ac08939f279b56d6",
+  "gerado_em": "2026-09-17T11:14:24.287Z",
+  "metodo": "modo real: guarda de md5 do prosrc APLICADO contra a migration do repositório; forma (b) sobre esse corpo (prepare + force_generic_plan + explain analyze buffers execute, 1 aquecimento + N) E a CHAMADA da função pelo nome (prepare \"select * from public.<fn>($1…)\", mesmo método), intercaladas por célula; identidade authenticated admin/dev; só leitura.",
+  "celulas": [
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje",
+      "corpo_aplicado": {
+        "execucao_ms": {
+          "max": 61.3,
+          "min": 52.63,
+          "p95": 59.817,
+          "mediana": 54.758
+        },
+        "planejamento_ms": {
+          "max": 0.033,
+          "min": 0.022,
+          "p95": 0.032,
+          "mediana": 0.028
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18638,
+          "read_mediana": 0
+        },
+        "linhas": 1624,
+        "n": 7
+      },
+      "chamada": {
+        "n": 7,
+        "execucao_ms": {
+          "p95": 67.1,
+          "mediana": 57.826
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18648
+        }
+      },
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje-7",
+      "corpo_aplicado": {
+        "execucao_ms": {
+          "max": 58.84,
+          "min": 49.801,
+          "p95": 58.657,
+          "mediana": 55.313
+        },
+        "planejamento_ms": {
+          "max": 0.048,
+          "min": 0.027,
+          "p95": 0.044,
+          "mediana": 0.029
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18463,
+          "read_mediana": 0
+        },
+        "linhas": 1610,
+        "n": 7
+      },
+      "chamada": {
+        "n": 7,
+        "execucao_ms": {
+          "p95": 53.346,
+          "mediana": 51.232
+        },
+        "buffers_raiz": {
+          "hit_mediana": 18473
+        }
+      },
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ]
+    },
+    {
+      "funcao": "rel_estoque_asof_filiais",
+      "recorte": "consolidado",
+      "celula": "hoje-60",
+      "corpo_aplicado": {
+        "execucao_ms": {
+          "max": 40.461,
+          "min": 36.065,
+          "p95": 40.357,
+          "mediana": 37.291
+        },
+        "planejamento_ms": {
+          "max": 0.036,
+          "min": 0.024,
+          "p95": 0.035,
+          "mediana": 0.027
+        },
+        "buffers_raiz": {
+          "hit_mediana": 12501,
+          "read_mediana": 0
+        },
+        "linhas": 1122,
+        "n": 7
+      },
+      "chamada": {
+        "n": 7,
+        "execucao_ms": {
+          "p95": 39.37,
+          "mediana": 35.329
+        },
+        "buffers_raiz": {
+          "hit_mediana": 12511
+        }
+      },
+      "tipos_de_no": [
+        "Incremental Sort",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Result",
+        "Seq Scan",
+        "Subquery Scan"
+      ],
+      "indices_usados": [
+        "mov_ativo_idx"
+      ],
+      "relacoes_com_seq_scan": [
+        "ativos"
+      ]
+    },
+    {
+      "funcao": "rel_contagem_status_filiais",
+      "recorte": "consolidado",
+      "celula": "atual",
+      "corpo_aplicado": {
+        "execucao_ms": {
+          "max": 1.836,
+          "min": 1.363,
+          "p95": 1.834,
+          "mediana": 1.669
+        },
+        "planejamento_ms": {
+          "max": 0.012,
+          "min": 0.008,
+          "p95": 0.012,
+          "mediana": 0.009
+        },
+        "buffers_raiz": {
+          "hit_mediana": 272,
+          "read_mediana": 0
+        },
+        "linhas": 9,
+        "n": 7
+      },
+      "chamada": {
+        "n": 7,
+        "execucao_ms": {
+          "p95": 1.631,
+          "mediana": 1.355
+        },
+        "buffers_raiz": {
+          "hit_mediana": 272
+        }
+      },
+      "tipos_de_no": [
+        "Aggregate",
+        "Index Only Scan",
+        "Result",
+        "Sort"
+      ],
+      "indices_usados": [
+        "ativos_filial_status_idx"
+      ],
+      "relacoes_com_seq_scan": []
+    }
+  ],
+  "pendencias": [
+    {
+      "bloco": "custo-asof-f1",
+      "motivo": "sem resposta gravada do canal"
+    },
+    {
+      "bloco": "custo-asof-fN",
+      "motivo": "sem resposta gravada do canal"
+    },
+    {
+      "bloco": "custo-saldo-itens",
+      "motivo": "sem resposta gravada do canal"
+    },
+    {
+      "bloco": "custo-mov-itens",
+      "motivo": "sem resposta gravada do canal"
+    }
+  ]
+}

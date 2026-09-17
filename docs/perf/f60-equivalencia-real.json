@@ -1,0 +1,535 @@
+{
+  "_rotulo": "f60-equivalencia-funcao-real",
+  "_sha_codigo": "53cd3e76bfacdac54cb819a1ac08939f279b56d6",
+  "_gerado_em": "2026-09-17T11:00:58.463Z",
+  "_metodo": "FUNÇÃO NOVA APLICADA chamada pelo nome (prosrc conferido por md5 contra a migration do repositório) no lugar do corpo colado; o resto é o método da emulação: corpo NOVO colado como subconsulta com parâmetros em literais tipados (format %L) × função VELHA do banco; count(*) e md5(string_agg(linha::text order by linha::text)) sobre as mesmas colunas com o tipo declarado; datas de amostra × (consolidado = todas as filiais com desativada; f1..fN por ordinal de id); janelas 7d/365d nas de período; rel_saldo_itens em três comparações (i/ii/iii); Sabotagem H emulada (NULL e {}) no corpo novo; identidade authenticated admin/dev; só leitura.",
+  "_pendencias": [],
+  "ensaio": {
+    "rel_mov_por_mes_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 15
+      },
+      "contexto": {
+        "velha": "rel_mov_por_mes",
+        "md5_corpo_novo_normalizado": "f961349ded4db3fb17a16fe503b9201b",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 95,
+        "linhas_velho_total": 523,
+        "linhas_novo_total": 523,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_por_motivo_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 12
+      },
+      "contexto": {
+        "velha": "rel_por_motivo",
+        "md5_corpo_novo_normalizado": "4340acc35728a592c2de946aea822042",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 95,
+        "linhas_velho_total": 404,
+        "linhas_novo_total": 404,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_resumo_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 48
+      },
+      "contexto": {
+        "velha": "rel_resumo",
+        "md5_corpo_novo_normalizado": "ad948cbb7c544eec083d271b8cf27184",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 95,
+        "linhas_velho_total": 1082,
+        "linhas_novo_total": 1082,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_mov_itens_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 7
+      },
+      "contexto": {
+        "velha": "rel_mov_itens",
+        "md5_corpo_novo_normalizado": "55be37e2a84b5e9449f388498585b02b",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 0,
+        "linhas_velho_total": 1176,
+        "linhas_novo_total": 1176,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_frescor_itens_filiais": {
+      "celulas": 84,
+      "iguais": 84,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 2
+      },
+      "contexto": {
+        "velha": "rel_frescor_itens",
+        "md5_corpo_novo_normalizado": "edd2fa35a094951f31b3cfeacc8f7ba8",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 53,
+        "linhas_velho_total": 51,
+        "linhas_novo_total": 51,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_saldo_itens_filiais": {
+      "celulas": 156,
+      "iguais": 156,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 7
+      },
+      "contexto": {
+        "velha": "rel_saldo_itens",
+        "md5_corpo_novo_normalizado": "01aa17a8aee42557345de6f4f77fba02",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 0,
+        "linhas_velho_total": 1092,
+        "linhas_novo_total": 1092,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_estoque_asof_filiais": {
+      "celulas": 84,
+      "iguais": 84,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 1564
+      },
+      "contexto": {
+        "velha": "rel_estoque_asof",
+        "md5_corpo_novo_normalizado": "54943d2f41e17dd1c648b32e10fd43f4",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 15,
+        "linhas_velho_total": 33428,
+        "linhas_novo_total": 33428,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_contagem_status_filiais": {
+      "celulas": 8,
+      "iguais": 8,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        }
+      },
+      "contexto": {
+        "velha": "contagem por status sobre ativos",
+        "md5_corpo_novo_normalizado": "695b38a8b50fe95e743e30460fecc881",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "por_status": {
+          "total": {
+            "novo": 1566,
+            "velho": 1566
+          },
+          "em_uso": {
+            "novo": 1209,
+            "velho": 1209
+          },
+          "defasado": {
+            "novo": 116,
+            "velho": 116
+          },
+          "reservado": {
+            "novo": 49,
+            "velho": 49
+          },
+          "em_estoque": {
+            "novo": 160,
+            "velho": 160
+          },
+          "em_triagem": {
+            "novo": 17,
+            "velho": 17
+          },
+          "emprestado": {
+            "novo": 0,
+            "velho": 0
+          },
+          "em_manutencao": {
+            "novo": 15,
+            "velho": 15
+          }
+        },
+        "status_fora_das_sete_no_novo": 1,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    }
+  },
+  "producao": {
+    "rel_mov_por_mes_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 8
+      },
+      "contexto": {
+        "velha": "rel_mov_por_mes",
+        "md5_corpo_novo_normalizado": "f961349ded4db3fb17a16fe503b9201b",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 63,
+        "linhas_velho_total": 323,
+        "linhas_novo_total": 323,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_por_motivo_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 11
+      },
+      "contexto": {
+        "velha": "rel_por_motivo",
+        "md5_corpo_novo_normalizado": "4340acc35728a592c2de946aea822042",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 63,
+        "linhas_velho_total": 515,
+        "linhas_novo_total": 515,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_resumo_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 59
+      },
+      "contexto": {
+        "velha": "rel_resumo",
+        "md5_corpo_novo_normalizado": "ad948cbb7c544eec083d271b8cf27184",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 63,
+        "linhas_velho_total": 1164,
+        "linhas_novo_total": 1164,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_mov_itens_filiais": {
+      "celulas": 168,
+      "iguais": 168,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 23
+      },
+      "contexto": {
+        "velha": "rel_mov_itens",
+        "md5_corpo_novo_normalizado": "55be37e2a84b5e9449f388498585b02b",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 0,
+        "linhas_velho_total": 3864,
+        "linhas_novo_total": 3864,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_frescor_itens_filiais": {
+      "celulas": 84,
+      "iguais": 84,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 2
+      },
+      "contexto": {
+        "velha": "rel_frescor_itens",
+        "md5_corpo_novo_normalizado": "edd2fa35a094951f31b3cfeacc8f7ba8",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 28,
+        "linhas_velho_total": 70,
+        "linhas_novo_total": 70,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_saldo_itens_filiais": {
+      "celulas": 156,
+      "iguais": 156,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 23
+      },
+      "contexto": {
+        "velha": "rel_saldo_itens",
+        "md5_corpo_novo_normalizado": "01aa17a8aee42557345de6f4f77fba02",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 0,
+        "linhas_velho_total": 3588,
+        "linhas_novo_total": 3588,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_estoque_asof_filiais": {
+      "celulas": 84,
+      "iguais": 84,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        },
+        "velha_com_nulo_linhas": 1624
+      },
+      "contexto": {
+        "velha": "rel_estoque_asof",
+        "md5_corpo_novo_normalizado": "54943d2f41e17dd1c648b32e10fd43f4",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "n_datas": 12,
+        "celulas_vazias_nos_dois": 13,
+        "linhas_velho_total": 33768,
+        "linhas_novo_total": 33768,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    },
+    "rel_contagem_status_filiais": {
+      "celulas": 8,
+      "iguais": 8,
+      "divergentes": 0,
+      "lista": [],
+      "nulo_e_vazio": {
+        "nulo": {
+          "erro": null,
+          "linhas": 0
+        },
+        "vazio": {
+          "erro": null,
+          "linhas": 0
+        }
+      },
+      "contexto": {
+        "velha": "contagem por status sobre ativos",
+        "md5_corpo_novo_normalizado": "695b38a8b50fe95e743e30460fecc881",
+        "n_filiais": 6,
+        "ordinais_inativos": [],
+        "por_status": {
+          "total": {
+            "novo": 1622,
+            "velho": 1622
+          },
+          "em_uso": {
+            "novo": 1334,
+            "velho": 1334
+          },
+          "defasado": {
+            "novo": 96,
+            "velho": 96
+          },
+          "reservado": {
+            "novo": 52,
+            "velho": 52
+          },
+          "em_estoque": {
+            "novo": 122,
+            "velho": 122
+          },
+          "em_triagem": {
+            "novo": 12,
+            "velho": 12
+          },
+          "emprestado": {
+            "novo": 2,
+            "velho": 2
+          },
+          "em_manutencao": {
+            "novo": 4,
+            "velho": 4
+          }
+        },
+        "status_fora_das_sete_no_novo": 2,
+        "postgres": "17.6",
+        "papel": "authenticated"
+      }
+    }
+  }
+}
