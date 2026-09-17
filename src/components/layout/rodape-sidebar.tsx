@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Tag } from 'lucide-react'
 
 import { CreditoAutor } from '@/components/layout/credito-autor'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Rodape do menu lateral (F35): a versao no ar, clicavel, mais o credito de
@@ -71,9 +72,12 @@ export function RodapeSidebar({
       ) : (
         link
       )}
-      <div data-sidebar-rotulo="" className="px-3 pb-1">
-        <CreditoAutor variante="curta" />
-      </div>
+      {/* F61 — crédito desligado na fonte única: nem a linha (`px-3 pb-1`) sobra. */}
+      {identidadeDoSistema().credito ? (
+        <div data-sidebar-rotulo="" className="px-3 pb-1">
+          <CreditoAutor variante="curta" />
+        </div>
+      ) : null}
     </div>
   )
 }

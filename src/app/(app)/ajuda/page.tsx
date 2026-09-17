@@ -7,13 +7,14 @@ import { INDICE_PALETA } from '@/lib/ajuda/indice'
 import { AjudaBusca } from '@/components/ajuda/ajuda-busca'
 import { AncoraAoMontar } from '@/components/ajuda/ancora-ao-montar'
 import { RedirecionaAncoraLegada } from '@/components/ajuda/redireciona-ancora-legada'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 
 // Indice da documentacao do operador (F20). So operador: o visualizador por
 // senha ja e barrado pelo proxy (so acessa /relatorios/**), e aqui reforcamos
 // com getOperador() + redirect — mesma dupla trava da F6B.
 export const metadata = {
   title: 'Ajuda',
-  description: 'Documentação do operador do Estoque TI WAP.',
+  description: `Documentação do operador do ${identidadeDoSistema().nomeCompleto}.`,
 }
 
 // F60 · fato 17 — teto de execução ESCRITO, não herdado (ata da F60 em docs/DECISOES.md). Sem

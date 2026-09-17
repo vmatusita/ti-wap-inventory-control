@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/layout/theme-provider'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 import './globals.css'
 
 const geistSans = Geist({
@@ -14,15 +15,23 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-// FLX-03 — título por página (WCAG 2.4.2): o `template` propaga o sufixo " · Estoque
-// TI WAP" para todo `title` que as páginas declararem (curto, só o nome da tela);
-// `default` é o que aparece quando uma rota não declara título nenhum.
+// FLX-03 — título por página (WCAG 2.4.2): o `template` propaga o sufixo " · <nome
+// completo do sistema>" para todo `title` que as páginas declararem (curto, só o nome
+// da tela); `default` é o que aparece quando uma rota não declara título nenhum.
+//
+// F61 — O NOME SAI DA FONTE ÚNICA (`src/lib/identidade/sistema.ts`), com UMA grafia.
+// Antes o `default` dizia "Estoque TI · WAP" e o `template`, "Estoque TI WAP": as duas
+// rotas sem título próprio (`/auth/confirm`, `/auth/definir-senha`) eram as únicas que
+// mostravam a grafia com ponto. Agora as 33 mostram a mesma. Na F70 isto vira
+// `generateMetadata`, com a identidade da empresa resolvida por request.
+const identidade = identidadeDoSistema()
+
 export const metadata: Metadata = {
   title: {
-    default: 'Estoque TI · WAP',
-    template: '%s · Estoque TI WAP',
+    default: identidade.nomeCompleto,
+    template: `%s · ${identidade.nomeCompleto}`,
   },
-  description: 'Controle de ativos de TI da WAP',
+  description: identidade.descricao,
 }
 
 export default function RootLayout({

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Marca } from '@/components/layout/marca'
 import { CreditoAutor } from '@/components/layout/credito-autor'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 
 const estadoInicial: LoginState = {}
 
@@ -96,7 +97,7 @@ export default function LoginPage() {
     <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-10">
       <Card className="w-full max-w-sm gap-0 overflow-hidden p-0">
         <div className="bg-brand-dark px-6 py-8 text-center">
-          <Marca size="lg" labelClassName="text-white" />
+          <Marca size="lg" labelClassName="text-brand-dark-texto" />
         </div>
 
         <div className="px-6 py-6">
@@ -111,9 +112,12 @@ export default function LoginPage() {
               tema claro — abaixo do piso AA de 4,5:1 para texto pequeno. Sobre
               `card` são 4,73:1 (claro) e 6,91:1 (escuro). Medido com
               `npm run contraste --par "muted-foreground sobre <fundo>"`. */}
-          <p className="mt-6 border-t pt-4 text-center">
-            <CreditoAutor />
-          </p>
+          {/* F61 — crédito desligado na fonte única: nem o traço nem o respiro sobram. */}
+          {identidadeDoSistema().credito ? (
+            <p className="mt-6 border-t pt-4 text-center">
+              <CreditoAutor />
+            </p>
+          ) : null}
         </div>
       </Card>
     </div>

@@ -53,14 +53,14 @@ export function CascoDeAutenticacao({
     <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-12">
       <Card className={cn('w-full max-w-sm gap-0 overflow-hidden p-0', className)}>
         <div className="bg-brand-dark px-6 py-8 text-center">
-          <Marca size="lg" labelClassName="text-white" />
-          {/* `text-white/70` sobre `brand-dark` mede 6,03:1 — o par já está na
-              régua de `scripts/contraste.mjs` ("texto atenuado do chrome escuro
-              (70%)"). Não invente outra opacidade aqui. */}
+          <Marca size="lg" labelClassName="text-brand-dark-texto" />
+          {/* `text-brand-dark-texto/70` sobre `brand-dark` — o par já está na
+              régua de `scripts/contraste.mjs` ("texto atenuado do cromo (70%)",
+              F61). Não invente outra opacidade aqui. */}
           <h1
             className={
               subtituloVisivel
-                ? 'mt-3 text-sm font-medium text-white/70'
+                ? 'mt-3 text-sm font-medium text-brand-dark-texto/70'
                 : 'sr-only'
             }
           >

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FileQuestion } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { identidadeDoSistema } from '@/lib/identidade/sistema'
 
 // Boundary de NOT-FOUND da RAIZ — a outra metade do par que `(app)/not-found.tsx`
 // começou. A distinção é de contrato do Next, não de gosto (doc do próprio pacote,
@@ -21,8 +22,11 @@ import { Button } from '@/components/ui/button'
 // /relatorios/geral vem PRIMEIRO de propósito: o visualizador por senha é quem fica
 // preso numa 404 (o proxy manda tudo fora de /relatorios/** para /login, e ele não tem
 // login). Para o operador os dois destinos servem.
+// F61 — o nome do sistema sai da fonte única. A 404 declara o título INTEIRO: a
+// metadata do `not-found` é aplicada por último, fora da cadeia de segmentos que o
+// `template` do layout raiz alcança (doc do Next 16 + `resolve-metadata.ts`).
 export const metadata = {
-  title: 'Página não encontrada · Estoque TI WAP',
+  title: `Página não encontrada · ${identidadeDoSistema().nomeCompleto}`,
 }
 
 export default function NaoEncontrado() {

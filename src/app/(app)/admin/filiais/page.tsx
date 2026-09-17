@@ -77,7 +77,7 @@ export default async function AdminFiliaisPage() {
                 </TableCell>
                 <TableCell>
                   {f.ativo ? (
-                    <Badge className="border-transparent bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">
+                    <Badge variant="sucesso">
                       Ativa
                     </Badge>
                   ) : (
