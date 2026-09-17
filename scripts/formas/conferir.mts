@@ -39,6 +39,7 @@ import { corpoVigente } from '../db/corpo-vigente.mjs'
 import { CATALOGO } from '../../src/lib/queries/formas/catalogo'
 import { conferirValores, type ProblemaDeForma } from '../../src/lib/supabase/forma'
 import type { LeituraDeRelacao, LeituraDeRpc, MatrizDeRpc } from '../../src/lib/supabase/leitura'
+import { idsDeFiliais, listaDoConsolidado } from './filiais-da-matriz'
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const opcao = (nome: string) => process.argv.find((a) => a.startsWith(`--${nome}=`))?.slice(nome.length + 3)
@@ -245,10 +246,22 @@ const segunda = (() => {
 })()
 
 // Os valores de filial e de pessoa passam pela memória e NUNCA saem: a célula é rotulada por ordem.
-const filiaisAtivas = ((await db.from('filiais').select('id').eq('ativo', true).order('id')).data ?? []).map((f) => f.id as number)
+//
 // F60 — o consolidado das `rel_*_filiais` é a lista de TODAS as filiais, inclusive desativadas (a
 // mesma régua de `filiaisDoConsolidado`, `src/lib/queries/relatorios/recorte-filiais.ts`).
-const todasAsFiliais = ((await db.from('filiais').select('id').order('id')).data ?? []).map((f) => f.id as number)
+//
+// ⚠ Revisão do lote 1 (revisor 3, achado 4): as duas leituras que MONTAM células descartavam o
+// `error` (`… .data ?? []`). Com a do consolidado falhando, a célula recebia `p_filiais: []`, lia zero
+// linhas por construção e saía verde — a regra de não-provado só dispara com `count > 0`. Agora elas
+// passam por `filiais-da-matriz.ts`: erro, lista truncada ou consolidado vazio RECUSAM a rodada.
+let filiaisAtivas: number[] = []
+let todasAsFiliais: number[] = []
+try {
+  filiaisAtivas = idsDeFiliais(await db.from('filiais').select('id', { count: 'exact' }).eq('ativo', true).order('id'), 'as filiais ativas')
+  todasAsFiliais = listaDoConsolidado(await db.from('filiais').select('id', { count: 'exact' }).order('id'), 'o consolidado das rel_*_filiais')
+} catch (e) {
+  recusar((e as Error).message)
+}
 const maisAntiga = ((await db.from('movimentacoes').select('data').order('data', { ascending: true }).limit(1)).data ?? [])[0]?.data as string | undefined
 const inicio = maisAntiga ?? menos(365)
 const meio = (() => {
