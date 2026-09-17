@@ -87,6 +87,7 @@ describe('2. a identidade — o sha256 (LF) de cada instrumento versionado está
 import {
   CUSTO,
   MODELO,
+  args as lerArgumentos,
   blocoCusto,
   blocoEquivalencia,
   blocoKpis,
@@ -138,5 +139,13 @@ describe('3. o modo real — a equivalência e o custo com a função APLICADA',
     for (const r of ['F60_FUNCAO_NOVA_AUSENTE rel_resumo_filiais', 'F60_CORPO_VIVO_DIFERENTE rel_resumo_filiais', 'F60_FUNCAO_VELHA_AUSENTE rel_resumo']) {
       expect(lerPayload(JSON.stringify({ error: { message: `ERROR: P0001: ${r}` } }), 'F60_EQUIVALENCIA_REAL')).toEqual({ recusa: r })
     }
+  })
+})
+
+describe('4. a linha de comando — a marca booleana não engole a opção seguinte', () => {
+  it('`--real` antes de outra opção, no fim, e as formas com valor continuam iguais', () => {
+    expect(lerArgumentos(['analisar-equivalencia', '--real', '--dir=x', '--saida', 'y'])).toEqual({ modo: 'analisar-equivalencia', real: true, dir: 'x', saida: 'y' })
+    expect(lerArgumentos(['analisar-custo', '--dir=x', '--saida=y', '--real'])).toEqual({ modo: 'analisar-custo', dir: 'x', saida: 'y', real: true })
+    expect(lerArgumentos(['gerar-custo', '--alvo', 'producao', '--hoje=2026-09-17'])).toEqual({ modo: 'gerar-custo', alvo: 'producao', hoje: '2026-09-17' })
   })
 })

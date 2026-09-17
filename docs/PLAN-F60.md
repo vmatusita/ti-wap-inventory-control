@@ -36,7 +36,7 @@ esta identidade — é ela que o "depois" tem de repetir, ou declarar a diferen�
 | `scripts/perf/medir-rel.mjs` — **versionado** (lote 1 + revisão + o conjunto "depois" do lote 2) | 53.098 | `fd8183d2853252ef315a0187b65a1d81a4d19455226c6961df6b304bb35a7ee7` |
 | `scripts/perf/medir-custo.mjs` — **versionado** (lote 1 + revisão) | 36.046 | `491b9a6aca1bbe9bfeee678a9360c448c77c438ed47ca5b76b0380af14600fb3` |
 | `equivalencia-rel.mjs` (a equivalência velho × novo emulada e o custo dos corpos novos, lote 2) — **original, mediu a equivalência** | 59.660 | `59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d` |
-| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2 + os modos `*-real` da revisão final) | 73.263 | `4c4ed03e194b646028890678b628f17902643eb5cf21b6659ffede824e173634` |
+| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2 + os modos `*-real` da revisão final) | 73.735 | `50357b4e56292e196fbe8b9e26378cd7df31ee4b965d452a72bb6b41c16d0772` |
 
 ⚠ Só `medir-rel.mjs` fixava `RAIZ_REPO` como caminho absoluto desta máquina; `medir-custo.mjs` não tinha raiz, e por isso
 também não conferia onde `--dir` caía. O plano previa um diff de "só essa linha"; o que entrou é maior, e está declarado aqui

@@ -1044,13 +1044,20 @@ export function resumirEquivalencia(p) {
 // 7. CLI
 // ---------------------------------------------------------------------------
 
-function args(argv) {
+/**
+ * Os argumentos da linha de comando. `--nome=valor` e `--nome valor` como sempre; `--nome` sozinho (seguido de outra
+ * opção, ou no fim) é a marca booleana `true` — revisão final da F60: `--real` consumia a opção seguinte como valor
+ * (`--real --dir=x` deixava `--dir` vazio) e, no fim da linha, ficava `undefined`.
+ */
+export function args(argv) {
   const [modo, ...resto] = argv
   const o = { modo }
   for (let i = 0; i < resto.length; i++) {
     const m = /^--([a-zA-Z0-9-]+)(?:=(.*))?$/.exec(resto[i])
     if (!m) recusar(`argumento não reconhecido: ${resto[i]}`)
-    o[m[1]] = m[2] ?? resto[++i]
+    if (m[2] !== undefined) o[m[1]] = m[2]
+    else if (resto[i + 1] !== undefined && !resto[i + 1].startsWith('--')) o[m[1]] = resto[++i]
+    else o[m[1]] = true
   }
   return o
 }
