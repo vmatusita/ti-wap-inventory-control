@@ -30,6 +30,9 @@ absoluto com o nome de usuário do Windows:
 
 Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da origem).
 
+**SHA de código congelado: `c516467`** (17/09/2026, depois da revisão final — ata F60 (k)). O CI do PR #52 rodou em
+`d83f8ec` (run 35178186717) e NÃO sobre este SHA; a mesa dele está em `revisao-final-build.txt`.
+
 ## A trava do recorte — nasce vermelha, e cada disfarce reprova
 
 | Arquivo | O que prova | Regra · critério |
@@ -44,6 +47,7 @@ Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da
 | `sabotagem-e-ci-run1.txt` | **Sabotagem E no CI:** trechos do run 35173319638 (`f7b3153`) — o gate de deriva, os roteiros da fase (`11a`–`11c`, `7a`–`7g`, `1a`–`1h`) e o injetor com as oito mutações novas e as duas reancoradas detectadas pelo rótulo nomeado (90/90) | R-ACC-75 · R-REL-34/35 |
 | `revisao-lote2-recorte-rel-routine.txt` | O achado da revisão do lote 2: `drop routine` de uma `rel_*` a deixava viva no replay, e a mesa seguia verde | R-ACC-74 |
 | `sabotagem-trava-routine.txt` | O conserto de 17/09 (`routine` lido como `function`) e a sabotagem em três cortes: o conserto inteiro desfeito (7 de 61 vermelhos), só o replay (6), só a auto-conferência (2); a cadeia real idêntica antes e depois | R-ACC-74 |
+| `revisao-final-trava-antes-depois.txt` | **A revisão final (17/09):** a mesma bateria rodada com `recorte-rel.mjs` de `5094f6f` e com o do HEAD — 12 formas de fail-open passavam ("ERRO") e agora reprovam pela regra nomeada, as 16 legítimas seguem passando; e os harnesses dos revisores (precedência do `or`, LEFT/RIGHT/FULL JOIN, dois comandos, `default` isca, função no FROM, `cross join` decorativo, alias sombreado, `(table x)`, DDL entre aspas/E-string, `U&"…"`, a grafia do tipo e o `drop` sem lista no orçamento do as-of), antes × depois | R-ACC-74 · R-REL-46 |
 
 ## O motor — o que muda por dentro sem mudar número
 
@@ -57,6 +61,7 @@ Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da
 | `grep-p_filial-pos-lote2.txt` | `git grep p_filial` depois do lote 2 (`778eacb`): o que sobra é a Zona destrutiva, a cadeia do import e usos intencionais | R-ACC-73 |
 | `equivalencia-rel-diff-versionado.txt` | O gerador da equivalência que rodou fora do repositório × o versionado em `scripts/perf/equivalencia-rel.mjs`: as diferenças não mudam o SQL emitido | a equivalência EMULADA |
 | `medir-rel-antes-reproduzivel.txt` | `medir-rel.mjs` do lote 2 ainda gera o conjunto "antes" byte a byte (`diff` de 0 linha) e aceita o conjunto "depois" | a medição "antes" × "depois" |
+| `equivalencia-rel-modo-real.txt` | Os modos `*-real` da revisão final: a emulação segue byte a byte (28 blocos, `diff -r` vazio contra `5094f6f`), os 22 blocos reais geram e passam na guarda, `--corpos` recusado no modo real, e a guarda que recusa função ausente, `prosrc` diferente e velha derrubada | a equivalência com a função de verdade (o comando) |
 
 ## O custo
 
@@ -74,3 +79,4 @@ Fora os caminhos, nenhum byte mudou (o número de linhas de cada arquivo é o da
 | `lote1-build.txt` | `npm run build` do lote 1 corrigido (`1e604e3`), saída 0 |
 | `lote2-build.txt` | `npm run build` do lote 2, saída 0 |
 | `lote2-build-final.txt` | Depois da revisão do lote 2 (`2020641`): `vitest` inteiro (228 arquivos, 6.343 testes), `lint`, `tsc`, `verificar:actions` antes e depois do build, e `build` — todos com saída 0 |
+| `revisao-final-build.txt` | Depois da revisão final (`c516467`): `build` e `verificar:actions` com saída 0 (`vitest` inteiro 228 arquivos / 6.432 testes, `lint` e `tsc` verdes na mesma sessão — ata (k)) |

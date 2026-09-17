@@ -1,0 +1,235 @@
+=== ANTES (recorte-rel.mjs de 5094f6f) — 'ERRO' = a trava velha deu o veredito errado
+ok   esperado=PASSA paren_conj: passa
+ok   esperado=PASSA paren_so: passa
+ok   esperado=PASSA case_na_cadeia: passa
+ok   esperado=PASSA case_depois: passa
+ok   esperado=PASSA distinct_from: passa
+ok   esperado=PASSA left_funcao: passa
+ok   esperado=PASSA ou_agrupado: passa
+ok   esperado=PASSA filiais_join_mov: passa
+ok   esperado=PASSA left_join_nulavel_por_chave: passa
+ok   esperado=PASSA right_join_por_chave: passa
+ok   esperado=PASSA virgula_por_chave: passa
+ok   esperado=PASSA having: passa
+ok   esperado=PASSA on_ligacao_inner: passa
+ok   esperado=PASSA order_by_depois: passa
+ok   esperado=PASSA unnest: passa
+ok   esperado=PASSA in_subq_herda: passa
+ERRO esperado=REPROVA multi_order: passa
+ERRO esperado=REPROVA cross_ativos: passa
+ERRO esperado=REPROVA virgula_filiais: passa
+ERRO esperado=REPROVA igualdade_nao_chave: passa
+ERRO esperado=REPROVA left_on_preservado: passa
+ok   esperado=REPROVA not_ligacao: R3 a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção, negação ou cláusula 
+ERRO esperado=REPROVA param: passa
+ERRO esperado=REPROVA funcao_no_from: passa
+ERRO esperado=REPROVA paren_join: passa
+ERRO esperado=REPROVA not_exists_guarda: passa
+ERRO esperado=REPROVA distinct_from_esconde_join: passa
+ERRO esperado=REPROVA exists_nao_correlacionado_so_nome: passa
+ERRO esperado=REPROVA lateral_filial_decorativa: passa
+
+=== DEPOIS (árvore de trabalho)
+ok   esperado=PASSA paren_conj: passa
+ok   esperado=PASSA paren_so: passa
+ok   esperado=PASSA case_na_cadeia: passa
+ok   esperado=PASSA case_depois: passa
+ok   esperado=PASSA distinct_from: passa
+ok   esperado=PASSA left_funcao: passa
+ok   esperado=PASSA ou_agrupado: passa
+ok   esperado=PASSA filiais_join_mov: passa
+ok   esperado=PASSA left_join_nulavel_por_chave: passa
+ok   esperado=PASSA right_join_por_chave: passa
+ok   esperado=PASSA virgula_por_chave: passa
+ok   esperado=PASSA having: passa
+ok   esperado=PASSA on_ligacao_inner: passa
+ok   esperado=PASSA order_by_depois: passa
+ok   esperado=PASSA unnest: passa
+ok   esperado=PASSA in_subq_herda: passa
+ok   esperado=REPROVA multi_order: R4 R4: corpo ilegível para o escopo (corpo com 2 comandos — função sql devolve o resultado do ÚLTIMO, e o R4 ju
+ok   esperado=REPROVA cross_ativos: R4 R4: lê movimentacoes fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)
+ok   esperado=REPROVA virgula_filiais: R4 R4: lê movimentacoes fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)
+ok   esperado=REPROVA igualdade_nao_chave: R4 R4: lê ativos fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)
+ok   esperado=REPROVA left_on_preservado: R4 R4: lê movimentacoes, ativos fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou 
+ok   esperado=REPROVA not_ligacao: R3 a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por preced
+ok   esperado=REPROVA param: R2 referência posicional "$1" no corpo — numa função sql ela pode ser o próprio p_filiais fora da forma exata; 
+ok   esperado=REPROVA funcao_no_from: R4 R4: corpo ilegível para o escopo (chamada de função no FROM ("public.le(…)") — o R4 não lê o que ela lê por 
+ok   esperado=REPROVA paren_join: R4 R4: corpo ilegível para o escopo (junção ou expressão entre parênteses no FROM — o R4 não lê a forma; escrev
+ok   esperado=REPROVA not_exists_guarda: R4 R4: o resultado não depende do recorte — com p_filiais nulo ou vazio algum ramo do select de topo ainda devo
+ok   esperado=REPROVA distinct_from_esconde_join: R4 R4: lê ativos, lancamentos_item fora do recorte (tabela sem ligação própria nem cobertura por chave, junção 
+ok   esperado=REPROVA exists_nao_correlacionado_so_nome: R4 R4: lê movimentacoes fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)
+ok   esperado=REPROVA lateral_filial_decorativa: R4 R4: lê movimentacoes fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)
+##### failopen — ANTES (5094f6f)
+base: vivas 9 violacoes 0 falhas 0
+A and-true-or $1 is null: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+A2 $1 is null or true and ...: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+A3 or true (sem $1): viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+C left join ON cobre movimentacoes: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+D multi-statement: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+E default com $d$ isca: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+F função no FROM: viva=true violacoesNovas=1 falhas=0 R4 | 7b=passa 7c=passa
+G cross join decorativo com filiais: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+H alias sombreado em derivada: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+I (table movimentacoes) em FROM: viva=true violacoesNovas=0 falhas=0  | 7b=passa 7c=passa
+##### failopen — DEPOIS
+base: vivas 9 violacoes 0 falhas 0
+A and-true-or $1 is null: viva=true violacoesNovas=2 falhas=0 R3,R2 | 7b=passa 7c=passa
+A2 $1 is null or true and ...: viva=true violacoesNovas=2 falhas=0 R2,R3 | 7b=passa 7c=passa
+A3 or true (sem $1): viva=true violacoesNovas=1 falhas=0 R3 | 7b=passa 7c=passa
+C left join ON cobre movimentacoes: viva=true violacoesNovas=1 falhas=0 R4 | 7b=passa 7c=passa
+D multi-statement: viva=true violacoesNovas=1 falhas=0 R3 | 7b=passa 7c=passa
+E default com $d$ isca: viva=true violacoesNovas=1 falhas=0 R3 | 7b=passa 7c=passa
+F função no FROM: viva=true violacoesNovas=1 falhas=0 R4 | 7b=passa 7c=passa
+G cross join decorativo com filiais: viva=true violacoesNovas=1 falhas=0 R4 | 7b=passa 7c=passa
+H alias sombreado em derivada: viva=true violacoesNovas=1 falhas=0 R4 | 7b=passa 7c=passa
+I (table movimentacoes) em FROM: viva=true violacoesNovas=1 falhas=0 R4 | 7b=passa 7c=passa
+##### failopen2 — ANTES (5094f6f)
+right join preserva o lado direito: violacoesNovas=0 regras=
+full join nao restringe nenhum lado: violacoesNovas=0 regras=
+left join com NULL explicito (viva com p_filiais NULL devolveria tudo): violacoesNovas=0 regras=
+##### failopen2 — DEPOIS
+right join preserva o lado direito: violacoesNovas=1 regras=R4
+full join nao restringe nenhum lado: violacoesNovas=1 regras=R4
+left join com NULL explicito (viva com p_filiais NULL devolveria tudo): violacoesNovas=1 regras=R4
+##### disfarces-lensnull — ANTES (5094f6f)
+cadeia real violacoes: 0
+controle_ok => PASSA (aceito)
+controle_is_null_or => REPROVA: public.rel_sint_controle_is_null_or(smallint[],date) (9999_sint.sql:1, corpo linha relativa 1) — ocorrência de "p_filiais" fora da forma exata "<coluna> = any (p_filiais)" (R2) | public.rel_sint_controle_is_null_or(small
+precedencia_or_and => PASSA (aceito)
+precedencia_or_and_2 => PASSA (aceito)
+or_depois_and => PASSA (aceito)
+cardinalidade => REPROVA: public.rel_sint_cardinalidade(smallint[],date) (9999_sint.sql:1, corpo linha relativa 2) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção, negação ou cláusula errada no caminho (R3
+##### disfarces-lensnull — DEPOIS
+cadeia real violacoes: 0
+controle_ok => PASSA (aceito)
+controle_is_null_or => REPROVA: public.rel_sint_controle_is_null_or(smallint[],date) (9999_sint.sql:1, corpo linha relativa 1) — ocorrência de "p_filiais" fora da forma exata "<coluna> = any (p_filiais)" (R2) | public.rel_sint_controle_is_null_or(small
+precedencia_or_and => REPROVA: public.rel_sint_precedencia_or_and(smallint[],date) (9999_sint.sql:1, corpo linha relativa 1) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por precedência do and sob
+precedencia_or_and_2 => REPROVA: public.rel_sint_precedencia_or_and_2(smallint[],date) (9999_sint.sql:1, corpo linha relativa 1) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por precedência do and s
+or_depois_and => REPROVA: public.rel_sint_or_depois_and(smallint[],date) (9999_sint.sql:1, corpo linha relativa 1) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por precedência do and sobre o 
+cardinalidade => REPROVA: public.rel_sint_cardinalidade(smallint[],date) (9999_sint.sql:1, corpo linha relativa 2) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por precedência do and sobre o 
+##### disfarces-lensnull2 — ANTES (5094f6f)
+left_join_filiais_tudo => PASSA (aceito)
+left_join_mov_tudo => PASSA (aceito)
+controle_inner_sem_left => REPROVA: public.rel_sint_controle_inner_sem_left(smallint[],date) (9999_sint.sql:1) — R2: declara "p_filiais" e não usa no corpo
+catalogo_sem_guarda => PASSA (aceito)
+on_or_and => PASSA (aceito)
+corpo_real_asof_com_or_true => PASSA (aceito)
+##### disfarces-lensnull2 — DEPOIS
+left_join_filiais_tudo => REPROVA: public.rel_sint_left_join_filiais_tudo(smallint[],date) (9999_sint.sql:1) — R4: lê ativos fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança); o resultado não depen
+left_join_mov_tudo => REPROVA: public.rel_sint_left_join_mov_tudo(smallint[],date) (9999_sint.sql:1) — R4: lê ativos fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança); o resultado não depende d
+controle_inner_sem_left => REPROVA: public.rel_sint_controle_inner_sem_left(smallint[],date) (9999_sint.sql:1) — R2: declara "p_filiais" e não usa no corpo
+catalogo_sem_guarda => REPROVA: public.rel_sint_catalogo_sem_guarda(smallint[],date) (9999_sint.sql:1) — R4: o resultado não depende do recorte — com p_filiais nulo ou vazio algum ramo do select de topo ainda devolve linhas (fato 7)
+on_or_and => REPROVA: public.rel_sint_on_or_and(smallint[],date) (9999_sint.sql:1, corpo linha relativa 1) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusive por precedência
+corpo_real_asof_com_or_true => REPROVA: public.rel_sint_corpo_real_asof_com_or_true(smallint[],date) (9999_sint.sql:1, corpo linha relativa 2) — a ligação "= any (p_filiais)" não é conjunção DIRETA de where/on/having — há disjunção (inclusi
+##### replay — ANTES (5094f6f)
+SQL do caso E-string: do E'begin execute \'create function public.\x72el_fo_do3(p_filiais smallint[]) returns setof int language sql as $b$ select 1 $b$\'; end';
+F2 funcao no FROM sem alias:
+  vivas=10 (base 9) violNovas=0 []
+  falhas=[] consumidos+1 encontrados+1
+DO aspas simples + execute concatenado:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[] consumidos+0 encontrados+0
+DO aspas simples, DDL literal inteiro (controle):
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[DDL de rel_* montado dinamicamente ("create function public.rel_" dent] consumidos+0 encontrados+1
+DO E-string com escape x72:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[] consumidos+0 encontrados+0
+plpgsql nao-rel corpo entre aspas + chamada:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[] consumidos+0 encontrados+0
+controle: mesma fabrica com corpo $$:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[corpo com "execute" que menciona "rel_" (mesmo partida entre literais  | execute de SQL que a trava não lê — só passa execute '<literal>' ou ex] consumidos+0 encontrados+0
+rename com U& para dentro do prefixo:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[] consumidos+0 encontrados+0
+orcamento real: hash confere = true
+create or replace do as-of com int2[] (corpo novo, pre-filtro pela filial de hoje): falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)","public.rel_estoque_asof_filiais(int2[],date)"] chave medida viva em=0143_rel_filiais.sql hash confere=true
+create or replace do as-of com "smallint []": falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)","public.rel_estoque_asof_filiais(smallint [],date)"] chave medida viva em=0143_rel_filiais.sql hash confere=true
+create or replace do as-of com pg_catalog.date: falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)","public.rel_estoque_asof_filiais(smallint[],pg_catalog.date)"] chave medida viva em=0143_rel_filiais.sql hash confere=true
+drop if exists SEM lista de argumentos: falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)"] chave medida viva em=0143_rel_filiais.sql hash confere=true
+##### replay — DEPOIS
+SQL do caso E-string: do E'begin execute \'create function public.\x72el_fo_do3(p_filiais smallint[]) returns setof int language sql as $b$ select 1 $b$\'; end';
+F2 funcao no FROM sem alias:
+  vivas=10 (base 9) violNovas=1 [R4:public.rel_fo_f2(smallint[]) (9999_r.sql:1) — R4: corpo ilegível para o escopo (chamada de]
+  falhas=[] consumidos+1 encontrados+1
+DO aspas simples + execute concatenado:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[corpo com "execute" que menciona "rel_" (mesmo partida entre literais  | execute de SQL que a trava não lê — só passa execute '<literal>' ou ex] consumidos+0 encontrados+0
+DO aspas simples, DDL literal inteiro (controle):
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[corpo com "execute" que menciona "rel_" (mesmo partida entre literais  | DDL de rel_* montado dinamicamente ("create function public.rel_" dent] consumidos+0 encontrados+1
+DO E-string com escape x72:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[corpo com "execute" que menciona "rel_" (mesmo partida entre literais ] consumidos+0 encontrados+0
+plpgsql nao-rel corpo entre aspas + chamada:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[corpo com "execute" que menciona "rel_" (mesmo partida entre literais  | execute de SQL que a trava não lê — só passa execute '<literal>' ou ex] consumidos+0 encontrados+0
+controle: mesma fabrica com corpo $$:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[corpo com "execute" que menciona "rel_" (mesmo partida entre literais  | execute de SQL que a trava não lê — só passa execute '<literal>' ou ex] consumidos+0 encontrados+0
+rename com U& para dentro do prefixo:
+  vivas=9 (base 9) violNovas=0 []
+  falhas=[DDL de função com identificador em escape Unicode (U&"…") — o replay n] consumidos+1 encontrados+0
+orcamento real: hash confere = true
+create or replace do as-of com int2[] (corpo novo, pre-filtro pela filial de hoje): falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)"] chave medida viva em=9999_r.sql hash confere=false
+create or replace do as-of com "smallint []": falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)"] chave medida viva em=9999_r.sql hash confere=false
+create or replace do as-of com pg_catalog.date: falhas=0 chaves as-of=["public.rel_estoque_asof_filiais(smallint[],date)"] chave medida viva em=9999_r.sql hash confere=false
+drop if exists SEM lista de argumentos: falhas=0 chaves as-of=[] chave medida viva em=undefined hash confere=sem
+##### teste-unicode-ident — ANTES (5094f6f)
+BASE vivas= 9 consumidos= 33 encontrados= 32 falhas= 0
+SQL sintética: "create function public.sem_recorte_u() returns table (x int) language sql stable security invoker set search_path = public as $$\n  select m.id from public.movimentacoes m\n$$;\nalter function public.sem_recorte_u() rename to U&\"\\0072el_fo_u\";"
+TESTE vivas= 9 consumidos(delta)= 0 encontrados(delta)= 0 falhas(delta)= 0
+falhas novas: []
+tem rel_fo_u nas vivas? []
+tem sem_recorte_u nas vivas? []
+CONTROLE falhas(delta)= 1 [
+  'alter function public.sem_recorte_nu() rename to rel_entrou_nu — um nome FORA do prefixo rel_ está entrando nele por rename; a trava não rastreia o corpo de funções fora de rel_* e falha fechado (escreva um "create function" explícito para rel_entrou_nu)'
+]
+##### teste-unicode-ident — DEPOIS
+BASE vivas= 9 consumidos= 33 encontrados= 32 falhas= 0
+SQL sintética: "create function public.sem_recorte_u() returns table (x int) language sql stable security invoker set search_path = public as $$\n  select m.id from public.movimentacoes m\n$$;\nalter function public.sem_recorte_u() rename to U&\"\\0072el_fo_u\";"
+TESTE vivas= 9 consumidos(delta)= 1 encontrados(delta)= 0 falhas(delta)= 1
+falhas novas: [
+  {
+    arquivo: '9999_teste_unicode.sql',
+    linha: 4,
+    motivo: 'DDL de função com identificador em escape Unicode (U&"…") — o replay não decodifica o nome e não sabe se ele é rel_*; escreva o nome por extenso'
+  }
+]
+tem rel_fo_u nas vivas? []
+tem sem_recorte_u nas vivas? []
+CONTROLE falhas(delta)= 1 [
+  'alter function public.sem_recorte_nu() rename to rel_entrou_nu — um nome FORA do prefixo rel_ está entrando nele por rename; a trava não rastreia o corpo de funções fora de rel_* e falha fechado (escreva um "create function" explícito para rel_entrou_nu)'
+]
+##### teste-achado9 — ANTES (5094f6f)
+F2 (função no FROM, union all): []
+I ((table x) no FROM): []
+H (alias sombreado): []
+7b (join por chave primária, controle): []
+7c (exists correlacionado, controle): []
+##### teste-achado9 — DEPOIS
+F2 (função no FROM, union all): [
+  {
+    "funcao": "public.rel_teste_f2",
+    "regra": "R4",
+    "mensagem": "public.rel_teste_f2(smallint[]) (9999_sintetica_teste.sql:1) — R4: corpo ilegível para o escopo (chamada de função no FROM (\"public.le_tudo(…)\") — o R4 não lê o que ela lê por dentro; leia as tabelas no próprio corpo)"
+  }
+]
+I ((table x) no FROM): [
+  {
+    "funcao": "public.rel_teste_i",
+    "regra": "R4",
+    "mensagem": "public.rel_teste_i(smallint[]) (9999_sintetica_teste.sql:1) — R4: lê movimentacoes fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)"
+  }
+]
+H (alias sombreado): [
+  {
+    "funcao": "public.rel_teste_h",
+    "regra": "R4",
+    "mensagem": "public.rel_teste_h(smallint[]) (9999_sintetica_teste.sql:1) — R4: lê ativos fora do recorte (tabela sem ligação própria nem cobertura por chave, junção ou herança)"
+  }
+]
+7b (join por chave primária, controle): []
+7c (exists correlacionado, controle): []

@@ -1,0 +1,47 @@
+# equivalencia-rel.mjs — revisão final da F60 (17/09/2026), sem banco
+# (1) a emulação não mudou: a versão de 5094f6f (<velho>) e a do HEAD geram os 28 blocos de gerar-equivalencia/gerar-custo
+#     (ensaio e produção; --corpos = 0141 + 0143 concatenadas; --datas = docs/perf/f60-datas-amostra.json; --hoje=2026-09-16)
+velho: 28 arquivos · HEAD: 28 arquivos
+diff -r: VAZIO (byte a byte igual)
+
+# (2) os modos real geram, e cada bloco passa na guarda validarBloco (só leitura, termina em raise F60_*_REAL)
+custo-asof-consolidado-real-producao.sql
+custo-asof-f1-real-producao.sql
+custo-asof-fN-real-producao.sql
+custo-contagem-status-real-producao.sql
+custo-mov-itens-real-producao.sql
+custo-saldo-itens-real-producao.sql
+eq-real-ensaio-rel_contagem_status_filiais.sql
+eq-real-ensaio-rel_estoque_asof_filiais.sql
+eq-real-ensaio-rel_frescor_itens_filiais.sql
+eq-real-ensaio-rel_mov_itens_filiais.sql
+eq-real-ensaio-rel_mov_por_mes_filiais.sql
+eq-real-ensaio-rel_por_motivo_filiais.sql
+eq-real-ensaio-rel_resumo_filiais.sql
+eq-real-ensaio-rel_saldo_itens_filiais.sql
+eq-real-producao-rel_contagem_status_filiais.sql
+eq-real-producao-rel_estoque_asof_filiais.sql
+eq-real-producao-rel_frescor_itens_filiais.sql
+eq-real-producao-rel_mov_itens_filiais.sql
+eq-real-producao-rel_mov_por_mes_filiais.sql
+eq-real-producao-rel_por_motivo_filiais.sql
+eq-real-producao-rel_resumo_filiais.sql
+eq-real-producao-rel_saldo_itens_filiais.sql
+
+# (3) sem --corpos no modo real (os corpos são os das migrations):
+equivalencia-rel: RECUSADO — --corpos não vale no modo real: os corpos são os das migrations do repositório.
+
+# (4) a guarda do modo real, no bloco de rel_resumo_filiais (produção):
+  -- 4a. a função APLICADA é a do repositório (e a velha ainda está viva)
+  select md5(regexp_replace(pr.prosrc, '\s+', ' ', 'g')) into v_md5_vivo
+    from pg_proc pr where pr.oid = to_regprocedure('public.rel_resumo_filiais(smallint[], date, date)');
+  if v_md5_vivo is null then
+    raise exception 'F60_FUNCAO_NOVA_AUSENTE rel_resumo_filiais';
+  end if;
+  if v_md5_vivo <> 'ad948cbb7c544eec083d271b8cf27184' then
+    raise exception 'F60_CORPO_VIVO_DIFERENTE rel_resumo_filiais';
+  end if;
+  if to_regprocedure('public.rel_resumo(smallint, date, date)') is null then
+    raise exception 'F60_FUNCAO_VELHA_AUSENTE rel_resumo';
+  end if;
+
