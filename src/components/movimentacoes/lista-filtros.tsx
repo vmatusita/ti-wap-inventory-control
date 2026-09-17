@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search, User, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
+import {
+  baseDosFiltros,
+  registrarFiltrosEnviados,
+  useEsquecerFiltrosAoSair,
+} from '@/components/filtros/url'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 import { hojeISO } from '@/lib/format'
 import { rotuloTipo, type TipoMovimentacao } from '@/lib/dominio'
@@ -86,6 +91,7 @@ export function ListaFiltros({
   // Acende a barra global enquanto a navegação por filtro está pendente (roda em
   // startTransition, então NÃO dispara o loading.tsx da rota).
   useReportarNavegacao(isPending)
+  useEsquecerFiltrosAoSair(pathname)
 
   const qAtual = params.get('q') ?? ''
   const tipoAtual = params.get('tipo') ?? ''
@@ -114,26 +120,21 @@ export function ListaFiltros({
   // Duas trocas na mesma janela pendente — De e Até em sequência, o caso normal
   // aqui — liam o mesmo snapshot antigo e a segunda apagava a primeira (mesmo
   // achado da revisão adversarial da F9 em /itens). Guardamos o que foi
-  // empurrado; enquanto a URL commitada não muda, a base é esse valor.
-  const pendente = useRef<{ antes: string; enviada: string } | null>(null)
-
-  function base(commitada: string): URLSearchParams {
-    const p = pendente.current
-    if (p && p.antes === commitada) return new URLSearchParams(p.enviada)
-    pendente.current = null
-    return new URLSearchParams(commitada)
-  }
+  // empurrado; enquanto a URL commitada não muda, a base é esse valor. F61 — a cópia
+  // em `useRef` virou o módulo compartilhado `src/components/filtros/url.ts`, com a
+  // mesma garantia: o pendente é POR CAMINHO e sai junto com o componente
+  // (`useEsquecerFiltrosAoSair`), como o `ref` saía.
 
   function aplicar(mudancas: Record<string, string | null>) {
     const commitada = params.toString()
-    const novo = base(commitada)
+    const novo = baseDosFiltros(pathname, commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
     novo.delete('page') // qualquer mudança de filtro volta p/ a página 1
     const query = novo.toString()
-    pendente.current = { antes: commitada, enviada: query }
+    registrarFiltrosEnviados(pathname, commitada, query)
     // Sem filtro nenhum a URL volta limpa (`/movimentacoes`, não `…?`).
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }

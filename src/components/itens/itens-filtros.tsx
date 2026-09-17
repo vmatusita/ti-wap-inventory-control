@@ -15,7 +15,11 @@ import {
 import { GRUPO_ITEM_META, GRUPO_ITEM_ORDEM } from '@/lib/dominio'
 import { useReportarNavegacao } from '@/components/layout/progresso-navegacao'
 import type { Filial } from '@/lib/queries/filiais'
-import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
+import {
+  baseDosFiltros,
+  registrarFiltrosEnviados,
+  useEsquecerFiltrosAoSair,
+} from '@/components/filtros/url'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
 
 const TODOS = '__todos'
@@ -34,7 +38,7 @@ const TODOS = '__todos'
 // em silêncio no parse — comportamento que a própria F25 registrou como mudança
 // de sentido de URL antiga.
 //
-// ⚠ `baseFiltrosItens` continua aqui. Ele existe porque `useSearchParams()` só
+// ⚠ `baseDosFiltros` (`src/components/filtros/url.ts`, F61) continua aqui. Ele existe porque `useSearchParams()` só
 // reflete a URL COMMITADA, e duas trocas de filtro na mesma janela de navegação
 // pendente liam o mesmo snapshot antigo — a segunda apagava a primeira. Isso vale
 // DENTRO de um bloco (grupo, depois filial), não só entre os dois que existiam.
@@ -52,6 +56,7 @@ export function ItensFiltros({
   const params = useSearchParams()
   const [isPending, startTransition] = useTransition()
   useReportarNavegacao(isPending)
+  useEsquecerFiltrosAoSair(pathname)
 
   const qAtual = params.get('q') ?? ''
   const grupoAtual = params.get('grupo') ?? ''
@@ -66,13 +71,13 @@ export function ItensFiltros({
   function empurrar(novo: URLSearchParams, commitada: string) {
     novo.delete('page') // qualquer mudança de filtro volta p/ a página 1
     const query = novo.toString()
-    registrarFiltrosEnviados(commitada, query)
+    registrarFiltrosEnviados(pathname, commitada, query)
     startTransition(() => router.push(query ? `${pathname}?${query}` : pathname))
   }
 
   function aplicar(mudancas: Record<string, string | null>) {
     const commitada = params.toString()
-    const novo = baseFiltrosItens(commitada)
+    const novo = baseDosFiltros(pathname, commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
@@ -85,7 +90,7 @@ export function ItensFiltros({
   // resincronizar com a URL). Mesma régua de `AtivosFiltros`.
   function submeterBusca() {
     const commitada = params.toString()
-    const novo = baseFiltrosItens(commitada)
+    const novo = baseDosFiltros(pathname, commitada)
     const termo = busca.trim()
     if (termo) novo.set('q', termo)
     else novo.delete('q')
@@ -98,7 +103,7 @@ export function ItensFiltros({
   function limpar() {
     setBusca('')
     const commitada = params.toString()
-    const base = baseFiltrosItens(commitada)
+    const base = baseDosFiltros(pathname, commitada)
     const novo = new URLSearchParams()
     const pp = base.get('pp')
     if (pp) novo.set('pp', pp)

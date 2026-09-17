@@ -22,7 +22,11 @@ import { GRUPOS_ESCOLHA } from '@/lib/itens/escolha-tipo'
 import type { ItemCatalogo } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 import { FiltroFilial, opcoesDeFiliais } from '@/components/layout/filtro-filial'
-import { baseFiltrosItens, registrarFiltrosEnviados } from './url-filtros'
+import {
+  baseDosFiltros,
+  registrarFiltrosEnviados,
+  useEsquecerFiltrosAoSair,
+} from '@/components/filtros/url'
 
 const TODOS_ITENS = '__todos_itens'
 const TODOS_TIPOS = '__todos_tipos'
@@ -58,6 +62,7 @@ export function HistoricoFiltros({
   const params = useSearchParams()
   const [isPending, startTransition] = useTransition()
   useReportarNavegacao(isPending)
+  useEsquecerFiltrosAoSair(pathname)
 
   const itemAtual = params.get('item') ?? ''
   const tipoAtual = params.get('tipo') ?? ''
@@ -87,18 +92,18 @@ export function HistoricoFiltros({
   }
 
   function aplicar(mudancas: Record<string, string | null>) {
-    // Base vem de `baseFiltrosItens`, não de `params`: durante uma navegação
+    // Base vem de `baseDosFiltros`, não de `params`: durante uma navegação
     // pendente o snapshot da URL ainda é o antigo e a segunda troca de filtro
-    // apagaria a primeira (ver o comentário longo em `url-filtros.ts`).
+    // apagaria a primeira (ver o comentário longo em `src/components/filtros/url.ts`).
     const commitada = params.toString()
-    const novo = baseFiltrosItens(commitada)
+    const novo = baseDosFiltros(pathname, commitada)
     for (const [chave, valor] of Object.entries(mudancas)) {
       if (valor == null || valor === '') novo.delete(chave)
       else novo.set(chave, valor)
     }
     novo.delete('page')
     const query = novo.toString()
-    registrarFiltrosEnviados(commitada, query)
+    registrarFiltrosEnviados(pathname, commitada, query)
     startTransition(() => router.push(`${pathname}?${query}`))
   }
 

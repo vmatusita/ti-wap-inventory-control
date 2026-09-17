@@ -8,8 +8,8 @@ import { AlertTriangle, ExternalLink, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmacaoDigitada } from '@/components/layout/confirmacao-digitada'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -536,19 +536,20 @@ function DialogoApagarConflito({
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="conflito-confirmacao">Para confirmar, digite exatamente:</Label>
-          <p className="font-mono text-xs break-all text-muted-foreground">{esperado}</p>
-          <Input
-            id="conflito-confirmacao"
-            value={confirmacao}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={esperado}
-            onChange={(e) => setConfirmacao(e.target.value)}
-            disabled={executando}
-          />
-        </div>
+        {/* F61 · decisão ii — a confirmação que era MUDA passa pela caixa única e anuncia
+            o erro: `aria-invalid`, `aria-describedby` e a dica `role="alert"`. O texto
+            esperado continua GERADO (`APAGAR <N>`), a régua continua
+            `confirmacaoConflitoConfere`, e não há Enter (a justificativa vem abaixo). */}
+        <ConfirmacaoDigitada
+          id="conflito-confirmacao"
+          rotulo="Para confirmar, digite exatamente:"
+          esperado={esperado}
+          mono
+          valor={confirmacao}
+          confere={confere}
+          onChange={setConfirmacao}
+          desabilitado={executando}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="conflito-justificativa">

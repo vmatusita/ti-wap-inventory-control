@@ -13,7 +13,16 @@
 // se comportaria como o link fixo de antes, silenciosamente. Achado da revisão
 // adversarial da F19; decisão registrada em docs/DECISOES.md.
 
-export const CHAVE_LISTA_ATIVOS = 'wap:ativos:ultima-lista'
+import { chaveDeStorage } from '@/lib/escopo/chave'
+
+// F61 — a chave é MONTADA por `chaveDeStorage` (`lib/escopo/chave.ts`) no USO, e sai
+// idêntica byte a byte à literal de antes (`wap:ativos:ultima-lista`) — nenhum rascunho ou
+// preferência gravada se perde. Função, não constante: uma constante de módulo
+// congelaria o valor, e o call-site tem de continuar igual quando a chave do escopo
+// deixar de ser fixa (virada multiempresa). Trava: `lib/escopo/chaves-de-storage.test.ts`.
+export function chaveListaAtivos(): string {
+  return chaveDeStorage('ativos:ultima-lista')
+}
 
 // Só aceita caminho relativo da PRÓPRIA lista. `sessionStorage` é gravado pelo
 // nosso código, mas validar na leitura é barato e fecha a porta para um valor
@@ -30,7 +39,7 @@ export function ehUrlDaListaDeAtivos(valor: string | null | undefined): valor is
 
 export function lembrarListaDeAtivos(url: string): void {
   try {
-    sessionStorage.setItem(CHAVE_LISTA_ATIVOS, url)
+    sessionStorage.setItem(chaveListaAtivos(), url)
   } catch {
     // Modo privado / storage cheio: o "Voltar" apenas cai no /ativos sem filtro.
   }
@@ -38,7 +47,7 @@ export function lembrarListaDeAtivos(url: string): void {
 
 export function lerListaDeAtivos(): string | null {
   try {
-    const v = sessionStorage.getItem(CHAVE_LISTA_ATIVOS)
+    const v = sessionStorage.getItem(chaveListaAtivos())
     return ehUrlDaListaDeAtivos(v) ? v : null
   } catch {
     return null

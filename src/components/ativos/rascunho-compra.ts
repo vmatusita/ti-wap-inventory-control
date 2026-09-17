@@ -19,8 +19,25 @@
 import { CATEGORIA_ORDEM, type CategoriaAtivo } from '@/lib/dominio'
 import { hojeISO } from '@/lib/format'
 import { expandirFaixa, parsearLista } from '@/lib/patrimonio'
+import { chaveDeStorage } from '@/lib/escopo/chave'
 
-export const CHAVE_RASCUNHO_COMPRA = 'wap:compra:rascunho'
+// F61 — a chave é MONTADA por `chaveDeStorage` (`lib/escopo/chave.ts`) no USO, e sai
+// idêntica byte a byte à literal de antes (`wap:compra:rascunho`) — nenhum rascunho ou
+// preferência gravada se perde. Função, não constante: uma constante de módulo
+// congelaria o valor, e o call-site tem de continuar igual quando a chave do escopo
+// deixar de ser fixa (virada multiempresa). Trava: `lib/escopo/chaves-de-storage.test.ts`.
+export function chaveRascunhoCompra(): string {
+  return chaveDeStorage('compra:rascunho')
+}
+
+/**
+ * A memória dos defaults da compra (`localStorage`, POR DISPOSITIVO — decisão da OS-F9:
+ * sem coluna nova em `profiles`, sem migration). Mora aqui, ao lado da outra chave da
+ * compra, para ser conferida por teste sem importar o formulário inteiro.
+ */
+export function chaveCompraDefaults(): string {
+  return chaveDeStorage('compra:defaults')
+}
 
 // Um paste gigante (planilha inteira colada por engano, ou um arquivo binário
 // que caiu no textarea) não pode estourar a cota do sessionStorage nem travar
@@ -164,7 +181,7 @@ export function lerRascunhoCompra(): RascunhoCompra | null {
   const s = sessao()
   if (!s) return null
   try {
-    return desserializarRascunhoCompra(s.getItem(CHAVE_RASCUNHO_COMPRA))
+    return desserializarRascunhoCompra(s.getItem(chaveRascunhoCompra()))
   } catch {
     return null
   }
@@ -177,7 +194,7 @@ export function salvarRascunhoCompra(r: RascunhoCompra): void {
     // Teto do texto colado GRAVADO, e não só na leitura: um paste gigante não
     // pode nem chegar a ocupar espaço no storage.
     s.setItem(
-      CHAVE_RASCUNHO_COMPRA,
+      chaveRascunhoCompra(),
       JSON.stringify({
         ...r,
         textoLista: r.textoLista.slice(0, MAX_CHARS_TEXTO_RASCUNHO),
@@ -193,7 +210,7 @@ export function limparRascunhoCompra(): void {
   const s = sessao()
   if (!s) return
   try {
-    s.removeItem(CHAVE_RASCUNHO_COMPRA)
+    s.removeItem(chaveRascunhoCompra())
   } catch {
     // idem
   }
