@@ -1,0 +1,11 @@
+== O portao (a) sobre o HEAD do PR de codigo, JA COM a entrada de versao 1.66.0
+ref: v1.65.0 · tabela: 242 linha(s) em docs/f61-evidencias/mudancas-de-proposito.json
+✔ nenhuma diferença sem linha, nenhuma linha sem diferença.
+
+== A sabotagem K1 continua reprovando depois do filtro de data:
+ref: v1.65.0 · tabela: 242 linha(s) em docs/f61-evidencias/mudancas-de-proposito.json
+⚠ --sabotar ativo: src/components/relatorios/tabela-saidas.tsx :: "scroll-mt-28 space-y-3 break-before-page" → "scroll-mt-28 space-y-4 break-before-page"
+
+Diferença sem linha (2):
+  - src/components/relatorios/tabela-saidas.tsx × 1  "scroll-mt-28 space-y-3 break-before-page"
+  + src/components/relatorios/tabela-saidas.tsx × 1  "scroll-mt-28 space-y-4 break-before-page"

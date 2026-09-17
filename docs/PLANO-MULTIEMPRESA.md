@@ -667,6 +667,19 @@ Cada fase vira `docs/prompts/F<N>-<slug>-ultracode.md` e um relatório `docs/REL
 
 **Reversão.** `git revert`; as fotos de design são a evidência.
 
+*(Nota F61, 17/09/2026: a execução mediu esta ficha e a corrigiu em oito pontos — a isenção por prefixo está em
+`consistencia.test.ts:132`, não `:130`; são **45 arquivos e 113 violações**, não 44 e 109; o cromo escuro são **oito**
+arquivos (o oitavo é `viewer-nav.tsx`, sem `bg-brand-dark` próprio); o crédito tem **quatro** chamadas, uma delas num
+componente sem consumidor; um `sucesso` no molde do `warning` (token com opacidade) **repintaria** os selos, então a
+variante usa o par cheio `--sucesso`; `medidor-minimo.tsx` tem **duas** linhas verdes e ganhou token PRÓPRIO de folga;
+a trava da dica **reprovaria no dia** (três importadores fora de `layout/`), e por isso as QUATRO confirmações migraram
+juntas (decisão ii do Johnny); os diálogos de CRUD do admin são **seis**, quatro com o defeito, mais o de relatórios; e
+só **dois** filtros perdiam o fix — o terceiro tinha uma cópia em `useRef`. Duas coisas que a ficha não previa: o
+vazamento de filtro ENTRE rotas (`/itens` → `/itens/historico`), fechado com teste vermelho antes da correção, e a
+impossibilidade de usar `scripts/design/capturar.mjs` (o `.env.local` aponta para o ensaio, que guarda cópia dos dados
+reais) — a prova visual passou a ser uma prévia estática nova, `scripts/design/previa-f61.tsx`. A régua está na emenda
+F61 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md); o censo e as doze decisões, em [`PLAN-F61.md`](PLAN-F61.md).)*
+
 ---
 
 # § 6 — A FRONTEIRA
@@ -677,6 +690,10 @@ Cada fase vira `docs/prompts/F<N>-<slug>-ultracode.md` e um relatório `docs/REL
 Ao fim da F61 o sistema continua mono-empresa, com o mesmo comportamento visível de hoje, mas: o CI reprova e o deploy não passa por cima dele; migration aplicada não pode ser editada e o CI de banco roda sem Docker; existe prova de que os roteiros SQL conseguem falhar; as quatro superfícies de segurança estão enumeradas por catálogo; as fronteiras de módulo têm nome, guarda e trava; a RPC de import cabe numa tela e tem guardas de escopo no-op; o desempate das movimentações é exato; o backup contém os `.docx` e a restauração foi ensaiada uma vez; existe funil de erro e sonda agendada; o import funciona para qualquer unidade; "filial" tem quatro nomes distintos e o estado "sem recorte" é irrepresentável no tipo; a fronteira do banco é tipada e tem porta única de RPC; a forma do predicado de RLS está escrita e travada por teste; e a UI tem os pontos de injeção prontos.
 
 **Nenhuma linha de F45 a F61 é desperdício se o multiempresa nunca acontecer.**
+
+> **A fronteira foi alcançada em 17/09/2026, na versão `1.66.0`** (F61 · `docs/RELATORIO-F61.md`, seção "A fronteira").
+> As dezessete fases de preparação estão no ar; da F62 em diante, cada fase acrescenta estrutura que só o multiempresa
+> usa.
 
 De F62 em diante cada fase acrescenta estrutura que só o multiempresa usa. Todas continuam aditivas, reversíveis e com estado de repouso — mas custam sem render, se o produto parar.
 

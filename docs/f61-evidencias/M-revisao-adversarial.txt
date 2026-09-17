@@ -1,0 +1,21 @@
+== M · A REVISAO ADVERSARIAL DA F61 (17/09/2026) — o que virou conserto, com a saida real
+
+-- 1 · A regua, com a porta pelo NOME fechada (era 982, agora 983 casos):
+      Tests  983 passed (983)
+   Start at  17:17:20
+   Duration  1.85s (transform 183ms, setup 0ms, import 643ms, tests 838ms, environment 0ms)
+
+
+-- 2 · A chave de storage: a funcao LOCAL homonima nao compra mais confianca:
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a trava enxerga a volta > uma funcao LOCAL homonima nao compra confianca para as chave* do arquivo 1ms
+ ✓ |puro| src/lib/escopo/chaves-de-storage.test.ts > as chaves de storage saem de chaveDeStorage (F61) > a trava enxerga a volta > a MESMA funcao, num arquivo que importa a construtora de verdade, e confiavel 1ms
+      Tests  12 passed (12)
+
+-- 3 · O dialogo semeado: a prop desestruturada DENTRO do corpo reprova igual:
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > a trava enxerga o defeito > a prop desestruturada DENTRO do corpo reprova igual (não é esconderijo) 2ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > a trava enxerga o defeito > desestruturar de um objeto QUALQUER (não da prop) não semeia 1ms
+      Tests  35 passed (35)
+
+-- 4 · O portao de classes, com o template interpolado visivel e a tabela ausente alta e clara:
+ref: v1.65.0 · tabela: 242 linha(s) em docs/f61-evidencias/mudancas-de-proposito.json
+✔ nenhuma diferença sem linha, nenhuma linha sem diferença.

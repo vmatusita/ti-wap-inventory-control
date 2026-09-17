@@ -1,0 +1,26 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — o aria-describedby aponta para um id que existe > com o texto ERRADO, a dica aparece e o campo aponta para ela 31ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — o aria-describedby aponta para um id que existe > com o texto CERTO, não há dica — e não há describedby pendurado 2ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — o aria-describedby aponta para um id que existe > com o campo VAZIO, não há dica ainda (não se acusa quem nem começou) 1ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — o aria-describedby aponta para um id que existe > o rótulo prende no campo pelo `for`/`id` (e o id é o mesmo dos dois lados) 2ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — o aria-describedby aponta para um id que existe > o `id` de fora vence o gerado — e a dica acompanha 2ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — as props das quatro telas (F61) > a MESA: esperado gerado "APAGAR 3", digitado "APAGAR 2" → anuncia o erro, em mono 2ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — as props das quatro telas (F61) > a MESA com o texto certo não acusa nada 1ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — as props das quatro telas (F61) > SABOTAGEM F — uma caixa SEM os atributos (a mesa de antes) não passa na pergunta 0ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — as props das quatro telas (F61) > o IMPORT mostra o nome no rótulo e não repete a linha do esperado 2ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — as props das quatro telas (F61) > o APAGAR CONTA sem e-mail mostra o aviso no lugar do esperado, com o campo desabilitado 2ms
+ ✓ |componentes| src/components/layout/confirmacao-digitada.test.tsx > ConfirmacaoDigitada — as props das quatro telas (F61) > sem `mono`, o esperado sai na fonte do texto (o apagar conta) 1ms
+ ✓ |puro| src/components/layout/confirmacao-digitada-fronteira.test.ts > a dica da confirmacao digitada so e importada pelo componente (F61) > ninguem fora de layout/ importa dicaConfirmacaoNaoConfere 14ms
+ ✓ |puro| src/components/layout/confirmacao-digitada-fronteira.test.ts > a dica da confirmacao digitada so e importada pelo componente (F61) > src/components/pendencias/mesa-conflitos.tsx usa <ConfirmacaoDigitada> 1ms
+ ✓ |puro| src/components/layout/confirmacao-digitada-fronteira.test.ts > a dica da confirmacao digitada so e importada pelo componente (F61) > src/components/admin/importar/importar-wizard.tsx usa <ConfirmacaoDigitada> 0ms
+ ✓ |puro| src/components/layout/confirmacao-digitada-fronteira.test.ts > a dica da confirmacao digitada so e importada pelo componente (F61) > src/components/admin/usuarios/apagar-usuario-dialog.tsx usa <ConfirmacaoDigitada> 0ms
+ ✓ |puro| src/components/layout/confirmacao-digitada-fronteira.test.ts > a dica da confirmacao digitada so e importada pelo componente (F61) > src/components/dev/destrutivo/dialogo-destrutivo.tsx usa <ConfirmacaoDigitada> 0ms
+ ✓ |puro| src/components/layout/confirmacao-digitada-fronteira.test.ts > a dica da confirmacao digitada so e importada pelo componente (F61) > um arquivo sintetico fora de layout/ importando a dica reprova 8ms
+
+ Test Files  2 passed (2)
+      Tests  17 passed (17)
+   Start at  16:10:24
+   Duration  1.96s (transform 256ms, setup 0ms, import 2.32s, tests 77ms, environment 0ms)
+

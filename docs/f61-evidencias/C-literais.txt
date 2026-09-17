@@ -1,0 +1,28 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > a fonte unica devolve os textos de hoje (F61) > a sigla, o nome, a grafia unica, a descricao e o credito 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > a fonte unica devolve os textos de hoje (F61) > a fonte e pura: sem diretiva, sem server-only, sem ambiente, sem banco 2ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a lista LEEM_A_FONTE e exatamente quem importa a fonte (sem entrada morta, sem ausente) 6ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/app/(app)/ajuda/page.tsx nao tem literal da sigla, do nome ou do autor 32ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/app/(app)/versoes/page.tsx nao tem literal da sigla, do nome ou do autor 9ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/app/auth/confirm/page.tsx nao tem literal da sigla, do nome ou do autor 8ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/app/layout.tsx nao tem literal da sigla, do nome ou do autor 4ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/app/login/page.tsx nao tem literal da sigla, do nome ou do autor 7ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/app/not-found.tsx nao tem literal da sigla, do nome ou do autor 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/components/layout/credito-autor.tsx nao tem literal da sigla, do nome ou do autor 5ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/components/layout/marca.tsx nao tem literal da sigla, do nome ou do autor 4ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/components/layout/rodape-sidebar.tsx nao tem literal da sigla, do nome ou do autor 4ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > src/components/layout/viewer-header.tsx nao tem literal da sigla, do nome ou do autor 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a varredura so enxerga literal > a sigla injetado como literal reprova 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a varredura so enxerga literal > o nome do sistema injetado como literal reprova 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a varredura so enxerga literal > o autor injetado como literal reprova 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a varredura so enxerga literal > comentário de linha passa 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a varredura so enxerga literal > comentário de bloco passa 3ms
+ ✓ |puro| src/lib/identidade/sem-literais.test.ts > quem le a fonte nao escreve a identidade como texto (F61) > a varredura so enxerga literal > identificador passa 3ms
+
+ Test Files  1 passed (1)
+      Tests  19 passed (19)
+   Start at  16:10:11
+   Duration  1.72s (transform 201ms, setup 0ms, import 1.28s, tests 109ms, environment 0ms)
+

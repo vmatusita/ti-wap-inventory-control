@@ -937,3 +937,66 @@ divergência é achado, nunca motivo para afrouxar uma das duas.
 > **A janela do `drop` prova ausência de chamador pelo `pg_stat_statements`, por papel — não prova que nenhuma aba aberta
 > antes do deploy viu erro.** (7) **A `0144` só muda o plano**: a igualdade de conjunto é do acervo medido, e a regra do
 > empate do `mode()` foi reproduzida por leitura da documentação e provada pelo hash, não por cenário de empate plantado.
+
+---
+
+## Emenda F61 (17/09/2026) — os pontos de injeção da UI
+
+A última fase de preparação. Fase **só de código**: nenhuma migration, nenhum banco. O que ela acrescenta à matriz são
+regras de **forma** — quem pode escrever o quê na camada visual — e uma régua que deixou de ter furo por construção.
+
+| regra | fonte | onde mora | prova (comando) | veredito |
+|---|---|---|---|---|
+| **R-UI-61a · Nenhum arquivo de `components/admin/` ou `components/relatorios/` é isento da régua de layout** — nem por prefixo, nem por nome. A única porta é `DEVOLVIDOS_F61B`, por ARQUIVO, com o defeito medido e o caminho da evidência | ficha F61; decisão i do Johnny (17/09) | `src/lib/layout/pendentes-da-regua.ts` (`DIRETORIOS_SEM_ISENCAO`, `conferirCatraca`) + `src/lib/layout/consistencia.test.ts` | `npx vitest run src/lib/layout/consistencia.test.ts` (983 casos) | **CONFORME** — 45 arquivos convertidos, `SOB_REGRA` 77 → 154, `DEVOLVIDOS_F61B` vazia |
+| **R-UI-61b · `PENDENTES` só encolhe, e cada entrada diz por quê** — entrada nova exige tocar `PENDENTES_CONGELADOS` no mesmo commit, e motivo com 10+ caracteres | ficha F61 ("os outros prefixos ficam, nomeados, com o motivo escrito") | idem (`PENDENTES: {caminho, frente, motivo}[]`, `PENDENTES_CONGELADOS`) | idem — `describe('a catraca da regua (F61)')` | **CONFORME** — 30 entradas, todas com motivo |
+| **R-UI-61c · O piso de `SOB_REGRA` é NOMINAL** — apagar um arquivo não reprova; devolvê-lo à isenção reprova | fato 6 (os dois furos da catraca pedida) | `SOB_REGRA_CONGELADA` (154 caminhos) | idem — casos "apagar um arquivo… NÃO reprova" e "um arquivo do piso que volta a ser isento reprova" | **CONFORME** |
+| **R-UI-61d · A identidade EXIBIDA (sigla, nome do sistema, descrição, crédito) sai de uma fonte só, e não é autorização** | decisão iii do Johnny; ficha F70 (o `contextoDoApp()` consome) | `src/lib/identidade/sistema.ts` — módulo puro (sem `'use client'`, `server-only`, `process.env` ou banco) | `npx vitest run src/lib/identidade/sem-literais.test.ts` | **CONFORME** — 10 arquivos leem a fonte; nenhum deles escreve a sigla, o nome ou o autor como literal |
+| **R-UI-61e · Quem lê a fonte não escreve a identidade como texto** — varredura por AST (literal, nunca comentário nem identificador), lista nominal com catraca | decisão iii | `sem-literais.test.ts` + `src/lib/varredura/literais.ts` (a varredura da `sem-wapismo`, promovida a módulo) | idem — inclui a sabotagem C | **CONFORME** |
+| **R-UI-61f · O texto sobre a marca sai de um PAR de tokens medido** — `--brand-dark-texto` e `--brand-amarelo-texto`, valor literal em `:root` e `.dark`, par declarado no medidor nos DOIS temas | ficha F61 ("`Marca` com par de contraste"); fato 13 (o medidor lê por NOME) | `src/app/globals.css` + `scripts/contraste.mjs` (12 pares novos) | `npm run contraste` | **CONFORME** — razões idênticas às de antes (9,70 · 18,89 · 9,48 · 12,17 · 14,60) |
+| **R-UI-61g · O par cru que virou token não volta** — verde de sucesso (`green-100/800/950/300` sem opacidade) e `text-white`/`text-black`, com lista de exceções NOMEADA que só encolhe e reprova exceção morta. **Nunca derivada dos comentários do CSS** | ficha F61 ("regra absoluta de tinta com lista de exceções nomeada"); fato 19 (a derivação proibiria 204 usos legítimos) | `src/lib/layout/regra-de-tinta.ts` + §5 de `src/lib/dominio/cores.test.ts` | `npx vitest run src/lib/dominio/cores.test.ts` | **CONFORME** — lista de exceções **vazia**; teto 473 → 413 |
+| **R-UI-61h · A confirmação digitada é UMA, e anuncia o erro** — as quatro telas pelo mesmo componente; `dicaConfirmacaoNaoConfere` só importável de `components/layout/` | decisão ii do Johnny | `src/components/layout/confirmacao-digitada.tsx` + `confirmacao-digitada-fronteira.test.ts` | `npx vitest run src/components/layout/confirmacao-digitada-fronteira.test.ts src/components/layout/confirmacao-digitada.test.tsx` | **CONFORME** — sem exceção na trava; a mesa passou a ter `aria-invalid`, `aria-describedby` e `role="alert"` |
+| **R-UI-61i · Diálogo de cadastro semeia NA ABERTURA** — `useState` a partir de prop exige `useDialogoSemeado` ou exceção nomeada; `onOpenChange={setAlgo}` ao lado de estado semeado reprova — com a prop desestruturada na assinatura OU no corpo | ficha F61 (`dialogo-semeado.test.ts`) | `src/components/dialogos/use-dialogo-semeado.ts` + `dialogo-semeado.test.ts` (AST) | `npx vitest run src/components/dialogos/dialogo-semeado.test.ts` | **CONFORME** — 8 consumidores; exceção nomeada: `lancar-item-dialog` |
+| **R-UI-61j · A base da próxima URL de filtro é POR CAMINHO** | ficha F61 (`url-filtros` unificado); fato 23 (o vazamento latente) | `src/components/filtros/url.ts` (`'use client'`, estado de módulo documentado) | `npx vitest run src/components/filtros/url.test.ts` | **CONFORME** — os cinco filtros; o vazamento entre `/itens` e `/itens/historico` nasceu vermelho e fechou verde |
+| **R-UI-61k · Chave de storage só por `chaveDeStorage`, calculada no uso** — nenhum literal `wap:` fora de `lib/escopo/chave.ts` (exceto os dois nomes de `CustomEvent`); exceções `wap-sidebar` e `theme`, nomeadas | ficha F61 (`chaveDoEscopo` nas 7 chaves) | `src/lib/escopo/chaves-de-storage.test.ts` (AST) + `assinatura-realtime.test.ts` (as sete, byte a byte) | `npx vitest run src/lib/escopo/chaves-de-storage.test.ts src/lib/relatorios/assinatura-realtime.test.ts` | **CONFORME** |
+| **R-UI-61l · Toda troca de classe tem dono** — o diff de classes por arquivo de fonte contra `v1.65.0` e a tabela de mudanças de propósito são o MESMO conjunto | a promessa da fase ("nenhum pixel muda fora da tabela") | `docs/f61-evidencias/mudancas-de-proposito.json` (242 linhas) + `scripts/design/diff-classes-f61.ts` | `npx tsx scripts/design/diff-classes-f61.ts` | **CONFORME** |
+
+### As exceções (todas nomeadas, todas com motivo)
+
+| exceção | onde | motivo |
+|---|---|---|
+| `lancar-item-dialog.tsx` fora de `useDialogoSemeado` | `dialogo-semeado.test.ts` | mantém o carrinho e o "Repetir último" ENTRE aberturas, de propósito |
+| `wap-sidebar` e `theme` fora de `chaveDeStorage` | `chaves-de-storage.test.ts` | preferência do APARELHO; `wap-sidebar` está embutida no script anti-flash e `theme` é o padrão do `next-themes` — renomear apagaria a preferência de todo mundo |
+| `wap:lancar-item` e `wap:transferir-item` | idem | são nomes de `CustomEvent`, não chave de storage |
+| o par do medidor de folga com `antes: true` em vez de `exigir: true` | `scripts/contraste.mjs` | `green-600` sobre `green-100` mede 2,93:1 (piso 3:1). É a cor de ANTES da fase; consertar é escurecer a barra, mudança visível de gráfico — backlog PATCH, agora com nome |
+| as ROTAS `(app)/admin/**` e `(app)/relatorios/**` seguem em `PENDENTES` | `pendentes-da-regua.ts` | o casco (regras 7 e 8) é das frentes b e c do sistema de design; a F61 destravou os COMPONENTES |
+| `testTimeout: 60_000` no lugar dos 5 s padrão | `vitest.config.mts` (os dois projetos) | **51 arquivos** desta suíte varrem a árvore do repositório dentro do corpo do teste; o custo deles é do tamanho do projeto, não do que afirmam. Medido em 17/09: a mesma suíte, quatro rodadas sem mudança de código, deu 0, 2, 5 e 1 reprovações, **todas** por timeout e cada vez em arquivo diferente. Timeout não é asserção de ninguém — nenhuma trava afrouxa. Ata (h) · [`L-relogio-do-runner.txt`](f61-evidencias/L-relogio-do-runner.txt) |
+
+### As afirmações erradas conhecidas (registro — não se editam)
+
+- **A ficha da F61** (`PLANO-MULTIEMPRESA.md` §5, escrita em 04/09 sobre a v1.49.1) diz `consistencia.test.ts:130` (é
+  `:132`), "12 sítios" de verde (são 12, mas dois deles são as DUAS linhas de `medidor-minimo`), "3 de 5 diálogos de CRUD"
+  (são 4 de 6, mais o de relatórios), "3 dos 5 filtros" perdendo o fix (são 2), "prioridade nas 3 de `localStorage`" (só
+  uma das sete é `localStorage`) e "302 usos legítimos de callout" (o grep cru de âmbar dá 301; a catraca conta 293).
+  Documento vivo: a ficha ganhou uma nota F61 apontando para esta emenda.
+- **O cabeçalho da ordem de serviço** (`docs/prompts/F61-…md`, 17/09) diz que as rotas de admin e relatórios somam "12
+  arquivos e 3 esqueletos": são **18 `.tsx`**, com **13** rotas e **4** esqueletos.
+- **`confinamento-viewer.test.ts`** dizia "a folga é de NOVE" com piso 125 sobre fecho 155 (folga 30). **Corrigido nesta
+  fase**: fecho 158, piso 149, e os dois números escritos no comentário.
+- **`confirmacao-digitada.tsx`** dizia que "o import exige igualdade exata" — falso desde a F52. **Corrigido nesta fase.**
+- **`itens/url-filtros.ts`** justificava o pendente único com "os dois blocos de `/itens` empurram para a mesma URL" —
+  caducou quando o histórico ganhou rota própria (F42). O módulo saiu; o sucessor é por caminho.
+
+> **Nota de escopo — o que a emenda F61 NÃO afirma.** (1) **Que a foto seja a tela de produção**: é a prévia estática, com
+> dublê de `Dialog`, sem a fonte Geist, e com os nomes de filial que placeholders de produção citam mascarados. (2) **Que
+> o teste de componente prove interação**: o rig é grau 1 — ele afirma o HTML que o servidor produz; abrir e fechar
+> diálogo não se prova por render. (3) **Que a regra de tinta julgue a cor renderizada**: ela julga NOME DE CLASSE no
+> fonte. (4) **Que a fonte única já seja por empresa**: é um ponto de injeção com valores fixos até a F70. (5) **Que a
+> chave de storage separe empresas**: o prefixo é `wap` até a virada — a própria `chaveDeStorage` diz isso. (6) **Que o
+> diff de classes cubra as telas fora das vitrines**: ele cobre todo arquivo de `src/`, mas a prova de PIXEL é só das 8
+> vitrines; o que não tem vitrine está declarado linha a linha na tabela. (7) **Que estas travas resistam a quem quer
+> burlá-las**: são checagens de TEXTO e de NOME, não de tipo nem de símbolo resolvido — o alvo é o acidente e a deriva,
+> não o adversário decidido. A revisão adversarial da fase (ata (i) de 17/09) achou os caminhos que passam — literal
+> fragmentado (`'W' + 'AP'`), acesso computado por namespace, troca cruzada de classes dentro do mesmo arquivo — e eles
+> **não** foram fechados, de propósito. Os dois que eram plausíveis **por acidente** foram: a construtora de chave
+> homônima e a prop desestruturada dentro do corpo, cada uma com sabotagem própria. Os cinco limites que ficaram estão
+> escritos, um a um, no §12 (itens 9 a 13) do [`RELATORIO-F61.md`](RELATORIO-F61.md).

@@ -680,6 +680,25 @@ seis.
 > (relatórios), o resto de **c** (`/admin`) e **d** (`/dev`, `/ajuda`, `/versoes`, as portas
 > públicas e a casca do app). A lista `PENDENTES` **só encolhe** — foi o que aconteceu.
 
+> **Os COMPONENTES das frentes b e c entraram na régua na F61 (17/09/2026).** A fase multiempresa
+> precisava dos dois diretórios onde a UI de tenant vai nascer — `src/components/admin/` e
+> `src/components/relatorios/` — sem isenção **por construção**: eles saíram de `PENDENTES` (que
+> agora mora em `src/lib/layout/pendentes-da-regua.ts`, com catraca por conjunto nominal) e os **45
+> arquivos** que a régua reprovava foram convertidos pela escala deste plano — 113 violações: texto
+> arbitrário para `text-xs` (§3.4), espaçamento para a escala de §3.1 (empate sobe), moldura à mão
+> para `QuadroDeTabela`/`Card`/`Aviso` (§3.8) e largura de célula pela escala. `SOB_REGRA` foi de 77
+> para **154**, e a catraca de cor crua de 473 para **413** (61 → 53 arquivos).
+>
+> O `Aviso` ganhou a QUARTA intenção, `sucesso` (as duas caixas verdes escritas à mão do import e do
+> teste de senha), com o par de tokens `--sucesso`/`--sucesso-texto` — mesmos valores do verde de
+> antes, agora medidos em `npm run contraste` nos dois temas.
+>
+> **As ROTAS continuam pendentes**: `src/app/(app)/admin/` e `src/app/(app)/relatorios/` seguem em
+> `PENDENTES` — 13 rotas sem casco (regra 7) e 4 esqueletos (regra 8) são o casco das frentes b e c,
+> não da F61. E o `EstadoVazio` continua sem adoção nos cinco vazios de tabela do admin: a F61
+> aplicou a regra de ESCALA (`py-10` → `py-12`) porque trocar o componente acrescentaria um ícone que
+> aquelas telas não têm hoje. Detalhes em [`PLAN-F61.md`](PLAN-F61.md) e [`RELATORIO-F61.md`](RELATORIO-F61.md).
+
 **Cada frente termina com** `npm run lint`, `npm run test`, `npm run build` e `npm run contraste`
 verdes, a catraca de §4.2 abaixada no mesmo commit, e a conferência visual de §6.
 

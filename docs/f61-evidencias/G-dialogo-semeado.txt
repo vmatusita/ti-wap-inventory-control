@@ -1,0 +1,42 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > a regra de semear (funcao pura) > semeia so na transicao fechado -> aberto 3ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > o varredor acha os dialogos 0ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/colaborador-dial…' 40ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/convidar-usuario…' 18ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/criar-senha-dial…' 12ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/filial-dialog.tsx' 12ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/item-dialog.tsx' 12ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/kit-dialog.tsx' 15ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/motivo-dialog.tsx' 9ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/testar-senha-dia…' 4ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/tipo-item-dialog…' 5ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/usuarios/alterar…' 4ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/usuarios/apagar-…' 4ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/usuarios/editar-…' 7ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/admin/usuarios/encerra…' 3ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/ativos/anotar-dialog.t…' 3ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/ativos/confirmar-assin…' 8ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/ativos/corrigir-patrim…' 4ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/ativos/definir-service…' 4ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/ativos/editar-ativo-di…' 9ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/ativos/estornar-dialog…' 5ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/dev/destrutivo/dialogo…' 6ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/itens/lancar-item-dial…' 24ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/itens/transferir-item-…' 18ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/layout/atalhos-dialog.…' 3ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/movimentacoes/gerar-te…' 12ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/movimentacoes/nova/col…' 10ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/pendencias/resolver-pe…' 5ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > 'src/components/relatorios/gerar-relat…' 7ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > a excecao 'src/components/itens/lancar-item-dial…' existe, semeia de prop e tem motivo 15ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > a trava enxerga o defeito > useState semeado de prop + onOpenChange={setAberto} reprova duas vezes 3ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > a trava enxerga o defeito > o mesmo diálogo com o hook passa 1ms
+ ✓ |puro| src/components/dialogos/dialogo-semeado.test.ts > todo dialogo que semeia de prop usa useDialogoSemeado (F61) > a trava enxerga o defeito > o nome depois do ponto não é a prop (x.marca não semeia) 1ms
+
+ Test Files  1 passed (1)
+      Tests  33 passed (33)
+   Start at  16:10:29
+   Duration  1.38s (transform 195ms, setup 0ms, import 716ms, tests 288ms, environment 0ms)
+

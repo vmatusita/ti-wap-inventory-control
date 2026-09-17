@@ -1,0 +1,15 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |componentes| src/components/layout/credito-autor.test.tsx > CreditoAutor — lê a fonte única e é desligável > ligado (o padrão de hoje), a variante longa tem o link seguro e o nome acessível 95ms
+ ✓ |componentes| src/components/layout/credito-autor.test.tsx > CreditoAutor — lê a fonte única e é desligável > ligado, a variante curta mostra só o nome — com o mesmo nome acessível 22ms
+ ✓ |componentes| src/components/layout/credito-autor.test.tsx > CreditoAutor — lê a fonte única e é desligável > desligado, a variante longa não renderiza NADA 8ms
+ ✓ |componentes| src/components/layout/credito-autor.test.tsx > CreditoAutor — lê a fonte única e é desligável > desligado, a variante curta não renderiza NADA 7ms
+ ✓ |componentes| src/components/layout/rodape-sidebar.test.tsx > RodapeSidebar — o crédito desligado some inteiro > ligado, o rodapé tem a versão e a linha do crédito 793ms
+ ✓ |componentes| src/components/layout/rodape-sidebar.test.tsx > RodapeSidebar — o crédito desligado some inteiro > desligado, não sobra a linha, o link nem o nome — só a versão 9ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  16:10:48
+   Duration  1.46s (transform 225ms, setup 0ms, import 359ms, tests 943ms, environment 1ms)
+

@@ -654,3 +654,104 @@ marcador do smoke (`bg-brand-dark`) não muda, então o `saude.yml` não alarma 
 ## 16. O SHA de código congelado **(cresce)**
 
 _(gravado na Frente G, passo 4)_
+
+---
+
+## 17. O que a execução mediu — o fecho do plano (17/09/2026)
+
+### 17.1 A tabela de mudanças de propósito (§4, agora fechada)
+
+**242 linhas**, fonte única em [`f61-evidencias/mudancas-de-proposito.json`](f61-evidencias/mudancas-de-proposito.json)
+e renderizadas em [`f61-evidencias/mudancas-de-proposito.md`](f61-evidencias/mudancas-de-proposito.md). Por frente: **C**
+(a régua) 159 · **E** (as correções) 52 · **D** (os pontos de injeção) 31. Por efeito: **150 com efeito visível**, 92 sem
+(troca de nome com o mesmo valor). 27 arquivos têm pelo menos uma linha **sem vitrine**, e o motivo de cada um está na
+linha (rota `async` com sessão, estado que só existe depois de um POST, ramo que a prévia não monta).
+
+O portão (a) — `npx tsx scripts/design/diff-classes-f61.ts` — fecha o círculo:
+
+```
+ref: v1.65.0 · tabela: 242 linha(s) em docs/f61-evidencias/mudancas-de-proposito.json
+✔ nenhuma diferença sem linha, nenhuma linha sem diferença.
+```
+
+### 17.2 As vitrines (§12, agora fechada)
+
+`scripts/design/previa-f61.tsx` — **8 vitrines, 103 quadros** (94 nomeados + 9 selos derivados), dados 100% fictícios:
+
+| vitrine | quadros | o que prova |
+|---|---:|---|
+| `cromo` | 10 | login, `auth/confirm`, cabeçalho do app, cabeçalho do visualizador, a porta de senha, o rodapé da sidebar, a sidebar, o rodapé de `/versoes` (TRECHO COPIADO), a `Marca` sobre `bg-popover` e a 404 |
+| `admin-tabelas` | 10 + 9 selos | as três tabelas com selo "Ativo", os três vazios, usuários, auditoria, o filtro e a fila |
+| `admin-importar` | 4 | as duas tabelas de erro, as correções aplicadas e o card de grupo |
+| `admin-dialogos` | 21 | os 15 diálogos reais, abertos pelo dublê de `Dialog` |
+| `relatorio` | 29 | KPIs, cartão, células, as seis tabelas, filtros, legendas, listas, casos de manutenção, o medidor nos três níveis, a observação e o resumo |
+| `confirmacoes` | 13 | a `ConfirmacaoDigitada` com as props das QUATRO telas × vazio / não confere / confere, mais a conta sem e-mail |
+| `selos-sucesso` | 2 | o painel de sucesso e o selo de status (controle) |
+| `filtros` | 5 | os cinco filtros de lista no estado inicial (controle: não muda pixel) |
+
+**Sem vitrine, declarado:** `auth/definir-senha` (Server Component com sessão e banco), o painel de sucesso da devolução
+ao fornecedor (só existe depois do POST), o `importar-wizard` inteiro (máquina de etapas com upload), 9 dos 10 tipos de
+correção do `grupos-erros` e o `CorpoRelatorio`/`CorpoRelatorioV2` montados (as peças que a régua reprova entram uma a uma).
+
+### 17.3 O portão (b) — pixel por quadro
+
+`comparar-pixels-f61.mjs`, `antes` × `depois`, 103 quadros × 2 temas × 2 larguras:
+**176 quadros em "ok (zero)"**, nenhuma reprovação.
+
+- **O cromo inteiro deu ZERO pixel** — `login`, `auth-confirmar`, `app-header`, `viewer-header`, `acesso-form` (só o
+  respiro), `marca-sobre-popover` e `nao-encontrado` —, nos dois temas e nas duas larguras: é a prova de que trocar
+  `text-white`/`text-black` pelos pares de tokens não repintou nada.
+- **Dois quadros mudam por um motivo que não é classe**: `cromo/rodape-sidebar` e `cromo/versoes-rodape` mostram o NÚMERO
+  da versão, que passou de `v1.65.0` para `v1.66.0` (o registry, não o CSS). A comparação feita ANTES do bump — com os
+  dois em zero — está em [`f61-evidencias/G-pixels-antes-do-bump.txt`](f61-evidencias/G-pixels-antes-do-bump.txt).
+- **A faixa de antialias.** O recorte de cada quadro sai da foto da página numa grade inteira, e a posição do quadro
+  muda quando um quadro acima muda de altura: o MESMO conteúdo é recortado com outro alinhamento sub-pixel. Medido em
+  quadros cujo HTML normalizado é byte a byte idêntico: 1 a 64 pixels, com Δ máximo **14** por canal. O portão passa a
+  reprovar qualquer pixel com Δ > 16, e o relatório mostra as duas contagens. Não é limiar de porcentagem: **um** pixel
+  forte reprova.
+- **Rolagem horizontal a 390 px:** uma vitrine rola, `selos-sucesso` (399 × 390) — e rolava igual no "antes": é o
+  `PainelSucesso` de `movimentacoes/nova/`, fora do escopo da conversão. Vai para o backlog PATCH.
+
+### 17.4 Os números medidos, antes × depois
+
+| medida | antes | depois |
+|---|---:|---:|
+| `npm run test` | 228 arquivos · 6.432 testes | **238 arquivos · 7.027 testes** |
+| `.test.tsx` (rig grau 1) | 5 | **11** |
+| `SOB_REGRA` | 77 | **154** |
+| arquivos reprovados pela régua | 45 (113 violações) | **0** |
+| `PENDENTES` | 32 entradas | **30** |
+| `DEVOLVIDOS_F61B` | — | **vazia** |
+| `TETO_PALETA_CRUA` / arquivos | 473 / 61 | **413 / 53** |
+| superfície do visualizador / piso | 155 / 125 | **158 / 149** |
+| pares em `scripts/contraste.mjs` | 157 | **167** |
+
+### 17.5 As doze decisões, como ficaram
+
+1. **A fonte única** — `src/lib/identidade/sistema.ts`, `identidadeDoSistema()`; puro, sem ambiente e sem banco.
+2. **Os tokens da marca e do cromo** — `--brand-dark-texto` e `--brand-amarelo-texto`, literais nos dois blocos, nos oito
+   arquivos; `contraste.mjs` mede os pares novos com as razões idênticas às de antes.
+3. **O nome do sistema** — grafia única `Estoque TI WAP`; muda a aba de `/auth/confirm` e `/auth/definir-senha`.
+4. **A régua** — §3.1 aplicada aos 45; catraca por conjunto nominal; 30 entradas de `PENDENTES` com motivo próprio.
+5. **A válvula** — **não foi usada**: `DEVOLVIDOS_F61B` fechou vazia, e não há F61B.
+6. **O verde** — `--sucesso`/`--sucesso-texto` (estado positivo) e `--medidor-folga`/`--medidor-folga-barra` (folga);
+   `<Badge variant="sucesso">` sem opacidade; a legenda "voltou ao estoque" passou a espelhar de fato a pílula.
+7. **A regra de tinta** — o par de verde e o texto branco/preto crus proibidos, lista de exceções **vazia**, não derivada
+   do CSS; teto em 413 / 53.
+8. **A confirmação** — `mono`, `exibirEsperado`, `aviso` e `spellCheck={false}`; as quatro migradas; a mesa anuncia o erro.
+9. **`useDialogoSemeado`** — `src/components/dialogos/`; oito consumidores; exceção nomeada: `lancar-item-dialog`
+   (`editar-ativo-dialog` nem dispara a trava, porque o react-hook-form sincroniza por `values`).
+10. **Os filtros** — `src/components/filtros/url.ts`, pendente por caminho + `useEsquecerFiltrosAoSair`; os cinco migrados.
+11. **O storage** — sete construtoras, chave calculada no uso; exceções `wap-sidebar` e `theme`, nomeadas.
+12. **A prova visual** — §17.2 e §17.3.
+
+### 17.6 O que mudou de propósito desde o plano
+
+- O par do **medidor de folga** entra em `contraste.mjs` como **ANTES registrado**, não com `exigir: true`: `green-600`
+  sobre `green-100` mede **2,93:1**, abaixo do piso de 3:1 do WCAG 1.4.11. É a cor que o medidor já tinha; a fase deu
+  NOME ao par e não repinta. Escurecer a barra é mudança visível de gráfico — vai para o backlog PATCH, agora com nome.
+- **`EstadoVazio` não foi adotado** nos cinco vazios de tabela: a régua reprova o passo (`py-10`), e trocar o componente
+  acrescentaria um ícone que não existe hoje e 16 px de altura. Aplicou-se a regra de escala (`py-12`); a adoção do
+  componente é backlog.
+- **A ordem dos commits** saiu por FRENTE, não por lote: a conversão, os pontos de injeção e as correções se cruzam nos
+  mesmos arquivos (o `importar-wizard` recebeu classe, token e a caixa de confirmação), e `git add` é por arquivo.

@@ -1,0 +1,52 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ↓ |puro| src/lib/dominio/cores.test.ts > o vocabulario do sistema so fala por token > dominio.ts nao usa nenhuma cor da paleta de fabrica do Tailwind
+ ↓ |puro| src/lib/dominio/cores.test.ts > o vocabulario do sistema so fala por token > dominio.ts nao tem nenhum hex escrito a mao
+ ↓ |puro| src/lib/dominio/cores.test.ts > o vocabulario do sistema so fala por token > toda classe de selo e de grafico aponta para um token, nunca para paleta
+ ↓ |puro| src/lib/dominio/cores.test.ts > a catraca da cor crua > o total nao passa de 413
+ ↓ |puro| src/lib/dominio/cores.test.ts > a catraca da cor crua > quando o total desce, o teto desce junto (no mesmo commit)
+ ↓ |puro| src/lib/dominio/cores.test.ts > a catraca da cor crua > o numero de arquivos com cor crua esta registrado
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-estoque tem fundo e tinta nos DOIS temas 3ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia reservado tem fundo e tinta nos DOIS temas 1ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-uso tem fundo e tinta nos DOIS temas 1ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia emprestado tem fundo e tinta nos DOIS temas 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-triagem tem fundo e tinta nos DOIS temas 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-manutencao tem fundo e tinta nos DOIS temas 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia descartado tem fundo e tinta nos DOIS temas 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia devolvido-fornecedor tem fundo e tinta nos DOIS temas 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia troca tem fundo e tinta nos DOIS temas 0ms
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-estoque tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia reservado tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-uso tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia emprestado tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-triagem tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia em-manutencao tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia descartado tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia devolvido-fornecedor tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > a familia troca tem apelido no @theme inline
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > toda classe de selo escrita em dominio.ts aponta para um token declarado
+ ↓ |puro| src/lib/dominio/cores.test.ts > os tokens de selo existem de verdade no CSS > o valor do token e literal, nunca var() — senao o medidor o ignora em silencio
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > as nove familias de grafico estao declaradas no :root 1ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status em_estoque aponta para um token de grafico que TOKEN_PARA_HEX conhece 1ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status reservado aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status em_uso aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status emprestado aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status em_triagem aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status em_manutencao aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status defasado aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status descartado aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o status devolvido_fornecedor aponta para um token de grafico que TOKEN_PARA_HEX conhece 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a tinta de grafico atravessa a fronteira CSS -> Vitest > o hex de TOKEN_PARA_HEX e o mesmo do globals.css, familia por familia 1ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a regra de tinta (F61) > nenhum par proibido fora da lista de excecoes, e nenhuma excecao morta 289ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a regra de tinta (F61) > a lista de excecoes so encolhe (fechou a F61 vazia) 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a regra de tinta (F61) > o par cru do verde de sucesso num selo sintetico reprova 148ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a regra de tinta (F61) > texto branco ou preto cru reprova, com qualquer variante 0ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a regra de tinta (F61) > uma excecao que nao casa com nada reprova 151ms
+ ✓ |puro| src/lib/dominio/cores.test.ts > a regra de tinta (F61) > um callout ambar legitimo e o veu verde translucido passam 1ms
+
+ Test Files  1 passed (1)
+      Tests  26 passed | 17 skipped (43)
+   Start at  16:10:16
+   Duration  4.15s (transform 140ms, setup 0ms, import 3.20s, tests 605ms, environment 0ms)
+
