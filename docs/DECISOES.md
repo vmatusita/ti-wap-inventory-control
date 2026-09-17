@@ -11400,3 +11400,96 @@ refutá-lo. Três rodadas acharam lacunas reais de correção; a quarta, sobre o
   ficou 3,47% abaixo do "depois" da F58 —, e a sabotagem G do relatório listava "16 comandos adulterados" onde são **15**
   (G8–G22). A conclusão não muda (é ruído entre dias; todos recusados). As atas acima ficam como foram escritas; o
   `PLAN-F59.md` e o `RELATORIO-F59.md`, ainda documentos da fase aberta, foram corrigidos no lugar.
+
+## 2026-09-16 · F60 · A revisão adversarial da trava de recorte — três achados reais, dois falsos-positivos, três reforços além da letra da spec
+
+- **Contexto.** Três revisores independentes ("furos", "falsos-positivos", "catálogo") atacaram `scripts/db/recorte-rel.mjs`
+  (a trava de mesa do recorte obrigatório de `public.rel_*`, ainda não commitada) por caminhos diferentes. Cada achado foi
+  RODADO nesta sessão (script próprio em `.../scratchpad/verificacao/`, nunca editando o repositório para reproduzir)
+  antes de decidir "real" ou "não". A ordem NÃO afrouxou nenhuma regra para caber um caso que devia reprovar — três dos
+  cinco achados reais exigiram ir ALÉM da letra literal de `spec-trava.md`, porque a letra, seguida à risca, abria buraco.
+
+- **Achado 1 (CRÍTICO, "furos" + "falsos-positivos", convergente) — a exceção casa por NOME, não por assinatura.**
+  `k_excecoes_recorte` (formato herdado, uma linha por NOME — Decisão 2 da F48) era lido por `def.nome` tanto em
+  `julgarRecorte` quanto em 7a/7b/7f do bloco 7. Um SEGUNDO overload do nome isento (`rel_saldo_colaborador(uuid,
+  boolean)`, sem `p_filiais`, lendo `lancamentos_item` inteira) herdava a isenção inteira sem ter sido avaliado —
+  confirmado rodando o caso (`vivas` com duas assinaturas, `violacoes: []`). **Escolha:** a exceção só vale quando o nome
+  tem, HOJE, exatamente UMA assinatura viva entre as `rel_*`; duas ou mais é violação própria ("exceção com overload"),
+  e as assinaturas caem para R1–R4 normal (nenhuma delas mais isenta). Espelho da asserção 2 de `k_secdef`, aplicado só
+  aos nomes que estão de fato na lista — os demais overloads de `rel_*` já se autojulgam, por assinatura, em R1–R4.
+  Implementado nos dois lados: `julgarRecorte` (JS) e a nova asserção `7g` (SQL) — a única forma de fechar sem mudar o
+  FORMATO do array (nome, não assinatura), que a spec já fixou. Acrescentei também a metade que a spec pede mas
+  `julgarRecorte` não fazia sozinho: "exceção órfã" (nome sem NENHUMA viva correspondente) como violação própria, não só
+  um `it` hardcoded no teste.
+
+- **Achado 2 (ALTA, "furos" + "catálogo", convergente) — R4 tratava "coberto" como um booleano por ESCOPO, sem amarrar a
+  comparação à coluna de filial de verdade nem exigir correlação para herdar.** Três manifestações do MESMO defeito,
+  todas rodadas e confirmadas com `violações novas: []` antes do reparo:
+  - **"Furo 3":** um JOIN decorativo (`movimentacoes mov join ativos ativo on ativo.id = mov.ativo_id where mov.id = any
+    (p_filiais)`) filtra `mov.id` — uma coluna que não tem NADA a ver com filial — e o escopo inteiro (as duas tabelas)
+    passava, porque R2/R3 aceitam qualquer `<colref>`, e R4 só pergunta "existe uma ligação passante NESTE escopo?", não
+    "essa ligação é sobre a coluna certa?".
+  - **"Furo 2":** `exists (select ... de qualquer tabela, sem relação nenhuma com o pai)` dentro de um WHERE coberto
+    herdava a cobertura só por estar sintaticamente dentro dele — mesmo sem NENHUMA correlação com o recorte.
+  - **Achado 1 do "catálogo":** `segmentarComUniao` misturava WHERE/HAVING/GROUP BY/ORDER BY/LIMIT/OFFSET/WINDOW/FETCH/FOR
+    num balde só (`ramo.resto`), e o laço de herança tratava QUALQUER subconsulta encontrada ali como elegível — inclusive
+    uma subconsulta escalar em ORDER BY ou GROUP BY, que a spec proíbe expressamente de herdar, e uma subconsulta em WHERE
+    sem `exists`/`in` nenhum, que não é a forma que a spec descreve.
+  - **Escolha (a spec manda onde ela é clara; onde ela abre buraco, decido pela intenção declarada da fase — R-ACC-71,
+    "proibir fail-open" — e registro aqui, por `docs/CLAUDE.md`):**
+    1. **Cláusulas separadas por tipo** — GROUP BY/ORDER BY/LIMIT/OFFSET/WINDOW/FETCH/FOR NUNCA herdam (viram escopo
+       próprio, como a lista do SELECT); só WHERE/HAVING/ON continuam elegíveis. Isto é LITERAL na spec (ela já dizia
+       "group by/order by também não herda"); o bug era só a implementação não separar os baldes.
+    2. **Só EXISTS/IN herdam** — uma subconsulta solta em WHERE/HAVING sem estar imediatamente envolvida por
+       `exists`/`in` vira escopo próprio. Isto também é textual (a spec fala "(exists, in)").
+    3. **Correlação obrigatória, ALÉM da letra da spec** — uma subconsulta (`exists`/`in`) ou uma tabela derivada/lateral
+       do FROM só herda a cobertura do pai se referenciar, por coluna QUALIFICADA, algum alias visível num escopo
+       ancestral (ou do próprio FROM da linha). Sem isso, o `cross join lateral` legítimo do as-of (`corpos-novos.sql
+       §7`) e o `exists` decorativo do "Furo 2" são INDISTINGUÍVEIS pela letra da spec — os dois "aparecem numa condição
+       de um escopo coberto". A distinção real é que o lateral CORRELACIONA (`m.ativo_id = a.id`) e o furo não
+       correlaciona nada. Verificado que o as-of e os sete corpos de `corpos-novos.sql` continuam passando (script de
+       regressão nesta sessão) e que a variante "pura" do Furo 2 (coluna de cobertura do pai já válida, só o `exists` sem
+       correlação) ainda reprova — prova de que a correlação está fazendo trabalho independente da regra 4.
+    4. **A coluna da ligação precisa ser a de filial de verdade, ALÉM da letra da spec** — `<colref> = any (p_filiais)`
+       só conta como cobertura quando o NOME da coluna é `filial_id` (a convenção universal — 976 ocorrências nas
+       migrations, zero de qualquer variante), ou `id` quando o QUALIFICADOR resolve, no MESMO escopo, para a própria
+       tabela `filiais` (o padrão-guarda do módulo B/D: `f.id = any (p_filiais)`). Fecha o "Furo 3" na ORIGEM (a
+       comparação errada nunca conta como cobertura) sem precisar modelar "cobertura por tabela" — o que QUEBRARIA o
+       padrão LEGÍTIMO, também nos corpos novos, de `rel_resumo_filiais`: `movimentacoes` recorta por `m.filial_id`, e
+       `ativos`/`filiais` entram por JOIN de chave primária sem repetir o filtro (a garantia ali é a igualdade de chave,
+       não uma segunda comparação). Testado e confirmado que este padrão continua passando.
+  - **Por que não fechei diferente:** cheguei a considerar exigir que CADA tabela-base do FROM tenha sua PRÓPRIA
+    comparação (per-tabela, não per-escopo) — mas isso reprova `rel_resumo_filiais` (uma entrega REAL do lote 2,
+    `corpos-novos.sql`), que é o padrão certo do domínio. A régua da coluna (item 4) fecha o buraco relatado sem esse
+    efeito colateral; documentado aqui porque é a decisão mais discutível desta rodada.
+
+- **Achado 3 (BAIXO, "falsos-positivos") — nome de função CITADO (`"rel_x"`) não era lido, falha fechada mas por motivo
+  confuso.** `corpo-vigente.mjs::definicoesDeFuncao` (módulo compartilhado, fora do escopo desta ordem) só casa
+  identificador NU. **Escolha:** sem tocar o módulo compartilhado, `recorte-rel.mjs::criarFuncao` agora normaliza
+  LOCALMENTE (só no texto isolado do comando, antes de chamar `definicoesDeFuncao`) o nome/esquema já lido por
+  `nomeQualificado` (que já respeita `qident`) — nunca decide se é `rel_*` a partir disso, só destrava a leitura do corpo.
+
+- **Achado 4 (MÉDIO, "catálogo") — 7a/7f dependiam de `proallargtypes is not null`, NULO para `rel_*` sem `returns
+  table`.** Confirmado ao vivo no Postgres 17 do ensaio (`sgmvldiizsrjbxzzpmhh`): uma função só com parâmetros IN e
+  `returns smallint` tem `proallargtypes` nulo e `proargtypes` (oidvector, indexado a partir de 0) alinhado 1:1 com
+  `proargnames`. **Escolha:** fallback `proargtypes[arg.ord - 1]` quando `proallargtypes` é nulo, nos dois lados (7a e
+  7f). Hoje não muda nenhum veredito (as oito `rel_*` e os sete corpos novos usam `returns table`), mas fecha o
+  requisito "toda `public.rel_*`" para a forma que a convenção do repositório não usa hoje, mas não proíbe.
+
+- **Não incluído como achado (verificado e recusado, com prova):**
+  - **"Falsos-positivos" achado 2 recíproco (não levantado por ninguém, mas cogitado):** exigir que TODA tabela-base de
+    um JOIN tenha comparação própria — recusado acima, quebraria `rel_resumo_filiais`.
+  - **`consumidos >= encontrados`** (em vez de `===`): já é comportamento documentado e testado por asserção própria
+    (`rpcs-recorte-sql.test.ts`), a lacuna do regex frouxo de auto-conferência com `drop function if exists` — não é
+    achado novo.
+  - Todas as "tentativas rejeitadas corretamente" do revisor "furos" (cast, concatenação, aspas/maiúsculas equivalentes,
+    `or true`, CTE recursiva, `plpgsql`, `returns setof`, overload correto) foram conferidas por leitura do código e
+    continuam corretas depois do reparo (a suíte de regressão desta sessão reconfirma todas).
+
+- **Evidências desta rodada:** `sabotagem-a-mesa-vermelha.txt` (vitest integral, describe 3 vermelho nomeando as sete),
+  `sabotagem-b-disfarces.txt` (describe 5, com os cinco casos novos dos achados 1–2 e os dois casos de contraste — todos
+  verdes) e `bloco7-somente-leitura.sql` (regravado com 7g e o fallback de 7a/7f; rodado ao vivo no ensaio
+  `sgmvldiizsrjbxzzpmhh` — universo 8, 7a/7b acusam as mesmas sete, 7c–7g em zero), todos em
+  `<scratchpad>/evidencias/` desta sessão. `npx tsc --noEmit` e `npx eslint` limpos nos arquivos tocados
+  (`scripts/db/recorte-rel.mjs`, `src/lib/validators/rpcs-recorte-sql.test.ts`, `src/lib/validators/catalogos-seguranca.test.ts`,
+  `supabase/tests/catalogo_secdef.sql`). Nada commitado (ordem explícita do pedido).

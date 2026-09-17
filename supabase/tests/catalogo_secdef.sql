@@ -198,6 +198,20 @@ declare
     'chave_identidade_ativo', 'hoje_brt', 'mov_da_carga_import',
     'status_apos_movimentacao', 'valida_lancamento_item'
   ];
+
+  -- -----------------------------------------------------------------------
+  -- BLOCO 7 (F60) — a exceção NOMINAL ao recorte obrigatório de `public.rel_*`.
+  --
+  -- Fonte única (Decisão 2 da F48): `scripts/db/recorte-rel.mjs::lerExcecoesDeRecorte`
+  -- lê ESTE array como TEXTO, nunca copiado para TypeScript. Uma entrada por linha,
+  -- no formato `'rel_x', -- NNNN · motivo: <frase > 40 caracteres> · destino:
+  -- F<n>|permanente` — a mesma régua de `k_excecoes_predicado` (catalogo_policies.sql),
+  -- só que por NOME de função (não por ocorrência `schema.tabela / policy / função`):
+  -- a chave de recorte da F60 é sempre a função INTEIRA, nunca uma cláusula.
+  -- -----------------------------------------------------------------------
+  k_excecoes_recorte text[] := array[
+    'rel_saldo_colaborador' -- 0118 · motivo: recorta por PESSOA (p_colaborador), não por filial — devolve o saldo de UM colaborador em todas as filiais onde ele tem item, e o recorte de inquilino dela é a RLS de lancamentos_item/colaboradores (a que a virada multiempresa escreve nas policies) · destino: permanente
+  ];
 begin
   -- ---------------------------------------------------------------
   -- 1 — A TABELA-VERDADE, nos DOIS SENTIDOS. O coração do arquivo.
@@ -434,6 +448,256 @@ begin
        '6c as cinco INVOKER da 0129 seguem sem EXECUTE para anon' ||
        case when v_cnt > 0 then ' — regrediu/sumiu: ' || v_lista else '' end,
        v_cnt, array_length(k_invoker_revogadas, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ===============================================================
+  -- BLOCO 7 — O RECORTE OBRIGATÓRIO DE `public.rel_*` (F60, 16/09/2026)
+  --
+  -- A F60 troca `p_filial smallint` com `(p_filial is null or col = p_filial)` por
+  -- `p_filiais smallint[]` com `col = any (p_filiais)` nas RPCs de relatório — a
+  -- forma anterior é NÃO-SARGÁVEL no caminho real (fato 6 da ordem: o PostgREST nunca
+  -- chama com literal, e função com `set search_path` não é embutida — o plano fica
+  -- `Seq Scan` com `Filter`) e é FAIL-OPEN (R-ACC-71 da emenda F59: "se nulo pode
+  -- significar 'mostre tudo', a forma é proibida" — `rel_*(null)` hoje devolve TUDO).
+  --
+  -- A DIVISÃO DE TRABALHO — o catálogo julga FATOS DE CATÁLOGO, a mesa é a
+  -- autoridade sobre a FORMA:
+  --   · CONFIÁVEL, e só aqui: `proargnames`/`proallargtypes` (o parâmetro existe e o
+  --     tipo é `smallint[]`, sem parsear texto — 7a), `provolatile`/`proisstrict`/
+  --     `prosecdef`/`proconfig` (7d) e `has_function_privilege` por papel (7e) — são
+  --     dados do catálogo, não do texto do corpo.
+  --   · PROVA POSITIVA fraca, aqui e na mesa: 7b prova que `prosrc` MENCIONA a forma
+  --     certa — é POSITIVO e confiável (a ligação existe), mas não prova que ela é a
+  --     ÚNICA forma de acesso ao parâmetro.
+  --   · SÓ NA MESA (`src/lib/validators/rpcs-recorte-sql.test.ts`, que importa
+  --     `scripts/db/recorte-rel.mjs`): **R3** (a ligação é CONJUNÇÃO DIRETA de
+  --     `where`/`on`/`having` — nunca dentro de uma disjunção ou de um `case`) e **R4**
+  --     (toda leitura de tabela-base, em todo escopo de `select`, está coberta pelo
+  --     recorte, direto ou herdado). O motivo é estrutural: função `language sql`
+  --     clássica (a forma das oito `rel_*` de hoje — fato 5) não expõe o corpo como
+  --     árvore no catálogo (`pg_proc.prosqlbody` fica NULO; só `prosrc`, texto, existe)
+  --     — diferente de `polqual`/`polwithcheck` de POLICY, que É `pg_node_tree` (bloco
+  --     4 acima). Por isso a 7c abaixo é uma prova NEGATIVA deliberadamente FRACA
+  --     (declarada como tal): ela pega os disfarces TEXTUAIS conhecidos
+  --     (`coalesce`/`nullif`/`case when`/`is null`/`is distinct` perto de
+  --     `p_filiais`), mas não prova a ausência de TODO disfarce possível — só a mesa,
+  --     com o léxico e os escopos, prova isso com segurança (R2/R3/R4).
+  --
+  -- A EXCEÇÃO — `k_excecoes_recorte`, declarada acima, junto das outras listas deste
+  -- arquivo (Decisão 2 da F48: uma fonte por fato, nunca uma cópia em TypeScript).
+  --
+  -- ⚠ A exceção é um array de NOME, não de assinatura (a mesma forma de
+  -- `k_secdef`) — por isso 7g, análoga à asserção 2 acima, prova que nenhum
+  -- nome da lista tem mais de uma assinatura viva: sem ela, um SEGUNDO
+  -- overload do nome isento herdaria a isenção inteira sem ter sido avaliado
+  -- (revisão adversarial da F60, achado CRÍTICO — ver `docs/DECISOES.md`).
+  -- ===============================================================
+
+  -- ---------------------------------------------------------------
+  -- 7a — toda `public.rel_*` declara `p_filiais smallint[]`, ou está na exceção.
+  --      `proallargtypes` (não `proargtypes`) porque `returns table (...)` cria
+  --      colunas OUT que entram em `proargnames` mas NUNCA em `proargtypes`
+  --      (oidvector só de IN/INOUT/VARIADIC) — indexar por posição sem
+  --      `proallargtypes` desalinharia nome e tipo a partir da primeira coluna
+  --      de retorno.
+  --
+  --      ⚠ Quando a função NÃO tem nenhuma coluna OUT/INOUT/TABLE (não usa
+  --      `returns table (...)`), o Postgres deixa `proallargtypes` NULO — só o
+  --      popula quando há pelo menos um modo diferente de IN (confirmado ao
+  --      vivo, F60: uma função com só parâmetros IN e `returns smallint` tem
+  --      `proallargtypes is null`). Sem o `coalesce` abaixo, TODA `rel_*` que
+  --      não usasse `returns table` cairia aqui como "sem o parâmetro certo"
+  --      mesmo declarando `p_filiais smallint[]` do jeito certo — falha
+  --      fechada (não deixa passar nada indevido), mas errada por motivo
+  --      (achado da revisão adversarial "revisor catálogo", F60). Quando
+  --      `proallargtypes` é nulo, TODOS os parâmetros são IN, então
+  --      `proargtypes` (oidvector, indexado a partir de 0 — confirmado ao
+  --      vivo) alinha 1:1 com `proargnames` por posição; `arg.ord` (1-based,
+  --      de `with ordinality`) vira `arg.ord - 1` nesse índice.
+  -- ---------------------------------------------------------------
+  select count(*) into v_univ
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and p.proname ~ '^rel_';
+
+  select count(*), coalesce(string_agg(distinct p.proname, ', ' order by p.proname), '')
+    into v_cnt, v_lista
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and p.proname ~ '^rel_'
+     and not (p.proname = any (k_excecoes_recorte))
+     and not exists (
+       select 1
+         from unnest(p.proargnames) with ordinality as arg(nome, ord)
+        where arg.nome = 'p_filiais'
+          and (
+            (p.proallargtypes is not null and p.proallargtypes[arg.ord]::regtype = 'smallint[]'::regtype)
+            or (p.proallargtypes is null and p.proargtypes[arg.ord - 1]::regtype = 'smallint[]'::regtype)
+          )
+     );
+  if pg_temp.assert_zero_de(
+       '7a toda rel_* declara p_filiais smallint[], ou está em k_excecoes_recorte' ||
+       case when v_cnt > 0 then ' — sem o parâmetro certo: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 7b — toda rel_* fora da exceção MENCIONA a ligação certa no corpo. Prova
+  --      POSITIVA (a forma existe) — confiável; não prova que é a ÚNICA forma
+  --      de uso do parâmetro (isso é R2/R3, só na mesa).
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(distinct p.proname, ', ' order by p.proname), '')
+    into v_cnt, v_lista
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and p.proname ~ '^rel_'
+     and not (p.proname = any (k_excecoes_recorte))
+     and p.prosrc !~* '[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?\s*=\s*any\s*\(\s*p_filiais\s*\)';
+  if pg_temp.assert_zero_de(
+       '7b toda rel_* fora da exceção tem "= any (p_filiais)" em prosrc' ||
+       case when v_cnt > 0 then ' — sem a ligação no texto: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 7c — nenhuma rel_* tem, em prosrc, os disfarces textuais do fail-open
+  --      conhecido (a lista do fato 7/9 da ordem). PROVA FRACA, de propósito
+  --      (ver o cabeçalho do bloco): pega o disfarce CONHECIDO, não prova a
+  --      ausência de todo disfarce possível — essa prova mora na mesa (R2/R3).
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(distinct p.proname, ', ' order by p.proname), '')
+    into v_cnt, v_lista
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and p.proname ~ '^rel_'
+     and p.prosrc ~* '(p_filiais\s+is\s+(not\s+)?null|coalesce\s*\(\s*p_filiais|nullif\s*\(\s*p_filiais|case\s+when\s+p_filiais|p_filiais\s+is\s+(not\s+)?distinct)';
+  if pg_temp.assert_zero_de(
+       '7c nenhuma rel_* tem disfarce textual conhecido de fail-open em prosrc (prova fraca — a mesa é a autoridade)' ||
+       case when v_cnt > 0 then ' — disfarce achado em: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 7d — toda rel_* é security invoker, stable, não strict, com search_path
+  --      fixo em proconfig (o mesmo efeito, lido do catálogo — nunca da
+  --      grafia da migration; ver a asserção 3 acima).
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(distinct p.proname, ', ' order by p.proname), '')
+    into v_cnt, v_lista
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and p.proname ~ '^rel_'
+     and (
+       p.prosecdef
+       or p.provolatile <> 's'
+       or p.proisstrict
+       or not exists (
+         select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) as c
+          where c like 'search_path=%'
+       )
+     );
+  if pg_temp.assert_zero_de(
+       '7d toda rel_* é security invoker, stable, não strict, com search_path fixo' ||
+       case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 7e — `authenticated` e `service_role` têm EXECUTE em toda rel_* (a
+  --      ausência de EXECUTE de `anon` já é a 6a, que vale para QUALQUER
+  --      invoker de public — não duplicada aqui).
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(distinct p.proname, ', ' order by p.proname), '')
+    into v_cnt, v_lista
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and p.proname ~ '^rel_'
+     and not (
+       has_function_privilege('authenticated', p.oid, 'execute')
+       and has_function_privilege('service_role', p.oid, 'execute')
+     );
+  if pg_temp.assert_zero_de(
+       '7e authenticated e service_role têm EXECUTE em toda rel_*' ||
+       case when v_cnt > 0 then ' — sem EXECUTE em algum papel: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 7f — a exceção nos DOIS sentidos: todo nome de `k_excecoes_recorte`
+  --      existe como rel_* viva E não declara `p_filiais` — senão é exceção
+  --      morta (a função já recorta e a exceção só esconderia uma regressão).
+  --      Mesmo `coalesce` de proallargtypes/proargtypes da 7a — ver o motivo lá.
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
+    into v_cnt, v_lista
+    from unnest(k_excecoes_recorte) as nome
+   where not exists (
+     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.prokind = 'f' and p.proname = nome
+   )
+   or exists (
+     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.prokind = 'f' and p.proname = nome
+        and exists (
+          select 1
+            from unnest(p.proargnames) with ordinality as arg(nome2, ord)
+           where arg.nome2 = 'p_filiais'
+             and (
+               (p.proallargtypes is not null and p.proallargtypes[arg.ord]::regtype = 'smallint[]'::regtype)
+               or (p.proallargtypes is null and p.proargtypes[arg.ord - 1]::regtype = 'smallint[]'::regtype)
+             )
+        )
+   );
+  if pg_temp.assert_zero_de(
+       '7f toda exceção de k_excecoes_recorte existe como rel_* e não declara p_filiais (exceção viva, não morta)' ||
+       case when v_cnt > 0 then ' — órfã ou morta: ' || v_lista else '' end,
+       v_cnt, array_length(k_excecoes_recorte, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 7g — NENHUM NOME de `k_excecoes_recorte` tem mais de uma assinatura
+  --      viva. `k_excecoes_recorte` (Decisão 2 da F48) é um array de NOME, não
+  --      de assinatura — 7a/7b/7f acima excluem TODA linha cujo `proname`
+  --      esteja na lista, sem olhar `proargtypes`. Um SEGUNDO overload do
+  --      mesmo nome (ex.: `rel_saldo_colaborador(uuid, boolean)`, que não
+  --      declara `p_filiais` e lê `lancamentos_item` sem recorte nenhum)
+  --      herdaria a isenção inteira sem ter sido avaliado por 7a/7b/7c — o
+  --      achado CRÍTICO da revisão adversarial (F60): "a exceção casa por
+  --      NOME da função, não pela assinatura inteira". Espelho, para o array
+  --      de exceções, da asserção 2 acima ("nenhum nome `security definer`
+  --      tem mais de uma assinatura viva") — a mesma doutrina, aplicada aqui
+  --      só aos nomes que estão de fato isentos (os demais overloads de
+  --      `rel_*` já são julgados um a um, por assinatura, em 7a/7b/7c, então
+  --      não precisam desta trava adicional).
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(nome || ' (' || n || ')', ', ' order by nome), '')
+    into v_cnt, v_lista
+    from (
+      select nome, count(*) as n
+        from unnest(k_excecoes_recorte) as nome
+        join pg_proc p on p.proname = nome
+        join pg_namespace ns on ns.oid = p.pronamespace and ns.nspname = 'public' and p.prokind = 'f'
+       group by nome having count(*) > 1
+    ) dup;
+  if pg_temp.assert_zero_de(
+       '7g nenhum nome de k_excecoes_recorte tem mais de uma assinatura rel_* viva' ||
+       case when v_cnt > 0 then ' — overload(s): ' || v_lista else '' end,
+       v_cnt, array_length(k_excecoes_recorte, 1)::bigint) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;
