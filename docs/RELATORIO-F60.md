@@ -24,6 +24,37 @@
 procedimento detalhado mora no Anexo A e em "A janela do `drop`" do [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), que
 prevalecem sobre qualquer resumo daqui.*
 
+### ⚠ Antes de tudo: o canal caiu, e é você quem o devolve
+
+**O que aconteceu.** Na madrugada de 17/09, com o lote 2 pronto e o CI verde (`d83f8ec`), todas as ferramentas do conector
+da **Supabase** passaram a responder *"This tool has been disabled in your connector settings"* — inclusive `list_projects`
+e `list_migrations`, que só leem. Não havia `SUPABASE_ACCESS_TOKEN` no ambiente. A ordem manda, nesse caso, não contornar
+nem procurar o token: entregar tudo o que não depende de banco real, verde no CI, com o PR **aberto e sem merge**. Por isso
+**nenhuma migration da fase foi aplicada**, produção está exatamente como na `1.64.0`, e a tag `v1.65.0` não existe.
+
+**Devolver o canal (2 minutos):** em claude.ai → *Settings → Connectors → Supabase*, reabilite as ferramentas do conector
+(no mínimo `list_projects`, `list_migrations`, `execute_sql`, `apply_migration`, `get_advisors` e
+`generate_typescript_types`).
+
+**Caminho recomendado — o agente termina a fase.** Numa sessão `claude` na raiz do repositório, na branch
+`f60-recorte-que-corta-scan`, com o conector reabilitado, cole:
+
+```text
+Retome a fase F60 do ponto em que o docs/RELATORIO-F60.md §1 parou: o canal da Supabase voltou. Siga os passos 0 a 5 do
+§1 na ordem, sem refazer o que o relatório já prova — ensaio (0141→0145 com a verificação, a equivalência com a função de
+verdade entre a 0143 e a 0145, o "depois" do harness de itens e os tipos conferidos), produção antes do merge (0141, 0142,
+0143, a equivalência real, o conferidor, o explain "depois" e a confirmação do orçamento do as-of), o merge do PR #52 com
+verificar e banco-sem-docker verdes, a conferência pós-deploy, a janela do drop pela receita do RUNBOOK-BANCO.md, as duas
+rodadas do TTFB "depois", o PR só de documentação e a tag anotada v1.65.0. Regras da ordem
+docs/prompts/F60-recorte-que-corta-scan-ultracode.md (Frente F e "Git e segurança") valem inteiras. Atualize este
+relatório, a ata e as evidências.
+```
+
+**Se preferir fazer à mão**, os passos abaixo são os mesmos — o apply pelo SQL Editor (caminho B) colando cada arquivo
+inteiro. Só a equivalência com a função de verdade e a leitura do `pg_stat_statements` da janela do `drop` dependem dos
+instrumentos, que emitem SQL para você colar e gravar a resposta; se for fazer só o apply à mão, pare no passo 2.1 e deixe o
+resto para o agente — **nunca** faça o merge sem a equivalência real, nem o `drop` sem a janela.
+
 **O canal.** Caminho A: o MCP da Supabase (`apply_migration` para as migrations, `execute_sql` para as leituras). Sem MCP:
 caminho B, o SQL Editor, colando cada arquivo inteiro. **Não há script de apply no repositório** — o "caminho da `0131`" era
 um padrão escrito na hora (runbook, "O canal"). Nenhum passo abaixo lê dado de linha: só contagens, hashes e nomes.
