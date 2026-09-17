@@ -23,8 +23,8 @@ const marcadas = (ids: number[]) =>
 
 // A REPRODUÇÃO EM TS DA RPC — só para o teste, nunca para a tela.
 //
-// `rel_saldo_itens` (0027) calcula `liberados` e o esconde. Aqui reconstruímos as
-// quatro colunas A PARTIR das três grandezas cruas, exatamente como o SQL faz, e
+// `rel_saldo_itens_filiais` (0143, com os clamps da 0027) calcula `liberados` e o
+// esconde. Aqui reconstruímos as quatro colunas A PARTIR das três grandezas cruas, exatamente como o SQL faz, e
 // provamos que a derivação da tela devolve `liberados` de volta. Se um dia a RPC
 // mudar de fórmula, é este helper que tem de mudar junto — e aí o teste acusa.
 function colunasDaRpc(total: number, atrelados: number, liberados: number): NumerosDoItem {

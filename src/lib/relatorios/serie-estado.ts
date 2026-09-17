@@ -11,8 +11,9 @@ import type { PontoEstado } from '@/lib/relatorios/tipos'
 // série dá a curva.
 //
 // A restrição que dita todo o desenho: **sem migration e sem RPC nova**. O estado
-// as-of de uma data só existe via `rel_estoque_asof`, que reconstrói a linha do
-// tempo inteira e mede ~233 ms na consolidada. Um ponto por semana custa uma
+// as-of de uma data só existe via `rel_estoque_asof_filiais` (até a F60,
+// `rel_estoque_asof`), que reconstrói a linha do tempo inteira — ~233 ms na
+// consolidada quando a série nasceu (F32). Um ponto por semana custa uma
 // chamada. Daí o TETO DURO de leituras por render — não é número mágico: é o
 // orçamento que a página aguenta com as leituras que ela já faz, disparadas em
 // paralelo (ver o comentário de `maxDuration` em relatorios/[filial]/page.tsx).
@@ -41,7 +42,7 @@ import type { PontoEstado } from '@/lib/relatorios/tipos'
 // mas não 7 leituras as-of: o ponto do fim do período reaproveita a promise que
 // `getSnapshotRelatorioV2` já tem em voo (ver `estadoNoFim` em snapshot.ts e o
 // bloco DEGRADAÇÃO em `getSerieEstado`), então o pior caso real é 6 chamadas de
-// `rel_estoque_asof` por render.
+// `rel_estoque_asof_filiais` por render.
 export const MAX_SEMANAS_SERIE_ESTADO = 6
 export const MAX_PONTOS_SERIE_ESTADO = MAX_SEMANAS_SERIE_ESTADO + 1
 // Dois pontos são um segmento de reta, não uma tendência — e três é o menor

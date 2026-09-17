@@ -8,8 +8,9 @@
 // deduzia decorando a semântica de cada cor de pílula. Este módulo dá o sinal
 // pelo EFEITO na prateleira, que é o que o operador quer ler.
 //
-// A FÓRMULA É DO BANCO — a mesma da RPC `rel_saldo_itens` e de
-// `calcularSaldoApos` (migration 0027, doutrina Total/Estoque F6A §A4):
+// A FÓRMULA É DO BANCO — a mesma da RPC `rel_saldo_itens_filiais` e de
+// `calcularSaldoApos` (migration 0027, doutrina Total/Estoque F6A §A4; reaplicada
+// ao conjunto do recorte na 0143):
 //   entrada   → estoque +q (total +q)
 //   saida     → estoque −q (vai para "liberados": ficou com uma pessoa)
 //   reserva   → estoque −q (vai para "atrelados": preso a um chamado)

@@ -19,8 +19,10 @@ import {
 } from '@/lib/queries/itens'
 import type { Filial } from '@/lib/queries/filiais'
 
-// I4 (F11) — a tabela lado a lado é montada por ESTA função pura a partir de
-// N+1 leituras da RPC `rel_saldo_itens` (uma por filial + a consolidada). O que
+// I4 (F11) — a tabela lado a lado é montada por ESTA função pura a partir das
+// linhas por filial e do consolidado de `rel_saldo_itens_filiais` — desde a F60 os
+// dois níveis de UMA chamada, separados por `montarSaldosPorFilial` (até a F59, N+1
+// leituras de `rel_saldo_itens`: uma por filial + a consolidada). O que
 // importa: cada número cair na coluna da SUA filial, filial sem lançamento vir
 // zerada (nunca buraco) e a ordem da leitura consolidada mandar.
 // Filiais e itens 100% fictícios.
@@ -190,9 +192,11 @@ describe('estoqueForaDasColunas', () => {
 // ---------------------------------------------------------------------------
 // F25 — somar N filiais quando o filtro é MULTI
 // ---------------------------------------------------------------------------
-// `rel_saldo_itens` (0016) recebe UMA filial ou NULL. Com o filtro virando
-// multi-seleção, 2+ filiais viram N leituras somadas em memória — nenhuma RPC
-// muda. É a mesma aritmética que `combinarSaldosPorFilial` já usava.
+// Na F25 `rel_saldo_itens` (0016) recebia UMA filial ou NULL, e com o filtro virando
+// multi-seleção 2+ filiais viraram N leituras somadas em memória. Desde a F60 é UMA
+// chamada de `rel_saldo_itens_filiais` com a lista (`somarSaldosDaSelecao`), e as
+// linhas por filial continuam somadas aqui — a mesma aritmética que
+// `combinarSaldosPorFilial` já usava.
 describe('somarSaldosDeFiliais (F25)', () => {
   it('soma célula a célula as leituras de cada filial', () => {
     const r = somarSaldosDeFiliais([

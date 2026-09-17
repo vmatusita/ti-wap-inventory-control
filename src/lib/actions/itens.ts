@@ -479,7 +479,7 @@ export type SaldosPorItem = Readonly<Record<number, number>> & {
  * regularização (`partirQuantidade`, F41) precisa do par `{ emEstoque, emUso }`:
  * a `saida` só olha o estoque, mas a `devolução` olha o que está com as pessoas.
  *
- * ⚠ SEM MIGRATION. `rel_saldo_itens` calcula `liberados` e não o devolve; o número
+ * ⚠ SEM MIGRATION. `rel_saldo_itens_filiais` calcula `liberados` e não o devolve; o número
  * se DERIVA das quatro colunas que ela devolve (`emUsoDoSaldo`, em
  * `src/lib/itens/lista.ts`, com a álgebra e a prova). Uma segunda fonte para o
  * mesmo número é exatamente o que esta casa não faz.

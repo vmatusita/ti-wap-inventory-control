@@ -14,8 +14,9 @@ import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 // 1 · "EM USO" — a coluna que a F41 batizou e não transformou em coluna
 // ---------------------------------------------------------------------------
 //
-// `rel_saldo_itens` (migration `0027_itens_total_estoque.sql`, nunca recriada
-// depois) CALCULA o número, mas não o devolve. Dentro dela:
+// `rel_saldo_itens_filiais` (migration `0143_rel_filiais.sql`, com os MESMOS clamps
+// da `0027_itens_total_estoque.sql`, aplicados ao conjunto do recorte) CALCULA o
+// número, mas não o devolve. Dentro dela:
 //
 //     liberados = greatest(0, Σsaida − Σretorno)      ← "em uso com as pessoas"
 //     estoque   = greatest(0, total − atrelados − liberados)
@@ -37,7 +38,7 @@ import { lerUnidades, type UnidadesEfetivas } from '@/lib/auth/recorte-leitura'
 // ⚠ E NUNCA leia "em uso" de uma segunda fonte. Esta fase não tem migration: a
 // coluna se DERIVA do que a RPC já devolve, e essa é a única fonte da verdade.
 
-/** As quatro colunas que `rel_saldo_itens` devolve. */
+/** As quatro colunas de número que `rel_saldo_itens_filiais` devolve. */
 export type NumerosDoItem = {
   total: number
   estoque: number

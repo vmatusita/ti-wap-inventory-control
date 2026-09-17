@@ -15,7 +15,7 @@ import type { Descritor } from '@/lib/supabase/leitura'
 //
 //  2. O NOME da relação (ou da RPC) do descritor aparece LITERAL no arquivo de `src/**` que usa
 //     aquele descritor. O call-site escreve `.from('movimentacoes')` / `chamarRpc(client,
-//     'rel_resumo', …)` literal — exigência do tripwire do visualizador —, e o descritor guarda o
+//     'rel_resumo_filiais', …)` literal — exigência do tripwire do visualizador —, e o descritor guarda o
 //     mesmo nome para o conferidor. Sem esta checagem, um call-site que lesse OUTRA relação com a
 //     forma daqui só seria pego se a amarração de tipo falhasse por acaso.
 //

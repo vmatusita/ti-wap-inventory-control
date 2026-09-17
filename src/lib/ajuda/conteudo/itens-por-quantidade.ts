@@ -8,7 +8,7 @@ import type { PaginaAjuda } from '@/lib/ajuda/tipos'
 //
 // F42 — entrou **Em uso**, e a ORDEM aqui é a ORDEM DAS COLUNAS na tela. A F41
 // batizou o número ("quanto está com as pessoas") e não o transformou em coluna;
-// ele é derivado do que `rel_saldo_itens` já devolve, sem migration nenhuma —
+// ele é derivado do que `rel_saldo_itens_filiais` já devolve, sem migration nenhuma —
 // `emUsoDoSaldo` em `src/lib/itens/lista.ts` carrega a álgebra e a prova.
 //
 // ⚠ `Reservado` continua nesta lista e SAIU da tabela: desde a F41 nenhuma tela

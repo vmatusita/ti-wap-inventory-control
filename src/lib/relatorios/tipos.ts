@@ -256,7 +256,7 @@ export type TabelasTruncadas = {
 
 // B5 (F6B): uma linha da tabela de movimentações de ITENS por quantidade no
 // período (seção própria — só para acessórios/componentes; os ativos não mudam).
-// Lançamento a lançamento (ao contrário de rel_mov_itens, que agrega por item).
+// Lançamento a lançamento (ao contrário de rel_mov_itens_filiais, que agrega por item).
 export type LinhaLancamentoItem = {
   id: string
   data: string
