@@ -33,7 +33,7 @@ export const VERSOES: readonly EntradaVersao[] = [
       'A tela de Itens passou a montar as colunas de cada filial e o total com duas buscas ao banco, no lugar das sete de antes (uma para o total e uma para cada filial).',
       'Em Administração › Colaboradores, a lista "Nomes digitados que ainda não têm cadastro" passou a ser montada em cerca de metade do tempo — de uns 100 para uns 50 milésimos de segundo no banco —, com exatamente os mesmos nomes.',
       'As tabelas Saídas, Entradas e Transferências dos relatórios passam a avisar quando o período tiver mais de 2.000 linhas, mostrando as mais recentes e o total exato. Hoje o maior período possível tem 155 linhas, então o aviso não aparece.',
-      'Nos relatórios, o estado do estoque numa data passada — o gráfico "Evolução do estoque" e o relatório de um período que já terminou — ficou mais caro de montar no banco: cerca de 1,6 a 1,7 vezes o tempo de antes no volume de hoje, dois a três centésimos de segundo a mais por data. Em troca, essa conta deixa de crescer com o histórico de cada equipamento.',
+      'Nos relatórios, o estado do estoque numa data passada — o gráfico "Evolução do estoque" e o relatório de um período que já terminou — ficou mais caro de montar no banco. No total de todas as filiais, leva de 1,6 a 1,8 vezes o tempo de antes no volume de hoje, dois a três centésimos de segundo a mais por data; numa filial só, de 1,7 a 2,3 vezes, com uma diferença menor, de um a dois centésimos de segundo. Em troca, essa conta deixa de crescer com o histórico de cada equipamento.',
     ],
   },
   {
