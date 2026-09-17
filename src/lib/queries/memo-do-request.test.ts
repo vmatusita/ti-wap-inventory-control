@@ -11,10 +11,11 @@ import {
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import { selecaoDeUnidadesPorSlug, type SelecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
 import { memoizarPorUnidades } from '@/lib/queries/memo-do-request'
+import { contarConflitosAbertos } from '@/lib/queries/conflitos'
 
 // F60 · fato 12 — UMA leitura de conflitos por request, provada sem banco (PLAN §10, decisão 6).
 //
-// Três afirmações, na ordem em que uma dependeria da outra:
+// Quatro afirmações, na ordem em que uma dependeria da outra:
 //  (i)  as unidades que o LAYOUT do grupo `(app)` monta e as que a PÁGINA do dashboard monta são
 //       objetos DIFERENTES (a premissa do fato 12) com a MESMA chave (`Object.is`), para os quatro
 //       cargos — e a chave não colapsa vistas que pedem leituras diferentes;
@@ -23,6 +24,10 @@ import { memoizarPorUnidades } from '@/lib/queries/memo-do-request'
 //  (iii) SABOTAGEM I, documentada: memoizar pelo OBJETO cru (o `cache(contarConflitosAbertos)`
 //       ingênuo) dá DUAS leituras. A execução em que a chave de `chaveDasUnidades` foi trocada pelo
 //       objeto e (i)/(ii) ficaram vermelhos está gravada na evidência da fase.
+//  (iv) a LIGAÇÃO REAL: `contarConflitosAbertos`, importada de `queries/conflitos.ts` como o layout
+//       e a página a importam, faz UMA ida ao banco para layout + página. (i)–(iii) provam o
+//       mecanismo; sem (iv), `return lerConflitosAbertos(unidades)` no lugar do memo, ou o armazém
+//       sem `cache()`, deixavam a suíte verde (revisão do lote 1, revisor 1, achado 1).
 //
 // O `cache()` do React não memoiza no Vitest — o build padrão do pacote `react` o implementa como
 // repasse, e só o build `react-server`, dentro de um render, guarda alguma coisa. Por isso a regra
@@ -31,37 +36,68 @@ import { memoizarPorUnidades } from '@/lib/queries/memo-do-request'
 // memória fora de um request. Filiais 100% fictícias.
 
 // ---------------------------------------------------------------------------
-// A regra do React, simulada
+// A regra do React, simulada — em `vi.hoisted`, porque o `vi.mock('react')` de (iv) a entrega ao
+// `cache` que `queries/conflitos.ts` chama na CARGA do módulo, antes de qualquer linha deste arquivo.
 // ---------------------------------------------------------------------------
 
-type Entrada = { readonly args: readonly unknown[]; readonly valor: unknown }
-let requestAtual: Map<object, Entrada[]> | null = null
+const { cacheComoOReact, emUmRequest } = vi.hoisted(() => {
+  type Entrada = { readonly args: readonly unknown[]; readonly valor: unknown }
+  let requestAtual: Map<object, Entrada[]> | null = null
 
-function cacheComoOReact<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
-  // Cada `cache()` tem memória PRÓPRIA — a identidade da chamada é a chave do mapa do request.
-  const identidade = {}
-  return (...args: A): R => {
-    if (requestAtual === null) return fn(...args) // fora de request: repasse, como o React
-    let entradas = requestAtual.get(identidade)
-    if (entradas === undefined) requestAtual.set(identidade, (entradas = []))
-    const achada = entradas.find(
-      (e) => e.args.length === args.length && e.args.every((a, i) => Object.is(a, args[i])),
-    )
-    if (achada !== undefined) return achada.valor as R
-    const valor = fn(...args)
-    entradas.push({ args, valor })
-    return valor
+  function cacheComoOReact<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+    // Cada `cache()` tem memória PRÓPRIA — a identidade da chamada é a chave do mapa do request.
+    const identidade = {}
+    return (...args: A): R => {
+      if (requestAtual === null) return fn(...args) // fora de request: repasse, como o React
+      let entradas = requestAtual.get(identidade)
+      if (entradas === undefined) requestAtual.set(identidade, (entradas = []))
+      const achada = entradas.find(
+        (e) => e.args.length === args.length && e.args.every((a, i) => Object.is(a, args[i])),
+      )
+      if (achada !== undefined) return achada.valor as R
+      const valor = fn(...args)
+      entradas.push({ args, valor })
+      return valor
+    }
   }
-}
 
-async function emUmRequest<T>(corpo: () => Promise<T>): Promise<T> {
-  requestAtual = new Map()
-  try {
-    return await corpo()
-  } finally {
-    requestAtual = null
+  async function emUmRequest<T>(corpo: () => Promise<T>): Promise<T> {
+    requestAtual = new Map()
+    try {
+      return await corpo()
+    } finally {
+      requestAtual = null
+    }
   }
-}
+
+  return { cacheComoOReact, emUmRequest }
+})
+
+// ---------------------------------------------------------------------------
+// O banco de (iv), falso — conta as idas, e só isso
+// ---------------------------------------------------------------------------
+
+const banco = vi.hoisted(() => {
+  // Uma entrada por `.from()`: é a ida ao banco. O construtor aceita a cadeia que
+  // `contarGruposConflito` monta (select/in/eq/order/range) e responde `count: 1` — com um lado só, a
+  // lista de duas filiais não varre chaves, então cada leitura é exatamente UM `.from()`.
+  const idas: string[] = []
+  const RESPOSTA = { data: [], count: 1, error: null }
+  const construtor = (relacao: string) => {
+    idas.push(relacao)
+    const b: Record<string, unknown> = {}
+    for (const metodo of ['select', 'in', 'eq', 'order', 'range']) b[metodo] = () => b
+    b.then = (ok?: (r: typeof RESPOSTA) => unknown, erro?: (e: unknown) => unknown) =>
+      Promise.resolve(RESPOSTA).then(ok, erro)
+    return b
+  }
+  return { idas, criarCliente: async () => ({ from: construtor }) }
+})
+
+vi.mock('react', async (importOriginal) => ({ ...(await importOriginal<typeof import('react')>()), cache: cacheComoOReact }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: banco.criarCliente }))
+// A falha de leitura vira 0 e um registro — aqui ela não pode acontecer calada: (iv) exige o `1` do banco falso.
+vi.mock('@/lib/observabilidade', () => ({ registrarFalha: vi.fn() }))
 
 // ---------------------------------------------------------------------------
 // As duas montagens de hoje — layout e página
@@ -246,5 +282,62 @@ describe('(iii) SABOTAGEM I, documentada — o objeto cru como chave', () => {
       ]),
     )
     expect(leitor).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('(iv) a ligação REAL — `contarConflitosAbertos` de `queries/conflitos.ts`', () => {
+  // O mesmo `(ii)`, sem réplica do armazém: a função que o layout e a página importam, com o `cache` que
+  // o módulo chama na carga, o `createClient` e o `.from()` que a leitura de verdade faz. Duas sabotagens
+  // da revisão deixam isto vermelho e (i)–(iii) verdes: o memo contornado (`return
+  // lerConflitosAbertos(unidades)`) e o armazém sem `cache()` (`const conflitosAbertosDoRequest = () =>
+  // new Map()`) — as duas medidas no fecho da correção.
+  const idasDurante = async <T,>(corpo: () => Promise<T>): Promise<{ resultado: T; idas: number }> => {
+    const antes = banco.idas.length
+    const resultado = await corpo()
+    return { resultado, idas: banco.idas.length - antes }
+  }
+
+  it.each(CARGOS)('%s: layout + página no mesmo request = UMA ida ao banco', async (_cargo, operador) => {
+    const { resultado, idas } = await idasDurante(() =>
+      emUmRequest(() =>
+        Promise.all([
+          contarConflitosAbertos(unidadesComoOLayout(operador, FILIAIS)),
+          contarConflitosAbertos(unidadesComoAPagina(operador, FILIAIS)),
+        ]),
+      ),
+    )
+    // `[1, 1]`, não `[0, 0]`: a leitura chegou ao banco falso — a falha engolida daria zero.
+    expect(resultado).toEqual([1, 1])
+    expect(idas).toBe(1)
+  })
+
+  it('em sequência também: a segunda chamada do request não volta ao banco', async () => {
+    const [, operador] = CARGOS[2]
+    const { idas } = await idasDurante(() =>
+      emUmRequest(async () => {
+        await contarConflitosAbertos(unidadesComoOLayout(operador, FILIAIS))
+        return contarConflitosAbertos(unidadesComoAPagina(operador, FILIAIS))
+      }),
+    )
+    expect(idas).toBe(1)
+  })
+
+  it('outro request, outra ida — e vistas diferentes no mesmo request, uma ida cada', async () => {
+    const [, admin] = CARGOS[1]
+    const [, operador] = CARGOS[2]
+    const doisRequests = await idasDurante(async () => {
+      await emUmRequest(() => contarConflitosAbertos(unidadesComoOLayout(operador, FILIAIS)))
+      return emUmRequest(() => contarConflitosAbertos(unidadesComoOLayout(operador, FILIAIS)))
+    })
+    expect(doisRequests.idas).toBe(2)
+    const duasVistas = await idasDurante(() =>
+      emUmRequest(() =>
+        Promise.all([
+          contarConflitosAbertos(unidadesComoOLayout(admin, FILIAIS)),
+          contarConflitosAbertos(unidadesComoOLayout(operador, FILIAIS)),
+        ]),
+      ),
+    )
+    expect(duasVistas.idas).toBe(2)
   })
 })
