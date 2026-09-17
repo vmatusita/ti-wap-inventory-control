@@ -41,9 +41,19 @@
 //     de literal ou de corpo `$…$` de OUTRA função/bloco `do` — reprova com
 //     arquivo e linha;
 //   · comando de `rel_*` que o replay não consegue ler reprova, nunca é pulado;
-//   · a auto-conferência prova que TODO `create|alter|drop function rel_*` fora
-//     de comentário, em toda migration, foi consumido pelo replay;
-//   · `alter function <não-rel>(...) rename to rel_*` FALHA FECHADO: este módulo
+//   · a auto-conferência prova que TODO `create|alter|drop function rel_*` (e
+//     `alter|drop routine rel_*`) fora de comentário, em toda migration, foi
+//     consumido pelo replay;
+//   · `routine` é `function` para o replay (revisão do lote 2, F60): no Postgres
+//     `alter routine`/`drop routine` agem sobre FUNÇÃO tanto quanto `alter
+//     function`/`drop function` — até a revisão, o replay só lia a palavra
+//     `function`, e `alter routine <sem recorte>() rename to rel_x` entrava no
+//     prefixo com a mesa verde, enquanto `drop routine rel_x(…)` deixava a
+//     função VIVA no replay. `create routine` não existe (a rotina nasce por
+//     `create function`/`create procedure`), e `procedure` não entra — o
+//     Postgres recusa `alter`/`drop procedure` sobre função ("is not a
+//     procedure"), a mesma régua de `migrations-f38.test.ts::funcoesDerrubadas`;
+//   · `alter function|routine <não-rel>(...) rename to rel_*` FALHA FECHADO: este módulo
 //     só rastreia o corpo de funções `rel_*`, então um nome que ENTRA no prefixo
 //     por rename vindo de fora dele chega sem corpo conhecido — a especificação
 //     (`spec-trava.md`) dá as duas saídas possíveis ("rastreie também as
@@ -51,7 +61,7 @@
 //     escolhida aqui é a mais estrita: falhar, porque o caso não ocorre nas
 //     migrations de hoje (medido) e rastrear TODA função do banco só para este
 //     caso extremo dobraria o módulo sem necessidade real;
-//   · `alter function rel_x(...) set …/security …/strict…` (qualquer coisa além
+//   · `alter function|routine rel_x(...) set …/security …/strict…` (qualquer coisa além
 //     de `rename to` e `owner to`) também FALHA FECHADO pelo mesmo motivo: o
 //     módulo não replica o EFEITO desses atributos no corpo, e "refletir sem
 //     saber refletir" seria pior que reprovar. `owner to` é ignorado (a
@@ -79,8 +89,22 @@ export { carregarMigrations }
 /** O prefixo que define o universo — case-insensitive, com ou sem esquema citado. */
 export const PREFIXO_REL = /^rel_/i
 
-/** O texto que a auto-conferência procura fora de comentário (módulo A, item 3 da spec). */
-export const PADRAO_DDL_FUNCAO_REL = /\b(create|alter|drop)\s+(or\s+replace\s+)?function\s+("?public"?\s*\.\s*)?"?rel_/gi
+/**
+ * O texto que a auto-conferência procura fora de comentário (módulo A, item 3 da spec).
+ *
+ * `routine` entra ao lado de `function` (revisão do lote 2, F60): sem ele, a prova de que
+ * "todo DDL de `rel_*` foi consumido" continuava cega para `alter|drop routine rel_*` mesmo
+ * com o replay lendo a palavra. O padrão é um SUPERCONJUNTO estrito do anterior — nenhum
+ * texto que casava deixou de casar; `create routine rel_…` também casa, e como a forma não
+ * existe no Postgres (o replay não a consome) ela só pode reprovar fechado, nunca abrir.
+ */
+export const PADRAO_DDL_FUNCAO_REL = /\b(create|alter|drop)\s+(or\s+replace\s+)?(function|routine)\s+("?public"?\s*\.\s*)?"?rel_/gi
+
+/**
+ * As palavras que, depois de `alter`/`drop`, nomeiam uma FUNÇÃO para o replay. `routine` vale
+ * `function` no Postgres para os dois comandos; `procedure` não (recusado sobre função).
+ */
+const PALAVRAS_DE_FUNCAO = new Set(['function', 'routine'])
 
 /** As tabelas de vocabulário sem `filial_id` (módulo B, regra R4) — com o motivo. */
 export const TABELAS_SEM_FILIAL = [
@@ -314,8 +338,8 @@ export function replayFuncoesRel(migrations) {
       for (const p of executesSuspeitosFuncaoRel(t.v)) falhar(t.ini + tag.length + p.pos, p.motivo)
     }
 
-    // AUTO-CONFERÊNCIA: todo `create|alter|drop function rel_*` fora de
-    // comentário foi consumido — ou mora em literal/`$…$` e já reprovou acima
+    // AUTO-CONFERÊNCIA: todo `create|alter|drop function rel_*` (e `alter|drop
+    // routine rel_*`) fora de comentário foi consumido — ou mora em literal/`$…$` e já reprovou acima
     // como DDL dinâmico, ou é algo que o replay não soube dividir.
     const limpo = semComentario.join('')
     for (const m of limpo.matchAll(PADRAO_DDL_FUNCAO_REL)) {
@@ -399,12 +423,17 @@ export function executesSuspeitosFuncaoRel(corpo) {
 /**
  * Aplica UM comando (já tokenizado, sem `;`) ao mapa de vivas. Devolve `true`
  * quando o comando é relevante para `rel_*` (contado em `consumidos`).
+ *
+ * `drop`/`alter` seguidos de `function` OU `routine` caem no MESMO caminho — a
+ * palavra só muda a mensagem (`PALAVRAS_DE_FUNCAO`).
  */
 function aplicarComandoFuncao(tk, sql, arquivo, vivas, falhar) {
   const p0 = nomeDeToken(tk[0])
   if (p0 === 'create') return criarFuncao(tk, sql, arquivo, vivas, falhar)
-  if (p0 === 'drop' && nomeDeToken(tk[1]) === 'function') return dropFuncao(tk, sql, arquivo, vivas, falhar)
-  if (p0 === 'alter' && nomeDeToken(tk[1]) === 'function') return alterFuncao(tk, sql, arquivo, vivas, falhar)
+  const palavra = nomeDeToken(tk[1])
+  if (!PALAVRAS_DE_FUNCAO.has(palavra)) return false
+  if (p0 === 'drop') return dropFuncao(tk, sql, arquivo, vivas, falhar, palavra)
+  if (p0 === 'alter') return alterFuncao(tk, sql, arquivo, vivas, falhar, palavra)
   return false
 }
 
@@ -471,7 +500,7 @@ function lexarPrimeiroDollar(textoCreate) {
   return t ? t.v : ''
 }
 
-function dropFuncao(tk, sql, arquivo, vivas, falhar) {
+function dropFuncao(tk, sql, arquivo, vivas, falhar, palavra) {
   let j = 2
   let seExiste = false
   if (tk[j]?.v === 'if' && tk[j + 1]?.v === 'exists') {
@@ -482,7 +511,7 @@ function dropFuncao(tk, sql, arquivo, vivas, falhar) {
   for (;;) {
     const q = nomeQualificado(tk, j)
     if (!q) {
-      falhar(tk[0].ini, `comando "drop function" ilegível para o replay — a trava não pula o que não lê`)
+      falhar(tk[0].ini, `comando "drop ${palavra}" ilegível para o replay — a trava não pula o que não lê`)
       return true
     }
     const args = tiposEntreParenteses(tk, q.prox, sql)
@@ -493,7 +522,7 @@ function dropFuncao(tk, sql, arquivo, vivas, falhar) {
       const tipos = args ? tiposDaListaTexto(args.texto) : []
       const chave = assinaturaDe(q.schema, q.nome, tipos)
       if (!vivas.delete(chave) && !seExiste) {
-        falhar(tk[0].ini, `drop function de uma rel_* que o replay não conhece (${chave}) — o Postgres recusaria`)
+        falhar(tk[0].ini, `drop ${palavra} de uma rel_* que o replay não conhece (${chave}) — o Postgres recusaria`)
       }
     }
     if (tk[j]?.tipo === 'punct' && tk[j].v === ',') {
@@ -504,12 +533,12 @@ function dropFuncao(tk, sql, arquivo, vivas, falhar) {
   }
   const resto = tk.slice(j)
   if (resto.length > 1 || (resto.length === 1 && !['cascade', 'restrict'].includes(resto[0].v))) {
-    if (algumRelevante) falhar(tk[0].ini, `"drop function" com cauda que o replay não entende: "${resto.map((t) => t.v).join(' ')}"`)
+    if (algumRelevante) falhar(tk[0].ini, `"drop ${palavra}" com cauda que o replay não entende: "${resto.map((t) => t.v).join(' ')}"`)
   }
   return algumRelevante
 }
 
-function alterFuncao(tk, sql, arquivo, vivas, falhar) {
+function alterFuncao(tk, sql, arquivo, vivas, falhar, palavra) {
   let j = 2
   const q = nomeQualificado(tk, j)
   if (!q) return false
@@ -529,14 +558,14 @@ function alterFuncao(tk, sql, arquivo, vivas, falhar) {
       // este módulo não rastreia — nunca ocorreu nas migrations medidas.
       falhar(
         tk[0].ini,
-        `alter function ${chaveOrigem} rename to ${novoNome} — um nome FORA do prefixo rel_ está entrando nele por rename; a trava não rastreia o corpo de funções fora de rel_* e falha fechado (escreva um "create function" explícito para ${novoNome})`,
+        `alter ${palavra} ${chaveOrigem} rename to ${novoNome} — um nome FORA do prefixo rel_ está entrando nele por rename; a trava não rastreia o corpo de funções fora de rel_* e falha fechado (escreva um "create function" explícito para ${novoNome})`,
       )
       return true
     }
     if (!origemRel) return false // rename entre dois nomes fora do prefixo: irrelevante
     const viva = vivas.get(chaveOrigem)
     if (!viva) {
-      falhar(tk[0].ini, `alter function … rename de uma rel_* que o replay não conhece (${chaveOrigem})`)
+      falhar(tk[0].ini, `alter ${palavra} … rename de uma rel_* que o replay não conhece (${chaveOrigem})`)
       return true
     }
     vivas.delete(chaveOrigem)
@@ -553,15 +582,15 @@ function alterFuncao(tk, sql, arquivo, vivas, falhar) {
   // owner to <alguém> — ignorado, por decisão explícita da especificação.
   if (tk[j]?.v === 'owner' && tk[j + 1]?.v === 'to') return true
 
-  // qualquer outro `alter function` sobre uma rel_* viva (set/security/strict/
+  // qualquer outro `alter function|routine` sobre uma rel_* viva (set/security/strict/
   // cost/rows/…) — a trava não replica o EFEITO no corpo: falha fechada.
   if (!vivas.has(chaveOrigem)) {
-    falhar(tk[0].ini, `alter function de uma rel_* que o replay não conhece (${chaveOrigem})`)
+    falhar(tk[0].ini, `alter ${palavra} de uma rel_* que o replay não conhece (${chaveOrigem})`)
     return true
   }
   falhar(
     tk[0].ini,
-    `alter function ${chaveOrigem} muda algo que a trava não replica (nem "rename to", nem "owner to") — escreva um "create or replace function" explícito com o corpo por extenso`,
+    `alter ${palavra} ${chaveOrigem} muda algo que a trava não replica (nem "rename to", nem "owner to") — escreva um "create or replace function" explícito com o corpo por extenso`,
   )
   return true
 }

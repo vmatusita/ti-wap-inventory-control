@@ -11562,3 +11562,12 @@ refutá-lo. Três rodadas acharam lacunas reais de correção; a quarta, sobre o
     `<scratchpad>/evidencias/revisao-lote2-recorte-rel-routine.txt`. No CI o par no catálogo (bloco 7, `7a`) lê
     `pg_proc` e reprovaria a primeira; a mesa não. Fica para o orquestrador decidir, porque a ordem trata aquela trava
     como fechada.
+  - **Consertado em 17/09/2026 (decisão do orquestrador), na causa e nas duas metades.** `routine` é `function` para o
+    REPLAY (`aplicarComandoFuncao`: `alter`/`drop` seguidos de `function` ou `routine` caem no mesmo caminho — o rename
+    de fora para dentro do prefixo falha fechado, `set`/`strict`/`security` falham fechado, `owner to` é ignorado, o
+    `drop` tira do universo) e para a AUTO-CONFERÊNCIA (`PADRAO_DDL_FUNCAO_REL` casa `function|routine`, superconjunto
+    estrito do padrão anterior). `create routine` não existe no Postgres; `procedure` não entra — a mesma régua de
+    `lerNomeDeRotina`. Cadeia real idêntica antes e depois (9 vivas, zero violação, zero falha, 33 consumidos, 32
+    encontrados). Sete casos em memória no describe 2 de `rpcs-recorte-sql.test.ts`; sabotagem em três cortes — o
+    conserto inteiro desfeito (7 de 61 vermelhos), só o replay (6) e só a auto-conferência (2) —
+    `<scratchpad>/evidencias/sabotagem-trava-routine.txt`.

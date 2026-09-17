@@ -198,6 +198,66 @@ describe('2. falha fechada — o que o replay não lê reprova, nunca é pulado'
     expect(j.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
     expect(j.vivas.has('public.rel_temp_f60(smallint[])')).toBe(false)
   })
+
+  // ---------------------------------------------------------------------
+  // `routine` É `function` (revisão do lote 2, F60). No Postgres `alter routine` e `drop routine`
+  // agem sobre FUNÇÃO; até a revisão, o replay só lia a palavra `function` e a auto-conferência só
+  // casava `function`. Medido pelo revisor: `alter routine public.<sem recorte>() rename to rel_x`
+  // entrava no prefixo com `vivas` 9 e zero violações, e `drop routine` de uma `rel_*` a deixava
+  // VIVA no replay (`<scratchpad>/evidencias/revisao-lote2-recorte-rel-routine.txt`). A mesma
+  // régua de `migrations-f38.test.ts::funcoesDerrubadas` (commit 2020641): `routine` entra,
+  // `procedure` não. Os casos abaixo espelham, um a um, os de `function` acima.
+  // ---------------------------------------------------------------------
+
+  it.each([
+    ['nu', 'alter routine public.x_sem_recorte_f60() rename to rel_x_f60;'],
+    ['em maiúsculas, esquema e nomes citados', 'ALTER ROUTINE "public"."x_sem_recorte_f60"() RENAME TO "rel_x_f60";'],
+  ])('alter routine rename de uma função SEM recorte para dentro do prefixo rel_ (%s) → reprova fechado, e a mesa não fica verde', (_nome, alter) => {
+    const sql = [
+      'create function public.x_sem_recorte_f60() returns table (x int) language sql stable security invoker set search_path = public as $$ select 1 from public.movimentacoes m; $$;',
+      alter,
+    ].join('\n')
+    const j = comSintetica(sql, '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => /alter routine .*rename to rel_x_f60/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
+    expect(j.vivas.has('public.rel_x_f60()'), 'a função sem recorte entrou no universo sem corpo conhecido').toBe(false)
+  })
+
+  it('drop routine de uma rel_* viva → sai do universo, sem falha, e a auto-conferência CONTA o comando', () => {
+    const j = comSintetica('drop routine public.rel_saldo_itens_filiais(smallint[], date);', '0200_laco_f60.sql')
+    expect(j.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
+    expect(j.vivas.has('public.rel_saldo_itens_filiais(smallint[],date)'), 'drop routine deixou a rel_* viva no replay').toBe(false)
+    expect(j.vivas.size).toBe(J.vivas.size - 1)
+    // o replay consumiu E o casamento léxico enxergou — uma conta sem a outra é a auto-conferência cega
+    expect(j.consumidos - J.consumidos, 'o replay não consumiu o drop routine').toBe(1)
+    expect(j.encontrados - J.encontrados, 'a auto-conferência não enxergou o drop routine').toBe(1)
+  })
+
+  it('drop routine de uma rel_* inexistente: SEM if exists reprova por "não conhece"; COM if exists passa', () => {
+    const sem = comSintetica('drop routine public.rel_inexistente_f60(int);', '0200_laco_f60.sql')
+    expect(sem.falhas.some((f) => /drop routine de uma rel_\* que o replay não conhece/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
+    const com = comSintetica('drop routine if exists public.rel_inexistente_f60(int);', '0200_laco_f60.sql')
+    expect(com.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
+  })
+
+  it('alter routine … strict numa rel_* viva → reprova fechado como o alter function (a trava não replica o efeito)', () => {
+    const j = comSintetica('alter routine public.rel_saldo_itens_filiais(smallint[], date) strict;', '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => /alter routine .*não replica/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
+  })
+
+  it('alter routine owner to numa rel_* viva → NÃO reprova; alter routine rename para fora de rel_ → sai do universo', () => {
+    const dono = comSintetica('alter routine public.rel_saldo_itens_filiais(smallint[], date) owner to postgres;', '0200_laco_f60.sql')
+    expect(dono.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
+    const saiu = comSintetica('alter routine public.rel_saldo_itens_filiais(smallint[], date) rename to nao_e_mais_rel_f60;', '0200_laco_f60.sql')
+    expect(saiu.falhas.filter((f) => f.arquivo === '0200_laco_f60.sql')).toEqual([])
+    expect(saiu.vivas.has('public.rel_saldo_itens_filiais(smallint[],date)')).toBe(false)
+  })
+
+  it('DDL de routine sobre rel_* em texto de corpo $…$ (sem execute) → a AUTO-CONFERÊNCIA reprova como montado dinamicamente', () => {
+    // Sem `execute`, `executesSuspeitosFuncaoRel` não acha nada: quem reprova aqui é só o
+    // casamento léxico. É o caso que prova, sozinho, que `PADRAO_DDL_FUNCAO_REL` enxerga `routine`.
+    const j = comSintetica("do $$\nbegin\n  raise notice 'drop routine public.rel_saldo_itens_filiais(smallint[], date)';\nend $$;", '0200_laco_f60.sql')
+    expect(j.falhas.some((f) => /dinamicamente/.test(f.motivo) && /drop routine/.test(f.motivo) && f.arquivo === '0200_laco_f60.sql')).toBe(true)
+  })
 })
 
 describe('3. a doutrina, contra as rel_* VIVAS', () => {
