@@ -1,0 +1,203 @@
+<!-- CSS sha256:df65a6ee9eb240d51ff6e93c87e3ae49be636c5d3a5f417c5179f8c5a9a7d818 (o <style> real não entra no normalizado — ver comparar-pixels-f61.mjs) -->
+<style>
+@keyframes wap-barra-progresso {
+  0%   { transform: scaleX(0.03); }
+  35%  { transform: scaleX(0.5); }
+  70%  { transform: scaleX(0.78); }
+  100% { transform: scaleX(0.9); }
+}
+@keyframes wap-barra-final {
+  from { transform: scaleX(0.9); opacity: 1; }
+  to   { transform: scaleX(1); opacity: 0; }
+}
+
+</style>
+<div class="min-h-svh space-y-8 bg-background p-6 text-foreground">
+<h1 class="text-lg font-semibold">F61 · prévia estática · vitrine
+<span class="font-mono">confirmacoes
+</span>
+</h1>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">mesa-vazio — mesa de conflitos — vazio
+</p>
+<section data-quadro="mesa-vazio" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="conflito-confirmacao">Para confirmar, digite exatamente:
+</label>
+<p class="text-xs break-all text-muted-foreground">APAGAR 3
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="conflito-confirmacao" autoComplete="off" placeholder="APAGAR 3" aria-invalid="false" value=""/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">mesa-nao-confere — mesa de conflitos — não confere
+</p>
+<section data-quadro="mesa-nao-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="conflito-confirmacao">Para confirmar, digite exatamente:
+</label>
+<p class="text-xs break-all text-muted-foreground">APAGAR 3
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="conflito-confirmacao" autoComplete="off" placeholder="APAGAR 3" aria-invalid="true" aria-describedby="conflito-confirmacao-dica" value="APAGAR 2"/>
+<p id="conflito-confirmacao-dica" role="alert" class="text-sm text-destructive">O texto não confere — digite exatamente APAGAR 3
+</p>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">mesa-confere — mesa de conflitos — confere
+</p>
+<section data-quadro="mesa-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="conflito-confirmacao">Para confirmar, digite exatamente:
+</label>
+<p class="text-xs break-all text-muted-foreground">APAGAR 3
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="conflito-confirmacao" autoComplete="off" placeholder="APAGAR 3" aria-invalid="false" value="APAGAR 3"/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">importar-vazio — import (Substituir tudo) — vazio
+</p>
+<section data-quadro="importar-vazio" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="import-confirmacao">Digite
+<span class="font-mono font-semibold">Cerrado Alto
+</span> para confirmar
+</label>
+<p class="text-xs break-all text-muted-foreground">Cerrado Alto
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="import-confirmacao" autoComplete="off" placeholder="Cerrado Alto" aria-invalid="false" value=""/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">importar-nao-confere — import (Substituir tudo) — não confere
+</p>
+<section data-quadro="importar-nao-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="import-confirmacao">Digite
+<span class="font-mono font-semibold">Cerrado Alto
+</span> para confirmar
+</label>
+<p class="text-xs break-all text-muted-foreground">Cerrado Alto
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="import-confirmacao" autoComplete="off" placeholder="Cerrado Alto" aria-invalid="true" aria-describedby="import-confirmacao-dica" value="Cerrado"/>
+<p id="import-confirmacao-dica" role="alert" class="text-sm text-destructive">O texto não confere — digite exatamente Cerrado Alto
+</p>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">importar-confere — import (Substituir tudo) — confere
+</p>
+<section data-quadro="importar-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="import-confirmacao">Digite
+<span class="font-mono font-semibold">Cerrado Alto
+</span> para confirmar
+</label>
+<p class="text-xs break-all text-muted-foreground">Cerrado Alto
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="import-confirmacao" autoComplete="off" placeholder="Cerrado Alto" aria-invalid="false" value="Cerrado Alto"/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">apagar-conta-vazio — apagar conta (dev) — vazio
+</p>
+<section data-quadro="apagar-conta-vazio" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="dev-apagar-confirmacao">Para confirmar, digite o e-mail da conta
+</label>
+<p class="text-xs break-all text-muted-foreground">fulano@exemplo.test
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="dev-apagar-confirmacao" autoComplete="off" placeholder="fulano@exemplo.test" aria-invalid="false" value=""/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">apagar-conta-nao-confere — apagar conta (dev) — não confere
+</p>
+<section data-quadro="apagar-conta-nao-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="dev-apagar-confirmacao">Para confirmar, digite o e-mail da conta
+</label>
+<p class="text-xs break-all text-muted-foreground">fulano@exemplo.test
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="dev-apagar-confirmacao" autoComplete="off" placeholder="fulano@exemplo.test" aria-invalid="true" aria-describedby="dev-apagar-confirmacao-dica" value="fulano@exemplo.co"/>
+<p id="dev-apagar-confirmacao-dica" role="alert" class="text-sm text-destructive">O texto não confere — digite exatamente fulano@exemplo.test
+</p>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">apagar-conta-confere — apagar conta (dev) — confere
+</p>
+<section data-quadro="apagar-conta-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="dev-apagar-confirmacao">Para confirmar, digite o e-mail da conta
+</label>
+<p class="text-xs break-all text-muted-foreground">fulano@exemplo.test
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="dev-apagar-confirmacao" autoComplete="off" placeholder="fulano@exemplo.test" aria-invalid="false" value="fulano@exemplo.test"/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">apagar-conta-sem-email — apagar conta (dev) — Auth fora do ar, sem e-mail
+</p>
+<section data-quadro="apagar-conta-sem-email" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="dev-apagar-confirmacao">Para confirmar, digite o e-mail da conta
+</label>
+<p class="text-xs break-all text-muted-foreground">
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="dev-apagar-confirmacao" autoComplete="off" placeholder="" disabled="" aria-invalid="false" value=""/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">destrutivo-vazio — Zona destrutiva — vazio
+</p>
+<section data-quadro="destrutivo-vazio" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="destrutivo-confirmacao">Para confirmar, digite exatamente:
+</label>
+<p class="text-xs break-all text-muted-foreground">WAP0001234
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="destrutivo-confirmacao" autoComplete="off" placeholder="WAP0001234" aria-invalid="false" value=""/>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">destrutivo-nao-confere — Zona destrutiva — não confere
+</p>
+<section data-quadro="destrutivo-nao-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="destrutivo-confirmacao">Para confirmar, digite exatamente:
+</label>
+<p class="text-xs break-all text-muted-foreground">WAP0001234
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="destrutivo-confirmacao" autoComplete="off" placeholder="WAP0001234" aria-invalid="true" aria-describedby="destrutivo-confirmacao-dica" value="WAP0001235"/>
+<p id="destrutivo-confirmacao-dica" role="alert" class="text-sm text-destructive">O texto não confere — digite exatamente WAP0001234
+</p>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">destrutivo-confere — Zona destrutiva — confere
+</p>
+<section data-quadro="destrutivo-confere" class="bg-background">
+<div class="flex flex-col gap-2">
+<label data-slot="label" class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50" for="destrutivo-confirmacao">Para confirmar, digite exatamente:
+</label>
+<p class="text-xs break-all text-muted-foreground">WAP0001234
+</p>
+<input data-slot="input" class="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40" id="destrutivo-confirmacao" autoComplete="off" placeholder="WAP0001234" aria-invalid="false" value="WAP0001234"/>
+</div>
+</section>
+</div>
+</div>

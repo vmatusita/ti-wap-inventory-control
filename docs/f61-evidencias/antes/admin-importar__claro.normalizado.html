@@ -1,0 +1,176 @@
+<!-- CSS sha256:df65a6ee9eb240d51ff6e93c87e3ae49be636c5d3a5f417c5179f8c5a9a7d818 (o <style> real não entra no normalizado — ver comparar-pixels-f61.mjs) -->
+<style>
+@keyframes wap-barra-progresso {
+  0%   { transform: scaleX(0.03); }
+  35%  { transform: scaleX(0.5); }
+  70%  { transform: scaleX(0.78); }
+  100% { transform: scaleX(0.9); }
+}
+@keyframes wap-barra-final {
+  from { transform: scaleX(0.9); opacity: 1; }
+  to   { transform: scaleX(1); opacity: 0; }
+}
+
+</style>
+<div class="min-h-svh space-y-8 bg-background p-6 text-foreground">
+<h1 class="text-lg font-semibold">F61 · prévia estática · vitrine
+<span class="font-mono">admin-importar
+</span>
+</h1>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-erros-bloqueantes — TabelaErros (bloqueantes)
+</p>
+<section data-quadro="tabela-erros-bloqueantes" class="bg-background">
+<div class="overflow-x-auto rounded-lg border">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-16">Linha
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-32">Coluna
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-40">Valor
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Motivo
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 tabular-nums text-muted-foreground">4
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">Patrimônio
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 max-w-40 truncate font-mono text-xs" title="">—
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-sm text-muted-foreground">Sem patrimônio — importa como pendência.
+</td>
+</tr>
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 tabular-nums text-muted-foreground">9
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">Tipo
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 max-w-40 truncate font-mono text-xs" title="NOTE">NOTE
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-sm text-muted-foreground">Categoria fora do vocabulário.
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">tabela-erros-aviso — TabelaErros (avisos)
+</p>
+<section data-quadro="tabela-erros-aviso" class="bg-background">
+<div class="overflow-x-auto rounded-lg border">
+<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<table data-slot="table" class="w-full caption-bottom text-sm">
+<thead data-slot="table-header" class="[&amp;_tr]:border-b">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-16">Linha
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-32">Coluna
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0 w-40">Valor
+</th>
+<th data-slot="table-head" class="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&amp;:has([role=checkbox])]:pr-0">Motivo
+</th>
+</tr>
+</thead>
+<tbody data-slot="table-body" class="[&amp;_tr:last-child]:border-0">
+<tr data-slot="table-row" class="border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted">
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 tabular-nums text-muted-foreground">12
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 font-medium">Site
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 max-w-40 truncate font-mono text-xs" title="CERRADO">CERRADO
+</td>
+<td data-slot="table-cell" class="p-2 align-middle whitespace-nowrap [&amp;:has([role=checkbox])]:pr-0 text-sm text-muted-foreground">Site fora do vocabulário de filiais.
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">correcoes-aplicadas — CorrecoesAplicadas
+</p>
+<section data-quadro="correcoes-aplicadas" class="bg-background">
+<div class="space-y-2">
+<h3 class="text-sm font-semibold">Correções aplicadas (2)
+</h3>
+<ul class="divide-y rounded-lg border">
+<li class="flex flex-wrap items-center justify-between gap-2 p-2.5">
+<span class="text-sm">Tipo: &quot;NOTE&quot; → &quot;notebook&quot; (todas as linhas)
+</span>
+<div class="ml-auto flex items-center gap-2">
+<span class="text-xs text-muted-foreground tabular-nums">1 linha
+</span>
+<button data-slot="button" data-variant="ghost" data-size="sm" class="group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-3.5 gap-1.5" type="button">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo2 lucide-undo-2 size-3.5" aria-hidden="true">
+<path d="M9 14 4 9l5-5">
+</path>
+<path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11">
+</path>
+</svg>Desfazer
+</button>
+</div>
+</li>
+<li class="flex flex-wrap items-center justify-between gap-2 p-2.5">
+<span class="text-sm">Linha 4 · Patrimônio → &quot;WAP0001244&quot;
+</span>
+<div class="ml-auto flex items-center gap-2">
+<span class="text-xs text-muted-foreground tabular-nums">1 linha
+</span>
+<button data-slot="button" data-variant="ghost" data-size="sm" class="group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-3.5 gap-1.5" type="button">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo2 lucide-undo-2 size-3.5" aria-hidden="true">
+<path d="M9 14 4 9l5-5">
+</path>
+<path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11">
+</path>
+</svg>Desfazer
+</button>
+</div>
+</li>
+</ul>
+<p class="text-xs text-muted-foreground">+ 1 patrimônio veio do hostname (correção automática do motor).
+</p>
+<p class="text-xs text-muted-foreground">O arquivo enviado não é alterado: as correções são aplicadas em memória e o CSV é revalidado do zero a cada mudança. Elas ficam registradas no log deste import.
+</p>
+</div>
+</section>
+</div>
+<div class="space-y-2 border-t border-dashed pt-8 first:border-t-0 first:pt-0">
+<p class="font-mono text-xs text-muted-foreground">grupos-erros — GruposErros (correcao.kind: &#x27;nenhuma&#x27; — os outros 9 kinds: sem vitrine, ver cabeçalho)
+</p>
+<section data-quadro="grupos-erros" class="bg-background">
+<div class="space-y-3">
+<div class="space-y-3 rounded-lg border p-4">
+<div class="space-y-1.5">
+<div class="flex flex-wrap items-center gap-2">
+<span data-slot="badge" data-variant="destructive" class="group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&amp;&gt;svg]:pointer-events-none [&amp;&gt;svg]:size-3! bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20">Plano vazio
+</span>
+</div>
+<p class="text-sm text-muted-foreground">Nenhuma linha válida sobrou depois das correções — confira o arquivo.
+</p>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-2">
+<button data-slot="button" data-variant="ghost" data-size="sm" class="group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&amp;_svg]:pointer-events-none [&amp;_svg]:shrink-0 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-7 rounded-[min(var(--radius-md),12px)] text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&amp;_svg:not([class*=&#x27;size-&#x27;])]:size-3.5 gap-1 px-2 text-muted-foreground" type="button">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right size-3.5" aria-hidden="true">
+<path d="m9 18 6-6-6-6">
+</path>
+</svg>Ver a linha
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
