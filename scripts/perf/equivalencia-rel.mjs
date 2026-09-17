@@ -64,8 +64,20 @@
 //   node equivalencia-rel.mjs analisar-custo --dir=<…> --antes=<f60-producao-antes-rel.json> \
 //        [--antes-custo=<f60-producao-antes-custo.json>] --saida=<…> --orcamento=<…>
 //
-// Depois do apply, a mesma comparação roda com a FUNÇÃO de verdade no lugar do
-// corpo colado — este arquivo é a emulação que vem ANTES dela, não a substitui.
+// DEPOIS DO APPLY (revisão final da F60 — antes, este passo era só prosa): a mesma comparação e o
+// mesmo custo com a FUNÇÃO APLICADA no lugar do corpo colado. Os corpos vêm das migrations do
+// repositório (0141 + 0143), e cada bloco RECUSA antes de medir: função nova ausente
+// (F60_FUNCAO_NOVA_AUSENTE), prosrc aplicado diferente do versionado (F60_CORPO_VIVO_DIFERENTE) e,
+// na equivalência, função velha já derrubada (F60_FUNCAO_VELHA_AUSENTE — a comparação real roda
+// ENTRE o apply da 0143 e o da 0145):
+//   node equivalencia-rel.mjs gerar-equivalencia-real --alvo=ensaio|producao \
+//        --datas=docs/perf/f60-datas-amostra.json --dir=<fora-do-repo>
+//   node equivalencia-rel.mjs analisar-equivalencia --real --dir=<…> --saida=<f60-equivalencia-real.json>
+//   node equivalencia-rel.mjs gerar-custo-real --alvo=producao --hoje=AAAA-MM-DD --dir=<…>
+//   node equivalencia-rel.mjs analisar-custo --real --dir=<…> --saida=<f60-custo-real.json> \
+//        [--confirmar-orcamento=docs/perf/asof-orcamento.json]
+// `gerar-custo-real` inclui `custo-contagem-status` (o "depois" do B1 que o cabeçalho da 0141 pede) e
+// `custo-asof-consolidado` (a confirmação do orçamento do as-of, gravada só em `medicao.confirmacao`).
 //
 // PROVENIÊNCIA — este é o gerador que produziu as evidências de equivalência e de custo dos corpos
 // novos citadas no cabeçalho da `0143_rel_filiais.sql` (`f60-equivalencia-emulada.json`,
@@ -80,8 +92,9 @@
 //     outro disco, o pai ou abaixo dele — a do original liberava uma pasta INTERNA chamada `..x`
 //     (`startsWith('..')`) e, sem raiz resolvida, não conferia nada. Exportada, para
 //     `instrumentos-f60.test.mts` provar os dois casos;
-//   · este bloco. O `--corpos` continua apontando um arquivo FORA do repositório (o rascunho medido); a
-//     comparação com a função de verdade, depois do apply, é outro passo.
+//   · este bloco. O `--corpos` continua apontando um arquivo FORA do repositório (o rascunho medido).
+// Os modos `*-real` (revisão final da F60) são ACRÉSCIMO: sem `real`, os geradores emitem, byte a byte,
+// o mesmo SQL de antes (conferido por diff na revisão).
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
@@ -171,6 +184,17 @@ export function lerCorposNovos(texto) {
   return out
 }
 
+/**
+ * As migrations que DEFINEM as oito funções novas — a fonte dos corpos no modo `real`. Não é cópia: o
+ * `lerCorposNovos` lê o texto versionado, e a guarda do bloco confere que o `prosrc` APLICADO é esse texto.
+ */
+export const MIGRATIONS_DAS_NOVAS = ['0141_rel_contagem_status.sql', '0143_rel_filiais.sql']
+
+/** Os corpos das oito funções novas, lidos das migrations do repositório (modo `real`). */
+export function lerCorposDoRepositorio(raiz = RAIZ_REPO) {
+  return lerCorposNovos(MIGRATIONS_DAS_NOVAS.map((a) => readFileSync(join(raiz, 'supabase', 'migrations', a), 'utf8')).join('\n'))
+}
+
 /** md5 do corpo com todo espaço em branco colapsado em um espaço — a normalização do runbook (`regexp_replace(prosrc,'\s+',' ','g')`). */
 export function md5Normalizado(corpo) {
   return createHash('md5').update(corpo.replace(/\s+/g, ' ')).digest('hex')
@@ -221,7 +245,7 @@ export function validarBloco(sql) {
     recusar('o bloco não liga transaction_read_only como primeira instrução.')
   }
   if (!/rotulo_de_ambiente\(\)/.test(t)) recusar('o bloco não confere rotulo_de_ambiente().')
-  if (!/raise exception 'F60_(EQUIVALENCIA|KPIS|CUSTO) %'/.test(t)) recusar('o bloco não termina em raise exception F60_*.')
+  if (!/raise exception 'F60_(EQUIVALENCIA|KPIS|CUSTO)(_REAL)? %'/.test(t)) recusar('o bloco não termina em raise exception F60_*.')
   // prepare/deallocate vivem DENTRO de literais de `execute format(...)`: conta no texto cru
   const cru = t.toLowerCase()
   const prepara = /\bprepare\b/.test(cru)
@@ -308,7 +332,7 @@ const AGREGA = (from) =>
   `select count(*)::bigint, md5(coalesce(string_agg(r::text, '|' order by r::text), '')) from (${from}) as r`
 
 /** Os moldes de `format()` de uma função: velho, novo (com filtro opcional) e o bruto da Sabotagem H. */
-function moldes(nomeNova, cfg, def) {
+function moldes(nomeNova, cfg, def, { real = false } = {}) {
   const tipos = Object.fromEntries(def.parametros.map((p) => [p.nome, p.tipo]))
   const ordem = def.parametros.map((p) => p.nome) // p_filiais, p_de/p_data/p_ate, [p_ate]
   if (ordem[0] !== 'p_filiais' || tipos.p_filiais !== 'smallint[]') recusar(`${nomeNova}: o 1º parâmetro não é p_filiais smallint[].`)
@@ -319,15 +343,49 @@ function moldes(nomeNova, cfg, def) {
   const colunasVelhas = cfg.forma === 'niveis' ? def.colunas.filter((c) => c.nome !== 'filial_id') : def.colunas
   const argsVelho = ordem.map((n, i) => (i === 0 ? `%1$L::smallint` : `%${i + 1}$L::${tipos[n]}`)).join(', ')
   const n = ordem.length
+  // O lado NOVO: o corpo colado como subconsulta (a emulação, antes do apply) ou a FUNÇÃO APLICADA,
+  // chamada pelo nome com os mesmos literais tipados (`real`, entre o apply da 0143 e o da 0145).
+  const argsNovo = ordem.map((nome, i) => `%${i + 1}$L::${tipos[nome]}`).join(', ')
+  const fonteNova = real ? `public.${nomeNova}(${argsNovo}) as s` : `(${corpoLit}) as s(${colsNovo})`
   return {
     velho: cfg.velha ? AGREGA(`select ${projecao(colunasVelhas)} from public.${cfg.velha}(${argsVelho}) as s`) : null,
-    novo: AGREGA(`select ${projecao(colunasVelhas)} from (${corpoLit}) as s(${colsNovo})`),
-    novoNivelNulo: AGREGA(`select ${projecao(colunasVelhas)} from (${corpoLit}) as s(${colsNovo}) where s.filial_id is null`),
-    novoNivelFilial: AGREGA(`select ${projecao(colunasVelhas)} from (${corpoLit}) as s(${colsNovo}) where s.filial_id = %${n + 1}$L::smallint`),
-    bruto: `select count(*)::bigint from (${corpoLit}) as s(${colsNovo})`,
+    novo: AGREGA(`select ${projecao(colunasVelhas)} from ${fonteNova}`),
+    novoNivelNulo: AGREGA(`select ${projecao(colunasVelhas)} from ${fonteNova} where s.filial_id is null`),
+    novoNivelFilial: AGREGA(`select ${projecao(colunasVelhas)} from ${fonteNova} where s.filial_id = %${n + 1}$L::smallint`),
+    bruto: `select count(*)::bigint from ${fonteNova}`,
+    fonteNova,
     corpoLit,
     colsNovo,
   }
+}
+
+/**
+ * A guarda do modo `real`: a função NOVA existe no banco e o `prosrc` dela, normalizado, é o corpo do
+ * repositório (o md5 que a emulação mediu); a VELHA, quando há, ainda existe — a comparação real só tem
+ * sentido ENTRE o apply da 0143 e o da 0145. Cada falha é uma recusa nomeada (`lerPayload`), nunca um
+ * número.
+ */
+function guardaFuncaoAplicada(nomeNova, velha, def) {
+  const tiposNovos = def.parametros.map((x) => x.tipo).join(', ')
+  const assinaturaNova = `public.${nomeNova}(${tiposNovos})`
+  const assinaturaVelha = velha ? `public.${velha}(${['smallint', ...def.parametros.slice(1).map((x) => x.tipo)].join(', ')})` : null
+  const velhaViva = assinaturaVelha
+    ? `
+  if to_regprocedure('${assinaturaVelha}') is null then
+    raise exception 'F60_FUNCAO_VELHA_AUSENTE ${velha}';
+  end if;`
+    : ''
+  return `
+  -- 4a. a função APLICADA é a do repositório${velha ? ' (e a velha ainda está viva)' : ''}
+  select md5(regexp_replace(pr.prosrc, '\\s+', ' ', 'g')) into v_md5_vivo
+    from pg_proc pr where pr.oid = to_regprocedure('${assinaturaNova}');
+  if v_md5_vivo is null then
+    raise exception 'F60_FUNCAO_NOVA_AUSENTE ${nomeNova}';
+  end if;
+  if v_md5_vivo <> '${md5Normalizado(def.corpo)}' then
+    raise exception 'F60_CORPO_VIVO_DIFERENTE ${nomeNova}';
+  end if;${velhaViva}
+`
 }
 
 function acumula(janela, comparacao) {
@@ -366,10 +424,10 @@ function sabotagemH(cfg) {
   return caso('nulo', 'null::smallint[]') + caso('vazio', `'{}'::smallint[]`) + contraste
 }
 
-export function blocoEquivalencia(nomeNova, def, alvo, datas) {
+export function blocoEquivalencia(nomeNova, def, alvo, datas, { real = false } = {}) {
   const cfg = MODELO[nomeNova]
   if (!cfg || cfg.forma === 'kpis') recusar(`função fora do modelo de equivalência: ${nomeNova}`)
-  const m = moldes(nomeNova, cfg, def)
+  const m = moldes(nomeNova, cfg, def, { real })
   const hoje = datas.reduce((a, b) => (a > b ? a : b))
 
   let loopRecorte
@@ -418,10 +476,10 @@ ${moldesDeclarados}
   v_celulas int := 0; v_iguais int := 0; v_diverg int := 0; v_vazias int := 0;
   v_lv bigint := 0; v_ln bigint := 0;
   v_lista jsonb := '[]'::jsonb;
-  v_h jsonb := '{}'::jsonb;
+  v_h jsonb := '{}'::jsonb;${real ? '\n  v_md5_vivo text;' : ''}
 begin
   ${preambulo(alvo)}
-
+${real ? guardaFuncaoAplicada(nomeNova, cfg.velha, def) : ''}
   -- 4. as células: data × recorte${cfg.forma === 'janela' ? ' × janela' : ''}${cfg.forma === 'niveis' ? ' × comparação (i/ii/iii)' : ''}
   for v_di in 1 .. array_length(v_datas, 1) loop
     v_d := v_datas[v_di];
@@ -436,8 +494,8 @@ begin
 
   -- 5. Sabotagem H emulada (data = a mais recente da amostra)${sabotagemH(cfg)}
 
-  raise exception 'F60_EQUIVALENCIA %', jsonb_build_object(
-    'alvo', '${alvo}', 'funcao', '${nomeNova}', 'velha', '${cfg.velha}',
+  raise exception 'F60_EQUIVALENCIA${real ? '_REAL' : ''} %', jsonb_build_object(
+    'alvo', '${alvo}', 'funcao', '${nomeNova}', 'velha', '${cfg.velha}',${real ? " 'lado_novo', 'funcao_aplicada'," : ''}
     'md5_corpo_novo_normalizado', '${md5Normalizado(def.corpo)}',
     'postgres', current_setting('server_version'), 'papel', current_user,
     'n_filiais', array_length(v_todas, 1), 'ordinais_inativos', to_jsonb(v_inativos),
@@ -450,10 +508,10 @@ end $f60$;`
 }
 
 /** Os KPIs: corpo 0 com todas as filiais × a contagem por status pelo caminho antigo. */
-export function blocoKpis(def, alvo) {
+export function blocoKpis(def, alvo, { real = false } = {}) {
   const cfg = MODELO.rel_contagem_status_filiais
-  const m = moldes('rel_contagem_status_filiais', cfg, def)
-  const novoJson = `select coalesce(jsonb_object_agg(s.status::text, s.total), '{}'::jsonb) from (${m.corpoLit}) as s(${m.colsNovo})`
+  const m = moldes('rel_contagem_status_filiais', cfg, def, { real })
+  const novoJson = `select coalesce(jsonb_object_agg(s.status::text, s.total), '{}'::jsonb) from ${m.fonteNova}`
   const lista = STATUS_QUE_CONTAM.map((s) => `'${s}'`).join(', ')
   return `do $f60$
 declare${DECLARA_COMUM}
@@ -465,10 +523,10 @@ declare${DECLARA_COMUM}
   v_tv bigint := 0; v_tn bigint := 0;
   v_iguais int := 0; v_diverg int := 0;
   v_por_status jsonb := '{}'::jsonb;
-  v_h jsonb := '{}'::jsonb;
+  v_h jsonb := '{}'::jsonb;${real ? '\n  v_md5_vivo text;' : ''}
 begin
   ${preambulo(alvo)}
-
+${real ? guardaFuncaoAplicada('rel_contagem_status_filiais', null, def) : ''}
   -- 4. o corpo novo com TODAS as filiais
   execute format(v_tpl_novo, v_todas) into v_novo;
 
@@ -492,8 +550,8 @@ begin
 
   -- 6. Sabotagem H emulada${sabotagemH(cfg)}
 
-  raise exception 'F60_KPIS %', jsonb_build_object(
-    'alvo', '${alvo}', 'funcao', 'rel_contagem_status_filiais', 'velha', 'contagem por status sobre ativos',
+  raise exception 'F60_KPIS${real ? '_REAL' : ''} %', jsonb_build_object(
+    'alvo', '${alvo}', 'funcao', 'rel_contagem_status_filiais', 'velha', 'contagem por status sobre ativos',${real ? " 'lado_novo', 'funcao_aplicada'," : ''}
     'md5_corpo_novo_normalizado', '${md5Normalizado(def.corpo)}',
     'postgres', current_setting('server_version'), 'papel', current_user,
     'n_filiais', array_length(v_todas, 1), 'ordinais_inativos', to_jsonb(v_inativos),
@@ -528,7 +586,7 @@ function exprRecorte(r) {
   recusar(`recorte fora do modelo: ${r}`)
 }
 
-export function blocoCusto(bloco, def, alvo, hoje, { n = N_PADRAO } = {}) {
+export function blocoCusto(bloco, def, alvo, hoje, { n = N_PADRAO, real = false } = {}) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(hoje)) recusar('--hoje fora do formato AAAA-MM-DD.')
   if (!Number.isInteger(n) || n < 1 || n > 30) recusar('--n precisa ser inteiro entre 1 e 30.')
   const ordem = def.parametros.map((p) => p.nome)
@@ -564,6 +622,27 @@ export function blocoCusto(bloco, def, alvo, hoje, { n = N_PADRAO } = {}) {
             v_detalhe := jsonb_set(v_detalhe, array[v_celula], coalesce(v_det, '[]'::jsonb));`
     : ''
 
+  // modo `real`: a CHAMADA da função aplicada, na mesma célula — o preço de verdade (Function Scan, caixa
+  // preta: o plano de dentro é o do corpo colado, que a guarda prova igual ao prosrc aplicado).
+  const chamadaDaCelula = (c) => `
+    v_ec := array[]::double precision[]; v_hc := array[]::bigint[];
+    for v_i in 1 .. (${n} + 1) loop
+      execute format('explain (analyze, buffers, format json) execute %I(${c.fmt})', v_nome_c, v_rec${c.args}) into v_plano;
+      if v_i > 1 then
+        v_p := v_plano::jsonb -> 0;
+        v_ec := array_append(v_ec, (v_p -> 'Execution Time')::text::double precision);
+        v_hc := array_append(v_hc, (v_p #> '{Plan,Shared Hit Blocks}')::text::bigint);
+      end if;
+    end loop;
+    select jsonb_build_object(
+      'execucao_ms', jsonb_build_object(
+        'mediana', round(percentile_cont(0.5) within group (order by t.e)::numeric, 3),
+        'p95', round(percentile_cont(0.95) within group (order by t.e)::numeric, 3)),
+      'buffers_raiz', jsonb_build_object('hit_mediana', round(percentile_cont(0.5) within group (order by t.h)::numeric, 3)),
+      'n', array_length(v_ec, 1))
+      into v_stat
+      from unnest(v_ec, v_hc) as t(e, h);
+    v_amostras_chamada := jsonb_set(v_amostras_chamada, array[v_celula], v_stat);`
   const corpoCelulas = celulas
     .map(
       (c) => `
@@ -603,7 +682,7 @@ export function blocoCusto(bloco, def, alvo, hoje, { n = N_PADRAO } = {}) {
       'linhas', v_linhas, 'n', array_length(v_e, 1))
       into v_stat
       from unnest(v_e, v_pl, v_hit, v_read) as t(e, p, h, r);
-    v_amostras := jsonb_set(v_amostras, array[v_celula], v_stat);`,
+    v_amostras := jsonb_set(v_amostras, array[v_celula], v_stat);${real ? chamadaDaCelula(c) : ''}`,
     )
     .join('\n')
 
@@ -627,30 +706,44 @@ declare${DECLARA_COMUM}
   v_detalhe jsonb := '{}'::jsonb;
   v_total_ativos bigint;
   v_total_mov bigint;
-  v_total_lanc bigint;
+  v_total_lanc bigint;${
+    real
+      ? `
+  v_md5_vivo text;
+  v_nome_c text;
+  v_ec double precision[]; v_hc bigint[];
+  v_amostras_chamada jsonb := '{}'::jsonb;`
+      : ''
+  }
 begin
   ${preambulo(alvo)}
-
+${real ? guardaFuncaoAplicada(bloco.funcao, null, def) : ''}
   -- 4. o corpo NOVO, preparado UMA vez com plano genérico, nome único por execução
   perform set_config('plan_cache_mode', 'force_generic_plan', true);
   v_nome := 'f60_custo_' || substr(md5(clock_timestamp()::text || random()::text), 1, 16);
-  execute format('prepare %I(${tipos.join(', ')}) as %s', v_nome, v_corpo);
+  execute format('prepare %I(${tipos.join(', ')}) as %s', v_nome, v_corpo);${
+    real
+      ? `
+  v_nome_c := 'f60_chamada_' || substr(md5(clock_timestamp()::text || random()::text), 1, 16);
+  execute format('prepare %I(${tipos.join(', ')}) as select * from public.${bloco.funcao}(${ordem.map((_, i) => '$' + (i + 1)).join(', ')})', v_nome_c);`
+      : ''
+  }
 
   begin
 ${corpoCelulas}
   exception when others then
-    execute format('deallocate %I', v_nome);
+    execute format('deallocate %I', v_nome);${real ? "\n    execute format('deallocate %I', v_nome_c);" : ''}
     raise;
   end;
-  execute format('deallocate %I', v_nome);
+  execute format('deallocate %I', v_nome);${real ? "\n  execute format('deallocate %I', v_nome_c);" : ''}
 
   -- 5. contexto do volume (números, não linhas)
   select count(*) into v_total_ativos from public.ativos;
   select count(*) into v_total_mov from public.movimentacoes;
   select count(*) into v_total_lanc from public.lancamentos_item;
 
-  raise exception 'F60_CUSTO %', jsonb_build_object(
-    'alvo', '${alvo}', 'bloco', '${bloco.nome}', 'funcao', '${bloco.funcao}',
+  raise exception 'F60_CUSTO${real ? '_REAL' : ''} %', jsonb_build_object(
+    'alvo', '${alvo}', 'bloco', '${bloco.nome}', 'funcao', '${bloco.funcao}',${real ? "\n    'amostras_chamada', v_amostras_chamada, 'md5_prosrc_conferido', v_md5_vivo," : ''}
     'md5_corpo_novo_normalizado', '${md5Normalizado(def.corpo)}',
     'postgres', current_setting('server_version'), 'papel', current_user,
     'hoje', v_hoje, 'n', ${n},
@@ -891,7 +984,7 @@ export function lerPayload(texto, marca) {
   } catch {
     // resposta gravada como texto puro
   }
-  const recusa = /F60_(ALVO_RECUSADO|IDENTIDADE_AUSENTE|FILIAL_AUSENTE)[^\n"]*/.exec(msg)
+  const recusa = /F60_(ALVO_RECUSADO|IDENTIDADE_AUSENTE|FILIAL_AUSENTE|FUNCAO_NOVA_AUSENTE|FUNCAO_VELHA_AUSENTE|CORPO_VIVO_DIFERENTE)[^\n"]*/.exec(msg)
   if (recusa) return { recusa: recusa[0] }
   const i = msg.indexOf(`${marca} {`)
   if (i === -1) recusar(`resposta sem ${marca} — o bloco não chegou ao fim, ou é outra marca.`)
@@ -971,7 +1064,15 @@ function medianaAntiga(antes, funcaoVelha, recorte, celula) {
 
 async function main() {
   const o = args(process.argv.slice(2))
-  const modos = ['gerar-equivalencia', 'gerar-custo', 'gerar-ab-asof', 'analisar-equivalencia', 'analisar-custo']
+  const modos = [
+    'gerar-equivalencia',
+    'gerar-custo',
+    'gerar-ab-asof',
+    'gerar-equivalencia-real',
+    'gerar-custo-real',
+    'analisar-equivalencia',
+    'analisar-custo',
+  ]
   if (!modos.includes(o.modo)) recusar(`modo: ${modos.join(' | ')}.`)
 
   if (o.modo === 'gerar-ab-asof') {
@@ -989,6 +1090,34 @@ async function main() {
     const bloco = blocoAbAsof(corpos.rel_estoque_asof_filiais, m[1], o.alvo, o.hoje, { n: o.n ? Number(o.n) : N_PADRAO, conjunto })
     const nome = `custo-asof-${conjunto === "diagnostico" ? "ab" : conjunto}-${o.alvo}`
     console.log(JSON.stringify({ gravado: gravar(o.dir, nome, bloco) }, null, 2))
+    return
+  }
+
+  // O PASSO DEPOIS DO APPLY (revisão final da F60): a mesma equivalência e o mesmo custo, com a FUNÇÃO
+  // APLICADA no lugar do corpo colado. Os corpos vêm das migrations do repositório (nunca de --corpos), e
+  // cada bloco recusa, antes de medir, função ausente, corpo aplicado diferente do versionado e — na
+  // equivalência — função velha já derrubada.
+  if (o.modo === 'gerar-equivalencia-real' || o.modo === 'gerar-custo-real') {
+    if (o.corpos) recusar('--corpos não vale no modo real: os corpos são os das migrations do repositório.')
+    if (!ALVOS[o.alvo]) recusar(`--alvo: ${Object.keys(ALVOS).join(' | ')}.`)
+    const corpos = lerCorposDoRepositorio()
+    const gravados = []
+    if (o.modo === 'gerar-equivalencia-real') {
+      if (!o.datas) recusar('--datas é obrigatório (o f60-datas-amostra.json).')
+      const datas = JSON.parse(readFileSync(o.datas, 'utf8')).datas.map((d) => d.data)
+      for (const d of datas) if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) recusar(`data fora do formato: ${d}`)
+      for (const nome of Object.keys(MODELO)) {
+        const sql =
+          MODELO[nome].forma === 'kpis' ? blocoKpis(corpos[nome], o.alvo, { real: true }) : blocoEquivalencia(nome, corpos[nome], o.alvo, datas, { real: true })
+        gravados.push(gravar(o.dir, `eq-real-${o.alvo}-${nome}`, sql))
+      }
+    } else {
+      if (!o.hoje) recusar('--hoje é obrigatório (AAAA-MM-DD).')
+      for (const b of CUSTO) {
+        gravados.push(gravar(o.dir, `${b.nome}-real-${o.alvo}`, blocoCusto(b, corpos[b.funcao], o.alvo, o.hoje, { n: o.n ? Number(o.n) : N_PADRAO, real: true })))
+      }
+    }
+    console.log(JSON.stringify({ gravados, projeto: ALVOS[o.alvo].projeto }, null, 2))
     return
   }
 
@@ -1021,11 +1150,15 @@ async function main() {
   if (o.modo === 'analisar-equivalencia') {
     // forma pedida: { <alvo>: { <função>: { celulas, iguais, divergentes, lista, nulo_e_vazio } } };
     // o que não é alvo mora sob chaves com `_` na frente
+    const real = o.real !== undefined
     const saida = {
-      _rotulo: 'f60-equivalencia-emulada',
+      _rotulo: real ? 'f60-equivalencia-funcao-real' : 'f60-equivalencia-emulada',
       _sha_codigo: shaDoCodigo(),
       _gerado_em: new Date().toISOString(),
       _metodo:
+        (real
+          ? 'FUNÇÃO NOVA APLICADA chamada pelo nome (prosrc conferido por md5 contra a migration do repositório) no lugar do corpo colado; o resto é o método da emulação: '
+          : '') +
         'corpo NOVO colado como subconsulta com parâmetros em literais tipados (format %L) × função VELHA do banco; ' +
         'count(*) e md5(string_agg(linha::text order by linha::text)) sobre as mesmas colunas com o tipo declarado; ' +
         'datas de amostra × (consolidado = todas as filiais com desativada; f1..fN por ordinal de id); janelas 7d/365d nas de período; ' +
@@ -1035,12 +1168,12 @@ async function main() {
     const pendencias = saida._pendencias
     for (const alvo of Object.keys(ALVOS)) {
       for (const nome of Object.keys(MODELO)) {
-        const caminho = join(o.dir, 'respostas', `eq-${alvo}-${nome}.resposta.txt`)
+        const caminho = join(o.dir, 'respostas', `eq-${real ? 'real-' : ''}${alvo}-${nome}.resposta.txt`)
         if (!existsSync(caminho)) {
           pendencias.push({ alvo, funcao: nome, motivo: 'sem resposta gravada do canal' })
           continue
         }
-        const marca = MODELO[nome].forma === 'kpis' ? 'F60_KPIS' : 'F60_EQUIVALENCIA'
+        const marca = (MODELO[nome].forma === 'kpis' ? 'F60_KPIS' : 'F60_EQUIVALENCIA') + (real ? '_REAL' : '')
         const p = lerPayload(readFileSync(caminho, 'utf8'), marca)
         if (p.recusa) {
           pendencias.push({ alvo, funcao: nome, motivo: p.recusa })
@@ -1053,6 +1186,81 @@ async function main() {
     }
     writeFileSync(o.saida, JSON.stringify(saida, null, 2) + '\n')
     console.log(`gravado ${o.saida}; pendências: ${pendencias.length}`)
+    return
+  }
+
+  if (o.modo === 'analisar-custo' && o.real !== undefined) {
+    const saida = {
+      rotulo: 'f60-custo-funcao-real',
+      alvo: o.alvo ?? 'producao',
+      sha_codigo: shaDoCodigo(),
+      gerado_em: new Date().toISOString(),
+      metodo:
+        'modo real: guarda de md5 do prosrc APLICADO contra a migration do repositório; forma (b) sobre esse corpo (prepare + ' +
+        'force_generic_plan + explain analyze buffers execute, 1 aquecimento + N) E a CHAMADA da função pelo nome (prepare ' +
+        '"select * from public.<fn>($1…)", mesmo método), intercaladas por célula; identidade authenticated admin/dev; só leitura.',
+      celulas: [],
+      pendencias: [],
+    }
+    let confirmacaoAsof = null
+    for (const b of CUSTO) {
+      const alvo = o.alvo ?? 'producao'
+      if (!ALVOS[alvo]) recusar(`--alvo: ${Object.keys(ALVOS).join(' | ')}.`)
+      const caminho = join(o.dir, 'respostas', `${b.nome}-real-${alvo}.resposta.txt`)
+      if (!existsSync(caminho)) {
+        saida.pendencias.push({ bloco: b.nome, motivo: 'sem resposta gravada do canal' })
+        continue
+      }
+      const p = lerPayload(readFileSync(caminho, 'utf8'), 'F60_CUSTO_REAL')
+      if (p.recusa) {
+        saida.pendencias.push({ bloco: b.nome, motivo: p.recusa })
+        continue
+      }
+      for (const [celula, stat] of Object.entries(p.amostras ?? {})) {
+        const [recorte, rot] = celula.split('·')
+        const chamada = p.amostras_chamada?.[celula] ?? null
+        saida.celulas.push({
+          funcao: b.funcao,
+          recorte,
+          celula: rot,
+          corpo_aplicado: { execucao_ms: stat.execucao_ms, planejamento_ms: stat.planejamento_ms, buffers_raiz: stat.buffers_raiz, linhas: stat.linhas, n: stat.n },
+          chamada,
+          tipos_de_no: p.nos?.[celula]?.tipos_de_no ?? [],
+          indices_usados: p.nos?.[celula]?.indices_usados ?? [],
+          relacoes_com_seq_scan: p.nos?.[celula]?.relacoes_com_seq_scan ?? [],
+        })
+        if (b.nome === 'custo-asof-consolidado' && rot === 'hoje') {
+          confirmacaoAsof = {
+            data: p.hoje,
+            medido_em: saida.gerado_em,
+            alvo,
+            metodo: saida.metodo,
+            md5_prosrc_conferido: p.md5_prosrc_conferido,
+            execucao_ms: stat.execucao_ms,
+            planejamento_ms: stat.planejamento_ms,
+            buffers_raiz: stat.buffers_raiz,
+            chamada_execucao_ms: chamada?.execucao_ms ?? null,
+            linhas: stat.linhas,
+            indices_usados: p.nos?.[celula]?.indices_usados ?? [],
+          }
+        }
+      }
+    }
+    writeFileSync(o.saida, JSON.stringify(saida, null, 2) + '\n')
+    // `--confirmar-orcamento=docs/perf/asof-orcamento.json`: grava SÓ `medicao.confirmacao`. O `corpo` e a
+    // medição original ficam intactos — trocar o hash é outra decisão (asof-orcamento.test.ts).
+    if (o['confirmar-orcamento']) {
+      if (!confirmacaoAsof) recusar('sem a célula consolidado·hoje do as-of nas respostas — nada a confirmar.')
+      const orcamento = JSON.parse(readFileSync(o['confirmar-orcamento'], 'utf8'))
+      if (!orcamento.medicao) recusar('o arquivo de orçamento não tem "medicao".')
+      const medido = orcamento.medicao.execucao_ms?.mediana
+      orcamento.medicao.confirmacao = {
+        ...confirmacaoAsof,
+        razao_mediana_sobre_a_medida: medido ? Math.round((confirmacaoAsof.execucao_ms.mediana / medido) * 1000) / 1000 : null,
+      }
+      writeFileSync(o['confirmar-orcamento'], JSON.stringify(orcamento, null, 2) + '\n')
+    }
+    console.log(`gravado ${o.saida}: ${saida.celulas.length} célula(s), ${saida.pendencias.length} pendência(s)${o['confirmar-orcamento'] && confirmacaoAsof ? '; confirmação do orçamento gravada' : ''}`)
     return
   }
 

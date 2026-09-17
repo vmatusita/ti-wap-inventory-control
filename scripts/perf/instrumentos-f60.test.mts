@@ -79,3 +79,62 @@ describe('2. a identidade — o sha256 (LF) de cada instrumento versionado está
     expect(PLANO).toContain('`59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d`')
   })
 })
+
+// 3. O PASSO DEPOIS DO APPLY (revisão final da F60). O plano, o runbook e o rodapé da 0143 põem a equivalência com
+// a FUNÇÃO de verdade como portão do merge, e o instrumento só sabia colar o corpo. Os modos `real` chamam a função
+// aplicada pelo nome e recusam, antes de medir, a função ausente, o corpo aplicado diferente do versionado e a velha
+// já derrubada. A emulação continua emitindo o mesmo SQL (sem `real`), o que a revisão conferiu por diff.
+import {
+  CUSTO,
+  MODELO,
+  blocoCusto,
+  blocoEquivalencia,
+  blocoKpis,
+  lerCorposDoRepositorio,
+  lerPayload,
+  md5Normalizado,
+  validarBloco,
+} from './equivalencia-rel.mjs'
+
+const CORPOS_REPO = lerCorposDoRepositorio(RAIZ)
+const DATAS = ['2026-09-01', '2026-09-15']
+
+describe('3. o modo real — a equivalência e o custo com a função APLICADA', () => {
+  it.each(Object.keys(MODELO))('%s: o bloco real chama a função pelo nome e confere o prosrc antes de medir', (nome) => {
+    const def = CORPOS_REPO[nome]
+    const sql = MODELO[nome].forma === 'kpis' ? blocoKpis(def, 'producao', { real: true }) : blocoEquivalencia(nome, def, 'producao', DATAS, { real: true })
+    expect(() => validarBloco(sql)).not.toThrow()
+    expect(sql).toContain(`to_regprocedure('public.${nome}(${def.parametros.map((p) => p.tipo).join(', ')})')`)
+    expect(sql).toContain(`if v_md5_vivo <> '${md5Normalizado(def.corpo)}' then`)
+    expect(sql).toContain(String.raw`regexp_replace(pr.prosrc, '\s+', ' ', 'g')`)
+    expect(sql).toContain(`from public.${nome}(%1$L::smallint[]`)
+    expect(sql).toMatch(/raise exception 'F60_(EQUIVALENCIA|KPIS)_REAL %'/)
+    // nenhum pedaço do corpo colado: o lado novo é só a função
+    const trecho = def.corpo.trim().split('\n')[0].trim()
+    expect(sql.includes(trecho), `o bloco real ainda cola o corpo ("${trecho}")`).toBe(false)
+    if (MODELO[nome].velha) expect(sql).toContain(`'F60_FUNCAO_VELHA_AUSENTE ${MODELO[nome].velha}'`)
+  })
+
+  it('sem `real`, o bloco é a emulação de sempre (corpo colado, marca sem _REAL, sem guarda de prosrc)', () => {
+    const def = CORPOS_REPO.rel_mov_por_mes_filiais
+    const sql = blocoEquivalencia('rel_mov_por_mes_filiais', def, 'producao', DATAS)
+    expect(sql).toContain("raise exception 'F60_EQUIVALENCIA %'")
+    expect(sql).not.toContain('v_md5_vivo')
+    expect(sql).toContain(def.corpo.trim().split('\n')[0].trim())
+  })
+
+  it.each(CUSTO.map((b) => [b.nome, b] as const))('custo real %s: os dois preparados e os quatro deallocate (caminho normal e de erro)', (_nome, b) => {
+    const sql = blocoCusto(b, CORPOS_REPO[b.funcao], 'producao', '2026-09-17', { real: true })
+    expect(() => validarBloco(sql)).not.toThrow()
+    expect(sql).toContain(`as select * from public.${b.funcao}(`)
+    expect(sql.match(/deallocate %I/g)?.length).toBe(4)
+    expect(sql).toContain("raise exception 'F60_CUSTO_REAL %'")
+    expect(sql).toContain("'amostras_chamada', v_amostras_chamada")
+  })
+
+  it('as recusas do modo real viram pendência nomeada, nunca número', () => {
+    for (const r of ['F60_FUNCAO_NOVA_AUSENTE rel_resumo_filiais', 'F60_CORPO_VIVO_DIFERENTE rel_resumo_filiais', 'F60_FUNCAO_VELHA_AUSENTE rel_resumo']) {
+      expect(lerPayload(JSON.stringify({ error: { message: `ERROR: P0001: ${r}` } }), 'F60_EQUIVALENCIA_REAL')).toEqual({ recusa: r })
+    }
+  })
+})

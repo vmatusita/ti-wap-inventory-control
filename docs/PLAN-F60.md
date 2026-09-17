@@ -36,7 +36,7 @@ esta identidade — é ela que o "depois" tem de repetir, ou declarar a diferen�
 | `scripts/perf/medir-rel.mjs` — **versionado** (lote 1 + revisão + o conjunto "depois" do lote 2) | 53.098 | `fd8183d2853252ef315a0187b65a1d81a4d19455226c6961df6b304bb35a7ee7` |
 | `scripts/perf/medir-custo.mjs` — **versionado** (lote 1 + revisão) | 36.046 | `491b9a6aca1bbe9bfeee678a9360c448c77c438ed47ca5b76b0380af14600fb3` |
 | `equivalencia-rel.mjs` (a equivalência velho × novo emulada e o custo dos corpos novos, lote 2) — **original, mediu a equivalência** | 59.660 | `59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d` |
-| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2) | 61.324 | `6f2d0bad83980d60fb6a931eb83cf5bfb75b9ec431e4e9f0bb7ca5e543062eaf` |
+| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2 + os modos `*-real` da revisão final) | 73.263 | `4c4ed03e194b646028890678b628f17902643eb5cf21b6659ffede824e173634` |
 
 ⚠ Só `medir-rel.mjs` fixava `RAIZ_REPO` como caminho absoluto desta máquina; `medir-custo.mjs` não tinha raiz, e por isso
 também não conferia onde `--dir` caía. O plano previa um diff de "só essa linha"; o que entrou é maior, e está declarado aqui
@@ -61,6 +61,14 @@ e a do lote 2 geraram, cada uma num diretório fora do repositório, os 11 coman
 entrou versionado: a raiz por `import.meta.url` (no lugar de `RAIZ_REPO`/`git rev-parse`) e `validarDirFora` com a régua dos
 dois instrumentos acima; o original e o versionado geraram os 28 blocos de `gerar-equivalencia`/`gerar-custo` (ensaio e
 produção) e `diff -r` saiu vazio.
+
+**Revisão final (17/09/2026) — a diferença declarada.** `scripts/perf/equivalencia-rel.mjs` ganhou os modos `gerar-equivalencia-real`,
+`gerar-custo-real`, `analisar-equivalencia --real` e `analisar-custo --real [--confirmar-orcamento]`: a equivalência e o custo com a
+FUNÇÃO APLICADA no lugar do corpo colado (o passo que o §8, o Anexo A do runbook e o rodapé da `0143` põem como portão do merge,
+e que até aqui era só prosa). A versão do lote 2 tinha 61.324 bytes e sha256 (LF)
+`6f2d0bad83980d60fb6a931eb83cf5bfb75b9ec431e4e9f0bb7ca5e543062eaf`. **A emulação continua reproduzível:** a versão do lote 2 e a
+da revisão geraram os 28 blocos de `gerar-equivalencia`/`gerar-custo` (ensaio e produção, os corpos das migrations 0141 + 0143)
+num diretório fora do repositório, e `diff -r` saiu vazio.
 
 ---
 
@@ -1066,7 +1074,8 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
 2. **Equivalência emulada, antes de qualquer apply:** o corpo novo EMULADO inline × a função velha, no ensaio e em produção,
    nas 1.004 células do §4 (só contagem e hash). Migration aplicada não se edita: só aplica quando a emulação fecha.
 3. **Ensaio** (não tem app de produção: o `drop` não espera deploy): apply `0141` → verificação → apply `0142` (o índice) →
-   apply `0143` → verificação pós-apply → **equivalência com a função de verdade** (as mesmas células) → apply `0144` → a view
+   apply `0143` → verificação pós-apply → **equivalência com a função de verdade** (as mesmas células:
+   `equivalencia-rel.mjs gerar-equivalencia-real --alvo=ensaio` + `analisar-equivalencia --real`) → apply `0144` → a view
    nova: linhas e hash iguais ao de antes do apply → apply `0145` → `notify pgrst, 'reload schema'` → `to_regprocedure` das
    sete velhas é NULL →
    `DB_TYPES_PROJECT_REF=sgmvldiizsrjbxzzpmhh npm run db:types` → o arquivo regenerado conferido contra o *hand-fix* (o diff é
@@ -1076,8 +1085,11 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
    por `corpo-vigente.mjs`; `notify pgrst, 'reload schema'`; `get_advisors(security)` sem achado novo; sonda de paridade
    ensaio × produção.
 5. **Produção, antes do merge:** `0141`, `0142` e `0143` + verificação pós-apply + **equivalência com a função de verdade**
-   (as mesmas células) + `conferir.mts` sobre os descritores novos (conta do smoke, só contagens) + **`explain` "depois"** das funções
-   novas pelo `medir-rel.mjs` com os nomes novos + **orçamento do as-of** confirmado chamando a função. Nada disso quebra a
+   (as mesmas células: `equivalencia-rel.mjs gerar-equivalencia-real --alvo=producao` + `analisar-equivalencia --real`) +
+   `conferir.mts` sobre os descritores novos (conta do smoke, só contagens) + **`explain` "depois"** das sete `_filiais` pelo
+   `medir-rel.mjs gerar-a1 --funcao=<nome>_filiais` e o de `rel_contagem_status_filiais` (e do as-of) pelo
+   `equivalencia-rel.mjs gerar-custo-real` + **orçamento do as-of** confirmado chamando a função
+   (`analisar-custo --real --confirmar-orcamento=docs/perf/asof-orcamento.json`, que grava só `medicao.confirmacao`). Nada disso quebra a
    `1.64.0`: são funções de nome novo. Hash diferente em qualquer célula segura o merge.
 6. **Merge** com `verificar` e `banco-sem-docker` verdes → **deploy** → **conferência** só leitura: `/api/saude` com `1.65.0`
    e o commit do merge; `node scripts/smoke/smoke-prod.mjs` com 0 falha (a Parte B chama as funções novas).
@@ -1086,7 +1098,9 @@ migration: o gate de deriva do CI constrói a cadeia INTEIRA, com o `drop`.
 (corrigido em 17/09 pela execução: nos passos 1–7 o plano dizia a cadeia `0001`→`0144`, 89 ativas e sete novas, 924 células,
 o ensaio `0141` → `0142` (as sete) → `0143` (a view) → `0144` (o `drop`), produção `0141` e `0142` antes do merge e a janela
 com `0143` e `0144`; a numeração andou uma casa com o índice na `0142` (§8), as mutações são oito (§7.3) e a equivalência
-emulada teve 1.004 células por banco, todas iguais (§4).)
+emulada teve 1.004 células por banco, todas iguais (§4). Corrigido de novo em 17/09 pela revisão final: os passos 3 e 5
+pediam a equivalência com a função de verdade, o `explain` "depois" da `rel_contagem_status_filiais` e a confirmação do
+orçamento sem instrumento que os fizesse — os modos `*-real` de `equivalencia-rel.mjs` entraram para isso, §0.)
 
 ---
 

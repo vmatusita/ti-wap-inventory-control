@@ -17,7 +17,7 @@
     "data": "2026-09-16",
     "medido_em": "2026-09-16T22:19:55.982Z",
     "metodo": "corpo EMULADO inline, antes do apply da 0143 (só leitura): prepare + plan_cache_mode=force_generic_plan + explain (analyze, buffers, format json) execute; 1 aquecimento + 7 medidas, intercaladas na mesma sessão com o corpo da 0134 (forma b) e a chamada da função velha (forma a)",
-    "confirmacao": "pendente — depois do apply da 0143, chamar a função de verdade pelo mesmo método e conferir que o custo cabe na réplica abaixo; o hash não muda (o corpo aplicado é o do arquivo, conferido por md5_prosrc_normalizado)",
+    "confirmacao": "pendente — depois do apply da 0143, em produção: node scripts/perf/equivalencia-rel.mjs gerar-custo-real --alvo=producao --hoje=AAAA-MM-DD --dir=<fora-do-repo>, executar os blocos, e analisar-custo --real --dir=<…> --saida=<…> --confirmar-orcamento=docs/perf/asof-orcamento.json, que grava aqui a medição do corpo APLICADO (conferido por md5 do prosrc) e da chamada; o hash não muda",
     "postgres": "17.6",
     "papel": "authenticated",
     "recorte": "consolidado — a lista de todas as filiais, inclusive desativadas (hoje nenhuma desativada)",
