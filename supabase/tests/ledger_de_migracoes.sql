@@ -99,7 +99,14 @@ begin
   -- =========================================================================
   -- 2a — AUTHENTICATED SEM PAPEL (perfil desativado): a GUARDA DE DENTRO recusa
   -- =========================================================================
+  -- A fixture muda como postgres: no Postgres NOVO do CI `authenticated` não tem
+  -- privilégio de tabela em `profiles` (os grants de default do projeto hospedado não
+  -- existem lá), e mexer no perfil não é o que este cenário mede.
+  reset role;
   update public.profiles set ativo = false where id = k_operador;
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
   -- `ativo=false` vale no request SEGUINTE (0070/0073) — nesta simulação, a
   -- PRÓXIMA chamada já é o "request seguinte", então o efeito já vale aqui.
   begin
@@ -114,6 +121,7 @@ begin
       v_falhas := v_falhas + 1;
       raise warning '✗ 2a recusado por SQLSTATE inesperado (não 42501): % — %', sqlstate, sqlerrm;
   end;
+  reset role;
   update public.profiles set ativo = true where id = k_operador; -- devolve o estado para não vazar para outra asserção
 
   -- =========================================================================

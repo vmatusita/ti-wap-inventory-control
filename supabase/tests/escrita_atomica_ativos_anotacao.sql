@@ -47,6 +47,17 @@
 
 begin;
 
+-- Privilégios de TABELA para os cenários que fazem `set local role authenticated`.
+-- Mesma razão de `papeis_rls.sql` e `f38_itens_com_ativo.sql`: no projeto hospedado estes
+-- grants já existem por default privilege (é com eles que o app sempre fez estas duas escritas
+-- pela sessão do usuário) e o bloco é no-op; no Postgres NOVO do CI não existem, e o cenário
+-- pararia em "permission denied" — resposta certa para a pergunta errada (aqui se mede a
+-- POLICY e a atomicidade, não privilégio de tabela). Só a tabela/verbo que as cinco funções
+-- `security invoker` usam.
+grant select, update on public.ativos to authenticated;    -- o UPDATE (e o RETURNING do lote)
+grant select, insert on public.anotacoes to authenticated; -- o INSERT (e o RETURNING do lote)
+grant select on public.filiais to authenticated;
+
 do $$
 declare
   k_admin      constant uuid := '00000000-0000-0000-0000-0000f6090001';
