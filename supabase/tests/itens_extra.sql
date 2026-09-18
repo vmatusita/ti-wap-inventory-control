@@ -13,9 +13,12 @@
 --             lancamentos_item não alteram/removem a linha (RLS sem policy de
 --             update/delete → 0 linhas afetadas; um erro de permissão, noutro
 --             ambiente, também conta como rejeição).
---   R-ITE-22  nome de item ÚNICO case-insensitive: o índice funcional
---             itens_nome_uidx sobre lower(nome) (0014) recusa 'zzf19 mouse'
---             após 'ZZF19 Mouse' com unique_violation (23505).
+--   R-ITE-22  nome de item ÚNICO case-insensitive: o índice único
+--             itens_nome_chave_uidx sobre nome_chave = item_chave(nome) (0125)
+--             recusa 'zzf19 mouse' após 'ZZF19 Mouse' com unique_violation
+--             (23505). Até a 0147 quem recusava era itens_nome_uidx, sobre
+--             lower(nome) (0014) — redundante ao lado do de cima (a 0147 prova
+--             que o novo recusa tudo que o velho recusava) e tirado do banco.
 --
 -- Convenção (igual aos demais roteiros do job `banco`):
 --   NOTICE  '✓ ...'  quando bate com o esperado
@@ -132,9 +135,13 @@ begin
   end if;
 
   -- ---------------------------------------------------------------
-  -- R-ITE-22 — nome de item ÚNICO case-insensitive. O índice funcional
-  -- itens_nome_uidx sobre (lower(nome)) da 0014 trata 'ZZF19 Mouse' e
-  -- 'zzf19 mouse' como o mesmo item → unique_violation (23505) no 2º insert.
+  -- R-ITE-22 — nome de item ÚNICO case-insensitive. O índice único
+  -- itens_nome_chave_uidx sobre nome_chave = item_chave(nome) (0125) trata
+  -- 'ZZF19 Mouse' e 'zzf19 mouse' como o mesmo item → unique_violation (23505)
+  -- no 2º insert. Até a 0147 quem recusava era itens_nome_uidx (lower(nome),
+  -- 0014); a 0147 provou que itens_nome_chave_uidx recusa tudo que aquele
+  -- recusava (e mais: acento e espaço a mais) e o tirou do banco por
+  -- redundante — este cenário segue provado, agora pelo índice que sobrou.
   -- ---------------------------------------------------------------
   insert into public.itens (nome, grupo, ordem)
     values ('ZZF19 Mouse', 'acessorio', 998) returning id into v_item2;
@@ -143,7 +150,11 @@ begin
     v_falhas := v_falhas + 1; raise warning '✗ R-ITE-22: ''zzf19 mouse'' após ''ZZF19 Mouse'' NÃO foi bloqueado (deveria)';
   exception
     when unique_violation then
-      v_ok := v_ok + 1; raise notice '✓ R-ITE-22: nome duplicado case-insensitive rejeitado (23505): %', sqlerrm;
+      if sqlerrm ilike '%itens_nome_chave_uidx%' then
+        v_ok := v_ok + 1; raise notice '✓ R-ITE-22: nome duplicado case-insensitive rejeitado por itens_nome_chave_uidx (23505): %', sqlerrm;
+      else
+        v_falhas := v_falhas + 1; raise warning '✗ R-ITE-22: rejeitou (23505), mas NÃO citando itens_nome_chave_uidx: %', sqlerrm;
+      end if;
     when others then
       v_falhas := v_falhas + 1; raise warning '✗ R-ITE-22 falhou por motivo INESPERADO (não unique_violation): %', sqlerrm;
   end;

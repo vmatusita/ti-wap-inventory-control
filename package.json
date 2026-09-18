@@ -1,6 +1,6 @@
 {
   "name": "estoque-ti-wap",
-  "version": "1.66.2",
+  "version": "1.66.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -66,5 +66,9 @@
     "tsx": "^4.23.0",
     "typescript": "^5",
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "unrs-resolver": true
   }
 }

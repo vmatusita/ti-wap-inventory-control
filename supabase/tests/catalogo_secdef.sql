@@ -149,7 +149,15 @@ declare
     -- privilégio de `resetar_dados_ficticios`; é o `scripts/env-guard.ts` que a
     -- consome, para confirmar no BANCO a identidade que hoje ele confere só
     -- pelo ref do projeto.
-    'rotulo_de_ambiente'
+    'rotulo_de_ambiente',
+    -- `ledger_de_migracoes` (0148/reauditoria 18/09/2026, item AE): o ledger de
+    -- `supabase_migrations.schema_migrations`, fora dos schemas que o PostgREST
+    -- expõe — precisa ser definer pelo MESMO motivo de
+    -- `checagens_integridade_resumo`, cuja guarda ela copia
+    -- (`papel_atual() is not null`). É o que `scripts/smoke/deriva-migrations.mjs`
+    -- lê pela conta `consulta` do smoke agendado, para comparar o repositório
+    -- com o que já foi aplicado. 52 no total.
+    'ledger_de_migracoes'
   ];
 
   -- -----------------------------------------------------------------------

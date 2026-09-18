@@ -56,6 +56,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.estornoComPendenciaResolvida)) {
     return 'Esta devolução não pode ser estornada: a pendência de item que ela abriu já foi resolvida no estoque de itens. Para corrigir o estado do equipamento, registre um ajuste com justificativa.'
   }
+  // Reauditoria 18/09/2026 (item U, 0149): as cinco escritas atômicas "ativos + anotação"
+  // recusam (P0002) quando o UPDATE não alcança linha nenhuma — o ativo sumiu, ou saiu do
+  // vínculo de filial de quem salva, entre a leitura da tela e a gravação. A action já confere
+  // as duas coisas antes; isto é a corrida entre a conferência e a gravação, e nada foi gravado.
+  if (casa(m, MSG_SQL.foraDoVinculoNadaGravado)) {
+    return 'Este ativo não foi encontrado ou saiu do seu vínculo de filial enquanto você salvava. Nada foi gravado — atualize a página e tente de novo.'
+  }
   if (casa(m, MSG_SQL.ajusteExige)) {
     return 'O ajuste exige o status resultante e uma justificativa (observação).'
   }
@@ -108,11 +115,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casaConstraint(m, 'lanc_item_qtd_valida')) {
     return 'Quantidade inválida para este tipo de lançamento.'
   }
-  // Os DOIS índices únicos do catálogo. `itens_nome_uidx` (lower(nome)) é o antigo;
-  // `itens_nome_chave_uidx` (0125) é o novo e é ESTRITAMENTE mais forte — ignora
-  // acento e espaço a mais além da caixa. Qualquer um dos dois pode ser o que
-  // dispara, então os dois traduzem para a mesma frase.
-  if (casaConstraint(m, 'itens_nome_uidx', 'itens_nome_chave_uidx')) {
+  // Índice único do catálogo. Até a 0147 havia DOIS (`itens_nome_uidx`, sobre
+  // `lower(nome)`, e `itens_nome_chave_uidx`, sobre `nome_chave`) — provado na 0147
+  // que `itens_nome_chave_uidx` recusa TUDO que `itens_nome_uidx` recusava (e mais:
+  // acento e espaço a mais), então o velho saiu do banco e desta lista. A frase que
+  // o operador vê não mudou — ela já falava "acento, maiúscula e espaço a mais"
+  // antes de o índice novo existir sozinho.
+  if (casaConstraint(m, 'itens_nome_chave_uidx')) {
     return 'Já existe um item com esse nome (a comparação ignora acento, maiúscula e espaço a mais). Use o item que já existe.'
   }
   // Corrida de duplo-estorno: o índice único parcial dispara "duplicate key" —

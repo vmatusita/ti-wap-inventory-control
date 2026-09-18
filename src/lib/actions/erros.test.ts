@@ -226,6 +226,22 @@ describe('vocabulário de unidades (F56 · migration 0139)', () => {
   })
 })
 
+describe('escritas atômicas "ativos + anotação" (reauditoria 18/09/2026, item U · 0149)', () => {
+  const FRASE =
+    'Este ativo não foi encontrado ou saiu do seu vínculo de filial enquanto você salvava. Nada foi gravado — atualize a página e tente de novo.'
+
+  it('as quatro recusas singulares (P0002) viram a MESMA frase de operador, nunca o genérico', () => {
+    for (const verbo of ['corrigido', 'definido', 'confirmado', 'desfeito']) {
+      const m = `Ativo não encontrado, ou fora do seu vínculo de escrita — nada foi ${verbo}.`
+      expect(traduzErroBanco(m, 'P0002')).toBe(FRASE)
+    }
+  })
+
+  it('a grafia sem acento (o caminho RPC → PostgREST pode perdê-lo) casa igual', () => {
+    expect(traduzErroBanco('Ativo nao encontrado, ou fora do seu vinculo de escrita — nada foi corrigido.', 'P0002')).toBe(FRASE)
+  })
+})
+
 describe('retrocompat — chamada com 1 argumento (sem code) segue funcionando', () => {
   it('mapeia por substring sem passar o SQLSTATE', () => {
     expect(traduzErroBanco('violates foreign key constraint')).toBe(

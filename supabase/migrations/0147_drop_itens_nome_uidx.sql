@@ -1,0 +1,99 @@
+-- =============================================================================
+-- 0147 — tira o índice único redundante `itens_nome_uidx` do catálogo de itens
+-- (Reauditoria de dívida técnica de 18/09/2026, item F41a)
+-- =============================================================================
+-- `itens_nome_uidx` (0014) é `unique index … on public.itens ((lower(nome)))` — a
+-- deduplicação original do catálogo, só por caixa. Desde a `0125` (F41) existe
+-- `itens_nome_chave_uidx`, sobre a coluna GERADA `nome_chave = item_chave(nome)`
+-- (immutable, strict; normaliza NFC, troca acento por letra base, colapsa espaço
+-- em branco e apara as pontas — `src/lib/itens/chave.ts` espelha a mesma regra em
+-- TS, provado igual por `chave-sql.test.ts`). Os dois convivem hoje: todo INSERT/
+-- UPDATE em `itens` paga os DOIS índices, e o `unicidade_por_empresa.sql` que o
+-- `PLANO-MULTIEMPRESA` §826 prevê teria de reescopar um índice a mais por nada.
+--
+-- -----------------------------------------------------------------------------
+-- A PROVA — `itens_nome_chave_uidx` cobre TUDO que `itens_nome_uidx` cobria
+-- -----------------------------------------------------------------------------
+-- A pergunta que decide se dá para apagar sem perder recusa: para todo par de
+-- nomes (a, b), `lower(a) = lower(b)` (o velho considera duplicata) IMPLICA
+-- `item_chave(a) = item_chave(b)` (o novo também considera)?
+--
+-- Sim, e por construção — `item_chave` aplica `lower(...)` por ÚLTIMO, por fora
+-- de tudo (0125): `lower(btrim(regexp_replace(translate(normalize(nome, NFC),
+-- <acentuadas>, <base>), <espaço>, ' ', 'g')))`. Se `lower(a) = lower(b)`, então a
+-- e b são iguais caractere a caractere a menos da CAIXA de cada letra (mesmo
+-- comprimento, mesmos espaços, mesmos acentos, nas mesmas posições — só maiúscula
+-- ou minúscula pode diferir). `normalize(NFC)` não depende de caixa; `translate`
+-- mapeia cada acentuada MAIÚSCULA para a base MAIÚSCULA e cada MINÚSCULA para a
+-- base minúscula (a lista da 0125 tem os dois lados, char a char), então preserva
+-- essa relação "iguais a menos da caixa"; `regexp_replace`/`btrim` operam só sobre
+-- espaço, que não tem caixa. No fim, os dois lados chegam a strings iguais a menos
+-- da caixa, e o `lower(...)` final funde os dois em UM só valor de `nome_chave`.
+-- Logo `item_chave(a) = item_chave(b)`.
+--
+-- Testado no ENSAIO (sgmvldiizsrjbxzzpmhh) em 18/09/2026, por função pura (sem
+-- gravar nada), com os pares de borda que a ordem pediu — em TODOS, `old_empata`
+-- (lower) implicou `novo_empata` (item_chave), e as duas colunas de espaço a mais
+-- mostraram o novo pegando o que o velho DEIXAVA passar (a prova de "estritamente
+-- mais forte", não só "igual"):
+--   Mouse/mouse, MOUSE/mouse, Café com leite/café com leite,
+--   CAFÉ COM LEITE/café com leite, Maçã/maçã, MAÇÃ/maçã, Ração/RAÇÃO,
+--   São Paulo/SÃO PAULO, Nação/nação, Núcleo/núcleo, Áéíóú/áéíóú,
+--   ''/''  (nome vazio — os dois empatam, sem NULL em jogo),
+--   AÇÃO ESPECIAL/ação especial
+--     → old_empata = novo_empata = true nos onze pares acima;
+--   '  Mouse  '/'mouse', 'Mo   use'/'mo use', 'Mouse<TAB>X'/'mouse<TAB>x'
+--     → old_empata = false, novo_empata = true (o velho não pegava espaço nas
+--       pontas nem run de espaço colapsado; o novo pega os dois).
+-- Nenhum par testado teve old_empata = true com novo_empata = false.
+--
+-- `nome_chave` NUNCA é NULL (o risco que faria um índice único não recusar dois
+-- NULLs, e o velho cobrir algo que o novo não cobre): a coluna é GERADA ALWAYS AS
+-- `item_chave(nome)` STORED (0125), `item_chave` é `strict` (só devolve NULL para
+-- entrada NULL), e `itens.nome` é `not null` desde a criação da tabela (0014) —
+-- não existe, e nunca existiu, uma linha com `nome` nulo para propagar. Conferido
+-- no catálogo do ENSAIO: `is_nullable = YES` no `information_schema` (metadado
+-- padrão de toda coluna gerada, que o Postgres não estreita a partir da expressão)
+-- mas ZERO linhas com `nome_chave is null`.
+--
+-- Não achei nenhum corpo de função VIVO que dependa do NOME do índice — a única
+-- citação de `itens_nome_uidx` fora de `itens.ts`/`erros.ts`/`erros-do-banco.ts`
+-- é um COMENTÁRIO SQL em `0082_dev_apagar.sql` (`apagar_item`, ao justificar a
+-- comparação case-insensitive da confirmação digitada); a comparação em si é
+-- `lower(btrim(...))` direto, não usa o índice, e a migration já aplicada não se
+-- edita — o comentário fica descrevendo o que era verdade quando foi escrito.
+--
+-- -----------------------------------------------------------------------------
+-- NÃO É DESTRUTIVA DE DADO
+-- -----------------------------------------------------------------------------
+-- `drop index` não toca uma linha da tabela — só o objeto de índice. Nenhum dado
+-- de `itens` muda, nenhuma FK aponta para um índice (FKs apontam para a
+-- constraint de chave primária), e a dedução acima mostra que nenhuma checagem de
+-- unicidade relaxa: `itens_nome_chave_uidx` continua recusando todo par que o
+-- velho recusava, e mais alguns.
+--
+-- -----------------------------------------------------------------------------
+-- ROLLBACK (uma migration NOVA, nunca editar esta) — em PROSA
+-- -----------------------------------------------------------------------------
+--   `create unique index itens_nome_uidx on public.itens ((lower(nome)));`
+--   Não há dado a restaurar (nada foi apagado). Único jeito de o rollback FALHAR
+--   é se, no intervalo entre o drop e a recriação, dois itens ativos tiverem
+--   entrado com o MESMO `lower(nome)` — impossível enquanto `itens_nome_chave_uidx`
+--   segue de pé, pela prova acima (o novo recusa tudo que o velho recusaria).
+--
+-- -----------------------------------------------------------------------------
+-- VERIFICAÇÃO PÓS-APPLY (cada banco)
+-- -----------------------------------------------------------------------------
+--   select indexname from pg_indexes
+--    where schemaname='public' and tablename='itens' and indexname='itens_nome_uidx';
+--   -- esperado: 0 linhas
+--   select indexname from pg_indexes
+--    where schemaname='public' and tablename='itens' and indexname='itens_nome_chave_uidx';
+--   -- esperado: 1 linha (segue vivo)
+--   -- tentativa de duplicata (só por caixa) continua recusada, agora pelo índice novo:
+--   -- insert into itens (nome, grupo) values ('Mouse Teste 0147', 'acessorio');
+--   -- insert into itens (nome, grupo) values ('mouse teste 0147', 'acessorio');
+--   -- esperado: 23505 no segundo insert, citando itens_nome_chave_uidx
+-- =============================================================================
+
+drop index public.itens_nome_uidx;

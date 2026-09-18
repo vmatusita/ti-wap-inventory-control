@@ -573,7 +573,11 @@ export async function criarItem(input: {
     .select('id')
     .single()
   if (error) {
-    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_uidx')) {
+    // Até a 0147 este ramo também casava `itens_nome_uidx` (lower(nome), 0014); o
+    // índice saiu do banco por ser redundante — `itens_nome_chave_uidx` (0125) já
+    // recusava tudo que ele recusava. `casa(FRASES_DO_MOTOR.duplicata)` continua
+    // pegando qualquer "duplicate" cru como rede de segurança.
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_chave_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }
@@ -595,7 +599,8 @@ export async function criarItem(input: {
 //
 // BECO SEM SAÍDA que esta action fecha (achado F12-W4-06): o combobox é
 // alimentado por `listarItensAtivos()` (só item ATIVO), mas o índice único
-// `itens_nome_uidx` é sobre TODOS os itens. Com um homônimo DESATIVADO o
+// `itens_nome_chave_uidx` (até a 0147, também `itens_nome_uidx`) é sobre TODOS
+// os itens. Com um homônimo DESATIVADO o
 // operador não via o item na lista, tentava criar e recebia "Já existe um item
 // com esse nome." — para um item que a tela dizia não existir, sem nenhuma saída
 // dentro do diálogo e com o carrinho já montado. Agora o item desativado é
@@ -635,8 +640,9 @@ export async function criarItemInline(input: {
   //
   // Antes o catálogo inteiro vinha para o servidor e a comparação era
   // `lower(nome)` em JS. Isso empatava com o índice único de então
-  // (`itens_nome_uidx`, sobre `lower(nome)`), mas empata NÃO empata mais: a 0125
-  // criou `itens_nome_chave_uidx` sobre `item_chave(nome)`, que também ignora
+  // (`itens_nome_uidx`, sobre `lower(nome)` — tirado do banco na 0147, redundante
+  // ao lado do de baixo), mas empata NÃO empata mais: a 0125 criou
+  // `itens_nome_chave_uidx` sobre `item_chave(nome)`, que também ignora
   // acento e espaço colapsado. Com a comparação velha, "Mochila " digitada pelo
   // operador não acharia "Mochila" — o servidor concluiria "não existe", tentaria
   // inserir e levaria o erro cru do índice único, no meio do fluxo dele.
@@ -748,7 +754,9 @@ export async function atualizarItem(input: {
     .update({ nome, grupo, ordem, ativo, estoque_minimo })
     .eq('id', id)
   if (error) {
-    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_uidx')) {
+    // Até a 0147 este ramo também casava `itens_nome_uidx` (lower(nome), 0014);
+    // saiu do banco por ser redundante — ver o comentário em `criarItem` acima.
+    if (casa(error.message, FRASES_DO_MOTOR.duplicata) || casaConstraint(error.message, 'itens_nome_chave_uidx')) {
       return { ok: false, erro: 'Já existe um item com esse nome.' }
     }
     return { ok: false, erro: traduzErroBanco(error.message, error.code) }

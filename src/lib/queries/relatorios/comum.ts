@@ -1,6 +1,5 @@
 import 'server-only'
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/lib/types/database'
+import type { DbClient } from '@/lib/auth/acesso'
 
 // Infra compartilhada da camada de dados dos relatórios (OS-F3 3.6). Reúne o que
 // todos os módulos de relatório usam: o client tipado já resolvido (RLS do
@@ -8,7 +7,16 @@ import type { Database } from '@/lib/types/database'
 // resolução de filial e os utilitários de leitura (paginação do PostgREST,
 // "última mov por ativo", rótulo de modelo). Ver docs/DECISOES.md.
 
-export type DbClient = SupabaseClient<Database>
+// `DbClient` era declarado aqui E em `lib/auth/acesso.ts` (mesmo alias,
+// `SupabaseClient<Database>`, duas fontes — reauditoria de 18/09/2026, item AJ).
+// Unificado com `acesso.ts` como fonte única; o `import type` acima traz o
+// nome para uso NESTE arquivo (assinaturas abaixo) e o `export type` reexporta
+// para quem hoje importa `DbClient` só daqui — os testes puros deste diretório
+// (`movimentacoes.test.ts`, `itens.test.ts`) e `src/lib/filtros/casos-limite.test.ts`,
+// que fabricam um client falso. Os dois são SÓ-TIPO (`isolatedModules`): não
+// importam `acesso.ts` em runtime, então não arrastam o `import 'server-only'`
+// dele para esses testes.
+export type { DbClient }
 
 export type Filial = { id: number; nome: string; slug: string }
 

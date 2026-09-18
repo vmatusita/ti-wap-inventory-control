@@ -31,6 +31,26 @@
 > Na faxina (AJ) entra também o `allowScripts` do npm 11: o `npm ci` avisa que o `esbuild` e o `unrs-resolver` têm
 > pós-instalação não declarado. Nada quebrou, mas o aviso deve ser decidido, não ignorado.
 
+> **Passo 2 EXECUTADO no mesmo dia (v1.66.3, PR #62).** Migrations `0147`–`0149` aplicadas no ensaio e em produção
+> antes do merge, com paridade das 10 classes idêntica nos dois. Detalhe e decisões na ata de `docs/DECISOES.md`.
+>
+> - **AE ✅ fechado.** A Parte B do `saude.yml` compara o repositório com o ledger por um **contrato com base fixa**
+>   (da `0146` em diante, todo arquivo tem de estar no ledger, e toda linha aplicada depois da base tem de ter arquivo),
+>   lendo `ledger_de_migracoes()` (`0148`). O desenho da "linha d'água", que esta seção propunha mais abaixo, foi
+>   derrubado na revisão adversarial: alarmava a linha órfã `0126b_…` do ensaio e ficava cego ao apply fora de ordem.
+> - **U ✅ fechado — pelo caminho oposto ao desta reauditoria.** O paliativo "inverter a ordem" estava ERRADO:
+>   `anotacoes` é imutável e o UPDATE falha de forma previsível (patrimônio duplicado), então anotar antes deixaria uma
+>   correção falsa para sempre. As cinco escritas viraram RPCs `security invoker` atômicas (`0149`).
+> - **F41a ✅ fechado.** A `0147` derruba `itens_nome_uidx`.
+> - **AJ ✅ fechado.** Menos o `vercel.svg`, que é o controle do harness da F33 e fica.
+>
+> **Dois resíduos novos, pequenos:**
+>
+> | # | Item | Imp. | Risco | Esf. | **Prio** |
+> |---|---|:-:|:-:|:-:|:-:|
+> | **AO** | `reabrirPendenciaItem` grava a anotação DEPOIS da RPC atômica: o espelho do U (a anotação pode FALTAR, nunca sobrar) | 1 | 2 | 2 | **12** |
+> | **AP** | Duas operações simultâneas que MUDAM a pendência do mesmo ativo ainda se sobrescrevem (anterior à 1.66.3; fechar exige espelhar em SQL a limpeza de pendência do TS) | 1 | 1 | 3 | **6** |
+
 Revalida item a item contra a `main` de hoje (`98a78da`), 26 fases depois da rodada de 12/08 e
 três semanas depois da revisão de 30/08. **Levantamento e priorização, nenhuma correção executada.**
 Mesma fórmula de sempre: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, eixos de 1 a 5, esforço

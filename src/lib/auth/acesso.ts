@@ -13,6 +13,9 @@ import type { Database } from '@/lib/types/database'
 import { linhaOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
 import { LEITURA_PAPEL_ATUAL, LEITURA_PERFIL_OPERADOR } from '@/lib/queries/formas/auth'
 
+// Fonte única de `DbClient` (reauditoria de 18/09/2026, item AJ — antes também
+// declarado, duplicado, em `queries/relatorios/comum.ts`, que agora reexporta
+// daqui com `export type {…} from …`, só-tipo).
 export type DbClient = SupabaseClient<Database>
 
 // F21: o operador deixou de ser só "quem está logado". `papel` é o cargo vigente e

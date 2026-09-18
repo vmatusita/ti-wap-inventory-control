@@ -64,3 +64,8 @@ carga-*.json
 
 # Arquivos de trabalho que scripts de prova criam na raiz e apagam no fim (F55).
 zz-*
+
+# "Claude outputs/" — rascunhos de sessão do ultracode na raiz (reauditoria de
+# 18/09/2026, item AJ). A ordem de serviço que vale é a de docs/prompts/; o que
+# cai aqui é saída de trabalho, não documento — nunca versionar.
+/Claude outputs/

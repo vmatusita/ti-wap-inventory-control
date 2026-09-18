@@ -6,6 +6,36 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 18/09/2026 — Passo 2 da reauditoria: sonda de deriva, escrita atômica com anotação e faxina ✅
+
+Entrega avulsa (**v1.66.3**): o passo 2 da reauditoria de dívida técnica do mesmo dia
+([`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md)). **Com migrations `0147`, `0148` e `0149`**, aplicadas no ensaio e
+em produção ANTES do merge: corpo de cada função igual ao arquivo pelo md5 do `prosrc`, paridade das 10 classes
+idêntica nos dois bancos, advisors de segurança 28 → 29 (a 29ª é a `ledger_de_migracoes`, declarada na migration).
+Sem dependência nova. Ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- 🐞 **Item U: as cinco escritas "ativo + anotação" viraram uma transação só.** `corrigirPatrimonio`,
+  `definirServiceTag`, `confirmarAssinaturaTermo`, `desfazerConfirmacaoTermo` e `confirmarAssinaturaLote` chamam uma
+  RPC `security invoker` cada (`0149`): a RLS de sempre é o portão, `criado_por` sai de `auth.uid()`, e o UPDATE que não
+  alcança linha nenhuma recusa (`P0002`) antes de a anotação nascer. A recomendação da reauditoria ("inverter a
+  ordem") foi descartada: `anotacoes` é imutável e o UPDATE falha de forma previsível (patrimônio duplicado). A
+  pendência só é regravada quando muda, como antes; a primeira versão a regravava sempre, e a revisão adversarial pegou.
+  A recusa ganhou frase de operador em `erros.ts`.
+- 🔒 **Item AE: a sonda de deriva repositório × produção** (Parte B do `saude.yml`, `scripts/smoke/deriva-migrations.mjs`).
+  Contrato com base fixa na `0146`: todo arquivo ≥ 0146 tem de estar no ledger pelo nome, e toda linha aplicada depois
+  da base tem de ter arquivo. A `0148` cria `ledger_de_migracoes()`, legível por qualquer logado ativo. Pendente além de
+  24 h, nome desconhecido, linha sem nome e a própria sonda falhando viram alarme. O primeiro desenho ("linha d'água"
+  sobre a ponta do ledger) foi derrubado na revisão: alarmava a linha órfã `0126b_…` do ensaio e ficava cego ao apply
+  fora de ordem.
+- 🧹 **Item F41a:** a `0147` derruba `itens_nome_uidx`, redundante ao `itens_nome_chave_uidx`, com a prova no cabeçalho;
+  a tradução morta saiu de `erros-do-banco.ts` sem mudar a frase ao operador.
+- 🧹 **Item AJ:** quatro SVGs do `create-next-app` removidos (o `vercel.svg` fica: é o controle do harness da F33);
+  `Claude outputs/` fora do git; `DbClient` com uma fonte só; `allowScripts` aprovando `esbuild` e `unrs-resolver`.
+- 🧪 **Rede:** dois roteiros novos (`ledger_de_migracoes.sql`, `escrita_atomica_ativos_anotacao.sql`, este com 12
+  cenários) e duas mutações novas no injetor, as duas detectadas pelo cenário nomeado (92/92).
+
+---
+
 ## 18/09/2026 — Passo 1 da reauditoria: `next` 16.3.5, a `0146` em produção e as travas da F38 e do Dependabot ✅
 
 Entrega avulsa (**v1.66.2**): o passo 1 da reauditoria de dívida técnica do mesmo dia

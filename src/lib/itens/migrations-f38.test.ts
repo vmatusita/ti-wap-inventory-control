@@ -166,6 +166,15 @@ const DA_F38 = [
   // DELETE da pendência estourava a FK NO ACTION de `lancamentos_item.pendencia_item_id` (23503).
   // Entra pela exceção nominal `RECRIACOES_AUTORIZADAS`, mais abaixo.
   '0146',
+  // Reauditoria de 18/09/2026, passo 2 (v1.66.3) — as três migrations são COBERTURA: nenhuma
+  // cria nem recria função intocável, nenhuma mexe em enum, nenhuma tem DELETE/UPDATE de topo.
+  // A `0147` só derruba o índice `itens_nome_uidx`, redundante ao `itens_nome_chave_uidx` (F41a).
+  '0147',
+  // A `0148` cria `ledger_de_migracoes()`, a leitura do ledger que a sonda de deriva usa (AE).
+  '0148',
+  // A `0149` cria cinco funções NOVAS `security invoker` que juntam o update em `ativos` e a
+  // anotação numa transação só (item U) — nenhuma recria função existente.
+  '0149',
 ]
 
 /**

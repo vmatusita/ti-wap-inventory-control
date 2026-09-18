@@ -204,7 +204,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8'),
   )
 
-  it('lê as 34 relações (25 tabelas + 9 views) e as 75 funções', () => {
+  it('lê as 34 relações (25 tabelas + 9 views) e as 82 funções', () => {
     // ⚠ 08/09/2026 (F51): as funções passaram de 60 para 68 — as OITO auxiliares do
     // import que a migration 0131 cria. Elas entraram no `database.ts` À MÃO, e não
     // pelo gerador: `npm run db:types` lê um projeto REAL pela Management API, e a
@@ -264,8 +264,13 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // aplicadas em banco real). O número exato continua sendo a trava certa: um hand-fix que
     // só acrescentasse as novas (sem tirar as velhas) daria 83 e o teste acusaria; e o gate de
     // deriva, que só reprova o que o BANCO tem a mais, não pegaria as velhas sobrando no arquivo.
+    //
+    // Reauditoria de 18/09/2026, passo 2 (v1.66.3): funções 76 -> 82. A `0148` cria
+    // `ledger_de_migracoes` (a leitura do ledger da sonda de deriva, item AE) e a `0149` cria as
+    // cinco escritas atômicas "ativos + anotação" (item U). A `0147` só derruba um índice, que não
+    // aparece no `database.ts`. Relações não mudam.
     expect(real.relacoes.size).toBe(34)
-    expect(real.funcoes.size).toBe(76)
+    expect(real.funcoes.size).toBe(82)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

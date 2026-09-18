@@ -121,7 +121,6 @@ import { LEITURA_FILA_PENDENCIAS, LEITURA_SERVICE_TAGS_PENDENCIAS } from '@/lib/
 import { LEITURA_PENDENCIAS_ITEM_DO_ATIVO } from '@/lib/queries/formas/pendencias-item'
 import {
   LEITURA_ALVOS_ASSINATURA_LOTE,
-  LEITURA_ATIVOS_ID,
   LEITURA_CIDADES_DAS_FILIAIS,
   LEITURA_MOV_PARA_TERMO,
   LEITURA_TERMOS_DO_ATIVO,
@@ -278,7 +277,6 @@ export const CATALOGO: readonly Descritor[] = [
   LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO,
   LEITURA_URL_TERMO,
   LEITURA_ALVOS_ASSINATURA_LOTE,
-  LEITURA_ATIVOS_ID,
   // lote 3 — ativos/identidade.ts
   LEITURA_MESMA_IDENTIDADE,
   // lote 4 — relatórios gerados (gerados.ts) — o snapshot congelado, FROUXO e histórico
