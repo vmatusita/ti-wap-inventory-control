@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.3',
+    data: '2026-09-18',
+    titulo: 'As correções na ficha do equipamento passaram a gravar a mudança e o registro dela juntos',
+    mudancas: [
+      'Corrigir o patrimônio, definir a service tag e confirmar ou desfazer a assinatura de termos (de um equipamento ou de vários de uma vez) passaram a gravar a mudança e o registro dela na linha do tempo juntos, de uma vez só. Antes, uma falha no meio do caminho podia deixar o equipamento alterado sem o registro correspondente na ficha.',
+      'Se o equipamento for removido, ou sair do seu vínculo de filial, no instante em que você salva, a tela passou a explicar o que aconteceu e a dizer que nada foi gravado. Antes aparecia "Não foi possível concluir a operação".',
+      'Por dentro, sem efeito na tela: a verificação diária de saúde do sistema passou a conferir se toda mudança de estrutura do banco de dados publicada também foi aplicada, e avisa a equipe quando alguma fica para trás por mais de um dia.',
+      'Também por dentro: o cadastro de itens deixou de manter uma regra de nome repetido em dobro (a mais completa continua valendo, e a mensagem de nome já existente é a mesma), e arquivos que o sistema não usava foram retirados.',
+    ],
+  },
+  {
     versao: '1.66.2',
     data: '2026-09-18',
     titulo: 'Atualização de segurança do sistema, e a recusa do estorno com pendência já resolvida passou a valer',

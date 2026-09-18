@@ -1476,8 +1476,14 @@ export type Database = {
       }
       colaborador_chave: { Args: { p_nome: string }; Returns: string }
       confirmar_assinatura_lote_com_anotacoes: {
-        Args: { p_ativo_ids: string[]; p_data: string; p_texto_anotacao: string }
-        Returns: { ativo_id: string }[]
+        Args: {
+          p_ativo_ids: string[]
+          p_data: string
+          p_texto_anotacao: string
+        }
+        Returns: {
+          ativo_id: string
+        }[]
       }
       confirmar_assinatura_termo_com_anotacao: {
         Args: { p_ativo_id: string; p_data: string; p_texto_anotacao: string }
