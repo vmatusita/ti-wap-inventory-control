@@ -12447,3 +12447,34 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   é outro instrumento e outra fase.
 - **Duas palavras saíram dos documentos** porque prometiam mais do que a trava entrega: "reprova **sempre**" na
   R-UI-61i da matriz, e "a linha da tabela **explica**" na tabela de vereditos de pixel do relatório.
+
+## 2026-09-18 · Revisão de código avulsa (v1.66.1) · estornos de item, `0146` e o `getClaims()` que não entrou
+
+- **Contexto.** Revisão do projeto inteiro por área de risco (sem diff pendente contra `origin/main`): 13 achados, 12
+  aplicados, cada correção reconferida por revisores adversariais só-leitura (um por área, mais um crítico de
+  completude). Suíte 7035/7035, `lint` e `build` limpos.
+- **Decisão 1 — o inverso que já existe é pulado pelo CHAMADOR, e as RPCs não mudam.** `estornarMovimentacao` e
+  `reabrirPendenciaItem` passam a excluir, antes de montar `p_estornos`, os originais que já têm inverso
+  (`lancamentosJaEstornados`, `queries/itens.ts`). **Motivo:** as RPCs 0121/0122 já conferem órfãos com o predicado certo
+  (`not exists … inv.estorna_id = l.id`); o defeito era só a leitura da action, e consertá-la ali não exige migration.
+  A alternativa "recusar estorno avulso de lançamento com `movimentacao_id`/`pendencia_item_id`" **não** foi adotada:
+  com o filtro, o avulso deixa de travar os outros dois caminhos, e recusá-lo tiraria do operador a única correção
+  possível de um acessório lançado errado numa movimentação que já não é a última.
+- **Decisão 2 — `0146` RECUSA o estorno da devolução cuja pendência de item já teve desfecho, em vez de desvincular.**
+  O `delete from pendencias_item` do ramo de estorno de `aplicar_movimentacao` estourava a FK NO ACTION de
+  `lancamentos_item.pendencia_item_id` (23503, medido no ensaio). **Motivo de recusar:** desvincular exigiria abrir a
+  janela `estoque.dev_destrutivo` dentro de um gatilho de uso diário (`lancamentos_item` é imutável fora dela, 0081), e
+  mesmo desvinculado o estorno deixaria de pé os lançamentos do desfecho, mexendo no estoque de itens por uma devolução
+  que o sistema passaria a dizer que não aconteceu. Reabrir a pendência antes NÃO destrava (o inverso da reabertura
+  também grava `pendencia_item_id`) — por isso a mensagem orienta o ajuste com justificativa, não a reabertura.
+  A exceção nominal em `migrations-f38.test.ts` (`RECRIACOES_AUTORIZADAS['0146']`) e o cenário 9 de
+  `pendencias_item.sql` entraram no mesmo commit. **Pendente:** aplicar a `0146` no ensaio e em produção (o código
+  funciona sem ela; sem ela a recusa segue sendo o 23503 genérico).
+- **Decisão 3 — o teto do termo acompanha o lote.** `prepararTermoSchema`/`gerarTermoSchema` passam de 20 para
+  `MAX_LOTE_MOVIMENTACAO` (30), e `series`/`patrimonios`/`marcas_modelos` de 600 para 900 caracteres — os mesmos ~30 por
+  equipamento. **Motivo:** o painel de sucesso manda o grupo inteiro de devoluções para UM termo, e um lote válido de
+  21–30 não gerava termo nenhum.
+- **Decisão 4 — `getUser()` → `getClaims()` no proxy foi aplicado e REVERTIDO na mesma janela.** A revisão apontou o
+  custo (uma ida ao Auth por requisição); dois revisores mostraram que é exatamente a troca que a Decisão 7 (30/08/2026)
+  deixou para o dono do sistema, porque tira o efeito imediato de "Encerrar sessões". Continua valendo a recomendação R1:
+  só junto com `jwt_exp` de 900 s, e com aceite do Johnny.
