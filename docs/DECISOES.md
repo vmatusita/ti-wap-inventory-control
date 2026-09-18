@@ -12502,3 +12502,39 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   caiu de 60 para 17.
 - **Pendências (decisões do Johnny):** A/R3 (ADR do método de migration), `@testing-library/react` (E/K/Y), a dieta
   do `CLAUDE.md` (AF), a tinta de área (AA) e R1 (`getClaims()` + `jwt_exp`).
+
+## 2026-09-18 · Entrega avulsa (v1.66.2) · o passo 1 da reauditoria: `next` 16.3.5, a `0146` em produção e as duas travas
+
+- **Contexto.** Execução da Faixa 1 da reauditoria do mesmo dia (itens AC, AD, AH e a parte manual do AE), pedida pelo
+  Johnny. Preparo e revisão em workflow (quatro frentes, cada uma com um revisor adversarial); merge, apply e
+  publicação feitos na sessão principal.
+- **Decisão 1: `next` 16.3.x entra como MANUTENÇÃO, não como decisão de fase.** A regra de 30/08 ("minor é decisão de
+  fase") supunha haver patch na linha corrente. Não há: a `16.2` parou no `16.2.12`, e `GHSA-p293-qw3h-jr36` e
+  `GHSA-2xp9-vwfh-vxw4` (RCE, críticos) só fecham no `16.3.3`. A stack fechada diz "Next.js 16". **Como foi feito:**
+  PR #56 do Dependabot (15 pacotes), rebaseado depois do `98a78da` e mergeado verde (`e4e30e6`). Deploy de produção
+  concluído, smoke 109 OK / 0 falha, `npm audit` de 5 para 2 moderate.
+- **Decisão 2: três achados da revisão de runtime, conferidos na FONTE da `v16.3.5`, e nenhum bloqueou o merge.**
+  (a) O `16.3` passa `retry`, não mais `unstable_retry`, ao `error.tsx` (`error-boundary.tsx` da tag). O fallback do
+  `TentarNovamente` faz `router.refresh()` + `reset()` na mesma ordem, de propósito desde a F20B, então o botão segue
+  certo. Renomear vai para o backlog (AN). (b) O cache de build do Turbopack virou padrão no `16.3.0`, e a doc da
+  `16.3.5` não o chama mais de experimental; o revisor cético citava a doc local do `16.2.12`. **Mantido o padrão**,
+  sem flag. (c) A regressão de `headers()` depois de escrita pelo proxy (a do `x-wap-pathname`) nasceu no `16.3.0` e
+  foi corrigida no `16.3.1`; o alvo `16.3.5` já tem a correção.
+- **Decisão 3: `0146` aplicada, ensaio primeiro e depois produção, pelo caminho A do runbook, com o texto do arquivo
+  verbatim via MCP.** O md5 do `prosrc` bateu com o do arquivo nos dois (`5d14b2a1…`), e o md5 cru de
+  `pg_get_functiondef` é o MESMO nos dois (`0534eeba…`). Atributos, grants e gatilho preservados; ledger registrado
+  (`estorno_com_pendencia_resolvida`). Advisors de segurança antes = depois nos dois bancos (32 achados, todos antigos).
+  Comportamento provado **só no ensaio**, em transação desfeita, derivado do cenário 9, **com controle negativo**:
+  pendência com desfecho → recusa com a frase da 0146; pendência aberta → estorno passa e a pendência some. **Motivo
+  de não rodar em produção:** rollback não desfaz identity (`movimentacoes.ordem`), e o teste deixaria buraco na
+  numeração. Sonda de paridade das 10 classes idêntica nos dois bancos depois do apply.
+- **Decisão 4: a suíte do item AD PARA diante de sobrecarga, em vez de resolvê-la.** `corpoVigente` resolve por nome;
+  uma sobrecarga nova e limpa de uma intocável esconderia a antiga, que o cenário 14 SQL examina. Resolver por
+  assinatura exigiria também o `drop` por assinatura, e nenhuma das treze tem hoje mais de uma. A assinatura é lida por
+  `assinaturaNormalizada`, porque os `tipos` do `corpo-vigente.mjs` deixam o comentário de fim de linha vazar (medido
+  no `criar_compra_lote` da `0008`, registrado como AM e não corrigido aqui: é o módulo do injetor de mutação).
+- **Decisão 5: o `eslint` NÃO entrou no `ignore` do Dependabot.** O rascunho da reauditoria o incluía, mas o `npm ci`
+  desta sessão avisa que o 9.x saiu de suporte. Ignorar a major 10 esconderia o único caminho suportado. O PR #4 foi
+  recriado; o merge da major continua sendo decisão de fase (AL).
+- **Pendências:** a sonda automática repositório × produção (AE, passo 2); AL, AM e AN no backlog; o merge dos PRs de
+  Actions #6 e #8 quando o CI rebaseado ficar verde.

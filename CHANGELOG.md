@@ -6,11 +6,40 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 18/09/2026 — Passo 1 da reauditoria: `next` 16.3.5, a `0146` em produção e as travas da F38 e do Dependabot ✅
+
+Entrega avulsa (**v1.66.2**): o passo 1 da reauditoria de dívida técnica do mesmo dia
+([`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md)). **Sem migration nova**: aplica no ensaio e em produção a `0146`,
+criada e travada na v1.66.1. Sem dependência nova; o grupo semanal do Dependabot atualiza as existentes. Ata em
+[`docs/DECISOES.md`](docs/DECISOES.md).
+
+- 🔒 **`next` 16.2.12 → 16.3.5 e `react`/`react-dom` 19.2.8 → 19.3.0**, com mais 12 pacotes do grupo semanal (PR #56).
+  Fecha `GHSA-p293-qw3h-jr36` e `GHSA-2xp9-vwfh-vxw4` (RCE, críticos). Os dois só fecham a partir do `16.3.3`, e não
+  existe `16.2.13`: por isso o minor entrou como manutenção (Decisão 1 da ata). `npm audit` de 5 para 2 moderate (sobra
+  o `uuid` do `exceljs`, aceito). A revisão de runtime conferiu na fonte da `16.3.5`, antes do merge: o `unstable_retry`
+  virou `retry`, e o fallback do "Tentar novamente" cobre; o cache de build do Turbopack é o novo padrão; a regressão de
+  `headers()` do `16.3.0` já vem corrigida. Smoke de produção: 109 OK, 0 falha.
+- 🐞 **`0146` aplicada, primeiro no ensaio e depois em produção.** O md5 do corpo bateu com o do arquivo nos dois
+  bancos, advisors sem achado novo, e a sonda de paridade das 10 classes ficou idêntica entre ensaio e produção.
+  Comportamento provado no ensaio em transação desfeita, com controle negativo. A recusa que
+  `src/lib/supabase/erros-do-banco.ts` traduz desde a v1.66.1 só passa a disparar agora.
+- 🧪 **O cenário 14 da F38, espelhado em TS** (`src/lib/itens/intocaveis-f38-sql.test.ts`, item AD). A exceção nominal
+  de uma função intocável esquecida no roteiro SQL, que derrubou a `main` hoje de manhã, passa a reprovar no
+  `npm run test` local. A revisão adversarial fechou dois pontos cegos; o da sobrecarga PARA a suíte, em vez de
+  resolver calado.
+- 🧹 **Fila do Dependabot** (item AH): `ignore` da major do `typescript` e do `@types/node` acima de 24 (o Node da
+  Vercel e do CI). O `eslint` ficou de fora de propósito, porque o 9.x saiu de suporte. Labels `dependencias`/`ci`
+  criadas; PRs obsoletos fechados.
+
+---
+
 ## 18/09/2026 — Revisão de código: estornos, termos e pendências de item ✅
 
 Entrega avulsa (**v1.66.1**). Revisão do projeto inteiro por área de risco (não havia diff pendente), com 13 achados
 e 12 aplicados na mesma janela. **Com migration `0146`**, ensaiada no banco de ensaio em transação desfeita e ainda
-**não aplicada em produção**; sem dependência nova. O achado que ficou de fora está dito abaixo, com o motivo. Ata em
+**não aplicada em produção**; sem dependência nova. *(Aplicada no ensaio e em produção pela entrega seguinte do
+mesmo dia, a v1.66.2. O código já traduzia a recusa desde esta versão, mas ela só passou a disparar de verdade depois
+de a `0146` chegar ao gatilho do banco em produção.)* O achado que ficou de fora está dito abaixo, com o motivo. Ata em
 [`docs/DECISOES.md`](docs/DECISOES.md).
 
 - 🐞 **Os três caminhos de estorno de item deixaram de mandar inverso duas vezes.** `reabrirPendenciaItem` e

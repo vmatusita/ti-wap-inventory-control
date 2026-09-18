@@ -2,6 +2,35 @@
 
 ## Reauditoria de 18/09/2026 — v1.66.1, depois da F61 (skill `tech-debt`)
 
+> **Passo 1 EXECUTADO no mesmo dia (v1.66.2).** Situação dos itens da Faixa 1:
+>
+> - **AC ✅ fechado.** O PR #56 foi rebaseado, ficou verde e foi mergeado (`e4e30e6`): `next` 16.3.5 e `react` 19.3.0.
+>   Antes do merge, a revisão de runtime conferiu na fonte da `16.3.5` o que build e teste não pegam. Deploy de
+>   produção concluído; smoke **109 OK, 0 falha**. `npm audit`: de 5 (1 crítica, 2 high) para **2 moderate**. Saíram
+>   também os HIGH de `postcss` e `sharp`; sobra só o `uuid` do `exceljs`, aceito desde 12/08.
+> - **AD ✅ fechado.** A suíte `src/lib/itens/intocaveis-f38-sql.test.ts` reproduz o cenário 14 contra o corpo vigente
+>   das migrations, provada por mutação. A revisão adversarial fechou dois pontos cegos: o segundo ramo do mesmo `case`,
+>   e a sobrecarga (esta PARA a suíte, porque resolveria calada por nome).
+> - **AH ✅ fechado.** `ignore` só da major do `typescript` e do `@types/node` acima de 24 (Node da Vercel conferido:
+>   `24.x`). O `eslint` ficou de fora **de propósito**: o 9.x saiu de suporte (item AL). Labels `dependencias`/`ci`
+>   criadas (o Dependabot reclamava delas desde julho). #7 fechado; #2 e #3 fechados pelo próprio Dependabot ao ler a
+>   regra; #4 recriado; #6 e #8 rebaseados.
+> - **AE 🟡 parte manual feita.** A `0146` está aplicada no ensaio e em produção: corpo idêntico ao arquivo pelo md5 do
+>   `prosrc`, advisors sem achado novo (32 = 32), comportamento provado no ensaio nos dois sentidos, e a sonda de paridade
+>   das 10 classes idêntica nos dois bancos. **A sonda automática repositório × produção continua aberta (passo 2).**
+>   Existe `ultima_migracao_aplicada()` no banco para servir de base a ela.
+>
+> **Três achados novos da execução:**
+>
+> | # | Item | Imp. | Risco | Esf. | **Prio** |
+> |---|---|:-:|:-:|:-:|:-:|
+> | **AL** | `eslint` 9.x **fora de suporte** (aviso do `npm ci`). O caminho é a 10, via PR #4 recriado; a major segue como decisão de fase | 1 | 2 | 2 | **12** |
+> | **AM** | `scripts/db/corpo-vigente.mjs`: comentário `--` de FIM de linha dentro da lista de parâmetros vaza para os `tipos` (medido: `criar_compra_lote` sai com duas "assinaturas" por causa da `0008`). Hoje falharia ALTO numa busca com tipos, nunca calado | 1 | 1 | 1 | **10** |
+> | **AN** | O `16.3` passa `retry`, não `unstable_retry`, aos 8 `error.tsx`. O fallback do `TentarNovamente` (refresh + reset, mesma ordem) cobre, por desenho da F20B. Renomear e simplificar | 1 | 1 | 1 | **10** |
+>
+> Na faxina (AJ) entra também o `allowScripts` do npm 11: o `npm ci` avisa que o `esbuild` e o `unrs-resolver` têm
+> pós-instalação não declarado. Nada quebrou, mas o aviso deve ser decidido, não ignorado.
+
 Revalida item a item contra a `main` de hoje (`98a78da`), 26 fases depois da rodada de 12/08 e
 três semanas depois da revisão de 30/08. **Levantamento e priorização, nenhuma correção executada.**
 Mesma fórmula de sempre: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, eixos de 1 a 5, esforço
