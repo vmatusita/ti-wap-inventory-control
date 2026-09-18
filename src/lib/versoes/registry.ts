@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.1',
+    data: '2026-09-18',
+    titulo: 'Estornos, termos e pendências de itens deixaram de travar em casos que davam erro',
+    mudancas: [
+      '"Reabrir pendência", em Pendências, voltou a funcionar na segunda vez. Antes, a partir da segunda reabertura da mesma pendência de item o sistema recusava sempre, com uma mensagem genérica.',
+      'Estornar uma movimentação cujo acessório que foi junto já tinha sido estornado sozinho, pelo Histórico de lançamentos, voltou a ser possível — antes o estorno da movimentação ficava impedido para sempre. E estornar um lançamento de item passou a acertar também o bloco "Com esta pessoa", como já acontecia no estorno da movimentação.',
+      'Estornar uma devolução cuja pendência de item já foi resolvida passou a ser recusado com a explicação certa — a pendência já mexeu no estoque de itens — e a orientação de registrar um ajuste com justificativa. Antes aparecia "Não foi possível concluir a operação".',
+      '"Confirmar assinatura" de vários termos de uma vez, em Pendências, passou a confirmar também os equipamentos sem nenhuma situação de termo registrada. Antes eles eram contados como "já estava assinado" e continuavam na fila.',
+      'O termo de devolução de um lote com 21 a 30 equipamentos passou a ser gerado — antes o diálogo recusava com "Dados inválidos para preparar o termo.". E desfazer a confirmação de assinatura passou a olhar só os termos de responsabilidade: um termo de devolução antigo não faz mais o equipamento voltar como "termo gerado".',
+      'Nos relatórios ao vivo, voltar para a aba do navegador deixou de recarregar o relatório inteiro toda vez: as atualizações automáticas continuam, e o recarregamento ao voltar acontece no máximo a cada 30 segundos.',
+    ],
+  },
+  {
     versao: '1.66.0',
     data: '2026-09-17',
     fase: 'F61',

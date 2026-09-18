@@ -6,6 +6,41 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 18/09/2026 — Revisão de código: estornos, termos e pendências de item ✅
+
+Entrega avulsa (**v1.66.1**). Revisão do projeto inteiro por área de risco (não havia diff pendente), com 13 achados
+e 12 aplicados na mesma janela. **Com migration `0146`**, ensaiada no banco de ensaio em transação desfeita e ainda
+**não aplicada em produção**; sem dependência nova. O achado que ficou de fora está dito abaixo, com o motivo. Ata em
+[`docs/DECISOES.md`](docs/DECISOES.md).
+
+- 🐞 **Os três caminhos de estorno de item deixaram de mandar inverso duas vezes.** `reabrirPendenciaItem` e
+  `estornarMovimentacao` escolhiam os lançamentos a desfazer por `estorna_id is null`, que também traz o original que
+  JÁ tem inverso — no 2º ciclo resolver→reabrir, ou depois de um estorno avulso em `/itens/historico`, a transação
+  batia no `lanc_item_estorna_uidx` e ficava impossível para sempre. O helper `lancamentosJaEstornados`
+  (`queries/itens.ts`) aplica o mesmo `not exists` que as RPCs 0121/0122 usam na conferência de órfãos.
+- 🐞 **O estorno avulso de lançamento carrega a pessoa.** `estornarLancamento` gravava o inverso sem `colaborador_id`,
+  e `rel_saldo_colaborador` (que soma só linhas vinculadas) guardava a dívida fantasma. Agora leva `colaborador`,
+  `colaborador_id` (com a regra §C.3 de saldo, igual a `estornarMovimentacao`) e `regularizacao` (o texto do inverso
+  do acerto automático).
+- 🐞 **`0146` — o estorno de devolução com pendência de item já resolvida.** O `delete from pendencias_item` do ramo
+  de estorno de `aplicar_movimentacao` estourava a FK NO ACTION de `lancamentos_item.pendencia_item_id` (23503).
+  A função passa a RECUSAR antes de mexer, com frase própria traduzida em `erros.ts`. Corpo da `0134` byte a byte
+  mais 11 linhas; ensaio: antes 23503, depois a recusa nova, e a pendência ABERTA continua sendo apagada. Cenário 9
+  novo em `supabase/tests/pendencias_item.sql` (15 asserções, 0 falhas no ensaio).
+- 🐞 **Termos.** A confirmação em lote perdia `termo_assinado` NULL (`.neq` descarta NULL) e o contava como já
+  assinado; o desfazer contava termo de DEVOLUÇÃO como "gerado"; `persistirTermo` descartava erros e apagava o
+  `.docx` antes de saber se a linha saiu (agora só remove o arquivo das linhas que o DELETE de fato removeu); e o
+  teto de 20 movimentações do termo virou `MAX_LOTE_MOVIMENTACAO` (30), com as três linhas concatenadas a 900.
+- 🧹 **O resto:** `getOperador` passou a registrar a falha de leitura de filiais/vínculos (continua fechando);
+  o foco da janela recarrega o relatório ao vivo no máximo a cada 30 s; o filtro por dia da auditoria usa
+  `inicioDoDiaSP`/`diaSeguinteISO` (`format.ts`, com teste) em vez de duas cópias que dependiam do fuso do banco;
+  e comentários que ainda descreviam o lote não transacional foram corrigidos.
+- 🚧 **Não aplicado, de propósito: `getUser()` → `getClaims()` no proxy.** Foi aplicado e REVERTIDO na mesma
+  janela: é a troca que a Decisão 7 (30/08/2026) registrou como escolha do dono do sistema, porque tira o efeito
+  imediato de "Encerrar sessões" — e a recomendação R1 exige `jwt_exp` de 900 s junto.
+
+---
+
 ## 17/09/2026 — F61 · Os pontos de injeção da UI ✅
 
 **v1.66.0** · **sem migration — fase só de código** · A última fase de preparação. `components/admin/` e
