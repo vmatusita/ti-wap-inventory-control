@@ -107,6 +107,8 @@ export const MSG_SQL = {
   naoPodeSerEstornada: ['nao pode ser estornada', 'não pode ser estornada'],
   // 0146 — a devolução cuja pendência de item já teve desfecho (lançamento gravado)
   estornoComPendenciaResolvida: ['pendencia de item desta devolucao ja teve desfecho'],
+  // Reauditoria 18/09/2026 (item U, 0149): as cinco escritas atômicas "ativos + anotação".
+  foraDoVinculoNadaGravado: ['fora do seu vínculo de escrita', 'fora do seu vinculo de escrita'],
   ajusteExige: ['ajuste exige'],
   estornoExige: ['estorno exige'],
   estornoDeForaDoAtivo: ['estorno_de precisa apontar'],

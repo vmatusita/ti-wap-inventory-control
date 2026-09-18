@@ -59,8 +59,8 @@
 --     é guardado ali); INSERT em `anotacoes` nunca teve trigger nenhum. Nenhum outro gatilho de
 --     `ativos`/`anotacoes` existe além dos já catalogados (conferido por
 --     `select tgname from pg_trigger where tgrelid in ('public.ativos'::regclass,
---     'public.anotacoes'::regclass) and not tgisinternal` no ensaio — 3 linhas: as duas
---     `..._guarda_acervo` de DELETE que já existiam, zero em `anotacoes`).
+--     'public.anotacoes'::regclass) and not tgisinternal` no ensaio — 1 linha:
+--     `ativos_guarda_acervo` (BEFORE DELETE), e nenhuma em `anotacoes`).
 --
 -- A 5ª (lote) é a única com mais de uma linha: `confirmar_assinatura_lote_com_anotacoes` faz o
 -- UPDATE e o INSERT como DUAS CTEs de UM SÓ COMANDO SQL (`with atualizado as (update … returning
@@ -128,7 +128,7 @@ $$;
 comment on function public.corrigir_patrimonio_com_anotacao(uuid, text, text, boolean, text) is
   'Reauditoria 18/09/2026 (item U, 0149): grava o novo patrimônio (e a pendência, só quando p_alterar_pendencia) e a anotação "de → para" na MESMA transação. SECURITY INVOKER — a permissão é a RLS de sempre (pode_escrever_filial em ativos, cargo admin/operador em anotacoes); criado_por vem de auth.uid(), nunca de parâmetro. Recusa (nada grava) se o UPDATE afetar 0 linhas (ativo inexistente ou fora do vínculo de filial de quem chama). p_pendencia é sentinela: "" grava NULL (nullif); nunca recebe NULL pela porta.';
 
-revoke all on function public.corrigir_patrimonio_com_anotacao(uuid, text, text, boolean, text) from public, anon;
+revoke all on function public.corrigir_patrimonio_com_anotacao(uuid, text, text, boolean, text) from public, anon, service_role;
 grant execute on function public.corrigir_patrimonio_com_anotacao(uuid, text, text, boolean, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ $$;
 comment on function public.definir_service_tag_com_anotacao(uuid, text, text, boolean, text) is
   'Reauditoria 18/09/2026 (item U, 0149): grava a service tag (e a pendência, só quando p_alterar_pendencia) e a anotação de definição na MESMA transação. Espelho de corrigir_patrimonio_com_anotacao — mesma régua de INVOKER, auth.uid() e recusa em 0 linhas. A imutabilidade "só define quando vazia" continua sendo checagem da action (leitura prévia), como já era antes desta migration.';
 
-revoke all on function public.definir_service_tag_com_anotacao(uuid, text, text, boolean, text) from public, anon;
+revoke all on function public.definir_service_tag_com_anotacao(uuid, text, text, boolean, text) from public, anon, service_role;
 grant execute on function public.definir_service_tag_com_anotacao(uuid, text, text, boolean, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ $$;
 comment on function public.confirmar_assinatura_termo_com_anotacao(uuid, date, text) is
   'Reauditoria 18/09/2026 (item U, 0149): grava termo_assinado = sim + termo_data e o rastro imutável na anotacoes, na MESMA transação. O guard de idempotência ("já consta como assinado") continua na action, antes de chamar — esta função sempre escreve quando chamada.';
 
-revoke all on function public.confirmar_assinatura_termo_com_anotacao(uuid, date, text) from public, anon;
+revoke all on function public.confirmar_assinatura_termo_com_anotacao(uuid, date, text) from public, anon, service_role;
 grant execute on function public.confirmar_assinatura_termo_com_anotacao(uuid, date, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ $$;
 comment on function public.desfazer_confirmacao_termo_com_anotacao(uuid, public.termo_status, text) is
   'Reauditoria 18/09/2026 (item U, 0149): desfaz a confirmação (volta termo_assinado para gerado ou nao, sempre limpando termo_data) e grava a anotação, na MESMA transação. p_destino é calculado pela action (existe termo_gerados cobrindo o ativo? gerado : nao) — esta função só grava o valor que recebe, nunca decide.';
 
-revoke all on function public.desfazer_confirmacao_termo_com_anotacao(uuid, public.termo_status, text) from public, anon;
+revoke all on function public.desfazer_confirmacao_termo_com_anotacao(uuid, public.termo_status, text) from public, anon, service_role;
 grant execute on function public.desfazer_confirmacao_termo_com_anotacao(uuid, public.termo_status, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -306,7 +306,7 @@ $$;
 comment on function public.confirmar_assinatura_lote_com_anotacoes(uuid[], date, text) is
   'Reauditoria 18/09/2026 (item U, 0149): confirma 1..N termos e grava UMA anotação por ativo confirmado, no MESMO comando SQL (o UPDATE e o INSERT são duas CTEs de uma única instrução — a anotação nunca pode nascer sem a confirmação nem faltar). Idempotente por linha (id já ''sim'' é ignorado em silêncio, como sempre); tudo-ou-nada quanto a VÍNCULO DE FILIAL — se a RLS barrar algum id que a leitura prévia via como pendente, recusa o lote inteiro (mesma doutrina de exigirEscritaEm). p_ativo_ids já vem filtrado pela action (só os pendentes); a função reconfirma o filtro para a corrida de idempotência.';
 
-revoke all on function public.confirmar_assinatura_lote_com_anotacoes(uuid[], date, text) from public, anon;
+revoke all on function public.confirmar_assinatura_lote_com_anotacoes(uuid[], date, text) from public, anon, service_role;
 grant execute on function public.confirmar_assinatura_lote_com_anotacoes(uuid[], date, text) to authenticated;
 
 -- ---------- VERIFICAÇÃO PÓS-APPLY (cada banco — ensaio primeiro; só leitura, só números) ----------
@@ -352,7 +352,7 @@ grant execute on function public.confirmar_assinatura_lote_com_anotacoes(uuid[],
 --    where tgrelid in ('public.ativos'::regclass, 'public.anotacoes'::regclass)
 --      and not tgisinternal
 --    order by 1;
---   -- esperado: EXATAMENTE as duas de sempre — ativos_guarda_acervo (BEFORE DELETE) — e nenhuma
+--   -- esperado: EXATAMENTE uma, a de sempre — ativos_guarda_acervo (BEFORE DELETE) — e nenhuma
 --   -- em anotacoes (ela nunca teve trigger)
 --
 --   -- 5) recarregar o cache do PostgREST:

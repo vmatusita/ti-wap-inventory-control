@@ -49,7 +49,7 @@
 //      Action: sem clone profundo (`fetch-depth: 0` baixaria o HISTÓRICO INTEIRO
 //      do repositório a cada execução — e `docs/DIVIDA-TECNICA.md` item AK já
 //      registra 62 MB de evidência binária nesse histórico, crescendo a cada fase
-//      visual; o custo se pagaria toda vez, 5×/dia), sem token novo (o
+//      visual; o custo se pagaria a cada execução), sem token novo (o
 //      `GITHUB_TOKEN` do job, `contents: read`, já é suficiente para a API de
 //      commits num repositório privado) e no mesmo idioma "só fetch" deste
 //      arquivo;
@@ -75,13 +75,19 @@ import {
   impressaoDoEstado,
   tabelaDoResumo,
 } from './alarme.mjs'
-import { arquivosPendentes, avaliarDerivaMigrations } from './deriva-migrations.mjs'
+import {
+  arquivosPendentes,
+  avaliarDerivaMigrations,
+  dataDeEntradaDaRespostaDaApi,
+  dataDeEntradaDoGitLog,
+} from './deriva-migrations.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const RAIZ_DO_REPO = join(AQUI, '..', '..')
 const PASTA_MIGRATIONS = join(RAIZ_DO_REPO, 'supabase', 'migrations')
 const TIMEOUT_MS = 20_000
 const TOLERANCIA_DERIVA_HORAS = 24
+const POR_PAGINA_DA_API = 100
 
 const argv = process.argv.slice(2)
 const arg = (nome, padrao) => {
@@ -217,7 +223,7 @@ async function dataDeEntradaPelaApiDoGithub({ arquivos, repositorio, token }) {
     try {
       const url =
         `https://api.github.com/repos/${dono}/${nome}/commits` +
-        `?path=${encodeURIComponent(caminho)}&per_page=100`
+        `?path=${encodeURIComponent(caminho)}&per_page=${POR_PAGINA_DA_API}`
       const r = await fetch(url, {
         headers: {
           accept: 'application/vnd.github+json',
@@ -227,14 +233,9 @@ async function dataDeEntradaPelaApiDoGithub({ arquivos, repositorio, token }) {
       })
       if (!r.ok) continue
       const commits = await r.json().catch(() => null)
-      if (!Array.isArray(commits) || commits.length === 0) continue
-      // A API devolve do mais NOVO para o mais ANTIGO. O último da primeira
-      // página é o mais antigo — o commit que ACRESCENTOU o arquivo, contanto
-      // que ele não tenha mais de 100 commits tocando o MESMO path (seguro para
-      // uma migration: `migrations.lock.json` trava o conteúdo assim que ela é
-      // aplicada, e antes disso um arquivo novo raramente tem dezenas de commits).
-      const maisAntigo = commits[commits.length - 1]
-      const data = maisAntigo?.commit?.committer?.date ?? maisAntigo?.commit?.author?.date
+      // A interpretação (o último da página é o mais antigo; página CHEIA → sem data, porque
+      // o commit de adição pode estar na seguinte) mora em deriva-migrations.mjs, com teste.
+      const data = dataDeEntradaDaRespostaDaApi(commits, POR_PAGINA_DA_API)
       if (data) resultado[arquivo] = data
     } catch {
       // rede/timeout: este arquivo fica sem data — vira aviso, não interrompe a sonda.
@@ -248,25 +249,27 @@ async function dataDeEntradaPelaApiDoGithub({ arquivos, repositorio, token }) {
  * arquivo, e a deriva velha passaria por pendência recente (ver o cabeçalho). */
 function dataDeEntradaPeloGitLocal(arquivos) {
   const resultado = {}
+  let raso = true // na dúvida (git ausente, erro), trata como raso: sem data, nunca data falsa
   try {
-    const raso = execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
-      cwd: RAIZ_DO_REPO,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    if (raso !== 'false') return resultado
+    raso =
+      execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+        cwd: RAIZ_DO_REPO,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() !== 'false'
   } catch {
     return resultado
   }
+  if (raso) return resultado
   for (const arquivo of arquivos) {
     try {
       const saida = execFileSync(
         'git',
         ['log', '--diff-filter=A', '--format=%cI', '--', `supabase/migrations/${arquivo}`],
         { cwd: RAIZ_DO_REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-      ).trim()
-      const linhas = saida.split('\n').filter(Boolean)
-      if (linhas.length) resultado[arquivo] = linhas[linhas.length - 1] // o mais antigo
+      )
+      const data = dataDeEntradaDoGitLog(saida, raso)
+      if (data) resultado[arquivo] = data
     } catch {
       // sem repositório git local, ou arquivo sem histórico de "adição" — sem data.
     }

@@ -2167,6 +2167,49 @@ grant execute on function public.rel_saldo_colaborador(boolean) to authenticated
   },
 ]
 
+// Reauditoria de 18/09/2026, passo 2 (v1.66.3) — as funções NOVAS da 0148 e da 0149 entram
+// no lote no mesmo dia em que nascem (a revisão final apontou: seis funções sem mutação nenhuma).
+/** @type {Mutacao[]} */
+const REAUDITORIA_PASSO2 = [
+  {
+    id: 'reaud-u-escrita-atomica-sem-guarda-de-zero-linhas',
+    roteiro: 'escrita_atomica_ativos_anotacao.sql',
+    classe: 'anotacao-sem-escrita',
+    derruba: ['3', '4', '5'],
+    porque:
+      'A escrita atômica perde a recusa de UPDATE que não alcançou linha nenhuma. O PostgREST não dá erro em update de 0 linhas, então a anotação nasce SOZINHA: para um ativo de outra filial (a RLS filtrou o UPDATE em silêncio, e a policy de anotacoes é só por cargo), e a tela diz "patrimônio corrigido" de um patrimônio que não mudou — exatamente a anotação imutável e falsa que o item U existe para impedir.',
+    sql: mutarFuncao(
+      'public.corrigir_patrimonio_com_anotacao(uuid, text, text, boolean, text)',
+      '  if v_n = 0 then',
+      '  if false then',
+      'reaud-u-escrita-atomica-sem-guarda-de-zero-linhas',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.corrigir_patrimonio_com_anotacao(uuid, text, text, boolean, text)'::regprocedure)
+              like '%if false then%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'reaud-ae-ledger-sem-guarda-de-papel',
+    roteiro: 'ledger_de_migracoes.sql',
+    classe: 'definer-sem-guarda',
+    derruba: ['2a'],
+    porque:
+      'A leitura do ledger é security definer e perde a guarda de papel: qualquer sessão com o grant de authenticated — inclusive um perfil DESATIVADO, que o piso de leitura da 0070/0073 manda recusar — passa a ler um schema que o PostgREST não expõe. O anon continua barrado pela falta de grant (2b fica verde), que é o disfarce: a guarda de dentro some sem que a de fora denuncie.',
+    sql: mutarFuncao(
+      'public.ledger_de_migracoes()',
+      '  if public.papel_atual() is null then',
+      '  if false then',
+      'reaud-ae-ledger-sem-guarda-de-papel',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.ledger_de_migracoes()'::regprocedure) like '%if false then%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -2183,6 +2226,7 @@ export const MUTACOES = [
   ...F56_VOCABULARIO,
   ...F59_DOUTRINA,
   ...F60_RECORTE,
+  ...REAUDITORIA_PASSO2,
 ]
 
 /**

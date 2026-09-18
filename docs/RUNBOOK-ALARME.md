@@ -107,9 +107,11 @@ dois bancos com o mesmo nome. O contrato tem duas metades:
 |---|---|---|
 | **em dia** | nenhum pendente, nada desconhecido | o repositório e o ledger estão alinhados desde a base |
 | **aviso** (não alarma) | pendente há menos de **24 h** desde que entrou na `main` | normal — entre o merge e o apply o repositório fica à frente DE PROPÓSITO |
-| **aviso** (não alarma) | pendente cuja data de entrada a sonda não conseguiu (API do GitHub fora do ar) | sem data não há tolerância a medir; se persistir, olhe o log do run |
+| **aviso** (não alarma) | pendente cuja data de entrada a sonda não conseguiu (API do GitHub fora do ar, ou mais de 100 commits no arquivo) | sem data não há tolerância a medir; se persistir, olhe o log do run |
+| **aviso** `deriva_migrations:base_fora_do_ledger` | a `0146` não está no ledger deste alvo | a regra (D) não tem de onde olhar; a própria `0146` aparece como pendente, e é o alarme DELA que manda |
 | **alarme** `deriva_migrations:pendente:<arquivo>` | pendente há mais de 24 h | a migration não chegou a este alvo, ou chegou e não foi registrada — confira por EFEITO antes de agir (abaixo) |
 | **alarme** `deriva_migrations:desconhecido:<nome>` | o ledger tem, aplicado depois da base, um nome que NENHUM arquivo do repositório reconhece | algo foi aplicado NESTE banco por fora do repositório |
+| **alarme** `deriva_migrations:linha_sem_nome:<versão>` | o ledger tem, aplicada depois da base, uma linha SEM nome | nenhum apply pelo fluxo normal grava isso — algo entrou no ledger por fora do repositório |
 | **alarme** `deriva_migrations:nome_duplicado:<nome>` | dois arquivos ≥ 0146 têm o mesmo nome-sem-prefixo | defeito de nomeação — a sonda não consegue decidir a qual arquivo uma linha do ledger se refere |
 | **alarme** `deriva_migrations:sonda_falhou` | a própria checagem não conseguiu olhar (a RPC da `0148` não respondeu; o checkout veio sem migrations) | a sonda que não olhou não passa por verde — e a RPC sumida é, ela mesma, deriva |
 

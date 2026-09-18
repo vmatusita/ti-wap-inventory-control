@@ -56,6 +56,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.estornoComPendenciaResolvida)) {
     return 'Esta devolução não pode ser estornada: a pendência de item que ela abriu já foi resolvida no estoque de itens. Para corrigir o estado do equipamento, registre um ajuste com justificativa.'
   }
+  // Reauditoria 18/09/2026 (item U, 0149): as cinco escritas atômicas "ativos + anotação"
+  // recusam (P0002) quando o UPDATE não alcança linha nenhuma — o ativo sumiu, ou saiu do
+  // vínculo de filial de quem salva, entre a leitura da tela e a gravação. A action já confere
+  // as duas coisas antes; isto é a corrida entre a conferência e a gravação, e nada foi gravado.
+  if (casa(m, MSG_SQL.foraDoVinculoNadaGravado)) {
+    return 'Este ativo não foi encontrado ou saiu do seu vínculo de filial enquanto você salvava. Nada foi gravado — atualize a página e tente de novo.'
+  }
   if (casa(m, MSG_SQL.ajusteExige)) {
     return 'O ajuste exige o status resultante e uma justificativa (observação).'
   }

@@ -80,9 +80,14 @@ function analisar({ arquivosRepo, ledger, base }) {
   for (const p of vigiados) contagem.set(p.nome, (contagem.get(p.nome) ?? 0) + 1)
   const nomesAmbiguos = new Set([...contagem].filter(([, n]) => n > 1).map(([nome]) => nome))
 
-  const linhas = (ledger ?? [])
-    .map((l) => ({ versao: l?.versao ?? null, nome: nomeCanonicoDoLedger(l?.nome) }))
-    .filter((l) => l.nome)
+  const todasAsLinhas = (ledger ?? []).map((l) => ({
+    versao: l?.versao ?? null,
+    nome: nomeCanonicoDoLedger(l?.nome),
+  }))
+  // Linha SEM nome não casa com arquivo nenhum — mas não pode sumir: se foi aplicada depois
+  // da base, é algo que entrou no ledger por fora do fluxo (a revisão final a achou invisível).
+  const linhasSemNome = todasAsLinhas.filter((l) => !l.nome)
+  const linhas = todasAsLinhas.filter((l) => l.nome)
   const nomesDoLedger = new Set(linhas.map((l) => l.nome))
 
   // A linha da BASE no ledger — a mais nova, se houver mais de uma com o mesmo nome.
@@ -97,7 +102,43 @@ function analisar({ arquivosRepo, ledger, base }) {
 
   const pendentes = vigiados.filter((p) => !nomesAmbiguos.has(p.nome) && !nomesDoLedger.has(p.nome))
   const aplicados = vigiados.filter((p) => nomesDoLedger.has(p.nome))
-  return { vigiados, nomesDoRepo, nomesAmbiguos, linhas, arquivoBase, versaoDaBase, pendentes, aplicados }
+  return { vigiados, nomesDoRepo, nomesAmbiguos, linhas, linhasSemNome, arquivoBase, versaoDaBase, pendentes, aplicados }
+}
+
+/**
+ * A data em que um arquivo entrou na `main`, a partir da resposta de
+ * `GET /repos/{dono}/{repo}/commits?path=<arquivo>&per_page=<porPagina>` (do mais NOVO para o mais
+ * ANTIGO): é o `committer.date` do ÚLTIMO item — o commit mais antigo que tocou o caminho.
+ *
+ * Página CHEIA → `null`: o commit que acrescentou o arquivo pode estar na página seguinte, e o
+ * último desta seria mais NOVO que a entrada real — a deriva velha passaria por recente. Sem data
+ * a sonda avisa; com data errada ela se cala. Resposta vazia ou ilegível → `null` também.
+ *
+ * @param {unknown} commits o corpo JSON da resposta
+ * @param {number} porPagina o `per_page` pedido
+ * @returns {string|null} ISO, ou null quando não dá para saber
+ */
+export function dataDeEntradaDaRespostaDaApi(commits, porPagina) {
+  if (!Array.isArray(commits) || commits.length === 0) return null
+  if (commits.length >= porPagina) return null
+  const maisAntigo = commits[commits.length - 1]
+  const data = maisAntigo?.commit?.committer?.date ?? maisAntigo?.commit?.author?.date
+  return typeof data === 'string' && data ? data : null
+}
+
+/**
+ * A mesma data pelo `git log --diff-filter=A --format=%cI -- <arquivo>` local. Checkout RASO →
+ * `null`: ali o commit enxertado "acrescenta" todo arquivo, e toda migration pareceria ter entrado
+ * AGORA. Com histórico, a última linha é a adição mais antiga.
+ *
+ * @param {string} saida a saída do `git log`
+ * @param {boolean} raso o que `git rev-parse --is-shallow-repository` respondeu
+ * @returns {string|null}
+ */
+export function dataDeEntradaDoGitLog(saida, raso) {
+  if (raso) return null
+  const linhas = String(saida ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
+  return linhas.length ? linhas[linhas.length - 1] : null
 }
 
 /**
@@ -204,6 +245,17 @@ export function avaliarDerivaMigrations({
         'está acima.',
     })
   } else {
+    for (const l of a.linhasSemNome) {
+      if (l.versao == null || compararVersoes(l.versao, a.versaoDaBase) <= 0) continue
+      achados.push({
+        chave: `deriva_migrations:linha_sem_nome:${l.versao}`,
+        total: null,
+        base: null,
+        motivo:
+          `o ledger tem uma linha SEM NOME (versão ${l.versao}), aplicada depois da base — nenhum ` +
+          'apply pelo fluxo normal grava isso; algo entrou no ledger por fora do repositório.',
+      })
+    }
     for (const l of a.linhas) {
       if (l.versao == null || compararVersoes(l.versao, a.versaoDaBase) <= 0) continue
       if (a.nomesDoRepo.has(l.nome)) continue

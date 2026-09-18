@@ -288,8 +288,11 @@ e o PR que chama as funções novas não é mergeado (foi o repouso da própria 
 10. **O classificador barrou o `drop`:** registre, **não reformule**, e siga. O merge já aconteceu; as velhas ficam em
     produção — ninguém as chama, e o comportamento delas é o de antes —; o `drop` vai para o topo do relatório da fase
     com o comando, para o Johnny rodar no SQL Editor (caminho B). É o único repouso com pendência aceitável.
-    **Nenhuma checagem de ledger × repositório** existe no `/api/saude` nem no smoke (medido na F60): a janela aberta
-    não acende alarme — e por isso mesmo a pendência tem de estar escrita.
+    Desde a v1.66.3 (reauditoria de 18/09/2026, item AE) a **Parte B do `saude.yml`** compara o ledger com o
+    repositório uma vez por dia, e uma migration ≥ `0146` que fique mais de 24 h na `main` sem aparecer no ledger
+    abre alarme (`docs/RUNBOOK-ALARME.md`, "A deriva de migrations"). Mesmo assim, escreva a pendência: o alarme
+    só dispara depois da tolerância, e até lá a janela aberta não acende nada. (Até a F60 não havia checagem
+    nenhuma, nem no `/api/saude` nem no smoke.)
 
 ### Voltar atrás
 

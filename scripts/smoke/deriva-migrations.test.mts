@@ -4,6 +4,8 @@ import {
   avaliarDerivaMigrations,
   BASE_DO_CONTRATO,
   compararVersoes,
+  dataDeEntradaDaRespostaDaApi,
+  dataDeEntradaDoGitLog,
   nomeCanonicoDoLedger,
   partesDoArquivo,
 } from './deriva-migrations.mjs'
@@ -302,6 +304,59 @@ describe('avaliarDerivaMigrations — o contrato (P) e (D)', () => {
       agora: AGORA,
     })
     expect(r.ok).toBe(true)
+  })
+})
+
+describe('(D) linha do ledger SEM NOME — o ponto cego da revisão final', () => {
+  it('aplicada depois da base: alarme próprio, nunca invisível', () => {
+    const r = avaliarDerivaMigrations({
+      arquivosRepo: REPO,
+      ledger: [{ versao: '20260918999999', nome: null }, ...LEDGER_ATE_A_BASE],
+      agora: AGORA,
+      dataDeEntrada: Object.fromEntries(REPO.map((a) => [a, UMA_HORA_ATRAS])),
+    })
+    expect(r.ok).toBe(false)
+    expect(r.achados.map((a) => a.chave)).toEqual(['deriva_migrations:linha_sem_nome:20260918999999'])
+  })
+
+  it('anterior à base: histórico, fica fora como qualquer outra linha antiga', () => {
+    const r = avaliarDerivaMigrations({
+      arquivosRepo: REPO,
+      ledger: [...LEDGER_ATE_A_BASE, { versao: '20260801000000', nome: '' }],
+      agora: AGORA,
+      dataDeEntrada: Object.fromEntries(REPO.map((a) => [a, UMA_HORA_ATRAS])),
+    })
+    expect(r.achados).toEqual([])
+  })
+})
+
+describe('a data de entrada na main — as duas leituras, puras', () => {
+  const commit = (data: string) => ({ commit: { committer: { date: data } } })
+
+  it('API: o ÚLTIMO item da página é o commit mais antigo (a adição)', () => {
+    const resposta = [commit('2026-09-18T12:00:00Z'), commit('2026-09-17T09:00:00Z')]
+    expect(dataDeEntradaDaRespostaDaApi(resposta, 100)).toBe('2026-09-17T09:00:00Z')
+  })
+
+  it('API: página CHEIA → sem data (a adição pode estar na próxima, e a data sairia NOVA demais)', () => {
+    const cheia = Array.from({ length: 100 }, (_, i) => commit(`2026-09-${String(18 - (i % 10)).padStart(2, '0')}T00:00:00Z`))
+    expect(dataDeEntradaDaRespostaDaApi(cheia, 100)).toBeNull()
+  })
+
+  it('API: resposta vazia, de erro ou sem data → null, nunca lança', () => {
+    expect(dataDeEntradaDaRespostaDaApi([], 100)).toBeNull()
+    expect(dataDeEntradaDaRespostaDaApi({ message: 'Not Found' }, 100)).toBeNull()
+    expect(dataDeEntradaDaRespostaDaApi([{ commit: {} }], 100)).toBeNull()
+  })
+
+  it('git log: a última linha é a adição mais antiga', () => {
+    expect(dataDeEntradaDoGitLog('2026-09-18T12:00:00-03:00\n2026-09-10T08:00:00-03:00\n', false)).toBe(
+      '2026-09-10T08:00:00-03:00',
+    )
+  })
+
+  it('git log em checkout RASO → sem data (o commit enxertado "adiciona" tudo, e a deriva velha pareceria nova)', () => {
+    expect(dataDeEntradaDoGitLog('2026-09-18T12:00:00-03:00\n', true)).toBeNull()
   })
 })
 
