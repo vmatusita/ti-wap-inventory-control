@@ -108,11 +108,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casaConstraint(m, 'lanc_item_qtd_valida')) {
     return 'Quantidade inválida para este tipo de lançamento.'
   }
-  // Os DOIS índices únicos do catálogo. `itens_nome_uidx` (lower(nome)) é o antigo;
-  // `itens_nome_chave_uidx` (0125) é o novo e é ESTRITAMENTE mais forte — ignora
-  // acento e espaço a mais além da caixa. Qualquer um dos dois pode ser o que
-  // dispara, então os dois traduzem para a mesma frase.
-  if (casaConstraint(m, 'itens_nome_uidx', 'itens_nome_chave_uidx')) {
+  // Índice único do catálogo. Até a 0147 havia DOIS (`itens_nome_uidx`, sobre
+  // `lower(nome)`, e `itens_nome_chave_uidx`, sobre `nome_chave`) — provado na 0147
+  // que `itens_nome_chave_uidx` recusa TUDO que `itens_nome_uidx` recusava (e mais:
+  // acento e espaço a mais), então o velho saiu do banco e desta lista. A frase que
+  // o operador vê não mudou — ela já falava "acento, maiúscula e espaço a mais"
+  // antes de o índice novo existir sozinho.
+  if (casaConstraint(m, 'itens_nome_chave_uidx')) {
     return 'Já existe um item com esse nome (a comparação ignora acento, maiúscula e espaço a mais). Use o item que já existe.'
   }
   // Corrida de duplo-estorno: o índice único parcial dispara "duplicate key" —

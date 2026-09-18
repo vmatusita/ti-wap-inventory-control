@@ -35,9 +35,38 @@
 //    função (`0138`).
 //  · **FALTA DE CREDENCIAL É FALHA.** Isto é o agendado: verde por omissão é
 //    pior que vermelho, porque ensina a confiar num alarme que não olhou nada.
+//
+// A DERIVA DE MIGRATIONS (reauditoria 18/09/2026, item AE · passo 2). Depois do
+// resumo de integridade, a MESMA sessão da conta `consulta` lê o ledger inteiro
+// (`public.ledger_de_migracoes()`, migration `0148`) e compara com os arquivos de
+// `supabase/migrations/` pelo contrato com base fixa — a lógica pura mora em
+// `deriva-migrations.mjs`. Uma falha da PRÓPRIA sonda (a RPC não responde, a
+// pasta de migrations não está no checkout) é ACHADO, vermelho: a sonda que não
+// olhou não pode passar por verde. Para decidir SE um arquivo pendente já passou
+// da tolerância, a sonda precisa saber QUANDO ele entrou na `main`. Duas fontes,
+// nesta ordem:
+//   1. a API REST do GitHub (`GET /repos/.../commits?path=...`) — o caminho da
+//      Action: sem clone profundo (`fetch-depth: 0` baixaria o HISTÓRICO INTEIRO
+//      do repositório a cada execução — e `docs/DIVIDA-TECNICA.md` item AK já
+//      registra 62 MB de evidência binária nesse histórico, crescendo a cada fase
+//      visual; o custo se pagaria toda vez, 5×/dia), sem token novo (o
+//      `GITHUB_TOKEN` do job, `contents: read`, já é suficiente para a API de
+//      commits num repositório privado) e no mesmo idioma "só fetch" deste
+//      arquivo;
+//   2. `git log` local — só quando não há `GITHUB_TOKEN`/`GITHUB_REPOSITORY` no
+//      ambiente (rodando na mesa, fora da Action). Um checkout local comum já tem
+//      o histórico; não existe custo de Actions a evitar aqui. ⚠ Num checkout
+//      RASO (o `actions/checkout` padrão é `fetch-depth: 1`) o `git log` mente:
+//      o commit enxertado "adiciona" todos os arquivos, e toda migration pareceria
+//      ter entrado AGORA — a deriva velha passaria por pendência recente. Raso →
+//      sem data (aviso), nunca data falsa.
+// Arquivo sem data por NENHUMA das duas vira AVISO em `avaliarDerivaMigrations`
+// ("data desconhecida"), nunca alarme por omissão — a sonda não acusa deriva que
+// não sabe medir.
 // ---------------------------------------------------------------------------
 
-import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { readFileSync, appendFileSync, writeFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -46,9 +75,13 @@ import {
   impressaoDoEstado,
   tabelaDoResumo,
 } from './alarme.mjs'
+import { arquivosPendentes, avaliarDerivaMigrations } from './deriva-migrations.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
+const RAIZ_DO_REPO = join(AQUI, '..', '..')
+const PASTA_MIGRATIONS = join(RAIZ_DO_REPO, 'supabase', 'migrations')
 const TIMEOUT_MS = 20_000
+const TOLERANCIA_DERIVA_HORAS = 24
 
 const argv = process.argv.slice(2)
 const arg = (nome, padrao) => {
@@ -152,6 +185,129 @@ function totaisDoResumo(linhas) {
 }
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// ---------------------------------------------------------------------------
+// A deriva de migrations — I/O (a lógica pura mora em deriva-migrations.mjs)
+// ---------------------------------------------------------------------------
+
+/** Os arquivos de `supabase/migrations/`, como `deriva-migrations.mjs` espera. */
+function listarArquivosDeMigration() {
+  try {
+    return readdirSync(PASTA_MIGRATIONS).filter((f) => f.endsWith('.sql'))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * A data em que cada arquivo PENDENTE entrou na `main`, pela API do GitHub.
+ * Ver o cabeçalho do arquivo para o porquê (evita `fetch-depth: 0`).
+ *
+ * Uma falha por arquivo (rede, 404, repositório sem histórico bastante) não
+ * derruba a sonda: o arquivo fica sem data, e `avaliarDerivaMigrations` o
+ * relata como AVISO ("data desconhecida"), nunca alarme por omissão.
+ */
+async function dataDeEntradaPelaApiDoGithub({ arquivos, repositorio, token }) {
+  const [dono, nome] = (repositorio || '').split('/')
+  const resultado = {}
+  if (!dono || !nome) return resultado
+
+  for (const arquivo of arquivos) {
+    const caminho = `supabase/migrations/${arquivo}`
+    try {
+      const url =
+        `https://api.github.com/repos/${dono}/${nome}/commits` +
+        `?path=${encodeURIComponent(caminho)}&per_page=100`
+      const r = await fetch(url, {
+        headers: {
+          accept: 'application/vnd.github+json',
+          authorization: `Bearer ${token}`,
+        },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      })
+      if (!r.ok) continue
+      const commits = await r.json().catch(() => null)
+      if (!Array.isArray(commits) || commits.length === 0) continue
+      // A API devolve do mais NOVO para o mais ANTIGO. O último da primeira
+      // página é o mais antigo — o commit que ACRESCENTOU o arquivo, contanto
+      // que ele não tenha mais de 100 commits tocando o MESMO path (seguro para
+      // uma migration: `migrations.lock.json` trava o conteúdo assim que ela é
+      // aplicada, e antes disso um arquivo novo raramente tem dezenas de commits).
+      const maisAntigo = commits[commits.length - 1]
+      const data = maisAntigo?.commit?.committer?.date ?? maisAntigo?.commit?.author?.date
+      if (data) resultado[arquivo] = data
+    } catch {
+      // rede/timeout: este arquivo fica sem data — vira aviso, não interrompe a sonda.
+    }
+  }
+  return resultado
+}
+
+/** O mesmo, por `git log` local — só usado quando não há credencial de API (fora da Action).
+ * Checkout RASO devolve vazio: ali o `git log` daria a data do commit enxertado para todo
+ * arquivo, e a deriva velha passaria por pendência recente (ver o cabeçalho). */
+function dataDeEntradaPeloGitLocal(arquivos) {
+  const resultado = {}
+  try {
+    const raso = execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+      cwd: RAIZ_DO_REPO,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    if (raso !== 'false') return resultado
+  } catch {
+    return resultado
+  }
+  for (const arquivo of arquivos) {
+    try {
+      const saida = execFileSync(
+        'git',
+        ['log', '--diff-filter=A', '--format=%cI', '--', `supabase/migrations/${arquivo}`],
+        { cwd: RAIZ_DO_REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+      ).trim()
+      const linhas = saida.split('\n').filter(Boolean)
+      if (linhas.length) resultado[arquivo] = linhas[linhas.length - 1] // o mais antigo
+    } catch {
+      // sem repositório git local, ou arquivo sem histórico de "adição" — sem data.
+    }
+  }
+  return resultado
+}
+
+/** A checagem de deriva inteira: lista os arquivos, lê o ledger, resolve as datas de
+ * entrada dos PENDENTES e devolve achados/avisos no MESMO formato dos doze. Lança se
+ * não conseguir olhar — quem chama transforma isso em ACHADO. */
+async function checarDerivaDeMigrations({ url, chave, token }) {
+  const arquivos = listarArquivosDeMigration()
+  if (arquivos.length === 0) {
+    throw new Error('não achei arquivo nenhum em supabase/migrations/ — o checkout está incompleto')
+  }
+
+  const ledger = await chamarRpc({ url, chave, token, nome: 'ledger_de_migracoes' })
+  if (!Array.isArray(ledger)) {
+    throw new Error('ledger_de_migracoes() não devolveu uma lista')
+  }
+
+  // Só busca data de quem está pendente — o MESMO cálculo do veredito, nunca um filtro
+  // paralelo (o anterior, "nome fora da ponta", mandava o histórico inteiro para a API).
+  const pendentes = arquivosPendentes({ arquivosRepo: arquivos, ledger })
+
+  const repositorio = process.env.GITHUB_REPOSITORY || ''
+  const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || ''
+  const dataDeEntrada = pendentes.length === 0
+    ? {}
+    : repositorio && githubToken
+      ? await dataDeEntradaPelaApiDoGithub({ arquivos: pendentes, repositorio, token: githubToken })
+      : dataDeEntradaPeloGitLocal(pendentes)
+
+  return avaliarDerivaMigrations({
+    arquivosRepo: arquivos,
+    ledger,
+    agora: new Date(),
+    dataDeEntrada,
+    toleranciaHoras: TOLERANCIA_DERIVA_HORAS,
+  })
+}
 
 // ---------------------------------------------------------------------------
 // Main
@@ -273,13 +429,62 @@ async function main() {
     }
     if (ok) log('  todas as doze dentro da linha de base.')
 
+    // (4) A DERIVA DE MIGRATIONS (item AE, passo 2 da reauditoria de 18/09/2026).
+    // Roda na MESMA sessão da conta `consulta`, por cima do veredito das doze —
+    // "fecha em falha" do mesmo jeito (achado = vermelho), mas é uma checagem À
+    // PARTE: não é um total fixo contra `linha-de-base.json`, é uma comparação
+    // DINÂMICA contra os arquivos de `supabase/migrations/` no disco. Se a PRÓPRIA
+    // sonda não conseguir olhar (a RPC da 0148 não responde neste alvo, o checkout
+    // veio sem migrations), isso é ACHADO: a 0148 foi aplicada nos dois bancos
+    // ANTES deste código entrar na main, então não há janela de rollout a tolerar,
+    // e a RPC sumida é justamente o tipo de deriva que esta checagem existe para
+    // acusar. Só a DATA de um pendente pode faltar sem alarme (API do GitHub fora
+    // do ar) — vira aviso por arquivo, em `avaliarDerivaMigrations`.
+    let avisosDeDeriva = []
+    try {
+      const deriva = await checarDerivaDeMigrations({ ...cfg, token })
+      if (deriva.achados.length) {
+        achados = achados.concat(deriva.achados)
+        ok = achados.length === 0
+      }
+      avisosDeDeriva = deriva.avisos
+      for (const a of deriva.achados) log(`  [FALHA] ${a.chave}: ${a.motivo}`)
+      for (const av of deriva.avisos) log(`  [AVISO] ${av.chave}: ${av.motivo}`)
+      if (!deriva.achados.length) {
+        log(
+          `  [OK   ] deriva de migrations: ${deriva.pendentes.length} pendente(s)` +
+            (deriva.ultimaNoLedger ? ` · a mais nova no ledger é ${deriva.ultimaNoLedger.arquivo}` : ''),
+        )
+      }
+    } catch (erro) {
+      const falha = {
+        chave: 'deriva_migrations:sonda_falhou',
+        total: null,
+        base: null,
+        motivo: `a checagem de deriva não conseguiu olhar: ${descreverErro(erro)}`,
+      }
+      achados = achados.concat([falha])
+      ok = false
+      log(`  [FALHA] ${falha.chave}: ${falha.motivo}`)
+    }
+
+    let resumoMd = tabelaDoResumo({ alvo, totais, base })
+    const achadosDeDeriva = achados.filter((a) => a.chave.startsWith('deriva_migrations:'))
+    if (achadosDeDeriva.length || avisosDeDeriva.length) {
+      const linhasDeriva = ['', '### Deriva de migrations (repositório × ledger)', '']
+      for (const a of achadosDeDeriva) linhasDeriva.push(`- ✗ \`${a.chave}\`: ${a.motivo}`)
+      for (const av of avisosDeDeriva) linhasDeriva.push(`- aviso \`${av.chave}\`: ${av.motivo}`)
+      resumoMd += '\n' + linhasDeriva.join('\n')
+    }
+
     return {
       ok,
       alvo,
       achados,
       podeDescer,
+      avisosDeDeriva,
       impressao: impressaoDoEstado(achados),
-      resumoMd: tabelaDoResumo({ alvo, totais, base }),
+      resumoMd,
     }
   } catch (erro) {
     log(`  [FALHA] ${descreverErro(erro)}`)

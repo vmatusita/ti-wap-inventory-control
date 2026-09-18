@@ -1475,6 +1475,24 @@ export type Database = {
         }[]
       }
       colaborador_chave: { Args: { p_nome: string }; Returns: string }
+      confirmar_assinatura_lote_com_anotacoes: {
+        Args: { p_ativo_ids: string[]; p_data: string; p_texto_anotacao: string }
+        Returns: { ativo_id: string }[]
+      }
+      confirmar_assinatura_termo_com_anotacao: {
+        Args: { p_ativo_id: string; p_data: string; p_texto_anotacao: string }
+        Returns: undefined
+      }
+      corrigir_patrimonio_com_anotacao: {
+        Args: {
+          p_alterar_pendencia: boolean
+          p_ativo_id: string
+          p_patrimonio: string
+          p_pendencia: string
+          p_texto_anotacao: string
+        }
+        Returns: undefined
+      }
       criar_compra_lote: {
         Args: { p_criado_por: string; p_itens: Json }
         Returns: {
@@ -1493,12 +1511,30 @@ export type Database = {
         }
         Returns: undefined
       }
+      definir_service_tag_com_anotacao: {
+        Args: {
+          p_alterar_pendencia: boolean
+          p_ativo_id: string
+          p_pendencia: string
+          p_service_tag: string
+          p_texto_anotacao: string
+        }
+        Returns: undefined
+      }
       definir_status_usuario: {
         Args: { p_alvo: string; p_ativo: boolean }
         Returns: undefined
       }
       definir_vinculos_usuario: {
         Args: { p_alvo: string; p_filiais: number[] }
+        Returns: undefined
+      }
+      desfazer_confirmacao_termo_com_anotacao: {
+        Args: {
+          p_ativo_id: string
+          p_destino: Database["public"]["Enums"]["termo_status"]
+          p_texto_anotacao: string
+        }
         Returns: undefined
       }
       dev_checagens_integridade: {
@@ -1647,6 +1683,13 @@ export type Database = {
       lancar_itens_lote: {
         Args: { p_criado_por: string; p_linhas: Json }
         Returns: Json
+      }
+      ledger_de_migracoes: {
+        Args: never
+        Returns: {
+          nome: string
+          versao: string
+        }[]
       }
       mesmo_escopo_de_gestao: { Args: { p_alvo: string }; Returns: boolean }
       mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }

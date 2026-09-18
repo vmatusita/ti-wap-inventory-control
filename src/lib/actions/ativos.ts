@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
   anotacaoSchema,
@@ -276,23 +277,24 @@ export async function corrigirPatrimonio(input: {
   // F7E — ao dar patrimônio a um ativo que veio sem plaqueta, encerra o trecho
   // 'sem patrimônio físico' da pendência (preservando os demais, ex.: termo).
   const pendenciaLimpa = limparPendenciaSemPatrimonio(ativo.pendencia)
-  const patch: { patrimonio: string; pendencia?: string | null } = { patrimonio: novo }
-  if (pendenciaLimpa !== ativo.pendencia) patch.pendencia = pendenciaLimpa
 
-  const { error: eUpd } = await supabase
-    .from('ativos')
-    .update(patch)
-    .eq('id', ativo_id)
-  // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts).
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
-
-  // "de" nulo (ativo sem patrimônio) → registra "de sem patrimônio para WAP…".
-  const { error: eNota } = await supabase.from('anotacoes').insert({
-    ativo_id,
-    texto: `Patrimônio corrigido de ${antigo ?? 'sem patrimônio'} para ${novo}.`,
-    criado_por: aut.uid,
+  // Reauditoria 18/09/2026 (item U, migration 0149) — patrimônio + pendência e a
+  // anotação "de → para" gravam na MESMA transação: o update pode falhar de forma
+  // PREVISÍVEL (patrimônio/service tag duplicado, §5), e uma anotação órfã deixaria, para
+  // sempre, uma correção que não aconteceu. "de" nulo (ativo sem patrimônio) → "de sem
+  // patrimônio para WAP…". p_pendencia é sentinela (''=sem pendência; nunca null pela porta),
+  // e só é gravada quando MUDOU — a mesma regra do `.update()` de antes, que não regravava a
+  // coluna com o valor lido quando nada mudou (senão desfaria uma escrita concorrente nela).
+  const { error: eRpc } = await chamarRpc(supabase, 'corrigir_patrimonio_com_anotacao', {
+    p_ativo_id: ativo_id,
+    p_patrimonio: novo,
+    p_pendencia: pendenciaLimpa ?? '',
+    p_alterar_pendencia: pendenciaLimpa !== ativo.pendencia,
+    p_texto_anotacao: `Patrimônio corrigido de ${antigo ?? 'sem patrimônio'} para ${novo}.`,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
+  // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts); a RPC
+  // recusa (nada grava) se o UPDATE afetar 0 linhas.
+  if (eRpc) return { ok: false, erro: traduzErroBanco(eRpc.message, eRpc.code) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${ativo_id}`)
@@ -366,19 +368,19 @@ export async function definirServiceTag(input: {
 
   // Encerra só o trecho 'sem service tag' da pendência (preserva os demais).
   const pendenciaLimpa = limparTrechoPendencia(ativo.pendencia, PENDENCIA_SEM_SERVICE_TAG)
-  const patch: { service_tag: string; pendencia?: string | null } = { service_tag }
-  if (pendenciaLimpa !== ativo.pendencia) patch.pendencia = pendenciaLimpa
 
-  const { error: eUpd } = await supabase.from('ativos').update(patch).eq('id', ativo_id)
-  // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts).
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
-
-  const { error: eNota } = await supabase.from('anotacoes').insert({
-    ativo_id,
-    texto: `Service tag definida: ${service_tag}.`,
-    criado_por: aut.uid,
+  // Reauditoria 18/09/2026 (item U, migration 0149) — mesma transação (ver o
+  // comentário espelho em corrigirPatrimonio, acima).
+  const { error: eRpc } = await chamarRpc(supabase, 'definir_service_tag_com_anotacao', {
+    p_ativo_id: ativo_id,
+    p_service_tag: service_tag,
+    p_pendencia: pendenciaLimpa ?? '',
+    p_alterar_pendencia: pendenciaLimpa !== ativo.pendencia,
+    p_texto_anotacao: `Service tag definida: ${service_tag}.`,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
+  // Violação do par único patrimônio + service tag → mensagem amigável (erros.ts); a RPC
+  // recusa (nada grava) se o UPDATE afetar 0 linhas.
+  if (eRpc) return { ok: false, erro: traduzErroBanco(eRpc.message, eRpc.code) }
 
   revalidatePath('/ativos')
   revalidatePath(`/ativos/${ativo_id}`)

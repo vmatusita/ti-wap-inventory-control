@@ -9,6 +9,7 @@ import Docxtemplater from 'docxtemplater'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
+import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import {
@@ -52,7 +53,6 @@ import {
 import { linhaOuFalha, linhasOuFalha } from '@/lib/supabase/linhas'
 import {
   LEITURA_ALVOS_ASSINATURA_LOTE,
-  LEITURA_ATIVOS_ID,
   LEITURA_CIDADES_DAS_FILIAIS,
   LEITURA_MOV_PARA_TERMO,
   LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO,
@@ -752,19 +752,15 @@ export async function confirmarAssinaturaTermo(input: {
     return { ok: false, erro: 'Este termo já consta como assinado.' }
   }
 
-  const { error: eUpd } = await supabase
-    .from('ativos')
-    .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
-    .eq('id', ativo_id)
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
-
-  // Rastro imutável na linha do tempo (autor + created_at vêm das colunas).
-  const { error: eNota } = await supabase.from('anotacoes').insert({
-    ativo_id,
-    texto: `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`,
-    criado_por: aut.uid,
+  // Reauditoria 18/09/2026 (item U, migration 0149) — update + anotação (rastro
+  // imutável na linha do tempo) na MESMA transação: a RPC recusa (nada grava) se o UPDATE
+  // afetar 0 linhas (ativo inexistente ou fora do vínculo de filial de quem chama).
+  const { error: eRpc } = await chamarRpc(supabase, 'confirmar_assinatura_termo_com_anotacao', {
+    p_ativo_id: ativo_id,
+    p_data: dataAssinatura,
+    p_texto_anotacao: `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
+  if (eRpc) return { ok: false, erro: traduzErroBanco(eRpc.message, eRpc.code) }
 
   revalidatePath(`/ativos/${ativo_id}`)
   revalidatePath('/pendencias')
@@ -822,22 +818,19 @@ export async function desfazerConfirmacaoTermo(input: {
   if (eGer) return { ok: false, erro: traduzErroBanco(eGer.message, eGer.code) }
   const destino: 'gerado' | 'nao' = gerados && gerados.length > 0 ? 'gerado' : 'nao'
 
-  const { error: eUpd } = await supabase
-    .from('ativos')
-    .update({ termo_assinado: destino, termo_data: null })
-    .eq('id', ativo_id)
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
-
   const texto =
     destino === 'gerado'
       ? 'Confirmação de assinatura desfeita — o termo volta a constar como gerado (pendente de assinatura).'
       : 'Confirmação de assinatura desfeita — o termo volta a constar como não gerado.'
-  const { error: eNota } = await supabase.from('anotacoes').insert({
-    ativo_id,
-    texto,
-    criado_por: aut.uid,
+
+  // Reauditoria 18/09/2026 (item U, migration 0149) — mesma transação (ver o
+  // comentário espelho em confirmarAssinaturaTermo, acima).
+  const { error: eRpc } = await chamarRpc(supabase, 'desfazer_confirmacao_termo_com_anotacao', {
+    p_ativo_id: ativo_id,
+    p_destino: destino,
+    p_texto_anotacao: texto,
   })
-  if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
+  if (eRpc) return { ok: false, erro: traduzErroBanco(eRpc.message, eRpc.code) }
 
   revalidatePath(`/ativos/${ativo_id}`)
   revalidatePath('/pendencias')
@@ -932,45 +925,24 @@ export async function confirmarAssinaturaLote(input: {
     return { ok: true, confirmados: 0, ignorados: ids.length }
   }
 
-  const { data: atualizadosBrutos, error: eUpd } = await supabase
-    .from('ativos')
-    .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
-    .in('id', pendentesIds)
-    // `.neq` sozinho perdia o NULL (`NULL <> 'sim'` é NULL em SQL), que também é termo
-    // pendente na v_pendencias — mesmo par de `aplicarFlagTermo`.
-    .or('termo_assinado.is.null,termo_assinado.neq.sim')
-    .select(LEITURA_ATIVOS_ID.select)
-  if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
-  // `update(...).select(...)` é UM `UPDATE … RETURNING`: quando a forma do retorno é conferida, a
-  // confirmação JÁ COMMITOU. Forma errada aqui não pode dizer ao operador que a confirmação não
-  // aconteceu, nem pular a anotação e a revalidação — degrada para os `pendentesIds` (todos
-  // elegíveis pelo mesmo filtro do UPDATE) e segue, como as outras escritas da F58 fazem com o
-  // recibo; o `registrarFalha` da forma já aconteceu dentro da porta. (Revisão do lote 3: a
-  // primeira versão devolvia `{ ok: false }` depois do fato.)
-  const lidoAtualizados = linhasOuFalha(
-    atualizadosBrutos,
-    LEITURA_ATIVOS_ID.forma,
-    LEITURA_ATIVOS_ID.rotulo,
+  // Reauditoria 18/09/2026 (item U, migration 0149) — o UPDATE em lote e a anotação
+  // POR ATIVO gravam no MESMO comando SQL dentro da RPC (duas CTEs: quem foi atualizado
+  // alimenta direto quem é anotado — a anotação nunca nasce sem a confirmação, nem falta).
+  // Continua IDEMPOTENTE por linha (id já 'sim' é ignorado, como fazia o `.or(...)` de
+  // antes); a RPC recusa o LOTE INTEIRO (nada grava) se algum id ficar de fora só por falta
+  // de vínculo de filial — a mesma doutrina de `exigirEscritaEm`, agora também no banco.
+  const texto = `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`
+  const { data: confirmadosBrutos, error: eRpc } = await chamarRpc(
+    supabase,
+    'confirmar_assinatura_lote_com_anotacoes',
+    {
+      p_ativo_ids: pendentesIds,
+      p_data: dataAssinatura,
+      p_texto_anotacao: texto,
+    },
   )
-  const idsConfirmados = lidoAtualizados.ok
-    ? [...new Set(lidoAtualizados.linhas.map((a) => a.id))]
-    : pendentesIds
-
-  // Uma anotação POR ATIVO, mesmo texto/formato da confirmação individual — o
-  // rastro de "quem confirmou / quando" é a `anotacoes` (imutável), como o
-  // comentário de `confirmarAssinaturaTermo` já explica; `ativos` não tem
-  // coluna de autor.
-  if (idsConfirmados.length > 0) {
-    const texto = `Termo confirmado como assinado (data da assinatura: ${formatDate(dataAssinatura)}).`
-    const { error: eNota } = await supabase.from('anotacoes').insert(
-      idsConfirmados.map((ativoId) => ({
-        ativo_id: ativoId,
-        texto,
-        criado_por: aut.uid,
-      })),
-    )
-    if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }
-  }
+  if (eRpc) return { ok: false, erro: traduzErroBanco(eRpc.message, eRpc.code) }
+  const idsConfirmados = [...new Set((confirmadosBrutos ?? []).map((c) => c.ativo_id))]
 
   revalidatePath('/pendencias')
   for (const ativoId of idsConfirmados) revalidatePath(`/ativos/${ativoId}`)

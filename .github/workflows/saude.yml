@@ -160,9 +160,22 @@ jobs:
       #
       # ⚠ CREDENCIAL AUSENTE É FALHA, e o próprio script cuida disso: no agendado,
       # a sonda que não olha nada não pode reportar verde.
+      #
+      # `GITHUB_TOKEN` É PARA A DERIVA DE MIGRATIONS (item AE, passo 2), não para o
+      # alvo (produção/ensaio): `deriva-migrations.mjs` pergunta à API do GitHub
+      # QUANDO cada migration pendente entrou na `main`, para medir a tolerância —
+      # `contents: read` (já concedido no topo do arquivo) é suficiente para a API
+      # de commits num repositório privado. Isto EVITA `fetch-depth: 0` no checkout
+      # acima, que baixaria o histórico INTEIRO a cada execução (o item AK da
+      # dívida técnica já registra 62 MB de evidência binária nesse histórico,
+      # crescendo a cada fase visual — o custo se pagaria de novo a cada execução).
+      # Sem esta data (token ausente, API fora do ar) o pendente vira AVISO por
+      # arquivo; já a sonda que não consegue LER o ledger é achado, vermelho — ver
+      # o cabeçalho de `integridade.mjs`.
       - name: Sonda de integridade
         id: integridade
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # ⚠ OS DOIS CONJUNTOS ENTRAM, e é o SCRIPT que escolhe pelo `--alvo`.
           # A forma tentadora — `inputs.alvo == 'ensaio' && secrets.X_ENSAIO ||
           # secrets.X_PRODUCAO` — tem um modo de falha silencioso e grave: com o

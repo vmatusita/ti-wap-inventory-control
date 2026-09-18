@@ -128,6 +128,12 @@ const VARIAVEIS_DE_SISTEMA: [nome: string, motivo: string][] = [
   ['VERCEL_GIT_COMMIT_SHA', 'definida pela Vercel — o commit do deploy'],
   ['VERCEL_GIT_COMMIT_MESSAGE', 'definida pela Vercel — a mensagem do commit do deploy'],
   ['GITHUB_STEP_SUMMARY', 'definida pelo runner do GitHub Actions — arquivo do resumo do job'],
+  // Reauditoria 18/09/2026 (item AE): a sonda de deriva pergunta à API do GitHub quando cada
+  // migration pendente entrou na `main` (scripts/smoke/integridade.mjs). Fora da Action,
+  // sem elas, cai no `git log` local — nunca vão para o .env.example.
+  ['GITHUB_REPOSITORY', 'definida pelo runner do GitHub Actions — dono/nome do repositório'],
+  ['GITHUB_TOKEN', 'token do job do GitHub Actions — o saude.yml o passa à sonda de deriva'],
+  ['GH_TOKEN', 'alternativa ao GITHUB_TOKEN, o nome que a CLI `gh` usa'],
 ]
 
 const IGNORAR = new Set(['node_modules', '.next', '.git', '.vercel', 'coverage'])

@@ -55,7 +55,11 @@ export const CONSTRAINTS_TRADUZIDAS = {
   lanc_item_qtd_valida: { tipo: 'check', tabela: 'lancamentos_item' },
   // até a F58 `erros.ts` casava o PREFIXO `lanc_item_estorna`; o nome real do índice (0015) é este
   lanc_item_estorna_uidx: { tipo: 'indice-unico', tabela: 'lancamentos_item' },
-  itens_nome_uidx: { tipo: 'indice-unico', tabela: 'itens' },
+  // `itens_nome_uidx` (lower(nome), 0014) saiu na 0147 — `itens_nome_chave_uidx`
+  // (0125) é estritamente mais forte e cobria toda recusa que o velho fazia
+  // (prova na própria migration). Tirar a entrada daqui, e não só do código que a
+  // casa, é a doutrina das traduções mortas da F58: nome que não existe mais no
+  // esquema vivo reprova em `erros-do-banco-sql.test.ts` se ficasse na lista.
   itens_nome_chave_uidx: { tipo: 'indice-unico', tabela: 'itens' },
   // ⚠ F24: a 0091 apagou e recriou os dois índices de identidade do ativo COM O MESMO NOME,
   // justamente para estes ramos continuarem casando. Renomear mata a tradução — agora com teste.

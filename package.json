@@ -66,5 +66,9 @@
     "tsx": "^4.23.0",
     "typescript": "^5",
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "unrs-resolver": true
   }
 }

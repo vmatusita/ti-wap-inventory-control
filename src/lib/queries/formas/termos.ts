@@ -154,19 +154,13 @@ export const LEITURA_URL_TERMO = leituraDeRelacao({
 })
 
 // `confirmarAssinaturaLote` — os alvos do lote (para decidir quem ainda precisa ser
-// confirmado) e, mais abaixo, o `id` puro de quem o UPDATE de fato tocou.
+// confirmado). O `id` puro de quem o UPDATE tocou saía daqui também (`LEITURA_ATIVOS_ID`),
+// até a reauditoria de 18/09/2026 (item U, 0149): a confirmação e a anotação viraram UMA
+// RPC, `confirmar_assinatura_lote_com_anotacoes`, que devolve esses ids tipados pela porta.
 export const LEITURA_ALVOS_ASSINATURA_LOTE = leituraDeRelacao({
   rotulo: 'termos.alvos-assinatura-lote',
   origem: 'ativos',
   select: 'id, filial_id, termo_assinado',
   forma: z.strictObject({ id: s, filial_id: n, termo_assinado: ENUM.termoStatus.nullable() }),
-  ordem: ['id'],
-})
-
-export const LEITURA_ATIVOS_ID = leituraDeRelacao({
-  rotulo: 'termos.ativos-id',
-  origem: 'ativos',
-  select: 'id',
-  forma: z.strictObject({ id: s }),
   ordem: ['id'],
 })
