@@ -1,5 +1,311 @@
 # Dívida Técnica — Estoque TI WAP
 
+## Reauditoria de 18/09/2026 — v1.66.1, depois da F61 (skill `tech-debt`)
+
+Revalida item a item contra a `main` de hoje (`98a78da`), 26 fases depois da rodada de 12/08 e
+três semanas depois da revisão de 30/08. **Levantamento e priorização, nenhuma correção executada.**
+Mesma fórmula de sempre: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, eixos de 1 a 5, esforço
+**1** ≈ ½ dia · **2** ≈ 1–2 dias · **3** ≈ 3–5 dias · **4** ≈ 1–2 semanas · **5** ≈ 1 mês+.
+
+> ⚠ **Duas prioridades das seções antigas estavam com a conta errada**, e recalculei: **AB** dizia 32
+> para I4·R1·E1, e a fórmula dá **25**; **AA** dizia 12 para I2·R2·E2, e dá **16**.
+
+### Sumário executivo
+
+**A base está saudável e ficou bem maior.** `lint` e `typecheck` limpos; **7.035 testes em 238
+arquivos, todos verdes** (eram 2.544 em 12/08); 35 roteiros SQL com 857 asserções no CI; injetor de
+mutação e gate de deriva de tipos (F47); trava de hash das migrations (F46); alarme de saúde (F55);
+restauração exercitada (F54). Das dívidas estruturais de agosto, **N, X, G, a restauração e a
+observabilidade** foram fechadas ou abatidas de verdade (§ "Fechado desde 30/08").
+
+**Três achados dominam esta rodada:**
+
+1. **O item mais urgente já tem a correção pronta, e ela está parada.** O `next@16.2.12` tem **dois
+   advisories CRÍTICOS de execução remota de código**, e não existe patch na linha `16.2`: a correção
+   começa no `16.3.3`. O Dependabot abriu o **PR #56** ontem com `next@16.3.5`. O check `verificar`
+   (lint, build e testes) **passou**, e o `banco-sem-docker` ficou vermelho **por um motivo que não
+   tem nada a ver com a atualização** (item AC).
+2. **Uma defesa da casa virou atrito, e a cadeia de causas coube em um dia.** A guarda de escopo da
+   F38 exige a mesma exceção em **duas listas mantidas à mão** (TS e SQL). A `0146` entrou só com a
+   do TS, a `main` ficou vermelha, o `98a78da` consertou, e o PR de segurança rodou exatamente nessa
+   janela (item AD). No mesmo dia: a `0146` está no repositório e **não está em produção**, e nada
+   automatizado acusa isso (item AE).
+3. **O multiempresa (F62–F71) vem aí, e duas dívidas custam mais antes dele do que depois:** a
+   máquina de estados `aplicar_movimentacao` já foi **recriada inteira 11 vezes**, o mesmo mecanismo
+   que a F51 desmontou no import (item AG). E os **quatro formulários gigantes** (5.236 linhas) seguem
+   sem teste de interação (itens E/K/Y).
+
+### Saúde por categoria
+
+| Categoria | 12/08 | 18/09 | Observação |
+|---|---|---|---|
+| **Código** | 🟡 | 🟡 | `as unknown as` caiu de 60 para **17**. Os quatro formulários gigantes somam 5.236 linhas e continuam crescendo. |
+| **Arquitetura** | 🟡 | 🟡 | O import foi decomposto (F51). A mesma doença mora agora em `aplicar_movimentacao` (11×). |
+| **Testes** | 🟡 | 🟢 | 7.035 testes + 857 asserções SQL + mutação. Os dois custos novos são o atrito das guardas (AD) e o tempo da suíte (AI). |
+| **Dependências** | 🟠 | 🔴 | **1 crítico direto** (`next`) + 2 HIGH transitivos. A correção está num PR aberto. |
+| **Documentação** | 🟢 | 🟡 | O rigor é excelente, mas o volume virou custo: `CLAUDE.md` com ~10 mil tokens, `DECISOES.md` com 12.480 linhas, `docs/` com 62 MB. |
+| **Infraestrutura** | 🟠 | 🟡 | Alarme, restauração e trava entraram. O apply em produção segue manual e sem alarme de deriva. |
+
+### Lista priorizada (itens abertos)
+
+| # | Item | Categoria | Imp. | Risco | Esf. | **Prio** |
+|---|---|---|:-:|:-:|:-:|:-:|
+| **AC** | **`next@16.2.12`: 2 críticos (RCE) + `postcss`/`sharp` HIGH. Correção pronta no PR #56** *(novo)* | Dependência/Seg | 3 | 4 | 1 | **35** |
+| **AE** | **Deriva repositório × produção sem alarme (`0146` pendente hoje)** *(novo)* | Infra | 3 | 4 | 2 | **28** |
+| **AD** | **Guarda de escopo da F38 com duas listas de exceção à mão; derrubou a `main` em 18/09** *(novo)* | Testes | 3 | 2 | 1 | **25** |
+| **A** | Ledger incompatível com o repositório por construção (decisão do Johnny, R3) | Infra | 4 | 4 | 3 | **24** |
+| **AB** | Âmbar sem token: 295 classes cruas, `--callout-atencao` ainda não existe | Código/Design | 3 | 1 | 1 | **20** |
+| **U** | Termo "assinado" em duas etapas sem transação (o paliativo é de ½ dia) | Arquitetura | 2 | 2 | 1 | **20** |
+| **AF** | **`CLAUDE.md` com ~10 mil tokens, lido em toda sessão de agente** *(novo)* | Documentação | 3 | 2 | 2 | **20** |
+| **AG** | **`aplicar_movimentacao` recriada inteira 11× (~200 linhas por cópia)** *(novo)* | Arquitetura | 3 | 3 | 3 | **18** |
+| **AA** | Tinta de área × tinta de texto (decisão de cor) | Design | 2 | 2 | 2 | **16** |
+| **AH** | **Fila do Dependabot parada: 6 PRs abertos desde julho** *(novo)* | Dependência | 1 | 2 | 1 | **15** |
+| **F41a** | `itens_nome_uidx` redundante; tirar antes da F62 | Banco | 1 | 2 | 1 | **15** |
+| **E/K/Y** | Quatro formulários gigantes (5.236 linhas) sem teste de interação | Código/Testes | 4 | 3 | 4 | **14** |
+| **AI** | **Suíte de 91 s para 158 s; o tempo está no import, não nas asserções** *(novo)* | Testes | 2 | 1 | 2 | **12** |
+| **G** | 17 `as unknown as` residuais (eram 60) | Código | 1 | 2 | 2 | **12** |
+| **AJ** | **Faxina: SVGs do `create-next-app`, `Claude outputs/` versionado, `DbClient` duplicado** *(novo)* | Código | 1 | 1 | 1 | **10** |
+| **AK** | **`docs/` com 62 MB de evidência binária no histórico do git** *(novo)* | Documentação | 1 | 1 | 2 | **8** |
+
+---
+
+### AC — `next@16.2.12`: dois críticos de RCE, e a correção está parada num PR `[Prio 35]` *(novo)*
+
+`npm audit` de hoje: **5 vulnerabilidades (1 crítica, 2 high, 2 moderate)**.
+
+| Advisory | Faixa | O que é | Aplica aqui? |
+|---|---|---|---|
+| `GHSA-p293-qw3h-jr36` | `>=16.0.0 <16.3.3` | RCE sem autenticação em servidor **hospedado em Windows** | **Produção, não:** Vercel, região `gru1`. **Máquina de desenvolvimento, sim:** o `next dev` roda em Windows. |
+| `GHSA-2xp9-vwfh-vxw4` | `>=16.0.0 <16.3.3` | RCE na otimização de imagem com AVIF (`libheif` via `sharp`) | **Superfície pequena:** não há `next/image` em `src/`, o `public/` só tem SVG e o `next.config.ts` não configura `images`. Não verifiquei como a Vercel trata o `/_next/image`. |
+| `postcss` (4 advisories, 2 HIGH) | `<=8.5.22` | leitura de `.map` por `sourceMappingURL` | vem embutido no `next`; é superfície de build, não de runtime |
+| `sharp` (2 HIGH) | `<0.35.4` | CVEs herdados de `libvips`/`libheif` | vem pelo `next` |
+| `uuid` (moderate) | `<11.1.1` | via `exceljs` | aceito e registrado desde 12/08 |
+
+**Não existe `16.2.13`.** A linha `16.2` parou no `16.2.12`, e o `npm audit fix --force` pede o
+`16.3.5`. Em 30/08 a regra foi "minor é decisão de fase". A recomendação agora é tratar **este**
+minor como manutenção: a stack fechada diz "Next.js 16", o `16.3` está dentro dela, e ele é o único
+caminho para fechar os críticos. **Registrar a exceção em `DECISOES.md`.**
+
+**O PR #56 já faz isso.** É o grupo semanal do Dependabot (15 pacotes, `next` → `16.3.5`,
+`react` → `19.3.0`). O check `verificar` **passou**. O `banco-sem-docker` falhou em
+`f38_itens_com_ativo`, o cenário 14 que o `98a78da` consertou na `main` minutos depois do CI do PR
+rodar. **A correção é um rebase** (`@dependabot rebase`), depois o smoke logado.
+
+**Negócio:** é o único item desta lista que um scanner externo ou uma auditoria de TI da WAP aponta
+sozinho, com CVE crítico. O trabalho já está feito, só falta destravar. Pela regra 8, entra como
+versão **PATCH**.
+
+### AE — O repositório anda à frente de produção, e nada avisa `[Prio 28]` *(novo)*
+
+O item **A** diz *por que* o apply é manual: o ledger não bate com os arquivos. Este item é o
+*sintoma*. Ele já apareceu três vezes, e **nenhuma foi achada por alarme**:
+
+- a F54 aplicou a `0136` e a `0137` **sem registrá-las** no ledger. Isso só apareceu porque alguém
+  foi registrar a `0131`/`0132` (ata "O ledger ganhou quatro linhas, não duas", 09/09);
+- no mesmo rollout, a sonda de paridade achou **três funções de produção diferentes do repositório**
+  (`0082`/`0122`, que chegaram pela colagem manual do caminho B). A diferença era só em comentário, e
+  elas foram reemitidas no mesmo dia. Mas foi a sonda **rodada à mão** que achou;
+- **hoje**, a `0146` está na `main` e **não está no ensaio nem em produção** (ata de 18/09,
+  Decisão 2). O código funciona sem ela, mas o operador vê o 23503 genérico em vez da recusa
+  explicada.
+
+A própria documentação registra: não existe **nenhuma checagem de ledger × repositório no
+`/api/saude` nem no smoke**. O Diagnóstico da `/dev` mostra a diferença, mas só para quem abre a tela.
+
+**Correção:** acrescentar à **Parte B** do `saude.yml` (a sonda diária com a conta de cargo
+`consulta`) a comparação entre "última migration do repositório" e "último efeito em produção",
+reusando o que o Diagnóstico da `/dev` já calcula. O alarme abre issue quando a diferença durar mais
+que uma tolerância, porque entre o merge e o apply o repositório fica à frente **de propósito**.
+**Não substitui o item A:** só torna visível o que hoje depende de alguém lembrar.
+
+**Negócio:** migration pendente em produção é código novo rodando contra banco velho. Hoje o
+resultado é uma mensagem pior; na próxima vez pode ser uma RPC que não existe.
+
+### AD — A guarda de escopo da F38 exige a mesma exceção em dois lugares `[Prio 25]` *(novo)*
+
+`aplicar_movimentacao` está na lista de "intocáveis" da F38 em **dois mecanismos independentes**:
+
+- **TS:** `RECRIACOES_AUTORIZADAS` em `src/lib/itens/migrations-f38.test.ts:398`, que libera por
+  arquivo de migration;
+- **SQL:** o cenário 14 de `supabase/tests/f38_itens_com_ativo.sql:857+`, que varre o corpo **vivo**
+  e tira da varredura, por `replace()` de **texto literal**, os dois trechos exatos da `0146`.
+
+Nenhum dos dois sabe do outro. A `0146` entrou só com a exceção do TS, o CI da `main` ficou vermelho,
+e o `98a78da` acrescentou a do SQL. O PR de segurança (AC) rodou nessa janela e está vermelho até
+hoje. A memória de trabalho do projeto já registra a armadilha ("recriar intocável exige duas
+exceções").
+
+**O custo vai crescer.** A guarda protege uma fronteira **da F38** ("esta fase não tocou estas dez
+funções"), e ela continua valendo 23 fases depois. Toda mudança legítima na máquina de estados vai
+pagar o pedágio duplo, e a exceção por `replace()` quebra se alguém mudar uma vírgula do trecho.
+
+**Correção (½ dia):** um teste em TS que leia a lista de funções e de trechos liberados do cenário
+14 e reprove quando ela divergir de `RECRIACOES_AUTORIZADAS`. É o mesmo padrão das travas TS↔SQL que
+a casa já usa (`chave-sql.test.ts`, `tipos-item-sql.test.ts`). **Alternativa, que precisa de
+decisão:** aposentar a varredura de marcadores da F38 no SQL, já que a trava de hash (F46) garante
+que o histórico não muda e a guarda do TS controla cada recriação nova.
+
+### AG — `aplicar_movimentacao` é recriada inteira a cada mudança `[Prio 18]` *(novo)*
+
+O diagnóstico do item **X** (import recriado 11×, o mecanismo que espalhou N e W) vale letra por
+letra para o coração do sistema:
+
+| Função | Cópias integrais | Migrations |
+|---|:-:|---|
+| `aplicar_movimentacao` | **11** (~195–225 linhas cada) | `0004`, `0023`, `0045`, `0047`, `0051`, `0097`, `0099`, `0109`, `0110`, `0134`, `0146` |
+| `rel_estoque_asof` | 8 | `0016` → `0134` |
+| `dev_checagens_integridade` | 8 | `0077` → `0138` |
+
+Cada correção na máquina de estados reemite as ~220 linhas do gatilho que toda movimentação
+atravessa. A guarda de intocáveis (AD) e o injetor de mutação (F47) **seguram o defeito recopiado**,
+coisa que o import não tinha, e por isso a prioridade é menor que a do X. **O custo por mudança é o
+mesmo, e o multiempresa vem aí:** se a F62+ precisar tocar essa função, a 12ª cópia nasce ali.
+
+**Correção:** a receita da F51, uma orquestradora fina sobre auxiliares nomeadas (estorno, pendência
+de termo, pendência de item, sincronização de detentor). **Fazer antes da primeira fase do
+multiempresa que precise tocar a função, não durante.**
+
+### AF — O `CLAUDE.md` virou o documento mais caro do repositório `[Prio 20]` *(novo)*
+
+34,9 KB, cerca de **10 mil tokens**, com **59 menções a fase**. É carregado **inteiro em toda
+sessão de todo agente**, e este projeto é tocado por agentes em ordens de serviço. O parágrafo do
+modelo de acesso sozinho tem perto de mil palavras, e a regra 2 ("NUNCA dados reais") carrega a
+história da F7, F24, F38 e F39 no mesmo parágrafo.
+
+**O risco não é o custo em tokens, é a diluição.** A regra que importa disputa atenção com o
+histórico de por que ela existe. E a árvore de pastas prescrita, detalhada arquivo a arquivo,
+envelhece a cada fase, mesmo o próprio `CLAUDE.md` mandando **parar** quando a estrutura divergir.
+
+**Correção:** deixar no `CLAUDE.md` as regras e os ponteiros (meta de 3 a 4 mil tokens) e mover o
+porquê e a cronologia para `ADR-002`, `DECISOES.md` e `ARQUITETURA.md`, que já existem para isso.
+**É instrumento do Johnny:** recomendação, não correção.
+
+### AH — Fila do Dependabot parada desde julho `[Prio 15]` *(novo)*
+
+| PR | Desde | O que é | Estado |
+|---|---|---|---|
+| #2 | 14/07 | `@types/node` 20 → 26 | major; o runtime do CI é Node **24**, então o alvo certo é `^24` |
+| #3 | 14/07 | `typescript` 5.9 → 7.0 | major; `verificar` vermelho |
+| #4 | 14/07 | `eslint` 9 → 10 | major |
+| #6 / #7 / #8 | 21/07 | `setup-node` 4→7, `setup-cli` 1→3, `checkout` 4→7 | **verdes**, mas numa base velha, que ainda tinha o job `banco` removido na v1.51.1 |
+
+Uma fila que ninguém esvazia ensina a ignorar a fila, e foi nela que o AC chegou. **Correção:**
+rebase e merge dos três de Actions; fechar os majors com uma regra `ignore` de `semver-major` no
+`dependabot.yml` para os pacotes cuja major é decisão de fase. A fila passa a ter só o que dá para
+agir.
+
+### AI — A suíte quase dobrou de tempo `[Prio 12]` *(novo)*
+
+De **91 s** (2.544 testes, 12/08) para **158 s** (7.035 testes, hoje). O próprio Vitest mostra onde
+está o tempo: **`import 789 s`** somados entre os workers, contra **`tests 113 s`**. O custo é
+carregar e transformar módulos, não rodar asserções. Dos 228 arquivos de teste, **90 leem arquivo do
+disco** (24 deles leem migrations). **Correção:** medir por arquivo (`--reporter=json`) antes de
+mexer, porque a causa ainda não está provada. Os candidatos são a transformação repetida dos módulos
+grandes (`ajuda/conteudo/**`, `versoes/registry.ts` com 1.222 linhas) e as varreduras de migration
+que releem as 145 a cada arquivo.
+
+### AJ — Faxina `[Prio 10]` *(novo)*
+
+- `public/{file,globe,next,vercel,window}.svg`: sobras do `create-next-app`, **zero** referências.
+- `Claude outputs/` na raiz, com espaço no nome: 2 prompts versionados e 2 não versionados. Ou vira
+  pasta de `docs/` com lugar no índice, ou entra no `.gitignore`.
+- `DbClient` exportado duas vezes (`auth/acesso.ts:16` e `queries/relatorios/comum.ts:11`), já
+  nomeado pela F58 e ainda de pé.
+
+### AK — Evidência binária no histórico do git `[Prio 8]` *(novo)*
+
+`docs/` tem **62 MB**, dos quais `f61-evidencias` ocupa 28 MB, `f44` 15 MB e `f43` 6,2 MB (PNG e
+HTML de captura). O pack do repositório tem 42 MB e cada fase visual soma mais, para sempre, em todo
+clone. **Correção barata e R$ 0:** a evidência pesada vai como anexo de *release* do GitHub na tag
+da fase, e o `docs/` guarda o `README` da evidência com o hash de cada arquivo. O que já está no
+histórico fica.
+
+---
+
+### Itens anteriores, revalidados
+
+- **A (ledger) `[24]`: inalterado por construção.** A decisão do método (R3) segue com o Johnny, e o
+  AE é a parte barata que não depende dela.
+- **AB (âmbar) `[20]`: inalterado.** 295 classes `amber-*` no código de produção, e
+  `--callout-atencao` não existe em `globals.css`. O teto de cor crua caiu de 473 para **413** por
+  outras frentes. Rebaixei o impacto de 4 para 3: é tokenização sem mudança de pixel, e ganha peso
+  se o multiempresa trouxer cor por empresa.
+- **U (duas etapas) `[20]`: inalterado.** `actions/termos.ts:756→762` (marca o termo como assinado
+  e **depois** grava a anotação) e `actions/ativos.ts:117→127`. O paliativo de ½ dia (inverter a
+  ordem, porque anotação órfã é inócua) continua sem aplicar. A correção de verdade é uma RPC.
+- **E / K / Y `[14]`: pioraram em tamanho.** `nova-movimentacao-form` 1.465, `nova-compra-form`
+  1.413, `grupos-erros` 1.187, `importar-wizard` 1.171 (+130 desde 12/08). `useState`:
+  `nova-compra` 32, `devolucao-fornecedor` 20, `nova-movimentacao` 19, `lancar-item` 16.
+  `react-hook-form` está em **um** formulário (`editar-ativo-dialog`). **O Y andou em parte:** a F45
+  criou o projeto `.test.tsx` e há 11 testes de componente, mas por `renderToStaticMarkup`, que
+  prova o markup e não exercita estado nem interação. O desbloqueio segue sendo
+  `@testing-library/react` (aprovação do Johnny). A F61 nomeou as mesmas quatro decomposições como
+  backlog.
+- **G `[12]`: melhorou muito**, de 60 para **17** em 11 arquivos (9 em `lib/queries`). É resíduo.
+- **AA `[16]`:** inalterado, e continua sendo decisão de cor, não de código.
+- **F41a `[15]`:** `itens_nome_uidx` (`0014`, `lower(nome)`) segue ao lado do `itens_nome_chave_uidx`
+  (`0125`), que é estritamente mais forte. O `unicidade_por_empresa.sql` que o `PLANO-MULTIEMPRESA`
+  §826 prevê vai acusá-lo, então ele não escapa. Mas é um índice a mais para reescopar, e `drop
+  index public.itens_nome_uidx;` é uma linha.
+- **`regularizacao` gravável por fora das RPCs** e **`uuid` via `exceljs`:** aceitos e registrados,
+  sem mudança.
+
+### Fechado desde 30/08
+
+- **N:** a `0131` tornou `p_contagens` obrigatório (`raise` quando nulo). A guarda TOCTOU fechou. ✅
+- **X:** import decomposto pela F51 (seção abaixo). ✅
+- **Restauração nunca ensaiada:** a F54 criou `supabase/tests/restauracao.sql`, com 17 asserções no
+  CI. ✅
+- **Observabilidade (R2):** a F55 criou o funil de falha do servidor (`lib/observabilidade.ts`, pelo
+  `instrumentation.ts`, com redação de segredo e de dado pessoal) e o `saude.yml` (sonda de 6 em 6 h
+  e integridade diária, que abrem issue `alarme`). **Resíduo:** ainda não há alerta por taxa de erro
+  de Server Action; o log fica só na Vercel. ✅ substancialmente
+- **`database.ts` velho:** o `db:types:diff` da F47 roda no CI. A deriva **de produção** continua
+  invisível até alguém rodar `db:types`, como o `CLAUDE.md` já declara. ✅ parcialmente
+
+### Plano de remediação faseado
+
+Desenhado para caber **ao lado** do multiempresa, não no lugar dele.
+
+**Faixa 1: hoje (½ dia), destravar o que já está pronto**
+- **AC:** `@dependabot rebase` no #56, CI verde, smoke logado, merge. Registrar em `DECISOES.md` a
+  exceção "`16.3` como manutenção". Versão PATCH (regra 8).
+- **AD:** o teste que cruza a lista do cenário 14 com `RECRIACOES_AUTORIZADAS`.
+- **AH:** rebase dos três PRs de Actions; regra `ignore` para os majors.
+- **AE (parte manual):** aplicar a `0146` no ensaio e em produção, com a sonda pós-apply do runbook.
+
+**Faixa 2: antes da F62 (1–2 dias)**
+- **AE:** a sonda repositório × produção na Parte B do `saude.yml`.
+- **F41a:** `drop index itens_nome_uidx` (migration aditiva de uma linha + `db:lock`).
+- **U:** inverter a ordem em `termos.ts` e `ativos.ts`.
+- **AJ:** faxina, num commit.
+
+**Faixa 3: junto das frentes b/c do sistema de design**
+- **AB:** a décima família de token (`--callout-atencao*`), com os valores oklch de hoje. Zero
+  pixel muda.
+
+**Faixa 4: antes da primeira fase do multiempresa que tocar a máquina de estados**
+- **AG:** decompor `aplicar_movimentacao` pela receita da F51.
+
+**Faixa 5: decisões do Johnny**
+- **A / R3:** ADR do método de migration.
+- **E / K / Y:** aprovar `@testing-library/react`. Com ele, os testes de interação dos quatro
+  gigantes vêm **antes** de qualquer decomposição, nunca em big-bang.
+- **AF:** a dieta do `CLAUDE.md`.
+- **AA:** separar a tinta de área da tinta de texto.
+- **R1:** `getClaims()` + `jwt_exp` de 900 s (aplicado e revertido de novo em 18/09).
+
+**Contínuo:** **AI** (medir a suíte por arquivo antes de mexer) e **AK** (política de evidência
+pesada como anexo de release, a partir da próxima fase visual).
+
+*Método: leitura estática da `main` em `98a78da`; `npm run lint`, `npm run typecheck` e
+`vitest run` nesta sessão (**não** rodei `npm run build`; a revisão de código da mesma data o
+registra limpo); `npm audit`, `npm outdated`, `gh pr list/view/checks` e o log do CI do PR #56;
+os dois advisories críticos conferidos na página do GHSA. **Não** consultei produção nem o ensaio: o
+estado da `0146` vem da ata de 18/09, e a exposição do `/_next/image` na Vercel não foi verificada.*
+
+---
+
 > **Atualização de 30/08/2026 — revisão de projeto de sistema.** Seis itens desta lista foram
 > FECHADOS e um foi verificado; o restante segue válido. Fechados: **V** (`next` em `16.2.12`,
 > 13 vulnerabilidades → 2), **Z** (drift patch/minor em dia), **T** (o `.xlsx` grande passou a ser

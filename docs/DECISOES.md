@@ -12478,3 +12478,27 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   custo (uma ida ao Auth por requisição); dois revisores mostraram que é exatamente a troca que a Decisão 7 (30/08/2026)
   deixou para o dono do sistema, porque tira o efeito imediato de "Encerrar sessões". Continua valendo a recomendação R1:
   só junto com `jwt_exp` de 900 s, e com aceite do Johnny.
+
+## 2026-09-18 · Reauditoria de dívida técnica (skill `tech-debt`) · o crítico parado num PR e as guardas que viraram atrito
+
+- **Contexto.** Reauditoria de `docs/DIVIDA-TECNICA.md` na `main` em `98a78da` (v1.66.1), 26 fases depois da de 12/08.
+  Só levantamento: nenhuma correção executada. `lint`/`typecheck` limpos e 7.035/7.035 testes nesta sessão; `build`
+  não rodado (a revisão de código da mesma data o registra limpo). Produção e ensaio não foram consultados.
+- **Decisão 1: a reauditoria entra no TOPO do documento vivo; as rodadas de 12/08 e 30/08 ficam embaixo, intactas.**
+  **Motivo:** é o formato que as rodadas anteriores usaram, e o histórico de cada item (o porquê de cada nota) é o que
+  impede a próxima rodada de refazer a análise do zero.
+- **Decisão 2: duas prioridades antigas foram recalculadas.** O AB dizia 32 e o AA dizia 12, mas a fórmula dá 25 e 16.
+  **Motivo:** a tabela é o que se usa para ordenar o trabalho, e a conta errada inverteria a ordem.
+- **Decisão 3: recomenda-se tratar o `next@16.3.x` como MANUTENÇÃO, e não como decisão de fase (item AC).** A regra
+  de 30/08 ("minor é decisão de fase") pressupunha haver patch na linha corrente. Aqui não há: a `16.2` parou no
+  `16.2.12`, e os dois advisories críticos (`GHSA-p293-qw3h-jr36`, `GHSA-2xp9-vwfh-vxw4`) só fecham no `16.3.3`. A
+  stack fechada diz "Next.js 16". **Não aplicado nesta sessão:** o PR #56 do Dependabot já faz a troca, com `verificar`
+  verde; o `banco-sem-docker` está vermelho pelo cenário 14 da F38, que o `98a78da` consertou depois do CI do PR.
+  Precisa de rebase.
+- **Achados novos, com a nota:** AC (35), AE: deriva repositório × produção sem alarme (28), AD: a guarda de escopo
+  da F38 com duas listas de exceção à mão (25), AF: `CLAUDE.md` com ~10 mil tokens (20), AG: `aplicar_movimentacao`
+  recriada 11× (18), AH: fila do Dependabot parada (15), AI: suíte de 91 s para 158 s (12), AJ: faxina (10), AK:
+  evidência binária no git (8). **Fechados:** N (`0131`), restauração (F54), observabilidade (F55, com resíduo); G
+  caiu de 60 para 17.
+- **Pendências (decisões do Johnny):** A/R3 (ADR do método de migration), `@testing-library/react` (E/K/Y), a dieta
+  do `CLAUDE.md` (AF), a tinta de área (AA) e R1 (`getClaims()` + `jwt_exp`).
