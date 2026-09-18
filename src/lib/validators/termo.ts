@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { dataRealSchema } from '@/lib/validators/data'
 import { TERMO_TIPOS } from '@/lib/termos/tipos'
+import { MAX_LOTE_MOVIMENTACAO } from '@/lib/validators/movimentacao'
 
 // A régua de data pura vem de `@/lib/validators/data` (fonte única do projeto).
 // `dataRealSchema` = regex + `dataReal`, que faz round-trip por `dataISO` e barra
@@ -36,9 +37,12 @@ export const camposTermoSchema = z
     pulsus: z.string().max(60),
     obs: z.string().max(500),
     descricao: z.string().max(200),
-    series: z.string().max(600),
-    patrimonios: z.string().max(600),
-    marcas_modelos: z.string().max(600),
+    // As três linhas do termo de DEVOLUÇÃO concatenam o lote inteiro (até
+    // MAX_LOTE_MOVIMENTACAO = 30 equipamentos). 900 = os mesmos ~30 caracteres por
+    // equipamento que os 600 davam ao teto antigo de 20.
+    series: z.string().max(900),
+    patrimonios: z.string().max(900),
+    marcas_modelos: z.string().max(900),
     outros_componentes: z.string().max(LIMITE_OUTROS_COMPONENTES),
     // F39 — a linha de periféricos do termo de RESPONSABILIDADE ("Acompanham o
     // equipamento os seguintes acessórios e periféricos: …"), pré-preenchida pelos
@@ -71,15 +75,17 @@ export const camposTermoSchema = z
 
 export type CamposTermo = z.infer<typeof camposTermoSchema>
 
+// O teto é o do LOTE de movimentação: o painel de sucesso manda o grupo inteiro de
+// devoluções para UM termo, e um teto menor aqui recusava o termo de um lote válido.
 export const prepararTermoSchema = z.object({
-  movimentacaoIds: z.array(z.string().uuid()).min(1).max(20),
+  movimentacaoIds: z.array(z.string().uuid()).min(1).max(MAX_LOTE_MOVIMENTACAO),
   familia: z.enum(['responsabilidade', 'devolucao']),
 })
 
 export const gerarTermoSchema = z.object({
   tipo: z.enum(TERMO_TIPOS),
-  movimentacaoIds: z.array(z.string().uuid()).min(1).max(20),
-  ativoIds: z.array(z.string().uuid()).min(1).max(20),
+  movimentacaoIds: z.array(z.string().uuid()).min(1).max(MAX_LOTE_MOVIMENTACAO),
+  ativoIds: z.array(z.string().uuid()).min(1).max(MAX_LOTE_MOVIMENTACAO),
   // Data de geração/edição (yyyy-MM-dd). Alimenta as datas por extenso e termo_data.
   data: dataRealSchema('Data inválida'),
   campos: camposTermoSchema,

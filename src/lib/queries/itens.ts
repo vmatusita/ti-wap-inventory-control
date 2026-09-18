@@ -786,6 +786,29 @@ export async function saldosPorColaborador(
 }
 
 /**
+ * Dos lançamentos informados, os que JÁ têm inverso (outra linha com `estorna_id` apontando
+ * para eles). É o mesmo `not exists (… inv.estorna_id = l.id)` com que as RPCs de estorno
+ * conferem os órfãos (0121/0122): quem monta os inversos precisa pular estes, senão manda um
+ * segundo inverso e o `lanc_item_estorna_uidx` recusa a transação inteira — o caso do
+ * estorno avulso anterior e do 2º ciclo resolver→reabrir de uma pendência.
+ */
+export async function lancamentosJaEstornados(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: readonly string[],
+): Promise<{ ok: true; ids: Set<string> } | { ok: false; erro: { message: string; code?: string } }> {
+  if (ids.length === 0) return { ok: true, ids: new Set() }
+  const { data, error } = await supabase
+    .from('lancamentos_item')
+    .select('estorna_id')
+    .in('estorna_id', [...ids])
+  if (error) return { ok: false, erro: error }
+  return {
+    ok: true,
+    ids: new Set((data ?? []).map((l) => l.estorna_id).filter((id): id is string => id != null)),
+  }
+}
+
+/**
  * Quantos lançamentos de item AINDA não têm vínculo com o cadastro de pessoas.
  *
  * ⚠ A CONTAGEM É AGREGADA NO SQL, e isso não é preciosismo: a lição do
@@ -882,10 +905,11 @@ export type AcessoriosDaMovimentacao = {
  *
  * ⚠ NENHUMA CONTAGEM NASCE DE LEITURA TRUNCADA, e a conta é esta (corrigida na revisão
  * adversarial da fase, que pegou a constante errada aqui): `prepararTermoSchema` limita o
- * termo a **20 movimentações** (`.max(20)`), e cada movimentação nasce de um LOTE que
+ * termo a **`MAX_LOTE_MOVIMENTACAO` = 30 movimentações** (era 20 até 18/09/2026, quando o
+ * teto passou a ser o do lote), e cada movimentação nasce de um LOTE que
  * aceita no máximo **`MAX_ITENS_JUNTO` = 20 linhas de item no lote INTEIRO**
- * (`validators/movimentacao.ts`) — não por movimentação. O pior caso teórico é 20 termos
- * × 20 linhas = 400, ordens de grandeza abaixo de qualquer teto de linhas do PostgREST.
+ * (`validators/movimentacao.ts`) — não por movimentação. O pior caso teórico é 30 termos
+ * × 20 linhas = 600, ordens de grandeza abaixo de qualquer teto de linhas do PostgREST.
  * ⚠ NÃO confundir com `MAX_LINHAS_LOTE_ITEM` (`validators/item.ts`), que é do CARRINHO de
  * `/itens`: aquele fluxo não grava `movimentacao_id` e não chega aqui.
  *

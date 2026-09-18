@@ -212,10 +212,19 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
   // Filiais de escrita: admin recebe todas as ATIVAS; operador, as vinculadas; consulta,
   // nenhuma. As duas leituras são baratas (tabelas de dezenas de linhas) e valem por
   // request, não por action.
-  const [{ data: ativas }, { data: vinculos }] = await Promise.all([
-    supabase.from('filiais').select('id').eq('ativo', true),
-    supabase.from('operador_filiais').select('filial_id').eq('usuario_id', user.id),
-  ])
+  const [{ data: ativas, error: erroAtivas }, { data: vinculos, error: erroVinculos }] =
+    await Promise.all([
+      supabase.from('filiais').select('id').eq('ativo', true),
+      supabase.from('operador_filiais').select('filial_id').eq('usuario_id', user.id),
+    ])
+  // Falha aqui continua FECHANDO (escopo vazio = não escreve em filial nenhuma neste
+  // request), mas não pode ser muda: sem o rastro, "o operador perdeu a escrita" e "o
+  // banco piscou" seriam indistinguíveis — a mesma razão do `erroPerfil` acima. As
+  // guardas das actions não dependem disto: elas releem o vínculo ao vivo.
+  if (erroAtivas) registrarFalha({ escopo: 'acesso.filiais-ativas', erro: erroAtivas })
+  if (erroVinculos) {
+    registrarFalha({ escopo: 'acesso.vinculos-operador', erro: erroVinculos })
+  }
 
   const escopoEscrita = escopoDeEscrita(
     papel,

@@ -25,6 +25,7 @@ declare
   a uuid; b uuid; c uuid; d uuid;
   v_dev uuid; v_pend text; v_n int; v_colab text; v_item text;
   v_status text; v_desf text; v_por uuid; v_em timestamptz;
+  v_item9 smallint; v_pend9 uuid; v_msg9 text;   -- cenário 9 (0146)
 begin
   -- F38: perfil ATIVO e escolha DETERMINÍSTICA. O `limit 1` sem `order by` e sem
   -- filtro podia cair num perfil DESATIVADO (`papel_atual()` devolve null para ele
@@ -198,6 +199,39 @@ begin
   if v_pend = 'sem patrimônio físico' then
     v_ok := v_ok + 1; raise notice '✓ 8 estorno restaura sem ressuscitar "itens faltantes" (F18 §A2)';
   else v_falhas := v_falhas + 1; raise warning '✗ 8 pendencia: esperado "sem patrimônio físico", obtido %', coalesce(v_pend,'(null)'); end if;
+
+  -- ---------------------------------------------------------------
+  -- 9 — (0146) a pendência JÁ TEVE DESFECHO: o estorno da devolução é RECUSADO com a
+  --     frase própria, e não com o 23503 da FK `lancamentos_item.pendencia_item_id`
+  --     (NO ACTION). O desfecho é simulado por um lançamento que referencia a pendência
+  --     (uma `entrada`, sempre válida) — é o vínculo que a resolução da F38 grava.
+  --     Contraste com o cenário 5: pendência ABERTA continua sendo apagada.
+  -- ---------------------------------------------------------------
+  insert into public.itens (nome, grupo, ordem) values ('Item Teste 0146', 'acessorio', 946)
+    returning id into v_item9;
+  insert into public.ativos (patrimonio, categoria, filial_id)
+    values ('TESTE0018009', 'notebook', v_mat) returning id into b;
+  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (b, 'saida', 'Fulano Teste', v_mat, v_prof, now() - interval '2 min');
+  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por, created_at)
+    values (b, 'devolucao', v_mat, array['carregador'], v_prof, now() - interval '1 min')
+    returning id into v_dev;
+  select id into v_pend9 from public.pendencias_item where movimentacao_id = v_dev;
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, pendencia_item_id, criado_por)
+    values (v_item9, v_mat, 'entrada', 1, v_pend9, v_prof);
+  v_msg9 := null;
+  begin
+    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
+      values (b, 'estorno', v_mat, v_prof, v_dev);
+  exception when others then
+    v_msg9 := sqlstate || ' ' || sqlerrm;
+  end;
+  if v_msg9 like 'P0001 Estorno bloqueado: a pendencia de item desta devolucao ja teve desfecho%' then
+    v_ok := v_ok + 1; raise notice '✓ 9a estorno de devolução com pendência resolvida é recusado com a frase da 0146';
+  else v_falhas := v_falhas + 1; raise warning '✗ 9a esperado a recusa da 0146, obtido %', coalesce(v_msg9, 'ACEITO'); end if;
+  select count(*) into v_n from public.pendencias_item where id = v_pend9;
+  if v_n = 1 then v_ok := v_ok + 1; raise notice '✓ 9b a pendência resolvida continua de pé (nada foi desfeito)';
+  else v_falhas := v_falhas + 1; raise warning '✗ 9b esperado a pendência de pé, obtido % linha(s)', v_n; end if;
 
   raise notice 'FIM pendencias_item: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

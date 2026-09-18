@@ -147,6 +147,7 @@
     "0142_lanc_item_criado_por_idx.sql": "44332b82dc10d454db4d2549b6c4d34a446352d23818e1915ea75448c4955401",
     "0143_rel_filiais.sql": "bc63197b53c6658b998d01e194f945343ff3b33f7f6db44d5adeee33b19bcdb7",
     "0144_colaboradores_textos_por_nome.sql": "e7131b510c8b5a65de8e478017f7c08033a4b015bb5167394f9838ede1400e28",
-    "0145_drop_rel_filial.sql": "fdbe4033446f1dcad436e674978df78a0b32761b1c991c3c8ab59399e373f299"
+    "0145_drop_rel_filial.sql": "fdbe4033446f1dcad436e674978df78a0b32761b1c991c3c8ab59399e373f299",
+    "0146_estorno_com_pendencia_resolvida.sql": "c390d5a5bd862d0b2142ac821030e45d7f9c02f72d5a4b23110caf04532a567c"
   }
 }

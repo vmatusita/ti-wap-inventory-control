@@ -9,6 +9,8 @@ import {
   ontemISO,
   dataEmSP,
   fimDoDiaSP,
+  inicioDoDiaSP,
+  diaSeguinteISO,
 } from '@/lib/format'
 
 afterEach(() => {
@@ -170,5 +172,35 @@ describe('fimDoDiaSP', () => {
     // 23:59:59.999 BRT = 02:59:59.999Z do dia seguinte. Prova que é fim de dia em
     // SP (não em UTC): um teto UTC perderia as últimas 3h do dia.
     expect(new Date(fimDoDiaSP('2026-07-14')).toISOString()).toBe('2026-07-15T02:59:59.999Z')
+  })
+})
+
+describe('inicioDoDiaSP', () => {
+  it('devolve o início do dia com o offset de São Paulo (UTC-3)', () => {
+    expect(inicioDoDiaSP('2026-07-14')).toBe('2026-07-14T00:00:00-03:00')
+  })
+
+  it('representa a meia-noite de SP — 03:00Z do mesmo dia', () => {
+    expect(new Date(inicioDoDiaSP('2026-07-14')).toISOString()).toBe('2026-07-14T03:00:00.000Z')
+  })
+})
+
+describe('diaSeguinteISO', () => {
+  it('avança um dia de calendário', () => {
+    expect(diaSeguinteISO('2026-07-14')).toBe('2026-07-15')
+  })
+
+  it('vira mês, ano e fevereiro de ano bissexto', () => {
+    expect(diaSeguinteISO('2026-07-31')).toBe('2026-08-01')
+    expect(diaSeguinteISO('2026-12-31')).toBe('2027-01-01')
+    expect(diaSeguinteISO('2028-02-28')).toBe('2028-02-29')
+    expect(diaSeguinteISO('2026-02-28')).toBe('2026-03-01')
+  })
+
+  it('com inicioDoDiaSP, o teto exclusivo cobre o último dia inteiro em SP', () => {
+    // 23:59:59.999 BRT de 14/07 ainda cai ANTES do teto; 00:00 BRT de 15/07, não.
+    const teto = new Date(inicioDoDiaSP(diaSeguinteISO('2026-07-14'))).getTime()
+    expect(new Date(fimDoDiaSP('2026-07-14')).getTime()).toBeLessThan(teto)
+    expect(new Date('2026-07-15T00:00:00-03:00').getTime()).toBe(teto)
   })
 })

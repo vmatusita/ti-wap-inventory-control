@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { sanearFiltrosAuditoria } from '@/lib/auditoria'
+import { diaSeguinteISO, inicioDoDiaSP } from '@/lib/format'
 import type { Json } from '@/lib/types/database'
 import { linhasDe } from '@/lib/supabase/linhas'
 import { LEITURA_EVENTOS_ADMIN } from '@/lib/queries/formas/eventos-admin'
@@ -85,19 +86,14 @@ function query(
     })
   if (f.acao) q = q.eq('acao', f.acao)
   if (f.autor) q = q.eq('autor', f.autor)
-  // `quando` é timestamptz e o filtro é por DIA: o fim precisa cobrir o dia inteiro, daí
-  // `< dia seguinte` em vez de `<= dia` (que cortaria tudo depois de 00:00:00 do último dia).
-  if (f.de) q = q.gte('quando', `${f.de}T00:00:00`)
-  if (f.ate) q = q.lt('quando', `${diaSeguinte(f.ate)}T00:00:00`)
+  // `quando` é timestamptz e o filtro é por DIA de São Paulo: o fim precisa cobrir o dia
+  // inteiro, daí `< dia seguinte` em vez de `<= dia` (que cortaria tudo depois de 00:00:00
+  // do último dia). O offset vai ESCRITO (`inicioDoDiaSP`), não herdado do banco.
+  if (f.de) q = q.gte('quando', inicioDoDiaSP(f.de))
+  if (f.ate) q = q.lt('quando', inicioDoDiaSP(diaSeguinteISO(f.ate)))
   // `%` e `_` são curingas do LIKE: escapados para uma busca por "a_b" não virar "a<algo>b".
   if (f.alvo) q = q.ilike('alvo', `%${f.alvo.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
   return q.order('quando', { ascending: false }).order('id', { ascending: false })
-}
-
-function diaSeguinte(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
 }
 
 // Só o que for reconhecível vira filtro. A régua mora em `lib/auditoria.ts`

@@ -15,7 +15,7 @@ import { decidirVinculoRetorno } from '@/lib/itens/vinculo-retorno'
 import { textoDaBaixa, textoDoRetornoDaPendencia } from '@/lib/pendencias/texto-baixa'
 import { textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
-import { saldosPorColaborador } from '@/lib/queries/itens'
+import { lancamentosJaEstornados, saldosPorColaborador } from '@/lib/queries/itens'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { hojeISO } from '@/lib/format'
@@ -373,6 +373,16 @@ export async function reabrirPendenciaItem(input: {
   if (!lidoLancDaPendencia.ok) {
     return { ok: false, erro: traduzErroBanco(lidoLancDaPendencia.erro.message) }
   }
+  // Os lançamentos de um ciclo ANTERIOR (resolvida → reaberta → resolvida de novo) e os
+  // estornados avulso continuam com `estorna_id` nulo, mas JÁ têm inverso: mandar outro
+  // estouraria `lanc_item_estorna_uidx` e a pendência nunca mais reabriria.
+  const jaEstornados = await lancamentosJaEstornados(
+    supabase,
+    lidoLancDaPendencia.linhas.map((l) => l.id),
+  )
+  if (!jaEstornados.ok) {
+    return { ok: false, erro: traduzErroBanco(jaEstornados.erro.message, jaEstornados.erro.code) }
+  }
 
   // F58 — mesma forma honesta de `LancamentoDaResolucao`: `type` (não `interface`)
   // com campos já `JsonSerializavel`, para a porta aceitar sem cast.
@@ -388,7 +398,8 @@ export async function reabrirPendenciaItem(input: {
     colaborador: string | null
     colaborador_id: string | null
   }
-  const estornos: EstornoDaReabertura[] = lidoLancDaPendencia.linhas.map((l) => {
+  const aEstornar = lidoLancDaPendencia.linhas.filter((l) => !jaEstornados.ids.has(l.id))
+  const estornos: EstornoDaReabertura[] = aEstornar.map((l) => {
     const plano = planejarEstorno(
       {
         tipo: l.tipo,

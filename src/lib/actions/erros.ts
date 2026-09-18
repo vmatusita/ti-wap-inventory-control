@@ -53,6 +53,9 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.naoPodeSerEstornada)) {
     return 'Esta movimentação não pode ser estornada.'
   }
+  if (casa(m, MSG_SQL.estornoComPendenciaResolvida)) {
+    return 'Esta devolução não pode ser estornada: a pendência de item que ela abriu já foi resolvida no estoque de itens. Para corrigir o estado do equipamento, registre um ajuste com justificativa.'
+  }
   if (casa(m, MSG_SQL.ajusteExige)) {
     return 'O ajuste exige o status resultante e uma justificativa (observação).'
   }

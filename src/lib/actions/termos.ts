@@ -466,12 +466,15 @@ async function persistirTermo(
   const { tipo, movimentacaoIds, ativoIds, campos, dados, buffer, uid } = params
   const sortedMovIds = [...movimentacaoIds].sort()
 
-  // Termos já existentes para ESTE conjunto de movimentações.
-  const { data: existentes } = await supabase
+  // Termos já existentes para ESTE conjunto de movimentações. Falha de leitura NÃO
+  // vira "não há nenhum": seguiria para um INSERT que o `unique (tipo, movimentacao_ids)`
+  // recusaria com uma mensagem de duplicidade que não explica nada.
+  const { data: existentes, error: eExist } = await supabase
     .from('termos_gerados')
     .select('id, arquivo_path')
     .contains('movimentacao_ids', sortedMovIds)
     .containedBy('movimentacao_ids', sortedMovIds)
+  if (eExist) return { ok: false, erro: traduzErroBanco(eExist.message, eExist.code) }
 
   const reutilizar = existentes?.[0]
   const id = reutilizar?.id ?? randomUUID()
@@ -479,10 +482,26 @@ async function persistirTermo(
 
   // Remove órfãos: linhas/objetos de variantes antigas do mesmo conjunto (ex.:
   // trocar monitor interno ↔ home office) — mantém uma só versão por movimentações.
+  // A LINHA sai primeiro e o arquivo só depois: apagar o .docx de uma linha que
+  // continuasse de pé deixaria um termo com download quebrado.
   const orfaos = (existentes ?? []).filter((e) => e.id !== id)
   if (orfaos.length > 0) {
-    await supabase.storage.from('termos').remove(orfaos.map((o) => o.arquivo_path))
-    await supabase.from('termos_gerados').delete().in('id', orfaos.map((o) => o.id))
+    // `.select('id')`: DELETE filtrado pela RLS ("operador apaga") afeta 0 linhas SEM erro.
+    // Só o arquivo das linhas que de fato saíram pode ir embora.
+    const { data: apagadas, error: eDel } = await supabase
+      .from('termos_gerados')
+      .delete()
+      .in('id', orfaos.map((o) => o.id))
+      .select('id')
+    if (eDel) return { ok: false, erro: traduzErroBanco(eDel.message, eDel.code) }
+    const idsApagados = new Set((apagadas ?? []).map((a) => a.id))
+    const arquivos = orfaos.filter((o) => idsApagados.has(o.id)).map((o) => o.arquivo_path)
+    if (arquivos.length > 0) {
+      const { error: eRm } = await supabase.storage.from('termos').remove(arquivos)
+      // A linha já saiu: o arquivo que sobrar é órfão invisível, não termo quebrado —
+      // não há o que reverter, mas não pode sumir sem rastro.
+      if (eRm) registrarFalha({ escopo: 'termos.remover-orfaos', erro: eRm })
+    }
   }
 
   // Upload (upsert: sobrescreve o arquivo antigo do mesmo termo — sem órfão).
@@ -792,10 +811,13 @@ export async function desfazerConfirmacaoTermo(input: {
 
   // Existe termo gerado pelo sistema cobrindo este ativo? Se sim, o estado
   // honesto de volta é 'gerado' (documento existe, falta assinatura); senão 'nao'.
+  // Só a família RESPONSABILIDADE conta: o termo de devolução também grava
+  // `ativo_ids`, mas não é o documento cuja assinatura `termo_assinado` registra.
   const { data: gerados, error: eGer } = await supabase
     .from('termos_gerados')
     .select('id')
     .contains('ativo_ids', [ativo_id])
+    .like('tipo', 'responsabilidade%')
     .limit(1)
   if (eGer) return { ok: false, erro: traduzErroBanco(eGer.message, eGer.code) }
   const destino: 'gerado' | 'nao' = gerados && gerados.length > 0 ? 'gerado' : 'nao'
@@ -914,7 +936,9 @@ export async function confirmarAssinaturaLote(input: {
     .from('ativos')
     .update({ termo_assinado: 'sim', termo_data: dataAssinatura })
     .in('id', pendentesIds)
-    .neq('termo_assinado', 'sim')
+    // `.neq` sozinho perdia o NULL (`NULL <> 'sim'` é NULL em SQL), que também é termo
+    // pendente na v_pendencias — mesmo par de `aplicarFlagTermo`.
+    .or('termo_assinado.is.null,termo_assinado.neq.sim')
     .select(LEITURA_ATIVOS_ID.select)
   if (eUpd) return { ok: false, erro: traduzErroBanco(eUpd.message, eUpd.code) }
   // `update(...).select(...)` é UM `UPDATE … RETURNING`: quando a forma do retorno é conferida, a

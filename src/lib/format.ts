@@ -154,3 +154,19 @@ export function dataEmSP(iso: string): string {
 export function fimDoDiaSP(data: string): string {
   return `${data}T23:59:59.999${OFFSET_SP}`
 }
+
+// Instante do INÍCIO do dia `data` ('yyyy-MM-dd') em São Paulo, como ISO com offset —
+// piso para comparar contra timestamptz (`.gte`), sem depender do `timezone` da sessão
+// do banco (que a 0124 fixou em SP, mas por configuração, não por escrito).
+export function inicioDoDiaSP(data: string): string {
+  return `${data}T00:00:00${OFFSET_SP}`
+}
+
+// O dia de calendário seguinte a `data` ('yyyy-MM-dd'). Aritmética de CALENDÁRIO (em
+// UTC, onde não há horário de verão), não de instante. Par de `inicioDoDiaSP` para o
+// teto exclusivo de um filtro por dia: `.lt(col, inicioDoDiaSP(diaSeguinteISO(ate)))`.
+export function diaSeguinteISO(data: string): string {
+  const d = new Date(`${data}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}

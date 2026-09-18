@@ -145,10 +145,10 @@ const CLASSIFICADOS: Record<string, Classificacao> = {
     motivo:
       'Apaga o BACKUP que a própria operação acabou de subir, no ramo em que a RPC RECUSOU a exclusão — nada foi apagado, então esse backup não cobre exclusão nenhuma e é sobra, não prova. Copiá-lo seria guardar cópia de um arquivo que existe só por um instante e que o `descartarBackupNaoUsado` existe para não deixar no bucket (o órfão sob prefixo válido é material de replay).',
   },
-  'src/lib/actions/termos.ts::orfaos.map((o) => o.arquivo_path)': {
+  'src/lib/actions/termos.ts::arquivos': {
     tipo: 'dispensado',
     motivo:
-      'Apaga a VARIANTE SUPERADA do mesmo termo — o sistema mantém uma versão por conjunto de movimentações, e regerar o termo (trocar monitor interno por home office, por exemplo) descarta a anterior. ⚠ ACHADO DA F54, REGISTRADO E NÃO CORRIGIDO AQUI: este é o único caminho em que um `.docx` que JÁ pertenceu ao acervo some sem cópia. Guardá-lo exige decidir por quanto tempo, e retenção é decisão de produto explicitamente fora do escopo desta fase (ver docs/RELATORIO-F54.md, backlog).',
+      'Apaga a VARIANTE SUPERADA do mesmo termo — o sistema mantém uma versão por conjunto de movimentações, e regerar o termo (trocar monitor interno por home office, por exemplo) descarta a anterior. Desde 18/09/2026 a lista é só a das linhas de `termos_gerados` que o DELETE de fato removeu (`.select(\'id\')`), nunca a de entrada: um DELETE barrado pela RLS não leva o arquivo junto. ⚠ ACHADO DA F54, REGISTRADO E NÃO CORRIGIDO AQUI: este é o único caminho em que um `.docx` que JÁ pertenceu ao acervo some sem cópia. Guardá-lo exige decidir por quanto tempo, e retenção é decisão de produto explicitamente fora do escopo desta fase (ver docs/RELATORIO-F54.md, backlog).',
   },
   'src/lib/actions/termos.ts::[arquivoPath]': {
     tipo: 'dispensado',

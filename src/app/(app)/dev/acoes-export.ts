@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { exigirDev, type DbClient } from '@/lib/auth/acesso'
-import { formatDateTime, hojeISO } from '@/lib/format'
+import { diaSeguinteISO, formatDateTime, hojeISO, inicioDoDiaSP } from '@/lib/format'
 import {
   BLOCO_EXPORT,
   CAP_EXPORT,
@@ -41,15 +41,6 @@ import { LEITURA_EVENTOS_ADMIN } from '@/lib/queries/formas/eventos-admin'
 
 /** Prefixo do arquivo: `auditoria-2026-07-30.csv`. */
 const PREFIXO = 'auditoria'
-
-// `quando` é timestamptz e o filtro é por DIA: o fim tem de cobrir o dia inteiro, daí
-// `< dia seguinte` em vez de `<= dia` (que cortaria tudo depois de 00:00:00 do último dia).
-// Mesma conta de `src/lib/queries/eventos-admin.ts`.
-function diaSeguinte(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
-}
 
 type LinhaAuditoria = {
   quando: string
@@ -111,8 +102,10 @@ async function lerTrilha(
     // export deixaria de ser "o que estou vendo" e viraria uma segunda verdade.
     if (f.acao) q = q.eq('acao', f.acao)
     if (f.autor) q = q.eq('autor', f.autor)
-    if (f.de) q = q.gte('quando', `${f.de}T00:00:00`)
-    if (f.ate) q = q.lt('quando', `${diaSeguinte(f.ate)}T00:00:00`)
+    // `quando` é timestamptz e o filtro é por DIA de São Paulo: `< início do dia seguinte`
+    // cobre o último dia inteiro. Mesmos helpers de `src/lib/queries/eventos-admin.ts`.
+    if (f.de) q = q.gte('quando', inicioDoDiaSP(f.de))
+    if (f.ate) q = q.lt('quando', inicioDoDiaSP(diaSeguinteISO(f.ate)))
     // `%` e `_` são curingas do LIKE: escapados para uma busca por "a_b" não virar "a<algo>b".
     if (f.alvo) q = q.ilike('alvo', `%${f.alvo.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
 

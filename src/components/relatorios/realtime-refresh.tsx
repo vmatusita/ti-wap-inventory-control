@@ -12,6 +12,8 @@ import { TABELAS_ASSINADAS, opcoesDaAssinatura } from '@/lib/relatorios/assinatu
 // `router.refresh()` com debounce de 2s + badge "atualizado agora". Fallback:
 // refetch ao focar a aba. A página segue 100% funcional sem WebSocket. Sessões
 // por senha usam ViewerAutoRefresh (não abrem canal — não têm credencial).
+const INTERVALO_MINIMO_FOCO_MS = 30_000
+
 export function RealtimeRefresh() {
   const router = useRouter()
   const [atualizado, setAtualizado] = useState(false)
@@ -36,10 +38,14 @@ export function RealtimeRefresh() {
     const supabase = createClient()
     let debounce: ReturnType<typeof setTimeout> | null = null
     let flash: ReturnType<typeof setTimeout> | null = null
+    // Hora do último refresh (qualquer origem): o foco só refaz o relatório se o
+    // dado já tem mais de INTERVALO_MINIMO_FOCO_MS — o Realtime cobre o resto.
+    let ultimoRefresh = Date.now()
 
     const aoMudar = () => {
       if (debounce) clearTimeout(debounce)
       debounce = setTimeout(() => {
+        ultimoRefresh = Date.now()
         router.refresh()
         setAtualizado(true)
         setCarimbo(carimboAtualizado(Date.now()))
@@ -62,8 +68,11 @@ export function RealtimeRefresh() {
 
     // RV-16 — o fallback de foco também é um refresh de verdade (o operador
     // volta pra aba e vê dado novo); o carimbo acompanha, senão "atualizado
-    // às" ficaria parado com o conteúdo já trocado.
+    // às" ficaria parado com o conteúdo já trocado. Com intervalo mínimo: sem
+    // ele, cada Alt+Tab refazia TODAS as leituras do relatório no servidor.
     const onFocus = () => {
+      if (Date.now() - ultimoRefresh < INTERVALO_MINIMO_FOCO_MS) return
+      ultimoRefresh = Date.now()
       router.refresh()
       setCarimbo(carimboAtualizado(Date.now()))
     }

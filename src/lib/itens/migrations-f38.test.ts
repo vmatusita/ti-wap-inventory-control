@@ -161,6 +161,11 @@ const DA_F38 = [
   // guarda de intocáveis só lia `create` (PLAN-F60 §1.2 (m)): um `drop` passaria calado. A guarda
   // agora lê os dois, e o drop mora numa exceção nominal própria, `REMOCOES_AUTORIZADAS`.
   '0145',
+  // 18/09/2026 (revisão de código, avulsa) — a `0146` recria `aplicar_movimentacao` (intocável)
+  // para RECUSAR o estorno de uma devolução cuja pendência de item já teve desfecho — antes o
+  // DELETE da pendência estourava a FK NO ACTION de `lancamentos_item.pendencia_item_id` (23503).
+  // Entra pela exceção nominal `RECRIACOES_AUTORIZADAS`, mais abaixo.
+  '0146',
 ]
 
 /**
@@ -408,6 +413,12 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'rel_saldo_itens_filiais',
       'rel_estoque_asof_filiais',
     ],
+    // 18/09/2026 — a `0146` recria `aplicar_movimentacao` com o corpo vivo da `0134` mais UM
+    // bloco `if exists (…) then raise …` no ramo do estorno. O que a torna aceitável é o DIFF:
+    // inserção pura de 11 linhas (3 de comentário), zero removidas — conferido por `diff` contra a
+    // `0134` e ensaiado no banco de ensaio em transação desfeita (antes: 23503; depois: a recusa
+    // nova; pendência ABERTA continua sendo apagada pelo estorno).
+    '0146': ['aplicar_movimentacao'],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`

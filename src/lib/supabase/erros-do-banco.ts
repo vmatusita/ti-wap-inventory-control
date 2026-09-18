@@ -101,6 +101,8 @@ export const MSG_SQL = {
   transicaoInvalida: ['invalida para ativo', 'inválida para ativo'],
   estornoForaDaUltima: ['ultima movimentacao efetiva', 'última movimentação efetiva'],
   naoPodeSerEstornada: ['nao pode ser estornada', 'não pode ser estornada'],
+  // 0146 — a devolução cuja pendência de item já teve desfecho (lançamento gravado)
+  estornoComPendenciaResolvida: ['pendencia de item desta devolucao ja teve desfecho'],
   ajusteExige: ['ajuste exige'],
   estornoExige: ['estorno exige'],
   estornoDeForaDoAtivo: ['estorno_de precisa apontar'],

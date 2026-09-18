@@ -41,7 +41,7 @@ import {
   type SugestoesColaborador as SugestoesColaboradorQuery,
 } from '@/lib/queries/colaboradores'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
-import { saldosPorColaborador } from '@/lib/queries/itens'
+import { lancamentosJaEstornados, saldosPorColaborador } from '@/lib/queries/itens'
 import { planejarEstorno } from '@/lib/itens/estorno'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import type { StatusAtivo } from '@/lib/dominio'
@@ -237,10 +237,9 @@ function loteInteiroRecusado(
 }
 
 // Registra um LOTE de 1..MAX_LOTE_MOVIMENTACAO movimentacoes (o teto e do
-// `loteMovimentacaoSchema`, re-validado aqui), inserindo uma a uma em ordem. Se o
-// banco rejeitar alguma (transicao invalida), interrompe e devolve o que entrou
-// mais o item que falhou (as anteriores ja estao commitadas — cada insert e uma
-// transacao). OS-F2 3.4.1.
+// `loteMovimentacaoSchema`, re-validado aqui) numa transacao so, pela RPC
+// `criar_movimentacao_com_itens`: se o banco rejeitar alguma linha, NADA e gravado e a
+// linha culpada volta marcada (ver "TUDO OU NADA desde a F38", acima).
 export async function registrarMovimentacoes(input: {
   itens: MovimentacaoInput[]
   /** F38 · D13 — os periféricos que vão (ou voltam) junto. Opcional. */
@@ -411,23 +410,21 @@ export async function registrarMovimentacoes(input: {
     movimentacao_id: ids[index],
   }))
 
-  if (criadas > 0) {
-    revalidatePath('/ativos')
-    revalidatePath('/movimentacoes/nova')
-    for (const id of rotasAtivos) revalidatePath(`/ativos/${id}`)
-    // A movimentacao MEXE na fila de pendencias: `devolucao` com itens_faltantes
-    // abre uma linha por item em pendencias_item (trigger 0051) e `triagem_ok`
-    // limpa a pendencia do ativo. Sem esta linha /pendencias era a unica tela
-    // afetada que nao revalidava — ao contrario de corrigirPatrimonio,
-    // definirServiceTag, confirmarAssinaturaTermo e resolverPendenciaItem.
-    revalidatePath('/pendencias')
-    // Saidas, devolucoes, transferencias etc. alimentam os relatorios ao vivo e
-    // v_pendencias — revalida como fazem itens.ts/ativos.ts (senao o link do
-    // relatorio serve dado obsoleto ao visualizador por senha).
-    revalidatePath('/relatorios', 'layout')
-    // F38: o lote pode ter mexido no estoque de itens por quantidade.
-    if (itensPayload.length > 0) revalidatePath('/itens')
-  }
+  revalidatePath('/ativos')
+  revalidatePath('/movimentacoes/nova')
+  for (const id of rotasAtivos) revalidatePath(`/ativos/${id}`)
+  // A movimentacao MEXE na fila de pendencias: `devolucao` com itens_faltantes
+  // abre uma linha por item em pendencias_item (trigger 0051) e `triagem_ok`
+  // limpa a pendencia do ativo. Sem esta linha /pendencias era a unica tela
+  // afetada que nao revalidava — ao contrario de corrigirPatrimonio,
+  // definirServiceTag, confirmarAssinaturaTermo e resolverPendenciaItem.
+  revalidatePath('/pendencias')
+  // Saidas, devolucoes, transferencias etc. alimentam os relatorios ao vivo e
+  // v_pendencias — revalida como fazem itens.ts/ativos.ts (senao o link do
+  // relatorio serve dado obsoleto ao visualizador por senha).
+  revalidatePath('/relatorios', 'layout')
+  // F38: o lote pode ter mexido no estoque de itens por quantidade.
+  if (itensPayload.length > 0) revalidatePath('/itens')
 
   return {
     ok: true,
@@ -697,8 +694,17 @@ export async function estornarMovimentacao(input: {
   if (!lidoItensDaMov.ok) {
     return { ok: false, erro: traduzErroBanco(lidoItensDaMov.erro.message) }
   }
+  // Lançamento já estornado avulso (em /itens/historico) já está desfeito: mandar outro
+  // inverso estouraria `lanc_item_estorna_uidx` e travaria este estorno para sempre.
+  const jaEstornados = await lancamentosJaEstornados(
+    supabase,
+    lidoItensDaMov.linhas.map((l) => l.id),
+  )
+  if (!jaEstornados.ok) {
+    return { ok: false, erro: traduzErroBanco(jaEstornados.erro.message, jaEstornados.erro.code) }
+  }
 
-  const estornos = lidoItensDaMov.linhas.map((l) => {
+  const estornos = lidoItensDaMov.linhas.filter((l) => !jaEstornados.ids.has(l.id)).map((l) => {
     const plano = planejarEstorno(
       {
         tipo: l.tipo,

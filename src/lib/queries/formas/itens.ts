@@ -204,7 +204,8 @@ export const LEITURA_ACESSORIOS_DAS_MOVIMENTACOES = leituraDeRelacao({
 export const LEITURA_LANCAMENTO_PARA_ESTORNO = leituraDeRelacao({
   rotulo: 'itens.lancamento-para-estorno',
   origem: 'lancamentos_item',
-  select: 'id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id',
+  select:
+    'id, item_id, filial_id, tipo, quantidade, chamado, observacao, estorna_id, colaborador, colaborador_id, regularizacao',
   forma: z.strictObject({
     id: s,
     item_id: n,
@@ -214,6 +215,9 @@ export const LEITURA_LANCAMENTO_PARA_ESTORNO = leituraDeRelacao({
     chamado: sn,
     observacao: sn,
     estorna_id: sn,
+    colaborador: sn,
+    colaborador_id: sn,
+    regularizacao: z.boolean(),
   }),
   ordem: ['id'],
 })

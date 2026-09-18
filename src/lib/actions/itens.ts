@@ -58,9 +58,9 @@ function revalidarItens() {
   revalidatePath('/')
 }
 
-// Resultado POR LINHA do carrinho (F10 · I1). Espelha o lote de movimentações da
-// F2 — com uma diferença INTENCIONAL: lá a primeira falha interrompe o resto;
-// aqui cada linha é independente (um item sem saldo não impede os outros).
+// Resultado POR LINHA do carrinho (F10 · I1). Desde a F41 o carrinho é TUDO-OU-NADA
+// (RPC `lancar_itens_lote`, 0126), como o lote de movimentações: o resultado por linha
+// sobrevive só para marcar QUAL linha derrubou o carrinho inteiro.
 export type ResultadoLinhaLancamento = {
   itemId: number
   ok: boolean
@@ -78,10 +78,10 @@ export type LancarItensResult = {
 }
 
 // Lança um CARRINHO de itens (1..MAX_LINHAS_LOTE_ITEM) sobre os mesmos campos
-// comuns (filial, tipo, data, chamado, colaborador, observação): um insert por
-// linha, sequencial, em ordem. A regra crítica (saldo/atrelados nunca negativos)
-// é do trigger 0015/0027 — aqui é a segunda linha; o erro do banco vira pt-BR
-// amigável e fica preso à SUA linha, sem derrubar as demais.
+// comuns (filial, tipo, data, chamado, colaborador, observação) numa transação só
+// (`lancar_itens_lote`). A regra crítica (saldo/atrelados nunca negativos) é do
+// trigger 0015/0027 — aqui é a segunda linha; o erro do banco vira pt-BR amigável,
+// a linha culpada fica marcada e NADA é gravado (ver o bloco "F41" mais abaixo).
 export async function lancarItens(input: LoteLancamentoItemInput): Promise<LancarItensResult> {
   const parsed = loteLancamentoItemSchema.safeParse(input)
   if (!parsed.success) {
@@ -309,10 +309,9 @@ export type TransferirItensResult = ActionResult & {
 // É TUDO-OU-NADA, e por isso NÃO tem resultado por linha como `lancarItens`: a
 // gravação inteira acontece dentro de `transferir_item` (RPC da migration 0104),
 // numa transação. Se o estoque da origem não comporta uma das linhas, o trigger
-// recusa e NADA é gravado — nem a perna de destino das outras. É o oposto
-// deliberado do carrinho de lançamento, onde cada linha é independente: lá as
-// linhas não se relacionam entre si; aqui cada par É a operação, e meia
-// transferência é pior que nenhuma (some estoque de um lado sem aparecer no outro).
+// recusa e NADA é gravado — nem a perna de destino das outras. Meia transferência
+// é pior que nenhuma (some estoque de um lado sem aparecer no outro). O carrinho de
+// lançamento também é tudo-ou-nada desde a F41; o que muda lá é o resultado por linha.
 //
 // O par gravado é de AJUSTES (−N na origem, +N no destino) — o único caminho que
 // mexe no estoque dos dois lados e deixa o Total consolidado inalterado. Ver o
@@ -423,16 +422,37 @@ export async function estornarLancamento(input: {
       quantidade: orig.quantidade,
       chamado: orig.chamado,
       observacao: orig.observacao,
+      regularizacao: orig.regularizacao,
     },
     parsed.data.motivo,
   )
+
+  // O inverso carrega a PESSOA do original, como `estornarMovimentacao` faz: sem o
+  // vínculo, `rel_saldo_colaborador` (que só soma linhas com `colaborador_id`) seguiria
+  // mostrando com a pessoa o que o estorno desfez. Mesma regra §C.3 de lá: o inverso de
+  // uma `saida` é um `retorno`, e ele só nomeia a pessoa se ela ainda tem o saldo — sem
+  // saldo, repõe a prateleira sem inventar dívida negativa.
+  let colaboradorId = orig.colaborador_id
+  if (plano.tipo === 'retorno' && colaboradorId) {
+    const lidos = await saldosPorColaborador(supabase, [colaboradorId])
+    if (!lidos.ok) return { ok: false, erro: lidos.erro }
+    colaboradorId = decidirVinculoRetorno({
+      colaboradorId,
+      itemId: orig.item_id,
+      filialId: orig.filial_id,
+      quantidade: plano.quantidade,
+      saldos: lidos.mapa.get(colaboradorId) ?? [],
+    }).colaboradorId
+  }
+
   const { error: e2 } = await supabase.from('lancamentos_item').insert({
     item_id: orig.item_id,
     filial_id: orig.filial_id,
     tipo: plano.tipo,
     quantidade: plano.quantidade,
     chamado: plano.chamado,
-    colaborador: null,
+    colaborador: orig.colaborador,
+    colaborador_id: colaboradorId,
     data: hojeISO(),
     observacao: plano.observacao,
     criado_por: aut.uid,
