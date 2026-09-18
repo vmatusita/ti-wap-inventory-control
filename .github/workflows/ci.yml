@@ -51,7 +51,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
       VIEW_SESSION_SECRET: placeholder-view-secret-para-ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           # Node 24 = LTS Ativo. Era 20, que saiu do suporte em abril/2026 e
@@ -219,7 +219,7 @@ jobs:
       # O banco dos ROTEIROS. O de determinismo é outro, criado mais abaixo.
       BANCO: estoque
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ⚠ ESTE JOB PASSOU A PRECISAR DE NODE (F47, 06/09/2026), e a decisão foi MEDIDA.
       # Até a v1.51.1 ele era `psql` puro, o que era uma virtude — nada de instalar, nada
