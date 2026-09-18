@@ -853,24 +853,38 @@ begin
   -- recorte como lista obrigatória) e as velhas foram dropadas. Os nomes velhos ficam — em
   -- banco anterior à 0145 eles ainda existem e continuam valendo —, e as sucessoras entram ao
   -- lado: sem elas, depois da 0145 a varredura olharia SETE funções vivas dizendo "dez".
+  --
+  -- ⚠ EXCEÇÃO NOMINAL (18/09/2026, a `0146`): `aplicar_movimentacao` passou a citar
+  -- `pendencia_item_id` DE PROPÓSITO — é a recusa do estorno da devolução cuja pendência de
+  -- item já teve desfecho (a FK que estourava 23503). Mesma doutrina da
+  -- `RECRIACOES_AUTORIZADAS['0146']` de `src/lib/itens/migrations-f38.test.ts`: só os DOIS
+  -- trechos exatos da 0146 saem da varredura, e só nessa função. Qualquer OUTRA marca da F38
+  -- nela — ou esses mesmos trechos em outra intocável — continua derrubando este cenário.
   select count(*) into v_n
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
-   where p.proname in (
-     'aplicar_movimentacao', 'guarda_acervo', 'rel_saldo_itens', 'rel_mov_itens',
-     'rel_estoque_asof', 'status_apos_movimentacao', 'status_tem_detentor',
-     'transferir_item', 'criar_compra_lote', 'devolver_ao_fornecedor',
-     'rel_saldo_itens_filiais', 'rel_mov_itens_filiais', 'rel_estoque_asof_filiais')
+    from (
+      select case when p.proname = 'aplicar_movimentacao'
+                  then replace(replace(pg_get_functiondef(p.oid),
+                         'join public.lancamentos_item l on l.pendencia_item_id = p.id', ''),
+                         'lançamento com pendencia_item_id, FK NO ACTION', '')
+                  else pg_get_functiondef(p.oid) end as def
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+       where p.proname in (
+         'aplicar_movimentacao', 'guarda_acervo', 'rel_saldo_itens', 'rel_mov_itens',
+         'rel_estoque_asof', 'status_apos_movimentacao', 'status_tem_detentor',
+         'transferir_item', 'criar_compra_lote', 'devolver_ao_fornecedor',
+         'rel_saldo_itens_filiais', 'rel_mov_itens_filiais', 'rel_estoque_asof_filiais')
+    ) f
      -- ⚠ Os marcadores são os que SÓ a F38 introduziu. `movimentacao_id` ficou de
      -- fora de propósito: `aplicar_movimentacao` já cita essa palavra desde a 0051,
      -- porque insere em `pendencias_item (ativo_id, movimentacao_id, …)` — coluna
      -- homônima e sem relação com a que nasceu em `lancamentos_item`. Marcador
      -- ambíguo acusa função inocente, e foi o que aconteceu na primeira escrita.
-     and (pg_get_functiondef(p.oid) ilike '%pendencia_item_id%'
-       or pg_get_functiondef(p.oid) ilike '%rel_saldo_colaborador%'
-       or pg_get_functiondef(p.oid) ilike '%criar_movimentacao_com_itens%'
-       or pg_get_functiondef(p.oid) ilike '%registrado com esta pessoa%'
-       or pg_get_functiondef(p.oid) ilike '%F38%');
+   where (f.def ilike '%pendencia_item_id%'
+       or f.def ilike '%rel_saldo_colaborador%'
+       or f.def ilike '%criar_movimentacao_com_itens%'
+       or f.def ilike '%registrado com esta pessoa%'
+       or f.def ilike '%F38%');
 
   if v_n = 0 then
     v_ok := v_ok + 1;
