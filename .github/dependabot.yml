@@ -20,9 +20,27 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # Dívida técnica (item AH, 18/09/2026): os PRs de major ficaram abertos por dois
+    # meses sem que ninguém pudesse agir, e uma fila que não se esvazia ensina a
+    # ignorar a fila (foi nela que chegou o `next` com dois críticos).
+    # ⚠ Pela doc do Dependabot, `ignore` vale TAMBÉM para atualização de segurança:
+    # por isso só majors, e só onde a major é escolha de fase. Nunca ponha aqui o
+    # `next`, o `react` nem as libs do Supabase.
+    # ⚠ O `eslint` NÃO está aqui de propósito: o 9.x saiu de suporte (aviso do próprio
+    # `npm ci` em 18/09/2026), e ignorar a 10 esconderia o único caminho suportado.
+    ignore:
+      # TypeScript 7 é o compilador reescrito; o `verificar` do PR dele já caiu, e o
+      # ecossistema (next, typescript-eslint) ainda não o acompanha. Decisão de fase.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # Os tipos acompanham o RUNTIME (Node 24 no CI), não a última major publicada.
+      # Até a 24 o Dependabot ainda propõe — é o alvo certo; acima dela, não.
+      - dependency-name: "@types/node"
+        versions: [">=25.0.0"]
 
   # Dívida técnica (item Q, 21/07/2026): faltava vigiar as ACTIONS do próprio CI
-  # (actions/checkout, setup-node, supabase/setup-cli) — o job `banco` depende delas.
+  # (actions/checkout e setup-node). O `supabase/setup-cli` saiu do CI junto com o
+  # job `banco` (v1.51.1) — o PR dele foi fechado em 18/09/2026 (item AH).
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
