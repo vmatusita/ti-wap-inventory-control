@@ -23,6 +23,16 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.2',
+    data: '2026-09-18',
+    titulo: 'Atualização de segurança do sistema, e a recusa do estorno com pendência já resolvida passou a valer',
+    mudancas: [
+      'O sistema recebeu uma atualização de segurança da peça que monta e entrega as telas. Ela fecha duas falhas graves, que permitiriam a alguém de fora, sem login, rodar comandos no servidor. Depois da publicação, a conferência completa das telas passou com 109 verificações e nenhuma falha.',
+      'A recusa explicada ao estornar uma devolução cuja pendência de item já foi resolvida, anunciada na versão 1.66.1, passou a valer de verdade: faltava uma peça do banco de dados, que chegou agora. Até aqui o caso ainda terminava em "Não foi possível concluir a operação".',
+      'Por dentro, sem efeito na tela: a conferência automática que roda antes de toda publicação passou a pegar na hora o descuido que hoje de manhã travou esta mesma atualização de segurança por algumas horas, e a fila de atualizações automáticas foi organizada para não deixar pedido parado por meses.',
+    ],
+  },
+  {
     versao: '1.66.1',
     data: '2026-09-18',
     titulo: 'Estornos, termos e pendências de itens deixaram de travar em casos que davam erro',
