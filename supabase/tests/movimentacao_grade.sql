@@ -22,9 +22,9 @@
 --
 --   1. A GRADE: todo estado × todo tipo (menos `ajuste` e `estorno`, que têm cenário
 --      próprio), em duas variantes de fixture; cada movimentação ACEITA é estornada em
---      seguida. As asserções `1a`–`1f` são PROPRIEDADES sobre a grade inteira (aceita
+--      seguida. As asserções `1a`–`1g` são PROPRIEDADES sobre a grade inteira (aceita
 --      ⇔ a matriz de transições aceita; o estorno é o inverso completo; o detentor segue
---      o estado), não um gabarito célula a célula — uma mudança deliberada na matriz de
+--      o estado; todo aceite toca a linha e toda recusa não deixa rastro), não um gabarito célula a célula — uma mudança deliberada na matriz de
 --      transições não derruba este roteiro, uma quebra no gatilho derruba.
 --   2. OS CENÁRIOS NOMEADOS, um bloco do gatilho por rótulo.
 --   3. A IMPRESSÃO: cada passo vira uma linha `· <rótulo> | <observação>`, e a última
@@ -71,6 +71,7 @@ create temp table _ag_obs (
   a_pend   text,
   a_termo  public.termo_status,
   a_tdata  date,
+  a_tocado boolean,
   itens    text,
   obs      text not null,
   g_var    text,
@@ -79,9 +80,27 @@ create temp table _ag_obs (
   g_estorno boolean
 ) on commit drop;
 
+-- A posição de uma movimentação no histórico do PRÓPRIO ativo (1 = a primeira), pela
+-- `ordem` (0133). É o jeito determinístico de dizer para QUAL movimentação uma pendência
+-- de item aponta: o uuid muda de banco para banco e de rodada para rodada, a posição não.
+-- Zero quando o id não existe.
+create function pg_temp.ag_posicao(p_mov uuid)
+returns bigint
+language sql
+as $f$
+  select count(*)
+    from public.movimentacoes m2
+    join public.movimentacoes m on m.id = p_mov
+   where m2.ativo_id = m.ativo_id and m2.ordem <= m.ordem;
+$f$;
+
 -- O estado observável depois de um passo: o que a movimentação gravou nela mesma, o
--- ativo inteiro e as pendências de item do ativo. Nada de id, `created_at` ou `ordem`:
--- mudam de um banco para outro e não dizem nada sobre o gatilho.
+-- ativo inteiro e as pendências de item do ativo. Tudo o que o gatilho ESCREVE está aqui
+-- — inclusive se ele tocou `updated_at` (a fixture nasce com um valor antigo, então
+-- `tocado=true` quer dizer "um UPDATE do gatilho passou por esta linha nesta transação")
+-- e a movimentação a que cada pendência de item aponta, pela posição (ver acima). Nada de
+-- id, `created_at` ou `ordem` crus: mudam de um banco para outro e não dizem nada sobre o
+-- gatilho.
 create function pg_temp.ag_observar(p_ativo uuid, p_mov uuid, p_erro text)
 returns text
 language sql
@@ -91,12 +110,12 @@ as $f$
     (select format('mov ant=%L res=%L snap=%L',
                    m.status_anterior, m.status_resultante, m.snapshot_anterior)
        from public.movimentacoes m where m.id = p_mov),
-    (select format('ativo st=%L col=%L set=%L fil=%L pend=%L termo=%L tdata=%L',
+    (select format('ativo st=%L col=%L set=%L fil=%L pend=%L termo=%L tdata=%L tocado=%s',
                    a.status, a.colaborador_atual, a.setor_atual, a.filial_id,
-                   a.pendencia, a.termo_assinado, a.termo_data)
+                   a.pendencia, a.termo_assinado, a.termo_data, a.updated_at = now())
        from public.ativos a where a.id = p_ativo),
     (select 'itens=' || coalesce(string_agg(
-              format('%s/%L/%s/%s', p.item, p.colaborador, p.filial_id, p.status), ','
+              format('%s/%L/%s/%s/mov%s', p.item, p.colaborador, p.filial_id, p.status, pg_temp.ag_posicao(p.movimentacao_id)), ','
               order by p.item, p.colaborador, p.filial_id, p.status), '-')
        from public.pendencias_item p where p.ativo_id = p_ativo));
 $f$;
@@ -141,10 +160,11 @@ begin
     v_erro := sqlstate || ' ' || sqlerrm;
   end;
   insert into _ag_obs (rotulo, ativo, erro, a_status, a_col, a_setor, a_filial, a_pend,
-                       a_termo, a_tdata, itens, obs)
+                       a_termo, a_tdata, a_tocado, itens, obs)
   select p_rotulo, p_ativo, v_erro, a.status, a.colaborador_atual, a.setor_atual, a.filial_id,
-         a.pendencia, a.termo_assinado, a.termo_data,
-         (select coalesce(string_agg(format('%s/%s/%s', p.item, coalesce(p.colaborador, 'NULL'), p.status), ','
+         a.pendencia, a.termo_assinado, a.termo_data, a.updated_at = now(),
+         (select coalesce(string_agg(format('%s/%s/%s/mov%s', p.item, coalesce(p.colaborador, 'NULL'), p.status,
+                                            pg_temp.ag_posicao(p.movimentacao_id)), ','
                                      order by p.item, p.colaborador, p.status), '-')
             from public.pendencias_item p where p.ativo_id = p_ativo),
          pg_temp.ag_observar(p_ativo, v_id, v_erro)
@@ -179,9 +199,11 @@ create function pg_temp.ag_ativo(
 language sql
 as $f$
   insert into public.ativos (patrimonio, service_tag, categoria, filial_id, status,
-                             colaborador_atual, setor_atual, pendencia, termo_assinado, termo_data)
+                             colaborador_atual, setor_atual, pendencia, termo_assinado, termo_data,
+                             updated_at)
   values (p_patrimonio, p_tag, 'notebook', p_filial, p_status,
-          p_col, p_setor, p_pendencia, p_termo, p_termo_data)
+          p_col, p_setor, p_pendencia, p_termo, p_termo_data,
+          timestamptz '2026-01-01 00:00:00+00')
   returning id;
 $f$;
 
@@ -325,10 +347,10 @@ begin
            case when o.g_var = 'A'
                 then o.a_termo = 'nao' and o.a_tdata = date '2026-01-15'
                      and o.a_pend = 'Sem termo; itens faltantes: mouse'
-                     and o.itens = case when o.g_t = 'devolucao' then 'carregador/Novo AG/aberta' else '-' end
+                     and o.itens = case when o.g_t = 'devolucao' then 'carregador/Novo AG/aberta/mov1' else '-' end
                 else o.a_termo = 'sim' and o.a_tdata = date '2026-02-01' and o.a_pend is null
                      and o.itens = case when o.g_t = 'devolucao'
-                                        then 'mochila/Detentor AG/aberta,mochila/Detentor AG/aberta' else '-' end
+                                        then 'mochila/Detentor AG/aberta/mov1,mochila/Detentor AG/aberta/mov1' else '-' end
            end)),
          count(*)
     into v_n, v_u
@@ -356,6 +378,14 @@ begin
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and o.g_estorno;
   if pg_temp.assert_zero_de('1f o estorno de todo aceite da grade passa e devolve a fixture', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 1g — todo passo aceito da grade passou pelo UPDATE do ativo (a fixture nasce com
+  --      `updated_at` antigo, e o gatilho grava `now()`), e toda recusa não deixou rastro
+  --      na linha (a subtransação do passo voltou atrás inteira).
+  select count(*) filter (where o.a_tocado is distinct from (o.erro is null)), count(*)
+    into v_n, v_u
+    from _ag_obs o where o.g_var is not null;
+  if pg_temp.assert_zero_de('1g todo passo aceito da grade tocou o ativo, e toda recusa não deixou rastro', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
   -- §2  OS CENÁRIOS NOMEADOS — um bloco do gatilho por rótulo
@@ -758,15 +788,15 @@ begin
   -- 3g — itens em branco não viram linha; repetidos viram duas; a filial é a da
   --      MOVIMENTAÇÃO, não a do ativo.
   a := pg_temp.ag_ativo('TESTEAG3G01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
-  perform pg_temp.ag_passo('3g', a, 'devolucao', v_f2,
+  m1 := pg_temp.ag_passo('3g', a, 'devolucao', v_f2,
             p_itens => array['', '   ', 'mochila', 'mochila', 'cabo']);
   if coalesce((select count(*) = 3 and count(*) filter (where item = 'mochila') = 2
-       and bool_and(filial_id = v_f2) and bool_and(status = 'aberta')
+       and bool_and(filial_id = v_f2) and bool_and(status = 'aberta') and bool_and(movimentacao_id = m1)
        from public.pendencias_item where ativo_id = a), false) then
-    v_ok := v_ok + 1; raise notice '✓ 3g brancos somem, repetidos viram duas linhas, filial da movimentação';
+    v_ok := v_ok + 1; raise notice '✓ 3g brancos somem, repetidos viram duas linhas, filial e movimentação são as da devolução';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 3g brancos somem, repetidos viram duas linhas, filial da movimentação — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+    raise warning '✗ 3g brancos somem, repetidos viram duas linhas, filial e movimentação são as da devolução — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
   end if;
 
   -- 3h — devolução com a lista VAZIA não abre nada.
@@ -810,6 +840,7 @@ begin
   select count(*), md5(string_agg(rotulo || ' | ' || obs, E'\n' order by n))
     into v_n, v_txt from _ag_obs;
   raise notice 'ℹ grade: % passos, md5 %', v_n, v_txt;
+
 
   raise notice 'FIM movimentacao_grade: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
