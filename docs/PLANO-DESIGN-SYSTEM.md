@@ -699,6 +699,15 @@ seis.
 > aplicou a regra de ESCALA (`py-10` → `py-12`) porque trocar o componente acrescentaria um ícone que
 > aquelas telas não têm hoje. Detalhes em [`PLAN-F61.md`](PLAN-F61.md) e [`RELATORIO-F61.md`](RELATORIO-F61.md).
 
+> **A caixa de atenção âmbar ganhou token (v1.66.4, 21/09/2026 · item AB da reauditoria).** `--callout-atencao` /
+> `-texto` / `-borda`, com os valores de fábrica nos dois temas, e 63 pares trocados em 21 arquivos sem mudar pixel. O
+> que isso muda para as frentes **a**, **b** e **c**: a caixa âmbar escrita à mão já não carrega cor crua, então
+> convertê-la para `<Aviso intencao="atencao">` deixou de ser "tirar a paleta" e passou a ser SÓ a decisão de
+> aparência. Hoje as duas pintam diferente: o `Aviso` usa `--warning` (4,92:1), a caixa usa o token novo (8,77:1).
+> Unificar repinta um dos lados; a recomendação registrada é o `Aviso` adotar a caixa (item AR de
+> [`DIVIDA-TECNICA.md`](DIVIDA-TECNICA.md)). A catraca de §4.2 desceu para **272**, e desde esta versão não conta
+> `*.test.ts`.
+
 **Cada frente termina com** `npm run lint`, `npm run test`, `npm run build` e `npm run contraste`
 verdes, a catraca de §4.2 abaixada no mesmo commit, e a conferência visual de §6.
 

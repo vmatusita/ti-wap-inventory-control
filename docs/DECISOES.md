@@ -12582,5 +12582,95 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   disco); a pasta foi para o `.gitignore`.
 - **Decisão 6: processo.** Um `gh pr merge --admin` foi barrado pelo classificador como bypass de CI; a partir dali
   tudo passou por PR com CI verde e merge normal (a versão 1.66.3 inclusive).
-- **Pendências:** confirmar a sonda nova disparando a Parte B do `saude.yml` depois do merge (produção e ensaio);
+- **Pendências:** ~~confirmar a sonda nova disparando a Parte B do `saude.yml` depois do merge (produção e ensaio)~~
+  **feito em 18/09**: runs `35385469898` (produção) e `35385477301` (ensaio), os dois verdes, com "0 pendente(s) · a
+  mais nova no ledger é `0149_escrita_atomica_ativos_anotacao.sql`" (anotado na ata da v1.66.4);
   `reabrirPendenciaItem` e o resíduo da pendência concorrente (backlog); AL, AM e AN seguem no backlog.
+
+## 2026-09-21 · Entrega avulsa (v1.66.4) · o passo 3 da reauditoria: a caixa de atenção âmbar por token
+
+- **Contexto:** a Faixa 3 do plano de remediação de 18/09 (`docs/DIVIDA-TECNICA.md`) é o item **AB**: "a décima família
+  de token (`--callout-atencao*`), com os valores oklch de hoje. Zero pixel muda". O plano a encaixava junto das
+  frentes b/c do sistema de design; ela foi executada sozinha, a pedido. Sem migration, sem dependência nova.
+- **Decisão 1: a família é a CAIXA, e só ela.** `--callout-atencao` (fundo), `-texto` e `-borda`, nos dois temas, com o
+  `oklch` de `amber-50/900/300` (claro) e `amber-950/40` · `amber-200` · `amber-900` (escuro), copiados de
+  `node_modules/tailwindcss/theme.css`. O fundo escuro é translúcido, e o alfa mora no valor (`/ 40%`), o que o medidor
+  de contraste já lê e compõe sobre o card. As outras duas formas recorrentes de âmbar (a pílula `amber-100/800` e o
+  texto de atenção em linha `amber-700/400`) são OUTRAS cores e OUTRAS intenções: viraram o item **AQ**, com a mesma
+  receita, em vez de três famílias numa entrega que prometia uma.
+- **Decisão 2: a troca foi por script, par a par, e só onde o valor é exato.** Um par troca quando a classe clara SEM
+  prefixo e o `dark:` de mesmo valor estão no mesmo trecho de classe (delimitado por aspas, crase ou chaves), com o
+  mesmo `/NN` dos dois lados. Resultado: **63 pares em 21 arquivos**. Onde só um par do trecho casava, só ele trocou: o
+  que sobrou cru é outra cor no escuro (`dark:bg-amber-950` opaco, `dark:border-amber-900/60`, `amber-600/40`...), e fica
+  visível como a deriva que é. A cor crua do código desceu de **398 para 272**, e os arquivos de 51 para 45.
+- **Decisão 3: três marcas que não são caixa ficaram no token de texto.** O desfecho "Faltou" do checklist de devolução,
+  o selo "superada" dos relatórios gerados e a célula que difere na mesa de conflitos escreviam o mesmo par
+  `amber-900`/`amber-200`. O crítico de completude as apontou como "fora de caixa"; ficaram, porque são a mesma tinta com
+  o mesmo sentido (atenção), são pixel a pixel iguais, e a regra de tinta proíbe o par cru em qualquer lugar (devolvê-las
+  exigiria exceção, e a lista de exceções só encolhe). O comentário do token em `globals.css` as nomeia.
+- **Decisão 4: o `Aviso` não foi aplicado nem unificado.** A intenção `atencao` pinta com `--warning` (4,92:1, 9 usos); a
+  caixa, com o token novo (8,77:1; a maioria dos 28 trechos trocados). Unificar é repintar um dos lados: decisão de aparência, das
+  frentes, registrada como item **AR**, com a recomendação de o `Aviso` adotar a caixa (o contraste sobe, e a caixa é a
+  maioria). Mesma razão da ata da F40 de 30/08, que criou o `Aviso` e não o aplicou.
+- **Decisão 5: a catraca deixou de contar `*.test.ts`.** As sabotagens da regra de tinta precisam escrever a classe crua
+  para provar que ela reprova; contá-las obrigaria a SUBIR o teto a cada sabotagem nova, e o teto só desce. É o corte
+  que a F45 já fazia para `*.test.tsx`. Os 413 da F61 eram 398 de tela e componente + 15 de teste (14 em
+  `cores.test.ts`, 1 em `consistencia.test.ts`); a tabela do `cores.test.ts` registra as duas linhas, para a série
+  continuar comparável.
+- **Decisão 6: as guardas.** (a) `cores.test.ts` confere o valor de cada token contra o `theme.css`, número a número, nos
+  dois temas: o comentário `/* = amber-50 */` virou asserção. (b) Prova que o tailwind-merge lê os três nomes como COR
+  (`bg-card` e `text-card-foreground` do `Card` saem; a largura `border` fica). (c) A regra de tinta recusa o PAR cru da
+  caixa: a classe clara sem prefixo nem `!` com o `dark:` de mesmo valor e mesmo `/NN`, sem nada empilhado, no MESMO
+  TRECHO DE CLASSE (a linha partida nas aspas, crases e chaves), antes ou depois. O padrão é montado por partes
+  (`parDoCallout`), porque escrito como literal ele próprio seria classe crua no fonte, e a catraca e a regra leem
+  aquele arquivo. **Limite declarado:** o par partido em duas linhas, ou em dois literais de um `cn()`, escapa da regra
+  (a catraca ainda o conta); o crítico procurou esse caso em todo `src/` e não achou nenhum. Duas mutações provaram a
+  regra: sem a metade "`dark:` antes do claro", a sabotagem reprova; ignorando o `/NN`, reprovam a sabotagem e um sítio
+  real.
+- **A revisão final (três lentes, cada achado verificado por um cético) confirmou dois defeitos na regra, os dois
+  corrigidos.** (1) A primeira versão lia a LINHA inteira: os dois ramos de um ternário com um `<span>` cada, ou a classe
+  citada como texto de tela, formavam "par" e reprovariam por engano. Hoje ela lê o trecho de classe, e isso vale para
+  as regras da F61 também (nenhuma delas dependia da linha inteira). (2) O lado claro aceitava `!` como prefixo e o
+  escuro não, uma assimetria. A política agora é escrita: só o par EXATO que o token substitui é recusado; com `!` ou
+  variante empilhada (`dark:hover:`, `md:dark:`) é outra cascata. `text-amber-900 dark:hover:text-amber-200` pinta
+  `amber-900` no escuro fora do hover, e trocá-lo pelo token mudaria a cor, então recusá-lo seria sugerir o conserto
+  errado. O revisor pedia recusar essas formas; ficou recusado só o que é equivalente ao token. Os casos reproduzidos
+  viraram teste, e cada correção foi provada por mutação (voltar à linha inteira e aceitar `!` no claro reprovam o
+  teste novo). As lentes de documentos e de código de tela voltaram sem achado. Mais duas, no valor: `--callout-atencao-texto` do `:root` trocado por `amber-800`, e o alfa do fundo
+  escuro de 40% para 50%, reprovam a seção 6 nomeando o token e o tema. O diff de `globals.css` só ACRESCENTA as seis
+  linhas `oklch`, sem tocar em nenhuma pré-existente (o critério §6.2 do plano do sistema de design).
+- **Decisão 7: a prova de que nenhum pixel mudou.** (1) `npm run contraste`: o par do token dá 8,77:1 (claro) e
+  13,65:1 (escuro), as mesmas razões do par cru, que ficou no arquivo como referência. (2) Verificação adversarial sítio a
+  sítio (4 verificadores), com a cascata desta casa em mente: o `dark:` é `&:is(.dark *)` dentro de `@media not print`,
+  e soma (0,1,0), então a classe escura vencia a base por especificidade e o token, que é base, poderia perder para uma
+  variante de estado do componente. Todos os sítios deram idênticos, com uma nota: `AvisoSemFilialDeEscrita` recebe
+  `className` de fora, e uma cor passada por ali passaria a valer nos dois temas (antes, só no claro). Nenhum dos 3 usos
+  passa cor. (3) **O CSS de produção**, depois do minificador do build, que reescreve todo `oklch` como hex de reserva
+  mais `lab()` sob `@supports`: cada valor de token sai BYTE A BYTE igual ao da cor de fábrica que substituiu, nos dois
+  ramos (ex.: `--callout-atencao-texto` e `--color-amber-900` são `#7b3306` / `lab(31.2288% 30.2627 40.0378)`). A única
+  expressão que não é idêntica por texto é o fundo escuro, `lab(… / .4)` no token contra `color-mix(in oklab,
+  amber-950 40%, transparent)` na classe crua: matematicamente o mesmo, e é o que o harness decide. (4) **Um harness
+  de pixels**: cada sítio renderizado antes × depois com os componentes e o `cn()` REAIS do repo, o CSS compilado
+  pelo `@tailwindcss/postcss` do próprio repo sobre o `globals.css` vigente, e capturas no Chromium (Playwright)
+  comparadas byte a byte, em tema claro e escuro, sobre `bg-background` e `bg-card`, na impressão, e com `:hover` e
+  `:focus-visible` reais nos três sítios interativos. **Controle negativo** (um `amber-900` → `amber-800` plantado de
+  propósito): acusado nas 6 combinações em que existe e em nenhuma outra. Resultado final: **29 sítios, 252
+  combinações, todos idênticos**, com o CSS compilado de dois jeitos (normal e minificado como em produção).
+- **A regressão que só o harness achou.** A primeira rodada acusou `passo-movimentacao.tsx:337`, o botão "Dispensar"
+  (`Button variant="ghost"`), no tema ESCURO com o mouse em cima: 362 pixels. A variante `ghost` pinta
+  `hover:text-foreground`; o `dark:text-amber-200` antigo empatava com ela em especificidade e vencia pela ordem do CSS,
+  então o texto ficava âmbar no hover escuro. O token é classe base e perdia, e o texto ia para quase branco. O
+  verificador estático desse lote tinha dado "idêntico". **Correção:** `dark:hover:text-callout-atencao-texto` no
+  próprio botão, com comentário, que devolve exatamente aquele pixel (no claro o hover continua indo para
+  `text-foreground`, como sempre foi); a rodada seguinte deu idêntico nas 12 combinações. **Lição para o item AQ:** a
+  troca de um par `dark:` por token em elemento que recebe variante de estado de um componente do kit tem de passar
+  pelo harness; leitura de código não basta. O harness ficou no diretório da sessão, não no repositório (são ~800
+  linhas escritas por agente, sem revisão para virar ferramenta da casa); o método está descrito aqui para ser refeito.
+- **Incidente: um par ficou cru pela ferramenta, e a guarda nova o achou.** O ramo `/NN` do script de troca foi escrito
+  por heredoc do Bash, que neste Windows colapsa `\\` em `\` mesmo com `<<'EOF'`: a expressão virou letra morta e o
+  `text-amber-900/80 dark:text-amber-200/80` de `colar-lista-dialog.tsx:387` ficou de fora. Quem acusou foi a regra de
+  tinta recém-escrita, e o crítico de completude confirmou que era o único. O script foi corrigido e rodado de novo
+  (1 par). Memória de trabalho atualizada.
+- **Não tocado, de propósito:** as prévias estáticas de `scripts/design/` (a `previa-ficha.tsx` espelha a caixa de
+  pendência com o par cru, que continua pintando igual) e os documentos históricos que citam as classes antigas.
+- **Pendências:** AQ (as duas famílias que sobraram) e AR (a unificação do `Aviso`), no topo de `DIVIDA-TECNICA.md`.

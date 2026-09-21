@@ -6,6 +6,36 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 21/09/2026 — Passo 3 da reauditoria: a caixa de atenção âmbar por token ✅
+
+Entrega avulsa (**v1.66.4**): o passo 3 da reauditoria de dívida técnica de 18/09 (item **AB**,
+[`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md)). **Sem migration, sem dependência nova, sem mudança de cor.** Ata
+em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- 🎨 **A décima família de token: `--callout-atencao` / `-texto` / `-borda`**, nos dois temas, com os valores de
+  `amber-50/900/300` (claro) e `amber-950/40` · `amber-200` · `amber-900` (escuro) copiados do `theme.css` do Tailwind. O
+  fundo escuro é translúcido, e o alfa mora no próprio valor.
+- 🧹 **63 pares trocados em 21 arquivos, por script determinístico:** um par só troca quando o claro e o `dark:` de
+  mesmo valor estão no mesmo trecho de classe; o que tem outro valor ficou cru de propósito. **A cor crua desceu de 398
+  para 272** (código de tela e componente), e os arquivos com cor crua de 51 para 45.
+- 🧪 **Provado que nenhum pixel mudou**, de quatro jeitos: as razões do medidor de contraste para o token saem iguais às
+  do par cru (8,77:1 claro, 13,65:1 escuro); no CSS de produção cada token sai byte a byte igual à cor de fábrica;
+  verificação adversarial sítio a sítio da cascata e do tailwind-merge; e um harness que renderiza antes × depois com os
+  componentes reais e o CSS compilado, e compara as capturas byte a byte (29 sítios, 252 combinações, com controle
+  negativo acusado).
+- 🐞 **A regressão que só o harness pegou:** o "Dispensar" do aviso de kit incompleto (`Button variant="ghost"`) ficaria
+  quase branco no hover do tema escuro, porque o `dark:` antigo empatava com o `hover:text-foreground` do kit e vencia
+  pela ordem. `dark:hover:text-callout-atencao-texto` devolve o pixel de antes.
+- 🔒 **As guardas:** `cores.test.ts` confere o valor de cada token contra o `theme.css`, nos dois temas, e prova que o
+  tailwind-merge lê o token como cor; a regra de tinta passa a recusar o PAR cru da caixa (a cor clara com o `dark:` de
+  mesmo valor, no mesmo trecho de classe). A revisão final pegou dois defeitos na primeira versão da regra (lia a linha
+  inteira e dava falso positivo num ternário; aceitava `!` só de um lado), corrigidos e guardados como teste. A catraca deixou de contar `*.test.ts`: a sabotagem de uma regra precisa escrever a
+  classe crua, e contá-la obrigaria a subir o teto.
+- ⚠ **O `<Aviso intencao="atencao">` continua com o `--warning`** (4,92:1). Unificá-lo com a caixa é repintar um dos
+  lados: decisão de aparência das frentes do sistema de design, registrada, não tomada aqui.
+
+---
+
 ## 18/09/2026 — Passo 2 da reauditoria: sonda de deriva, escrita atômica com anotação e faxina ✅
 
 Entrega avulsa (**v1.66.3**): o passo 2 da reauditoria de dívida técnica do mesmo dia
