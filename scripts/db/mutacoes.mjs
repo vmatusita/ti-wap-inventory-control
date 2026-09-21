@@ -1545,16 +1545,20 @@ const F53_ORDEM = [
     // diferentes. Apontar `4a` aqui teria feito o injetor reportar "não detectada" — o
     // diagnóstico errado, acusando de fraca uma asserção que está certa.
     derruba: ['4c'],
+    // Reauditoria de 18/09, passo 4 (0150, item AG): o ramo de estorno saiu de
+    // `aplicar_movimentacao` para `movimentacao_estornar`, e a trava foi junto, byte a byte.
+    // A mutação foi REAPONTADA no mesmo commit da migration — `id`, roteiro e rótulo não
+    // mudam, porque o comportamento que `4c` prova não mudou de lugar para quem o observa.
     porque:
-      'A trava do estorno em aplicar_movimentacao volta a comparar `(created_at, id)`. Nos 643 ativos de produção em que `created_at` empata, o uuid aleatório decide de novo qual é "a última movimentação efetiva" — e nesses casos a régua velha aceita estornar a COMPRA de abertura de 2024 em vez do ajuste de 2026, o sorteio exato que a D4 do PLAN-F53 mediu (643 de 643 apontando o ajuste com `ordem`, 0 de 643 sem ela).',
+      'A trava do estorno (hoje em movimentacao_estornar, o ramo de estorno de aplicar_movimentacao) volta a comparar `(created_at, id)`. Nos 643 ativos de produção em que `created_at` empata, o uuid aleatório decide de novo qual é "a última movimentação efetiva" — e nesses casos a régua velha aceita estornar a COMPRA de abertura de 2024 em vez do ajuste de 2026, o sorteio exato que a D4 do PLAN-F53 mediu (643 de 643 apontando o ajuste com `ordem`, 0 de 643 sem ela).',
     sql: mutarFuncao(
-      'public.aplicar_movimentacao()',
+      'public.movimentacao_estornar(public.movimentacoes, public.ativos)',
       '(m.created_at, m.ordem) > (v_orig.created_at, v_orig.ordem)',
       '(m.created_at, m.id) > (v_orig.created_at, v_orig.id)',
       'f53-trava-do-estorno-volta-ao-uuid',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.aplicar_movimentacao()'::regprocedure)
+      sql: `select pg_get_functiondef('public.movimentacao_estornar(public.movimentacoes, public.ativos)'::regprocedure)
               like '%(m.created_at, m.id) > (v_orig.created_at, v_orig.id)%'`,
       espera: 't',
     },
@@ -1650,17 +1654,22 @@ const F54_RESTAURACAO = [
     roteiro: 'restauracao.sql',
     classe: 'efeito-colateral-perdido',
     derruba: ['1b', '3c'],
+    // Reauditoria de 18/09, passo 4 (0150, item AG): a abertura da pendência de item saiu de
+    // `aplicar_movimentacao` para `movimentacao_abrir_pendencias_item`, com `new` renomeado
+    // para `p_mov`. REAPONTADA no mesmo commit da migration — sem isto, o `trocarNoCorpo`
+    // lançaria no carregamento deste módulo e derrubaria o catálogo inteiro. A premissa da
+    // Decisão 7 da F54 continua valendo: é o GATILHO (por meio da auxiliar) que insere.
     porque:
-      'Faz aplicar_movimentacao parar de abrir pendencia de item na devolucao com itens faltantes. Some a pendencia que a mesa de /pendencias consome — e, para a F54, some a PREMISSA da Decisao 7: e porque o trigger insere pendencia que restaurar com ele ligado DUPLICA a linha que o backup ja traz. Se a premissa mudar, o desenho do restaurador precisa ser reavaliado.',
+      'Faz o gatilho de movimentacao parar de abrir pendencia de item na devolucao com itens faltantes (a porta de pendencia de item, movimentacao_abrir_pendencias_item). Some a pendencia que a mesa de /pendencias consome — e, para a F54, some a PREMISSA da Decisao 7: e porque o trigger insere pendencia que restaurar com ele ligado DUPLICA a linha que o backup ja traz. Se a premissa mudar, o desenho do restaurador precisa ser reavaliado.',
     sql: mutarFuncao(
-      'public.aplicar_movimentacao()',
-      "  if new.tipo = 'devolucao' and coalesce(cardinality(new.itens_faltantes), 0) > 0 then",
+      'public.movimentacao_abrir_pendencias_item(public.movimentacoes, public.ativos)',
+      "  if p_mov.tipo = 'devolucao' and coalesce(cardinality(p_mov.itens_faltantes), 0) > 0 then",
       `  ${MARCA}
-  if false and new.tipo = 'devolucao' and coalesce(cardinality(new.itens_faltantes), 0) > 0 then`,
+  if false and p_mov.tipo = 'devolucao' and coalesce(cardinality(p_mov.itens_faltantes), 0) > 0 then`,
       'trigger-para-de-abrir-pendencia-de-item',
     ),
     prova: {
-      sql: "select pg_get_functiondef(p.oid) like '%if false and new.tipo%' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'aplicar_movimentacao'",
+      sql: "select pg_get_functiondef(p.oid) like '%if false and p_mov.tipo%' from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'movimentacao_abrir_pendencias_item'",
       espera: 't',
     },
   },
@@ -2210,6 +2219,229 @@ const REAUDITORIA_PASSO2 = [
   },
 ]
 
+// =============================================================================
+// movimentacao_grade.sql — a decomposição de aplicar_movimentacao (reauditoria, passo 4)
+// =============================================================================
+// A 0150 (item AG) quebrou o gatilho de ~150 linhas numa orquestradora fina sobre SEIS
+// auxiliares `movimentacao_*`. As duas mutações que miravam o corpo antigo foram
+// REAPONTADAS (`f53-trava-do-estorno-volta-ao-uuid`, em F53_ORDEM, e
+// `trigger-para-de-abrir-pendencia-de-item`, em F54_RESTAURACAO); estas são as NOVAS, com
+// duas réguas, e as duas por escrito:
+//
+//   · TODA auxiliar tem pelo menos uma quebra que algum roteiro acusa pelo nome — a régua da
+//     F51 ("uma por auxiliar sem cobertura"). `movimentacao_abrir_pendencias_item` já tinha a
+//     reapontada e ganhou mais uma, a do colaborador da época, que nenhum roteiro vigiava.
+//   · Cada BURACO de cobertura que a leitura desta fase achou — estorno sem `estorno_de`,
+//     `estorno_de` de outro ativo, guarda de identidade no estorno, guarda de identidade em
+//     compra/troca — ganhou cenário novo em `movimentacao_grade.sql` E uma quebra aqui. Um
+//     cenário que nasce verde e nunca ficou vermelho é documento, não rede (F59).
+//
+// Os rótulos `1d`/`1f` são as PROPRIEDADES da grade (o detentor segue o estado; o estorno é
+// o inverso completo); os demais são cenários nomeados. `4a` é a asserção de ACL das seis.
+/** @type {Mutacao[]} */
+const REAUDITORIA_PASSO4 = [
+  {
+    id: 'ag-estorno-sem-guarda-de-identidade',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2k'],
+    porque:
+      'O estorno perde a guarda de identidade no destino do desfazer (a da 0097). Desfazer uma transferência para a filial onde, depois dela, nasceu o gêmeo do ativo deixa de ser recusado com a frase que manda resolver o conflito em Pendências — e passa a estourar o 23505 cru do índice por filial, citando nome de índice para o operador.',
+    sql: mutarFuncao(
+      'public.movimentacao_estornar(public.movimentacoes, public.ativos)',
+      `  perform public.exigir_identidade_livre_na_filial(
+    p_mov.ativo_id, (v_orig.snapshot_anterior ->> 'filial_id')::smallint, 'desfazer esta movimentação');`,
+      `  ${MARCA}
+  perform 1;`,
+      'ag-estorno-sem-guarda-de-identidade',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_estornar(public.movimentacoes, public.ativos)'::regprocedure)
+              like '%desfazer esta movimenta%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-estorno-sem-recusa-de-origem-ausente',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2b'],
+    porque:
+      'O estorno sem `estorno_de` perde a recusa própria. Ele ainda cai na seguinte ("precisa apontar para uma movimentação do MESMO ativo"), e é esse o disfarce: o operador lê que apontou para o ativo errado quando não apontou para nada, e a tradução do app manda procurar o problema no lugar errado. Nenhum roteiro exercitava esta recusa antes da grade.',
+    sql: mutarFuncao(
+      'public.movimentacao_estornar(public.movimentacoes, public.ativos)',
+      '  if p_mov.estorno_de is null then',
+      `  ${MARCA}
+  if false then`,
+      'ag-estorno-sem-recusa-de-origem-ausente',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_estornar(public.movimentacoes, public.ativos)'::regprocedure)
+              like '%if p_mov.estorno_de is null then%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-estorno-aceita-origem-de-outro-ativo',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2c'],
+    porque:
+      'O estorno deixa de conferir que a movimentação de origem é do MESMO ativo. Um `estorno_de` apontando para a saída de OUTRO equipamento passa a ser aceito, e o ativo do estorno recebe o estado de antes daquela outra movimentação — um equipamento "volta" ao estoque por causa do histórico de outro. Nenhum roteiro exercitava esta recusa antes da grade.',
+    sql: mutarFuncao(
+      'public.movimentacao_estornar(public.movimentacoes, public.ativos)',
+      '  if v_orig.id is null or v_orig.ativo_id <> p_mov.ativo_id then',
+      `  ${MARCA}
+  if v_orig.id is null then`,
+      'ag-estorno-aceita-origem-de-outro-ativo',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_estornar(public.movimentacoes, public.ativos)'::regprocedure)
+              like '%v_orig.ativo_id <> p_mov.ativo_id%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-pendencia-de-termo-ressuscita-itens-faltantes',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'efeito-colateral-perdido',
+    derruba: ['1f', '2l'],
+    porque:
+      'A restauração da pendência de termo no estorno perde o filtro dos itens faltantes (0051). Estornar qualquer movimentação cujo snapshot guardou o texto antigo "itens faltantes: …" ressuscita esse trecho em ativos.pendencia — a mesma pendência passa a existir duas vezes, como texto e como linha de pendencias_item, e a mesa de /pendencias mostra o que já foi resolvido.',
+    sql: mutarFuncao(
+      'public.movimentacao_pendencia_de_termo_restaurada(jsonb, text)',
+      `
+                   and lower(trim(x.val)) not like 'itens faltantes%'), '')`,
+      `
+                   ${MARCA}
+                   ), '')`,
+      'ag-pendencia-de-termo-ressuscita-itens-faltantes',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_pendencia_de_termo_restaurada(jsonb, text)'::regprocedure)
+              like '%itens faltantes%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-estorno-deixa-pendencias-de-item',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'efeito-colateral-perdido',
+    derruba: ['1f', '2j'],
+    porque:
+      'Estornar a devolução deixa de apagar as pendências de item que ela abriu. O equipamento volta para a pessoa, e a mesa de /pendencias continua cobrando dela os itens de uma devolução que o sistema passou a dizer que nunca aconteceu — o inverso deixa de ser simétrico.',
+    sql: mutarFuncao(
+      'public.movimentacao_desfazer_pendencias_item(uuid)',
+      '  delete from public.pendencias_item where movimentacao_id = p_movimentacao_estornada;',
+      `  ${MARCA}
+  delete from public.pendencias_item where false and movimentacao_id = p_movimentacao_estornada;`,
+      'ag-estorno-deixa-pendencias-de-item',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_desfazer_pendencias_item(uuid)'::regprocedure)
+              like '%where false and movimentacao_id%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'ag-destino-volta-a-cobrir-so-transferencia',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2y', '2z'],
+    porque:
+      'Reabre o buraco da 0097 que a 0099 fechou: a filial de destino deixa de considerar `compra` e `troca`, que também gravam filial. Uma compra ou uma troca que leve o ativo para a filial do gêmeo escapa da guarda de identidade e estoura o 23505 cru do índice por filial. Nenhum roteiro exercitava esses dois caminhos antes da grade — só a transferência.',
+    sql: mutarFuncao(
+      'public.movimentacao_transicionar(public.movimentacoes, public.ativos)',
+      `  v_dest := case
+    when p_mov.tipo in ('compra','troca') then p_mov.filial_id
+`,
+      `  ${MARCA}
+  v_dest := case
+`,
+      'ag-destino-volta-a-cobrir-so-transferencia',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_transicionar(public.movimentacoes, public.ativos)'::regprocedure)
+              like '%v_dest := case' || chr(10) || '    when p_mov.tipo = ''transferencia''%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'ag-ajuste-sem-justificativa',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2v'],
+    porque:
+      'O ajuste deixa de exigir justificativa. Ajuste é a única movimentação que impõe um estado à mão, fora da matriz de transições — sem a observação, a correção entra no histórico sem o porquê, e a auditoria passa a ver um equipamento mudar de estado sem motivo registrado.',
+    sql: mutarFuncao(
+      'public.movimentacao_transicionar(public.movimentacoes, public.ativos)',
+      '    if p_mov.status_resultante is null or p_mov.observacao is null then',
+      `    ${MARCA}
+    if p_mov.status_resultante is null then`,
+      'ag-ajuste-sem-justificativa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_transicionar(public.movimentacoes, public.ativos)'::regprocedure)
+              like '%or p_mov.observacao is null%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-detentor-fantasma-sobrevive',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'efeito-colateral-perdido',
+    derruba: ['1d', '2q'],
+    porque:
+      'A sincronização de detentor deixa de perguntar ao ESTADO resultante (0110) e passa a só olhar o tipo. O colaborador fantasma volta: um equipamento que vai para estoque, triagem, manutenção ou baixa por compra, ajuste, retorno ou descarte continua "com" a pessoa, e o relatório e o termo passam a nomear quem não está mais com ele — o defeito que a F36 existiu para fechar.',
+    sql: mutarFuncao(
+      'public.movimentacao_detentor_sincronizado(public.status_ativo, public.tipo_movimentacao, text, text)',
+      `    when not public.status_tem_detentor(p_status) then null
+`,
+      `    ${MARCA}
+`,
+      'ag-detentor-fantasma-sobrevive',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_detentor_sincronizado(public.status_ativo, public.tipo_movimentacao, text, text)'::regprocedure)
+              like '%status_tem_detentor%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-pendencia-de-item-sem-colaborador-da-epoca',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'efeito-colateral-perdido',
+    derruba: ['3d', '3e'],
+    porque:
+      'A pendência de item da devolução perde o colaborador da ÉPOCA quando a devolução não o informa (ou informa vazio). Ela nasce sem dono, e a mesa de /pendencias e o bloco "Com esta pessoa" deixam de saber de quem cobrar o carregador que não voltou — e é exatamente a devolução feita às pressas, sem digitar o nome, que mais produz item faltante.',
+    sql: mutarFuncao(
+      'public.movimentacao_abrir_pendencias_item(public.movimentacoes, public.ativos)',
+      "coalesce(nullif(p_mov.colaborador, ''), p_ativo.colaborador_atual)",
+      'p_mov.colaborador',
+      'ag-pendencia-de-item-sem-colaborador-da-epoca',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.movimentacao_abrir_pendencias_item(public.movimentacoes, public.ativos)'::regprocedure)
+              like '%p_ativo.colaborador_atual%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'ag-auxiliar-executavel-por-authenticated',
+    roteiro: 'movimentacao_grade.sql',
+    classe: 'grant-devolvido',
+    derruba: ['4a'],
+    porque:
+      'A auxiliar que desfaz uma movimentação passa a ser chamável pela API: qualquer logado, com a anon key e o próprio JWT, alcança /rest/v1/rpc/movimentacao_estornar e reescreve o estado de um ativo a partir de um snapshot — sem gravar movimentação nenhuma, sem trilha e sem passar pela RLS de escrita por filial, porque tudo isso mora no gatilho que a chama. Decompor uma security definer REORGANIZA a superfície; o que mantém as seis fora da API é uma linha de revoke por função.',
+    sql: `grant execute on function public.movimentacao_estornar(public.movimentacoes, public.ativos) to authenticated;  ${MARCA}`,
+    prova: {
+      sql: `select has_function_privilege('authenticated',
+              'public.movimentacao_estornar(public.movimentacoes, public.ativos)', 'execute')`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -2227,6 +2459,7 @@ export const MUTACOES = [
   ...F59_DOUTRINA,
   ...F60_RECORTE,
   ...REAUDITORIA_PASSO2,
+  ...REAUDITORIA_PASSO4,
 ]
 
 /**

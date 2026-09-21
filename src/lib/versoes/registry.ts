@@ -23,6 +23,16 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.5',
+    data: '2026-09-21',
+    titulo: 'A regra que decide o que cada movimentação faz com o equipamento continua igual, e ficou mais fácil de manter',
+    mudancas: [
+      'Nada muda na tela. Registrar uma saída, um empréstimo, uma reserva, uma devolução, uma transferência, um ajuste ou um estorno continua funcionando exatamente como antes, com as mesmas mensagens de recusa, nos mesmos casos.',
+      'Por dentro, sem efeito na tela: a regra que decide o que cada movimentação faz com o equipamento (o estado, quem fica com ele, a filial, o termo e as pendências de item) era uma peça única, reescrita inteira a cada ajuste. Agora ela é montada com peças menores e nomeadas, e uma mudança futura mexe só na peça que precisa.',
+      'Para ter certeza de que nada mudou, todas as combinações de estado e tipo de movimentação foram registradas antes e depois da mudança, cada uma desfeita em seguida por um estorno, e o resultado saiu idêntico, passo a passo.',
+    ],
+  },
+  {
     versao: '1.66.4',
     data: '2026-09-21',
     titulo: 'A cor das caixas de aviso amarelas passou a vir de um lugar só',

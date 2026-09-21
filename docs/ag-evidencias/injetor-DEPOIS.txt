@@ -1,0 +1,114 @@
+# O injetor de mutações no DEPOIS (CI run 35624750703, commit 1e51e92, job banco-sem-docker)
+#
+# 102/102 detectadas pelo cenário NOMEADO. As doze do item AG:
+#   · reapontadas da 0146 para as auxiliares (id, roteiro e rótulo não mudaram):
+#       f53-trava-do-estorno-volta-ao-uuid        → movimentacao_estornar            (asof_desempate 4c)
+#       trigger-para-de-abrir-pendencia-de-item   → movimentacao_abrir_pendencias_item (restauracao 1b, 3c)
+#   · novas (família REAUDITORIA_PASSO4, todas em movimentacao_grade.sql):
+#       uma por auxiliar, uma por buraco de cobertura fechado, e a de ACL (4a).
+#
+# Tabela completa do injetor:
+
+rls-movimentacao-confia-na-filial-declarada                papeis_rls.sql                       2c-bis,2c-ter    detectada            522 ms
+rls-lancamento-de-item-confere-papel-e-esquece-filial      papeis_rls.sql                       2e               detectada            396 ms
+rls-edicao-de-ativo-confere-papel-e-esquece-filial         papeis_rls.sql                       2g               detectada            398 ms
+rls-piso-de-leitura-aberto-em-ativos                       papeis_rls.sql                       4d               detectada            396 ms
+rls-desligada-em-senhas-de-acesso                          papeis_rls.sql                       3d,5f            detectada            395 ms
+rls-auditoria-visivel-a-quem-escreve                       papeis_rls.sql                       3f               detectada            397 ms
+rls-trilha-do-import-visivel-a-quem-escreve                papeis_rls.sql                       3e               detectada            394 ms
+rls-bucket-de-backup-visivel-a-quem-escreve                papeis_rls.sql                       6e               detectada            401 ms
+rls-termo-perde-as-invariantes-da-ancora                   papeis_rls.sql                       2i-bis-3         detectada            396 ms
+ancora-do-termo-sempre-coerente                            papeis_rls.sql                       2i-bis-3         detectada            406 ms
+leitura-de-colaboradores-sem-piso                          papeis_rls.sql                       4i               detectada            396 ms
+catalogo-rls-desligada-numa-tabela                         seguranca_catalogo.sql               2                detectada            335 ms
+catalogo-tabela-de-backup-sem-rls                          seguranca_catalogo.sql               2                detectada            340 ms
+catalogo-view-sem-security-invoker                         seguranca_catalogo.sql               3                detectada            337 ms
+catalogo-funcao-gatilho-executavel-por-authenticated       seguranca_catalogo.sql               4                detectada            333 ms
+catalogo-gatilho-de-lancamento-vira-definer                seguranca_catalogo.sql               4c               detectada            331 ms
+catalogo-rpc-de-escrita-executavel-por-anon                seguranca_catalogo.sql               1                detectada            340 ms
+dev-guarda-de-gestao-aceita-nivel-admin                    cargo_dev.sql                        2a,2b,2c,2e      detectada            376 ms
+dev-apagar-conta-aceita-nivel-admin                        cargo_dev.sql                        2f-bis           detectada            377 ms
+dev-encerrar-sessoes-aceita-nivel-admin                    cargo_dev.sql                        2f               detectada            379 ms
+dev-trigger-deixa-conceder-cargo-por-update-direto         cargo_dev.sql                        2h               detectada            373 ms
+dev-auxiliar-de-gestao-executavel-por-authenticated        cargo_dev.sql                        5e               detectada            375 ms
+gestao-encerrar-sessoes-mira-o-alvo-errado                 cargo_dev.sql                        3d               detectada            376 ms
+destrutivo-justificativa-sem-tamanho-minimo                dev_destrutivo.sql                   12b,12e          detectada            455 ms
+destrutivo-guarda-do-acervo-aceita-update                  dev_destrutivo.sql                   2i,2k            detectada            450 ms
+destrutivo-guarda-do-acervo-aceita-delete                  dev_destrutivo.sql                   2j,2l,2m,13c     detectada            448 ms
+destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho  dev_destrutivo.sql                   2f,2n            detectada            447 ms
+import-sem-revalidacao-de-contagens                        import_substituir.sql                2                detectada            402 ms
+import-revalidacao-nao-compara-o-vivo                      import_substituir.sql                0b,5a            detectada            400 ms
+import-revalidacao-ignora-pendencia-nova-do-acervo         import_substituir.sql                5a-bis           detectada            398 ms
+import-sem-exigencia-de-backup                             import_substituir.sql                3                detectada            399 ms
+import-trilha-do-apagado-mente-nas-anotacoes               import_substituir.sql                0g               detectada            397 ms
+import-ativo-nasce-sem-origem-importacao                   import_substituir.sql                4b               detectada            397 ms
+import-compra-de-abertura-sem-marcador                     import_substituir.sql                1e,0h            detectada            400 ms
+import-conferencia-de-estado-cega                          import_substituir.sql                0f               detectada            397 ms
+import-contagem-de-conflitos-mentida                       import_substituir.sql                0c               detectada            406 ms
+import-auxiliar-destrutiva-vira-api                        import_substituir.sql                0e               detectada            403 ms
+import-trilha-com-id-perdido                               import_substituir.sql                0d               detectada            404 ms
+import-nao-desvincula-lancamento-da-pendencia              import_substituir.sql                5c               detectada            399 ms
+import-nao-desvincula-lancamento-da-movimentacao           import_substituir.sql                5c               detectada            391 ms
+import-nao-apaga-pendencias-do-acervo                      import_substituir.sql                5c               detectada            393 ms
+import-nao-anula-ponteiro-de-substituto                    import_substituir.sql                5c               detectada            396 ms
+conflito-justificativa-sem-tamanho-minimo                  conflito_filiais.sql                 5f               detectada            406 ms
+conflito-confirmacao-com-numero-errado-aceita              conflito_filiais.sql                 5d,5e            detectada            425 ms
+conflito-backup-em-arquivo-sem-prefixo-do-digest           conflito_filiais.sql                 11e,11f,11g,11h  detectada            407 ms
+catalogo-tabela-nova-nao-classificada                      catalogo_policies.sql                1a,3             detectada            395 ms
+catalogo-policy-volta-a-ser-sempre-verdadeira              catalogo_policies.sql                5,6a             detectada            397 ms
+catalogo-force-row-level-security-ligado                   catalogo_policies.sql                4-bis            detectada            398 ms
+catalogo-tabela-nova-na-publication-do-realtime            catalogo_policies.sql                9a               detectada            397 ms
+catalogo-storage-decide-so-por-bucket                      catalogo_policies.sql                7                detectada            400 ms
+catalogo-security-definer-nova-nao-classificada            catalogo_secdef.sql                  1a               detectada            354 ms
+catalogo-security-definer-com-search-path-solto            catalogo_secdef.sql                  3                detectada            355 ms
+catalogo-security-definer-executavel-por-anon              catalogo_secdef.sql                  4                detectada            353 ms
+f52-escopo-de-gestao-some-do-corpo                         cargo_dev.sql                        7c               detectada            373 ms
+f52-escopo-de-gestao-passa-a-recusar                       cargo_dev.sql                        7a,7j            detectada            371 ms
+f52-admin-ativo-volta-a-igualdade-crua                     cargo_dev.sql                        7f,7i            detectada            375 ms
+f52-import-perde-a-guarda-de-filial                        import_fora_da_unidade.sql           5a-ter           detectada            348 ms
+f52-backup-do-import-aceita-qualquer-prefixo               import_fora_da_unidade.sql           2a               detectada            346 ms
+f52-import-volta-a-nao-conferir-confirmacao                import_fora_da_unidade.sql           3a               detectada            348 ms
+f52-import-perde-a-janela-de-idempotencia                  import_fora_da_unidade.sql           4a               detectada            348 ms
+f52-mesa-perde-a-guarda-de-pertencimento                   conflito_filiais.sql                 10b              detectada            407 ms
+f53-asof-volta-ao-desempate-por-id                         asof_desempate.sql                   3a               detectada            411 ms
+f53-trava-do-estorno-volta-ao-uuid                         asof_desempate.sql                   4c               detectada            416 ms
+f53-asof-passa-a-ordenar-so-por-ordem                      asof_desempate.sql                   6a               detectada            406 ms
+ordem-deixa-de-ser-generated-always                        restauracao.sql                      2a               detectada            358 ms
+indice-unico-da-ordem-sumiu                                restauracao.sql                      2c               detectada            356 ms
+guarda-acervo-aceita-forcado-fora-da-janela                restauracao.sql                      5a               detectada            353 ms
+trigger-para-de-abrir-pendencia-de-item                    restauracao.sql                      1b,3c            detectada            356 ms
+nucleo-perde-uma-checagem                                  integridade_alarme.sql               11a              detectada            391 ms
+resumo-de-integridade-alcancavel-por-anon                  integridade_alarme.sql               b2c              detectada            390 ms
+resumo-de-integridade-devolve-amostra                      integridade_alarme.sql               b3               detectada            396 ms
+rotulo-de-ambiente-alcancavel-por-authenticated            integridade_alarme.sql               c4               detectada            389 ms
+vocabulario-perde-a-guarda-de-ambiguidade                  vocabulario_import.sql               6a               detectada            356 ms
+vocabulario-perde-o-indice-de-nome-unico                   vocabulario_import.sql               6e               detectada            353 ms
+doutrina-policy-renomeada-escapa-do-universo               catalogo_policies.sql                10a,10b          detectada            402 ms
+doutrina-arvore-com-no-que-o-analisador-nao-le             catalogo_policies.sql                10c              detectada            399 ms
+doutrina-leitura-passa-a-linha-para-funcao                 catalogo_policies.sql                11a              detectada            400 ms
+doutrina-excecao-sobrevive-ao-conserto                     catalogo_policies.sql                11b              detectada            401 ms
+doutrina-funcao-sem-argumento-solta                        catalogo_policies.sql                12               detectada            395 ms
+doutrina-subselect-le-tabela                               catalogo_policies.sql                13a              detectada            405 ms
+doutrina-subselect-olha-a-linha                            catalogo_policies.sql                13b              detectada            401 ms
+doutrina-array-sobre-funcao-que-nao-devolve-conjunto       catalogo_policies.sql                14               detectada            404 ms
+f60-recorte-volta-a-is-null-or                             catalogo_secdef.sql                  7c               detectada            354 ms
+f60-rel-nova-sem-recorte                                   catalogo_secdef.sql                  7a,7b            detectada            354 ms
+f60-rel-vira-strict                                        catalogo_secdef.sql                  7d               detectada            355 ms
+f60-rel-perde-execute-do-service-role                      catalogo_secdef.sql                  7e               detectada            354 ms
+f60-excecao-apodrece                                       catalogo_secdef.sql                  7f               detectada            355 ms
+f60-excecao-ganha-overload                                 catalogo_secdef.sql                  7g               detectada            358 ms
+f60-asof-pre-filtra-pela-filial-de-hoje                    asof_desempate.sql                   11a              detectada            404 ms
+f60-saldo-consolidado-so-das-ativas                        f60_recorte.sql                      2a               detectada            377 ms
+reaud-u-escrita-atomica-sem-guarda-de-zero-linhas          escrita_atomica_ativos_anotacao.sql  3,4,5            detectada            355 ms
+reaud-ae-ledger-sem-guarda-de-papel                        ledger_de_migracoes.sql              2a               detectada            335 ms
+ag-estorno-sem-guarda-de-identidade                        movimentacao_grade.sql               2k               detectada            668 ms
+ag-estorno-sem-recusa-de-origem-ausente                    movimentacao_grade.sql               2b               detectada            708 ms
+ag-estorno-aceita-origem-de-outro-ativo                    movimentacao_grade.sql               2c               detectada            716 ms
+ag-pendencia-de-termo-ressuscita-itens-faltantes           movimentacao_grade.sql               1f,2l            detectada            709 ms
+ag-estorno-deixa-pendencias-de-item                        movimentacao_grade.sql               1f,2j            detectada            698 ms
+ag-destino-volta-a-cobrir-so-transferencia                 movimentacao_grade.sql               2y,2z            detectada            719 ms
+ag-ajuste-sem-justificativa                                movimentacao_grade.sql               2v               detectada            715 ms
+ag-detentor-fantasma-sobrevive                             movimentacao_grade.sql               1d,2q            detectada            702 ms
+ag-pendencia-de-item-sem-colaborador-da-epoca              movimentacao_grade.sql               3d,3e            detectada            704 ms
+ag-auxiliar-executavel-por-authenticated                   movimentacao_grade.sql               4a               detectada            707 ms
+102/102 detectadas pelo cenário nomeado · 42539 ms no total

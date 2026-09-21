@@ -12674,3 +12674,107 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
 - **Não tocado, de propósito:** as prévias estáticas de `scripts/design/` (a `previa-ficha.tsx` espelha a caixa de
   pendência com o par cru, que continua pintando igual) e os documentos históricos que citam as classes antigas.
 - **Pendências:** AQ (as duas famílias que sobraram) e AR (a unificação do `Aviso`), no topo de `DIVIDA-TECNICA.md`.
+
+## 2026-09-21 · Entrega avulsa (v1.66.5) · o passo 4 da reauditoria: a decomposição de `aplicar_movimentacao`
+
+- **Contexto:** a Faixa 4 do plano de remediação de 18/09 (`docs/DIVIDA-TECNICA.md`) é o item **AG**: o gatilho que toda
+  movimentação atravessa foi reemitido inteiro onze vezes (`0004`→`0146`, ~200 linhas por cópia), o mesmo mecanismo do
+  item X que a F51 desmontou no import. A ordem pediu a receita da F51 (orquestradora fina sobre auxiliares nomeadas:
+  estorno, pendência de termo, pendência de item, sincronização de detentor) **sem mudar comportamento**, com a `0150`
+  aplicada no ensaio e em produção ANTES do merge. PR #64. Saídas reais em `docs/ag-evidencias/`.
+- **Decisão 1: seis auxiliares, e não três.** Um painel de três desenhos independentes, julgados por três lentes
+  (equivalência, localidade, rig), deu nota MAIOR aos dois desenhos de três auxiliares (22,5 e 22) do que ao de seis
+  (19,5). A escolha foi o de seis, porque é o único em que as quatro unidades que a ordem nomeia ganham função própria:
+  nos de três, a pendência de termo ficava dentro do estorno, e mudar só a regra do termo continuaria exigindo editar o
+  bloco inteiro do estorno, que é o problema que o item AG existe para resolver. Os pontos em que os de três ganharam
+  foram enxertados (Decisões 2 a 4). As seis: `movimentacao_estornar`, `_pendencia_de_termo_restaurada`,
+  `_desfazer_pendencias_item`, `_abrir_pendencias_item`, `_detentor_sincronizado` e `movimentacao_transicionar`, o ramo
+  normal. Sem esta última, a orquestradora continuaria carregando a máquina de estados inteira. O prefixo é
+  `movimentacao_` e não `mov_` porque `mov_da_carga_import` já existe e confundiria a classificação por prefixo da trava
+  de mesa.
+- **Decisão 2: cada UPDATE de `ativos` continua sendo UM statement, com as expressões MOVIDAS e não reescritas** (o ponto
+  forte do desenho "enxuto"). As duas funções puras (`_detentor_sincronizado`, `_pendencia_de_termo_restaurada`) são
+  chamadas DENTRO do SET, com o valor corrente da coluna como argumento. Assim a leitura da coluna continua sendo a
+  referência nua de sempre, e não um `p_ativo.campo` que teria de ser provado igual. Dividir o UPDATE mudaria o número de
+  versões da linha e a ordem em que as constraints veem o estado. Pela mesma razão, nenhuma "simplificação equivalente":
+  a duplicação entre o `case` de `v_dest` e o de `filial_id` fica. `status_tem_detentor` é `immutable` desde a `0110`
+  (conferido no arquivo), então a função pura que a chama pode sê-lo também.
+- **Decisão 3: a linha inteira e sempre DOIS argumentos** (`p_mov public.movimentacoes, p_ativo public.ativos`), do
+  desenho "futuro". A linha inteira porque a assinatura não muda quando a tabela ganha coluna, e o multiempresa vai
+  acrescentar a de empresa. Dois argumentos porque o PostgREST trata função de UM parâmetro do tipo de uma tabela como
+  campo computado dela. Por isso `movimentacao_estornar` recebe `p_ativo` sem usá-lo. **Sem parâmetro OUT:** o
+  `corpo-vigente.mjs` do injetor conta os parâmetros da assinatura, e OUT muda essa contagem.
+- **Decisão 4: a atribuição de `new.status_*` no ramo normal passou para DEPOIS da guarda e do UPDATE**, porque o status
+  resultante agora sai de `movimentacao_transicionar`. O juiz de equivalência acusou que o desenho de seis NÃO declarava
+  isso (o "futuro" declarava). Ficou declarado no cabeçalho da `0150`: `new` é um registro em memória até o
+  `return new`, nada entre os dois pontos o lê (as auxiliares recebem uma cópia tirada antes), e uma recusa aborta a
+  transação inteira.
+- **Decisão 5: a trava de linha e o snapshot ficam na orquestradora.** O `select … for update` é efeito local à
+  transação e tem de ser visto por quem orquestra (a mesma régua da janela destrutiva e do advisory lock da F51,
+  Decisão 4). O snapshot vai para `new`, que só a orquestradora atribui.
+- **Decisão 6: as seis são `security definer` e fechadas nos quatro papéis** (`revoke all … from public, anon,
+  authenticated, service_role`), no molde de `exigir_identidade_livre_na_filial` (`0097`), a primeira peça que saiu deste
+  gatilho. É o argumento da F51: extrair código não pode fazer a semântica de privilégio de um trecho da máquina de
+  estados passar a depender de quem chama. Consequências: (a) as seis entram em `k_secdef` de `catalogo_secdef.sql`
+  (52→58); (b) viram **intocáveis** da F38 (`INTOCAVEIS`, `RECRIACOES_AUTORIZADAS['0150']` e a lista do cenário 14 de
+  `f38_itens_com_ativo.sql`). A exceção de texto do cenário 14 (o `join … on l.pendencia_item_id = p.id` da `0146`)
+  MUDOU de função, de `aplicar_movimentacao` para `movimentacao_estornar`, porque o trecho mudou de casa; o comentário
+  da `0146` dentro dele foi reescrito sem o literal, que a varredura leria como marca da F38. (c) Ficam fora do universo
+  de `definer_sem_tenant.sql`, que só olha o que o `authenticated` alcança. **Nota para a F62:** quem as protege é o
+  chamador, o gatilho, que por sua vez é protegido pela policy de INSERT de `movimentacoes`; a ordem de tenant tem de
+  tratá-las como trata o gatilho, e não como RPC.
+- **A prova de equivalência, e por que ela é texto e não argumento.** O roteiro novo `supabase/tests/movimentacao_grade.sql`
+  percorre todo estado × todo tipo (menos ajuste e estorno), nas variantes A e B, estorna cada aceite e observa o que o
+  gatilho escreve: status da movimentação e do ativo, detentor, filial, pendência, termo, se a linha do ativo foi tocada
+  (`updated_at`), os itens e as pendências de item com a posição da movimentação que as abriu. Tem ainda 36 cenários
+  nomeados (2a–2z, 3a–3j) e as propriedades 1a–1g. **Ele nasceu em commits SEM a `0150`** (`1f469d5`, `40aa7c2`,
+  `ceb01c4`) e deu, sobre os mesmos 369 passos, o MESMO md5 da grade (`3e7fb539ac9ca68e68a5b0b47fede629`) quatro vezes: CI
+  ANTES (run 35623180748, `0146`), CI DEPOIS (run 35624750703, `0150`), e no ensaio antes e depois do apply real, em
+  transação desfeita. Os demais roteiros, ANTES × DEPOIS, deram 1327 × 1329 linhas, zero `✗`, e toda diferença é uuid
+  aleatório, universo que cresceu com as seis (`catalogo_secdef` 52→58, `asof_desempate` 10a 31→33) ou a seção 4 nova.
+- **A leitura de cobertura achou quatro blocos do gatilho que roteiro NENHUM exercitava:** estorno sem `estorno_de`,
+  `estorno_de` que aponta para outro ativo, e a guarda de identidade no destino do estorno e em compra/troca. Viraram
+  cenários da grade (2b, 2c, 2k, 2y e 2z), cada um acusado por mutação própria.
+- **O injetor: dez mutações novas (família `REAUDITORIA_PASSO4`) e duas reapontadas.** `f53-trava-do-estorno-volta-ao-uuid`
+  e `trigger-para-de-abrir-pendencia-de-item` miravam o corpo monolítico e passaram a mirar `movimentacao_estornar` e
+  `movimentacao_abrir_pendencias_item`, com o mesmo id, roteiro e rótulo. As dez novas: uma por auxiliar sem cobertura,
+  uma por buraco de cobertura fechado, e uma de ACL (grant a `authenticated` → `4a`). **O teto do lote subiu de 95 para
+  105** (92 + 10 = 102), com o motivo escrito em `mutacoes.test.mts`. O juiz de rig tinha apontado que seis funções não
+  cabiam nas três vagas restantes; subir o teto com motivo é a decisão explícita que ele pedia, e a alternativa (cobertura
+  mais rala) contrariaria o próprio item. Resultado no CI DEPOIS: **102/102** detectadas pelo cenário nomeado.
+- **A trava de mesa `src/lib/validators/movimentacao-uma-porta.test.ts`**, no molde de `import-uma-porta.test.ts`: uma
+  porta por efeito (`update public.ativos` só em `_estornar` e `_transicionar`, uma vez cada; INSERT em `pendencias_item`
+  só em `_abrir`; DELETE só em `_desfazer`); o total de DML de cada peça igual às portas declaradas; a orquestradora com a
+  trava de linha e sem DML; as puras sem DML; o gatilho ainda executando a orquestradora; e cada auxiliar alcançável pelo
+  nome a partir dela. **Pendência:** o `codigoVivo` (tira comentário e literal antes de procurar DML) ficou duplicado
+  entre as duas travas de porta. Extraí-lo é faxina de mesa, fora do escopo de uma entrega "sem mudar comportamento".
+- **Incidentes, e o que os pegou.**
+  (1) A primeira versão do roteiro emitia os rótulos por helpers (`ag_conferir`/`ag_zero`), e o reconhecedor do injetor só
+  lê `✗ <rótulo>` literal ou `assert_zero_de('<rótulo>'`. Nenhuma mutação seria reconhecida. O teste de catálogo acusou;
+  o roteiro foi reescrito na forma da casa por script, e o ANTES recommitado (`40aa7c2`).
+  (2) Uma revisão adversarial da grade apontou que ela não observava `updated_at` nem `pendencias_item.movimentacao_id`,
+  e que a trava de mesa não contava DML fora dos três efeitos. Os três entraram (`tocado`, `ag_posicao`, a propriedade
+  1g, a checagem 3g e o total de DML), num terceiro commit ANTES (`ceb01c4`), para a prova continuar sendo ANTES × DEPOIS
+  do MESMO roteiro.
+  (3) Na primeira rodada DEPOIS no ensaio, a seção 4 abortou com `record "r" has no field "papel"`: o alias `r(papel)`
+  colidia com a variável de laço `r record`. Corrigido (`papeis(papel)`) antes do commit que foi ao CI. É para isso que
+  o ensaio existe.
+  (4) A revisão final (quatro lentes, cada achado verificado por um cético: 7 achados, 2 confirmados) pegou a `0150` sem
+  `npm run db:lock` (o `migrations-lock.test.ts` estava vermelho; travada no commit `1e51e92`) e esta ata, citada pelo
+  cabeçalho da migration e ainda não escrita. Os refutados: DML fora dos três efeitos (já coberto pelo total do item 2),
+  `database.ts` sem as seis (regenerado do ensaio depois do apply: md5 `fefed8c2…`, igual ao de produção),
+  `pendencias_item.movimentacao_id` (já observado), e o EXECUTE do `service_role` na orquestradora, que não é defeito
+  desta entrega (herança da `0038`) mas ficou registrado como o item **AS** (Prio 10) de `DIVIDA-TECNICA.md`.
+- **O apply (caminho A, pelo `apply_migration` do conector).** O ensaio foi primeiro, e produção só depois de o CI
+  DEPOIS ficar verde sobre o SHA aplicado. Nos dois bancos: md5 do `prosrc` das sete funções igual ao do arquivo; ACL das
+  seis `{postgres=X/postgres}`, e a da orquestradora igual à de antes; advisors com as mesmas contagens da linha de base;
+  sonda de paridade com as 10 classes idênticas (`func` 94, `grant_func` 94); tipos gerados idênticos. Ledger: ensaio
+  `20260921130816`, produção `20260921132408`. Smoke de produção 109 OK · 1 aviso (o antigo de `kits_modelos`) ·
+  0 falha. **O roteiro da grade NÃO rodou em produção**: ele desliga o gatilho de `movimentacoes` (ACCESS EXCLUSIVE) nos
+  cenários 2f/2n. Lá, a equivalência vem da construção (o corpo vivo é byte a byte o do arquivo provado) e da paridade.
+  Entrada no Anexo A de `RUNBOOK-BANCO.md`, com o rollback na ordem inversa.
+- **Documentos:** `ARQUITETURA.md` §3 ganhou o mapa "quero mudar X → mexo em Y"; `MATRIZ-REGRAS.md`, a emenda com as
+  regras que mudaram de casa (R-ME-06/15/16/17/18/19/20/25, R-MOV-08/09, R-IMP-29); `DIVIDA-TECNICA.md`, AG fechado,
+  Faixa 4 executada e o item AS.
+- **Pendências:** AS (o `service_role` na orquestradora) e a extração do `codigoVivo` compartilhado, as duas pequenas; a
+  nota da F62 acima.

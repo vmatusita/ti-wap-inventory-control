@@ -74,6 +74,27 @@
 > | **AQ** | O âmbar que sobrou é de OUTRAS duas intenções: a pílula `bg-amber-100 text-amber-800` + `dark:` 950/300 (12 linhas, 48 classes) e o texto de atenção em linha `text-amber-700`/`800` + `dark:` 400/300 (17 linhas, 34 classes). A mesma receita, duas famílias novas, e o mesmo harness de pixels (a pílula é quase toda `<span>`, mas há um `Badge` e três mapas de classe que vão parar em componentes do kit, onde a variante de estado decide) | 2 | 1 | 1 | **15** |
 > | **AR** | Duas tintas para a mesma intenção: `<Aviso intencao="atencao">` (9 usos, `--warning`, 4,92:1) × a caixa de atenção (a maioria dos 28 trechos trocados, token novo, 8,77:1). Unificar repinta um lado; recomendação: o `Aviso` adota a caixa (o contraste sobe, e a caixa é a maioria). Decisão das frentes a/b/c | 2 | 1 | 1 | **15** |
 
+> **Passo 4 EXECUTADO em 21/09 (v1.66.5, PR #64).** Migration `0150` aplicada no ensaio e em produção ANTES do merge.
+> Detalhe e decisões na ata de `docs/DECISOES.md`; as saídas reais em `docs/ag-evidencias/`.
+>
+> - **AG ✅ fechado.** `aplicar_movimentacao` virou uma orquestradora fina (a trava de linha, o snapshot e a atribuição
+>   de `new.*`) sobre **seis** auxiliares nomeadas: o estorno, a pendência de termo, as duas portas da pendência de item,
+>   o ramo normal e a sincronização de detentor. As quatro unidades que esta seção sugeria viraram as quatro primeiras;
+>   o ramo normal (`movimentacao_transicionar`) é a quinta, porque sem ela a orquestradora continuaria carregando a
+>   máquina de estados inteira. Cada UPDATE continua um statement só; o código foi movido, não reescrito.
+> - **A prova é o mesmo texto, não um argumento.** O roteiro novo `movimentacao_grade.sql` (todo estado × todo tipo, cada
+>   aceite estornado, 369 passos) nasceu num commit SEM a migration e deu o **mesmo md5 da grade** contra a `0146` e
+>   contra a `0150`: no CI e no ensaio, antes e depois do apply real.
+> - **A leitura de cobertura achou quatro blocos do gatilho que roteiro nenhum exercitava** (estorno sem `estorno_de`,
+>   `estorno_de` de outro ativo, a guarda de identidade no estorno e em compra/troca). Viraram cenários do roteiro novo, e
+>   cada um tem mutação no injetor.
+>
+> **Um resíduo registrado, pequeno e anterior a esta entrega:**
+>
+> | # | Item | Imp. | Risco | Esf. | **Prio** |
+> |---|---|:-:|:-:|:-:|:-:|
+> | **AS** | `aplicar_movimentacao()` ainda concede EXECUTE a `service_role` (a `0038` revogou de `public`, `anon` e `authenticated`, não dele). Inofensivo, porque função de gatilho recusa ser chamada fora de um gatilho, mas é a única do gatilho fora da régua dos quatro papéis que a `0150` aplicou às seis | 1 | 1 | 1 | **10** |
+
 Revalida item a item contra a `main` de hoje (`98a78da`), 26 fases depois da rodada de 12/08 e
 três semanas depois da revisão de 30/08. **Levantamento e priorização, nenhuma correção executada.**
 Mesma fórmula de sempre: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, eixos de 1 a 5, esforço
@@ -129,7 +150,7 @@ observabilidade** foram fechadas ou abatidas de verdade (§ "Fechado desde 30/08
 | **AB** | Âmbar sem token: 295 classes cruas, `--callout-atencao` ainda não existe | Código/Design | 3 | 1 | 1 | **20** |
 | **U** | Termo "assinado" em duas etapas sem transação (o paliativo é de ½ dia) | Arquitetura | 2 | 2 | 1 | **20** |
 | **AF** | **`CLAUDE.md` com ~10 mil tokens, lido em toda sessão de agente** *(novo)* | Documentação | 3 | 2 | 2 | **20** |
-| **AG** | **`aplicar_movimentacao` recriada inteira 11× (~200 linhas por cópia)** *(novo)* | Arquitetura | 3 | 3 | 3 | **18** |
+| ~~**AG**~~ | ~~**`aplicar_movimentacao` recriada inteira 11× (~200 linhas por cópia)**~~ ✅ **fechado em 21/09 (v1.66.5)** | Arquitetura | 3 | 3 | 3 | **18** |
 | **AA** | Tinta de área × tinta de texto (decisão de cor) | Design | 2 | 2 | 2 | **16** |
 | **AH** | **Fila do Dependabot parada: 6 PRs abertos desde julho** *(novo)* | Dependência | 1 | 2 | 1 | **15** |
 | **F41a** | `itens_nome_uidx` redundante; tirar antes da F62 | Banco | 1 | 2 | 1 | **15** |
@@ -217,7 +238,10 @@ a casa já usa (`chave-sql.test.ts`, `tipos-item-sql.test.ts`). **Alternativa, q
 decisão:** aposentar a varredura de marcadores da F38 no SQL, já que a trava de hash (F46) garante
 que o histórico não muda e a guarda do TS controla cada recriação nova.
 
-### AG — `aplicar_movimentacao` é recriada inteira a cada mudança `[Prio 18]` *(novo)*
+### AG — `aplicar_movimentacao` é recriada inteira a cada mudança `[Prio 18]` *(novo)* — ✅ fechado em 21/09 (v1.66.5)
+
+> **Executado no passo 4:** a `0150` a decompôs em orquestradora fina + seis auxiliares, com equivalência provada pelo
+> roteiro `movimentacao_grade.sql` (ver o bloco "Passo 4 EXECUTADO" no topo). O texto abaixo é o diagnóstico de 18/09.
 
 O diagnóstico do item **X** (import recriado 11×, o mecanismo que espalhou N e W) vale letra por
 letra para o coração do sistema:
@@ -356,7 +380,7 @@ Desenhado para caber **ao lado** do multiempresa, não no lugar dele.
 - **AB:** a décima família de token (`--callout-atencao*`), com os valores oklch de hoje. Zero
   pixel muda.
 
-**Faixa 4: antes da primeira fase do multiempresa que tocar a máquina de estados**
+**Faixa 4: antes da primeira fase do multiempresa que tocar a máquina de estados** *(✅ executada em 21/09, v1.66.5: ver o topo)*
 - **AG:** decompor `aplicar_movimentacao` pela receita da F51.
 
 **Faixa 5: decisões do Johnny**

@@ -100,7 +100,20 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 95 mutações ATIVAS', () => {
+  it('tem entre 20 e 105 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 95 PARA 105 NA REAUDITORIA, PASSO 4 (21/09/2026, item AG). A `0150`
+    // decompôs `aplicar_movimentacao` em SEIS auxiliares, e a leitura de cobertura da fase
+    // achou quatro blocos do gatilho que roteiro nenhum exercitava (estorno sem `estorno_de`,
+    // `estorno_de` de outro ativo, a guarda de identidade no estorno e em compra/troca). As duas
+    // mutações que miravam o corpo antigo foram REAPONTADAS e não somam; entram DEZ novas
+    // (`REAUDITORIA_PASSO4`): pelo menos uma por auxiliar — a régua da F51 — e uma por buraco
+    // fechado, mais a de ACL das seis. 92 + 10 = 102.
+    //
+    // 105 e não 102, pela mesma régua escrita abaixo: teto colado no número de hoje reabre a
+    // decisão no primeiro achado da revisão adversarial desta mesma fase, e é assim que um teto
+    // vira ritual. A régua de DESENHO continua sendo a quarentena abaixo de um terço e o injetor
+    // rodando INCONDICIONALMENTE no `banco-sem-docker`.
+    //
     // ⚠ O TETO SUBIU DE 85 PARA 95 NA F60 (16/09/2026). A trava do recorte obrigatório das
     // `rel_*` pôs SETE asserções novas em `catalogo_secdef.sql` (bloco 7, rótulos 7a–7g) e a
     // fase escreveu DOIS cenários de comportamento que o catálogo não enxerga (o transferido
@@ -249,7 +262,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(95)
+    expect(MUTACOES.length).toBeLessThanOrEqual(105)
   })
 
   it('os `id` são únicos', () => {

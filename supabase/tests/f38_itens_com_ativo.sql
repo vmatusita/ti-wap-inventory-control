@@ -854,18 +854,26 @@ begin
   -- banco anterior à 0145 eles ainda existem e continuam valendo —, e as sucessoras entram ao
   -- lado: sem elas, depois da 0145 a varredura olharia SETE funções vivas dizendo "dez".
   --
-  -- ⚠ EXCEÇÃO NOMINAL (18/09/2026, a `0146`): `aplicar_movimentacao` passou a citar
-  -- `pendencia_item_id` DE PROPÓSITO — é a recusa do estorno da devolução cuja pendência de
-  -- item já teve desfecho (a FK que estourava 23503). Mesma doutrina da
-  -- `RECRIACOES_AUTORIZADAS['0146']` de `src/lib/itens/migrations-f38.test.ts`: só os DOIS
-  -- trechos exatos da 0146 saem da varredura, e só nessa função. Qualquer OUTRA marca da F38
-  -- nela — ou esses mesmos trechos em outra intocável — continua derrubando este cenário.
+  -- ⚠ EXCEÇÃO NOMINAL (18/09/2026, a `0146`; mudou de dono em 21/09/2026, a `0150`): o
+  -- ramo de estorno passou a citar `pendencia_item_id` DE PROPÓSITO — é a recusa do estorno
+  -- da devolução cuja pendência de item já teve desfecho (a FK que estourava 23503). Mesma
+  -- doutrina da `RECRIACOES_AUTORIZADAS` de `src/lib/itens/migrations-f38.test.ts`: só o
+  -- trecho EXATO sai da varredura, e só na função que o carrega. Qualquer OUTRA marca da F38
+  -- nela — ou esse mesmo trecho em outra intocável — continua derrubando este cenário.
+  --
+  -- ⚠ A 0150 (item AG da reauditoria) decompôs `aplicar_movimentacao` numa orquestradora
+  -- fina sobre seis auxiliares `movimentacao_*`, e o ramo de estorno — com o trecho da 0146
+  -- — foi para `movimentacao_estornar`. Por isso: (a) as SEIS entram na varredura, porque a
+  -- lista protege o que a função FAZ, não uma grafia de nome (a mesma régua das sucessoras
+  -- da F60 acima) — sem elas, a máquina de estados inteira sairia desta guarda pela porta
+  -- dos fundos; (b) a exceção mudou para `movimentacao_estornar`, e só o trecho de CÓDIGO
+  -- sobrou nela (o comentário que a 0146 escrevia com a palavra foi reescrito sem ela); (c) a
+  -- orquestradora voltou a ser varrida SEM exceção nenhuma.
   select count(*) into v_n
     from (
-      select case when p.proname = 'aplicar_movimentacao'
-                  then replace(replace(pg_get_functiondef(p.oid),
-                         'join public.lancamentos_item l on l.pendencia_item_id = p.id', ''),
-                         'lançamento com pendencia_item_id, FK NO ACTION', '')
+      select case when p.proname = 'movimentacao_estornar'
+                  then replace(pg_get_functiondef(p.oid),
+                         'join public.lancamentos_item l on l.pendencia_item_id = p.id', '')
                   else pg_get_functiondef(p.oid) end as def
         from pg_proc p
         join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
@@ -873,7 +881,10 @@ begin
          'aplicar_movimentacao', 'guarda_acervo', 'rel_saldo_itens', 'rel_mov_itens',
          'rel_estoque_asof', 'status_apos_movimentacao', 'status_tem_detentor',
          'transferir_item', 'criar_compra_lote', 'devolver_ao_fornecedor',
-         'rel_saldo_itens_filiais', 'rel_mov_itens_filiais', 'rel_estoque_asof_filiais')
+         'rel_saldo_itens_filiais', 'rel_mov_itens_filiais', 'rel_estoque_asof_filiais',
+         'movimentacao_estornar', 'movimentacao_pendencia_de_termo_restaurada',
+         'movimentacao_desfazer_pendencias_item', 'movimentacao_abrir_pendencias_item',
+         'movimentacao_transicionar', 'movimentacao_detentor_sincronizado')
     ) f
      -- ⚠ Os marcadores são os que SÓ a F38 introduziu. `movimentacao_id` ficou de
      -- fora de propósito: `aplicar_movimentacao` já cita essa palavra desde a 0051,
