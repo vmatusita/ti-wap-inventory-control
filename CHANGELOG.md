@@ -6,6 +6,39 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 21/09/2026 — Passo 4 da reauditoria: o gatilho das movimentações decomposto, com o mesmo comportamento ✅ 🔒
+
+Entrega avulsa (**v1.66.5**): o passo 4 da reauditoria de dívida técnica de 18/09 (item **AG**,
+[`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md), Faixa 4). **Uma migration (`0150`), aplicada no ensaio e em produção
+antes do merge; nenhuma dependência nova; nada muda na tela.** Ata em [`docs/DECISOES.md`](docs/DECISOES.md); saídas
+reais em [`docs/ag-evidencias/`](docs/ag-evidencias/).
+
+- 🧩 **`aplicar_movimentacao` virou uma orquestradora fina.** O gatilho que toda movimentação atravessa foi reemitido
+  inteiro onze vezes (`0004`→`0146`). Agora ele só trava a linha, tira o snapshot e atribui o registro, e delega a
+  **seis auxiliares nomeadas**, pela receita da F51: o estorno, a pendência de termo restaurada, as duas portas da
+  pendência de item (abrir e desfazer), o ramo normal e a sincronização de detentor. Cada uma é `security definer` e
+  fechada nos quatro papéis. A próxima mudança recria uma peça, não o gatilho.
+- 📏 **Código movido, não reescrito.** Mensagens, errcodes, a ordem das recusas e a ordem física das escritas são as de
+  antes, e cada UPDATE de `ativos` continua sendo um statement só (as funções puras são chamadas dentro do SET). As duas
+  mudanças de forma estão declaradas na migration: auxiliares com a linha inteira e sempre dois argumentos, por causa do
+  campo computado do PostgREST, e a atribuição de `new.status_*` depois da guarda.
+- 🧪 **A prova de equivalência é o mesmo texto.** O roteiro novo `movimentacao_grade.sql` percorre todo estado × todo
+  tipo, estorna cada aceite e cobre 36 cenários nomeados. Ele nasceu num commit **sem** a `0150` e deu o **mesmo md5 da
+  grade** (369 passos, `3e7fb539…`) contra a `0146` e contra a `0150`, no CI e no ensaio, antes e depois do apply real.
+  Os demais roteiros, ANTES × DEPOIS, só diferem em uuid aleatório e no universo que cresceu com as seis funções.
+- 🔒 **As guardas acompanham.** Dez mutações novas no injetor (**102/102 detectadas** pelo cenário nomeado) e duas
+  reapontadas para as auxiliares. Uma trava de mesa (`movimentacao-uma-porta.test.ts`) garante uma porta por efeito e
+  que a orquestradora alcança cada auxiliar pelo nome. As seis entram como intocáveis da F38 e no catálogo de
+  `security definer`.
+- 🔎 **A leitura de cobertura achou quatro blocos do gatilho que roteiro nenhum exercitava:** estorno sem `estorno_de`,
+  `estorno_de` de outro ativo, e a guarda de identidade no estorno e em compra/troca. Viraram cenários, cada um com
+  mutação.
+- 🚀 **Produção:** o md5 do `prosrc` das sete funções é igual ao do arquivo, os advisors não mudaram, a sonda de paridade
+  deu as 10 classes idênticas às do ensaio e o smoke deu **109 OK · 1 aviso (o antigo) · 0 falha**. Resíduo registrado
+  como item **AS**: o `service_role` ainda tem EXECUTE na orquestradora, herança da `0038`.
+
+---
+
 ## 21/09/2026 — Passo 3 da reauditoria: a caixa de atenção âmbar por token ✅
 
 Entrega avulsa (**v1.66.4**): o passo 3 da reauditoria de dívida técnica de 18/09 (item **AB**,

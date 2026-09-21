@@ -1,0 +1,57 @@
+# Todos os roteiros de supabase/tests/, ANTES × DEPOIS da 0150 (item AG)
+#
+# ANTES  = CI run 35623180748 (commit ceb01c4, sem a 0150) · DEPOIS = CI run 35624750703 (commit 1e51e92)
+# Extraídas as linhas ✓ / ✗ / · / ℹ / FIM de cada roteiro, sem timestamp e sem número de linha do psql.
+# ANTES 1327 linhas · DEPOIS 1329 linhas · 0 linha com ✗ nas duas rodadas.
+#
+# O diff inteiro está abaixo, e TODA diferença tem uma de três explicações — nenhuma é de comportamento:
+#
+#   (a) uuid aleatório impresso numa mensagem (muda a cada rodada, com ou sem a 0150):
+#       asof_desempate 4b · dev_destrutivo 3a, 9a, 6a
+#   (b) universo que cresceu porque o banco ganhou as seis auxiliares:
+#       catalogo_secdef 1a–4: 52 → 58 `security definer` conferidas (as seis, classificadas em k_secdef)
+#       asof_desempate 10a: 31 → 33 funções/views que citam `movimentacoes` (movimentacao_estornar e
+#       movimentacao_transicionar, que leem a tabela) — e nenhuma desempata por id
+#   (c) a seção 4 do roteiro novo, que só existe com a 0150 (a ACL das seis): 4a, 4b, e o FIM de 43 para 45
+#
+# As 369 linhas de observação da grade (·) são idênticas byte a byte (grade-ANTES-x-DEPOIS.txt).
+# As linhas de dev_destrutivo cortadas em 240 caracteres aqui só diferem no uuid.
+
+9c9
+< asof_desempate | NOTICE | ✓ 4b a trava do estorno ACEITA estornar a ULTIMA movimentacao (devolucao), id=2ee5949e-ace4-49c8-bd00-82546549b87c
+---
+> asof_desempate | NOTICE | ✓ 4b a trava do estorno ACEITA estornar a ULTIMA movimentacao (devolucao), id=d7225213-d472-4a76-8da3-8c06eed71125
+16c16
+< asof_desempate | NOTICE | ✓ 10a nenhuma das 31 funcoes/views de public que citam movimentacoes desempata por id, fora das 3 excecoes nominais (apagar_ativo, apagar_ativos_conflito_filiais, apagar_movimentacao)
+---
+> asof_desempate | NOTICE | ✓ 10a nenhuma das 33 funcoes/views de public que citam movimentacoes desempata por id, fora das 3 excecoes nominais (apagar_ativo, apagar_ativos_conflito_filiais, apagar_movimentacao)
+117,121c117,121
+< catalogo_secdef | NOTICE | ✓ 1a toda `security definer` de public está CLASSIFICADA (0 de 52 conferidos)
+< catalogo_secdef | NOTICE | ✓ 1b todo nome classificado existe e continua `security definer` (0 de 52 conferidos)
+< catalogo_secdef | NOTICE | ✓ 2 nenhum nome `security definer` tem mais de uma assinatura viva (0 de 52 conferidos)
+< catalogo_secdef | NOTICE | ✓ 3 `search_path` travado em toda `security definer` (0 de 52 conferidos)
+< catalogo_secdef | NOTICE | ✓ 4 nenhuma `security definer` executável por anon (0 de 52 conferidos)
+---
+> catalogo_secdef | NOTICE | ✓ 1a toda `security definer` de public está CLASSIFICADA (0 de 58 conferidos)
+> catalogo_secdef | NOTICE | ✓ 1b todo nome classificado existe e continua `security definer` (0 de 58 conferidos)
+> catalogo_secdef | NOTICE | ✓ 2 nenhum nome `security definer` tem mais de uma assinatura viva (0 de 58 conferidos)
+> catalogo_secdef | NOTICE | ✓ 3 `search_path` travado em toda `security definer` (0 de 58 conferidos)
+> catalogo_secdef | NOTICE | ✓ 4 nenhuma `security definer` executável por anon (0 de 58 conferidos)
+244c244
+< dev_destrutivo | NOTICE | ✓ 3a dev APAGA o ativo com rastro inteiro: {"rotulo": "WAP0009301", "termos": 1, "ativo_id": "5cbb34f1-dea6-41a3-b3f4-dd7eb336aa47", "anotacoes": 1, "movimentacoes": 3, "arquivos_termos": ["b8395156-f5a5-4ba5-9
+---
+> dev_destrutivo | NOTICE | ✓ 3a dev APAGA o ativo com rastro inteiro: {"rotulo": "WAP0009301", "termos": 1, "ativo_id": "01f549ff-82ba-4a87-9c5d-aefc6988fca7", "anotacoes": 1, "movimentacoes": 3, "arquivos_termos": ["80699e9b-2c3f-4052-b
+266c266
+< dev_destrutivo | NOTICE | ✓ 9a dev FORÇA o estado de um ativo: {"de": "em_uso", "para": "descartado", "rotulo": "WAP0009901", "alterado": true, "ativo_id": "c0b0f603-50a5-4ae2-91d9-5bfd1cdfa4c6", "detentor_zerado": true, "movimentacao_
+---
+> dev_destrutivo | NOTICE | ✓ 9a dev FORÇA o estado de um ativo: {"de": "em_uso", "para": "descartado", "rotulo": "WAP0009901", "alterado": true, "ativo_id": "9e1f245c-3ddc-4fbe-94ce-81716a44fc59", "detentor_zerado": true, "movimentacao_
+288c288
+< dev_destrutivo | NOTICE | ✓ 6a dev RESETA o acervo da filial Matriz: {"ativos": 16, "rotulo": "Matriz", "termos": 2, "alcance": "filial", "anotacoes": 0, "filial_id": 1, "movimentacoes": 28, "restam_ativos": 0, "arquivos_termos": ["9ebd
+---
+> dev_destrutivo | NOTICE | ✓ 6a dev RESETA o acervo da filial Matriz: {"ativos": 16, "rotulo": "Matriz", "termos": 2, "alcance": "filial", "anotacoes": 0, "filial_id": 1, "movimentacoes": 28, "restam_ativos": 0, "arquivos_termos": ["efb4
+1077c1077,1079
+< movimentacao_grade | NOTICE | FIM movimentacao_grade: 43 asserções, 0 falhas
+---
+> movimentacao_grade | NOTICE | ✓ 4a nenhuma das seis auxiliares é executável por anon, authenticated ou service_role (0 de 18 conferidos)
+> movimentacao_grade | NOTICE | ✓ 4b as seis existem, são definer com search_path e fechadas a PUBLIC (0 de 6 conferidos)
+> movimentacao_grade | NOTICE | FIM movimentacao_grade: 45 asserções, 0 falhas

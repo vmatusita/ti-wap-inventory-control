@@ -1335,8 +1335,45 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
      `f60_recorte.sql`, as mutações ancoradas nelas em `scripts/db/mutacoes.mjs`, os descritores e a porta — volta no MESMO
      PR (`git grep -n "_filiais" -- supabase/tests scripts src` lista o que falta).
 
-  ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56), embora as
-  atas dessas fases registrem os applies.
+- **`0150_movimentacao_decomposta.sql`** (reauditoria de 18/09, passo 4, item AG; escrita e **aplicada nos dois bancos
+  em 21/09/2026, ANTES do merge**, v1.66.5) — troca o corpo monolítico do gatilho `aplicar_movimentacao()` por uma
+  orquestradora fina sobre seis auxiliares `movimentacao_*` (`security definer`, fechadas nos quatro papéis). **Não toca
+  dado:** sete `create or replace`, seis `revoke`, seis `comment on`. Caminho **A** (sem `delete from ativos` nem de
+  `movimentacoes`; o único DELETE é o de `pendencias_item`, que o gatilho já fazia), pelo `apply_migration` do conector,
+  ensaio primeiro e só depois de o CI (`banco-sem-docker`) ter rodado a cadeia `0001`→`0150` sobre o SHA aplicado (run
+  35624750703, `1e51e92`). Ata em `docs/DECISOES.md` (21/09/2026, v1.66.5); saídas em `docs/ag-evidencias/`.
+
+  **Ledger:** ensaio `20260921130816` · produção `20260921132408`, os dois `movimentacao_decomposta`.
+
+  **Verificação pós-apply** (o rodapé da `0150`), igual nos dois bancos: md5 do `prosrc` = md5 do trecho entre os `$$`
+  do arquivo nas SETE funções (`aplicar_movimentacao` `aecfe7cc…`, `movimentacao_estornar` `baa02669…`,
+  `movimentacao_transicionar` `bc8bf350…`, `movimentacao_abrir_pendencias_item` `b9950cd2…`,
+  `movimentacao_desfazer_pendencias_item` `35a12016…`, `movimentacao_detentor_sincronizado` `41213c2b…`,
+  `movimentacao_pendencia_de_termo_restaurada` `ff66ea0b…`); uma assinatura por nome; o gatilho `BEFORE INSERT`
+  apontando para a orquestradora; as seis com `proacl = {postgres=X/postgres}` e `anon`/`authenticated`/`service_role`
+  false; a orquestradora com a ACL de ANTES (`{postgres=X/postgres,service_role=X/postgres}`: o `create or replace`
+  preserva a da `0038`, e o `service_role` é o resíduo AS de `DIVIDA-TECNICA.md`). `get_advisors`: as mesmas contagens
+  da linha de base, nos dois tipos, e **nenhuma das seis** entre as `security definer` alcançáveis pelo `authenticated`.
+  Sonda de paridade: as 10 classes idênticas em contagem e fingerprint (`func` 94, `grant_func` 94). Tipos gerados de
+  produção = do ensaio = `src/lib/types/database.ts` (md5 `fefed8c2…`). Smoke de produção **109 OK · 1 aviso · 0 falha**
+  (o aviso é o antigo de `kits_modelos`). Movimentações de produção antes = depois (3612).
+
+  **A prova de comportamento é do ensaio e do CI, nunca de produção:** `supabase/tests/movimentacao_grade.sql` desliga
+  o gatilho de `movimentacoes` nos cenários 2f/2n (ACCESS EXCLUSIVE), e por isso **não roda em produção nem em
+  transação desfeita**. No ensaio ele rodou em transação desfeita antes e depois do apply, com o mesmo md5 da grade
+  (`3e7fb539…`, 369 passos) que o CI deu contra a `0146` e contra a `0150`.
+
+  **Rollback** (nenhum passo perde dado; a ordem é o inverso da de apply e não é livre): **1º)** reemitir
+  `aplicar_movimentacao()` com o corpo monolítico da `0146` (md5 do `prosrc` de antes: `5d14b2a12f4ea57c2217598f2f45b01c`,
+  para conferir a volta); **2º)** só então derrubar as seis auxiliares pelas assinaturas do rodapé da `0150`. O inverso
+  derrubaria as auxiliares com a orquestradora nova no ar, e toda movimentação passaria a falhar. No repositório, a
+  reversão é migration nova, com `RECRIACOES_AUTORIZADAS` (a orquestradora) e `REMOCOES_AUTORIZADAS` (as seis, que são
+  intocáveis) em `src/lib/itens/migrations-f38.test.ts`, o cenário 14 de `f38_itens_com_ativo.sql`, `k_secdef` de
+  `catalogo_secdef.sql`, a porta `movimentacao-uma-porta.test.ts` e as mutações `ag-*` de `scripts/db/mutacoes.mjs`
+  reconciliados no mesmo commit.
+
+  ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56) nem das
+  `0146`→`0149` (passos 1 e 2 da reauditoria), embora as atas dessas fases e entregas registrem os applies.
 ---
 
 ## Anexo B — reconciliação do ledger (opcional, cosmética)

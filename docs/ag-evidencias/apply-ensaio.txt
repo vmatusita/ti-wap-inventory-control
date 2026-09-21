@@ -1,0 +1,50 @@
+# 0150 — apply no ENSAIO (sgmvldiizsrjbxzzpmhh), 21/09/2026, caminho A (MCP apply_migration)
+#
+# Ledger: 20260921130816 · movimentacao_decomposta
+#
+# 1) O corpo vivo é o do arquivo — md5 do `prosrc` × md5 do trecho entre os `$$` da 0150 (LF):
+#
+#   função                                       arquivo                           ensaio
+#   aplicar_movimentacao                         aecfe7ccbcd4126a113f23ec243487d9  aecfe7ccbcd4126a113f23ec243487d9
+#   movimentacao_abrir_pendencias_item           b9950cd21a94813b34f1086a1cbf2509  b9950cd21a94813b34f1086a1cbf2509
+#   movimentacao_desfazer_pendencias_item        35a1201617049d19d23e88c0dfe0502a  35a1201617049d19d23e88c0dfe0502a
+#   movimentacao_detentor_sincronizado           41213c2b97ee23a95eada1d163cd3320  41213c2b97ee23a95eada1d163cd3320
+#   movimentacao_estornar                        baa026695dbe19ee0f3e82c9115d8bca  baa026695dbe19ee0f3e82c9115d8bca
+#   movimentacao_pendencia_de_termo_restaurada   ff66ea0bc396ec2252a0fa033965dfcd  ff66ea0bc396ec2252a0fa033965dfcd
+#   movimentacao_transicionar                    bc8bf35008a3495030b175531af98b02  bc8bf35008a3495030b175531af98b02
+#
+#   (antes do apply, `aplicar_movimentacao` tinha o prosrc da 0146: 5d14b2a12f4ea57c2217598f2f45b01c, igual
+#    nos dois bancos e ao arquivo da 0146)
+#
+# 2) Assinaturas (uma cada, sem overload) e o gatilho:
+#   aplicar_movimentacao() -> trigger
+#   movimentacao_abrir_pendencias_item(movimentacoes,ativos) -> void
+#   movimentacao_desfazer_pendencias_item(uuid) -> void
+#   movimentacao_detentor_sincronizado(status_ativo,tipo_movimentacao,text,text) -> text
+#   movimentacao_estornar(movimentacoes,ativos) -> status_ativo
+#   movimentacao_pendencia_de_termo_restaurada(jsonb,text) -> text
+#   movimentacao_transicionar(movimentacoes,ativos) -> status_ativo
+#   trg_aplicar_movimentacao: BEFORE INSERT ON public.movimentacoes FOR EACH ROW EXECUTE FUNCTION aplicar_movimentacao()
+#
+# 3) ACL — as seis fechadas nos quatro papéis; a orquestradora com a ACL de antes (a da 0038):
+#   as seis: prosecdef=true · search_path=public · proacl={postgres=X/postgres} · anon/auth/serv = false
+#            (volatilidade: as duas puras `i`, as quatro que escrevem `v`)
+#   aplicar_movimentacao: prosecdef=true · search_path=public · proacl={postgres=X/postgres,service_role=X/postgres}
+#            — IGUAL a antes do apply (`create or replace` preserva a ACL; o service_role é resíduo da 0038, item AS)
+#
+# 4) Advisors — linha de base (antes) × depois, contagem por lint:
+#   security:    rls_enabled_no_policy 3 → 3 · authenticated_security_definer_function_executable 29 → 29
+#                (nenhuma das seis na lista) · auth_leaked_password_protection 1 → 1
+#   performance: unindexed_foreign_keys 11 → 11 · no_primary_key 1 → 1 · unused_index 11 → 11 ·
+#                multiple_permissive_policies 1 → 1
+#
+# 5) Comportamento — supabase/tests/movimentacao_grade.sql, em transação desfeita, no MESMO banco:
+#   antes do apply (0146):  369 passos · md5 3e7fb539ac9ca68e68a5b0b47fede629 · 43 asserções, 0 falhas · 0 auxiliares
+#   depois do apply (0150): 369 passos · md5 3e7fb539ac9ca68e68a5b0b47fede629 · 45 asserções, 0 falhas · 6 auxiliares
+#
+#   ⚠ A primeira rodada DEPOIS abortou na seção 4 com `record "r" has no field "papel"`: o alias `r(papel)` colidia com a
+#   variável de laço `r record` do bloco. Corrigido no roteiro (alias `papeis`) ANTES do commit que foi ao CI — é por
+#   isso que o ensaio existe.
+#
+# 6) Tipos: `generate_typescript_types` do ensaio depois do apply; o diff contra o src/lib/types/database.ts anterior
+#   foram exatamente as seis entradas `movimentacao_*` (38 linhas acrescentadas, nenhuma removida).
