@@ -175,6 +175,10 @@ const DA_F38 = [
   // A `0149` cria cinco funções NOVAS `security invoker` que juntam o update em `ativos` e a
   // anotação numa transação só (item U) — nenhuma recria função existente.
   '0149',
+  // Reauditoria de 18/09, passo 4 (v1.66.5, item AG) — a `0150` decompõe `aplicar_movimentacao`
+  // (intocável) numa orquestradora fina sobre seis auxiliares `movimentacao_*`, pela receita da
+  // F51. Entra pela exceção nominal `RECRIACOES_AUTORIZADAS`, e as seis entram em INTOCAVEIS.
+  '0150',
 ]
 
 /**
@@ -203,6 +207,17 @@ const INTOCAVEIS = [
   'rel_saldo_itens_filiais',
   'rel_mov_itens_filiais',
   'rel_estoque_asof_filiais',
+  // Reauditoria de 18/09, passo 4 (0150, item AG) — as seis auxiliares de
+  // `aplicar_movimentacao`. Pela MESMA régua das sucessoras acima: a lista protege o que a
+  // função FAZ, e depois da decomposição o que a máquina de estados faz mora nelas. Sem elas,
+  // uma migration futura poderia recriar `movimentacao_estornar` com outro corpo e esta guarda
+  // — que provava "nenhuma migration mexe no estorno sem exceção declarada" — não diria nada.
+  'movimentacao_estornar',
+  'movimentacao_pendencia_de_termo_restaurada',
+  'movimentacao_desfazer_pendencias_item',
+  'movimentacao_abrir_pendencias_item',
+  'movimentacao_transicionar',
+  'movimentacao_detentor_sincronizado',
 ] as const
 
 function arquivosDaFase(): { nome: string; sql: string }[] {
@@ -428,6 +443,22 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // `0134` e ensaiado no banco de ensaio em transação desfeita (antes: 23503; depois: a recusa
     // nova; pendência ABERTA continua sendo apagada pelo estorno).
     '0146': ['aplicar_movimentacao'],
+    // 21/09/2026 — a `0150` (reauditoria, passo 4, item AG) decompõe `aplicar_movimentacao`
+    // numa orquestradora fina sobre SEIS auxiliares que ela CRIA (nome novo) — e que nascem
+    // intocáveis (ver INTOCAVEIS). A lista é EXAUSTIVA sobre tudo o que a migration define,
+    // como a da `0143`. O que torna a exceção aceitável não é um diff pequeno — o corpo muda
+    // inteiro —, é a equivalência provada: `supabase/tests/movimentacao_grade.sql` nasceu num
+    // commit SEM a 0150 e deu o MESMO texto, passo a passo, contra a 0146 e contra a 0150 (369
+    // passos, md5 idêntico, no CI e no ensaio), e o código foi movido, não reescrito.
+    '0150': [
+      'aplicar_movimentacao',
+      'movimentacao_estornar',
+      'movimentacao_pendencia_de_termo_restaurada',
+      'movimentacao_desfazer_pendencias_item',
+      'movimentacao_abrir_pendencias_item',
+      'movimentacao_transicionar',
+      'movimentacao_detentor_sincronizado',
+    ],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`

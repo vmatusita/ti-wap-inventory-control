@@ -1699,6 +1699,44 @@ export type Database = {
       }
       mesmo_escopo_de_gestao: { Args: { p_alvo: string }; Returns: boolean }
       mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }
+      movimentacao_abrir_pendencias_item: {
+        Args: {
+          p_ativo: Database["public"]["Tables"]["ativos"]["Row"]
+          p_mov: Database["public"]["Tables"]["movimentacoes"]["Row"]
+        }
+        Returns: undefined
+      }
+      movimentacao_desfazer_pendencias_item: {
+        Args: { p_movimentacao_estornada: string }
+        Returns: undefined
+      }
+      movimentacao_detentor_sincronizado: {
+        Args: {
+          p_atual: string
+          p_informado: string
+          p_status: Database["public"]["Enums"]["status_ativo"]
+          p_tipo: Database["public"]["Enums"]["tipo_movimentacao"]
+        }
+        Returns: string
+      }
+      movimentacao_estornar: {
+        Args: {
+          p_ativo: Database["public"]["Tables"]["ativos"]["Row"]
+          p_mov: Database["public"]["Tables"]["movimentacoes"]["Row"]
+        }
+        Returns: Database["public"]["Enums"]["status_ativo"]
+      }
+      movimentacao_pendencia_de_termo_restaurada: {
+        Args: { p_atual: string; p_snapshot: Json }
+        Returns: string
+      }
+      movimentacao_transicionar: {
+        Args: {
+          p_ativo: Database["public"]["Tables"]["ativos"]["Row"]
+          p_mov: Database["public"]["Tables"]["movimentacoes"]["Row"]
+        }
+        Returns: Database["public"]["Enums"]["status_ativo"]
+      }
       papel_atual: {
         Args: never
         Returns: Database["public"]["Enums"]["papel_usuario"]

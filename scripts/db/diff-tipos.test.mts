@@ -269,8 +269,15 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // `ledger_de_migracoes` (a leitura do ledger da sonda de deriva, item AE) e a `0149` cria as
     // cinco escritas atômicas "ativos + anotação" (item U). A `0147` só derruba um índice, que não
     // aparece no `database.ts`. Relações não mudam.
+    //
+    // Reauditoria de 18/09/2026, passo 4 (v1.66.5): funções 82 -> 88. A `0150` decompõe
+    // `aplicar_movimentacao` e cria SEIS auxiliares `movimentacao_*` — fechadas nos quatro papéis,
+    // mas o gerador lista toda função de `public`, com ou sem grant (a mesma coisa das oito
+    // `import_*` da F51). O `database.ts` foi REGENERADO do ensaio depois do apply (MCP
+    // `generate_typescript_types`) e o diff contra o anterior foram exatamente as seis entradas.
+    // A orquestradora continua fora: é `returns trigger`.
     expect(real.relacoes.size).toBe(34)
-    expect(real.funcoes.size).toBe(82)
+    expect(real.funcoes.size).toBe(88)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

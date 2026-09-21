@@ -151,6 +151,7 @@
     "0146_estorno_com_pendencia_resolvida.sql": "c390d5a5bd862d0b2142ac821030e45d7f9c02f72d5a4b23110caf04532a567c",
     "0147_drop_itens_nome_uidx.sql": "89692b96c64b631e52050c0c960102be620411d9c907830fd43151c545902c68",
     "0148_ledger_de_migracoes.sql": "16193908685dc6638ebf62be7b3466d98334f0944a31df381a8044fbdcf451eb",
-    "0149_escrita_atomica_ativos_anotacao.sql": "2b4e0bb7a2e82178b3f1c9a8d010887f1f9718a7e6aaab217e73f429d2c59271"
+    "0149_escrita_atomica_ativos_anotacao.sql": "2b4e0bb7a2e82178b3f1c9a8d010887f1f9718a7e6aaab217e73f429d2c59271",
+    "0150_movimentacao_decomposta.sql": "625aeee4eff2758a7c2dc0297369e6d8622dbfee106a7917d49b341ba70f6927"
   }
 }

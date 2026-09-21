@@ -3,8 +3,9 @@
 -- =============================================================
 -- POR QUE ELE EXISTE
 --
--- O sistema tem 51 funções `security definer` (48 quando este arquivo nasceu na
--- F48; as três da 0138/F55 fecham a conta) — cada uma roda com o privilégio do
+-- O sistema tem 58 funções `security definer` (48 quando este arquivo nasceu na
+-- F48; as três da 0138/F55, a da 0148 e as seis da 0150 fecham a conta — o
+-- histórico está no comentário de `k_secdef`) — cada uma roda com o privilégio do
 -- DONO e, por construção, IGNORA a RLS das tabelas que lê e escreve. É a superfície
 -- mais concentrada de poder do banco, e até hoje **ninguém a enumerava**. Uma função
 -- `security definer` nova podia nascer executável por `anon`, ou com `search_path`
@@ -52,7 +53,8 @@ declare
   v_secdef boolean;
 
   -- -----------------------------------------------------------------------
-  -- A TABELA-VERDADE — as 51 `security definer` de `public`, classificadas.
+  -- A TABELA-VERDADE — as 58 `security definer` de `public`, classificadas (eram 51
+  -- na medição abaixo; a 0148 trouxe uma e a 0150 trouxe seis, cada uma com o motivo).
   -- Medidas em 10/09/2026 sobre as migrations 0001→0138 (eram 48 até a 0137; a
   -- F55 acrescentou TRÊS na 0138 — as três no fim desta lista, com o motivo).
   -- Ordem alfabética dentro de cada bloco. O histórico da contagem:
@@ -121,6 +123,18 @@ declare
     'import_validar_plano', 'import_revalidar_contagens', 'import_apagar_acervo_filial',
     'import_criar_ativos', 'import_lancar_movimentacoes', 'import_conferir_resultado',
     'import_contar_conflitos', 'import_gravar_trilha',
+    -- As SEIS auxiliares de `aplicar_movimentacao` (reauditoria de 18/09, passo 4, item
+    -- AG — 0150). O gatilho de ~150 linhas virou uma orquestradora fina sobre elas, pela
+    -- receita da F51 e pelo mesmo argumento: cada uma herdou o `security definer` do
+    -- gatilho que as gerou, porque a semântica de privilégio de um trecho da máquina de
+    -- estados não pode passar a depender de QUEM CHAMA. Elas NÃO são API — `revoke all …
+    -- from public, anon, authenticated, service_role` nas seis; só a orquestradora, que
+    -- roda como o dono, as alcança. Quem escreve em `ativos`, quem abre e quem apaga
+    -- pendência de item é invariante conferida sem banco por
+    -- src/lib/validators/movimentacao-uma-porta.test.ts. 58 no total.
+    'movimentacao_estornar', 'movimentacao_pendencia_de_termo_restaurada',
+    'movimentacao_desfazer_pendencias_item', 'movimentacao_abrir_pendencias_item',
+    'movimentacao_transicionar', 'movimentacao_detentor_sincronizado',
     -- Porta pública por senha (0025): conta tentativa por IP sem sessão nenhuma.
     'registrar_tentativa_senha',
     -- Área /dev (0077/0127): diagnóstico só-leitura, com SQL FIXO por dentro.
@@ -156,7 +170,8 @@ declare
     -- `checagens_integridade_resumo`, cuja guarda ela copia
     -- (`papel_atual() is not null`). É o que `scripts/smoke/deriva-migrations.mjs`
     -- lê pela conta `consulta` do smoke agendado, para comparar o repositório
-    -- com o que já foi aplicado. 52 no total.
+    -- com o que já foi aplicado. 52 no total (as seis da 0150, no bloco do import,
+    -- levam a 58).
     'ledger_de_migracoes'
   ];
 

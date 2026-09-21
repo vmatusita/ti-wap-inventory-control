@@ -18,7 +18,7 @@
 -- cenários nomeados da seção 2 fecham esses buracos, e são eles que o injetor de
 -- mutações (scripts/db/mutacoes.mjs) usa para provar que cada auxiliar tem quem acuse.
 --
--- AS TRÊS SEÇÕES
+-- AS QUATRO SEÇÕES
 --
 --   1. A GRADE: todo estado × todo tipo (menos `ajuste` e `estorno`, que têm cenário
 --      próprio), em duas variantes de fixture; cada movimentação ACEITA é estornada em
@@ -29,6 +29,8 @@
 --   2. OS CENÁRIOS NOMEADOS, um bloco do gatilho por rótulo.
 --   3. A IMPRESSÃO: cada passo vira uma linha `· <rótulo> | <observação>`, e a última
 --      linha informativa traz o md5 da grade. É esse texto que o ANTES × DEPOIS compara.
+--   4. A ACL das seis auxiliares da 0150 — a única seção que o ANTES não tinha, porque
+--      as auxiliares ainda não existiam.
 --
 -- Convenção dos demais roteiros: `NOTICE '✓ …'` quando bate, `WARNING '✗ …'` quando não
 -- bate, e a linha `FIM` no fim. As linhas `·` e `ℹ` são informativas e o runner as
@@ -841,6 +843,42 @@ begin
     into v_n, v_txt from _ag_obs;
   raise notice 'ℹ grade: % passos, md5 %', v_n, v_txt;
 
+  -- ==========================================================================
+  -- §4  AS SEIS AUXILIARES NASCEM FECHADAS (acrescentada no commit da 0150)
+  -- ==========================================================================
+  -- Esta seção NÃO existe no ANTES — as auxiliares ainda não existiam —, e é a única
+  -- diferença de rótulos entre as duas rodadas (a mesma forma da seção 0 da F51 no
+  -- import). Decompor uma `security definer` REORGANIZA a superfície, não a reduz: o que
+  -- mantém a máquina de estados fora da API é uma linha de `revoke` por função, e um
+  -- `grant` esquecido numa migration futura é indistinguível de uma mutação.
+  --
+  -- ⚠ O roteiro roda como `postgres`, dono das seis — e isso NÃO contradiz o `revoke`: o
+  -- dono sempre executa a própria função, e é por isso que o gatilho, que roda como ele,
+  -- as alcança. Quem prova que elas estão fechadas é a ACL real, lida aqui.
+  select count(*) filter (where has_function_privilege(papeis.papel, p.oid, 'execute')), count(*)
+    into v_n, v_u
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+    cross join (values ('anon'), ('authenticated'), ('service_role')) as papeis(papel)
+   where p.proname in ('movimentacao_estornar', 'movimentacao_pendencia_de_termo_restaurada',
+                       'movimentacao_desfazer_pendencias_item', 'movimentacao_abrir_pendencias_item',
+                       'movimentacao_transicionar', 'movimentacao_detentor_sincronizado');
+  if pg_temp.assert_zero_de('4a nenhuma das seis auxiliares é executável por anon, authenticated ou service_role', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 4b — as seis EXISTEM (senão 4a olharia menos que 18 pares), são `security definer`
+  --      com `search_path` travado, e nenhuma herda EXECUTE de PUBLIC. ACL nula é o
+  --      default do Postgres — e o default dá EXECUTE a PUBLIC (a lição da F50).
+  select 6 - count(*) filter (where p.prosecdef
+                                and exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%')
+                                and p.proacl is not null
+                                and p.proacl::text !~ '(^|[{,])=X')
+    into v_n
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+   where p.proname in ('movimentacao_estornar', 'movimentacao_pendencia_de_termo_restaurada',
+                       'movimentacao_desfazer_pendencias_item', 'movimentacao_abrir_pendencias_item',
+                       'movimentacao_transicionar', 'movimentacao_detentor_sincronizado');
+  if pg_temp.assert_zero_de('4b as seis existem, são definer com search_path e fechadas a PUBLIC', v_n, 6) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM movimentacao_grade: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
