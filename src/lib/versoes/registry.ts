@@ -23,6 +23,15 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.4',
+    data: '2026-09-21',
+    titulo: 'A cor das caixas de aviso amarelas passou a vir de um lugar só',
+    mudancas: [
+      'As caixas de aviso amarelas, como a pendência em destaque na ficha do equipamento e os avisos dos passos de "Nova movimentação", do cadastro de compra e dos relatórios gerados, continuam exatamente com a mesma cor e o mesmo contraste, no tema claro e no escuro. A mudança é só por dentro: a cor delas deixou de ser repetida em cada tela e passou a vir de um lugar só.',
+      'Por dentro, sem efeito na tela: um ajuste futuro nessa cor passa a valer para todas essas caixas de uma vez, e a conferência automática que roda antes de toda publicação passou a recusar uma caixa nova que volte a escrever a cor avulsa.',
+    ],
+  },
+  {
     versao: '1.66.3',
     data: '2026-09-18',
     titulo: 'As correções na ficha do equipamento passaram a gravar a mudança e o registro dela juntos',

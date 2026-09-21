@@ -236,7 +236,7 @@ export function PassoRevisao({
   return (
     <div className="space-y-4">
       {duplicatas.length > 0 && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto">
           <p className="flex items-center gap-1.5 font-medium">
             <TriangleAlert className="size-4" />
             Possível duplicata

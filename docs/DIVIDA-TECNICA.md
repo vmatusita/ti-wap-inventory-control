@@ -51,6 +51,29 @@
 > | **AO** | `reabrirPendenciaItem` grava a anotação DEPOIS da RPC atômica: o espelho do U (a anotação pode FALTAR, nunca sobrar) | 1 | 2 | 2 | **12** |
 > | **AP** | Duas operações simultâneas que MUDAM a pendência do mesmo ativo ainda se sobrescrevem (anterior à 1.66.3; fechar exige espelhar em SQL a limpeza de pendência do TS) | 1 | 1 | 3 | **6** |
 
+> **Passo 3 EXECUTADO em 21/09 (v1.66.4).** Sem migration e sem mudança de cor. Detalhe e decisões na ata de
+> `docs/DECISOES.md`.
+>
+> - **AB ✅ fechado.** A décima família de token (`--callout-atencao` / `-texto` / `-borda`, nos dois temas, com os valores
+>   de fábrica) e **63 pares trocados em 21 arquivos**, por script: um par só troca quando o claro e o `dark:` de mesmo
+>   valor estão no mesmo trecho. **A cor crua do código desceu de 398 para 272**, e os arquivos de 51 para 45. A previsão
+>   desta seção ("perto de 200") contava o âmbar inteiro como caixa; medido, a caixa era metade dele. Nenhum pixel mudou:
+>   as razões do medidor batem com as do par cru, os 28 trechos passaram pela verificação adversarial da cascata, e um
+>   harness comparou as capturas antes × depois byte a byte com o CSS compilado de verdade (252 combinações). Foi o
+>   harness, e não a leitura de código, que pegou a única regressão: o "Dispensar" (`Button ghost`) no hover escuro,
+>   corrigido com `dark:hover:`.
+> - **O `Aviso` NÃO foi aplicado às caixas, de propósito.** A intenção `atencao` pinta com `--warning` (4,92:1) e a
+>   caixa, com o token novo (8,77:1). Unificar é repintar um dos lados (item AR).
+> - **A catraca mudou de alcance:** deixou de contar `*.test.ts` (as sabotagens da regra de tinta precisam escrever a
+>   classe crua). Os 413 da F61 eram 398 de tela + 15 de teste; a tabela do `cores.test.ts` registra as duas linhas.
+>
+> **Dois itens novos, medidos na execução:**
+>
+> | # | Item | Imp. | Risco | Esf. | **Prio** |
+> |---|---|:-:|:-:|:-:|:-:|
+> | **AQ** | O âmbar que sobrou é de OUTRAS duas intenções: a pílula `bg-amber-100 text-amber-800` + `dark:` 950/300 (12 linhas, 48 classes) e o texto de atenção em linha `text-amber-700`/`800` + `dark:` 400/300 (17 linhas, 34 classes). A mesma receita, duas famílias novas, e o mesmo harness de pixels (a pílula é quase toda `<span>`, mas há um `Badge` e três mapas de classe que vão parar em componentes do kit, onde a variante de estado decide) | 2 | 1 | 1 | **15** |
+> | **AR** | Duas tintas para a mesma intenção: `<Aviso intencao="atencao">` (9 usos, `--warning`, 4,92:1) × a caixa de atenção (a maioria dos 28 trechos trocados, token novo, 8,77:1). Unificar repinta um lado; recomendação: o `Aviso` adota a caixa (o contraste sobe, e a caixa é a maioria). Decisão das frentes a/b/c | 2 | 1 | 1 | **15** |
+
 Revalida item a item contra a `main` de hoje (`98a78da`), 26 fases depois da rodada de 12/08 e
 três semanas depois da revisão de 30/08. **Levantamento e priorização, nenhuma correção executada.**
 Mesma fórmula de sempre: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, eixos de 1 a 5, esforço
@@ -329,7 +352,7 @@ Desenhado para caber **ao lado** do multiempresa, não no lugar dele.
 - **U:** inverter a ordem em `termos.ts` e `ativos.ts`.
 - **AJ:** faxina, num commit.
 
-**Faixa 3: junto das frentes b/c do sistema de design**
+**Faixa 3: junto das frentes b/c do sistema de design** *(✅ executada sozinha em 21/09, v1.66.4: ver o topo)*
 - **AB:** a décima família de token (`--callout-atencao*`), com os valores oklch de hoje. Zero
   pixel muda.
 
@@ -701,6 +724,10 @@ entender o valor novo (a armadilha que o próprio arquivo documenta).
 **Esforço** 2 · **Impacto** 2 · **Risco** 2 — mas o gatilho é uma decisão, não uma tarde de código.
 
 ### AB — O âmbar é 56% da cor crua, e dá para tokenizá-lo SEM repintar `[Prio 32]` *(novo — 30/08/2026)*
+
+> **✅ Fechado em 21/09/2026 (v1.66.4).** A família nasceu como descrita abaixo, e a troca cobriu 63 pares. A previsão
+> "de 479 para perto de 200" não se cumpriu: medido, a caixa era metade do âmbar, e a outra metade é pílula e texto
+> em linha (item AQ, no topo). Ata em `docs/DECISOES.md` (2026-09-21 · v1.66.4).
 
 **310 das 555 classes de paleta crua do inventário são âmbar** — mais do que todas as outras doze
 famílias somadas. O callout

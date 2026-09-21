@@ -69,7 +69,7 @@ export default async function DevolucaoFornecedorPage({
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         {voltar}
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="flex items-start gap-2 rounded-lg border border-callout-atencao-borda bg-callout-atencao p-4 text-sm text-callout-atencao-texto">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             {!ativo

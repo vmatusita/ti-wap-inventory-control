@@ -227,7 +227,7 @@ export default async function DashboardPage() {
           — a ausência do card é a boa notícia. (Pendências, que é fixture com
           rota própria, continua mostrando o estado vazio comemorativo.) */}
       {repor.length > 0 && (
-        <Card className="border-amber-300 dark:border-amber-900">
+        <Card className="border-callout-atencao-borda">
           <CardContent className="py-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-sm font-semibold">

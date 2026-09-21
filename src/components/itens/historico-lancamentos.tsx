@@ -305,7 +305,7 @@ export function HistoricoLancamentos({
             // `border` de hoje, sem o anel do kit por cima.
             <Card
               role="alert"
-              className="border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+              className="border border-callout-atencao-borda bg-amber-50 p-3 text-sm text-callout-atencao-texto ring-0 dark:bg-amber-950"
             >
               {AVISO_ESTORNO_PERNA_TRANSFERENCIA}
             </Card>

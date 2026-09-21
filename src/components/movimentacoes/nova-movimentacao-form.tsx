@@ -1281,7 +1281,7 @@ export function NovaMovimentacaoForm({
       {(origemInvalida || avisoLote) && (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          className="flex items-start gap-2 rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto"
         >
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
@@ -1296,7 +1296,7 @@ export function NovaMovimentacaoForm({
 
       {/* F10/M6 — lote não registrado desta aba (sessionStorage) */}
       {rascunhoPendente && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto">
           <FileClock className="size-4 shrink-0" />
           <p className="min-w-0 flex-1">
             Você tem um lote não registrado —{' '}

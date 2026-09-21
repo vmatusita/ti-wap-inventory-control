@@ -182,7 +182,7 @@ export function ChecklistFaltantes({
       {avisoSemLancamento && (
         <p
           role="status"
-          className="rounded-md border border-amber-600/40 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200"
+          className="rounded-md border border-amber-600/40 bg-callout-atencao px-3 py-2 text-xs text-callout-atencao-texto dark:border-amber-500/30"
         >
           {avisoSemLancamento}
         </p>
@@ -303,7 +303,7 @@ function BotaoDesfecho({
           'border-emerald-600 bg-emerald-100 text-emerald-900 dark:border-emerald-500 dark:bg-emerald-950 dark:text-emerald-200',
         ativo &&
           tom === 'alerta' &&
-          'border-amber-600 bg-amber-100 text-amber-900 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-200',
+          'border-amber-600 bg-amber-100 text-callout-atencao-texto dark:border-amber-500 dark:bg-amber-950',
       )}
     >
       {children}

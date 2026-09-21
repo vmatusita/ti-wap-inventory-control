@@ -317,7 +317,7 @@ export function PassoMovimentacao({
           adicionar o monitor que faltava apaga o aviso sozinho. */}
       {kitAplicado &&
         (faltaCategoriaDoKit(checklistKit) ? (
-          <div className="flex flex-wrap items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="flex flex-wrap items-start gap-2 rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto">
             <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
             <p className="min-w-0 flex-1">
               <span className="font-medium">{kitAplicado.nome}</span> espera:{' '}
@@ -329,12 +329,19 @@ export function PassoMovimentacao({
               ))}{' '}
               — adicione os que faltam no passo 1 ou registre assim mesmo.
             </p>
+            {/* v1.66.4 — o `dark:hover:` NÃO é enfeite. A variante `ghost` do Button
+                pinta `hover:text-foreground`; o `dark:text-amber-200` de antes empatava
+                com ela em especificidade (o `dark:` desta casa soma uma classe) e
+                vencia pela ordem do CSS, então no escuro o "Dispensar" continuava âmbar
+                com o mouse em cima. O token é classe base e perderia — o harness de
+                pixels pegou. `dark:hover:` devolve exatamente aquele pixel; no claro, o
+                hover continua indo para `text-foreground`, como sempre foi. */}
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={onLimparKit}
-              className="shrink-0 text-amber-900 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40"
+              className="shrink-0 text-callout-atencao-texto hover:bg-amber-100 dark:hover:bg-amber-900/40 dark:hover:text-callout-atencao-texto"
             >
               Dispensar
             </Button>

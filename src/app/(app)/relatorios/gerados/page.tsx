@@ -214,7 +214,7 @@ export default async function RelatoriosGeradosPage({
                       {g.superada && (
                         <Badge
                           variant="outline"
-                          className="border-amber-400/60 text-amber-900 dark:text-amber-200"
+                          className="border-amber-400/60 text-callout-atencao-texto"
                         >
                           superada
                         </Badge>

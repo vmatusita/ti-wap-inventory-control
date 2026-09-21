@@ -65,7 +65,7 @@ function LinhaChecagem({ c }: { c: Checagem }) {
       {/* A amostra é o que torna o número acionável: sem ela, "3 achados" manda o dev
           reescrever a consulta à mão para descobrir QUAIS são. */}
       {achou && c.amostra.length > 0 && (
-        <ul className="mt-2 space-y-0.5 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <ul className="mt-2 space-y-0.5 rounded-md border border-callout-atencao-borda bg-callout-atencao p-2 text-xs text-callout-atencao-texto">
           {c.amostra.slice(0, MAX_AMOSTRA).map((a) => (
             <li key={a} className="truncate font-mono" title={a}>
               {a}
@@ -81,7 +81,7 @@ function LinhaChecagem({ c }: { c: Checagem }) {
       )}
 
       {c.erro !== null && (
-        <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className="mt-2 rounded-md border border-callout-atencao-borda bg-callout-atencao p-2 text-xs text-callout-atencao-texto">
           {c.erro}
         </p>
       )}

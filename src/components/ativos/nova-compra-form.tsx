@@ -860,7 +860,7 @@ export function NovaCompraForm({
             que piscou vê só o verde "cadastrado" — que é exatamente a tela mentirosa
             que o aviso existe para evitar. A ficha está a um clique, logo abaixo. */}
         {avisoParcial && (
-          <p className="mx-auto mt-3 max-w-md rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="mx-auto mt-3 max-w-md rounded-md border border-amber-300 bg-callout-atencao px-3 py-2 text-sm text-callout-atencao-texto dark:border-amber-900/60">
             {avisoParcial}
           </p>
         )}
@@ -927,7 +927,7 @@ export function NovaCompraForm({
           tem precedência e nem chega a oferecer o rascunho (ver o efeito de
           hidratação). */}
       {rascunhoPendente && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto">
           <FileClock className="size-4 shrink-0" />
           <p className="min-w-0 flex-1">
             Você tem uma compra não cadastrada —{' '}
