@@ -34,6 +34,13 @@
 -- bate, e a linha `FIM` no fim. As linhas `·` e `ℹ` são informativas e o runner as
 -- ignora. Tudo numa transação que termina em ROLLBACK: nada é gravado.
 --
+-- ⚠ A FORMA DAS ASSERÇÕES NÃO É LIVRE. Os cenários nomeados escrevem o `✗ <rótulo>` LITERAL
+-- e as propriedades da grade usam `pg_temp.assert_zero_de('<rótulo> …')` (a ferramenta da
+-- F45, que recusa universo vazio). São as duas formas que a trava de mesa do injetor
+-- (`scripts/db/mutacoes.test.mts`, `rotuloExisteNoFonte`) sabe ler: um helper local que
+-- montasse o ✗ em tempo de execução faria todo rótulo desta casa parecer inexistente para
+-- ela — e as mutações que dependem deles seriam recusadas antes de rodar.
+--
 -- Pré-requisitos: ≥ 1 profile ativo (o CI cria `ci@wap.ind.br`) e ≥ 3 filiais ativas
 -- (as da 0007). Dados 100% fictícios (CLAUDE.md regra 2): patrimônios `TESTEAG…`,
 -- pessoas "Detentor AG"/"Novo AG"/"Outro AG".
@@ -70,15 +77,6 @@ create temp table _ag_obs (
   g_s      public.status_ativo,
   g_t      public.tipo_movimentacao,
   g_estorno boolean
-) on commit drop;
-
--- O registro de cada asserção (a linha FIM soma daqui, e o ensaio por API lê daqui,
--- porque NOTICE/WARNING não voltam pela Management API).
-create temp table _ag_res (
-  n      int generated always as identity,
-  rotulo text not null,
-  ok     boolean not null,
-  obtido text
 ) on commit drop;
 
 -- O estado observável depois de um passo: o que a movimentação gravou nela mesma, o
@@ -187,35 +185,6 @@ as $f$
   returning id;
 $f$;
 
--- ✓/✗ no estilo dos roteiros, e o registro em `_ag_res`.
-create function pg_temp.ag_conferir(p_rotulo text, p_ok boolean, p_obtido text)
-returns boolean
-language plpgsql
-as $f$
-begin
-  if coalesce(p_ok, false) then
-    raise notice '✓ %', p_rotulo;
-  else
-    raise warning '✗ % — obtido: %', p_rotulo, coalesce(p_obtido, 'NULL');
-  end if;
-  insert into _ag_res (rotulo, ok, obtido) values (p_rotulo, coalesce(p_ok, false), p_obtido);
-  return coalesce(p_ok, false);
-end $f$;
-
--- A mesma coisa sobre um UNIVERSO, pela ferramenta da casa (recusa conjunto vazio).
-create function pg_temp.ag_zero(p_rotulo text, p_ruins bigint, p_universo bigint)
-returns boolean
-language plpgsql
-as $f$
-declare
-  v_ok boolean;
-begin
-  v_ok := pg_temp.assert_zero_de(p_rotulo, p_ruins, p_universo);
-  insert into _ag_res (rotulo, ok, obtido)
-    values (p_rotulo, v_ok, format('%s de %s fora da regra', p_ruins, p_universo));
-  return v_ok;
-end $f$;
-
 -- O último erro registrado (nulo se o último passo foi aceito).
 create function pg_temp.ag_ultimo_erro()
 returns text
@@ -236,7 +205,7 @@ declare
   m1 uuid; m2 uuid; m3 uuid; v_dev uuid;
   v_item smallint; v_pend uuid;
   v_erro text; v_txt text; v_n int; v_u int;
-  v_ok int; v_falhas int;
+  v_ok int := 0; v_falhas int := 0;
   r record;
 begin
   select id into v_prof from public.profiles
@@ -308,14 +277,14 @@ begin
          count(*)
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and not o.g_estorno;
-  perform pg_temp.ag_zero('1a a grade aceita exatamente o que status_apos_movimentacao aceita', v_n, v_u);
+  if pg_temp.assert_zero_de('1a a grade aceita exatamente o que status_apos_movimentacao aceita', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 1b — toda recusa da grade é a da transição inválida, com a frase que o app traduz.
   select count(*) filter (where o.erro not like 'P0001 Movimentacao % invalida para ativo TESTEAG% no estado %'),
          count(*)
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and not o.g_estorno and o.erro is not null;
-  perform pg_temp.ag_zero('1b toda recusa da grade é a da transição inválida', v_n, v_u);
+  if pg_temp.assert_zero_de('1b toda recusa da grade é a da transição inválida', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 1c — o aceite leva o ativo ao estado da matriz, na filial certa (compra/troca da
   --      variante B vão para a terceira filial; a transferência de A vai para a segunda;
@@ -328,7 +297,7 @@ begin
          count(*)
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and not o.g_estorno and o.erro is null;
-  perform pg_temp.ag_zero('1c todo aceite da grade leva ao estado da matriz e à filial certa', v_n, v_u);
+  if pg_temp.assert_zero_de('1c todo aceite da grade leva ao estado da matriz e à filial certa', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 1d — o detentor segue o ESTADO resultante (0110): sem dono → nulo; saída,
   --      empréstimo e reserva → o informado; os demais → o que já estava.
@@ -346,7 +315,7 @@ begin
          count(*)
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and not o.g_estorno and o.erro is null;
-  perform pg_temp.ag_zero('1d o detentor segue o estado resultante em todo aceite da grade', v_n, v_u);
+  if pg_temp.assert_zero_de('1d o detentor segue o estado resultante em todo aceite da grade', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 1e — termo e pendência seguem a movimentação: o termo informado vence (B), o
   --      ausente preserva o da fixture (A); a pendência de texto NÃO é tocada; só a
@@ -364,7 +333,7 @@ begin
          count(*)
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and not o.g_estorno and o.erro is null;
-  perform pg_temp.ag_zero('1e termo e pendências seguem a movimentação em todo aceite da grade', v_n, v_u);
+  if pg_temp.assert_zero_de('1e termo e pendências seguem a movimentação em todo aceite da grade', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 1f — o estorno de todo aceite passa e é o inverso completo: status, detentor,
   --      filial e termo da fixture; a pendência SEM o trecho de itens faltantes; e
@@ -386,7 +355,7 @@ begin
          count(*)
     into v_n, v_u
     from _ag_obs o where o.g_var is not null and o.g_estorno;
-  perform pg_temp.ag_zero('1f o estorno de todo aceite da grade passa e devolve a fixture', v_n, v_u);
+  if pg_temp.assert_zero_de('1f o estorno de todo aceite da grade passa e devolve a fixture', v_n, v_u) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
   -- §2  OS CENÁRIOS NOMEADOS — um bloco do gatilho por rótulo
@@ -397,20 +366,27 @@ begin
   m1 := pg_temp.ag_passo('2a', a, 'saida', v_f1, p_colaborador => 'Novo AG');
   select format('%s %s %s', m.status_anterior, m.status_resultante, m.snapshot_anterior) into v_txt
     from public.movimentacoes m where m.id = m1;
-  perform pg_temp.ag_conferir('2a o snapshot guarda as sete chaves com os valores de antes',
-    (select m.snapshot_anterior = jsonb_build_object(
-              'status', 'em_estoque', 'colaborador', null, 'setor', null, 'filial_id', v_f1,
-              'pendencia', 'Pendência 2a', 'termo_assinado', 'gerado', 'termo_data', '2026-01-10')
-            and m.status_anterior = 'em_estoque' and m.status_resultante = 'em_uso'
-       from public.movimentacoes m where m.id = m1),
-    v_txt);
+  if coalesce((select m.snapshot_anterior = jsonb_build_object(
+       'status', 'em_estoque', 'colaborador', null, 'setor', null, 'filial_id', v_f1,
+       'pendencia', 'Pendência 2a', 'termo_assinado', 'gerado', 'termo_data', '2026-01-10')
+       and m.status_anterior = 'em_estoque' and m.status_resultante = 'em_uso'
+       from public.movimentacoes m where m.id = m1), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2a o snapshot guarda as sete chaves com os valores de antes';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2a o snapshot guarda as sete chaves com os valores de antes — obtido: %', coalesce((v_txt)::text, 'NULL');
+  end if;
 
   -- 2b — estorno sem `estorno_de`.
   a := pg_temp.ag_ativo('TESTEAG2B01', v_f1, 'em_estoque');
   perform pg_temp.ag_passo('2b', a, 'estorno', v_f1);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2b estorno sem estorno_de é recusado com a frase própria',
-    v_erro = 'P0001 Estorno exige referencia a movimentacao original (estorno_de)', v_erro);
+  if coalesce(v_erro = 'P0001 Estorno exige referencia a movimentacao original (estorno_de)', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2b estorno sem estorno_de é recusado com a frase própria';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2b estorno sem estorno_de é recusado com a frase própria — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2c — `estorno_de` aponta para a movimentação de OUTRO ativo.
   a := pg_temp.ag_ativo('TESTEAG2C01', v_f1, 'em_estoque');
@@ -418,15 +394,23 @@ begin
   m1 := pg_temp.ag_passo('2c-prep', b, 'saida', v_f1, p_colaborador => 'Novo AG');
   perform pg_temp.ag_passo('2c', a, 'estorno', v_f1, p_estorno_de => m1);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2c estorno_de de outro ativo é recusado',
-    v_erro = 'P0001 estorno_de precisa apontar para uma movimentacao do MESMO ativo', v_erro);
+  if coalesce(v_erro = 'P0001 estorno_de precisa apontar para uma movimentacao do MESMO ativo', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2c estorno_de de outro ativo é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2c estorno_de de outro ativo é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2d — `estorno_de` aponta para movimentação que não existe (o gatilho recusa antes da FK).
   perform pg_temp.ag_passo('2d', a, 'estorno', v_f1,
             p_estorno_de => '00000000-0000-4000-8000-00000000a9d0'::uuid);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2d estorno_de inexistente é recusado pelo gatilho, antes da FK',
-    v_erro = 'P0001 estorno_de precisa apontar para uma movimentacao do MESMO ativo', v_erro);
+  if coalesce(v_erro = 'P0001 estorno_de precisa apontar para uma movimentacao do MESMO ativo', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2d estorno_de inexistente é recusado pelo gatilho, antes da FK';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2d estorno_de inexistente é recusado pelo gatilho, antes da FK — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2e — estorno de um estorno.
   a := pg_temp.ag_ativo('TESTEAG2E01', v_f1, 'em_estoque');
@@ -434,8 +418,12 @@ begin
   m2 := pg_temp.ag_passo('2e-prep2', a, 'estorno', v_f1, p_estorno_de => m1);
   perform pg_temp.ag_passo('2e', a, 'estorno', v_f1, p_estorno_de => m2);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2e estorno de estorno é recusado',
-    v_erro = 'P0001 Esta movimentacao nao pode ser estornada', v_erro);
+  if coalesce(v_erro = 'P0001 Esta movimentacao nao pode ser estornada', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2e estorno de estorno é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2e estorno de estorno é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2f — estorno de movimentação SEM snapshot (legado; montada com o gatilho desligado).
   a := pg_temp.ag_ativo('TESTEAG2F01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
@@ -447,8 +435,12 @@ begin
   alter table public.movimentacoes enable trigger trg_aplicar_movimentacao;
   perform pg_temp.ag_passo('2f', a, 'estorno', v_f1, p_estorno_de => m1);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2f estorno de movimentação sem snapshot é recusado',
-    v_erro = 'P0001 Esta movimentacao nao pode ser estornada', v_erro);
+  if coalesce(v_erro = 'P0001 Esta movimentacao nao pode ser estornada', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2f estorno de movimentação sem snapshot é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2f estorno de movimentação sem snapshot é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2g — só a última: `created_at` distintos, estornar a primeira.
   a := pg_temp.ag_ativo('TESTEAG2G01', v_f1, 'em_estoque');
@@ -459,8 +451,12 @@ begin
   perform pg_temp.ag_passo('2g', a, 'estorno', v_f1, p_estorno_de => m1,
             p_created_at => timestamptz '2026-06-01 09:02:00+00');
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2g estornar uma movimentação que não é a última é recusado',
-    v_erro = 'P0001 So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)', v_erro);
+  if coalesce(v_erro = 'P0001 So a ultima movimentacao efetiva do ativo pode ser estornada (use ajuste, com justificativa)', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2g estornar uma movimentação que não é a última é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2g estornar uma movimentação que não é a última é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2h — o empate de `created_at` é desempatado por `ordem` (0134): a primeira recusa,
   --      a segunda aceita.
@@ -470,9 +466,12 @@ begin
   perform pg_temp.ag_passo('2h-1', a, 'estorno', v_f1, p_estorno_de => m1);
   v_erro := pg_temp.ag_ultimo_erro();
   m3 := pg_temp.ag_passo('2h-2', a, 'estorno', v_f1, p_estorno_de => m2);
-  perform pg_temp.ag_conferir('2h no empate de created_at, só a de maior ordem é estornável',
-    v_erro like 'P0001 So a ultima movimentacao efetiva%' and m3 is not null,
-    coalesce(v_erro, 'a primeira foi ACEITA') || ' / segunda: ' || coalesce(pg_temp.ag_ultimo_erro(), 'aceita'));
+  if coalesce(v_erro like 'P0001 So a ultima movimentacao efetiva%' and m3 is not null, false) then
+    v_ok := v_ok + 1; raise notice '✓ 2h no empate de created_at, só a de maior ordem é estornável';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2h no empate de created_at, só a de maior ordem é estornável — obtido: %', coalesce((coalesce(v_erro, 'a primeira foi ACEITA') || ' / segunda: ' || coalesce(pg_temp.ag_ultimo_erro(), 'aceita'))::text, 'NULL');
+  end if;
 
   -- 2i — a pendência de item desta devolução já teve desfecho (0146): recusa, e nada é desfeito.
   insert into public.itens (nome, grupo, ordem) values ('Item Teste AG 2i', 'acessorio', 9462)
@@ -484,22 +483,28 @@ begin
     values (v_item, v_f1, 'entrada', 1, v_pend, v_prof);
   perform pg_temp.ag_passo('2i', a, 'estorno', v_f1, p_estorno_de => v_dev);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2i estorno de devolução com pendência resolvida é recusado e nada é desfeito',
-    v_erro = 'P0001 Estorno bloqueado: a pendencia de item desta devolucao ja teve desfecho registrado no estoque de itens (use ajuste, com justificativa)'
-      and exists (select 1 from public.pendencias_item where id = v_pend)
-      and (select status from public.ativos where id = a) = 'em_estoque',
-    v_erro);
+  if coalesce(v_erro = 'P0001 Estorno bloqueado: a pendencia de item desta devolucao ja teve desfecho registrado no estoque de itens (use ajuste, com justificativa)'
+       and exists (select 1 from public.pendencias_item where id = v_pend)
+       and (select status from public.ativos where id = a) = 'em_estoque', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2i estorno de devolução com pendência resolvida é recusado e nada é desfeito';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2i estorno de devolução com pendência resolvida é recusado e nada é desfeito — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2j — pendência ainda ABERTA: o estorno passa, apaga a linha e devolve o detentor.
   a := pg_temp.ag_ativo('TESTEAG2J01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   v_dev := pg_temp.ag_passo('2j-prep', a, 'devolucao', v_f1, p_itens => array['carregador', 'mouse']);
   m1 := pg_temp.ag_passo('2j', a, 'estorno', v_f1, p_estorno_de => v_dev);
-  perform pg_temp.ag_conferir('2j estorno com pendência aberta apaga as linhas e devolve o detentor',
-    m1 is not null
-      and not exists (select 1 from public.pendencias_item where movimentacao_id = v_dev)
-      and (select status = 'em_uso' and colaborador_atual = 'Detentor AG' and setor_atual = 'Setor AG'
-             from public.ativos where id = a),
-    pg_temp.ag_ultimo_erro());
+  if coalesce(m1 is not null
+       and not exists (select 1 from public.pendencias_item where movimentacao_id = v_dev)
+       and (select status = 'em_uso' and colaborador_atual = 'Detentor AG' and setor_atual = 'Setor AG'
+       from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2j estorno com pendência aberta apaga as linhas e devolve o detentor';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2j estorno com pendência aberta apaga as linhas e devolve o detentor — obtido: %', coalesce((pg_temp.ag_ultimo_erro())::text, 'NULL');
+  end if;
 
   -- 2k — guarda de identidade NO ESTORNO: a transferência foi para a terceira filial,
   --      um gêmeo nasceu depois na filial de origem, e desfazer a transferência recusa.
@@ -508,10 +513,13 @@ begin
   y := pg_temp.ag_ativo('TESTEAG2K01', v_f1, 'em_estoque', p_tag => 'AG-TAG-2K');
   perform pg_temp.ag_passo('2k', x, 'estorno', v_f3, p_estorno_de => m1);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2k desfazer a transferência para a filial do gêmeo é recusado com a mensagem própria',
-    v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de desfazer esta movimentação%'
-      and (select filial_id from public.ativos where id = x) = v_f3,
-    v_erro);
+  if coalesce(v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de desfazer esta movimentação%'
+       and (select filial_id from public.ativos where id = x) = v_f3, false) then
+    v_ok := v_ok + 1; raise notice '✓ 2k desfazer a transferência para a filial do gêmeo é recusado com a mensagem própria';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2k desfazer a transferência para a filial do gêmeo é recusado com a mensagem própria — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2l — a restauração da pendência tira SÓ o trecho de itens faltantes e os brancos.
   a := pg_temp.ag_ativo('TESTEAG2L01', v_f1, 'em_estoque', null, null,
@@ -519,16 +527,24 @@ begin
   m1 := pg_temp.ag_passo('2l-prep', a, 'saida', v_f1, p_colaborador => 'Novo AG');
   perform pg_temp.ag_passo('2l', a, 'estorno', v_f1, p_estorno_de => m1);
   select pendencia into v_txt from public.ativos where id = a;
-  perform pg_temp.ag_conferir('2l o estorno restaura a pendência sem o trecho de itens faltantes',
-    v_txt = 'Sem termo; Outra coisa', v_txt);
+  if coalesce(v_txt = 'Sem termo; Outra coisa', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2l o estorno restaura a pendência sem o trecho de itens faltantes';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2l o estorno restaura a pendência sem o trecho de itens faltantes — obtido: %', coalesce((v_txt)::text, 'NULL');
+  end if;
 
   -- 2m — pendência feita SÓ de itens faltantes volta como nula.
   a := pg_temp.ag_ativo('TESTEAG2M01', v_f1, 'em_estoque', null, null, 'Itens faltantes: mochila');
   m1 := pg_temp.ag_passo('2m-prep', a, 'saida', v_f1, p_colaborador => 'Novo AG');
   perform pg_temp.ag_passo('2m', a, 'estorno', v_f1, p_estorno_de => m1);
   select pendencia into v_txt from public.ativos where id = a;
-  perform pg_temp.ag_conferir('2m pendência só de itens faltantes volta nula no estorno',
-    v_txt is null and pg_temp.ag_ultimo_erro() is null, coalesce(v_txt, pg_temp.ag_ultimo_erro()));
+  if coalesce(v_txt is null and pg_temp.ag_ultimo_erro() is null, false) then
+    v_ok := v_ok + 1; raise notice '✓ 2m pendência só de itens faltantes volta nula no estorno';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2m pendência só de itens faltantes volta nula no estorno — obtido: %', coalesce((coalesce(v_txt, pg_temp.ag_ultimo_erro()))::text, 'NULL');
+  end if;
 
   -- 2n — snapshot anterior à 0023 (sem as chaves de pendência e termo): o estorno
   --      restaura status/detentor/filial e PRESERVA a pendência e o termo de agora.
@@ -542,11 +558,14 @@ begin
     returning id into m1;
   alter table public.movimentacoes enable trigger trg_aplicar_movimentacao;
   perform pg_temp.ag_passo('2n', a, 'estorno', v_f1, p_estorno_de => m1);
-  perform pg_temp.ag_conferir('2n snapshot sem as chaves de pendência/termo preserva as de agora',
-    (select status = 'em_estoque' and colaborador_atual is null and setor_atual is null
-            and pendencia = 'Pendência atual' and termo_assinado = 'sim' and termo_data = date '2026-03-03'
-       from public.ativos where id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select status = 'em_estoque' and colaborador_atual is null and setor_atual is null
+       and pendencia = 'Pendência atual' and termo_assinado = 'sim' and termo_data = date '2026-03-03'
+       from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2n snapshot sem as chaves de pendência/termo preserva as de agora';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2n snapshot sem as chaves de pendência/termo preserva as de agora — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 2o — o termo informado vence; o estorno devolve o de antes.
   a := pg_temp.ag_ativo('TESTEAG2O01', v_f1, 'em_estoque', null, null, null, 'nao', date '2026-01-01');
@@ -554,40 +573,55 @@ begin
           p_termo => 'sim', p_termo_data => date '2026-04-04');
   select format('%s %s', termo_assinado, termo_data) into v_txt from public.ativos where id = a;
   perform pg_temp.ag_passo('2o', a, 'estorno', v_f1, p_estorno_de => m1);
-  perform pg_temp.ag_conferir('2o o termo informado vence e o estorno devolve o de antes',
-    v_txt = 'sim 2026-04-04'
-      and (select termo_assinado = 'nao' and termo_data = date '2026-01-01' from public.ativos where id = a),
-    v_txt);
+  if coalesce(v_txt = 'sim 2026-04-04'
+       and (select termo_assinado = 'nao' and termo_data = date '2026-01-01' from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2o o termo informado vence e o estorno devolve o de antes';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2o o termo informado vence e o estorno devolve o de antes — obtido: %', coalesce((v_txt)::text, 'NULL');
+  end if;
 
   -- 2p — saída SEM colaborador e setor informados grava nulo (o tipo manda gravar o informado).
   a := pg_temp.ag_ativo('TESTEAG2P01', v_f1, 'em_estoque', 'Fantasma AG', 'Setor Fantasma');
   perform pg_temp.ag_passo('2p', a, 'saida', v_f1);
-  perform pg_temp.ag_conferir('2p saída sem colaborador informado grava detentor nulo',
-    (select status = 'em_uso' and colaborador_atual is null and setor_atual is null
-       from public.ativos where id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select status = 'em_uso' and colaborador_atual is null and setor_atual is null
+       from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2p saída sem colaborador informado grava detentor nulo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2p saída sem colaborador informado grava detentor nulo — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 2q — o fantasma: compra de ativo em estoque com detentor legado zera o detentor.
   a := pg_temp.ag_ativo('TESTEAG2Q01', v_f1, 'em_estoque', 'Fantasma AG', 'Setor Fantasma');
   perform pg_temp.ag_passo('2q', a, 'compra', v_f1);
-  perform pg_temp.ag_conferir('2q estado sem dono zera o detentor legado',
-    (select colaborador_atual is null and setor_atual is null from public.ativos where id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select colaborador_atual is null and setor_atual is null from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2q estado sem dono zera o detentor legado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2q estado sem dono zera o detentor legado — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 2r — transferência preserva o detentor e muda a filial.
   a := pg_temp.ag_ativo('TESTEAG2R01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('2r', a, 'transferencia', v_f1, p_colaborador => 'Outro AG', p_destino => v_f2);
-  perform pg_temp.ag_conferir('2r transferência preserva o detentor e muda a filial',
-    (select status = 'em_uso' and colaborador_atual = 'Detentor AG' and filial_id = v_f2
-       from public.ativos where id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select status = 'em_uso' and colaborador_atual = 'Detentor AG' and filial_id = v_f2
+       from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2r transferência preserva o detentor e muda a filial';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2r transferência preserva o detentor e muda a filial — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 2s — re-reserva troca o detentor.
   a := pg_temp.ag_ativo('TESTEAG2S01', v_f1, 'reservado', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('2s', a, 'reserva', v_f1, p_colaborador => 'Outro AG', p_setor => 'Setor Outro');
-  perform pg_temp.ag_conferir('2s re-reserva troca o detentor',
-    (select colaborador_atual = 'Outro AG' and setor_atual = 'Setor Outro' from public.ativos where id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select colaborador_atual = 'Outro AG' and setor_atual = 'Setor Outro' from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2s re-reserva troca o detentor';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2s re-reserva troca o detentor — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 2t — ajuste: para estado com dono preserva o detentor (não é saída/empréstimo/reserva);
   --      para estado sem dono zera.
@@ -596,120 +630,176 @@ begin
             p_status => 'emprestado', p_observacao => 'teste 2t');
   select colaborador_atual into v_txt from public.ativos where id = a;
   perform pg_temp.ag_passo('2t-2', a, 'ajuste', v_f1, p_status => 'em_estoque', p_observacao => 'teste 2t');
-  perform pg_temp.ag_conferir('2t o ajuste preserva o detentor em estado com dono e zera em estado sem dono',
-    v_txt = 'Detentor AG'
-      and (select status = 'em_estoque' and colaborador_atual is null from public.ativos where id = a),
-    v_txt);
+  if coalesce(v_txt = 'Detentor AG'
+       and (select status = 'em_estoque' and colaborador_atual is null from public.ativos where id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 2t o ajuste preserva o detentor em estado com dono e zera em estado sem dono';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2t o ajuste preserva o detentor em estado com dono e zera em estado sem dono — obtido: %', coalesce((v_txt)::text, 'NULL');
+  end if;
 
   -- 2u — ajuste sem status resultante.
   a := pg_temp.ag_ativo('TESTEAG2U01', v_f1, 'em_estoque');
   perform pg_temp.ag_passo('2u', a, 'ajuste', v_f1, p_observacao => 'teste 2u');
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2u ajuste sem status resultante é recusado',
-    v_erro = 'P0001 Ajuste exige status_resultante e observacao (justificativa)', v_erro);
+  if coalesce(v_erro = 'P0001 Ajuste exige status_resultante e observacao (justificativa)', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2u ajuste sem status resultante é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2u ajuste sem status resultante é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2v — ajuste sem justificativa.
   perform pg_temp.ag_passo('2v', a, 'ajuste', v_f1, p_status => 'em_uso');
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2v ajuste sem justificativa é recusado',
-    v_erro = 'P0001 Ajuste exige status_resultante e observacao (justificativa)', v_erro);
+  if coalesce(v_erro = 'P0001 Ajuste exige status_resultante e observacao (justificativa)', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2v ajuste sem justificativa é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2v ajuste sem justificativa é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2w — transição inválida, com o patrimônio e o estado na frase.
   a := pg_temp.ag_ativo('TESTEAG2W01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('2w', a, 'compra', v_f1);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2w transição inválida é recusada com patrimônio e estado na frase',
-    v_erro = 'P0001 Movimentacao compra invalida para ativo TESTEAG2W01 no estado em_uso', v_erro);
+  if coalesce(v_erro = 'P0001 Movimentacao compra invalida para ativo TESTEAG2W01 no estado em_uso', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2w transição inválida é recusada com patrimônio e estado na frase';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2w transição inválida é recusada com patrimônio e estado na frase — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 2x/2y/2z — guarda de identidade no DESTINO, pelos três caminhos que mudam a filial.
   x := pg_temp.ag_ativo('TESTEAG2X01', v_f1, 'em_estoque', p_tag => 'AG-TAG-2X');
   y := pg_temp.ag_ativo('TESTEAG2X01', v_f2, 'em_estoque', p_tag => 'AG-TAG-2X');
   perform pg_temp.ag_passo('2x', x, 'transferencia', v_f1, p_destino => v_f2);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2x transferir para a filial do gêmeo é recusado',
-    v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de transferir este ativo%',
-    v_erro);
+  if coalesce(v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de transferir este ativo%', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2x transferir para a filial do gêmeo é recusado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2x transferir para a filial do gêmeo é recusado — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
   perform pg_temp.ag_passo('2y', x, 'compra', v_f2);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2y compra que leva o ativo para a filial do gêmeo é recusada',
-    v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de registrar esta movimentação%',
-    v_erro);
+  if coalesce(v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de registrar esta movimentação%', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2y compra que leva o ativo para a filial do gêmeo é recusada';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2y compra que leva o ativo para a filial do gêmeo é recusada — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
   perform pg_temp.ag_passo('2z', x, 'troca', v_f2);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('2z troca que leva o ativo para a filial do gêmeo é recusada',
-    v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de registrar esta movimentação%',
-    v_erro);
+  if coalesce(v_erro like '42501 Já existe um ativo com este patrimônio + service tag na filial %antes de registrar esta movimentação%', false) then
+    v_ok := v_ok + 1; raise notice '✓ 2z troca que leva o ativo para a filial do gêmeo é recusada';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 2z troca que leva o ativo para a filial do gêmeo é recusada — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 3a — compra para filial LIVRE muda a filial (a recusa é estreita).
   m1 := pg_temp.ag_passo('3a', x, 'compra', v_f3);
-  perform pg_temp.ag_conferir('3a compra para filial livre muda a filial',
-    m1 is not null and (select filial_id from public.ativos where id = x) = v_f3,
-    pg_temp.ag_ultimo_erro());
+  if coalesce(m1 is not null and (select filial_id from public.ativos where id = x) = v_f3, false) then
+    v_ok := v_ok + 1; raise notice '✓ 3a compra para filial livre muda a filial';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3a compra para filial livre muda a filial — obtido: %', coalesce((pg_temp.ag_ultimo_erro())::text, 'NULL');
+  end if;
 
   -- 3b — transferência sem destino mantém a filial.
   a := pg_temp.ag_ativo('TESTEAG3B01', v_f1, 'em_estoque');
   m1 := pg_temp.ag_passo('3b', a, 'transferencia', v_f1);
-  perform pg_temp.ag_conferir('3b transferência sem destino mantém a filial',
-    m1 is not null and (select filial_id from public.ativos where id = a) = v_f1,
-    pg_temp.ag_ultimo_erro());
+  if coalesce(m1 is not null and (select filial_id from public.ativos where id = a) = v_f1, false) then
+    v_ok := v_ok + 1; raise notice '✓ 3b transferência sem destino mantém a filial';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3b transferência sem destino mantém a filial — obtido: %', coalesce((pg_temp.ag_ultimo_erro())::text, 'NULL');
+  end if;
 
   -- 3c — ativo sem identidade (sem patrimônio e sem tag) não colide com nada.
   a := pg_temp.ag_ativo(null, v_f1, 'em_estoque');
   b := pg_temp.ag_ativo(null, v_f2, 'em_estoque');
   m1 := pg_temp.ag_passo('3c', a, 'transferencia', v_f1, p_destino => v_f2);
-  perform pg_temp.ag_conferir('3c ativo sem identidade transfere para filial com outro sem identidade',
-    m1 is not null and (select filial_id from public.ativos where id = a) = v_f2,
-    pg_temp.ag_ultimo_erro());
+  if coalesce(m1 is not null and (select filial_id from public.ativos where id = a) = v_f2, false) then
+    v_ok := v_ok + 1; raise notice '✓ 3c ativo sem identidade transfere para filial com outro sem identidade';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3c ativo sem identidade transfere para filial com outro sem identidade — obtido: %', coalesce((pg_temp.ag_ultimo_erro())::text, 'NULL');
+  end if;
 
   -- 3d/3e/3f — o colaborador da pendência de item: nulo e '' caem no detentor atual;
   --            informado vence.
   a := pg_temp.ag_ativo('TESTEAG3D01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('3d', a, 'devolucao', v_f1, p_itens => array['mouse']);
-  perform pg_temp.ag_conferir('3d devolução sem colaborador: a pendência leva o detentor do ativo',
-    (select count(*) = 1 and min(colaborador) = 'Detentor AG' from public.pendencias_item where ativo_id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select count(*) = 1 and min(colaborador) = 'Detentor AG' from public.pendencias_item where ativo_id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 3d devolução sem colaborador: a pendência leva o detentor do ativo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3d devolução sem colaborador: a pendência leva o detentor do ativo — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
   a := pg_temp.ag_ativo('TESTEAG3E01', v_f1, 'emprestado', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('3e', a, 'devolucao', v_f1, p_colaborador => '', p_itens => array['mouse']);
-  perform pg_temp.ag_conferir('3e devolução com colaborador vazio: a pendência leva o detentor do ativo',
-    (select count(*) = 1 and min(colaborador) = 'Detentor AG' from public.pendencias_item where ativo_id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select count(*) = 1 and min(colaborador) = 'Detentor AG' from public.pendencias_item where ativo_id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 3e devolução com colaborador vazio: a pendência leva o detentor do ativo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3e devolução com colaborador vazio: a pendência leva o detentor do ativo — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
   a := pg_temp.ag_ativo('TESTEAG3F01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('3f', a, 'devolucao', v_f1, p_colaborador => 'Outro AG', p_itens => array['mouse']);
-  perform pg_temp.ag_conferir('3f devolução com colaborador informado: a pendência leva o informado',
-    (select count(*) = 1 and min(colaborador) = 'Outro AG' from public.pendencias_item where ativo_id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select count(*) = 1 and min(colaborador) = 'Outro AG' from public.pendencias_item where ativo_id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 3f devolução com colaborador informado: a pendência leva o informado';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3f devolução com colaborador informado: a pendência leva o informado — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 3g — itens em branco não viram linha; repetidos viram duas; a filial é a da
   --      MOVIMENTAÇÃO, não a do ativo.
   a := pg_temp.ag_ativo('TESTEAG3G01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('3g', a, 'devolucao', v_f2,
             p_itens => array['', '   ', 'mochila', 'mochila', 'cabo']);
-  perform pg_temp.ag_conferir('3g brancos somem, repetidos viram duas linhas, filial da movimentação',
-    (select count(*) = 3 and count(*) filter (where item = 'mochila') = 2
-            and bool_and(filial_id = v_f2) and bool_and(status = 'aberta')
-       from public.pendencias_item where ativo_id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce((select count(*) = 3 and count(*) filter (where item = 'mochila') = 2
+       and bool_and(filial_id = v_f2) and bool_and(status = 'aberta')
+       from public.pendencias_item where ativo_id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 3g brancos somem, repetidos viram duas linhas, filial da movimentação';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3g brancos somem, repetidos viram duas linhas, filial da movimentação — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 3h — devolução com a lista VAZIA não abre nada.
   a := pg_temp.ag_ativo('TESTEAG3H01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   perform pg_temp.ag_passo('3h', a, 'devolucao', v_f1, p_itens => '{}'::text[]);
-  perform pg_temp.ag_conferir('3h devolução com lista vazia não abre pendência',
-    pg_temp.ag_ultimo_erro() is null
-      and not exists (select 1 from public.pendencias_item where ativo_id = a),
-    (select obs from _ag_obs order by n desc limit 1));
+  if coalesce(pg_temp.ag_ultimo_erro() is null
+       and not exists (select 1 from public.pendencias_item where ativo_id = a), false) then
+    v_ok := v_ok + 1; raise notice '✓ 3h devolução com lista vazia não abre pendência';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3h devolução com lista vazia não abre pendência — obtido: %', coalesce(((select obs from _ag_obs order by n desc limit 1))::text, 'NULL');
+  end if;
 
   -- 3i — ativo inexistente: o gatilho recusa a transição com os campos nulos na frase.
   perform pg_temp.ag_passo('3i', '00000000-0000-4000-8000-00000000a9d1'::uuid, 'saida', v_f1);
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('3i movimentação de ativo inexistente é recusada pelo gatilho',
-    v_erro = 'P0001 Movimentacao saida invalida para ativo <NULL> no estado <NULL>', v_erro);
+  if coalesce(v_erro = 'P0001 Movimentacao saida invalida para ativo <NULL> no estado <NULL>', false) then
+    v_ok := v_ok + 1; raise notice '✓ 3i movimentação de ativo inexistente é recusada pelo gatilho';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3i movimentação de ativo inexistente é recusada pelo gatilho — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- 3j — ativo inexistente num AJUSTE (que o gatilho aceita): a recusa é a da FK.
   perform pg_temp.ag_passo('3j', '00000000-0000-4000-8000-00000000a9d2'::uuid, 'ajuste', v_f1,
             p_status => 'em_estoque', p_observacao => 'teste 3j');
   v_erro := pg_temp.ag_ultimo_erro();
-  perform pg_temp.ag_conferir('3j ajuste de ativo inexistente passa pelo gatilho e cai na FK',
-    v_erro like '23503 %movimentacoes_ativo_id_fkey%', v_erro);
+  if coalesce(v_erro like '23503 %movimentacoes_ativo_id_fkey%', false) then
+    v_ok := v_ok + 1; raise notice '✓ 3j ajuste de ativo inexistente passa pelo gatilho e cai na FK';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 3j ajuste de ativo inexistente passa pelo gatilho e cai na FK — obtido: %', coalesce((v_erro)::text, 'NULL');
+  end if;
 
   -- ==========================================================================
   -- §3  A IMPRESSÃO — o texto que o ANTES × DEPOIS compara
@@ -721,7 +811,6 @@ begin
     into v_n, v_txt from _ag_obs;
   raise notice 'ℹ grade: % passos, md5 %', v_n, v_txt;
 
-  select count(*) filter (where ok), count(*) filter (where not ok) into v_ok, v_falhas from _ag_res;
   raise notice 'FIM movimentacao_grade: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
 
