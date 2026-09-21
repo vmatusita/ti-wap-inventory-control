@@ -254,7 +254,7 @@ export function MesaConflitos({
                           <dd
                             className={cn(
                               'text-right break-all',
-                              difere && 'font-medium text-amber-900 dark:text-amber-200',
+                              difere && 'font-medium text-callout-atencao-texto',
                             )}
                           >
                             {valorDoCampo(l, chave)}

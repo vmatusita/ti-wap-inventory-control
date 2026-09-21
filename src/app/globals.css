@@ -98,6 +98,12 @@
   --color-sucesso-texto: var(--sucesso-texto);
   --color-medidor-folga: var(--medidor-folga);
   --color-medidor-folga-barra: var(--medidor-folga-barra);
+
+  /* v1.66.4 (reauditoria, item AB) — a caixa de ATENÇÃO âmbar. Apelidos; os
+     valores estão no `:root`/`.dark` abaixo. */
+  --color-callout-atencao: var(--callout-atencao);
+  --color-callout-atencao-texto: var(--callout-atencao-texto);
+  --color-callout-atencao-borda: var(--callout-atencao-borda);
 }
 
 :root {
@@ -240,6 +246,32 @@
   --medidor-folga-barra: oklch(62.7% 0.194 149.214); /* = green-600 (o preenchimento) */
 
   /* ================================================================
+     v1.66.4 (reauditoria de 18/09/2026, item AB) — A CAIXA DE ATENÇÃO ÂMBAR.
+
+     O callout `border-amber-300 bg-amber-50 text-amber-900` + `dark:` 900 / 950/40 /
+     200 era a maior família de cor crua do produto, escrito à mão em dezenas de
+     lugares. Estes três tokens têm os MESMOS valores, copiados de
+     `node_modules/tailwindcss/theme.css`: trocar a classe pelo token não move um
+     pixel (`src/lib/dominio/cores.test.ts` confere valor por valor contra o
+     theme.css, nos dois temas).
+
+     ⚠ NÃO É O `--warning`. O `<Aviso intencao="atencao">` pinta com ele
+     (4,92:1); esta caixa mede 8,77:1. Unificar os dois é repintar um dos lados, e
+     isso é decisão de aparência das frentes do sistema de design, não desta
+     troca. Ata em `docs/DECISOES.md` (2026-09-21 · v1.66.4).
+
+     A TINTA DE TEXTO também pinta três marcas de atenção que NÃO são caixa e
+     escreviam o mesmo par cru: o desfecho "Faltou" do checklist de devolução, o
+     selo "superada" dos relatórios gerados e a célula que difere na mesa de
+     conflitos. É a mesma tinta com o mesmo sentido ("atenção"), e a regra de
+     tinta proíbe o par cru em qualquer lugar. Se um dia a caixa mudar de cor e
+     essas três não deverem acompanhar, elas ganham token próprio nesse dia.
+     ================================================================ */
+  --callout-atencao: oklch(98.7% 0.022 95.277); /* = amber-50 */
+  --callout-atencao-texto: oklch(41.4% 0.112 45.904); /* = amber-900 — 8,77:1 */
+  --callout-atencao-borda: oklch(87.9% 0.169 91.605); /* = amber-300 */
+
+  /* ================================================================
      F40 — A TINTA DE GRÁFICO, uma por família.
 
      Valor único nos dois temas (é o modelo vigente dos gráficos: ΔE entre duas
@@ -369,6 +401,13 @@
     /* F61 — a folga do medidor no tema escuro (green-950 / green-500). */
     --medidor-folga: oklch(26.6% 0.065 152.934); /* = green-950 */
     --medidor-folga-barra: oklch(72.3% 0.219 149.579); /* = green-500 */
+
+    /* v1.66.4 — a caixa de atenção âmbar no tema escuro. O FUNDO é translúcido
+       (`amber-950/40`): o alfa mora no próprio valor, e é por isso que a caixa
+       continua deixando ver a superfície de trás, como a classe crua deixava. */
+    --callout-atencao: oklch(27.9% 0.077 45.635 / 40%); /* = amber-950/40 */
+    --callout-atencao-texto: oklch(92.4% 0.12 95.746); /* = amber-200 */
+    --callout-atencao-borda: oklch(41.4% 0.112 45.904); /* = amber-900 */
   }
 }
 

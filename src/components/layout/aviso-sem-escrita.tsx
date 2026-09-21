@@ -16,7 +16,7 @@ export function AvisoSemFilialDeEscrita({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        'flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+        'flex items-start gap-2 rounded-md border border-callout-atencao-borda bg-callout-atencao p-2.5 text-xs text-callout-atencao-texto',
         className,
       )}
     >

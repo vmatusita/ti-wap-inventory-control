@@ -11,6 +11,7 @@ import {
   pillTipoLancamento,
 } from '@/lib/dominio'
 import { semComentarios } from '@/lib/layout/texto-fonte'
+import { cn } from '@/lib/utils'
 import { EXCECOES_DE_TINTA, conferirTinta } from '@/lib/layout/regra-de-tinta'
 import { TOKEN_PARA_HEX } from '@/lib/relatorios/rotulo-grafico'
 
@@ -58,6 +59,14 @@ const PALETA_DO_TAILWIND =
  * | F40 — só a fundação (tokens + `dominio.ts`) | 491 | **479** | 60 |
  * | F42 — as telas de item no casco | — | **473** | **61** |
  * | F61 — a régua em admin/ e relatorios/, o verde de sucesso e o cromo por token | — | **413** | **53** |
+ * | v1.66.4 — a mesma base SEM os testes (15 classes em 2 arquivos, ver abaixo) | — | **398** | **51** |
+ * | v1.66.4 — a caixa de atenção âmbar por token (63 pares, item AB) | — | **272** | **45** |
+ *
+ * A v1.66.4 mudou o ALCANCE, e por isso a linha dupla: desde ela a catraca não
+ * conta `*.test.ts` (o corte está na seção 2, com o motivo). Os 413 da F61 eram
+ * 398 de tela e componente + 15 das sabotagens de `cores.test.ts` (14) e
+ * `consistencia.test.ts` (1). A queda da troca é a diferença entre as duas linhas
+ * de baixo: 126 classes, dois lados de cada um dos 63 pares.
  *
  * A F42 baixou o TOTAL em 6 e SUBIU a contagem de arquivos em 1, e as duas coisas
  * são a mesma mudança vista de dois ângulos:
@@ -81,8 +90,8 @@ const PALETA_DO_TAILWIND =
  *
  * A meta ao fim das cinco frentes é o teto abaixo de 120 (plano §7).
  */
-const TETO_PALETA_CRUA = 413
-const ARQUIVOS_COM_PALETA = 53
+const TETO_PALETA_CRUA = 272
+const ARQUIVOS_COM_PALETA = 45
 
 /**
  * Todo `.ts`/`.tsx` de `src`, SEM comentários — a mesma abrangência do grep do
@@ -190,7 +199,12 @@ describe('o vocabulario do sistema so fala por token', () => {
 // 2 · A CATRACA -------------------------------------------------------------
 
 describe('a catraca da cor crua', () => {
+  // v1.66.4 — a catraca conta TELA e COMPONENTE, não teste. As sabotagens da regra
+  // de tinta (seção 5) precisam escrever a classe crua para provar que ela reprova;
+  // contá-las obrigaria a SUBIR o teto a cada sabotagem nova, e o teto só desce. É o
+  // mesmo corte que a F45 já fazia para `*.test.tsx`.
   const porArquivo = fontesDeSrc()
+    .filter((f) => !/\.test\.tsx?$/.test(f.arquivo))
     .map((f) => ({ arquivo: f.arquivo, n: (f.texto.match(PALETA_DO_TAILWIND) ?? []).length }))
     .filter((f) => f.n > 0)
     .sort((a, b) => b.n - a.n)
@@ -279,6 +293,14 @@ describe('os tokens de selo existem de verdade no CSS', () => {
     }
     for (const m of blocoCss(':root').matchAll(/--(grafico-[a-z-]+):\s*(.+?);/g)) {
       expect(m[2].trim(), `--${m[1]} nao e literal`).toMatch(/^(oklch\(|#)/)
+    }
+    // v1.66.4 — a caixa de atenção âmbar (a seção 6 confere o VALOR; esta, a forma)
+    for (const trecho of [claro, escuro]) {
+      const achados = [...trecho.matchAll(/--(callout-atencao[a-z-]*):\s*(.+?);/g)]
+      expect(achados, 'a familia --callout-atencao* sumiu de um dos temas').toHaveLength(3)
+      for (const m of achados) {
+        expect(m[2].trim(), `--${m[1]} nao e literal`).toMatch(/^oklch\(/)
+      }
     }
   })
 })
@@ -369,13 +391,139 @@ describe('a regra de tinta (F61)', () => {
     )
   })
 
-  it('um callout ambar legitimo e o veu verde translucido passam', () => {
-    const callouts = {
+  // v1.66.4 — até aqui um callout âmbar cru PASSAVA nesta regra (era o caso de
+  // controle "legítimo"). Desde a família `--callout-atencao*`, o PAR claro+escuro
+  // de mesmo valor do token reprova; a mesma cor clara com um `dark:` de outro valor
+  // continua passando, porque no escuro ela é outra cor.
+  it('o par cru da caixa de atencao ambar reprova, nas duas ordens e com o mesmo alfa', () => {
+    const caixa = {
       arquivo: 'src/components/admin/callout-sintetico.tsx',
       texto:
-        '<p className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" />' +
+        '<p className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200" />\n' +
+        '<p className="dark:text-amber-200/80 text-amber-900/80 dark:bg-amber-950/40 bg-amber-50" />',
+    }
+    const recusas = conferirTinta([caixa], [])
+    expect(recusas).toHaveLength(5)
+    expect(recusas.filter((r) => r.includes('use bg-callout-atencao'))).toHaveLength(2)
+    expect(recusas.filter((r) => r.includes('use text-callout-atencao-texto'))).toHaveLength(2)
+    expect(recusas.filter((r) => r.includes('use border-callout-atencao-borda'))).toHaveLength(1)
+  })
+
+  it('a cor clara do callout com um dark: de OUTRO valor passa, e o veu verde tambem', () => {
+    const variantes = {
+      arquivo: 'src/components/admin/variantes-sinteticas.tsx',
+      texto:
+        // o `dark:` opaco / de outro tom: é outra cor no escuro, fica com a catraca
+        '<p className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300" />\n' +
+        // alfa diferente dos dois lados, e o `/60` que não é o do token
+        '<p className="text-amber-900/80 dark:text-amber-200/70 border-amber-300 dark:border-amber-900/60" />\n' +
+        // a classe clara com prefixo de estado não é o par
+        '<p className="hover:bg-amber-50 dark:bg-amber-950/40" />\n' +
         '<div className="bg-green-950/30 border-green-600/40 text-green-700" />',
     }
-    expect(conferirTinta([callouts], [])).toEqual([])
+    expect(conferirTinta([variantes], [])).toEqual([])
+  })
+
+  // Os dois achados da revisão final da v1.66.4, guardados como teste. A primeira
+  // versão da regra lia a LINHA inteira e dava falso positivo nos dois primeiros; e
+  // aceitava `!` só do lado claro. Hoje ela lê o TRECHO de classe, e o par é o exato.
+  it('o par da caixa so reprova dentro do MESMO trecho de classe, e so na forma exata', () => {
+    const naoSaoPar = {
+      arquivo: 'src/components/admin/nao-sao-par.tsx',
+      texto:
+        // os dois ramos de um ternário: elementos diferentes na mesma linha
+        '{a ? <span className="text-amber-900">X</span> : <span className="dark:text-amber-200">Y</span>}\n' +
+        // a classe citada como TEXTO de tela, não como classe
+        '<p className="text-amber-900">{"exemplo: dark:text-amber-200 e a classe antiga"}</p>\n' +
+        // `!` e variante empilhada: outra cascata, o token mudaria a cor
+        '<p className="!text-amber-900 dark:text-amber-200" />\n' +
+        '<p className="text-amber-900 dark:!text-amber-200" />\n' +
+        '<p className="text-amber-900 dark:hover:text-amber-200 md:dark:bg-amber-950/40 bg-amber-50" />',
+    }
+    expect(conferirTinta([naoSaoPar], [])).toEqual([])
+    // e o par de verdade, no mesmo `cn()` mas no MESMO literal, continua reprovando
+    const par = {
+      arquivo: 'src/components/admin/par.tsx',
+      texto: "className={cn('rounded-md p-3', ok && 'text-amber-900 dark:text-amber-200')}",
+    }
+    expect(conferirTinta([par], [])).toHaveLength(1)
+  })
+})
+
+// 6 · A CAIXA DE ATENÇÃO ÂMBAR (v1.66.4 · item AB) ------------------------------
+//
+// A décima família de token. O que faz a troca não mover um pixel é o VALOR: cada
+// token tem, em cada tema, exatamente o `oklch` da classe crua que ele substituiu. A
+// F40 escreveu isso em comentário (`/* = green-100 */`); aqui o teste confere contra
+// a própria paleta de fábrica, `node_modules/tailwindcss/theme.css` — o mesmo arquivo
+// que o build consome e que `scripts/contraste.mjs` lê.
+
+describe('a caixa de atencao ambar tem os valores exatos da classe crua que substituiu', () => {
+  const PALETA = new Map(
+    [
+      ...readFileSync(join(RAIZ, 'node_modules/tailwindcss/theme.css'), 'utf8').matchAll(
+        /--color-([a-z]+-\d+):\s*(oklch\([^)]*\));/g,
+      ),
+    ].map((m) => [m[1], m[2]]),
+  )
+  const claro = blocoCss(':root')
+  const escuro = blocoCss('.dark')
+
+  /** token → [classe crua do claro, classe crua do escuro] */
+  const ORIGEM = {
+    'callout-atencao': ['amber-50', 'amber-950/40'],
+    'callout-atencao-texto': ['amber-900', 'amber-200'],
+    'callout-atencao-borda': ['amber-300', 'amber-900'],
+  } as const
+
+  /** `oklch(27.9% 0.077 45.635)` + alfa 40 → os quatro números, para comparar sem depender de espaço. */
+  function numeros(valor: string, alfaExtra?: string): number[] {
+    const m = /^oklch\(\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)%\s*)?\)$/.exec(valor.trim())
+    if (!m) throw new Error(`valor fora do formato oklch(L% C H [/ A%]): ${valor}`)
+    const alfa = m[4] ?? alfaExtra ?? '100'
+    return [Number(m[1]), Number(m[2]), Number(m[3]), Number(alfa)]
+  }
+
+  function valorDoToken(bloco: string, token: string): string {
+    const m = new RegExp(`--${token}:\\s*(.+?);`).exec(bloco)
+    if (!m) throw new Error(`--${token} não declarado`)
+    return m[1]
+  }
+
+  it.each(Object.keys(ORIGEM))('--%s = a classe crua, nos dois temas', (token) => {
+    const [deClaro, deEscuro] = ORIGEM[token as keyof typeof ORIGEM]
+    for (const [tema, bloco, classe] of [
+      [':root', claro, deClaro],
+      ['.dark', escuro, deEscuro],
+    ] as const) {
+      const [nome, alfa] = classe.split('/')
+      const fabrica = PALETA.get(nome)
+      expect(fabrica, `${nome} sumiu do theme.css do Tailwind`).toBeDefined()
+      expect(
+        numeros(valorDoToken(bloco, token)),
+        `--${token} no ${tema} deixou de ser ${classe}: a caixa mudaria de cor`,
+      ).toEqual(numeros(fabrica!, alfa))
+    }
+  })
+
+  it('cada token tem apelido no @theme inline (senao a classe nao pinta nada)', () => {
+    for (const token of Object.keys(ORIGEM)) {
+      expect(CSS).toContain(`--color-${token}: var(--${token});`)
+    }
+  })
+
+  it('o tailwind-merge le os tokens como COR, e eles substituem a cor do Card', () => {
+    // Se o tailwind-merge não reconhecesse o nome como cor, `cn()` manteria
+    // `bg-card` E `bg-callout-atencao` no mesmo elemento, e quem pinta passaria a
+    // ser a ordem do CSS gerado — em silêncio. Os cartões da ficha usam exatamente
+    // essa composição.
+    expect(
+      cn(
+        'bg-card text-card-foreground border-border',
+        'bg-callout-atencao text-callout-atencao-texto border-callout-atencao-borda',
+      ),
+    ).toBe('bg-callout-atencao text-callout-atencao-texto border-callout-atencao-borda')
+    // e a LARGURA da borda (`border`) não é confundida com a cor
+    expect(cn('border', 'border-callout-atencao-borda')).toBe('border border-callout-atencao-borda')
   })
 })

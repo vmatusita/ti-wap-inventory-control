@@ -357,9 +357,9 @@ export function ColarListaDialog({
               {ambiguos.map((g) => (
                 <fieldset
                   key={g.patrimonio}
-                  className="rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40"
+                  className="rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3"
                 >
-                  <legend className="flex items-center gap-1.5 px-1 text-sm font-medium text-amber-900 dark:text-amber-200">
+                  <legend className="flex items-center gap-1.5 px-1 text-sm font-medium text-callout-atencao-texto">
                     <TriangleAlert className="size-4" />
                     {g.patrimonio} — patrimônio duplicado: escolha qual
                   </legend>
@@ -384,7 +384,7 @@ export function ColarListaDialog({
                       </label>
                     ))}
                   </div>
-                  <p className="mt-1 px-1 text-xs text-amber-900/80 dark:text-amber-200/80">
+                  <p className="mt-1 px-1 text-xs text-callout-atencao-texto/80">
                     Nada entra sem escolha. Da próxima vez, cole a service tag na
                     mesma linha para resolver sozinho.
                   </p>
@@ -417,7 +417,7 @@ export function ColarListaDialog({
                 )}
 
               {foraPeloTeto > 0 && (
-                <p className="flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                <p className="flex items-start gap-1.5 rounded-lg border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto">
                   <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                   {foraPeloTeto}{' '}
                   {foraPeloTeto === 1 ? 'ativo fica' : 'ativos ficam'} de fora: o

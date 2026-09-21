@@ -86,7 +86,7 @@ export function PassoAtivos({
           abaixo, é o requisito; isto é só o atalho de quem não quer ler item
           a item). */}
       {foraDoVinculo.length > 0 && (
-        <p className="flex items-center gap-1.5 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className="flex items-center gap-1.5 rounded-md bg-callout-atencao px-3 py-2 text-xs text-callout-atencao-texto">
           <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
           {foraDoVinculo.length}{' '}
           {foraDoVinculo.length === 1

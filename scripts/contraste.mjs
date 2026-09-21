@@ -255,6 +255,9 @@ const PARES = [
 
   // ---- Varredura dark: · callout âmbar (chips do relatório, banner de versão) -
   // No escuro o fundo é `amber-950/40` — translúcido sobre o card. O script compõe.
+  // v1.66.4 — estes dois pares ficam como REFERÊNCIA: a caixa virou o token
+  // `--callout-atencao*` (item AB, mais abaixo), e as razões de lá têm de bater com
+  // as daqui. Os sítios que sobraram crus usam estes mesmos valores.
   { item: 'dark:', onde: 'callout âmbar (claro, inalterado)', texto: 'amber-900', fundo: 'amber-50', px: 12, exigir: true },
   { item: 'dark:', onde: 'callout âmbar (escuro, NOVO)', texto: 'amber-200', fundo: 'amber-950/40', sob: ['card', 'background'], px: 12, tema: 'escuro', exigir: true },
 
@@ -474,6 +477,16 @@ const PARES = [
   // do <Aviso> não mudaram de cor ao virar token. 12px: o tamanho do selo.
   { item: 'F61', onde: 'sucesso — selo "Ativo", círculo, pílula e Aviso (claro)', texto: 'sucesso-texto', fundo: 'sucesso', px: 12, exigir: true },
   { item: 'F61', onde: 'sucesso — selo "Ativo", círculo, pílula e Aviso (escuro)', texto: 'sucesso-texto', fundo: 'sucesso', px: 12, tema: 'escuro', exigir: true },
+
+  // ---- v1.66.4 · AB · a caixa de ATENÇÃO âmbar, por token ---------------------
+  // `--callout-atencao*` têm os valores de amber-50/900 (claro) e amber-950/40 /
+  // amber-200 (escuro), copiados do theme.css. As duas razões TÊM de sair iguais às
+  // do "callout âmbar" cru da varredura `dark:` lá em cima, na mesma casa decimal: é
+  // a prova de que a caixa não mudou de cor ao virar token. O fundo escuro é
+  // TRANSLÚCIDO (o alfa mora no valor do token), então se compõe sobre o card, como
+  // o par cru. 12px: o menor texto que as caixas usam (`text-xs`).
+  { item: 'AB', onde: 'caixa de atenção âmbar — token (claro)', texto: 'callout-atencao-texto', fundo: 'callout-atencao', px: 12, exigir: true },
+  { item: 'AB', onde: 'caixa de atenção âmbar — token (escuro)', texto: 'callout-atencao-texto', fundo: 'callout-atencao', sob: ['card', 'background'], px: 12, tema: 'escuro', exigir: true },
   // O medidor de mínimo: a barra sobre o trilho é OBJETO GRÁFICO (WCAG 1.4.11, piso 3:1),
   // não texto — e o verde dele significa FOLGA, não "em estoque" nem "sucesso".
   //

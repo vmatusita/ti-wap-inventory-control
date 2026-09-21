@@ -343,7 +343,7 @@ export default async function AtivoFichaPage({
           proíbe. A migração do âmbar para o token é decisão própria, registrada em
           `docs/DIVIDA-TECNICA.md`. */}
       {ativo.pendencia && (
-        <Card className="flex flex-row items-start gap-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 ring-0 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+        <Card className="flex flex-row items-start gap-2 border border-callout-atencao-borda bg-callout-atencao p-3 text-sm text-callout-atencao-texto ring-0">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             <span className="font-medium">Pendência:</span> {ativo.pendencia}

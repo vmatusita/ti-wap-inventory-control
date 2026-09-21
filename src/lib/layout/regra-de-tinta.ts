@@ -27,6 +27,26 @@
 //   amarelo da marca: `--brand-dark-texto` e `--brand-amarelo-texto`.
 // Em qualquer variante (`dark:`, `hover:`, `/70`), fora de teste, fora de
 // comentário.
+// · v1.66.4 (item AB) — o PAR da caixa de atenção âmbar: `bg-amber-50` com
+//   `dark:bg-amber-950/40`, `text-amber-900` com `dark:text-amber-200` (com o mesmo
+//   `/NN` dos dois lados, ou sem nenhum) e `border-amber-300` com
+//   `dark:border-amber-900`, no MESMO TRECHO DE CLASSE (ver abaixo). É o PAR que é
+//   proibido, não a cor: a mesma `bg-amber-50` ao lado de um `dark:` de outro valor
+//   é outra cor no escuro, e fica com a catraca (são as variantes que a troca da
+//   v1.66.4 deixou cruas de propósito). E é o par EXATO que o token substitui: a
+//   classe clara sem nenhum prefixo e o `dark:` sem mais nada empilhado. `!` ou uma
+//   variante a mais (`dark:hover:`, `md:dark:`, `hover:` no claro) é OUTRA cascata —
+//   `text-amber-900 dark:hover:text-amber-200` pinta `amber-900` no escuro fora do
+//   hover, e trocá-lo pelo token mudaria a cor —, então não é recusado aqui; a
+//   catraca ainda o conta.
+//
+// O TRECHO DE CLASSE: todas as regras leem cada linha partida nas aspas, crases e
+// chaves, que é onde uma string de classe começa e termina. Assim duas classes de
+// elementos diferentes na mesma linha (os dois ramos de um ternário) e a classe
+// citada como TEXTO de tela não formam par (revisão final da v1.66.4, que achou os
+// dois falsos positivos com a primeira versão, que lia a linha inteira). O limite
+// declarado: um par partido em duas linhas, ou em dois literais de um mesmo `cn()`,
+// escapa — é o custo de uma regra que lê texto, e a catraca ainda o conta.
 //
 // A EXCEÇÃO É NOMEADA (arquivo + trecho + motivo), SÓ ENCOLHE e reprova quando não
 // casa com nada — exceção morta é exceção que ninguém revisa. Módulo puro.
@@ -37,6 +57,30 @@ export type ParProibido = {
   /** O token que substitui o par. */
   token: string
   padrao: RegExp
+}
+
+/**
+ * O PAR da caixa de atenção âmbar (v1.66.4): casa a classe CLARA, sem prefixo de
+ * variante nem `!`, quando o `dark:` de MESMO valor do token (também sem `!` nem
+ * variante empilhada) está no mesmo trecho de classe, antes ou depois dela — uma
+ * ocorrência por par, na classe clara. Com `alfa`, o `/NN` tem de ser o mesmo dos
+ * dois lados: o grupo 1 é capturado na classe clara ANTES das duas buscas, e por
+ * isso o `\1` vale também dentro do lookbehind.
+ *
+ * MONTADO POR PARTES DE PROPÓSITO: escrito como literal, o próprio padrão teria
+ * `bg-amber-50` e `dark:bg-amber-950` no fonte — e a catraca de `cores.test.ts` e
+ * esta mesma regra leem este arquivo. Uma guarda que se acusa ensina a ignorar a
+ * guarda.
+ */
+function parDoCallout(propriedade: string, claro: string, escuro: string, alfa: boolean): RegExp {
+  const semPrefixo = String.raw`(?<![\w:/!-])`
+  const fimDaClasse = String.raw`(?![\w/-])`
+  const escapar = (valor: string) => valor.replace('/', String.raw`\/`)
+  const grupoAlfa = alfa ? String.raw`(\/\d+)?` : ''
+  const mesmoAlfa = alfa ? String.raw`\1` : ''
+  const classeClara = `${semPrefixo}${propriedade}-${escapar(claro)}${grupoAlfa}${fimDaClasse}`
+  const classeEscura = `${semPrefixo}dark:${propriedade}-${escapar(escuro)}${mesmoAlfa}${fimDaClasse}`
+  return new RegExp(`${classeClara}(?:(?=.*${classeEscura})|(?<=${classeEscura}.*))`, 'g')
 }
 
 export const PARES_PROIBIDOS: readonly ParProibido[] = [
@@ -56,6 +100,23 @@ export const PARES_PROIBIDOS: readonly ParProibido[] = [
     nome: 'texto preto cru',
     token: 'text-brand-amarelo-texto (o texto sobre o amarelo da marca)',
     padrao: /\btext-black(?![\w-])/g,
+  },
+  // v1.66.4 — o PAR da caixa de atenção âmbar (ver `parDoCallout`). O fundo não
+  // aceita `/NN`: o alfa do escuro já mora no valor do token.
+  {
+    nome: 'fundo cru da caixa de atenção âmbar',
+    token: 'bg-callout-atencao',
+    padrao: parDoCallout('bg', 'amber-50', 'amber-950/40', false),
+  },
+  {
+    nome: 'texto cru da caixa de atenção âmbar',
+    token: 'text-callout-atencao-texto',
+    padrao: parDoCallout('text', 'amber-900', 'amber-200', true),
+  },
+  {
+    nome: 'borda crua da caixa de atenção âmbar',
+    token: 'border-callout-atencao-borda',
+    padrao: parDoCallout('border', 'amber-300', 'amber-900', true),
   },
 ]
 
@@ -79,9 +140,12 @@ export function usosProibidos(arquivo: string, texto: string): AchadoDeTinta[] {
   const achados: AchadoDeTinta[] = []
   const linhas = texto.split('\n')
   for (let i = 0; i < linhas.length; i++) {
-    for (const par of PARES_PROIBIDOS) {
-      for (const m of linhas[i].matchAll(par.padrao)) {
-        achados.push({ arquivo, linha: i + 1, classe: m[0], par: par.nome, token: par.token })
+    // O trecho de classe: a linha partida nas aspas, crases e chaves (ver o topo).
+    for (const trecho of linhas[i].split(/['"`{}]/)) {
+      for (const par of PARES_PROIBIDOS) {
+        for (const m of trecho.matchAll(par.padrao)) {
+          achados.push({ arquivo, linha: i + 1, classe: m[0], par: par.nome, token: par.token })
+        }
       }
     }
   }

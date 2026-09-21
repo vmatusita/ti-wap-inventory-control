@@ -284,7 +284,7 @@ export function GerarTermoDialog({
               {prep?.avisos.map((a) => (
                 <p
                   key={a}
-                  className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                  className="flex items-start gap-1.5 rounded-md border border-callout-atencao-borda bg-callout-atencao px-3 py-2 text-xs text-callout-atencao-texto"
                 >
                   <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                   {a}

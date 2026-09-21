@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 // F19 — o chip nascera só com o tema claro: no escuro era fundo quase branco com
 // texto quase preto, o único bloco a estourar a tela.
 const CLASSE_CHIP =
-  'rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200'
+  'rounded-full border border-amber-200 bg-callout-atencao px-3 py-1 text-xs text-callout-atencao-texto dark:border-amber-900/60'
 
 // F27/B5 (PND-03) — só estas chaves viram link: são exatamente os valores que
 // `/pendencias` aceita em `?tipo=` (`TIPOS_VALIDOS`, `app/(app)/pendencias/page.tsx`
