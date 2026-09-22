@@ -460,6 +460,7 @@ where n.nspname = 'public' and p.proname = 'importar_ativos_substituir';
 
 - As `version` do ledger são **timestamps de 14 dígitos gerados pelo MCP no ato do apply** (`20260722145340` → `0041_dominios_login`); os arquivos do repo usam prefixo sequencial (`0041_…sql`). A doc do Supabase confirma que a CLI identifica migration **pelo timestamp do nome do arquivo** ("a new row will be inserted into the migration history table with timestamp as its unique id").
 - Portanto os dois esquemas **não casam para praticamente nenhuma migration** — não só para as faltantes. Um `db push` tentaria reaplicar migrations já aplicadas.
+  *(Emenda de 22/09/2026, [`ADR-003`](ADR-003-metodo-de-migration.md): lido na fonte atual da CLI, o `db push` hoje **aborta** com `DbPushMissingLocalError` antes de aplicar qualquer coisa, porque as `version` remotas não casam com nenhum arquivo. O dano descrito abaixo vem do passo seguinte, o `migration repair` que "destrava" a CLI, e ele também é proibido.)*
 - **O dano concreto:** a RPC do import é redefinida em cadeia (`0032`→`0037`→**`0048`**). Reaplicar `0031`–`0037` **regrediria** o corpo vivo para o da `0037`, desfazendo a `0048`.
 
 **O controle que funciona (e que já se usa):**

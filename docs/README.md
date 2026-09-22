@@ -9,7 +9,7 @@ Este diretório tem 60+ arquivos, e a maior parte é **histórico**. Esta págin
 | Entender o problema e o modelo de dados | [`ESPECIFICACAO.md`](ESPECIFICACAO.md) — §4 máquina de estados, §5 vocabulários De→Para, §6 telas, §7 relatórios, §8 regras |
 | Entender o código que já existe | [`ARQUITETURA.md`](ARQUITETURA.md) — sobretudo §10, *"quero mudar X → mexo em Y"* |
 | Trabalhar aqui pela primeira vez | [`ONBOARDING.md`](ONBOARDING.md) |
-| Aplicar uma migration ou mexer no banco | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) |
+| Aplicar uma migration ou mexer no banco | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) (o como) e [`ADR-003-metodo-de-migration.md`](ADR-003-metodo-de-migration.md) (o porquê, e o que é proibido) |
 | **Escrever ou mudar uma policy de RLS** | a **emenda F59** de [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-63 em diante) — a doutrina do predicado: `col = any (array (select public.<fn>()))` sobre função `setof`, nunca `fn(col)`, e a forma-alvo das funções de conjunto. Travada na mesa por `src/lib/validators/policies-initplan.test.ts` e no catálogo do CI pelo bloco 4 de `supabase/tests/catalogo_policies.sql`, onde mora a lista única de exceções (`k_excecoes_predicado`). Para medir o custo de uma forma: `scripts/perf/medir-rls.mjs` |
 | **Escrever ou mudar uma RPC de relatório (`rel_*`), ou o as-of** | a **emenda F60** de [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-73 em diante) — o recorte como LISTA obrigatória: `p_filiais smallint[]` ligado por `= any`, NULL e `'{}'` → vazio, o consolidado como lista explícita com as filiais desativadas. Travada na mesa por `src/lib/validators/rpcs-recorte-sql.test.ts` e no catálogo do CI pelo bloco 7 de `supabase/tests/catalogo_secdef.sql`, onde mora a lista única de exceções (`k_excecoes_recorte`). O corpo do as-of está preso ao orçamento `docs/perf/asof-orcamento.json` (`asof-orcamento.test.ts`); para medir: `scripts/perf/medir-rel.mjs`. Para tirar uma assinatura velha do banco depois do deploy: a receita "A janela do `drop`" do [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md) |
 | **Chegou uma issue de alarme** — a sonda ficou vermelha | [`RUNBOOK-ALARME.md`](RUNBOOK-ALARME.md) — o que cada checagem quer dizer, onde olhar e o que **não** fazer |
@@ -50,6 +50,7 @@ Mantidos atualizados; espera-se que digam a verdade sobre o sistema de hoje.
 | [`DIVIDA-TECNICA.md`](DIVIDA-TECNICA.md) | Diagnóstico priorizado do que está torto |
 | [`BACKLOG-UX.md`](BACKLOG-UX.md) | Backlog de UX — fechado, exceto o que depende de decisão do Johnny |
 | [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md) · [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md) | Decisões de arquitetura do modelo de acesso |
+| [`ADR-003-metodo-de-migration.md`](ADR-003-metodo-de-migration.md) | O método de migration: apply por conector ou Management API, trava de hash, sonda de efeito; o ledger não é o controle e `db push` é proibido |
 | [`prompts/`](prompts/) | As ordens de serviço, uma por fase (índice em [`prompts/README.md`](prompts/README.md)) |
 
 ## Planos de área
