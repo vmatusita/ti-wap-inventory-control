@@ -1,0 +1,122 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control/.claude/worktrees/wf_8e3f44b3-32a-2
+
+ ❯ |puro| src/lib/relatorios/paleta-graficos.test.ts (14 tests | 5 failed) 35ms
+     × emprestado × defasado sob normal ≈ ΔE 11.33 (scratchpad/aa2/resultado.json, rodada 2) 8ms
+     × emprestado × defasado sob protanopia ≈ ΔE 5.63 (scratchpad/aa2/resultado.json, rodada 2) 1ms
+     × nenhum par cai abaixo do piso sem alívio registrado 10ms
+     × nenhum alívio registrado piorou além da tolerância (0,01) 2ms
+     × o portão fecha OK 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o método (ΔE em OKLab sob simulação Machado 2009) — valores conhecidos > emprestado × defasado sob normal ≈ ΔE 11.33 (scratchpad/aa2/resultado.json, rodada 2)
+AssertionError: expected 12.02 to be close to 11.33, received difference is 0.6899999999999995, but expected 0.005
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:67:41
+     65|     (a, b, visao: Visao, esperado) => {
+     66|       const medido = deltaE(hexReal(a), hexReal(b), visao)
+     67|       expect(Number(medido.toFixed(2))).toBeCloseTo(esperado, 2)
+       |                                         ^
+     68|     },
+     69|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o método (ΔE em OKLab sob simulação Machado 2009) — valores conhecidos > emprestado × defasado sob protanopia ≈ ΔE 5.63 (scratchpad/aa2/resultado.json, rodada 2)
+AssertionError: expected 5.14 to be close to 5.63, received difference is 0.4900000000000002, but expected 0.005
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:67:41
+     65|     (a, b, visao: Visao, esperado) => {
+     66|       const medido = deltaE(hexReal(a), hexReal(b), visao)
+     67|       expect(Number(medido.toFixed(2))).toBeCloseTo(esperado, 2)
+       |                                         ^
+     68|     },
+     69|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o portão sobre a paleta REAL de STATUS_CHART_COLOR (decisão: MANTER) > nenhum par cai abaixo do piso sem alívio registrado
+AssertionError: par(es) abaixo do piso sem alívio registrado em ALIVIOS:
+  · em_estoque×emprestado, visão tritanopia: ΔE medido 5.32, piso 6
+  · em_uso×emprestado, visão normal: ΔE medido 12.47, piso 15: expected [ { …(4) }, …(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "par": "em_estoque×emprestado",
++     "piso": 6,
++     "valor": 5.3183070272192,
++     "visao": "tritanopia",
++   },
++   {
++     "par": "em_uso×emprestado",
++     "piso": 15,
++     "valor": 12.465370381908032,
++     "visao": "normal",
++   },
++ ]
+
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:95:7
+     93|       resultado.semAlivio,
+     94|       descreverViolacoes('par(es) abaixo do piso sem alívio registrado…
+     95|     ).toEqual([])
+       |       ^
+     96|   })
+     97|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o portão sobre a paleta REAL de STATUS_CHART_COLOR (decisão: MANTER) > nenhum alívio registrado piorou além da tolerância (0,01)
+AssertionError: alívio(s) cujo valor medido piorou além do registrado:
+  · emprestado×defasado, visão protanopia: ΔE medido 5.14, piso 6: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "par": "emprestado×defasado",
++     "piso": 6,
++     "valor": 5.137751757975162,
++     "visao": "protanopia",
++   },
++ ]
+
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:102:7
+    100|       resultado.aliviosPioraram,
+    101|       descreverViolacoes('alívio(s) cujo valor medido piorou além do r…
+    102|     ).toEqual([])
+       |       ^
+    103|   })
+    104|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o portão sobre a paleta REAL de STATUS_CHART_COLOR (decisão: MANTER) > o portão fecha OK
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:110:26
+    108|
+    109|   it('o portão fecha OK', () => {
+    110|     expect(resultado.ok).toBe(true)
+       |                          ^
+    111|   })
+    112|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  5 failed | 59 passed (64)
+   Start at  09:58:43
+   Duration  3.09s (transform 307ms, setup 0ms, import 1.64s, tests 1.38s, environment 0ms)
+
