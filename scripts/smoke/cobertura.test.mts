@@ -173,7 +173,9 @@ describe('os TRÊS conjuntos concordam', () => {
 
   it('a função-núcleo é a fonte VIGENTE do SQL das doze (e ninguém mais o tem)', () => {
     const { arquivo } = corpoVigente('public.checagens_integridade_nucleo()', RAIZ)
-    expect(arquivo).toBe('0138_resumo_integridade_e_rotulo.sql')
+    // F62 (22/09/2026): a 0158 a recriou trocando SÓ a operador_sem_filial (o cargo passou a
+    // morar em membros) — as doze continuam num lugar só, agora o da 0158.
+    expect(arquivo).toBe('0158_cargo_em_membros.sql')
     // A porta da /dev delega: o corpo dela NÃO tem mais as doze.
     const daPorta = chavesDoNucleo(corpoVigente('public.dev_checagens_integridade()', RAIZ).sql)
     expect(daPorta, 'o SQL das doze voltou a existir em DOIS lugares').toEqual([])

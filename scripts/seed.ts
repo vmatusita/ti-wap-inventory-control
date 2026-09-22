@@ -46,6 +46,7 @@ import {
 // dominio do app em runtime — pega so o tipo. Caminho RELATIVO (e nao o alias '@/') pelo
 // mesmo idioma de scripts/import/*.ts, que roda por `tsx`, fora do resolvedor do Next.
 import type { PapelUsuario } from '../src/lib/auth/papeis'
+import { EMPRESA_LEGADA_ID } from '../src/lib/auth/empresa-legada'
 
 // ============================ CONFIG =============================
 
@@ -1184,6 +1185,11 @@ type PerfilSeed = {
 // Mexer no trigger, dar execute a mais ao service role ou plantar a linha por fora trocaria
 // a seguranca do sistema pela conveniencia de um script de dados ficticios — negocio ruim.
 //
+// F62 (22/09/2026): o cargo saiu de `profiles` e mora em `membros` (por empresa); a mesma
+// protecao vale la — `membros_guarda_dev` (0153) e o espelho de `profiles_guarda_dev`, com a
+// MESMA janela. O raciocinio abaixo continua inteiro; so a tabela mudou (decisao iv: esta e a
+// UNICA mudanca da F62 no seed — as duas empresas ficticias sao da F65).
+//
 // ENTAO O SEED FAZ ASSIM:
 //   1. grava a persona com `papel: 'admin'` — o mais forte que ele alcanca. Ela ja exercita
 //      quase tudo, porque na F22 `e_admin()` significa "NIVEL administrador";
@@ -1205,10 +1211,11 @@ function sqlPromocaoManual(email: string, papel: PapelUsuario): string {
     'do $$',
     'begin',
     "  perform set_config('estoque.gestao_usuarios', 'on', true);",
-    '  update public.profiles p',
+    '  update public.membros m',
     `     set papel = '${papel}'`,
-    '   where p.excluido_em is null',
-    `     and p.id in (select u.id from auth.users u where lower(u.email) = '${email}');`,
+    '   where m.empresa_id = public.empresa_legada()',
+    '     and m.profile_id in (select pr.id from public.profiles pr join auth.users u on u.id = pr.id',
+    `                           where pr.excluido_em is null and lower(u.email) = '${email}');`,
     "  perform set_config('estoque.gestao_usuarios', 'off', true);",
     'end $$;',
   ].join('\n')
@@ -1400,34 +1407,39 @@ async function garantirPerfisSeed(
 
     // F22 — cargo EFETIVO desta rodada. So difere de `p.papel` na persona com `papelManual`
     // (hoje a dev): se ela JA foi promovida a mao, o seed tem de reescrever o MESMO cargo.
-    // Mandar 'admin' numa linha que e 'dev' cai no primeiro ramo do `profiles_guarda_dev`
-    // (0073: papel/ativo/excluido_em mudando numa linha dev) e derruba o seed com 42501.
+    // Mandar 'admin' numa linha que e 'dev' cai no primeiro ramo do `membros_guarda_dev`
+    // (0153: papel/ativo mudando numa membership dev) e derruba o seed com 42501.
     // Reescrever igual passa limpo — o trigger so morde quando algo MUDA. Ver "PROMOCAO A DEV".
-    const { data: perfilAtual, error: leErr } = await db
-      .from('profiles')
+    // F62: o cargo e lido e gravado na membership da empresa legada (`membros`).
+    const { data: membroAtual, error: leErr } = await db
+      .from('membros')
       .select('papel')
-      .eq('id', id)
+      .eq('profile_id', id)
+      .eq('empresa_id', EMPRESA_LEGADA_ID)
       .maybeSingle()
     if (leErr) throw new Error(`Falha ao ler o cargo atual de ${p.email}: ${leErr.message}`)
-    const papelNoBanco = (perfilAtual as { papel: PapelUsuario } | null)?.papel ?? null
+    const papelNoBanco = (membroAtual as { papel: PapelUsuario } | null)?.papel ?? null
     const papelGravado: PapelUsuario =
       p.papelManual !== undefined && papelNoBanco === p.papelManual ? p.papelManual : p.papel
     const promocaoPendente = p.papelManual !== undefined && papelGravado !== p.papelManual
 
     // `nome` e coluna GERADA (migration 0057) — escrever nela e erro; grava-se
-    // primeiro_nome/sobrenome. `papel`/`ativo` so o service role escreve (0063).
-    // O `.select()` no fim nao e enfeite: sem ele, um UPDATE que nao casa linha
-    // nenhuma (conta no Auth sem profile — nao deveria acontecer, o trigger cria)
-    // passaria em silencio e a conta ficaria com o cargo default 'operador'.
-    const { data: perfilGravado, error: upErr } = await db
+    // primeiro_nome/sobrenome. O `.select()` no fim nao e enfeite: sem ele, um UPDATE que
+    // nao casa linha nenhuma (conta no Auth sem profile — nao deveria acontecer, o trigger
+    // cria) passaria em silencio.
+    const { data: perfilGravado, error: perfErr } = await db
       .from('profiles')
-      .update({
-        primeiro_nome: p.primeiro_nome,
-        sobrenome: p.sobrenome,
-        papel: papelGravado,
-        ativo: p.ativo,
-      })
+      .update({ primeiro_nome: p.primeiro_nome, sobrenome: p.sobrenome })
       .eq('id', id)
+      .select('id')
+    if (perfErr) throw new Error(`Falha ao gravar o perfil de ${p.email}: ${perfErr.message}`)
+    // F62: o cargo e a situacao, na membership da empresa legada (o trigger handle_new_user a
+    // cria). O `.select()` pela mesma razao: sem membership a conta ficaria no default.
+    const { data: membroGravado, error: upErr } = await db
+      .from('membros')
+      .update({ papel: papelGravado, ativo: p.ativo })
+      .eq('profile_id', id)
+      .eq('empresa_id', EMPRESA_LEGADA_ID)
       .select('id')
     if (upErr) {
       // 42501 numa persona com cargo manual e quase sempre o trigger da 0073 falando. A
@@ -1435,17 +1447,17 @@ async function garantirPerfisSeed(
       if (p.papelManual !== undefined) {
         throw new Error(
           `Falha ao gravar o perfil de ${p.email}: ${upErr.message}\n` +
-            `Esta persona quer o cargo "${p.papelManual}", que o trigger profiles_guarda_dev ` +
-            '(migration 0073) NAO deixa o service role conceder — de proposito. O seed grava ' +
+            `Esta persona quer o cargo "${p.papelManual}", que o trigger membros_guarda_dev ` +
+            '(migration 0153) NAO deixa o service role conceder — de proposito. O seed grava ' +
             `"${p.papel}" e a promocao e manual, no SQL Editor do ENSAIO:\n` +
             sqlPromocaoManual(p.email, p.papelManual),
         )
       }
       throw new Error(`Falha ao gravar o perfil de ${p.email}: ${upErr.message}`)
     }
-    if (!perfilGravado || perfilGravado.length === 0) {
+    if (!perfilGravado || perfilGravado.length === 0 || !membroGravado || membroGravado.length === 0) {
       throw new Error(
-        `A conta ${p.email} existe no Auth mas nao tem perfil em profiles — nada foi gravado. ` +
+        `A conta ${p.email} existe no Auth mas nao tem perfil/membership — nada foi gravado. ` +
           'Confira o trigger handle_new_user no banco de ensaio.',
       )
     }

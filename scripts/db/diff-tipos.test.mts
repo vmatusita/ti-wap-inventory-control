@@ -204,7 +204,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8'),
   )
 
-  it('lê as 34 relações (25 tabelas + 9 views) e as 82 funções', () => {
+  it('lê as 37 relações (28 tabelas + 9 views) e as 94 funções', () => {
     // ⚠ 08/09/2026 (F51): as funções passaram de 60 para 68 — as OITO auxiliares do
     // import que a migration 0131 cria. Elas entraram no `database.ts` À MÃO, e não
     // pelo gerador: `npm run db:types` lê um projeto REAL pela Management API, e a
@@ -276,8 +276,15 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // `import_*` da F51). O `database.ts` foi REGENERADO do ensaio depois do apply (MCP
     // `generate_typescript_types`) e o diff contra o anterior foram exatamente as seis entradas.
     // A orquestradora continua fora: é `returns trigger`.
-    expect(real.relacoes.size).toBe(34)
-    expect(real.funcoes.size).toBe(88)
+    //
+    // F62 (22/09/2026): relações 34 -> 37, funções 88 -> 94. A `0152`–`0157` criam TRÊS tabelas
+    // (`empresas`, `membros`, `plataforma_admins`) e SEIS funções que o gerador lista
+    // (`empresa_legada`, `e_plataforma` e as quatro de conjunto); as duas de gatilho
+    // (`membros_guarda_dev`, `operador_filiais_deriva_membership`) ficam fora, pela regra de
+    // sempre. O `database.ts` as ganhou por HAND-FIX datado antes do apply; a regeneração do
+    // ensaio pelo MCP, depois do apply, o substitui. O número SUBIU porque o banco ganhou objetos.
+    expect(real.relacoes.size).toBe(37)
+    expect(real.funcoes.size).toBe(94)
     expect(real.colunas.size).toBeGreaterThanOrEqual(299)
   })
 

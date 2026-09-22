@@ -573,7 +573,7 @@ async function main(): Promise<void> {
     for (const f of falhas) log(`  ✗ ${f.passo} — ${f.detalhe}`)
   }
   if (!personaDesativadaComSucesso) {
-    log('⚠ A persona pode ter ficado ATIVA — confira profiles.ativo de seed.admin@wap.ind.br manualmente.')
+    log('⚠ A persona pode ter ficado ATIVA — confira membros.ativo (a membership da WAP) de seed.admin@wap.ind.br manualmente.')
   }
   process.exit(falhas.length === 0 ? 0 : 1)
 }

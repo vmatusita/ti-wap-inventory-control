@@ -150,8 +150,8 @@ export const COLUNAS_DE_RETORNO_ANULAVEIS = {
 export const ESCALARES_ANULAVEIS = {
   papel_atual: {
     motivo:
-      'perfil desativado, arquivado ou sem sessão: o select não acha linha e a função sql devolve NULL — é "sem cargo", não erro',
-    evidencia: 'and p.ativo and p.excluido_em is null',
+      'membership desativada, conta arquivada, sem membership na empresa legada ou sem sessão (F62: o cargo mora em membros): o select não acha linha e a função sql devolve NULL — é "sem cargo", não erro',
+    evidencia: 'and m.ativo and p.excluido_em is null',
   },
   ultima_migracao_aplicada: {
     motivo: 'banco sem a tabela de histórico de migrations (ou vazia) devolve NULL',

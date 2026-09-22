@@ -235,7 +235,8 @@ const GUARDA_ALVO = `  if public.rotulo_de_ambiente() is distinct from 'desenvol
 
 const CANDIDATOS = `select p.id, row_number() over (order by p.id) as ordem
     from public.profiles p
-   where p.ativo and p.excluido_em is null
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null
      and not exists (select 1 from public.lancamentos_item l
                       where l.criado_por = p.id
                         and (l.observacao is null or l.observacao not like '${MARCADOR}%'))`
@@ -259,7 +260,7 @@ export function comandoEstado(momento) {
   'indice_candidato_existe', to_regclass('public.lanc_item_criado_por_idx') is not null,
   'filiais_ativas', (select count(*) from public.filiais where ativo),
   'perfis_candidatos', (select count(*) from (${CANDIDATOS}) as c),
-  'perfis_admin_ativos', (select count(*) from public.profiles where ativo and excluido_em is null and papel in ('admin', 'dev'))
+  'perfis_admin_ativos', (select count(*) from public.profiles p join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada() where m.ativo and p.excluido_em is null and m.papel in ('admin', 'dev'))
 ) as f60i_resultado;`
 }
 
@@ -302,7 +303,8 @@ ${GUARDA_ALVO}
     raise exception 'F60I_POPULACAO_SEM_AUTORES';
   end if;
   if not exists (select 1 from public.profiles q
-                  where q.ativo and q.excluido_em is null
+                  join public.membros mq on mq.profile_id = q.id and mq.empresa_id = public.empresa_legada()
+                  where mq.ativo and q.excluido_em is null
                     and q.id not in (select c.id from (${CANDIDATOS}) as c where c.ordem <= 2)) then
     raise exception 'F60I_POPULACAO_SEM_AUTOR_QUENTE';
   end if;
@@ -314,7 +316,8 @@ ctx as (
   select
     (select c.id from cand c where c.ordem = 2) as frio,
     (select q.id from public.profiles q
-      where q.ativo and q.excluido_em is null and q.id not in (select c.id from cand c where c.ordem <= 2)
+      join public.membros mq on mq.profile_id = q.id and mq.empresa_id = public.empresa_legada()
+      where mq.ativo and q.excluido_em is null and q.id not in (select c.id from cand c where c.ordem <= 2)
       order by q.id limit 1) as quente,
     (select array_agg(q.id order by q.id) from public.profiles q
       where q.id not in (select c.id from cand c where c.ordem <= 2)) as lote,
@@ -425,7 +428,8 @@ begin
   end loop;
 
   select p.id into v_admin from public.profiles p
-   where p.ativo and p.excluido_em is null and p.papel in ('admin', 'dev') order by p.id limit 1;
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null and m.papel in ('admin', 'dev') order by p.id limit 1;
   select c.id into v_sem from (${CANDIDATOS}) as c where c.ordem = 1;
   select c.id into v_frio from (${CANDIDATOS}) as c where c.ordem = 2;
   select l.criado_por into v_quente from public.lancamentos_item l
@@ -556,7 +560,8 @@ declare
 begin
 ${GUARDA_ALVO}
   select p.id into v_autor from public.profiles p
-   where p.ativo and p.excluido_em is null and p.papel in ('admin', 'dev') order by p.id limit 1;
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null and m.papel in ('admin', 'dev') order by p.id limit 1;
   select l.item_id, l.filial_id, count(*) into v_item_q, v_fil_q, v_linhas from public.lancamentos_item l
    where l.observacao like '${MARCADOR}%' group by l.item_id, l.filial_id
    order by count(*) desc, l.item_id, l.filial_id limit 1;

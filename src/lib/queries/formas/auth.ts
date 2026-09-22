@@ -19,18 +19,30 @@ export const LEITURA_PAPEL_ATUAL = leituraDeRpc({
   matriz: { tipo: 'sem-argumentos' },
 })
 
-// `getOperador` — o perfil do operador logado. `profiles.papel` é not null (migration 0061) —
-// o tipo à mão (`perfil.papel as PapelUsuario`) escondia que a coluna já vem tipada certo pelo
-// select; a forma aqui devolve `PapelUsuario` direto, sem cast.
+// `getOperador` — o que é da CONTA: o nome e o arquivamento. F62: o cargo e o status saíram
+// daqui (`profiles.papel`/`profiles.ativo` congelaram — decisão iii) e moram em `membros`.
 export const LEITURA_PERFIL_OPERADOR = leituraDeRelacao({
   rotulo: 'auth.perfil-operador',
   origem: 'profiles',
-  select: 'nome, papel, ativo, excluido_em',
+  select: 'nome, excluido_em',
   forma: z.strictObject({
     nome: sn,
+    excluido_em: sn,
+  }),
+  ordem: ['id'],
+})
+
+// `getOperador` — o CARGO e o STATUS do operador logado, na membership da empresa legada (F62).
+// `membros.papel` é not null (0153) e vem tipado como `PapelUsuario` pelo select, sem cast; o
+// `id` é o da membership, que é a dona dos vínculos de escrita (`operador_filiais.membro_id`).
+export const LEITURA_MEMBRO_OPERADOR = leituraDeRelacao({
+  rotulo: 'auth.membro-operador',
+  origem: 'membros',
+  select: 'id, papel, ativo',
+  forma: z.strictObject({
+    id: z.string(),
     papel: ENUM.papelUsuario,
     ativo: z.boolean(),
-    excluido_em: sn,
   }),
   ordem: ['id'],
 })

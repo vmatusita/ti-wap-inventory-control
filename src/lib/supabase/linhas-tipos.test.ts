@@ -76,10 +76,11 @@ export async function provasDeSelectTudo() {
   const nome: string = filiais[0].nome
   void nome
   // @ts-expect-error — (8) mesmo na frouxa, coluna que a TABELA não tem não compila
-  void filiais[0].empresa_id
+  // (F62: `empresa_id` passou a existir em `filiais`; a prova usa uma coluna de `empresas`.)
+  void filiais[0].razao_social
 
   // @ts-expect-error — (9) mesmo na frouxa, a forma não pode declarar coluna fora da linha
-  linhasDe(data, z.looseObject({ id: z.number(), empresa_id: z.string() }), 'prova.tudo')
+  linhasDe(data, z.looseObject({ id: z.number(), razao_social: z.string() }), 'prova.tudo')
 }
 
 export async function provasDeView() {
