@@ -740,6 +740,21 @@ De F62 em diante cada fase acrescenta estrutura que só o multiempresa usa. Toda
 
 **Repouso.** Perfeito e indefinido — desde que `profiles.papel` continue de pé.
 
+*(Nota F62, 22/09/2026: executada pela ordem [`prompts/F62-raiz-do-tenant-e-cargo-por-empresa-ultracode.md`](prompts/F62-raiz-do-tenant-e-cargo-por-empresa-ultracode.md),
+migrations `0152`–`0158` (não `0141`–`0144`). **Os desvios medidos:** as policies vivas são **61** (53 em `public` + 8
+em Storage), não 54, e **nenhuma** mudou — a ponte manteve `papel_atual()` sem parâmetro; das cinco funções que a
+ficha nomeia, três só derivam de `papel_atual()` e não foram reescritas — quem lê o cargo são **nove funções SQL**, as
+**cinco RPCs** de conta e `handle_new_user`; são **94** funções vivas, não 101; e a previsão de `42P17` com `force` não
+vale nos nossos bancos (o dono tem BYPASSRLS — a proibição fica, pelo motivo certo; MATRIZ, emenda F62 da R-ACC-29).
+**As quatro decisões do Johnny** estenderam a ficha: (i) `filiais.empresa_id` nasceu aqui, `not null` com default
+constante na WAP até a F64 — e `operador_filiais` ganhou `empresa_id`/`membro_id` com as FKs compostas; (ii) as
+contas dev têm membership como todo mundo (a conta de plataforma NÃO ficou fora de `membros`: a trava do último
+administrador continua contando quem contava) e estão também em `plataforma_admins`, um retrato sem consumidor;
+(iii) `profiles.papel`/`ativo` congelados, com rollback que copia de volta primeiro
+(`supabase/rollback/F62-*`); (iv) o seed só trocou a linha do cargo — as duas empresas fictícias e a cobertura das
+seis tabelas ficaram para a **F65** (ver a nota lá). O roteiro `isolamento_tenant.sql` ganhou os cenários A↔B com
+duas empresas fictícias montadas pelo próprio roteiro. Regras novas: MATRIZ R-ACC-77 a R-ACC-84; ADR-002 §15.)*
+
 ---
 
 ### F63 — `empresa_id` no acervo (lote 1)
@@ -786,6 +801,11 @@ De F62 em diante cada fase acrescenta estrutura que só o multiempresa usa. Toda
 - **`motivos` tem PK natural** (`codigo text primary key`) referenciada por FK em `movimentacoes`: **trocar a chave e a FK juntas, na mesma migration**. Errar ali não dá mensagem de UNIQUE — dá recusa de INSERT na tabela mais quente do sistema.
 - **`kits_modelos.payload` guarda o código do motivo como TEXTO LIVRE dentro do jsonb** (`0043:40`), sem FK. FK composta **não alcança jsonb**, então o kit fica de fora da integridade estrutural por construção: um kit da empresa A com `motivo: 'troca'` sobreviveria à virada apontando para nada, ou para o motivo homônimo de outra empresa. Correção nesta fase: validação no `insert`/`update` do kit conferindo que o `motivo` do payload existe **na empresa do kit**, mais checagem nova em `dev_checagens_integridade()` para kits com motivo órfão.
 
+*(Nota F62, 22/09/2026: `filiais` e `operador_filiais` **já ganharam** `empresa_id` na F62 (decisão i do Johnny) —
+`filiais.empresa_id not null default public.empresa_legada()`, com `unique (empresa_id, id)`; `operador_filiais` com
+`empresa_id`/`membro_id` e FKs compostas. O que sobra aqui para as duas é **tirar o default** (a empresa passa a vir
+de quem cria a filial) e, com ele, a ponte de `papel_atual()` e `EMPRESA_LEGADA_ID` no app.)*
+
 **Não entra.** Trocar as UNIQUE globais (F65).
 
 **Entregas.** Migrations `0148`–`0150`, `src/lib/auditoria-registro.ts`, `src/lib/actions/senhas.ts`, `src/lib/actions/kits.ts`, `database.ts`.
@@ -816,6 +836,14 @@ De F62 em diante cada fase acrescenta estrutura que só o multiempresa usa. Toda
 - **`guarda_empresa()`** — trigger `before update` recusando `new.empresa_id is distinct from old.empresa_id` com 42501, em `ativos`, `pendencias_item`, `colaboradores` e `itens` (`movimentacoes`/`lancamentos_item` já são cobertas por `guarda_acervo`). **Sem exceção para a janela `estoque.dev_destrutivo`** — mudar o tenant de um ativo não é operação legítima nem para o dev; é a definição do defeito. É a **única** defesa que segura `aplicar_movimentacao`, que é `security definer` e ignora policy — e é ela que impede o único caminho do sistema que move um ativo de escopo (a transferência, cujo `filial_destino_id` vem do formulário) de virar teleporte cross-tenant com histórico junto.
 - `ativos.empresa_id` **não pode** ser coluna gerada nem derivada de `filial_id`; senão a transferência continua movendo o tenant em silêncio.
 - **As 13 travas advisory.** Duas notas na ata: ids reescalados por empresa fazem `(3,1)` de A colidir com `(3,1)` de B (lentidão intermitente sem erro, diagnosticada como "o Free está ruim"); e `pg_advisory_xact_lock(bigint)` e `(int,int)` são **espaços de lock diferentes** — conversão parcial desliga a exclusão mútua sem erro nenhum. Converter todas atomicamente ou não começar. Decidir aqui o tipo de `itens.id`/`filiais.id` (`smallint`: `generated always as identity` queima números em transação abortada, então o teto efetivo é menor que 32.767 e imprevisível).
+
+*(Nota F62, 22/09/2026 — backlog nomeado vindo da F62, decisão iv do Johnny: **o seed com duas empresas fictícias**,
+slugs de filial repetidos entre elas, patrimônio compartilhado, máscaras diferentes e a cobertura das seis tabelas que
+o seed não semeia (`senhas_acesso`, `termos_gerados`, `relatorios_gerados`, `kits_modelos`, `import_logs`,
+`pendencias_item`), **com a trava** `scripts/seed.test.ts`: `EMPRESAS.length >= 2`, ao menos um slug de filial repetido,
+ao menos um patrimônio nas duas, cobertura mínima das tabelas de negócio. Na F62 o seed só grava o cargo em `membros`.
+Já feito na F62, e fora desta lista: `unique (empresa_id, id)` em `filiais` e `membros`, e as FKs compostas de
+`operador_filiais` (membership e filial da mesma empresa).)*
 
 **Não entra.** Policy.
 
