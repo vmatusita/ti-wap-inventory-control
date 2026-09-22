@@ -32,7 +32,7 @@ export const VERSOES: readonly EntradaVersao[] = [
       'Por dentro: o sistema passou a guardar o cargo e a situação (ativa ou desativada) de cada pessoa dentro da empresa em que ela trabalha, que hoje é só a WAP. É o primeiro passo para o mesmo sistema atender mais de uma empresa, cada uma com a sua equipe, sem que uma enxergue a outra.',
       'Trocar o cargo, ativar ou desativar uma conta, mudar as filiais de um operador e apagar uma conta continuam em Administração → Usuários, com o mesmo efeito de antes: a mudança vale já no próximo clique da pessoa, sem ela precisar sair e entrar de novo.',
       'A proteção das contas de Desenvolvedor continua a mesma: ninguém abaixo delas consegue mudar o cargo, desativar ou apagar essas contas, agora também no lugar novo em que o cargo é guardado.',
-      'Para ter certeza de que ninguém mudou de acesso, o acesso de cada conta foi registrado antes e depois da mudança, na cópia de testes e na do dia a dia, e os dois registros saíram idênticos.',
+      'Para ter certeza de que ninguém muda de acesso, o acesso de cada conta é registrado antes e depois da mudança, na cópia de testes e na do dia a dia, e a versão só é publicada se os dois registros saírem idênticos.',
     ],
   },
   {
