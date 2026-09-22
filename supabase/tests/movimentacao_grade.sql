@@ -232,9 +232,7 @@ declare
   v_ok int := 0; v_falhas int := 0;
   r record;
 begin
-  select id into v_prof from public.profiles
-   where ativo and excluido_em is null
-   order by created_at, id limit 1;
+  v_prof := pg_temp.perfil_ativo_mais_antigo();
   if v_prof is null then
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar';
   end if;

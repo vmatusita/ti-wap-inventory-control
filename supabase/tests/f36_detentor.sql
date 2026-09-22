@@ -87,9 +87,11 @@ begin
 
   -- Plantar um DEV exige o caminho oficial: `profiles_guarda_dev` (0073) recusa a
   -- concessão do cargo até para o postgres. Mesmo idioma do dev_destrutivo.sql.
+  -- F62: o cargo é plantado em membros, por pg_temp.plantar_cargo (supabase/tests/_asserts.sql).
   perform set_config('estoque.gestao_usuarios', 'on', true);
-  update public.profiles set papel = 'dev', primeiro_nome = 'Dev', sobrenome = 'de Teste'
+  update public.profiles set primeiro_nome = 'Dev', sobrenome = 'de Teste'
    where id = k_dev;
+  perform pg_temp.plantar_cargo(k_dev, 'dev');
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- =============================================================

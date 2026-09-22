@@ -195,13 +195,14 @@ begin
   -- Plantar um DEV exige o caminho oficial: `profiles_guarda_dev` (0073) recusa a
   -- concessão do cargo até para o postgres. Mesmo idioma de `f36_detentor.sql`.
   perform set_config('estoque.gestao_usuarios', 'on', true);
-  update public.profiles set papel = 'dev' where id = k_dev;
+  perform pg_temp.plantar_cargo(k_dev, 'dev');
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- `consulta` e `ativo=false` NÃO tocam `papel = 'dev'` em lado nenhum da
-  -- transição — `profiles_guarda_dev` deixa passar sem GUC nenhum.
-  update public.profiles set papel = 'consulta' where id = k_consulta;
-  update public.profiles set ativo = false where id = k_desativado;
+  -- transição — `profiles_guarda_dev` deixa passar sem GUC nenhum. F62: o cargo e o
+  -- status são plantados em membros pelos ajudantes de _asserts.sql.
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
+  perform pg_temp.plantar_status(k_desativado, false);
 
   insert into public.filiais (slug, nome) values ('zzf55a', 'ZZF55 Filial Teste A') returning id into v_fa;
   insert into public.filiais (slug, nome) values ('zzf55b', 'ZZF55 Filial Teste B') returning id into v_fb;

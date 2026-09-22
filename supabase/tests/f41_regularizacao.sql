@@ -132,8 +132,8 @@ begin
      'f41.chefia@wap.ind.br',   '', now(), now(), now()),
     (k_operador, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'f41.operador@wap.ind.br', '', now(), now(), now());
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
+  perform pg_temp.plantar_cargo(k_admin, 'admin');       -- F62: o cargo é plantado em membros
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
   insert into public.tipos_item (slug, rotulo, ordem)

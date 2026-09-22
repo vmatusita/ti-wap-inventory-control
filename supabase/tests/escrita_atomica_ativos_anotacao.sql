@@ -127,10 +127,12 @@ begin
     (k_consulta, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'f60u.consulta@wap.ind.br', '', now(), now(), now());
 
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
-  update public.profiles set papel = 'operador' where id = k_outro;
-  update public.profiles set papel = 'consulta' where id = k_consulta;
+  -- F62: cargo/status moraram para public.membros — plantados por pg_temp.plantar_cargo
+  -- (supabase/tests/_asserts.sql).
+  perform pg_temp.plantar_cargo(k_admin, 'admin');
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  perform pg_temp.plantar_cargo(k_outro, 'operador');
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
 
   -- `k_operador` escreve só em v_f1; `k_outro`, só em v_f2; `k_consulta` em nenhuma.
   insert into public.operador_filiais (usuario_id, filial_id) values

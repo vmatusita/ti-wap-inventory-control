@@ -66,7 +66,7 @@ begin
                           encrypted_password, email_confirmed_at, created_at, updated_at)
   values (k_operador, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'f148.operador@wap.ind.br', '', now(), now(), now());
-  update public.profiles set papel = 'operador' where id = k_operador;
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
 
   -- Duas linhas de ledger FICTÍCIAS, com versão maior que qualquer coisa real
   -- hoje — garantem o TOPO da ordenação sem depender do estado real do banco
@@ -103,7 +103,7 @@ begin
   -- privilégio de tabela em `profiles` (os grants de default do projeto hospedado não
   -- existem lá), e mexer no perfil não é o que este cenário mede.
   reset role;
-  update public.profiles set ativo = false where id = k_operador;
+  perform pg_temp.plantar_status(k_operador, false);
   set local role authenticated;
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
@@ -122,7 +122,7 @@ begin
       raise warning '✗ 2a recusado por SQLSTATE inesperado (não 42501): % — %', sqlstate, sqlerrm;
   end;
   reset role;
-  update public.profiles set ativo = true where id = k_operador; -- devolve o estado para não vazar para outra asserção
+  perform pg_temp.plantar_status(k_operador, true); -- devolve o estado para não vazar para outra asserção
 
   -- =========================================================================
   -- 2b — ANON: recusado pela FALTA DE GRANT (nem entra no corpo da função)

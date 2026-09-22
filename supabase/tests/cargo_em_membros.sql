@@ -148,7 +148,7 @@ begin
        where n.nspname = 'public' and p.prokind = 'f'
     ) x;
   if pg_temp.assert_zero_de(
-       '1a nenhuma função de public lê ou escreve profiles.papel/profiles.ativo fora das exceções nomeadas' ||
+       '1a nenhuma função de public lê ou escreve o cargo congelado de profiles (papel/ativo) fora das exceções nomeadas' ||
        case when v_cnt > 0 then ' — acusadas: ' || v_lista else '' end,
        v_cnt, v_univ) then
     v_ok := v_ok + 1;
@@ -226,16 +226,16 @@ begin
   -- ---------------------------------------------------------------
   execute
     'create function public._f62_sabotagem_alias() returns text language sql stable as ' ||
-    '$s1$ select p.papel::text from public.profiles p where p.id = auth.uid() $s1$';
+    '$s1$ select p.papel::text from public.profiles p where p.id = auth.uid() $s1$';  -- F62/cargo-congelado: 2
   execute
     'create function public._f62_sabotagem_sem_alias() returns boolean language sql stable as ' ||
-    '$s2$ select ativo from public.profiles where id = auth.uid() $s2$';
+    '$s2$ select ativo from public.profiles where id = auth.uid() $s2$';  -- F62/cargo-congelado: 2
   execute
     'create function public._f62_sabotagem_grava() returns void language sql as ' ||
-    '$s3$ update public.profiles set papel = ''consulta'' where id = auth.uid() $s3$';
+    '$s3$ update public.profiles set papel = ''consulta'' where id = auth.uid() $s3$';  -- F62/cargo-congelado: 2
   execute
     'create function public._f62_sabotagem_qualificada() returns boolean language sql stable as ' ||
-    '$s4$ select exists (select 1 from public.profiles where profiles.ativo) $s4$';
+    '$s4$ select exists (select 1 from public.profiles where profiles.ativo) $s4$';  -- F62/cargo-congelado: 2
 
   select count(*), coalesce(string_agg(proname, ', ' order by proname), '')
     into v_cnt, v_lista

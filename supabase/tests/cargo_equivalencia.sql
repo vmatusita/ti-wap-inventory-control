@@ -49,7 +49,7 @@ security definer
 set search_path = public
 as $$
   select p.papel
-    from public.profiles p
+    from public.profiles p  -- F62/cargo-congelado: corpo antigo
    where p.id = (select auth.uid())
      and p.ativo
      and p.excluido_em is null
@@ -106,7 +106,7 @@ set search_path = public
 as $$
   select exists (
     select 1
-      from public.profiles p
+      from public.profiles p  -- F62/cargo-congelado: corpo antigo
      where p.papel in ('dev', 'admin')
        and p.ativo
        and p.excluido_em is null
@@ -182,7 +182,7 @@ begin
                   'f62.grade.' || v_n || '@wap.ind.br', '', now(), now(), now());
 
           -- o corpo ANTIGO lê daqui
-          update public.profiles
+          update public.profiles  -- F62/cargo-congelado: corpo antigo
              set papel = v_papel::public.papel_usuario,
                  ativo = v_ativo,
                  excluido_em = case when v_arq then now() else null end
@@ -222,8 +222,8 @@ begin
             'f62.grade.dupla.admin@wap.ind.br', '', now(), now(), now()),
            (k_dupla_operador, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
             'f62.grade.dupla.operador@wap.ind.br', '', now(), now(), now());
-    update public.profiles set papel = 'admin'    where id = k_dupla_admin;
-    update public.profiles set papel = 'operador' where id = k_dupla_operador;
+    update public.profiles set papel = 'admin'    where id = k_dupla_admin;  -- F62/cargo-congelado: corpo antigo
+    update public.profiles set papel = 'operador' where id = k_dupla_operador;  -- F62/cargo-congelado: corpo antigo
     update public.membros set papel = 'admin'
      where profile_id = k_dupla_admin and empresa_id = public.empresa_legada();
     update public.membros set papel = 'operador'
