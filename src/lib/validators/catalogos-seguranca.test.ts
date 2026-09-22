@@ -295,15 +295,29 @@ describe('4. cada catálogo lê a superfície que promete ler', () => {
 })
 
 describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => {
-  it('NÃO cita `empresa_id` em código — a coluna não existe (F63/F65)', () => {
-    // Escrever a varredura da chave de recorte hoje seria erro de psql (coluna
-    // inexistente) ou asserção sobre conjunto vazio — e `assert_zero_de` levanta
-    // exceção nesse caso, matando o bloco antes da linha FIM. O comentário do
-    // cabeçalho pode (e deve) citá-la; o código, não.
+  it('cita `empresa_id` em código SÓ junto das tabelas da F62 — nunca junto de tabela de ACERVO (F63/F65)', () => {
+    // EMENDA F62 (22/09/2026). Até a F61 este teste reprovava QUALQUER `empresa_id` em código:
+    // a coluna não existia, e escrever a varredura seria erro de psql ou asserção sobre
+    // conjunto vazio. A F62 criou a coluna em `filiais`, `membros` e `operador_filiais`, e os
+    // cenários A↔B (seção 9) e a varredura 9k — que lê do CATÁLOGO quais tabelas têm a
+    // coluna — a usam. O que continua proibido é o roteiro "saber" do `empresa_id` do ACERVO
+    // antes de a F63 criá-lo: nenhum comando junta `empresa_id` com uma tabela de NEGÓCIO
+    // que não seja `filiais`. A lista de negócio vem de `k_negocio` (catalogo_policies.sql),
+    // a fonte única — nunca copiada para cá.
+    const cat = fonte('catalogo_policies')
+    const m = /k_negocio text\[\] := array\[([\s\S]*?)\];/.exec(cat)
+    expect(m, 'não achei k_negocio em catalogo_policies.sql').not.toBeNull()
+    const acervo = [...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).filter((t) => t !== 'filiais')
+    expect(acervo.length, 'k_negocio veio vazio — o teste compararia com nada').toBeGreaterThan(10)
+    const comandos = semComentarios(fonte('isolamento_tenant'))
+      .split(';')
+      .filter((c) => /\bempresa_id\b/.test(c))
+    expect(comandos.length, 'a seção 9 não cita empresa_id — os cenários A↔B sumiram?').toBeGreaterThan(0)
+    const juntos = comandos.filter((c) => acervo.some((t) => new RegExp(`public\\.${t}\\b`).test(c)))
     expect(
-      semComentarios(fonte('isolamento_tenant')),
-      'isolamento_tenant.sql cita empresa_id em CÓDIGO — a coluna nasce na F63/F65',
-    ).not.toContain('empresa_id')
+      juntos.map((c) => c.trim().slice(0, 160)),
+      'isolamento_tenant.sql junta empresa_id com tabela de ACERVO — a coluna nasce lá na F63/F65',
+    ).toEqual([])
   })
 
   it('o cabeçalho DIZ por que a varredura da chave de recorte está vazia', () => {

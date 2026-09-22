@@ -1,10 +1,20 @@
 -- =============================================================
--- Roteiro de teste: O ARCABOUÇO DO ISOLAMENTO (F48, 07/09/2026)
+-- Roteiro de teste: O ISOLAMENTO ENTRE EMPRESAS (F48 → F62)
 -- =============================================================
 -- O QUE ESTE ARQUIVO É, E O QUE ELE AINDA NÃO É
 --
--- Ele é o lugar onde os cenários A↔B do isolamento entre inquilinos vão morar — e
--- eles NASCEM NA F62, não aqui. Hoje existe UMA empresa, e escrever "a empresa A não
+-- F62 (22/09/2026): os cenários A↔B NASCERAM — seção 9, abaixo. A F62 criou a raiz do
+-- tenant (`empresas`, `membros`, `plataforma_admins`, `filiais.empresa_id`, o vínculo
+-- de escrita por membership) e as QUATRO FUNÇÕES DE CONJUNTO da forma-alvo da MATRIZ
+-- (`empresas_do_membro`, `empresas_de_escrita`, `empresas_de_admin`,
+-- `unidades_de_escrita`). A empresa A é a WAP (a empresa legada, da migration); a B é
+-- FICTÍCIA, criada aqui, com filial própria de slug diferente (o unique global de
+-- `filiais.slug` é da F65). Os cenários provam, nas DUAS direções, o que as funções de
+-- conjunto e as FKs compostas decidem. ⚠ O QUE AINDA NÃO SE PROVA AQUI: que o ACERVO de A é
+-- invisível para B — as 61 policies continuam com o piso (todo logado ativo lê tudo) até a
+-- F66/F72, e o acervo nem tem `empresa_id` antes da F63.
+--
+-- (Texto da F48, mantido como registro:) Hoje existe UMA empresa, e escrever "a empresa A não
 -- vê o dado da empresa B" com uma empresa só produziria um ✓ sobre conjunto vazio:
 -- falsa segurança, que é o defeito exato que este roteiro existe para não ter.
 --
@@ -46,11 +56,14 @@
 --    porque a F65 acrescenta `(empresa_id, id)` e os cenários dela a herdam.)
 --
 -- ---------------------------------------------------------------------------
--- A LINHA QUE ESTE ARQUIVO AINDA NÃO PODE ESCREVER
+-- A LINHA QUE ESTE ARQUIVO SÓ ESCREVE PELA METADE (F62)
 -- ---------------------------------------------------------------------------
 -- A ficha do plano pede, entre as varreduras schema-wide, "nenhuma linha com a chave
--- de recorte nula". Ela NÃO é escrevível hoje: a chave é `empresa_id` e ela não
--- existe — `grep -rn "empresa_id" supabase/migrations/` devolve ZERO em 07/09/2026.
+-- de recorte nula". Desde a F62 ela EXISTE para as tabelas que a F62 criou ou alterou
+-- (`filiais`, `membros`, `operador_filiais` — cenário 9k, iterado sobre o CATÁLOGO pela
+-- coluna `empresa_id`); as tabelas de ACERVO só ganham a coluna na F63/F65, e a mesma
+-- varredura as alcança sozinha quando a coluna existir. O texto da F48 fica como
+-- registro: em 07/09/2026 `grep -rn "empresa_id" supabase/migrations/` devolvia ZERO.
 -- Escrever um placeholder seria pior do que não escrever: ou erra no psql (coluna
 -- inexistente) ou conta zero, e `assert_zero_de` levanta exceção de propósito sobre
 -- universo vazio, o roteiro morre antes do `FIM` e o runner reprova.
@@ -107,14 +120,21 @@ begin;
 
 -- LEITURA — o que alguma asserção seleciona como `authenticated`.
 grant select on
-  public.ativos,     -- 8: o operador de outra filial LÊ o ativo (o piso), mas não escreve
-  public.filiais,    -- resolução de filial nas fixtures
-  public.profiles    -- 7: o grant de COLUNA, e a asserção que o mede
+  public.ativos,            -- 8: o operador de outra filial LÊ o ativo (o piso), mas não escreve
+  public.filiais,           -- resolução de filial nas fixtures
+  public.profiles,          -- 7: o grant de COLUNA, e a asserção que o mede
+  public.membros,           -- 9i: o espelho do projeto hospedado (SELECT sim, escrita não — 0153)
+  public.operador_filiais   -- 9i: o UPDATE/DELETE com WHERE precisa de SELECT (espelho do hospedado)
   to authenticated;
 
 -- ESCRITA — só a tabela que alguma asserção tenta escrever.
+-- ⚠ `empresas`, `membros` e `plataforma_admins` NÃO entram: no projeto hospedado a
+-- migration REVOGOU a escrita de `authenticated` (0152/0153/0154), e conceder aqui mediria
+-- um banco que não existe. `operador_filiais` entra porque lá o privilégio padrão CONTINUA
+-- (quem recusa é a RLS, sem policy de escrita) — e é essa recusa que 9i prova.
 grant insert, update, delete on
-  public.ativos      -- 8: a recusa de UPDATE em filial não vinculada, provada duas vezes
+  public.ativos,            -- 8: a recusa de UPDATE em filial não vinculada, provada duas vezes
+  public.operador_filiais   -- 9i: a recusa pela RLS (nenhuma policy de escrita), provada duas vezes
   to authenticated;
 
 -- `profiles`: espelho EXATO do grant da 0063 — nunca `update` de TABELA.
@@ -161,8 +181,34 @@ declare
   -- porque é conferência do fonte contra si mesmo, e SQL não enxerga o próprio arquivo.
   -- (A primeira versão deste comentário prometia a simetria como se ela existisse aqui;
   -- a revisão adversarial da fase pegou a promessa falsa, e a trava de mesa nasceu dela.)
-  k_leitura text[] := array['ativos', 'filiais', 'profiles'];
-  k_escrita text[] := array['ativos'];
+  k_leitura text[] := array['ativos', 'filiais', 'profiles', 'membros', 'operador_filiais'];
+  k_escrita text[] := array['ativos', 'operador_filiais'];
+
+  -- =======================================================================
+  -- F62 — AS PERSONAS DOS CENÁRIOS A↔B (uuid fixo, prefixo f62a; e-mails de fantasia)
+  -- =======================================================================
+  k_admin_a    uuid := '00000000-f62a-4000-8000-0000000000a1';  -- admin SÓ em A
+  k_oper_b     uuid := '00000000-f62a-4000-8000-0000000000b2';  -- operador SÓ em B, com vínculo
+  k_consultor  uuid := '00000000-f62a-4000-8000-0000000000c3';  -- admin em A E consulta em B
+  k_inativo    uuid := '00000000-f62a-4000-8000-0000000000d4';  -- membro de A que será desligado
+  k_plataforma uuid := '00000000-f62a-4000-8000-0000000000e5';  -- a conta de plataforma
+  k_novo       uuid := '00000000-f62a-4000-8000-0000000000f6';  -- só nasce (9l)
+  v_emp_a      uuid;
+  v_emp_b      uuid;
+  v_fb         smallint;
+  v_n_fil_a    bigint;
+  v_m_cons_a   uuid;
+  v_m_cons_b   uuid;
+  v_m_oper_b   uuid;
+  v_txt        text;
+  v_esp        text;
+  v_ruins      bigint;
+  v_rotulos    text;
+  v_estado     text;
+  v_restr      text;
+  v_antes      text;
+  v_depois     text;
+  v_refs       bigint;
 begin
   -- =========================================================================
   -- FIXTURES (como postgres — antes de qualquer troca de papel).
@@ -184,7 +230,7 @@ begin
                           encrypted_password, email_confirmed_at, created_at, updated_at)
   values (k_operador, '00000000-0000-0000-0000-000000000000', 'authenticated',
           'authenticated', 'f48.operador@wap.ind.br', '', now(), now(), now());
-  update public.profiles set papel = 'operador' where id = k_operador;
+  perform pg_temp.plantar_cargo(k_operador, 'operador');   -- F62: o cargo mora em membros
 
   -- Vinculado SÓ à filial 1 — a filial 2 é a "outra empresa" de mentira que o
   -- arcabouço consegue exercitar hoje.
@@ -420,6 +466,455 @@ begin
     v_falhas := v_falhas + 1;
     raise warning '✗ 8d o operador não escreveu na filial VINCULADA (% linhas de 1) — 8b/8c passariam por escrita quebrada, não por recorte', v_cnt;
   end if;
+
+  -- =========================================================================
+  -- 9 — F62: OS CENÁRIOS A↔B. Duas empresas: A = a legada (a WAP, da migration) e B,
+  -- fictícia, criada aqui. Tudo que o cenário examina é CONTADO como postgres antes
+  -- (regra 1 da convenção); toda recusa é provada duas vezes (regra 2); a FK composta,
+  -- com o par simétrico (regra 3).
+  -- =========================================================================
+  v_emp_a := public.empresa_legada();
+  insert into public.empresas (slug, nome) values ('f62-iso-b', 'Empresa B do isolamento (F62)')
+  returning id into v_emp_b;
+  insert into public.filiais (nome, slug, empresa_id)
+  values ('F62 Isolamento B Matriz', 'f62-iso-b-matriz', v_emp_b)
+  returning id into v_fb;
+  select count(*) into v_n_fil_a from public.filiais where empresa_id = v_emp_a;
+
+  insert into auth.users (id, instance_id, aud, role, email,
+                          encrypted_password, email_confirmed_at, created_at, updated_at)
+  values
+    (k_admin_a,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f62.admin.a@wap.ind.br',   '', now(), now(), now()),
+    (k_oper_b,     '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f62.oper.b@wap.ind.br',    '', now(), now(), now()),
+    (k_consultor,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f62.consultor@wap.ind.br', '', now(), now(), now()),
+    (k_inativo,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f62.inativo@wap.ind.br',   '', now(), now(), now()),
+    (k_plataforma, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f62.plataforma@wap.ind.br','', now(), now(), now()),
+    (k_novo,       '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f62.novo@wap.ind.br',      '', now(), now(), now());
+
+  -- ---------------------------------------------------------------
+  -- 9l — (Sabotagem J) A CONTA NOVA NASCE COM A MEMBERSHIP: o handle_new_user (0153) cria,
+  --      para cada uma das seis, a membership 'operador' ATIVA na empresa legada. Medido
+  --      ANTES de qualquer plantio, como postgres.
+  -- ---------------------------------------------------------------
+  select count(*) into v_cnt
+    from unnest(array[k_admin_a, k_oper_b, k_consultor, k_inativo, k_plataforma, k_novo]) as x(id)
+   where not exists (select 1 from public.membros m
+                      where m.profile_id = x.id and m.empresa_id = v_emp_a
+                        and m.papel = 'operador' and m.ativo);
+  if pg_temp.assert_zero_de('9l toda conta nova nasce com a membership operador ATIVA na empresa legada (handle_new_user)',
+       v_cnt, 6) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- O plantio (as FIXTURES dos cenários 9a–9k):
+  perform pg_temp.plantar_cargo(k_admin_a, 'admin');                          -- admin SÓ em A
+  delete from public.membros where profile_id = k_oper_b and empresa_id = v_emp_a;
+  perform pg_temp.plantar_cargo(k_oper_b, 'operador', true, v_emp_b);         -- operador SÓ em B
+  insert into public.operador_filiais (usuario_id, filial_id) values (k_oper_b, v_fb);
+  perform pg_temp.plantar_cargo(k_consultor, 'admin');                        -- admin em A…
+  perform pg_temp.plantar_cargo(k_consultor, 'consulta', true, v_emp_b);      -- …e consulta em B
+  perform pg_temp.plantar_cargo(k_inativo, 'operador');                       -- ativo, por ora (9e)
+  perform pg_temp.plantar_cargo(k_plataforma, 'dev');
+  insert into public.plataforma_admins (profile_id) values (k_plataforma);
+  select id into v_m_cons_a from public.membros where profile_id = k_consultor and empresa_id = v_emp_a;
+  select id into v_m_cons_b from public.membros where profile_id = k_consultor and empresa_id = v_emp_b;
+  select id into v_m_oper_b from public.membros where profile_id = k_oper_b and empresa_id = v_emp_b;
+
+  -- O UNIVERSO, contado como postgres (regra 1): as duas empresas, as filiais de cada uma, as
+  -- memberships plantadas e o vínculo de B. Sem ele, "viu {A}" poderia ser "não havia B".
+  if v_emp_b is not null and v_fb is not null and v_n_fil_a >= 2
+     and v_m_cons_a is not null and v_m_cons_b is not null and v_m_oper_b is not null
+     and (select count(*) from public.operador_filiais where membro_id = v_m_oper_b and filial_id = v_fb) = 1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 9-fixture o universo A↔B foi montado e contado como postgres: 2 empresas, % filiais em A e 1 em B, as memberships e o vínculo de B', v_n_fil_a;
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 9-fixture o universo A↔B não montou (B=%, filial B=%, filiais de A=%)', v_emp_b, v_fb, v_n_fil_a;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 9a/9b/9c — AS TRÊS FUNÇÕES DE EMPRESA, pessoa a pessoa, nas duas direções: cada uma
+  --      devolve EXATAMENTE as empresas certas (nem a menos, nem a de fora).
+  --        empresas_do_membro   : admin_a={A} · oper_b={B} · consultor={A,B} · plataforma={A}
+  --        empresas_de_escrita  : admin_a={A} · oper_b={B} · consultor={A}   (consulta não escreve)
+  --        empresas_de_admin    : admin_a={A} · oper_b={}  · consultor={A}   (operador não administra)
+  -- ---------------------------------------------------------------
+  v_ruins := 0; v_rotulos := '';
+  for v_txt, v_esp in
+    select * from (values
+      ('admin_a',    k_admin_a::text),
+      ('oper_b',     k_oper_b::text),
+      ('consultor',  k_consultor::text),
+      ('plataforma', k_plataforma::text)) as p(nome, id)
+  loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_esp, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    v_estado := array_to_string(array(select x::text from public.empresas_do_membro() x order by 1), ',');
+    reset role;
+    v_antes := case v_txt
+      when 'admin_a' then v_emp_a::text
+      when 'oper_b' then v_emp_b::text
+      when 'consultor' then array_to_string(array(select x::text from unnest(array[v_emp_a, v_emp_b]) x order by 1), ',')
+      else v_emp_a::text end;
+    if v_estado is distinct from v_antes then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_txt;
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('9a empresas_do_membro() devolve exatamente as empresas de cada pessoa, nas duas direções' ||
+       case when v_ruins > 0 then ' — erradas:' || v_rotulos else '' end, v_ruins, 4) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  v_ruins := 0; v_rotulos := '';
+  for v_txt, v_esp in
+    select * from (values ('admin_a', k_admin_a::text), ('oper_b', k_oper_b::text), ('consultor', k_consultor::text)) as p(nome, id)
+  loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_esp, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    v_estado := array_to_string(array(select x::text from public.empresas_de_escrita() x order by 1), ',');
+    v_depois := array_to_string(array(select x::text from public.empresas_de_admin() x order by 1), ',');
+    reset role;
+    if v_estado is distinct from (case v_txt when 'oper_b' then v_emp_b::text else v_emp_a::text end) then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' escrita:' || v_txt || '=' || coalesce(v_estado, '');
+    end if;
+    if v_depois is distinct from (case v_txt when 'oper_b' then '' else v_emp_a::text end) then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' admin:' || v_txt || '=' || coalesce(v_depois, '');
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora' ||
+       case when v_ruins > 0 then ' —' || v_rotulos else '' end, v_ruins, 6) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9d — unidades_de_escrita() NUNCA devolve par de filial de outra empresa. Nas duas
+  --      direções: o admin de A recebe EXATAMENTE as filiais de A (e nenhuma de B); o
+  --      operador de B recebe EXATAMENTE (B, filial de B); o consultor (consulta em B) recebe
+  --      só as de A. E, para os três, nenhum par em que a filial não seja da empresa do par.
+  -- ---------------------------------------------------------------
+  v_ruins := 0; v_rotulos := '';
+  -- admin_a
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*), count(*) filter (where u.empresa_id <> v_emp_a)
+    into v_cnt, v_refs from public.unidades_de_escrita() u;
+  reset role;
+  if v_cnt <> v_n_fil_a or v_refs <> 0 then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' admin_a(' || v_cnt || ' pares, ' || v_refs || ' fora de A)';
+  end if;
+  -- oper_b
+  perform set_config('request.jwt.claims', json_build_object('sub', k_oper_b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*), count(*) filter (where not (u.empresa_id = v_emp_b and u.filial_id = v_fb))
+    into v_cnt, v_refs from public.unidades_de_escrita() u;
+  reset role;
+  if v_cnt <> 1 or v_refs <> 0 then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' oper_b(' || v_cnt || ' pares, ' || v_refs || ' fora de (B, filial B))';
+  end if;
+  -- consultor
+  perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*), count(*) filter (where u.empresa_id <> v_emp_a)
+    into v_cnt, v_refs from public.unidades_de_escrita() u;
+  reset role;
+  if v_cnt <> v_n_fil_a or v_refs <> 0 then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor(' || v_cnt || ' pares, ' || v_refs || ' fora de A)';
+  end if;
+  -- e o par nunca é "filial de uma empresa com a outra empresa", para ninguém: os pares são
+  -- capturados na sessão da pessoa e conferidos como postgres (que enxerga todas as filiais)
+  for v_esp in select unnest(array[k_admin_a, k_oper_b, k_consultor])::text loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_esp, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    v_estado := (select string_agg(u.empresa_id::text || ':' || u.filial_id::text, ',')
+                   from public.unidades_de_escrita() u);
+    reset role;
+    select count(*) into v_cnt
+      from unnest(string_to_array(coalesce(v_estado, ''), ',')) as par(txt)
+      join public.filiais f on f.id = split_part(par.txt, ':', 2)::smallint
+     where par.txt <> '' and f.empresa_id <> split_part(par.txt, ':', 1)::uuid;
+    if v_cnt <> 0 then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-cruzado(' || v_esp || ')';
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('9d unidades_de_escrita() nunca devolve par de filial de outra empresa, nas duas direções' ||
+       case when v_ruins > 0 then ' —' || v_rotulos else '' end, v_ruins, 6) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9e — (Sabotagem F) O MEMBRO DESATIVADO SOME NO STATEMENT SEGUINTE, na MESMA sessão e
+  --      com a MESMA claim (sem token novo): é o que faz a revogação valer no request
+  --      seguinte. Antes: {A} e operador; o postgres desliga a membership; depois: {}, NULL.
+  -- ---------------------------------------------------------------
+  perform set_config('request.jwt.claims', json_build_object('sub', k_inativo, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_antes := coalesce(array_to_string(array(select x::text from public.empresas_do_membro() x), ','), '')
+             || '|' || coalesce(public.papel_atual()::text, '∅');
+  reset role;
+  perform pg_temp.plantar_status(k_inativo, false);
+  set local role authenticated;   -- a MESMA claim: nenhum token novo
+  v_depois := coalesce(array_to_string(array(select x::text from public.empresas_do_membro() x), ','), '')
+              || '|' || coalesce(public.papel_atual()::text, '∅')
+              || '|' || (select count(*) from public.unidades_de_escrita())::text;
+  reset role;
+  if v_antes = v_emp_a::text || '|operador' and v_depois = '|∅|0' then
+    v_ok := v_ok + 1;
+    raise notice '✓ 9e o membro desativado some no statement seguinte, sem token novo (antes: A e operador; depois: nenhuma empresa, sem cargo, sem unidade)';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 9e a desativação não valeu no statement seguinte: antes=% depois=%', v_antes, v_depois;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 9f — e_plataforma() responde SÓ sobre o chamador (não tem parâmetro): true para a conta
+  --      de plataforma; false para as outras quatro e para quem não tem sessão.
+  -- ---------------------------------------------------------------
+  v_ruins := 0; v_rotulos := '';
+  for v_txt, v_esp in
+    select * from (values ('plataforma', k_plataforma::text), ('admin_a', k_admin_a::text),
+                          ('oper_b', k_oper_b::text), ('consultor', k_consultor::text),
+                          ('inativo', k_inativo::text), ('sem sessao', null)) as p(nome, id)
+  loop
+    perform set_config('request.jwt.claims',
+      case when v_esp is null then '' else json_build_object('sub', v_esp, 'role', 'authenticated')::text end, true);
+    set local role authenticated;
+    v_estado := public.e_plataforma()::text;
+    reset role;
+    if v_estado is distinct from (case v_txt when 'plataforma' then 'true' else 'false' end) then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_txt || '=' || coalesce(v_estado, 'NULL');
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('9f e_plataforma() responde só sobre o chamador (true só para a conta de plataforma, nunca NULL)' ||
+       case when v_ruins > 0 then ' —' || v_rotulos else '' end, v_ruins, 6) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9g — A PONTE de papel_atual() é DETERMINÍSTICA para quem tem duas memberships: o
+  --      consultor (admin em A, consulta em B) recebe 'admin' — a membership na empresa
+  --      LEGADA, nunca "a mais forte" nem "a primeira que o planejador achar"; e quem só tem
+  --      membership em B (oper_b) não tem cargo pela ponte (até a F67).
+  -- ---------------------------------------------------------------
+  perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_antes := coalesce(public.papel_atual()::text, '∅') || '/' || coalesce(public.papel_atual()::text, '∅');
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_oper_b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_depois := coalesce(public.papel_atual()::text, '∅');
+  reset role;
+  if v_antes = 'admin/admin' and v_depois = '∅' then
+    v_ok := v_ok + 1;
+    raise notice '✓ 9g a ponte responde pela empresa legada: consultor=admin (duas vezes), só-em-B=sem cargo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 9g a ponte de papel_atual() não é a da empresa legada: consultor=% só-em-B=%', v_antes, v_depois;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 9h — AS FKs COMPOSTAS de operador_filiais, com o PAR SIMÉTRICO (regra 3). Como postgres
+  --      (o banco recusa mesmo sem RLS). A recusa tem de vir da CHAVE — o nome da constraint
+  --      é conferido —, e o par legítimo, que difere só no ponto em questão, tem de passar.
+  -- ---------------------------------------------------------------
+  v_ruins := 0; v_rotulos := '';
+  -- (1) a membership de B do consultor numa filial de A → a FK de membro recusa
+  begin
+    insert into public.operador_filiais (empresa_id, membro_id, usuario_id, filial_id)
+    values (v_emp_a, v_m_cons_b, k_consultor, v_f1);
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' membro-de-B-em-filial-de-A-ACEITO';
+  exception when foreign_key_violation then
+    get stacked diagnostics v_restr = constraint_name;
+    if v_restr <> 'operador_filiais_membro_fk' then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' recusado-por-' || coalesce(v_restr, '?');
+    end if;
+  end;
+  -- (1-par) a membership de A do MESMO consultor na MESMA filial → aceita
+  begin
+    insert into public.operador_filiais (empresa_id, membro_id, usuario_id, filial_id)
+    values (v_emp_a, v_m_cons_a, k_consultor, v_f1);
+  exception when others then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-legitimo-recusado(' || sqlstate || ')';
+  end;
+  -- (2) a membership de B do operador, declarada na empresa B, numa filial de A → a FK de filial recusa
+  begin
+    insert into public.operador_filiais (empresa_id, membro_id, usuario_id, filial_id)
+    values (v_emp_b, v_m_oper_b, k_oper_b, v_f1);
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' filial-de-A-na-empresa-B-ACEITA';
+  exception when foreign_key_violation then
+    get stacked diagnostics v_restr = constraint_name;
+    if v_restr <> 'operador_filiais_filial_da_empresa_fk' then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' recusado-por-' || coalesce(v_restr, '?');
+    end if;
+  end;
+  -- (2-par) a MESMA membership na filial de B → é o vínculo da fixture (já existe, 1 linha)
+  select count(*) into v_cnt from public.operador_filiais where membro_id = v_m_oper_b and filial_id = v_fb;
+  if v_cnt <> 1 then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-de-B-sumiu';
+  end if;
+  -- a segunda prova: nada do que foi recusado ficou gravado
+  select count(*) into v_cnt from public.operador_filiais
+   where (membro_id = v_m_cons_b) or (membro_id = v_m_oper_b and filial_id = v_f1);
+  if v_cnt <> 0 then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' recusado-mas-gravado(' || v_cnt || ')';
+  end if;
+  if pg_temp.assert_zero_de('9h o vínculo com membership ou filial de OUTRA empresa é recusado pelas FKs compostas, com o par simétrico aceito' ||
+       case when v_ruins > 0 then ' —' || v_rotulos else '' end, v_ruins, 5) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9i — AUTHENTICATED NÃO ESCREVE nas tabelas da raiz, provado DUAS vezes (regra 2).
+  --      Quem tenta é o admin de A (o cargo mais forte abaixo do dev). empresas/membros/
+  --      plataforma_admins: sem privilégio (revogado pelas migrations); operador_filiais: com
+  --      privilégio (o do hospedado) e sem policy de escrita — a RLS recusa.
+  -- ---------------------------------------------------------------
+  select md5(string_agg(e.id::text || e.slug || e.nome, ',' order by e.id)) || '|' ||
+         (select md5(string_agg(m.id::text || m.papel::text || m.ativo::text || m.empresa_id::text, ',' order by m.id)) from public.membros m) || '|' ||
+         (select count(*) from public.plataforma_admins)::text || '|' ||
+         (select md5(string_agg(o.membro_id::text || o.filial_id::text, ',' order by o.membro_id, o.filial_id)) from public.operador_filiais o)
+    into v_antes
+    from public.empresas e;
+
+  v_ruins := 0; v_rotulos := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.empresas (slug, nome) values ('f62-iso-invasora', 'Invasora');
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-empresas';
+  exception when others then null; end;
+  begin update public.empresas set nome = 'Invadida' where id = v_emp_b;
+        get diagnostics v_cnt = row_count;
+        if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-empresas'; end if;
+  exception when others then null; end;
+  begin update public.membros set papel = 'admin' where profile_id = k_oper_b;
+        get diagnostics v_cnt = row_count;
+        if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-membros'; end if;
+  exception when others then null; end;
+  begin insert into public.membros (empresa_id, profile_id, papel) values (v_emp_b, k_admin_a, 'admin');
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-membros';
+  exception when others then null; end;
+  begin delete from public.membros where profile_id = k_oper_b;
+        get diagnostics v_cnt = row_count;
+        if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' delete-membros'; end if;
+  exception when others then null; end;
+  begin insert into public.plataforma_admins (profile_id) values (k_admin_a);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-plataforma';
+  exception when others then null; end;
+  begin insert into public.operador_filiais (usuario_id, filial_id) values (k_admin_a, v_f1);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-vinculo';
+  exception when others then null; end;
+  begin delete from public.operador_filiais where membro_id = v_m_oper_b;
+        get diagnostics v_cnt = row_count;
+        if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' delete-vinculo'; end if;
+  exception when others then null; end;
+  reset role;
+  if pg_temp.assert_zero_de('9i authenticated não escreve em empresas, membros, plataforma_admins nem operador_filiais (a operação falha)' ||
+       case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 8) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- a SEGUNDA prova, de volta como postgres: o dado original continua intacto
+  select md5(string_agg(e.id::text || e.slug || e.nome, ',' order by e.id)) || '|' ||
+         (select md5(string_agg(m.id::text || m.papel::text || m.ativo::text || m.empresa_id::text, ',' order by m.id)) from public.membros m) || '|' ||
+         (select count(*) from public.plataforma_admins)::text || '|' ||
+         (select md5(string_agg(o.membro_id::text || o.filial_id::text, ',' order by o.membro_id, o.filial_id)) from public.operador_filiais o)
+    into v_depois
+    from public.empresas e;
+  if v_antes = v_depois then
+    v_ok := v_ok + 1;
+    raise notice '✓ 9i-bis de volta como postgres, empresas/membros/plataforma_admins/operador_filiais estão INTACTAS (a segunda prova da recusa)';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 9i-bis a recusa não foi limpa: o estado das tabelas da raiz mudou (antes % · depois %)', v_antes, v_depois;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 9j/9k — A VARREDURA DAS TABELAS DA F62, sobre o CATÁLOGO (nunca lista escrita à mão):
+  --      o universo são as tabelas de public cujo comentário, ou o de alguma coluna, a F62
+  --      gravou ('F62 …'). 9j: SEM `force` (R-ACC-29/R-ACC-72 — com `force`, a recursão
+  --      42P17 volta, agora em membros). "RLS ligada" NÃO é conferida aqui: mora em
+  --      seguranca_catalogo.sql (asserção 2, para TODA tabela de public — Decisão 2 da F48,
+  --      uma fonte por fato). 9k: toda coluna `empresa_id` é NOT NULL, amarrada por FK à
+  --      raiz e sem linha nula (universo = as linhas, contadas).
+  -- ---------------------------------------------------------------
+  select count(*),
+         count(*) filter (where c.relforcerowsecurity),
+         coalesce(string_agg(c.relname, ', ' order by c.relname)
+                    filter (where c.relforcerowsecurity), '')
+    into v_refs, v_cnt, v_txt
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r'
+     and (coalesce(obj_description(c.oid, 'pg_class'), '') like 'F62%'
+          or exists (select 1 from pg_attribute a
+                      where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+                        and coalesce(col_description(c.oid, a.attnum), '') like 'F62%'));
+  if pg_temp.assert_zero_de('9j as tabelas da F62 (lidas do catálogo) estão SEM force row level security' ||
+       case when v_cnt > 0 then ' — fora da regra: ' || v_txt else '' end, v_cnt, v_refs) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  v_ruins := 0; v_rotulos := ''; v_refs := 0;
+  for v_txt in
+    select c.relname
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      join pg_attribute a on a.attrelid = c.oid and a.attname = 'empresa_id' and not a.attisdropped
+     where n.nspname = 'public' and c.relkind = 'r'
+     order by 1
+  loop
+    execute format('select count(*), count(*) filter (where empresa_id is null) from public.%I', v_txt)
+      into v_cnt, v_esp;
+    v_refs := v_refs + v_cnt;
+    if v_esp::bigint > 0
+       or not (select a.attnotnull from pg_attribute a
+                where a.attrelid = ('public.' || v_txt)::regclass and a.attname = 'empresa_id')
+       or not exists (select 1 from pg_constraint k
+                       where k.conrelid = ('public.' || v_txt)::regclass and k.contype = 'f'
+                         and k.confrelid in ('public.empresas'::regclass, 'public.membros'::regclass,
+                                             'public.filiais'::regclass)
+                         and (select a.attnum from pg_attribute a
+                               where a.attrelid = k.conrelid and a.attname = 'empresa_id') = any (k.conkey)) then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_txt;
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('9k toda coluna empresa_id (lida do catálogo) é NOT NULL, amarrada por FK à raiz e sem linha nula' ||
+       case when v_ruins > 0 then ' — fora da regra:' || v_rotulos else '' end, v_ruins, v_refs) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9m — (Sabotagem H, no banco) O SLUG DA EMPRESA: reservado e fora do formato são
+  --      recusados pelo CHECK; o par legítimo (slug novo, minúsculo) passa. Como postgres
+  --      (o CHECK vale para todo mundo).
+  -- ---------------------------------------------------------------
+  v_ruins := 0; v_rotulos := '';
+  foreach v_txt in array array['admin', 'todas', 'relatorios', 'Empresa-C', 'empresa c', '-c'] loop
+    begin
+      insert into public.empresas (slug, nome) values (v_txt, 'Empresa sabotada (F62)');
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_txt;
+    exception when check_violation then
+      null;
+    end;
+  end loop;
+  begin
+    insert into public.empresas (slug, nome) values ('f62-iso-c', 'Empresa C do isolamento (F62)');
+  exception when others then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-legitimo-recusado(' || sqlstate || ')';
+  end;
+  if pg_temp.assert_zero_de('9m o slug reservado ou fora do formato é recusado pelo CHECK (admin, todas, relatorios, maiúscula, espaço, hífen na ponta), e o legítimo passa' ||
+       case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 7) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9n — (Sabotagem I) O `config` DA EMPRESA SÓ ACEITA OBJETO: escalar, texto, array e
+  --      null do jsonb são recusados pelo CHECK; `{}` e um objeto passam.
+  -- ---------------------------------------------------------------
+  v_ruins := 0; v_rotulos := '';
+  foreach v_txt in array array['"texto"', '[]', '42', 'null'] loop
+    begin
+      update public.empresas set config = v_txt::jsonb where id = v_emp_b;
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_txt;
+    exception when check_violation then
+      null;
+    end;
+  end loop;
+  begin
+    update public.empresas set config = '{"tema": "claro"}'::jsonb where id = v_emp_b;
+  exception when others then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' objeto-recusado(' || sqlstate || ')';
+  end;
+  if pg_temp.assert_zero_de('9n empresas.config recusa jsonb que não seja objeto ("texto", [], 42, null) e aceita objeto' ||
+       case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 5) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM isolamento_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;
