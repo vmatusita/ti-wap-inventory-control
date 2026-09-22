@@ -183,6 +183,20 @@ const DA_F38 = [
   // atômicas da `0149` (nenhuma é intocável) para reconferir a pré-condição no WHERE do UPDATE.
   // Sem enum, sem DELETE/UPDATE de topo.
   '0151',
+  // F62 (22/09/2026) — a raiz do tenant e o cargo por empresa. `0152` cria `empresas` e
+  // `empresa_legada()`; `0153`, `membros` (reusa o enum `papel_usuario` — NENHUM valor novo),
+  // a guarda do dev e a membership no `handle_new_user`; `0154`, `plataforma_admins` e
+  // `e_plataforma()`; `0155`, `filiais.empresa_id` com default constante (sem `update`);
+  // `0156`, o vínculo por membership (o único `update` de topo é em `operador_filiais`, que
+  // não é acervo); `0157`, as quatro funções de conjunto; `0158`, a troca das leitoras e
+  // escritoras do cargo (nenhuma é intocável). Sem DELETE/UPDATE de topo em acervo.
+  '0152',
+  '0153',
+  '0154',
+  '0155',
+  '0156',
+  '0157',
+  '0158',
 ]
 
 /**
