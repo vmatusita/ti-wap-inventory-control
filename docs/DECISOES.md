@@ -13102,3 +13102,8 @@ R-ACC-84 e as emendas de R-ACC-02/25/26/29/30; ADR-002 §15.
   `pertencimento.ts`), `chaveDoEscopo` e o `empresa: null` do funil de falhas (`src/lib/observabilidade-linha.ts`) ficam como estão: a ordem os põe fora do escopo, e nada da F62 os lê — o app ainda
   não sabe de empresa (a ponte responde pela legada). **Destino:** a F69/F70, quando a sessão ganhar a empresa (o
   `contextoDoApp()` e o seletor). Até lá, a chave de storage segue com o prefixo `wap` e o escopo é um só.
+- **(p) O fecho.** PR #70 mergeado com os dois checks verdes (`fa10b54`); deploy pronto às 18:36:44 — a janela desde
+  o apply da `0158` em produção (18:20:07) foi de **16,6 minutos**, com a tela antiga lendo a coluna congelada, igual à
+  membership. Conferência pós-deploy, só leitura: `/api/saude` com `1.67.0`/`fa10b54`; smoke de produção 109 OK, 1
+  aviso antigo, 0 falha; Parte B do `saude.yml` à mão verde, com a sonda de deriva em 0 pendente. Evidência em
+  `docs/f62-evidencias/depois/pos-deploy.md`. Tag anotada `v1.67.0` no merge do PR de documentação.

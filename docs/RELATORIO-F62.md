@@ -23,9 +23,8 @@ documentação de fecho no PR seguinte, com a tag anotada `v1.67.0` no merge del
 
 ### Pendente de comando teu
 
-**Nada.** O apply nos dois bancos foi feito pela fase, antes do merge. O merge, o deploy, a conferência pós-deploy e a
-tag são feitos pela fase em seguida e registrados no §14, no PR de documentação de fecho — se algum deles ficar
-pendente, os comandos exatos estarão lá, no topo.
+**Nada.** O apply nos dois bancos (antes do merge), o merge (`fa10b54`), o deploy, a conferência pós-deploy e a tag
+anotada `v1.67.0` (no merge deste PR de documentação) foram feitos pela fase — §14.
 
 ### Conferir (5 minutos, só leitura)
 
@@ -321,8 +320,8 @@ Route (app)
 | 22 | `ESCOPO_UNICO`, `chaveDoEscopo` e `empresa: null` ficaram, com ata e destino | ✅ | ata (o) |
 | 23 | nenhuma dependência nova; workflows e `CLAUDE.md` da raiz intocados | ✅ | §1, o diff |
 | 24 | as emendas: MATRIZ, ADR-002, ARQUITETURA, RUNBOOK, `auth/CLAUDE.md`, PLANO, `docs/README.md`, `prompts/README.md`, ata | ✅ | Frente F |
-| 25 | 1.67.0, CHANGELOG, registry; tag anotada no merge do PR de documentação | ⏳ | versão, CHANGELOG e registry ✅; a tag, no PR de fecho (§14) |
-| 26 | os dois PRs mergeados com os checks verdes; a conferência pós-deploy | ⏳ | no PR de fecho (§14) |
+| 25 | 1.67.0, CHANGELOG, registry; tag anotada no merge do PR de documentação | ✅ | `v1.67.0` no merge deste PR (§14) |
+| 26 | os dois PRs mergeados com os checks verdes; a conferência pós-deploy | ✅ | §14 |
 | 27 | as sabotagens A–J com saída real | ✅ | `sabotagens-A-J.md` |
 | 28 | nenhum dado real; da produção, só contagens e hashes; ninguém abriu o `.env.local` | ✅ | as evidências são agregados; o conferidor recebeu a credencial por `--env-file` |
 | 29 | este relatório, com o roteiro do Johnny no topo | ✅ | §1 |
@@ -374,5 +373,14 @@ membership e sem acesso — falha fechada, não aberta.
 - **PATCH:** derrubar `profiles.papel`/`ativo` e a exceção de `profiles_guarda_dev` (a partir de 13/10/2026); o
   comentário do hand-fix do `database.ts`; o item AS; o "✅" da Faixa 2.
 
-**A conferência pós-deploy** (`/api/saude`, o smoke de produção, a Parte B do `saude.yml`) e a **duração da janela
-entre o apply de produção (0158 às 18:20:07, -03) e o deploy** entram aqui no PR de documentação de fecho.
+**A conferência pós-deploy** (só leitura; detalhe em [`depois/pos-deploy.md`](f62-evidencias/depois/pos-deploy.md)):
+
+- **Merge** do PR #70 com `verificar` e `banco-sem-docker` verdes: `fa10b54`.
+- **`/api/saude`:** `{"ok":true,"versao":"1.67.0","commit":"fa10b54","banco":"ok"}`.
+- **Smoke de produção:** 109 OK · 1 aviso (antigo: `kits_modelos` sem kit cadastrado) · **0 falha**.
+- **Parte B do `saude.yml`, à mão** (run `35787899991`): verde — a conta `consulta` leu pela ponte nova, e a sonda de
+  deriva deu **0 pendente**, com a `0158_cargo_em_membros.sql` como a mais nova do ledger.
+- **A janela entre o apply de produção e o deploy:** a `0158` às **18:20:07**, o deploy pronto às **18:36:44** (-03) —
+  **16,6 minutos**, com a tela antiga lendo a coluna congelada (igual à membership: a impressão "depois", tirada dentro
+  da janela, saiu igual à "antes"); o banco já decidia por `membros`.
+- **A tag anotada `v1.67.0`** vai no merge deste PR de documentação e é publicada (`git push origin v1.67.0`).
