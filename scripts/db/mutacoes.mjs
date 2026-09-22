@@ -2199,6 +2199,72 @@ const REAUDITORIA_PASSO2 = [
       espera: 't',
     },
   },
+  // Revisão de código de 22/09/2026 (0151) — a pré-condição das três singulares entrou no WHERE
+  // do UPDATE. Cada guarda nova ganha a sua quebra, e o roteiro a acusa pelo cenário do "segundo
+  // clique" (13/14/15). Com elas o lote chega a 105, o teto de hoje.
+  {
+    id: 'u151-service-tag-sobrescreve-a-que-ja-existe',
+    roteiro: 'escrita_atomica_ativos_anotacao.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['13'],
+    porque:
+      'Definir a service tag perde a pré-condição "só quando vazia" no banco. Dois cliques simultâneos (ou duas abas) passam os dois pela leitura da action, o segundo sobrescreve a tag que o primeiro acabou de gravar — a identidade do equipamento muda em silêncio — e a ficha ganha duas anotações imutáveis "Service tag definida", uma delas falsa.',
+    sql: mutarFuncao(
+      'public.definir_service_tag_com_anotacao(uuid, text, text, boolean, text)',
+      `   where id = p_ativo_id
+     and coalesce(btrim(service_tag), '') = '';`,
+      `   ${MARCA}
+   where id = p_ativo_id;`,
+      'u151-service-tag-sobrescreve-a-que-ja-existe',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.definir_service_tag_com_anotacao(uuid, text, text, boolean, text)'::regprocedure)
+              like '%btrim(service_tag)%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'u151-confirmacao-em-dobro',
+    roteiro: 'escrita_atomica_ativos_anotacao.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['14'],
+    porque:
+      'Confirmar a assinatura perde a pré-condição "ainda não é sim" no banco. O segundo de dois cliques regrava a data da assinatura por cima da que o primeiro gravou e deixa uma segunda anotação "Termo confirmado como assinado" na linha do tempo — duas confirmações de um documento assinado uma vez.',
+    sql: mutarFuncao(
+      'public.confirmar_assinatura_termo_com_anotacao(uuid, date, text)',
+      `   where id = p_ativo_id
+     and termo_assinado is distinct from 'sim';`,
+      `   ${MARCA}
+   where id = p_ativo_id;`,
+      'u151-confirmacao-em-dobro',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.confirmar_assinatura_termo_com_anotacao(uuid, date, text)'::regprocedure)
+              like '%is distinct from%'`,
+      espera: 'f',
+    },
+  },
+  {
+    id: 'u151-desfazer-o-que-nao-esta-confirmado',
+    roteiro: 'escrita_atomica_ativos_anotacao.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['15'],
+    porque:
+      'Desfazer a confirmação perde a pré-condição "ainda é sim" no banco. O segundo de dois cliques (ou um desfazer que chega depois de outra pessoa já ter desfeito) reescreve o status do termo com o destino que ELE calculou, apaga a data e anota um "desfeito" de algo que já não estava confirmado.',
+    sql: mutarFuncao(
+      'public.desfazer_confirmacao_termo_com_anotacao(uuid, public.termo_status, text)',
+      `   where id = p_ativo_id
+     and termo_assinado = 'sim';`,
+      `   ${MARCA}
+   where id = p_ativo_id;`,
+      'u151-desfazer-o-que-nao-esta-confirmado',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.desfazer_confirmacao_termo_com_anotacao(uuid, public.termo_status, text)'::regprocedure)
+              like '%and termo_assinado = ''sim''%'`,
+      espera: 'f',
+    },
+  },
   {
     id: 'reaud-ae-ledger-sem-guarda-de-papel',
     roteiro: 'ledger_de_migracoes.sql',

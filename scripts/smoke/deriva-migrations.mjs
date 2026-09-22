@@ -74,10 +74,17 @@ function analisar({ arquivosRepo, ledger, base }) {
   const nomesDoRepo = new Set(todos.map((p) => p.nome))
   const vigiados = todos.filter((p) => p.numero >= base).sort((a, b) => a.numero - b.numero)
 
-  // Ambiguidade só importa DENTRO do contrato: dois arquivos vigiados com o mesmo nome-sem-prefixo
-  // tornam impossível dizer a qual deles uma linha do ledger se refere.
+  // Ambiguidade só importa quando envolve um arquivo DENTRO do contrato: dois arquivos com o mesmo
+  // nome-sem-prefixo tornam impossível dizer a qual deles uma linha do ledger se refere. A contagem
+  // olha o repositório INTEIRO, não só os vigiados (revisão de código de 22/09/2026): um vigiado que
+  // repete o nome de uma migration anterior à base (`0151_profiles.sql` × a `profiles` da 0001)
+  // casaria com a linha ANTIGA do ledger e passaria por aplicado sem nunca ter sido. Dois arquivos
+  // repetidos SÓ no histórico continuam fora (não há vigiado entre eles).
+  const nomesVigiados = new Set(vigiados.map((p) => p.nome))
   const contagem = new Map()
-  for (const p of vigiados) contagem.set(p.nome, (contagem.get(p.nome) ?? 0) + 1)
+  for (const p of todos) {
+    if (nomesVigiados.has(p.nome)) contagem.set(p.nome, (contagem.get(p.nome) ?? 0) + 1)
+  }
   const nomesAmbiguos = new Set([...contagem].filter(([, n]) => n > 1).map(([nome]) => nome))
 
   const todasAsLinhas = (ledger ?? []).map((l) => ({
@@ -100,9 +107,10 @@ function analisar({ arquivosRepo, ledger, base }) {
     }
   }
 
+  // Nome ambíguo não é pendente nem aplicado: é o achado `nome_duplicado`, que manda corrigir o nome.
   const pendentes = vigiados.filter((p) => !nomesAmbiguos.has(p.nome) && !nomesDoLedger.has(p.nome))
-  const aplicados = vigiados.filter((p) => nomesDoLedger.has(p.nome))
-  return { vigiados, nomesDoRepo, nomesAmbiguos, linhas, linhasSemNome, arquivoBase, versaoDaBase, pendentes, aplicados }
+  const aplicados = vigiados.filter((p) => !nomesAmbiguos.has(p.nome) && nomesDoLedger.has(p.nome))
+  return { todos, vigiados, nomesDoRepo, nomesAmbiguos, linhas, linhasSemNome, arquivoBase, versaoDaBase, pendentes, aplicados }
 }
 
 /**
@@ -113,6 +121,13 @@ function analisar({ arquivosRepo, ledger, base }) {
  * Página CHEIA → `null`: o commit que acrescentou o arquivo pode estar na página seguinte, e o
  * último desta seria mais NOVO que a entrada real — a deriva velha passaria por recente. Sem data
  * a sonda avisa; com data errada ela se cala. Resposta vazia ou ilegível → `null` também.
+ *
+ * ⚠ É a data do COMMIT que acrescentou o arquivo, não a do merge (revisão de código de 22/09/2026).
+ * Num branch de vários dias ela é ANTERIOR à entrada real na `main` — nunca posterior, porque o
+ * merge vem depois do commit (e o rebase, que reescreve a data, também). A idade medida sai maior
+ * ou igual à real: a sonda pode alarmar CEDO uma migration mergeada há pouco, nunca calar uma
+ * velha. É o lado seguro para um alarme, e o texto do achado já manda conferir POR EFEITO antes
+ * de agir.
  *
  * @param {unknown} commits o corpo JSON da resposta
  * @param {number} porPagina o `per_page` pedido
@@ -129,7 +144,8 @@ export function dataDeEntradaDaRespostaDaApi(commits, porPagina) {
 /**
  * A mesma data pelo `git log --diff-filter=A --format=%cI -- <arquivo>` local. Checkout RASO →
  * `null`: ali o commit enxertado "acrescenta" todo arquivo, e toda migration pareceria ter entrado
- * AGORA. Com histórico, a última linha é a adição mais antiga.
+ * AGORA. Com histórico, a última linha é a adição mais antiga — com a mesma ressalva da função
+ * acima: é o commit de adição, anterior ou igual ao merge, nunca posterior.
  *
  * @param {string} saida a saída do `git log`
  * @param {boolean} raso o que `git rev-parse --is-shallow-repository` respondeu
@@ -187,7 +203,10 @@ export function avaliarDerivaMigrations({
   const a = analisar({ arquivosRepo, ledger, base })
 
   for (const nome of a.nomesAmbiguos) {
-    const arquivos = a.vigiados.filter((p) => p.nome === nome).map((p) => p.arquivo)
+    const arquivos = a.todos
+      .filter((p) => p.nome === nome)
+      .sort((x, y) => x.numero - y.numero)
+      .map((p) => p.arquivo)
     achados.push({
       chave: `deriva_migrations:nome_duplicado:${nome}`,
       total: arquivos.length,

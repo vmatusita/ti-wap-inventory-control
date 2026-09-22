@@ -11,7 +11,8 @@ import { ATRIBUTO_SIDEBAR, VALOR_RECOLHIDA } from './sidebar-preferencia'
 // Quebrar essa divisão — devolver a largura para uma classe condicional, por
 // exemplo — reintroduz o flash sem quebrar teste nenhum.
 //
-// Este projeto do Vitest (`componentes`) roda em `node`, sem jsdom: aqui se lê
+// Este arquivo é `.test.ts`, então roda no projeto `puro` do Vitest (em `node`,
+// sem jsdom — o `componentes` é o dos `.test.tsx`): aqui se lê
 // o fonte. ⚠ 22/09/2026 — existe agora um projeto `dom` (happy-dom), mas ele
 // não ajudaria aqui: é um DOM simulado, sem paint nem hidratação de verdade, e
 // o que este teste defende é exatamente a divisão entre a pintura do servidor

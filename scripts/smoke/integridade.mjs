@@ -62,7 +62,10 @@
 //      sem data (aviso), nunca data falsa.
 // Arquivo sem data por NENHUMA das duas vira AVISO em `avaliarDerivaMigrations`
 // ("data desconhecida"), nunca alarme por omissão — a sonda não acusa deriva que
-// não sabe medir.
+// não sabe medir. ⚠ As duas fontes dão a data do COMMIT que acrescentou o arquivo,
+// que é anterior ou igual ao merge na `main`: a idade medida nunca é MENOR que a
+// real, então o erro possível é alarmar cedo, nunca calar (ver
+// `dataDeEntradaDaRespostaDaApi`).
 // ---------------------------------------------------------------------------
 
 import { execFileSync } from 'node:child_process'

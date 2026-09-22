@@ -23,6 +23,16 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.7',
+    data: '2026-09-22',
+    titulo: 'Assinaturas e service tag deixaram de gravar em dobro com dois cliques ao mesmo tempo',
+    mudancas: [
+      '"Definir service tag", "Confirmar assinatura do termo" e "Desfazer confirmação de assinatura", na ficha do equipamento, deixaram de gravar em dobro quando duas pessoas (ou duas abas) fazem a mesma coisa ao mesmo tempo. A segunda passa a ver o aviso de que aquilo acabou de ser feito e que nada foi gravado de novo, e a linha do tempo fica com um registro só. Antes a segunda sobrescrevia a primeira e deixava um registro a mais, às vezes falso.',
+      '"Confirmar assinatura" de vários termos de uma vez, em Pendências, passou a explicar a recusa quando um dos termos sai do seu vínculo de filial no instante em que você confirma: a tela diz que nada foi confirmado e pede para atualizar a página. Antes ela dizia que o seu cargo ou as suas filiais não permitiam a operação, o que não era verdade para quem tem o acesso certo. E se outra pessoa confirmar parte do mesmo lote ao mesmo tempo, o restante é confirmado normalmente, em vez de o lote inteiro ser recusado.',
+      'Por dentro, sem efeito na tela: a verificação diária de saúde do sistema, que confere se toda mudança de estrutura do banco de dados publicada também foi aplicada, deixou de dar por aplicada uma mudança nova que tenha o mesmo nome de uma antiga. Nesse caso ela passa a avisar a equipe para trocar o nome.',
+    ],
+  },
+  {
     versao: '1.66.6',
     data: '2026-09-22',
     titulo: 'As cores dos gráficos ganharam uma conferência automática, e os formulários mais longos, um ensaio de uso real',

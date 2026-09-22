@@ -240,6 +240,30 @@ describe('escritas atômicas "ativos + anotação" (reauditoria 18/09/2026, item
   it('a grafia sem acento (o caminho RPC → PostgREST pode perdê-lo) casa igual', () => {
     expect(traduzErroBanco('Ativo nao encontrado, ou fora do seu vinculo de escrita — nada foi corrigido.', 'P0002')).toBe(FRASE)
   })
+
+  // Revisão de código de 22/09/2026 (0151): a pré-condição das três singulares, reconferida no
+  // banco — a segunda de duas escritas simultâneas recusa com frase própria, nunca o genérico.
+  it('as três recusas de pré-condição da 0151 (P0001) viram frase de operador', () => {
+    const casos: [string, RegExp][] = [
+      ['A service tag deste ativo acabou de ser definida — nada foi gravado.', /^A service tag deste ativo acabou de ser definida, por outra pessoa/],
+      ['Este termo acabou de ser confirmado como assinado — nada foi gravado de novo.', /^Este termo acabou de ser confirmado como assinado, por outra pessoa/],
+      ['A confirmação deste termo acabou de ser desfeita — nada foi gravado de novo.', /^A confirmação deste termo acabou de ser desfeita, por outra pessoa/],
+      ['A confirmacao deste termo acabou de ser desfeita — nada foi gravado de novo.', /^A confirmação deste termo acabou de ser desfeita, por outra pessoa/],
+    ]
+    for (const [m, esperado] of casos) expect(traduzErroBanco(m, 'P0001')).toMatch(esperado)
+  })
+
+  // Revisão de código de 22/09/2026: a quinta RPC (o lote) recusa com 42501 e caía no
+  // genérico de permissão, que diz a quem tem o cargo certo que o cargo não permite.
+  it('a recusa do LOTE (42501) tem frase própria, e não o genérico de permissão', () => {
+    const LOTE =
+      'O lote não foi confirmado: um ou mais termos saíram do seu vínculo de filial enquanto você confirmava. Nada foi confirmado — atualize a página e tente de novo.'
+    const m =
+      'Não foi possível confirmar o lote inteiro — um ou mais termos estão fora do seu vínculo de filial. Nada foi confirmado.'
+    expect(traduzErroBanco(m, '42501')).toBe(LOTE)
+    expect(traduzErroBanco(m.normalize('NFD').replace(/[̀-ͯ]/g, ''), '42501')).toBe(LOTE)
+    expect(traduzErroBanco(m, '42501')).not.toMatch(/seu cargo/)
+  })
 })
 
 describe('retrocompat — chamada com 1 argumento (sem code) segue funcionando', () => {

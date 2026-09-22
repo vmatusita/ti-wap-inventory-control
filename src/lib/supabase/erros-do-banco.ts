@@ -107,8 +107,18 @@ export const MSG_SQL = {
   naoPodeSerEstornada: ['nao pode ser estornada', 'não pode ser estornada'],
   // 0146 — a devolução cuja pendência de item já teve desfecho (lançamento gravado)
   estornoComPendenciaResolvida: ['pendencia de item desta devolucao ja teve desfecho'],
-  // Reauditoria 18/09/2026 (item U, 0149): as cinco escritas atômicas "ativos + anotação".
+  // Reauditoria 18/09/2026 (item U, 0149): as QUATRO escritas atômicas singulares "ativos + anotação".
   foraDoVinculoNadaGravado: ['fora do seu vínculo de escrita', 'fora do seu vinculo de escrita'],
+  // A quinta, `confirmar_assinatura_lote_com_anotacoes` (0149), recusa com 42501 e outra frase.
+  loteForaDoVinculo: ['fora do seu vínculo de filial', 'fora do seu vinculo de filial'],
+  // 0151 — a pré-condição das três singulares, reconferida no WHERE do UPDATE (corrida de dois
+  // cliques): outra escrita fez a mesma coisa um instante antes.
+  serviceTagAcabouDeSerDefinida: ['service tag deste ativo acabou de ser definida'],
+  termoAcabouDeSerConfirmado: ['este termo acabou de ser confirmado como assinado'],
+  confirmacaoAcabouDeSerDesfeita: [
+    'confirmação deste termo acabou de ser desfeita',
+    'confirmacao deste termo acabou de ser desfeita',
+  ],
   ajusteExige: ['ajuste exige'],
   estornoExige: ['estorno exige'],
   estornoDeForaDoAtivo: ['estorno_de precisa apontar'],
