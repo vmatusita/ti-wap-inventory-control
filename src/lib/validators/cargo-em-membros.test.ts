@@ -55,10 +55,18 @@ const ROTEIROS = arquivosRoteiro(RAIZ).map((arquivo) => ({
  * produção entra aqui — só o que é, por construção, texto SOBRE o defeito.
  */
 const EXCECOES_TS: Record<string, string> = {
-  'scripts/db/cargo-congelado.mjs':
-    'é o próprio detector: os padrões que ele procura moram nele como texto (regex e comentário)',
   'scripts/db/mutacoes.mjs':
     'é o catálogo do injetor de mutações: as sabotagens da F62 reescrevem funções para voltarem a ler o cargo em profiles, e é exatamente isso que o roteiro tem de acusar',
+  // Os três instrumentos da F60 têm a IDENTIDADE travada por sha256 no PLAN-F60 §0
+  // (`scripts/perf/instrumentos-f60.test.mts`): mediram o antes/depois daquela fase e não se
+  // re-rodam. Quem precisar re-rodá-los depois da F62 faz uma versão nova (a identidade pela
+  // membership, como `medir-rls.mjs` e `medir-itens.mjs` já fazem) e declara a diferença.
+  'scripts/perf/medir-rel.mjs':
+    'instrumento da F60 com identidade travada por sha256 no PLAN-F60 §0 — não se re-roda; a versão nova escolhe a identidade pela membership',
+  'scripts/perf/medir-custo.mjs':
+    'instrumento da F60 com identidade travada por sha256 no PLAN-F60 §0 — não se re-roda; a versão nova escolhe a identidade pela membership',
+  'scripts/perf/equivalencia-rel.mjs':
+    'instrumento da F60 com identidade travada por sha256 no PLAN-F60 §0 — não se re-roda; a versão nova escolhe a identidade pela membership',
 }
 
 /**
@@ -72,8 +80,12 @@ const EXCECOES_ROTEIRO: Record<string, string> = {
     'o admin forjando UPDATE direto em profiles.papel: a coluna congelada continua sem grant para authenticated',
   'cargo_dev.sql / 2h':
     'o service role tentando conceder dev por UPDATE direto em profiles: profiles_guarda_dev continua recusando',
+  'cargo_dev.sql / fixture-legado':
+    'planta o dev também na coluna congelada, como os devs de hoje, para a 2i-legado medir profiles_guarda_dev sobre o estado real',
   'cargo_dev.sql / 2i':
-    'o service role tentando rebaixar um dev em profiles: profiles_guarda_dev continua recusando',
+    'o service role tentando rebaixar em profiles um dev promovido depois da F62: profiles_guarda_dev o reconhece pela membership',
+  'cargo_dev.sql / 2i-legado':
+    'o service role tentando rebaixar em profiles um dev de antes da F62: profiles_guarda_dev o reconhece pela coluna congelada',
   'cargo_dev.sql / 2i-bis':
     'o service role tentando desativar um dev em profiles: profiles_guarda_dev continua recusando',
   'cargo_dev.sql / 8a':
@@ -86,8 +98,6 @@ const EXCECOES_ROTEIRO: Record<string, string> = {
     'a grade de comparação planta o cargo em profiles porque o corpo ANTIGO (o da F61) lê dali',
   'cargo_em_membros.sql / 2':
     'a auto-sabotagem da trava de catálogo: funções fictícias que leem o cargo em profiles',
-  'f62_rollback.sql / rollback':
-    'o rollback ensaiado: a cópia membros → profiles e o corpo antigo religado leem e gravam a coluna congelada',
 }
 
 describe('1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles', () => {
@@ -183,6 +193,14 @@ describe('4. TS e scripts: nenhum `from(\'profiles\')` seleciona, filtra ou grav
     expect(achados, achados.join('\n')).toEqual([])
   })
 
+  it('toda exceção de EXCECOES_TS ainda é acusada (a catraca no outro sentido)', () => {
+    const velhas = Object.keys(EXCECOES_TS).filter((arquivo) => {
+      const t = TS.find((x) => x.arquivo === arquivo)
+      return !t || achadosTs(t.texto).length === 0
+    })
+    expect(velhas).toEqual([])
+  })
+
   it('toda exceção de EXCECOES_TS existe e tem motivo', () => {
     const arquivos = new Set(TS.map((t) => t.arquivo))
     for (const [arquivo, motivo] of Object.entries(EXCECOES_TS)) {
@@ -275,5 +293,84 @@ describe('8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F
       .replace(/pg_temp\.papel_atual_f61\(\)/g, 'public.papel_atual()')
       .replace(new RegExp(`create function pg_temp\\.${nome}_f61`, 'i'), `create function public.${nome}`)
     expect(normalizar(deVolta)).toBe(normalizar(original!.texto))
+  })
+})
+
+describe('9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/)', () => {
+  // O rollback é escrito ANTES do apply e ensaiado no CI (`supabase/tests/f62_rollback.sql`,
+  // a sabotagem G). O que o ensaio não vê é a COMPLETUDE contra as migrations: uma função que
+  // a F62 recriou e o rollback esqueceu de reemitir continuaria lendo `membros` depois de a
+  // tabela cair. Aqui, sem banco: o rollback reemite TODA função que a F62 recriou (as que
+  // existiam antes da 0152), cada uma com o corpo vigente até a 0151 byte a byte (sem
+  // comentários), e derruba TODA função que a F62 criou; e a cópia de volta é o passo 1.
+  const DIR = join(RAIZ, 'supabase', 'rollback')
+  const DESFAZ = readFileSync(join(DIR, 'F62-2-desfaz.sql'), 'utf8')
+  const COPIA = readFileSync(join(DIR, 'F62-1-copia-de-volta.sql'), 'utf8')
+  const ANTES = funcoesVigentes(MIGRATIONS, PRIMEIRA_DA_F62)
+  const DEPOIS = funcoesVigentes(MIGRATIONS)
+  const DA_F62 = new Map(
+    [...DEPOIS].filter(([, f]) => f.arquivo.slice(0, 4) >= PRIMEIRA_DA_F62),
+  )
+  const recriadas = [...DA_F62.keys()].filter((k) => ANTES.has(k)).sort()
+  const criadas = [...DA_F62.keys()].filter((k) => !ANTES.has(k)).sort()
+  const reemitidas = new Map(
+    definicoesDeFuncao(semComentariosDeFora(DESFAZ))
+      .filter((d) => d.esquema === 'public')
+      .map((d) => [`${d.nome}/${d.tipos.length}`, d.texto] as const),
+  )
+  const normalizar = (s: string) =>
+    s
+      .replace(/--[^\n]*/g, ' ')
+      .replace(/create\s+or\s+replace\s+function/gi, 'create function')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+
+  it('a F62 recriou e criou funções (guarda do próprio teste)', () => {
+    expect(recriadas.length).toBeGreaterThanOrEqual(10)
+    expect(criadas.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('reemite TODA função que a F62 recriou — e nenhuma outra', () => {
+    expect([...reemitidas.keys()].sort()).toEqual(recriadas)
+  })
+
+  it.each(recriadas)('%s volta com o corpo vigente até a 0151', (chave) => {
+    expect(normalizar(reemitidas.get(chave as `${string}/${number}`)!)).toBe(
+      normalizar(ANTES.get(chave as `${string}/${number}`)!.texto),
+    )
+  })
+
+  it.each(criadas)('%s é derrubada', (chave) => {
+    const nome = chave.split('/')[0]
+    expect(DESFAZ).toMatch(new RegExp(`^drop function public\\.${nome}\\(`, 'm'))
+  })
+
+  it('derruba as três tabelas da raiz e as colunas novas', () => {
+    for (const re of [
+      /^drop table public\.membros;/m,
+      /^drop table public\.empresas;/m,
+      /^drop table public\.plataforma_admins;/m,
+      /^alter table public\.filiais drop column empresa_id;/m,
+      /^alter table public\.operador_filiais drop column membro_id;/m,
+      /^alter table public\.operador_filiais drop column empresa_id;/m,
+      /^alter table public\.operador_filiais add constraint operador_filiais_pkey primary key \(usuario_id, filial_id\);/m,
+    ]) {
+      expect(DESFAZ, String(re)).toMatch(re)
+    }
+  })
+
+  it('a ORDEM: a membership sai só depois do vínculo, e a raiz por último', () => {
+    const pos = (s: string) => DESFAZ.indexOf(s)
+    expect(pos('drop column membro_id')).toBeLessThan(pos('drop table public.membros'))
+    expect(pos('drop column empresa_id;')).toBeLessThan(pos('drop table public.empresas'))
+    expect(pos('drop table public.membros')).toBeLessThan(pos('drop table public.empresas'))
+    expect(pos('drop table public.empresas')).toBeLessThan(pos('drop function public.empresa_legada()'))
+  })
+
+  it('o passo 1 copia membros → profiles pela membership legada, com a janela do dev', () => {
+    expect(COPIA).toMatch(/update public\.profiles p\s+set papel = m\.papel,\s+ativo = m\.ativo/)
+    expect(COPIA).toMatch(/m\.empresa_id = public\.empresa_legada\(\)/)
+    expect(COPIA).toMatch(/set_config\('estoque\.gestao_usuarios', 'on', true\)/)
   })
 })
