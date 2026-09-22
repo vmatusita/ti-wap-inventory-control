@@ -45,14 +45,142 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 
 ## 4. Modelo de acesso: duas portas
 
-Decisão e trade-offs em [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md); regra na spec [§3](ESPECIFICACAO.md).
+*(Reescrito em 22/09/2026, na reauditoria de dívida técnica — passo 5, item AF. Até aqui esta seção descrevia o modelo ANTERIOR à F21: nível único, "todo logado é admin", policies `USING (true)`. O modelo mudou nas F21–F24, F37 e F41, e as emendas foram só para o ADR-002; esta seção ficou parada em 09/07/2026.)*
 
-1. **Operador** — login Supabase restrito a `@wap.ind.br`, `@stefanini.com` e `@latam.stefanini.com` (trava no trigger da `0001`, ampliado pela `0041`; lista única em `src/lib/auth/dominios-email.ts`), **nível único** (todo logado é admin; não há papéis). As policies RLS das tabelas de negócio são `USING (true)` — o operador legitimamente opera todas as filiais; a integridade fica nos triggers, não na RLS.
-2. **Visualizador** — sem conta: **senha de acesso** → cookie httpOnly assinado (HMAC), válido só em `/relatorios/**`. As leituras do relatório para o visualizador são servidas pelo cliente administrativo (service_role) — ver `src/lib/auth/acesso.ts`. A revogação de senha tem efeito no request seguinte.
+Decisão e trade-offs originais em [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md);
+emendas do modelo vigente em [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md)
+§13 (cargo `dev`) e §14 (zona destrutiva); regra na spec [§3](ESPECIFICACAO.md).
+
+### 4.1 Login — quatro cargos em hierarquia estrita
+
+Conta Supabase restrita aos domínios corporativos — `@wap.ind.br`, `@stefanini.com`,
+`@latam.stefanini.com` (lista única em `src/lib/auth/dominios-email.ts`; trava no trigger
+`handle_new_user`, migration `0041`). **`dev ⊃ admin ⊃ operador ⊃ consulta`**
+(enum `papel_usuario`, migrations `0061`/`0071`) — `dev` é o 4º cargo, acrescentado na F22
+sobre o modelo de 3 cargos da F21.
+
+- **Piso de leitura:** todo logado ATIVO lê tudo — o piso é `papel_atual() is not null`.
+  Perfil desativado (`profiles.ativo = false`) **ou** arquivado (`profiles.excluido_em`,
+  migration `0073`) não lê nem escreve (migrations `0070`/`0073`). Desativar vale no
+  **request seguinte**, para leitura E escrita.
+- **Escrita, por cargo:** dev e admin escrevem em todas as filiais e são os únicos que
+  alcançam `/admin/**` e o import de startup; operador escreve só nas filiais vinculadas
+  (`operador_filiais`); consulta não escreve nada.
+- **Duas exceções, e só duas:** `colaboradores` (F37) e `itens` (F41) são os únicos cadastros
+  em que o operador **insere** (policy por `pode_escrever()`, guarda `exigirPapel(…,
+  'operador')`) — ele cadastra a pessoa e o acessório inline no meio da movimentação, e exigir
+  admin ali quebraria o fluxo na mão dele. Editar, desativar e apagar continuam `e_admin()` nos
+  dois. Contraste deliberado com `tipos_item` (`0114`), que segue `e_admin()` no INSERT: tipo é
+  vocabulário administrado; pessoa e item são cadastro operacional que nasce no fluxo. Cadastro
+  de pessoa não é matéria de filial (o `filial_id` é atributo, não escopo de escrita) — por
+  isso `exigirEscritaEm` não entra nesse caminho.
+
+### 4.2 As funções do banco e o que cada uma decide
+
+- `papel_atual()` (`0061`/`0062`) — cargo vigente de quem pede, ou `null`.
+- `e_admin()` (`0072`) — **nível administrador** = `admin` OU `dev`. É essa redefinição que faz
+  as ~20 policies de `/admin`, a guarda interna do import e as guardas do app herdarem o `dev`
+  **sem serem reescritas**.
+- `e_dev()` (`0072`) — só `dev`, sem herança.
+- `pode_escrever()` (`0072`) — "escreve algo no acervo (nas filiais que lhe couberem)";
+  substituiu cinco policies gateadas por lista literal `in ('admin','operador')`, que
+  redefinição de função nenhuma alcançava.
+- `pode_escrever_filial(fid)` (`0062`, dev tratado como admin desde `0072`) — reconfere
+  `papel_atual()` por dentro a cada chamada.
+
+A regra mora **no Postgres** (essas funções + policies, migrations `0061`→`0078`) — o termo e
+o `.docx` também são matéria de filial (`0069`), guardado nas RPCs `security definer` que os
+escrevem. `src/lib/auth/papeis.ts` é vocabulário e ergonomia (rótulos, hierarquia numérica,
+`papelAtende`); as guardas de Server Action (`exigirDev`/`exigirAdmin`/`exigirEscrita`/
+`exigirEscritaEm`/`exigirPapel`, em `src/lib/auth/acesso.ts`) dão a **mensagem em pt-BR**, não
+a segurança — o RLS é o guarda-costas real, e as duas camadas concordam por construção porque
+chamam as mesmas funções do banco. `idOperador()` responde só "existe sessão?", nunca "pode
+fazer isso?". **Cargo nunca vem de `raw_user_meta_data`** (o próprio usuário edita esse campo).
+
+### 4.3 O que só o `dev` faz, e como é gravado
+
+Trocar o e-mail de uma conta, apagar conta (= perfil **arquivado**, `profiles.excluido_em`, +
+conta removida do Auth — autoria histórica intacta, dez FKs de histórico apontam para
+`profiles` com `NO ACTION`), encerrar sessões, conceder/revogar o próprio cargo dev — e
+**ninguém abaixo dele mexe em quem é dev**. A recusa vale **no banco**: trigger
+`profiles_guarda_dev` (`0073`) barra qualquer UPDATE numa linha `dev`, **inclusive o service
+role** (que policy não alcança).
+
+Cargo, status e vínculos são gravados por **cinco RPCs `security definer` chamadas com a
+sessão de quem clicou** — nunca o service role — (`definir_papel_usuario`,
+`definir_status_usuario`, `definir_vinculos_usuario`, `apagar_usuario`,
+`encerrar_sessoes_usuario`, migration `0074`); a guarda interna (`exigir_gestao_de`) exige
+`e_dev()` quando o alvo é dev ou o cargo pedido é dev, `e_admin()` no resto. **Ninguém age
+sobre o próprio acesso** — nem o dev altera o próprio cargo por essa via. Toda ação
+administrativa (cargo alterado, status alterado, vínculos alterados, e-mail trocado, conta
+apagada, sessões encerradas) grava em `eventos_admin`.
+
+### 4.4 Área `/dev` e a Zona destrutiva
+
+`/dev` (só cargo dev, layout próprio + `exigirDev` — defesa em profundidade, espelha
+`admin/layout.tsx`): diagnóstico, **doze** checagens de integridade só-leitura, migrations
+`0077`+`0085`+`0095`+`0098`+`0110`+`0127`+`0136` — a 9ª, `conflito_entre_filiais`, é da F24; a
+10ª, `detentor_em_estado_sem_dono`, é da `0110`; a 11ª, `reserva_aberta`, é da F41; a **12ª**,
+`backup_orfao` (objeto em `backups-import` sem operação correspondente), é da **F54** (`0136`,
+09/09/2026) —, auditoria completa com export e manutenção. Desde a **F55** (`0138`,
+10/09/2026) o SQL das doze mora num **núcleo** único, `checagens_integridade_nucleo()`
+(`security definer`, fechada por `revoke` de `public`/`anon`/`authenticated`/`service_role` —
+só alcançável pelas portas abaixo), e DUAS portas o expõem: `dev_checagens_integridade()`
+(guarda `e_dev()`, a tela `/dev`) e `checagens_integridade_resumo()` (guarda
+`papel_atual() is not null` — o piso de leitura, sem a coluna `amostra` — usada pelo smoke
+agendado do `saude.yml`, que roda com conta de cargo `consulta`). A decomposição existe porque
+o alarme agendado precisa das contagens sem ser dev, e um resumo que chamasse a função da
+`/dev` por dentro seria recusado: `security definer` troca o `current_user`, não o JWT que
+`e_dev()` lê. SQL **fixo** dentro das três; **console de SQL é proibido** (assunto do Supabase
+Studio) e função que receba SQL como parâmetro é proibida — mesmo com a lista de consultas
+fechada no TypeScript, é execução arbitrária com os privilégios do dono da função.
+
+`/dev/destrutivo` ("Zona destrutiva", F23) acrescenta ferramentas destrutivas **nomeadas** —
+apagar ativo/movimentação/item, resetar acervo ou lançamentos (por filial ou global), forçar
+estado de ativo e saldo de item. Cada uma é uma RPC `security definer` com
+`exigir_dev_para_destruir()` por dentro (cargo dev + justificativa de 10+ caracteres),
+confirmação digitada validada **na action E na RPC**, backup obrigatório (jsonb no evento
+registro a registro; JSON no bucket `backups-import` conferido pela RPC + contagens
+revalidadas para reset) e trilha gravada **dentro da própria transação** — se a trilha falhar,
+nada é apagado. Isso não afrouxa a proibição do console de SQL: cada ferramenta tem SQL fixo.
+
+**A imutabilidade do acervo é TRIGGER, não ausência de policy** (`guarda_acervo`, `0081`):
+antes disso, `movimentacoes`/`lancamentos_item` só não tinham policy de UPDATE/DELETE — o que
+segura `authenticated` mas não o **service role** (`rolbypassrls` + grants amplos de tabela).
+Agora as duas tabelas recusam UPDATE/DELETE por trigger e `ativos` recusa DELETE fora da janela
+`estoque.dev_destrutivo` (GUC local à transação, aberta só pelas RPCs oficiais e pela de import
+— recriada na `0080` por isso, nessa ORDEM de apply: `0080` antes da `0081`). A marca
+`movimentacoes.forcado`/`lancamentos_item.forcado` (`0079`) só é gravável dentro dessa janela.
+
+**A única exceção à exclusividade do dev sobre apagar ativo** é a mesa de conflitos entre
+filiais (F24, `0093`): o **nível administrador** apaga cadastro que esteja, NAQUELE INSTANTE,
+num grupo de conflito — e só ele, em `/pendencias`. A RPC `apagar_ativos_conflito_filiais`
+(`0093`→`0098`→`0100`) trava o GRUPO INTEIRO antes de revalidar (o gêmeo não pode sumir no
+meio) — em dois tempos desde a `0098` e **serializada por `pg_advisory_xact_lock`** desde a
+`0100` (o lock em dois tempos permitia duas sessões travarem as mesmas linhas em ordens
+opostas — deadlock). É all-or-nothing, exige confirmação com a quantidade (`APAGAR <N>`) e
+justificativa nas duas camadas, grava backup + trilha na mesma transação; acima de 25 ativos o
+backup vira arquivo sob `conflito/<digest dos ids>/` (`0100` — conferir só o prefixo aceitava o
+backup de outra exclusão). Apagar ativo **fora** de conflito continua só do dev, na Zona
+destrutiva.
+
+### 4.5 Visualizador — a outra porta
+
+Sem conta: **senha de acesso**, gerida em `admin/senhas` (hash `crypto.scrypt` **nativo** —
+proibido lib de hash) → cookie httpOnly assinado (HMAC), válido só em `/relatorios/**`. É
+**outra porta**, não o cargo `consulta` — nem a F21 nem a F22 a tocaram.
+`resolverAcessoRelatorio()` (`src/lib/auth/acesso.ts`) resolve o acesso das rotas de relatório:
+operador autenticado recebe o client de **sessão** (RLS); visualizador por senha recebe o
+client **administrativo** (`service_role`) — nunca o inverso, e nunca a anon key para sessão de
+senha. Revogação de senha tem efeito no request seguinte.
 
 Peças em `src/lib/`:
-- `supabase/client.ts` (browser) · `supabase/server.ts` (Server Components/Actions, respeita RLS) · `supabase/admin.ts` (service_role — só server-side; ignora RLS) · `supabase/proxy.ts` (middleware de sessão).
-- `auth/otp.ts`, `auth/senha-sessao.ts`, `auth/view-cookie.ts`, `auth/acesso.ts` — fluxo de convite/senha e a sessão de visualização.
+- `supabase/client.ts` (browser) · `supabase/server.ts` (Server Components/Actions, RLS) ·
+  `supabase/admin.ts` (service_role — só server-side) · `supabase/proxy.ts` (middleware de
+  sessão).
+- `auth/dominios-email.ts`, `auth/papeis.ts`, `auth/acesso.ts`, `auth/otp.ts`,
+  `auth/senha-sessao.ts`, `auth/view-cookie.ts` — vocabulário, guardas e a sessão de
+  visualização. Detalhe de implementação de cada peça: `src/lib/auth/CLAUDE.md`.
 
 ## 5. Camadas do código (App Router)
 

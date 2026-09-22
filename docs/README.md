@@ -21,7 +21,7 @@ Este diretório tem 60+ arquivos, e a maior parte é **histórico**. Esta págin
 | Entender para onde o sistema vai (F45 → F73) | [`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md) — o plano de preparação e virada multiempresa: §1 as 8 decisões travadas, §4 as 10 regras comuns a todas as fases, §5 a ficha de cada uma |
 | Saber o que está torto e ainda não foi consertado | [`DIVIDA-TECNICA.md`](DIVIDA-TECNICA.md) e [`BACKLOG-UX.md`](BACKLOG-UX.md) |
 
-Fora deste diretório: [`../CLAUDE.md`](../CLAUDE.md) (regras permanentes do agente), [`../CHANGELOG.md`](../CHANGELOG.md) (o que mudou, fase a fase) e `src/lib/ajuda/` (a documentação do **operador**, publicada em `/ajuda`).
+Fora deste diretório: [`../CLAUDE.md`](../CLAUDE.md) (regras permanentes do agente) e os `CLAUDE.md` **aninhados** por área (`src/lib/auth/`, `supabase/`, `scripts/db/`…, lista na raiz), que o agente só carrega ao mexer naquela pasta; [`../CHANGELOG.md`](../CHANGELOG.md) (o que mudou, fase a fase) e `src/lib/ajuda/` (a documentação do **operador**, publicada em `/ajuda`).
 
 ## Hierarquia de autoridade
 

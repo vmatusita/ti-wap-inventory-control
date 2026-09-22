@@ -12898,3 +12898,25 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   - Registrado como item **AT** de `DIVIDA-TECNICA.md`.
 - **Pendências:** o PR do AF, logo em seguida. AT (o walker do `ci-passos` e as worktrees de agente). AU:
   `scratch_tmp/scripts/db/` tem dois arquivos versionados por engano, achados de passagem.
+
+## 2026-09-22 · Documentação interna · a dieta do `CLAUDE.md` aplicada (passo 5, item AF)
+
+- **Contexto.** O texto aprovado pelo Johnny na ata anterior (decisão 3), aplicado em PR próprio. É documentação interna
+  de desenvolvedor: não entra no CHANGELOG e não gera versão.
+- **O que mudou.**
+  - **`CLAUDE.md` raiz:** de 258 linhas e 34.951 bytes para ~108 linhas e ~14.300 bytes (~4 mil tokens). Ficam as
+    regras transversais: as 8 permanentes com a mesma numeração, a stack, as convenções e o modelo de acesso condensado.
+  - **A árvore arquivo a arquivo** (40% do arquivo antigo, e desatualizada) virou um mapa curto por região, com ponteiro
+    para `docs/ARQUITETURA.md` §10.
+  - **A regra "PARE"** passou a valer para diretório de topo e para a lista de aninhados, não para arquivo.
+  - **14 `CLAUDE.md` aninhados** com as regras locais: `src/lib/{auth,itens,versoes,colaboradores,ajuda,pendencias,termos}`,
+    `supabase`, `scripts/{db,import,termos}` e `src/components/{layout,ativos,relatorios}`. O de `supabase/` cita o
+    ADR-003.
+  - **`docs/ARQUITETURA.md` §4 reescrito** com o modelo vigente (quatro cargos, as funções do banco, o que só o dev faz,
+    `/dev` com as doze checagens e a Zona destrutiva, a mesa de conflitos, o visualizador), com nota de emenda no topo.
+- **Rastreio.** Das 176 regras inventariadas, cada uma tem destino (raiz, aninhado ou documento existente, provado por
+  grep), exceto quatro descritivas: `secao-itens-junto.tsx` e `lote-url.ts`, cujo nome se explica, e os detalhes finos
+  do guard do seed/reset e dos scripts de design, cuja essência está na raiz. A regra "Zona destrutiva é subrota
+  própria, nunca atalho na ficha" e "scripts de design nunca tocam o banco" subiram para a raiz na revisão final.
+- **Motivo:** a regra que importa disputava atenção com o histórico de por que ela existe (item AF). A cronologia continua
+  onde sempre esteve: nas atas desta página e nas emendas do ADR-002.
