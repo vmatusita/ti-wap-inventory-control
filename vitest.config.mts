@@ -165,6 +165,9 @@ export default defineConfig({
           // mesmo arquivo duplicaria a suíte em silêncio (é o que o describe 5
           // de `ci-passos.test.ts` passou a provar que NÃO acontece).
           environment: 'happy-dom',
+          // Storage limpo entre testes: o ambiente é um por arquivo, e os
+          // formulários gravam memória e rascunho — ver o porquê no arquivo.
+          setupFiles: ['./vitest.setup-dom.ts'],
           include: ['src/**/*.dom.test.tsx'],
         },
       },

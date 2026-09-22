@@ -12824,6 +12824,20 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
       do preview. Com a CPU disputada, o teste clicava nesse intervalo, e o clique num botão desabilitado não faz nada.
     - O teste passou a esperar o botão **habilitado**; o setup de relógio foi retirado; 2 de 2 rodadas cheias verdes.
     - Lição registrada: o relógio não era a causa, e alargá-lo teria só escondido a corrida por mais 9 s.
+  - **Incidente do CI (PR #67).** O `verificar` caiu no `nova-compra-form.dom.test.tsx`, verde na mesa: o teste do
+    bloqueio por categoria faltando chegou a chamar a Server Action mockada.
+    - **Causa:** o formulário grava categoria e filial da última compra no `localStorage` (`compra:defaults`, A5) e
+      pré-preenche a próxima montagem com elas. O ambiente do happy-dom é um por arquivo, então o "Notebook" do teste
+      de cadastro bem-sucedido chegava ao teste seguinte.
+    - **Por que a mesa não via:** no Node 26 da mesa, o `localStorage` global do próprio Node (sem
+      `--localstorage-file`, vale `undefined`) encobre o do happy-dom, e o `setItem` caía no `try/catch` do
+      componente. No Node 24 do CI ele existe e grava.
+    - **Uma hipótese errada no caminho:** a primeira "reprodução", semeando a chave dentro do teste, falhava na própria
+      linha que semeava, porque `localStorage` era `undefined`. O teste nos dois sentidos pegou isso.
+    - **Conserto:** `vitest.setup-dom.ts` (setup do projeto `dom`) garante um `localStorage` em memória quando o Node
+      o encobre, para a mesa se comportar como o CI, e limpa `localStorage` e `sessionStorage` depois de cada teste.
+      Provado nos dois sentidos: só com a primeira parte, a mesa reproduz a falha do CI com as mesmas duas mensagens;
+      com as duas, 3/3 e a suíte cheia verde.
   - **Motivo:** é a premissa do Johnny, testar antes de decompor e nunca em big-bang. Não aprovar seria decompor sem
     rede, e a F42 já tinha medido quatro mecanismos desses formulários que não viram função pura.
 - **Decisão 3 — AF: dieta do `CLAUDE.md` com aninhados, texto aprovado.** Raiz de ~14 KB (~4 mil tokens, contra ~10 mil

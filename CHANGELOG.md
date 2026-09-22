@@ -26,7 +26,10 @@ dependências novas só de desenvolvimento.** Ata em [`docs/DECISOES.md`](docs/D
   **antes** de qualquer decomposição e sem mudar uma linha deles. Cada arquivo foi provado por sabotagem (dez, todas
   pegas). happy-dom, e não jsdom, porque o Radix chama `hasPointerCapture` e, sob o jsdom 30, dois dos três testes
   do `grupos-erros` caem. Na integração apareceu uma corrida no teste do wizard: clique num "Avançar" ainda
-  desabilitado. O teste agora espera o botão habilitar. Evidências em [`docs/eky-evidencias/`](docs/eky-evidencias/).
+  desabilitado. O teste agora espera o botão habilitar. E o CI pegou o que a mesa não via: no Node 24 do CI, o
+  `localStorage` do happy-dom funciona e a memória da última compra vazava de um teste para o seguinte. No Node 26
+  da mesa, o `localStorage` do próprio Node o encobria. `vitest.setup-dom.ts` dá o mesmo `localStorage` aos dois e
+  limpa o storage entre testes. Evidências em [`docs/eky-evidencias/`](docs/eky-evidencias/).
 - 🎨 **AA: as cores ficam, e ganham um portão.** Medidos os 21 pares entre os 7 status vivos (a pilha esconde status
   zerado, então qualquer par encosta), em visão normal e sob protanopia, deuteranopia e tritanopia. Das três formas de
   separar a tinta, nenhuma fechava a régua sem trocar a identidade de ao menos dois tokens. O Johnny manteve a paleta.
