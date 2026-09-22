@@ -315,6 +315,47 @@ o lock E as listas de `src/lib/itens/migrations-f38.test.ts` — desfaz-se por T
 tirar `0143`–`0145` de `DA_F38` com os arquivos ainda no disco reprova "nenhuma migration a partir da 0116 fica de fora
 da lista". Corrigido na revisão final da F60, 17/09/2026.)*
 
+## O rollback da F62 — a cópia de volta PRIMEIRO (22/09/2026)
+
+**Quando usar:** depois do apply das `0152`→`0158`, se a impressão do acesso "depois" divergir da "antes" em qualquer
+combinação, ou se alguém perder ou ganhar acesso por causa da troca do cargo. Em **produção**, o rollback é **imediato**
+(ordem F62: "cópia de volta primeiro, antes do diagnóstico") — o diagnóstico vem depois, no ensaio.
+
+**Por que a ordem não é livre.** Depois do apply, o cargo VIVO é o de `membros`; `profiles.papel`/`ativo` ficaram
+congelados no minuto do apply. Quem foi desligado, rebaixado ou promovido depois só aparece em `membros`. Desfazer as
+funções sem copiar antes faz `papel_atual()` voltar a ler a coluna congelada — e **um desligado volta a entrar**, em
+silêncio. O roteiro `supabase/tests/f62_rollback.sql` prova os dois caminhos no CI a cada push (rb1: com a cópia, a
+impressão de todo perfil volta idêntica; rb2: sem ela, o desligado recupera o cargo).
+
+**Os dois arquivos** (em `supabase/rollback/`, fora de `migrations/` — não entram no ledger nem na trava de hash):
+
+| passo | arquivo | o que faz | seguro com o app novo no ar? |
+|---|---|---|---|
+| 1 | `F62-1-copia-de-volta.sql` | copia `papel`/`ativo` de `membros` (empresa legada) para `profiles`, só onde diverge, dentro da janela `estoque.gestao_usuarios` (sem ela, `profiles_guarda_dev` recusa mexer num dev) | **sim** — o app novo não lê a coluna congelada |
+| 2 | `F62-2-desfaz.sql` (GERADO; a mesa reprova se divergir do corpo vigente de antes) | reemite as dez funções com o corpo de antes, derruba o que a F62 criou na ordem inversa (`0157` → `0152`), devolve `handle_new_user` ao corpo da `0057`, `notify pgrst` | **não** — derruba `membros`, que o app novo lê |
+
+**A receita:**
+
+0. **Foto de antes do rollback**: `docs/f62-evidencias/impressao-acesso.sql` no banco (só agregados e md5 — nunca id,
+   nome ou e-mail). É contra ela que o passo 4 confere.
+1. **A cópia** (`F62-1-copia-de-volta.sql`, pelo conector, o arquivo inteiro). Conferir: `0` perfis com `(papel, ativo)`
+   diferente entre `profiles` e a membership na empresa legada.
+2. **O app.** Se o app da F62 **já está no ar**, voltar para o deploy anterior ao merge (Vercel: promover o deployment
+   anterior) **antes** do passo 3 — o app velho lê a coluna que o passo 1 acabou de acertar. **Nunca** `git revert` do
+   merge inteiro: tiraria do repositório as migrations já aplicadas. Se o apply foi antes do merge (a janela normal da
+   fase), não há o que voltar.
+3. **O desfazer** (`F62-2-desfaz.sql`, pelo conector, o arquivo inteiro, na MESMA sessão lógica da cópia quando der).
+4. **Conferir**: a impressão do acesso de novo — igual à do passo 0, combinação a combinação e no md5 global; `membros`,
+   `empresas`, `plataforma_admins` ausentes; `operador_filiais` com a PK `(usuario_id, filial_id)`; `papel_atual()` lendo
+   `profiles` (md5 do `prosrc` = o da `0073`); `get_advisors(security)` sem achado novo.
+5. **No repositório**: a reversão vira migration NOVA (nunca editar as `0152`→`0158`), com as travas da F62
+   reconciliadas no mesmo commit (`cargo-em-membros.test.ts`, `cargo_em_membros.sql`, `cargo_equivalencia.sql`,
+   `isolamento_tenant.sql`, `k_secdef`/`k_infra`/`k_policies_public` dos catálogos, as mutações `f62-*`) e a ata em
+   `DECISOES.md`.
+
+**Ensaio primeiro** quando houver tempo; em emergência de produção, a cópia vai direto — ela é idempotente e não
+derruba nada.
+
 ## Restauração — recolocar DADO a partir de um backup (F54, 09/09/2026)
 
 **Rollback e restauração são coisas diferentes, e confundi-las custa caro.** Tudo o que está
@@ -1035,7 +1076,9 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   da tabela, e dono ignora RLS na própria tabela salvo `FORCE ROW LEVEL SECURITY`. **Confira os três
   antes de aplicar em banco novo** (`pg_class.relowner`/`relforcerowsecurity` + `pg_proc.prosecdef`/
   `proowner`); se algum cair, o erro é `42P17 "infinite recursion detected in policy for relation"`
-  — ruidoso e imediato, não silencioso. O roteiro provoca esse caminho de propósito (`1b-bis`).
+  — ruidoso e imediato, não silencioso. *(Medido na F62, 22/09/2026: quem de fato segura a leitura interna fora da
+  policy é o ATRIBUTO do dono — `postgres` tem `rolbypassrls` no banco hospedado e é superusuário no CI, e isso vence
+  até o `force`. Confira também `pg_roles.rolbypassrls` do dono; o cenário 9o de `isolamento_tenant.sql` trava isso.)* O roteiro provoca esse caminho de propósito (`1b-bis`).
 
   **⚠ Operacional: a conta de `SMOKE_EMAIL` tem de estar ATIVA em `profiles`.**
   `scripts/smoke/smoke-prod.mjs` é o **único** consumidor que roda sob SESSÃO — anon key +

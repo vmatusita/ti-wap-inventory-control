@@ -1,0 +1,152 @@
+# F62 — as travas de mesa, verdes, com os casos de sabotagem (A, C-policy, H) — npx vitest run … --reporter=verbose
+# SHA 9ee4f0c · 22/09/2026 · só mesa (sem banco)
+
+ ✓ |puro| src/lib/auth/empresa-legada.test.ts > EMPRESA_LEGADA_ID > é o literal que public.empresa_legada() devolve no corpo vigente
+ ✓ |puro| src/lib/auth/empresa-legada.test.ts > EMPRESA_LEGADA_ID > é um uuid válido (v4, variante RFC)
+ ✓ |puro| src/lib/validators/empresas-slug.test.ts > empresas.slug — a lista de reservados acompanha as rotas de topo > o censo achou as rotas de topo de verdade (guarda do próprio teste)
+ ✓ |puro| src/lib/validators/empresas-slug.test.ts > empresas.slug — a lista de reservados acompanha as rotas de topo > todo segmento de topo de src/app (grupos incluídos) é slug RESERVADO
+ ✓ |puro| src/lib/validators/empresas-slug.test.ts > empresas.slug — a lista de reservados acompanha as rotas de topo > a lista traz os da ficha F62 e o valor de URL "todas"
+ ✓ |puro| src/lib/validators/empresas-slug.test.ts > empresas.slug — a lista de reservados acompanha as rotas de topo > SABOTAGEM H (mesa): uma rota de topo sintética não reservada é acusada
+ ✓ |puro| src/lib/validators/empresas-slug.test.ts > empresas.slug — a lista de reservados acompanha as rotas de topo > o formato recusa maiúscula, espaço e hífen nas pontas, e aceita o slug da WAP
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 1. o universo — a mesa julga o MESMO conjunto que o catálogo do CI > o replay leu migrations e policies (guarda do próprio teste)
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 1. o universo — a mesa julga o MESMO conjunto que o catálogo do CI > as policies vivas pelo replay são EXATAMENTE `k_policies_public` ∪ `k_storage` do .sql
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 1. o universo — a mesa julga o MESMO conjunto que o catálogo do CI > cobre public E storage.objects, todos os verbos
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 2. falha fechada — o que o replay não lê reprova, nunca é pulado > nenhum DDL de policy dinâmico, nenhum comando ilegível, nenhum alter/drop de policy desconhecida
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 2. falha fechada — o que o replay não lê reprova, nunca é pulado > AUTO-CONFERÊNCIA: todo `create|alter|drop policy` fora de comentário foi consumido pelo replay
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 2. falha fechada — o que o replay não lê reprova, nunca é pulado > toda cláusula viva foi lida pelo analisador
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > nenhuma policy fora da régua (R1 fora da lista, R2, R3)
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > CATRACA — toda exceção declarada ainda descreve uma ocorrência viva
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > a lista de exceções está no formato (migration, motivo e destino na linha)
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > as ocorrências R1 vivas são exatamente as exceções — nenhuma a mais, nenhuma a menos
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · coluna nua → reprova
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: false, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: false, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: false, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: false, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: false, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: false, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: true, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: true, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: true, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: true, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: true, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: true, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: false, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: false, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: false, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: false, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: false, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'admin', ativo: false, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: true, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: true, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: true, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: true, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: true, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: true, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: false, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: false, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: false, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: false, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: false, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'operador', ativo: false, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: true, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: true, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: true, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: true, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: true, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: true, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: false, arquivado: false, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: false, arquivado: false, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: false, arquivado: false, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: false, arquivado: true, vinculos: [] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: false, arquivado: true, vinculos: [ 2 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'consulta', ativo: false, arquivado: true, vinculos: [ 1, 3 ] }
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > sem sessão: null
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > sem membership na empresa legada (só em outra empresa): null — a ponte responde pela legada
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > duas memberships: vale a da empresa legada, nunca a mais forte
+ ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > o vínculo é da MEMBERSHIP: vínculo de outra membership não entra no escopo
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · o falso içamento → reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · expressão sobre coluna qualificada → reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R2 · sem argumento, solta → reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R2 · = any (fn()) sem array (select …) → reprova
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles > o replay das migrations enxergou funções de verdade (universo não vazio)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles > nenhuma função vigente fora de k_excecoes_cargo lê ou escreve profiles.papel/profiles.ativo
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles > toda exceção de k_excecoes_cargo ainda é acusada (a catraca no outro sentido)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles > as exceções estão no formato (migration que existe, motivo > 40 caracteres, destino)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 2. mesa: nenhuma policy viva lê o cargo em profiles > o replay achou as policies vivas
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 2. mesa: nenhuma policy viva lê o cargo em profiles > nenhuma policy (public/storage) cita profiles.papel/profiles.ativo
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > acusa a leitura por alias
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > acusa a leitura sem alias
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > acusa a leitura qualificada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > acusa a leitura gravando
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > acusa a leitura inserindo
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > não acusa quem lê SÓ o que é da conta (nome, excluido_em) nem o cargo em membros
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > não acusa comentário (a lição da F53: pseudo-SQL em comentário não é código)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > uma migration SINTÉTICA no fim da cadeia com uma função lendo profiles.papel reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R3 · exists correlacionado → reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R3 · exists que lê tabela sem olhar a linha → reprova
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 3. mesa: a varredura SABE reprovar (sabotagem A) > a função que caiu por `drop function` sai do universo
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 4. TS e scripts: nenhum `from('profiles')` seleciona, filtra ou grava papel/ativo > o universo é o código de verdade (src/** e scripts/**, sem testes)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 4. TS e scripts: nenhum `from('profiles')` seleciona, filtra ou grava papel/ativo > nenhum arquivo fora de EXCECOES_TS lê ou grava o cargo em profiles
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · with check de INSERT com fn(col) → reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · em storage.objects → reprova
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 4. TS e scripts: nenhum `from('profiles')` seleciona, filtra ou grava papel/ativo > toda exceção de EXCECOES_TS ainda é acusada (a catraca no outro sentido)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 4. TS e scripts: nenhum `from('profiles')` seleciona, filtra ou grava papel/ativo > toda exceção de EXCECOES_TS existe e tem motivo
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 5. TS: a varredura SABE reprovar (sabotagem A) > acusa select
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 5. TS: a varredura SABE reprovar (sabotagem A) > acusa filtro
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 5. TS: a varredura SABE reprovar (sabotagem A) > acusa grava
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 5. TS: a varredura SABE reprovar (sabotagem A) > acusa forma
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 5. TS: a varredura SABE reprovar (sabotagem A) > acusa sql
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 5. TS: a varredura SABE reprovar (sabotagem A) > não acusa a leitura de profiles SEM o cargo, nem o cargo em membros
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 6. roteiros: nenhum lê ou grava o cargo em profiles fora das exceções nomeadas > o universo são os roteiros de verdade
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 6. roteiros: nenhum lê ou grava o cargo em profiles fora das exceções nomeadas > todo comando que toca o cargo em profiles carrega a marca de uma exceção nomeada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 6. roteiros: nenhum lê ou grava o cargo em profiles fora das exceções nomeadas > toda exceção de EXCECOES_ROTEIRO ainda marca um comando (a catraca no outro sentido)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 7. roteiros: a varredura SABE reprovar (sabotagem A) > um roteiro sintético com `update public.profiles set papel` é acusado, sem marca
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 7. roteiros: a varredura SABE reprovar (sabotagem A) > a marca é lida do próprio comando
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F62) > pg_temp.papel_atual_f61 = o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F62) > pg_temp.pode_escrever_filial_f61 = o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F62) > pg_temp.existe_outro_admin_ativo_f61 = o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > a F62 recriou e criou funções (guarda do próprio teste)
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > reemite TODA função que a F62 recriou — e nenhuma outra
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > apagar_usuario/1 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > checagens_integridade_nucleo/0 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > definir_papel_usuario/2 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > definir_status_usuario/2 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > definir_vinculos_usuario/2 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > exigir_gestao_de/2 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > existe_outro_admin_ativo/2 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > handle_new_user/0 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > papel_atual/0 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > pode_escrever_filial/1 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > profiles_guarda_dev/0 volta com o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > e_plataforma/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > empresa_legada/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > empresas_de_admin/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > empresas_de_escrita/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > empresas_do_membro/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > membros_guarda_dev/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > operador_filiais_deriva_membership/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > unidades_de_escrita/0 é derrubada
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > derruba as três tabelas da raiz e as colunas novas
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > a ORDEM: a membership sai só depois do vínculo, e a raiz por último
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > o passo 1 copia membros → profiles pela membership legada, com a janela do dev
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > DDL de policy por execute format(…) → reprova por falha fechada, com arquivo e linha
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > DDL de policy dinâmico disfarçado (o verbo parametrizado) → reprova por falha fechada (revisão adversarial da F59)
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > DDL de policy dinâmico disfarçado (a palavra partida entre literais) → reprova por falha fechada (revisão adversarial da F59)
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > policy nova em public fora do universo congelado → reprova pelo universo
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > consertar a policy sem tirar a exceção → reprova pela catraca
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > a forma-alvo içada → passa
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > a forma de pares → passa
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > o piso → passa
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > a identidade içada → passa
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > o literal → passa
+ Test Files  5 passed (5)
+      Tests  145 passed (145)
+   Start at  16:55:29
+   Duration  2.19s (transform 549ms, setup 0ms, import 2.06s, tests 1.93s, environment 1ms)

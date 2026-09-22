@@ -35,7 +35,10 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 | `termos_gerados` | Snapshot jsonb + ponteiro para o `.docx` no Storage privado. |
 | `anotacoes` | Notas livres na linha do tempo do ativo. |
 | `import_logs` | Auditoria do import de startup (arquivo, hash, correções, contagens). |
-| `profiles` | Operadores (domínios corporativos da spec §3; nível único, sem papéis). `primeiro_nome` + `sobrenome` vêm da própria pessoa ao aceitar o convite; **`nome` é coluna GERADA** com os dois juntos (`0057`) — é ela que todo o app lê para exibir autoria. |
+| `profiles` | A CONTA de cada pessoa (domínios corporativos da spec §3): nome, e-mail, arquivamento (`excluido_em`). `primeiro_nome` + `sobrenome` vêm da própria pessoa ao aceitar o convite; **`nome` é coluna GERADA** com os dois juntos (`0057`) — é ela que todo o app lê para exibir autoria. `papel`/`ativo` estão **congelados** desde a F62 (o cargo mora em `membros`). |
+| `empresas` | A raiz do tenant (F62, `0152`): hoje só a WAP, com id fixo (`empresa_legada()`). `slug` com lista fechada de reservados, `razao_social`/`cnpj`, `patrimonio_digitos`, `cor_acento`, `config`. Nenhuma tela lê ainda. |
+| `membros` | O CARGO de cada pessoa em cada empresa (F62, `0153`): `papel` + `ativo`, uma linha por (empresa, pessoa). Escrita só pelas RPCs de gestão; rede do dev em `membros_guarda_dev`. |
+| `plataforma_admins` | O retrato das contas de plataforma (F62, `0154`), lido só por `e_plataforma()` — sem consumidor até a F67. |
 
 ## 3. Máquina de estados
 
@@ -49,7 +52,7 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 
 Decisão e trade-offs originais em [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md);
 emendas do modelo vigente em [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md)
-§13 (cargo `dev`) e §14 (zona destrutiva); regra na spec [§3](ESPECIFICACAO.md).
+§13 (cargo `dev`), §14 (zona destrutiva) e §15 (o cargo por empresa, F62); regra na spec [§3](ESPECIFICACAO.md).
 
 ### 4.1 Login — quatro cargos em hierarquia estrita
 
@@ -57,15 +60,19 @@ Conta Supabase restrita aos domínios corporativos — `@wap.ind.br`, `@stefanin
 `@latam.stefanini.com` (lista única em `src/lib/auth/dominios-email.ts`; trava no trigger
 `handle_new_user`, migration `0041`). **`dev ⊃ admin ⊃ operador ⊃ consulta`**
 (enum `papel_usuario`, migrations `0061`/`0071`) — `dev` é o 4º cargo, acrescentado na F22
-sobre o modelo de 3 cargos da F21.
+sobre o modelo de 3 cargos da F21. **Desde a F62 (22/09/2026) o cargo mora em `membros`**
+(`empresa_id`, `profile_id`, `papel`, `ativo` — uma linha por empresa em que a pessoa trabalha;
+hoje só a WAP); `profiles.papel`/`ativo` estão **congelados** (legado, rede de reversão) e
+`profiles` guarda o que é da conta: nome, e-mail, arquivamento.
 
 - **Piso de leitura:** todo logado ATIVO lê tudo — o piso é `papel_atual() is not null`.
-  Perfil desativado (`profiles.ativo = false`) **ou** arquivado (`profiles.excluido_em`,
-  migration `0073`) não lê nem escreve (migrations `0070`/`0073`). Desativar vale no
+  Membership desativada (`membros.ativo = false` desde a F62; antes `profiles.ativo`) **ou**
+  perfil arquivado (`profiles.excluido_em`, migration `0073`) não lê nem escreve (migrations `0070`/`0073`). Desativar vale no
   **request seguinte**, para leitura E escrita.
 - **Escrita, por cargo:** dev e admin escrevem em todas as filiais e são os únicos que
   alcançam `/admin/**` e o import de startup; operador escreve só nas filiais vinculadas
-  (`operador_filiais`); consulta não escreve nada.
+  (`operador_filiais` — desde a F62, o vínculo é da MEMBERSHIP: `membro_id`/`empresa_id`, com FKs
+  compostas que recusam membership ou filial de outra empresa); consulta não escreve nada.
 - **Duas exceções, e só duas:** `colaboradores` (F37) e `itens` (F41) são os únicos cadastros
   em que o operador **insere** (policy por `pode_escrever()`, guarda `exigirPapel(…,
   'operador')`) — ele cadastra a pessoa e o acessório inline no meio da movimentação, e exigir
@@ -77,7 +84,9 @@ sobre o modelo de 3 cargos da F21.
 
 ### 4.2 As funções do banco e o que cada uma decide
 
-- `papel_atual()` (`0061`/`0062`) — cargo vigente de quem pede, ou `null`.
+- `papel_atual()` (`0061`/`0062`; a PONTE desde a `0158`) — cargo vigente de quem pede, ou `null`.
+  Continua sem parâmetro e responde pela membership na empresa legada (`empresa_legada()`, a
+  WAP): membership ativa e perfil não arquivado; com duas memberships, vale a da legada.
 - `e_admin()` (`0072`) — **nível administrador** = `admin` OU `dev`. É essa redefinição que faz
   as ~20 policies de `/admin`, a guarda interna do import e as guardas do app herdarem o `dev`
   **sem serem reescritas**.
@@ -86,7 +95,12 @@ sobre o modelo de 3 cargos da F21.
   substituiu cinco policies gateadas por lista literal `in ('admin','operador')`, que
   redefinição de função nenhuma alcançava.
 - `pode_escrever_filial(fid)` (`0062`, dev tratado como admin desde `0072`) — reconfere
-  `papel_atual()` por dentro a cada chamada.
+  `papel_atual()` por dentro a cada chamada; desde a `0158` o vínculo do operador é o da
+  membership na empresa legada.
+- **Sem consumidor ainda (F62):** as quatro funções de conjunto da forma-alvo —
+  `empresas_do_membro()`, `empresas_de_escrita()`, `empresas_de_admin()`, `unidades_de_escrita()`
+  (`0157`, as policies da F66 as chamarão) — e `e_plataforma()` (`0154`, sobre o retrato
+  `plataforma_admins`; a `/dev` segue decidindo por `e_dev()`).
 
 A regra mora **no Postgres** (essas funções + policies, migrations `0061`→`0078`) — o termo e
 o `.docx` também são matéria de filial (`0069`), guardado nas RPCs `security definer` que os
@@ -104,7 +118,8 @@ conta removida do Auth — autoria histórica intacta, dez FKs de histórico apo
 `profiles` com `NO ACTION`), encerrar sessões, conceder/revogar o próprio cargo dev — e
 **ninguém abaixo dele mexe em quem é dev**. A recusa vale **no banco**: trigger
 `profiles_guarda_dev` (`0073`) barra qualquer UPDATE numa linha `dev`, **inclusive o service
-role** (que policy não alcança).
+role** (que policy não alcança) — e, desde a F62, `membros_guarda_dev` (`0153`) faz o mesmo na
+membership, onde o cargo mora agora.
 
 Cargo, status e vínculos são gravados por **cinco RPCs `security definer` chamadas com a
 sessão de quem clicou** — nunca o service role — (`definir_papel_usuario`,
@@ -234,6 +249,7 @@ Ao registrar a movimentação, o sistema oferece o termo pronto. `docxtemplater`
 
 | Quero… | Mexo em… |
 |---|---|
+| onde o CARGO de alguém mora, ou quem o lê | `membros` (`0153`; as funções que o leem, `0158`) — nunca `profiles.papel`/`ativo`, congelados. No app, `getOperador` (`src/lib/auth/acesso.ts`) e `src/lib/queries/admin.ts`, com `EMPRESA_LEGADA_ID` (`src/lib/auth/empresa-legada.ts`). A trava que reprova a volta: `src/lib/validators/cargo-em-membros.test.ts` + `supabase/tests/cargo_em_membros.sql`; o rollback, `supabase/rollback/F62-*` |
 | uma transição de estado nova/diferente | `src/lib/dominio.ts` **e** uma nova migration do trigger (`0004` é a base) — os dois lados |
 | um vocabulário De→Para de MOTIVO | `src/lib/dominio.ts`; cadastro em `admin/motivos` |
 | o vocabulário do IMPORT (unidade/tipo/situação/prefixo) | as tabelas da migration `0139` (`unidades_apelidos`, `import_termos_categoria`, `import_termos_estado`, `import_prefixos_patrimonio`), lidas por `src/lib/queries/vocabulario-import.ts` e as funções puras de `src/lib/import/vocabulario.ts` (F56 — `deparas.ts` deixou de guardar o vocabulário). Só o apelido de unidade tem tela: `admin/filiais`; Tipo/Situação/prefixo mudam só por migration nesta fase |
