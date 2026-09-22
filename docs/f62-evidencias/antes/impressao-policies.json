@@ -1,0 +1,8 @@
+{
+  "quando_utc": "2026-09-22T18:27:31Z",
+  "instrumento": "docs/f62-evidencias/impressao-policies.sql",
+  "md5_do_instrumento": "5b1a9426210f0fb236a854475e098e04",
+  "producao": {"novas_da_f62": [], "vivas_antes_da_f62": {"public": {"n": 53, "md5": "d4fb378cf030fe003f5152866619912d"}, "storage": {"n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8"}}},
+  "ensaio":   {"novas_da_f62": [], "vivas_antes_da_f62": {"public": {"n": 53, "md5": "d4fb378cf030fe003f5152866619912d"}, "storage": {"n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8"}}},
+  "nota": "61 policies (53 public + 8 storage), md5 idêntico nos dois bancos. A frente de exploração (e) mediu, com outra fórmula, public 30addc0b869628cd91c1c2eb49f5a546 e storage 660539f91e7c6a8b55b430646c3ae569 — também idênticos entre os bancos; a comparação antes × depois usa ESTE instrumento."
+}
