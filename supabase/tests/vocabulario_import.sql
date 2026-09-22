@@ -86,9 +86,10 @@ begin
     (k_consulta, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'f56d.consulta@wap.ind.br', '', now(), now(), now());
 
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
-  update public.profiles set papel = 'consulta' where id = k_consulta;
+  -- F62: o cargo é plantado em membros
+  perform pg_temp.plantar_cargo(k_admin, 'admin');
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
 
   insert into public.filiais (slug, nome, ativo) values
     ('zzf56-alfa', 'Filial ZZF56 Alfa', true)  returning id into v_fA;

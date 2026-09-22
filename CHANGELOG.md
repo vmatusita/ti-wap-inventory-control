@@ -6,6 +6,47 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 22/09/2026 — F62 · A raiz do tenant e o cargo por empresa ✅
+
+**v1.67.0** · **com migrations `0152`–`0158`**, aplicadas no ensaio e em produção antes do merge · A primeira fase da
+virada multiempresa que muda o banco. Nascem a raiz do tenant (`empresas`, com a WAP), a membership (`membros`) e a
+tabela da plataforma — e **o cargo sai de `profiles` e passa a morar na membership**, uma linha por empresa em que a
+pessoa trabalha. **Nenhum perfil mudou de acesso:** a impressão do acesso de cada perfil, tirada antes e depois do
+apply, saiu idêntica nos dois bancos, combinação a combinação e no md5 global (ensaio `f2cfd5a1…`, 5 perfis; produção
+`a5de88cf…`, 16 perfis); nenhuma das 61 policies vivas foi tocada (mesmo md5), e a paridade ensaio × produção fechou nas
+11 classes. Nada muda na tela. Relatório em [`docs/RELATORIO-F62.md`](docs/RELATORIO-F62.md); plano e censo em
+[`docs/PLAN-F62.md`](docs/PLAN-F62.md); ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- ✅ **A raiz do tenant (`0152`)** — `empresas` com a WAP (id fixo, igual nos dois bancos, devolvido por
+  `empresa_legada()`), slug com formato e lista fechada de reservados (as rotas de topo do app, travadas por teste de
+  mesa), razão social e CNPJ separados do nome, dígitos do patrimônio, cor de acento e `config` só objeto.
+- ✅ **A membership (`0153`)** — `membros (empresa_id, profile_id, papel, ativo)`, uma linha por perfil copiada de
+  `profiles`, com a rede do dev (`membros_guarda_dev`) espelhando a de `profiles`; toda conta nova nasce com a
+  membership `operador`.
+- ✅ **A plataforma (`0154`)** — `plataforma_admins` (um retrato das contas dev) e `e_plataforma()` sem parâmetro, ainda
+  sem consumidor.
+- ✅ **Filial e vínculo por membership (`0155`/`0156`)** — `filiais.empresa_id` com default constante na WAP;
+  `operador_filiais` com `empresa_id`/`membro_id` e FKs compostas que recusam vínculo com membership ou filial de outra
+  empresa. Nenhuma tela nem RPC precisou mudar: um gatilho deriva a membership do par (pessoa, filial).
+- ✅ **As quatro funções de conjunto (`0157`)** — na forma-alvo da MATRIZ, sem consumidor até as policies da virada.
+- ✅ **A troca (`0158`)** — as dez funções que liam ou gravavam o cargo em `profiles` passaram a `membros`;
+  `papel_atual()` continua sem parâmetro, como PONTE (a membership na empresa legada). `profiles.papel`/`ativo` ficam
+  congelados como rede de reversão; o rollback copia de volta primeiro (`supabase/rollback/F62-*`, com roteiro próprio).
+- ✅ **O app e os scripts** — `getOperador` e `/admin/usuarios` leem a membership; o seed, o smoke e as ferramentas de
+  medição também. Nada muda na tela.
+- ✅ **As travas** — a varredura do cargo congelado em quatro frentes (catálogo, migrations, TypeScript e roteiros); a
+  comparação do corpo antigo × o vivo numa grade de 32 pessoas + casos de borda; os cenários A↔B do isolamento com duas
+  empresas fictícias; **20 mutações novas** no injetor (125/125 detectadas); e dez sabotagens com saída real em
+  [`docs/f62-evidencias/`](docs/f62-evidencias). A medição achou uma premissa errada escrita desde a `0070`: com `force
+  row level security` o Postgres **não** erraria `42P17` aqui — o dono das funções tem BYPASSRLS; a proibição do `force`
+  fica, e o atributo do dono virou asserção.
+- ✅ **A revisão adversarial (5 lentes, 2 céticos por achado)** achou cinco lacunas, todas fechadas antes do apply: a
+  RPC antiga em voo no apply da `0158` gravaria em silêncio a coluna congelada — a guarda de `profiles` passou a
+  recusá-la (`55000`, cenário 8d, mutação nova); a recópia ganhou cenário que exercita a reconciliação (6); o rollback
+  refaz a cópia junto do desfazer, com `membros` travada; e a ata e o índice das ordens.
+
+---
+
 ## 22/09/2026 — Revisão de código do intervalo v1.66.1 → v1.66.6 ✅
 
 Entrega avulsa (**v1.66.7**). A passada de revisão de código (`/code-review`, xhigh, dez lentes) sobre tudo o que

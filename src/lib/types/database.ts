@@ -288,6 +288,43 @@ export type Database = {
           },
         ]
       }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
+      empresas: {
+        Row: {
+          cnpj: string | null
+          config: Json
+          cor_acento: string | null
+          created_at: string
+          id: string
+          nome: string
+          patrimonio_digitos: number
+          razao_social: string | null
+          slug: string
+        }
+        Insert: {
+          cnpj?: string | null
+          config?: Json
+          cor_acento?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          patrimonio_digitos?: number
+          razao_social?: string | null
+          slug: string
+        }
+        Update: {
+          cnpj?: string | null
+          config?: Json
+          cor_acento?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          patrimonio_digitos?: number
+          razao_social?: string | null
+          slug?: string
+        }
+        Relationships: []
+      }
       eventos_admin: {
         Row: {
           acao: string
@@ -323,11 +360,13 @@ export type Database = {
           },
         ]
       }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
       filiais: {
         Row: {
           ativo: boolean
           cidade: string
           created_at: string
+          empresa_id: string
           id: number
           nome: string
           slug: string
@@ -336,6 +375,7 @@ export type Database = {
           ativo?: boolean
           cidade?: string
           created_at?: string
+          empresa_id?: string
           id?: never
           nome: string
           slug: string
@@ -344,11 +384,20 @@ export type Database = {
           ativo?: boolean
           cidade?: string
           created_at?: string
+          empresa_id?: string
           id?: never
           nome?: string
           slug?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "filiais_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_logs: {
         Row: {
@@ -677,6 +726,49 @@ export type Database = {
           },
         ]
       }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
+      membros: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          empresa_id: string
+          id: string
+          papel: Database["public"]["Enums"]["papel_usuario"]
+          profile_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id: string
+          id?: string
+          papel?: Database["public"]["Enums"]["papel_usuario"]
+          profile_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          papel?: Database["public"]["Enums"]["papel_usuario"]
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membros_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membros_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motivos: {
         Row: {
           aplica_a: Database["public"]["Enums"]["tipo_movimentacao"][]
@@ -850,29 +942,50 @@ export type Database = {
           },
         ]
       }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
       operador_filiais: {
         Row: {
           created_at: string
+          empresa_id: string
           filial_id: number
+          membro_id: string
           usuario_id: string
         }
         Insert: {
           created_at?: string
+          empresa_id?: string
           filial_id: number
+          membro_id?: string
           usuario_id: string
         }
         Update: {
           created_at?: string
+          empresa_id?: string
           filial_id?: number
+          membro_id?: string
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "operador_filiais_filial_da_empresa_fk"
+            columns: ["empresa_id", "filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["empresa_id", "id"]
+          },
           {
             foreignKeyName: "operador_filiais_filial_id_fkey"
             columns: ["filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operador_filiais_membro_fk"
+            columns: ["empresa_id", "membro_id"]
+            isOneToOne: false
+            referencedRelation: "membros"
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "operador_filiais_usuario_id_fkey"
@@ -966,6 +1079,30 @@ export type Database = {
             foreignKeyName: "pendencias_item_resolvida_por_fkey"
             columns: ["resolvida_por"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
+      plataforma_admins: {
+        Row: {
+          created_at: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plataforma_admins_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1567,6 +1704,12 @@ export type Database = {
       digest_selecao_conflito: { Args: { p_ativos: string[] }; Returns: string }
       e_admin: { Args: never; Returns: boolean }
       e_dev: { Args: never; Returns: boolean }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
+      e_plataforma: { Args: never; Returns: boolean }
+      empresa_legada: { Args: never; Returns: string }
+      empresas_de_admin: { Args: never; Returns: string[] }
+      empresas_de_escrita: { Args: never; Returns: string[] }
+      empresas_do_membro: { Args: never; Returns: string[] }
       encerrar_sessoes_usuario: { Args: { p_alvo: string }; Returns: number }
       estornar_movimentacao_com_itens: {
         Args: {
@@ -1926,6 +2069,14 @@ export type Database = {
         Returns: number
       }
       ultima_migracao_aplicada: { Args: never; Returns: string }
+      // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
+      unidades_de_escrita: {
+        Args: never
+        Returns: {
+          empresa_id: string
+          filial_id: number
+        }[]
+      }
       vocabulario_chave: { Args: { p_texto: string }; Returns: string }
     }
     Enums: {

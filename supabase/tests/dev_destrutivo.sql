@@ -216,15 +216,21 @@ begin
     (k_operador, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f23.operador@wap.ind.br', '', now(), now(), now()),
     (k_consulta, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f23.consulta@wap.ind.br', '', now(), now(), now());
 
-  update public.profiles set papel = 'admin',    primeiro_nome = 'Chefia',  sobrenome = 'de Teste' where id = k_admin;
-  update public.profiles set papel = 'operador', primeiro_nome = 'Fulano',  sobrenome = 'de Teste' where id = k_operador;
-  update public.profiles set papel = 'consulta', primeiro_nome = 'Sicrano', sobrenome = 'de Teste' where id = k_consulta;
+  -- F62: cargo/status moraram para public.membros — plantados por pg_temp.plantar_cargo
+  -- (supabase/tests/_asserts.sql); profiles fica só com as colunas da CONTA.
+  update public.profiles set primeiro_nome = 'Chefia',  sobrenome = 'de Teste' where id = k_admin;
+  perform pg_temp.plantar_cargo(k_admin, 'admin');
+  update public.profiles set primeiro_nome = 'Fulano',  sobrenome = 'de Teste' where id = k_operador;
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  update public.profiles set primeiro_nome = 'Sicrano', sobrenome = 'de Teste' where id = k_consulta;
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
   -- Plantar um DEV exige o caminho oficial: `profiles_guarda_dev` (0073) recusa a concessão do
   -- cargo mesmo para o postgres.
   perform set_config('estoque.gestao_usuarios', 'on', true);
-  update public.profiles set papel = 'dev', primeiro_nome = 'Dev', sobrenome = 'de Teste' where id = k_dev;
+  update public.profiles set primeiro_nome = 'Dev', sobrenome = 'de Teste' where id = k_dev;
+  perform pg_temp.plantar_cargo(k_dev, 'dev');
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- Os BACKUPS que as RPCs de reset exigem: um por recorte, cada um sob o seu prefixo, todos

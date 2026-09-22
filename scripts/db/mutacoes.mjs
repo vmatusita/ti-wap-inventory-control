@@ -2508,6 +2508,335 @@ const REAUDITORIA_PASSO4 = [
   },
 ]
 
+// =============================================================================
+// F62 (22/09/2026) — a raiz do tenant e o cargo por empresa
+// =============================================================================
+// UMA mutação por função de autorização que a F62 criou ou reescreveu — as quatro de
+// conjunto, `e_plataforma`, a ponte de `papel_atual` (três eixos: o arquivamento, a
+// desativação, a empresa), `pode_escrever_filial`, `existe_outro_admin_ativo`,
+// `exigir_gestao_de`, a guarda do dev em `membros`, o `handle_new_user` sem a membership,
+// as três RPCs escritoras voltando à coluna congelada, `profiles_guarda_dev` esquecendo a
+// membership — mais a estrutura: `force` em `membros` (a sabotagem D) e a FK composta de
+// `operador_filiais` (a regra 3 da convenção de honestidade). Cada uma é derrubada por um
+// cenário NOMEADO: a grade (`cargo_equivalencia.sql`), os A↔B (`isolamento_tenant.sql`), a
+// hierarquia do dev (`cargo_dev.sql`) ou o catálogo (`catalogo_policies.sql`).
+const provaMarca = (assinatura) => ({
+  sql: `select pg_get_functiondef('${assinatura}'::regprocedure) like '%MUTAÇÃO F47 (injetor)%'`,
+  espera: 't',
+})
+
+/** @type {Mutacao[]} */
+const F62_CARGO = [
+  {
+    id: 'f62-empresas-do-membro-esquece-ativo',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'revogacao-perdida',
+    derruba: ['9e'],
+    porque:
+      'O recorte de leitura por empresa esquece a membership DESATIVADA: quem foi desligado continua "membro" da empresa até a próxima troca de token — ou para sempre, se a F72 já tiver tirado o piso. É a revogação no request seguinte deixando de valer justamente na função que a F66 vai pendurar em toda policy (sabotagem C).',
+    sql: mutarFuncaoSemReplace(
+      'public.empresas_do_membro()',
+      '     and m.ativo\n',
+      `     ${MARCA}\n`,
+      'f62-empresas-do-membro-esquece-ativo',
+    ),
+    prova: provaMarca('public.empresas_do_membro()'),
+  },
+  {
+    id: 'f62-empresas-de-escrita-aceita-consulta',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'papel-afrouxado',
+    derruba: ['9b'],
+    porque:
+      'A escrita no nível de empresa passa a aceitar o cargo consulta: o consultor que é admin no cliente A e só consulta no cliente B ganha escrita no B pelo simples fato de ter membership lá — o cargo por empresa, que é a razão de existir de membros, deixa de valer.',
+    sql: mutarFuncaoSemReplace(
+      'public.empresas_de_escrita()',
+      "     and m.papel in ('dev', 'admin', 'operador')",
+      `     and m.papel in ('dev', 'admin', 'operador', 'consulta')  ${MARCA}`,
+      'f62-empresas-de-escrita-aceita-consulta',
+    ),
+    prova: provaMarca('public.empresas_de_escrita()'),
+  },
+  {
+    id: 'f62-empresas-de-admin-aceita-operador',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'papel-afrouxado',
+    derruba: ['9b'],
+    porque:
+      'A capacidade administrativa por empresa passa a aceitar o operador: quem só lança movimentação no cliente B vira administrador do catálogo, dos usuários e do import do B — a escalada de privilégio clássica, agora por empresa.',
+    sql: mutarFuncaoSemReplace(
+      'public.empresas_de_admin()',
+      "     and m.papel in ('dev', 'admin')",
+      `     and m.papel in ('dev', 'admin', 'operador')  ${MARCA}`,
+      'f62-empresas-de-admin-aceita-operador',
+    ),
+    prova: provaMarca('public.empresas_de_admin()'),
+  },
+  {
+    id: 'f62-unidades-de-escrita-cruza-empresa',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['9d'],
+    porque:
+      'O ramo do administrador em unidades_de_escrita perde a junção pela EMPRESA: o admin da empresa A passa a receber os pares de filial da empresa B — a quebra cross-tenant de escrita, na função que a F66 vai usar em toda policy de escrita por unidade (sabotagem C).',
+    sql: mutarFuncaoSemReplace(
+      'public.unidades_de_escrita()',
+      '    join public.filiais f on f.empresa_id = m.empresa_id\n',
+      `    join public.filiais f on true  ${MARCA}\n`,
+      'f62-unidades-de-escrita-cruza-empresa',
+    ),
+    prova: provaMarca('public.unidades_de_escrita()'),
+  },
+  {
+    id: 'f62-e-plataforma-responde-por-qualquer-um',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'identidade-ignorada',
+    derruba: ['9f'],
+    porque:
+      'e_plataforma() deixa de perguntar QUEM chama: basta existir uma conta de plataforma no banco para todo logado ativo ser tratado como operador da plataforma. É o defeito que a ausência de parâmetro existe para impedir — e o que a F67 herdaria ao trocar e_dev() por ela.',
+    sql: mutarFuncaoSemReplace(
+      'public.e_plataforma()',
+      '     where pa.profile_id = (select auth.uid())\n',
+      `     where true  ${MARCA}\n`,
+      'f62-e-plataforma-responde-por-qualquer-um',
+    ),
+    prova: provaMarca('public.e_plataforma()'),
+  },
+  {
+    id: 'f62-ponte-esquece-arquivado',
+    roteiro: 'cargo_equivalencia.sql',
+    classe: 'revogacao-perdida',
+    derruba: ['1', '2', '3'],
+    porque:
+      'A ponte de papel_atual() esquece o arquivamento da CONTA (profiles.excluido_em): quem foi apagado e ficou com a membership ativa por um UPDATE manual volta a ter cargo. A grade compara o corpo antigo com o vivo e nomeia a célula arquivado×ativo (sabotagem B).',
+    sql: mutarFuncao(
+      'public.papel_atual()',
+      '     and p.excluido_em is null\n',
+      `     ${MARCA}\n`,
+      'f62-ponte-esquece-arquivado',
+    ),
+    prova: provaMarca('public.papel_atual()'),
+  },
+  {
+    id: 'f62-ponte-esquece-inativo',
+    roteiro: 'cargo_equivalencia.sql',
+    classe: 'revogacao-perdida',
+    derruba: ['1', '2', '3'],
+    porque:
+      'A ponte de papel_atual() esquece o status da membership: quem foi DESATIVADO continua com cargo, leitura e escrita. É a desativação no request seguinte (0070) deixando de valer para todo mundo de uma vez — a grade nomeia cada célula inativa (sabotagem B).',
+    sql: mutarFuncao(
+      'public.papel_atual()',
+      '     and m.ativo\n',
+      `     ${MARCA}\n`,
+      'f62-ponte-esquece-inativo',
+    ),
+    prova: provaMarca('public.papel_atual()'),
+  },
+  {
+    id: 'f62-ponte-responde-pela-empresa-errada',
+    roteiro: 'cargo_equivalencia.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['1', '5'],
+    porque:
+      'A ponte de papel_atual() deixa de responder pela empresa LEGADA: o consultor admin na WAP e consulta num cliente passa a valer pelo cargo do cliente — e, com uma empresa só, todo perfil perde o cargo. A ponte tem de ser determinística e apontar a empresa legada até a F67.',
+    sql: mutarFuncao(
+      'public.papel_atual()',
+      '     and m.empresa_id = public.empresa_legada()\n',
+      `     and m.empresa_id <> public.empresa_legada()  ${MARCA}\n`,
+      'f62-ponte-responde-pela-empresa-errada',
+    ),
+    prova: provaMarca('public.papel_atual()'),
+  },
+  {
+    id: 'f62-vinculo-de-qualquer-membership',
+    roteiro: 'cargo_equivalencia.sql',
+    classe: 'vinculo-de-outra-pessoa',
+    derruba: ['3'],
+    porque:
+      'pode_escrever_filial() deixa de exigir que o vínculo seja da membership de QUEM CHAMA: basta alguém estar vinculado à filial para todo operador escrever nela. É a escrita por filial virando escrita por cargo — o recorte de escrita inteiro caindo por uma condição a menos.',
+    sql: mutarFuncao(
+      'public.pode_escrever_filial(smallint)',
+      `       where m.profile_id = (select auth.uid())
+         and m.empresa_id = public.empresa_legada()
+         and vf.filial_id  = fid`,
+      `       where vf.filial_id  = fid  ${MARCA}`,
+      'f62-vinculo-de-qualquer-membership',
+    ),
+    prova: provaMarca('public.pode_escrever_filial(smallint)'),
+  },
+  {
+    id: 'f62-outro-admin-conta-inativo',
+    roteiro: 'cargo_equivalencia.sql',
+    classe: 'guarda-afrouxada',
+    derruba: ['4b'],
+    porque:
+      'A trava do último administrador passa a contar memberships DESATIVADAS: com o único admin ativo e um desativado, ela responde que "sobra outro", e o sistema deixa rebaixar ou desativar a última conta de nível administrador — trancando /admin para todo mundo.',
+    sql: mutarFuncao(
+      'public.existe_outro_admin_ativo(uuid, uuid)',
+      '       and m.ativo\n',
+      `       ${MARCA}\n`,
+      'f62-outro-admin-conta-inativo',
+    ),
+    prova: provaMarca('public.existe_outro_admin_ativo(uuid, uuid)'),
+  },
+  {
+    id: 'f62-guarda-de-gestao-le-o-cargo-congelado',
+    roteiro: 'cargo_dev.sql',
+    classe: 'fonte-congelada',
+    derruba: ['2c', '8b'],
+    porque:
+      'A guarda comum das RPCs de conta volta a ler o cargo do ALVO na coluna CONGELADA de profiles: um dev promovido depois da F62 (que só a membership diz ser dev) vira um alvo comum, e um administrador passa a desativar, rebaixar e revincular desenvolvedores — o "dev intocável" furado pela fonte errada.',
+    sql: mutarFuncao(
+      'public.exigir_gestao_de(uuid, public.papel_usuario)',
+      `  select m.papel into v_papel_alvo
+    from public.membros m
+   where m.profile_id = p_alvo
+     and m.empresa_id = public.empresa_legada();`,
+      `  select p.papel into v_papel_alvo from public.profiles p where p.id = p_alvo;  ${MARCA}`,
+      'f62-guarda-de-gestao-le-o-cargo-congelado',
+    ),
+    prova: provaMarca('public.exigir_gestao_de(uuid, public.papel_usuario)'),
+  },
+  {
+    id: 'f62-guarda-do-dev-em-membros-neutralizada',
+    roteiro: 'cargo_dev.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['2h-membros', '2i-membros', '2j-membros'],
+    porque:
+      'A rede final do dev em membros deixa passar tudo: pelo caminho que ignora RLS (service role, SQL Editor) qualquer um concede o cargo dev, rebaixa, desativa ou apaga a membership de um desenvolvedor. Sem ela, a proteção do dev ficaria só na coluna congelada, que ninguém mais lê (sabotagem E).',
+    sql: mutarFuncaoSemReplace(
+      'public.membros_guarda_dev()',
+      '  if v_oficial then\n',
+      `  if true then  ${MARCA}\n`,
+      'f62-guarda-do-dev-em-membros-neutralizada',
+    ),
+    prova: provaMarca('public.membros_guarda_dev()'),
+  },
+  {
+    id: 'f62-handle-new-user-sem-membership',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'efeito-colateral-perdido',
+    derruba: ['9l'],
+    porque:
+      'A conta nova deixa de nascer com a membership na empresa legada: o convite cria a pessoa, papel_atual() devolve NULL, e ela não entra — nem lê nada — até alguém plantar a linha à mão. É o defeito silencioso de todo convite feito depois da F62 (sabotagem J).',
+    sql: mutarFuncao(
+      'public.handle_new_user()',
+      `  insert into public.membros (empresa_id, profile_id)
+  values (public.empresa_legada(), new.id);`,
+      `  ${MARCA}`,
+      'f62-handle-new-user-sem-membership',
+    ),
+    prova: provaMarca('public.handle_new_user()'),
+  },
+  {
+    id: 'f62-definir-papel-grava-a-coluna-congelada',
+    roteiro: 'cargo_dev.sql',
+    classe: 'fonte-congelada',
+    derruba: ['2g-bis', '3a'],
+    porque:
+      'A troca de cargo volta a gravar a coluna CONGELADA de profiles: a tela diz "cargo alterado" e nada muda, porque tudo que decide acesso lê membros. É a dupla fonte que a decisão iii proíbe, virando uma promoção que não promove.',
+    sql: mutarFuncao(
+      'public.definir_papel_usuario(uuid, public.papel_usuario)',
+      `  update public.membros set papel = p_papel
+   where profile_id = p_alvo and empresa_id = public.empresa_legada();`,
+      `  update public.profiles set papel = p_papel where id = p_alvo;  ${MARCA}`,
+      'f62-definir-papel-grava-a-coluna-congelada',
+    ),
+    prova: provaMarca('public.definir_papel_usuario(uuid, public.papel_usuario)'),
+  },
+  {
+    id: 'f62-definir-status-grava-a-coluna-congelada',
+    roteiro: 'cargo_dev.sql',
+    classe: 'fonte-congelada',
+    derruba: ['3c'],
+    porque:
+      'A desativação volta a gravar a coluna CONGELADA de profiles: a tela diz "acesso desativado" e a pessoa continua lendo e escrevendo, porque a membership continua ativa. É a revogação mais importante do sistema virando um aviso sem efeito.',
+    sql: mutarFuncao(
+      'public.definir_status_usuario(uuid, boolean)',
+      `  update public.membros set ativo = p_ativo
+   where profile_id = p_alvo and empresa_id = public.empresa_legada();`,
+      `  update public.profiles set ativo = p_ativo where id = p_alvo;  ${MARCA}`,
+      'f62-definir-status-grava-a-coluna-congelada',
+    ),
+    prova: provaMarca('public.definir_status_usuario(uuid, boolean)'),
+  },
+  {
+    id: 'f62-apagar-nao-desativa-memberships',
+    roteiro: 'cargo_dev.sql',
+    classe: 'efeito-colateral-perdido',
+    derruba: ['6b'],
+    porque:
+      'Apagar a conta deixa de desligar as memberships: a conta arquivada continua "membro ativo" das empresas, e só o excluido_em a segura. Quando a F72 tirar o piso e as funções de conjunto forem a única porta, a conta apagada volta a ler.',
+    sql: mutarFuncao(
+      'public.apagar_usuario(uuid)',
+      `  update public.membros
+     set ativo = false
+   where profile_id = p_alvo;`,
+      `  ${MARCA}`,
+      'f62-apagar-nao-desativa-memberships',
+    ),
+    prova: provaMarca('public.apagar_usuario(uuid)'),
+  },
+  {
+    id: 'f62-guarda-de-profiles-esquece-a-membership',
+    roteiro: 'cargo_dev.sql',
+    classe: 'fonte-congelada',
+    derruba: ['2i', '8c'],
+    porque:
+      'profiles_guarda_dev volta a reconhecer o dev SÓ pela coluna congelada: um dev promovido depois da F62 perde a proteção do excluido_em e da coluna congelada — o service role arquiva a conta dele por fora, sem passar pela RPC.',
+    sql: mutarFuncao(
+      'public.profiles_guarda_dev()',
+      `  v_era_dev := old.papel = 'dev'
+               or exists (select 1 from public.membros m
+                           where m.profile_id = old.id and m.papel = 'dev');`,
+      `  v_era_dev := old.papel = 'dev';  ${MARCA}`,
+      'f62-guarda-de-profiles-esquece-a-membership',
+    ),
+    prova: provaMarca('public.profiles_guarda_dev()'),
+  },
+  {
+    id: 'f62-guarda-de-profiles-aceita-a-escrita-antiga',
+    roteiro: 'cargo_dev.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['8d'],
+    porque:
+      'A guarda de profiles volta a deixar a janela de gestão gravar a coluna CONGELADA: uma RPC antiga em voo no apply da 0158, bloqueada pela trava da recópia, retoma depois do commit e grava profiles.ativo — a desativação cai na coluna que ninguém lê, a pessoa continua ativa em membros, e a tela diz "feito".',
+    sql: mutarFuncao(
+      'public.profiles_guarda_dev()',
+      `       and coalesce(current_setting('estoque.cargo_congelado', true), '') <> 'on' then`,
+      `       and false then  ${MARCA}`,
+      'f62-guarda-de-profiles-aceita-a-escrita-antiga',
+    ),
+    prova: provaMarca('public.profiles_guarda_dev()'),
+  },
+  {
+    id: 'f62-membros-com-force-rls',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'force-rls',
+    derruba: ['4-bis'],
+    porque:
+      'force row level security em membros: a RLS passa a valer para o DONO, e a policy de membros chama papel_atual(), que lê membros como o dono — a recursão 42P17 que a 0070 provou para profiles volta, agora na tabela do cargo, derrubando toda leitura de todo mundo (R-ACC-72, sabotagem D).',
+    sql: `alter table public.membros force row level security;  ${MARCA}`,
+    prova: {
+      sql: `select relforcerowsecurity from pg_class where oid = 'public.membros'::regclass`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f62-vinculo-sem-fk-composta-de-membro',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['9h'],
+    porque:
+      'Sem a FK composta (empresa_id, membro_id) → membros, o vínculo de escrita aceita a membership de OUTRA empresa numa filial da empresa A: a camada que devia sobreviver à falha da RLS some, e o consultor escreve em A pelo cargo que tem em B.',
+    sql: `alter table public.operador_filiais drop constraint operador_filiais_membro_fk;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_constraint where conname = 'operador_filiais_membro_fk')`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -2526,6 +2855,7 @@ export const MUTACOES = [
   ...F60_RECORTE,
   ...REAUDITORIA_PASSO2,
   ...REAUDITORIA_PASSO4,
+  ...F62_CARGO,
 ]
 
 /**

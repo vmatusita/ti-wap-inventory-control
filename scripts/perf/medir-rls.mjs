@@ -83,8 +83,8 @@ export const FORMAS = {
   },
 }
 export const IDENTIDADES = {
-  admin: "p.papel in ('admin', 'dev')",
-  operador: "p.papel = 'operador' and exists (select 1 from public.operador_filiais o where o.usuario_id = p.id)",
+  admin: "m.papel in ('admin', 'dev')",
+  operador: "m.papel = 'operador' and exists (select 1 from public.operador_filiais o where o.membro_id = m.id)",
 }
 const EXPLAIN = 'explain (analyze, buffers, verbose, format json) '
 
@@ -166,7 +166,8 @@ begin
   -- 2. a identidade, escolhida DENTRO do banco — o id não sai daqui
   select p.id into v_uid
     from public.profiles p
-   where p.ativo and p.excluido_em is null and ${IDENTIDADES[identidade]}
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null and ${IDENTIDADES[identidade]}
    order by p.id
    limit 1;
   if v_uid is null then
@@ -258,7 +259,8 @@ begin
   end if;
   select p.id into v_uid
     from public.profiles p
-   where p.ativo and p.excluido_em is null and ${IDENTIDADES.admin}
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null and ${IDENTIDADES.admin}
    order by p.id
    limit 1;
   if v_uid is null then
@@ -314,6 +316,8 @@ const GUCS_PERMITIDOS = ['transaction_read_only', 'role', 'request.jwt.claims']
  */
 const FUNCOES_PERMITIDAS = new Set([
   'set_config', 'current_setting', 'rotulo_de_ambiente', 'pode_escrever_filial',
+  // F62: a identidade é escolhida pela membership da empresa legada (profiles.papel congelou).
+  'empresa_legada',
   'json_build_object', 'jsonb_build_object', 'jsonb_build_array', 'jsonb_set',
   'jsonb_path_query_array', 'jsonb_path_query_first', 'jsonb_path_exists',
   'coalesce', 'array_length', 'format', 'count', 'unnest',

@@ -31,6 +31,7 @@ import { recorteDe } from '../../src/lib/auth/recorte-leitura'
 import { periodoAnterior } from '../../src/lib/relatorios/periodo'
 import type { SnapshotRelatorioV2 } from '../../src/lib/relatorios/tipos'
 import { formatDate } from '../../src/lib/format'
+import { EMPRESA_LEGADA_ID } from '../../src/lib/auth/empresa-legada'
 import type { DbClient } from '../../src/lib/queries/relatorios/comum'
 
 loadEnvLocal()
@@ -258,18 +259,29 @@ async function slugDaFilial(id: number): Promise<string> {
   return data.slug
 }
 
-/** Perfil de cargo dev mais antigo e ativo — o autor das erratas. */
+/**
+ * Perfil de cargo dev mais antigo e ativo — o autor das erratas. F62: o cargo e a situação
+ * vêm da membership da empresa legada (membros); o arquivamento e a data, da conta (profiles).
+ */
 async function devMaisAntigo(): Promise<string> {
-  const { data, error } = await client
-    .from('profiles')
-    .select('id, created_at')
+  const { data: devs, error } = await client
+    .from('membros')
+    .select('profile_id')
+    .eq('empresa_id', EMPRESA_LEGADA_ID)
     .eq('papel', 'dev')
     .eq('ativo', true)
+  if (error) throw new Error('Nenhum perfil dev ativo encontrado para assinar a errata.')
+  const ids = (devs ?? []).map((d) => d.profile_id)
+  if (ids.length === 0) throw new Error('Nenhum perfil dev ativo encontrado para assinar a errata.')
+  const { data, error: erroPerfil } = await client
+    .from('profiles')
+    .select('id, created_at')
+    .in('id', ids)
     .is('excluido_em', null)
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle()
-  if (error || !data) throw new Error('Nenhum perfil dev ativo encontrado para assinar a errata.')
+  if (erroPerfil || !data) throw new Error('Nenhum perfil dev ativo encontrado para assinar a errata.')
   return data.id
 }
 

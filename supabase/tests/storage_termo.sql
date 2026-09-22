@@ -111,10 +111,11 @@ begin
     (k_inativo,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'f50.inativo@wap.ind.br',  '', now(), now(), now());
 
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
-  update public.profiles set papel = 'consulta' where id = k_consulta;
-  update public.profiles set papel = 'operador', ativo = false where id = k_inativo;
+  -- F62: o cargo e o status são plantados em membros
+  perform pg_temp.plantar_cargo(k_admin, 'admin');
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
+  perform pg_temp.plantar_cargo(k_inativo, 'operador', false);
 
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 

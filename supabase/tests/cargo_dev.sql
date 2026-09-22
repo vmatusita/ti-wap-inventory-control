@@ -37,6 +37,20 @@
 --   6  o APAGAR preserva a AUTORIA — movimentação e anotação do apagado continuam lá, com o
 --      nome resolvendo pelo join em profiles; e o apagado não lê mais nada
 --
+-- F62 (22/09/2026) — O CARGO MORA EM `membros`. As fixtures plantam o cargo pela membership
+-- (`pg_temp.plantar_cargo`, de `_asserts.sql`); as RPCs gravam lá, e a rede final do dev agora
+-- são DUAS guardas: `profiles_guarda_dev` (0073/0158) protege a coluna congelada e o
+-- `excluido_em`, e `membros_guarda_dev` (0153) protege a membership. As 2h→2j provam a de
+-- `profiles` sobre os DOIS jeitos de ser dev depois da F62 — `k_dev2` como os devs de hoje (a
+-- coluna congelada também diz 'dev') e `k_dev` como um dev promovido DEPOIS da F62 (só a
+-- membership diz 'dev'); as 2h-membros→2j-quater provam a de `membros`; e a seção 8 prova o
+-- CONGELAMENTO (gravar a coluna congelada não muda o acesso de ninguém) e que o dev promovido
+-- depois da F62 continua protegido; a 8d, que a RPC antiga em voo no apply da 0158 (a janela
+-- de gestão aberta, gravando a coluna congelada) é RECUSADA em vez de gravar em silêncio — e
+-- que a escrita deliberada, com a marca `estoque.cargo_congelado`, passa. Os comandos que
+-- ainda gravam `profiles.papel/ativo` são
+-- exceções NOMEADAS da varredura (`-- F62/cargo-congelado: <rótulo>`).
+--
 -- Ao final, uma linha em `_cargo_dev_resumo` com os contadores — é assim que se lê o
 -- resultado pelo MCP, que engole NOTICE/WARNING.
 -- =============================================================
@@ -57,6 +71,7 @@ grant select on
   public.ativos,             -- 1e (dev escreve nas duas filiais), 6 (leitura do apagado)
   public.filiais,            -- resolução de filial
   public.profiles,           -- 2g (forjar), 6b (nome do autor sobrevive)
+  public.membros,            -- F62: 2g-bis/3a/3b/3c (o cargo que a RPC gravou, lido pela sessão)
   public.movimentacoes,      -- 6a/6b (autoria preservada)
   public.anotacoes,          -- 6c
   public.eventos_admin,      -- 1b (dev lê a trilha — policy e_admin)
@@ -153,19 +168,28 @@ begin
 
   update public.profiles set primeiro_nome = 'Fulano', sobrenome = 'de Teste' where id = k_vitima;
 
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
-  update public.profiles set papel = 'consulta' where id = k_consulta;
-  update public.profiles set papel = 'consulta' where id = k_alvo;
-  update public.profiles set papel = 'operador' where id = k_vitima;
+  -- F62: o cargo mora na membership (a da empresa legada, que o handle_new_user criou).
+  perform pg_temp.plantar_cargo(k_admin,    'admin');
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
+  perform pg_temp.plantar_cargo(k_alvo,     'consulta');
+  perform pg_temp.plantar_cargo(k_vitima,   'operador');
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
-  -- ⚠ Plantar um DEV já exige o caminho oficial: o trigger `profiles_guarda_dev` (0073)
-  -- recusa a concessão do cargo mesmo para o postgres. Abrir a janela aqui é, em si, a
-  -- primeira demonstração de que a rede está armada — se ela não estivesse, este bloco
-  -- funcionaria sem o set_config e a asserção 2h passaria de graça.
+  -- ⚠ Plantar um DEV já exige o caminho oficial: `membros_guarda_dev` (0153), espelho de
+  -- `profiles_guarda_dev` (0073), recusa a concessão do cargo mesmo para o postgres — o
+  -- ajudante abre a janela, e a 2h-membros é a prova de que a rede está armada.
+  perform pg_temp.plantar_cargo(k_dev,  'dev');
+  perform pg_temp.plantar_cargo(k_dev2, 'dev');
+  -- `k_dev2` é como os devs de HOJE: a cópia da F62 os levou para `membros`, mas a coluna
+  -- congelada de `profiles` também diz 'dev' — é o estado que a 2i-legado mede. (`k_dev` fica
+  -- como um dev promovido DEPOIS da F62: só a membership diz 'dev'.)
+  -- (com a marca `estoque.cargo_congelado`: desde a 0158, a guarda de profiles recusa
+  -- gravar a coluna congelada pela janela sem ela — a 8d prova)
   perform set_config('estoque.gestao_usuarios', 'on', true);
-  update public.profiles set papel = 'dev' where id in (k_dev, k_dev2);
+  perform set_config('estoque.cargo_congelado', 'on', true);
+  update public.profiles set papel = 'dev' where id = k_dev2;  -- F62/cargo-congelado: fixture-legado
+  perform set_config('estoque.cargo_congelado', 'off', true);
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- Ativos em cada filial.
@@ -381,7 +405,7 @@ begin
   -- 2g. REQUEST FORJADO: o admin larga a RPC e escreve direto em profiles. O grant de coluna
   --     da 0063 é quem barra aqui (papel não está entre primeiro_nome/sobrenome).
   begin
-    update public.profiles set papel = 'dev' where id = k_admin;
+    update public.profiles set papel = 'dev' where id = k_admin;  -- F62/cargo-congelado: 2g
     get diagnostics v_n = row_count;
     if v_n = 0 then
       v_ok := v_ok + 1; raise notice '✓ 2g request forjado do admin não afetou linha nenhuma';
@@ -397,7 +421,8 @@ begin
   --         que fechasse para TODOS passaria em 2a..2f sem ninguém perceber).
   begin
     perform public.definir_papel_usuario(k_alvo, 'operador');
-    select p.papel::text into v_papel from public.profiles p where p.id = k_alvo;
+    select m.papel::text into v_papel from public.membros m
+     where m.profile_id = k_alvo and m.empresa_id = public.empresa_legada();
     if v_papel = 'operador' then
       v_ok := v_ok + 1; raise notice '✓ 2g-bis admin AINDA promove um não-dev (consulta → operador)';
     else
@@ -415,15 +440,17 @@ begin
   -- É aqui que a rede da 0073 é a única coisa que existe — não há policy que segure este
   -- caminho, e é exatamente o caminho que as Server Actions usavam até a F21.
   begin
-    update public.profiles set papel = 'dev' where id = k_admin;
+    update public.profiles set papel = 'dev' where id = k_admin;  -- F62/cargo-congelado: 2h
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2h_SERVICE_ROLE_CONCEDEU_DEV; ';
     raise warning '✗ 2h SERVICE ROLE concedeu o cargo dev por UPDATE direto';
   exception when others then
     v_ok := v_ok + 1; raise notice '✓ 2h service role recusado ao conceder dev (%)', sqlstate;
   end;
 
+  -- F62: `k_dev` é dev SÓ na membership (a coluna congelada ficou no default) — a guarda de
+  -- `profiles` tem de reconhecê-lo pela membership. A 2i-legado mede o dev de HOJE (`k_dev2`).
   begin
-    update public.profiles set papel = 'operador' where id = k_dev;
+    update public.profiles set papel = 'consulta' where id = k_dev;  -- F62/cargo-congelado: 2i
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i_SERVICE_ROLE_REBAIXOU_DEV; ';
     raise warning '✗ 2i SERVICE ROLE rebaixou um dev por UPDATE direto';
   exception when others then
@@ -431,7 +458,15 @@ begin
   end;
 
   begin
-    update public.profiles set ativo = false where id = k_dev;
+    update public.profiles set papel = 'operador' where id = k_dev2;  -- F62/cargo-congelado: 2i-legado
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-legado_SERVICE_ROLE_REBAIXOU_DEV; ';
+    raise warning '✗ 2i-legado SERVICE ROLE rebaixou, na coluna congelada, um dev de antes da F62';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 2i-legado service role recusado ao rebaixar, na coluna congelada, um dev de antes da F62 (%)', sqlstate;
+  end;
+
+  begin
+    update public.profiles set ativo = false where id = k_dev;  -- F62/cargo-congelado: 2i-bis
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-bis_SERVICE_ROLE_DESATIVOU_DEV; ';
     raise warning '✗ 2i-bis SERVICE ROLE desativou um dev por UPDATE direto';
   exception when others then
@@ -454,6 +489,88 @@ begin
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2j-bis_REDE_TRAVOU_TUDO; ';
     raise warning '✗ 2j-bis a rede bloqueou um update legítimo de perfil comum: %', sqlerrm;
+  end;
+
+  -- 2h-membros → 2j-quater. F62: A GUARDA DO DEV EM `membros` (`membros_guarda_dev`, 0153) —
+  -- o MESMO caminho que ignora RLS, agora sobre a fonte VIVA do cargo. Sem ela, o fato 9 da
+  -- ordem F62 ("a proteção do dev mora só em profiles") viraria furo: `membros.papel` é o que
+  -- `papel_atual()` lê.
+  begin
+    update public.membros set papel = 'dev'
+     where profile_id = k_admin and empresa_id = public.empresa_legada();
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2h-membros_CONCEDEU_DEV; ';
+    raise warning '✗ 2h-membros SERVICE ROLE concedeu o cargo dev por UPDATE direto em membros';
+  exception when others then
+    if sqlstate = '42501' then
+      v_ok := v_ok + 1; raise notice '✓ 2h-membros service role recusado (42501) ao conceder dev em membros';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '2h-membros_ERRO_ERRADO; ';
+      raise warning '✗ 2h-membros recusado por outro motivo (%) %', sqlstate, sqlerrm;
+    end if;
+  end;
+
+  begin
+    update public.membros set papel = 'operador'
+     where profile_id = k_dev and empresa_id = public.empresa_legada();
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-membros_REBAIXOU_DEV; ';
+    raise warning '✗ 2i-membros SERVICE ROLE rebaixou um dev por UPDATE direto em membros';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 2i-membros service role recusado ao rebaixar dev em membros (%)', sqlstate;
+  end;
+
+  begin
+    update public.membros set ativo = false
+     where profile_id = k_dev and empresa_id = public.empresa_legada();
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-bis-membros_DESATIVOU_DEV; ';
+    raise warning '✗ 2i-bis-membros SERVICE ROLE desativou um dev por UPDATE direto em membros';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 2i-bis-membros service role recusado ao desativar dev em membros (%)', sqlstate;
+  end;
+
+  begin
+    delete from public.membros where profile_id = k_dev;
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2j-membros_APAGOU_DEV; ';
+    raise warning '✗ 2j-membros SERVICE ROLE apagou a membership de um dev';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 2j-membros service role recusado ao apagar a membership de um dev (%)', sqlstate;
+  end;
+
+  -- 2j-ter: nascer JÁ dev (numa empresa fictícia B — a legada já tem a membership) e
+  -- 2j-quater: levar a membership dev para OUTRA empresa. Os dois pelo caminho direto.
+  declare
+    v_empresa_b uuid;
+  begin
+    insert into public.empresas (slug, nome) values ('f62-cargo-dev-b', 'Empresa B (cargo_dev, F62)')
+    returning id into v_empresa_b;
+
+    begin
+      insert into public.membros (empresa_id, profile_id, papel) values (v_empresa_b, k_consulta, 'dev');
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '2j-ter_NASCEU_DEV; ';
+      raise warning '✗ 2j-ter SERVICE ROLE inseriu uma membership já dev';
+    exception when others then
+      v_ok := v_ok + 1; raise notice '✓ 2j-ter service role recusado ao inserir membership já dev (%)', sqlstate;
+    end;
+
+    begin
+      update public.membros set empresa_id = v_empresa_b
+       where profile_id = k_dev and empresa_id = public.empresa_legada();
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '2j-quater_MOVEU_DEV; ';
+      raise warning '✗ 2j-quater SERVICE ROLE moveu a membership de um dev para outra empresa';
+    exception when others then
+      v_ok := v_ok + 1; raise notice '✓ 2j-quater service role recusado ao mover a membership de um dev (%)', sqlstate;
+    end;
+
+    -- PAR POSITIVO: a rede de membros não trava membership COMUM (senão travaria a tabela).
+    begin
+      update public.membros set ativo = false
+       where profile_id = k_consulta and empresa_id = public.empresa_legada();
+      update public.membros set ativo = true
+       where profile_id = k_consulta and empresa_id = public.empresa_legada();
+      v_ok := v_ok + 1; raise notice '✓ 2j-bis-membros a rede NÃO atrapalha mexer numa membership comum';
+    exception when others then
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '2j-bis-membros_TRAVOU_TUDO; ';
+      raise warning '✗ 2j-bis-membros a rede bloqueou uma membership comum: %', sqlerrm;
+    end;
   end;
 
   -- 5d. A trava do ÚLTIMO administrador conta o dev junto: com dois devs e um admin no banco,
@@ -498,7 +615,8 @@ begin
   -- 3a. dev CONCEDE o cargo dev
   begin
     perform public.definir_papel_usuario(k_operador, 'dev');
-    select p.papel::text into v_papel from public.profiles p where p.id = k_operador;
+    select m.papel::text into v_papel from public.membros m
+     where m.profile_id = k_operador and m.empresa_id = public.empresa_legada();
     if v_papel = 'dev' then
       v_ok := v_ok + 1; raise notice '✓ 3a dev CONCEDE o cargo dev';
     else
@@ -513,7 +631,8 @@ begin
   -- 3b. dev REBAIXA outro dev (o que acabou de promover volta a operador)
   begin
     perform public.definir_papel_usuario(k_operador, 'operador');
-    select p.papel::text into v_papel from public.profiles p where p.id = k_operador;
+    select m.papel::text into v_papel from public.membros m
+     where m.profile_id = k_operador and m.empresa_id = public.empresa_legada();
     if v_papel = 'operador' then
       v_ok := v_ok + 1; raise notice '✓ 3b dev REBAIXA outro dev';
     else
@@ -528,7 +647,8 @@ begin
   -- 3c. dev DESATIVA um não-dev
   begin
     perform public.definir_status_usuario(k_consulta, false);
-    select p.ativo into v_bool from public.profiles p where p.id = k_consulta;
+    select m.ativo into v_bool from public.membros m
+     where m.profile_id = k_consulta and m.empresa_id = public.empresa_legada();
     if v_bool = false then
       v_ok := v_ok + 1; raise notice '✓ 3c dev DESATIVA um usuário';
       perform public.definir_status_usuario(k_consulta, true);   -- devolve, para não afetar o resto
@@ -659,10 +779,16 @@ begin
 
   reset role;
 
-  -- 6b. o perfil foi ARQUIVADO, não removido
-  select count(*) into v_n from public.profiles where id = k_vitima and excluido_em is not null and not ativo;
+  -- 6b. o perfil foi ARQUIVADO, não removido — F62: a conta ganha `excluido_em` e TODAS as
+  --     memberships são desativadas (o status é da membership; a conta apagada não é membro
+  --     de nada). A membership tem de EXISTIR (senão "nenhuma ativa" seria tautologia).
+  select count(*) into v_n
+    from public.profiles p
+   where p.id = k_vitima and p.excluido_em is not null
+     and exists (select 1 from public.membros m where m.profile_id = p.id)
+     and not exists (select 1 from public.membros m where m.profile_id = p.id and m.ativo);
   if v_n = 1 then
-    v_ok := v_ok + 1; raise notice '✓ 6b o perfil da vítima foi ARQUIVADO (excluido_em preenchido, ativo=false)';
+    v_ok := v_ok + 1; raise notice '✓ 6b o perfil da vítima foi ARQUIVADO (excluido_em preenchido, memberships desativadas)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6b_PERFIL_SUMIU; ';
     raise warning '✗ 6b o perfil arquivado não está no estado esperado (% linha[s])', v_n;
@@ -809,6 +935,103 @@ begin
   end;
 
   reset role;
+
+  -- =========================================================================
+  -- 8 — F62: O CONGELAMENTO, e o dev promovido DEPOIS da F62
+  -- =========================================================================
+  -- Roda ANTES da 7 porque a 7 neutraliza todo nível administrador (7h).
+  --
+  -- 8a. GRAVAR A COLUNA CONGELADA NÃO MUDA O ACESSO DE NINGUÉM. Como postgres (com a janela,
+  --     que a guarda de profiles pede para mexer em dev — aqui nem precisaria), a coluna
+  --     congelada de `k_consulta` passa a dizer "admin ativo". Se algum leitor ainda olhasse
+  --     `profiles.papel`/`profiles.ativo`, a consulta viraria administradora; o cargo dela
+  --     continua sendo o da membership.
+  perform set_config('estoque.gestao_usuarios', 'on', true);
+  perform set_config('estoque.cargo_congelado', 'on', true);
+  update public.profiles set papel = 'admin', ativo = true where id = k_consulta;  -- F62/cargo-congelado: 8a
+  perform set_config('estoque.cargo_congelado', 'off', true);
+  perform set_config('estoque.gestao_usuarios', 'off', true);
+
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_consulta, 'role', 'authenticated')::text, true);
+  select public.papel_atual()::text into v_papel;
+  if v_papel = 'consulta' and not public.e_admin() and not public.pode_escrever() then
+    v_ok := v_ok + 1; raise notice '✓ 8a a coluna congelada dizendo "admin" não muda nada: papel_atual()=consulta, sem escrita';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8a_LE_A_COLUNA_CONGELADA; ';
+    raise warning '✗ 8a alguém ainda lê a coluna congelada: papel_atual()=% e_admin=% pode_escrever=%',
+      coalesce(v_papel, '<nulo>'), public.e_admin(), public.pode_escrever();
+  end if;
+  reset role;
+
+  -- 8b. O DEV PROMOVIDO DEPOIS DA F62 CONTINUA PROTEGIDO. O dev promove `k_alvo` (hoje
+  --     operador, desde a 2g-bis) a dev — pela RPC, que grava só a membership; a coluna
+  --     congelada dele fica no default. Um administrador tenta desativá-lo: recusado, porque
+  --     `exigir_gestao_de` lê o cargo do alvo em `membros`. Se ele voltasse a ler
+  --     `profiles.papel`, o admin passaria.
+  set local role authenticated;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
+  begin
+    perform public.definir_papel_usuario(k_alvo, 'dev');
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b_FIXTURE; ';
+    raise warning '✗ 8b o dev não conseguiu promover o alvo (%) %', sqlstate, sqlerrm;
+  end;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
+  begin
+    perform public.definir_status_usuario(k_alvo, false);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b_ADMIN_DESATIVOU_DEV_NOVO; ';
+    raise warning '✗ 8b ADMIN desativou um dev promovido depois da F62 (a guarda leu o cargo congelado)';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 8b admin recusado ao desativar um dev promovido depois da F62 (%)', sqlstate;
+  end;
+  reset role;
+
+  -- 8c. E A GUARDA DE `profiles` TAMBÉM O RECONHECE: arquivar a conta dele por fora (o
+  --     `excluido_em`, que continua em profiles) é recusado mesmo para o service role.
+  begin
+    update public.profiles set excluido_em = now() where id = k_alvo;
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8c_ARQUIVOU_DEV_NOVO; ';
+    raise warning '✗ 8c SERVICE ROLE arquivou um dev promovido depois da F62 (a guarda de profiles só olhou a coluna congelada)';
+  exception when others then
+    v_ok := v_ok + 1; raise notice '✓ 8c service role recusado ao arquivar um dev promovido depois da F62 (%)', sqlstate;
+  end;
+
+  -- 8d. A RPC ANTIGA EM VOO NO APPLY DA 0158 NÃO GRAVA EM SILÊNCIO. Ela abre a janela de
+  --     gestão e grava `profiles.ativo` (o corpo da 0074) — bloqueada pela trava da recópia,
+  --     retoma DEPOIS do commit, quando o cargo já mora em `membros`. A guarda de profiles
+  --     tem de RECUSAR (55000), para a tela dizer "erro" e não "feito"; e a mesma escrita com
+  --     a marca `estoque.cargo_congelado` (o rollback, as fixtures) passa — o par positivo.
+  --     `k_operador` é operador ativo: nem dev, nem alvo de outra seção.
+  perform set_config('estoque.gestao_usuarios', 'on', true);
+  begin
+    update public.profiles set ativo = false where id = k_operador;  -- F62/cargo-congelado: 8d
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_RPC_ANTIGA_GRAVOU; ';
+    raise warning '✗ 8d a escrita da RPC antiga (janela aberta, sem a marca) gravou em silêncio na coluna congelada';
+  exception when others then
+    if sqlstate = '55000' then
+      v_ok := v_ok + 1;
+      raise notice '✓ 8d a RPC antiga em voo é recusada (55000) em vez de gravar em silêncio na coluna congelada';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_OUTRO_ERRO; ';
+      raise warning '✗ 8d a escrita antiga falhou, mas pelo motivo errado (%) %', sqlstate, sqlerrm;
+    end if;
+  end;
+  perform set_config('estoque.cargo_congelado', 'on', true);
+  begin
+    update public.profiles set ativo = false where id = k_operador;  -- F62/cargo-congelado: 8d
+    update public.profiles set ativo = true where id = k_operador;  -- F62/cargo-congelado: 8d
+    v_ok := v_ok + 1;
+    raise notice '✓ 8d-bis com a marca (o rollback, as fixtures) a mesma escrita passa';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d-bis_MARCA_RECUSADA; ';
+    raise warning '✗ 8d-bis a escrita deliberada na coluna congelada foi recusada mesmo com a marca (%) %', sqlstate, sqlerrm;
+  end;
+  perform set_config('estoque.cargo_congelado', 'off', true);
+  perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- =========================================================================
   -- 7 — F52: AS GUARDAS DE ESCOPO NO-OP (migration 0132)
@@ -1017,13 +1240,17 @@ begin
     -- ativo/papel/excluido_em deles fora do caminho oficial é recusado até para o
     -- superusuário (seção 2h/2i/2i-bis acima) — por isso a janela `estoque.gestao_usuarios`,
     -- a MESMA técnica que a fixture inicial usa para plantar k_dev/k_dev2 (linhas ~163-169).
-    select coalesce(array_agg(p.id), '{}'::uuid[])
+    -- F62: o nível administrador ativo é o da MEMBERSHIP na empresa legada.
+    select coalesce(array_agg(m.profile_id), '{}'::uuid[])
       into v_outros_admins
-      from public.profiles p
-     where p.papel in ('dev', 'admin') and p.ativo and p.excluido_em is null;
+      from public.membros m
+      join public.profiles p on p.id = m.profile_id
+     where m.empresa_id = public.empresa_legada()
+       and m.papel in ('dev', 'admin') and m.ativo and p.excluido_em is null;
 
     perform set_config('estoque.gestao_usuarios', 'on', true);
-    update public.profiles set ativo = false where id = any (v_outros_admins);
+    update public.membros set ativo = false
+     where empresa_id = public.empresa_legada() and profile_id = any (v_outros_admins);
     perform set_config('estoque.gestao_usuarios', 'off', true);
 
     insert into auth.users (id, instance_id, aud, role, email,
@@ -1031,9 +1258,9 @@ begin
     values
       (k_admin_a, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
        'f52.admin.a@wap.ind.br', '', now(), now(), now());
-    update public.profiles set primeiro_nome = 'Beltrana', sobrenome = 'Administradora',
-           papel = 'admin', ativo = true
+    update public.profiles set primeiro_nome = 'Beltrana', sobrenome = 'Administradora'
      where id = k_admin_a;
+    perform pg_temp.plantar_cargo(k_admin_a, 'admin');
 
     -- 7h. Com UM SÓ administrador ativo no banco (k_admin_a), a trava do último admin
     -- CONTINUA travando: existe_outro_admin_ativo() tem de devolver false.
@@ -1055,9 +1282,9 @@ begin
     values
       (k_admin_b, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
        'f52.admin.b@wap.ind.br', '', now(), now(), now());
-    update public.profiles set primeiro_nome = 'Ciclana', sobrenome = 'Administradora',
-           papel = 'admin', ativo = true
+    update public.profiles set primeiro_nome = 'Ciclana', sobrenome = 'Administradora'
      where id = k_admin_b;
+    perform pg_temp.plantar_cargo(k_admin_b, 'admin');
 
     -- 7i. PAR POSITIVO de 7h: com um SEGUNDO admin ativo (k_admin_b), a trava ACEITA.
     begin

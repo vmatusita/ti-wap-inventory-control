@@ -83,16 +83,16 @@ begin
   -- F38/F45: perfil ATIVO e escolha DETERMINÍSTICA (o mesmo cuidado de
   -- `import_substituir.sql` — `limit 1` sem `order by`/filtro podia cair num
   -- perfil desativado, e toda guarda de cargo recusaria com 42501).
-  select id into v_prof from public.profiles
-   where ativo and excluido_em is null
-   order by created_at, id limit 1;
+  -- F62: o cargo/status vivem em membros — o ajudante replica a mesma régua
+  -- (perfil não arquivado com membership ativa na empresa legada, mais antigo).
+  v_prof := pg_temp.perfil_ativo_mais_antigo();
   if v_prof is null then
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar este roteiro';
   end if;
 
   -- Só o cenário 5 precisa de sessão — mas promover aqui, uma vez, é mais simples
   -- do que alternar contexto no meio do roteiro. Dentro de begin/rollback: nada sobra.
-  update public.profiles set papel = 'admin' where id = v_prof;
+  perform pg_temp.plantar_cargo(v_prof, 'admin');  -- F62: o cargo é plantado em membros
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof)::text, true);
   if auth.uid() is null then
     raise exception 'PRE-REQUISITO: auth.uid() ficou nulo — contexto de operador não aplicado';

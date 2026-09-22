@@ -69,6 +69,13 @@ public.pode_escrever_filial(fid smallint)
 
 > ⚠ **Emenda de 30/07/2026 (F22, migrations `0071`–`0074`).** O enum ganhou `'dev'` (`add value ... before 'admin'`, para manter "ordem dos labels = ordem de força") e as funções acima passaram a ser **quatro**: `papel_atual()` também devolve NULL para perfil **arquivado** (`excluido_em is not null`, `0073`); **`e_admin()` deixou de significar "o cargo é admin" e passou a significar "o cargo é de NÍVEL administrador"** (`in ('admin','dev')`) — é essa redefinição que faz as ~20 policies de `/admin` e a guarda da RPC do import herdarem o dev **sem serem reescritas**; entram `e_dev()` (`= 'dev'`) e `pode_escrever()` ("escreve algo no acervo", espelho de `podeEscrever()` do app); e `pode_escrever_filial()` trata dev como admin. A herança tinha **dois buracos**, tapados na `0072`: `pode_escrever_filial()` não chamava `e_admin()` (tinha o seu próprio `= 'admin'`), e **cinco** policies gateavam por lista literal `papel_atual() in ('admin','operador')` — `anotacoes`, `relatorios_gerados` e as três de escrita do bucket `termos` —, que redefinição de função nenhuma alcança; as cinco passaram a chamar `pode_escrever()`, de modo que o quinto cargo, se houver, é uma linha. Ver **§13**.
 
+> ⚠ **Emenda de 22/09/2026 (F62, migrations `0152`–`0158`).** O cargo e o `ativo` saíram de `profiles` e foram para
+> **`membros (empresa_id, profile_id, papel, ativo)`** — uma linha por empresa em que a pessoa trabalha; `profiles.papel`/
+> `ativo` ficaram **congelados** (legado, rede de reversão). `papel_atual()` continua sem parâmetro: é a **ponte**, que
+> responde pela membership na empresa legada (a WAP). `operador_filiais` passou a ser o vínculo da **membership**
+> (`membro_id`, `empresa_id`, FKs compostas). A escolha de fundo deste §4 continua valendo — cargo em TABELA consultada
+> a cada request, nunca em claim do JWT — e ficou mais necessária com várias empresas. Ver **§15**.
+
 > ⚠ **Emenda de 31/08/2026 (F41, migration `0125`).** `itens` deixou de ser cadastro de admin **no
 > INSERT**: a policy passou de `e_admin()` para `pode_escrever()`. Com isso são **DOIS** os cadastros
 > em que o operador insere — `colaboradores` (F37/D5) e `itens` —, e a razão é a mesma, palavra por
@@ -197,6 +204,12 @@ Spec §3 e CLAUDE.md ("Modelo de acesso… NUNCA criar roles/papéis") reescrito
 
 **Status:** aceito · 30/07/2026 (decisão do Victor; executada pela ordem [`prompts/F22-cargo-dev-ultracode.md`](prompts/F22-cargo-dev-ultracode.md), migrations `0071`–`0078`). Esta seção **acrescenta** um cargo ao modelo do §3; nada do que este ADR decidiu para admin, operador e consulta é revogado. Atas em [`DECISOES.md`](DECISOES.md) (2026-07-30 · F22).
 
+> ⚠ **Emenda de 22/09/2026 (F62).** O cargo mora em `membros` (§15). A rede do dev passou a existir nos DOIS lugares:
+> `membros_guarda_dev()` (na membership, a fonte viva) e `profiles_guarda_dev()` (na coluna congelada, que agora
+> reconhece como dev também quem é dev pela membership). `exigir_gestao_de` lê o cargo do alvo em `membros`; as RPCs
+> gravam lá; `apagar_usuario` desativa todas as memberships da conta. `plataforma_admins` + `e_plataforma()` nascem
+> sem consumidor — a `/dev` continua decidindo por `e_dev()`.
+
 ### 13.1 Contexto — o que a F21 deixou aberto
 
 A F21 fechou a autorização em três cargos, mas deixou o **topo achatado**: um admin rebaixa, desativa e — com a gestão nova — apagaria **qualquer pessoa**, inclusive quem mantém o sistema. E a gestão de conta de verdade (trocar o e-mail, apagar a conta, derrubar sessão) não existia em lugar nenhum do app: só no painel do Supabase, que não tem trilha de auditoria do projeto, não valida os domínios de login e não sabe o que é `profiles`.
@@ -284,3 +297,50 @@ Três escolhas de desenho merecem registro:
 - **Atalho destrutivo fora da `/dev`.** Nenhum botão "apagar de vez" na ficha, nas listas ou na paleta. Um botão desses ao lado do "estornar" seria clicado por engano algum dia.
 - **Tipo novo de enum para a correção-dev.** Custaria um ramo em `status_apos_movimentacao`, a recriação da `0054` e ~8 listas exaustivas em TS — e não compraria exclusão nenhuma, porque as allow-lists de relatório já excluem `ajuste`.
 - **Reset que recria dados.** Reset não é seed nem import: deixa o alcance vazio.
+
+## 15. Emenda — O cargo por empresa (F62 — 22/09/2026)
+
+**Status:** aceito · 22/09/2026 (ordem [`prompts/F62-raiz-do-tenant-e-cargo-por-empresa-ultracode.md`](prompts/F62-raiz-do-tenant-e-cargo-por-empresa-ultracode.md), migrations `0152`–`0158`, com as quatro decisões do Johnny da mesma data). Esta seção **muda onde o cargo mora**; nenhum cargo, nenhuma permissão e nenhuma policy mudaram. Ata em [`DECISOES.md`](DECISOES.md) (2026-09-22 · F62).
+
+### 15.1 Contexto
+
+Até a F61 o cargo era **um por pessoa**: `profiles.papel` e `profiles.ativo`. A virada multiempresa ([`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md), decisão 6: uma conta, vários vínculos) precisa representar um consultor que é administrador na empresa A e só consulta na empresa B — e isso não cabe numa coluna de `profiles`. Mover o cargo depois, com clientes dentro, tocaria o mecanismo de autorização com dado de mais de uma empresa em jogo. Com uma empresa só, é a janela barata.
+
+### 15.2 Decisão
+
+1. **O cargo e o `ativo` moram em `membros (empresa_id, profile_id, papel, ativo)`**, uma linha por (empresa, pessoa). `profiles` guarda o que é da **conta**: nome, e-mail, arquivamento.
+2. **`papel_atual()` continua sem parâmetro — é a PONTE.** Responde pela membership na empresa legada (`empresa_legada()`, a WAP): membership ativa e perfil não arquivado; com duas memberships, vale a da empresa legada, nunca a mais forte. Até a F64/F67, as 61 policies e todos os chamadores seguem intactos por causa dela.
+3. **O vínculo de escrita é da membership**: `operador_filiais` ganhou `empresa_id` e `membro_id`, com FKs compostas que recusam vínculo com membership ou filial de outra empresa.
+4. **As quatro decisões do Johnny:** (i) `filiais.empresa_id` nasce aqui, `not null`, com default constante na WAP até a F64; (ii) as contas dev ganham membership como todo mundo — a trava do último administrador continua contando quem contava; (iii) `profiles.papel`/`ativo` ficam **congelados**, não derrubados, e o rollback **copia de volta primeiro**; (iv) o seed só troca a linha do cargo — as duas empresas fictícias são da F65.
+
+**A escolha de fundo do §4 continua, e ficou mais necessária:** o cargo mora em TABELA consultada a cada request, não em claim do JWT. Com várias empresas, uma claim guardaria o cargo — e a empresa — errados até a renovação do token.
+
+### 15.3 Como funciona por baixo
+
+**A raiz (`0152`).** `public.empresas` com a WAP (uuid fixo, igual nos dois bancos), `slug` com formato e lista fechada de reservados (os segmentos de topo de `src/app/**`, travados por teste de mesa), `razao_social`/`cnpj` separados do `nome`, `patrimonio_digitos`, `cor_acento`, `config jsonb` só objeto. `empresa_legada()` é a fonte única do id da WAP — o app espelha o literal em `src/lib/auth/empresa-legada.ts`, com teste que compara os dois.
+
+**A membership (`0153`).** Tabela, cópia de `profiles` (uma linha por perfil, com papel e ativo), policy de SELECT com o piso de sempre, escrita só pelas RPCs. `membros_guarda_dev()` é a rede do dev na membership, espelho de `profiles_guarda_dev()` (§13.3): fora da janela `estoque.gestao_usuarios`, ninguém concede o cargo dev nem mexe na membership de um dev — nem o service role. `handle_new_user` passou a criar a membership `operador` junto com o perfil.
+
+**A plataforma (`0154`).** `plataforma_admins` (um retrato das contas dev) e `e_plataforma()`, sem parâmetro e **sem consumidor**: a `/dev` segue decidindo por `e_dev()`. A F67 decide a regra.
+
+**Filial e vínculo (`0155`/`0156`).** `filiais.empresa_id` com default `empresa_legada()` (sem reescrever a tabela: default não-volátil). Em `operador_filiais`, um gatilho deriva empresa e membership do par (pessoa, filial) que as telas e as RPCs já gravam — nenhuma chamada precisou mudar.
+
+**As funções de conjunto (`0157`).** As quatro da forma-alvo (MATRIZ R-ACC-68), `security definer`, `search_path = ''`, sem consumidor até a F66.
+
+**A troca (`0158`).** Uma recópia sob lock (fecha a janela entre a `0153` e a troca; a RPC antiga que estiver em voo no apply retoma depois do commit e é RECUSADA pela guarda de `profiles` — `55000` —, em vez de gravar em silêncio na coluna congelada), e as dez funções que liam ou gravavam o cargo em `profiles` recriadas para `membros`: `papel_atual`, `pode_escrever_filial`, `existe_outro_admin_ativo`, `exigir_gestao_de`, as quatro RPCs de gravação, `profiles_guarda_dev` (que passa a reconhecer dev pela membership também) e `checagens_integridade_nucleo`. `apagar_usuario` desativa **todas** as memberships da conta arquivada. As duas colunas de `profiles` ganharam o comentário LEGADO.
+
+**O app.** `getOperador()` lê cargo e status da membership na empresa legada e o que é da conta de `profiles`; `/admin/usuarios` lista a partir de `membros`. Nada muda na tela.
+
+**Rollback.** `supabase/rollback/F62-1-copia-de-volta.sql` (a membership é a verdade desde o apply: quem foi desligado depois volta desligado) e só então `F62-2-desfaz.sql` (os corpos anteriores, na ordem inversa) — este sempre junto de uma cópia refeita, na mesma transação, com `membros` travada (RUNBOOK, "O rollback da F62"). O roteiro `f62_rollback.sql` prova os dois caminhos no CI: com a cópia, a impressão de todo perfil volta idêntica; sem ela, o desligado recupera o cargo.
+
+### 15.4 Consequências
+
+- **Positivas:** o modelo representa "uma conta, vários vínculos" sem mudar o acesso de ninguém — provado pela impressão do acesso por perfil antes × depois nos dois bancos e pela comparação célula a célula no CI; a rede do dev passou a valer também onde o cargo mora agora; o vínculo cruzado entre empresas é recusado pelo banco antes de existir segunda empresa.
+- **Negativas / custo:** duas fontes de "dev" durante a transição (a coluna congelada e a membership), e por isso `profiles_guarda_dev` olha as duas até o PATCH que derrubar as colunas; `plataforma_admins` pode divergir do cargo dev (inerte enquanto não houver consumidor); a janela entre o apply de produção e o deploy, em que o app antigo lê a coluna congelada — só a TELA; quem decide acesso é o banco.
+
+### 15.5 O que **não** foi criado, de propósito
+
+- **Nenhuma policy de recorte por empresa.** As 61 seguem iguais; o recorte é da F66.
+- **`p_empresa` em `papel_atual()`.** A ponte fica sem parâmetro até as RPCs receberem a empresa (F67).
+- **Derrubar `profiles.papel`/`ativo`.** É a rede de reversão; cai num PATCH depois de semanas verdes.
+- **Seletor de empresa, segunda empresa no seed, consumidor de `e_plataforma()`.** F70, F65 e F67.

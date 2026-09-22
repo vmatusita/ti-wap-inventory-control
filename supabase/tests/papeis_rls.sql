@@ -210,10 +210,11 @@ begin
     (k_inativo,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'f21.inativo@wap.ind.br',  '', now(), now(), now());
 
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
-  update public.profiles set papel = 'consulta' where id = k_consulta;
-  update public.profiles set papel = 'operador', ativo = false where id = k_inativo;
+  -- F62: o cargo e o status moram na membership (a da empresa legada, que o handle_new_user criou).
+  perform pg_temp.plantar_cargo(k_admin,    'admin');
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  perform pg_temp.plantar_cargo(k_consulta, 'consulta');
+  perform pg_temp.plantar_cargo(k_inativo,  'operador', false);
 
   -- operador vinculado SÓ à filial 1; o inativo TEM vínculo (para provar que o
   -- `ativo=false` sozinho já fecha tudo).
@@ -941,11 +942,11 @@ begin
 
   -- 3g. ESCALADA DE PRIVILÉGIO: não consegue se promover (grant de coluna, 0063)
   begin
-    update public.profiles set papel = 'admin' where id = k_operador;
+    update public.profiles set papel = 'admin' where id = k_operador;  -- F62/cargo-congelado: 3g
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3g; ';
     raise warning '✗ 3g operador SE PROMOVEU a admin (grant de coluna falhou!)';
   exception when others then
-    v_ok := v_ok + 1; raise notice '✓ 3g operador recusado ao mexer em profiles.papel (%)', sqlstate;
+    v_ok := v_ok + 1; raise notice '✓ 3g operador recusado ao mexer no cargo de profiles (a coluna congelada) (%)', sqlstate;
   end;
 
   -- 3h. mas continua podendo editar o PRÓPRIO nome (as duas colunas concedidas)
@@ -1197,11 +1198,11 @@ begin
     raise warning '✗ 5f admin leu % linha(s) de senhas_acesso — o hash voltou a ficar exposto', v_n;
   end if;
 
-  -- 5g. admin também não escreve direto em profiles.papel (só service role)
+  -- 5g. admin também não escreve direto no cargo de profiles (a coluna congelada desde a F62)
   begin
-    update public.profiles set papel = 'consulta' where id = k_operador;
+    update public.profiles set papel = 'consulta' where id = k_operador;  -- F62/cargo-congelado: 5g
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5g; ';
-    raise warning '✗ 5g admin alterou profiles.papel por sessão (deveria ser só service role)';
+    raise warning '✗ 5g admin alterou o cargo de profiles por sessão (a coluna congelada não tem grant para authenticated)';
   exception when others then
     v_ok := v_ok + 1; raise notice '✓ 5g nem o admin muda papel por sessão (%), só o service role', sqlstate;
   end;

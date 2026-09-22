@@ -109,9 +109,21 @@ declare
   --   · _bkp_relatorios_gerados_f6a (0128) — backup CONGELADO de uma fase, adotado no
   --                                versionamento pela 0128, que a chama de "arquivo
   --                                morto de diagnóstico, não cadastro" (0128:97).
+  -- F62 (22/09/2026) — as TRÊS da raiz do tenant, oito no total:
+  --   · empresas          (0152) — a RAIZ do mecanismo: recorta-se pelo PRÓPRIO id (as
+  --                                funções de conjunto devolvem ids de empresa), não por
+  --                                uma chave `empresa_id` dentro dela.
+  --   · membros           (0153) — o vínculo pessoa × empresa com o CARGO: é o que as
+  --                                funções de conjunto LEEM para recortar o resto — o
+  --                                destino que o motivo de `profiles` acima já anunciava.
+  --   · plataforma_admins (0154) — quem opera a PLATAFORMA, acima das empresas: por
+  --                                definição não pertence a empresa nenhuma.
+  --   `operador_filiais` CONTINUA infra (fato 14 da ordem F62): ganhou `empresa_id` e
+  --   `membro_id` (0156), mas é o vínculo de ESCRITA de uma membership — a chave de recorte
+  --   dele é a membership, não a linha.
   k_infra text[] := array[
     'profiles', 'operador_filiais', 'senha_tentativas', 'ambiente',
-    '_bkp_relatorios_gerados_f6a'
+    '_bkp_relatorios_gerados_f6a', 'empresas', 'membros', 'plataforma_admins'
   ];
 
   -- =======================================================================
@@ -137,18 +149,27 @@ declare
   --                         `security definer` dele) enxerga — mesmo idioma de
   --                         `senhas_acesso`/`senha_tentativas`."
   --
+  --   · empresas          — F62 (0152): nenhuma tela lê a raiz do tenant nesta fase (o
+  --                         seletor de empresa é da F70); quem precisa lê como definer.
+  --                         RLS ligada, sem policy, e a escrita de anon/authenticated
+  --                         revogada na própria migration.
+  --   · plataforma_admins — F62 (0154): só `e_plataforma()` (definer) a lê. Mesmo idioma
+  --                         de `ambiente`.
+  --
   -- ⚠ A asserção 4 confere esta lista no SENTIDO CONTRÁRIO: nome aqui que passe a TER
   -- policy de SELECT também REPROVA. Exceção não sobrevive ao motivo que a criou.
   -- =======================================================================
-  k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente'];
+  k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente', 'empresas', 'plataforma_admins'];
 
   -- =======================================================================
   -- O PISO DE LEITURA CONGELADO (R-ACC-25, migration 0070).
   --
   -- `profiles.ativo = false` fecha também a LEITURA, no request seguinte. O piso é
-  -- `(select public.papel_atual()) is not null`, e ele está EXATAMENTE nestas 19
+  -- `(select public.papel_atual()) is not null`, e ele está EXATAMENTE nestas 20
   -- policies de SELECT de `public` — nem uma a mais, nem uma a menos (15 até a F55;
-  -- a F56 acrescenta as quatro tabelas do vocabulário do import, mesmo piso).
+  -- a F56 acrescenta as quatro tabelas do vocabulário do import, mesmo piso; a F62, a
+  -- de `membros` — o espelho EXATO da leitura de `profiles`, porque o app lê o cargo
+  -- pela sessão).
   --
   -- ⚠ A comparação é por `ilike '%papel_atual%'` e NÃO por igualdade de texto:
   -- `pg_policies.qual` devolve a expressão NORMALIZADA pelo Postgres. O que a
@@ -159,7 +180,7 @@ declare
   k_piso_papel text[] := array[
     'anotacoes', 'ativos', 'colaboradores', 'filiais', 'import_prefixos_patrimonio',
     'import_termos_categoria', 'import_termos_estado', 'itens', 'kits_modelos',
-    'lancamentos_item', 'motivos', 'movimentacoes', 'operador_filiais',
+    'lancamentos_item', 'membros', 'motivos', 'movimentacoes', 'operador_filiais',
     'pendencias_item', 'profiles', 'relatorios_gerados', 'termos_gerados', 'tipos_item',
     'unidades_apelidos'
   ];
@@ -208,7 +229,9 @@ declare
   -- =======================================================================
   -- F59 — A DOUTRINA DO PREDICADO (emenda F59 da MATRIZ-REGRAS, R-ACC-63 em diante)
   --
-  -- O UNIVERSO CONGELADO. As 53 policies de `public`, por `tabela / policy`; as 8 de
+  -- O UNIVERSO CONGELADO. As 54 policies de `public` (53 até a F61; a F62 acrescenta a de
+  -- `membros` — NENHUMA das 53 mudou, provado byte a byte nos dois bancos), por
+  -- `tabela / policy`; as 8 de
   -- `storage.objects` continuam em `k_storage` (uma fonte por fato). É ESTE conjunto
   -- que a trava de mesa (`src/lib/validators/policies-initplan.test.ts`) compara com o
   -- replay das migrations, e que 10a/10b comparam com `pg_policies`: a mesa e o banco
@@ -230,6 +253,7 @@ declare
     'kits_modelos / admin apaga', 'kits_modelos / admin atualiza', 'kits_modelos / admin insere',
     'kits_modelos / leitura operador',
     'lancamentos_item / leitura operador', 'lancamentos_item / operador lanca',
+    'membros / leitura operador',
     'motivos / admin apaga', 'motivos / admin atualiza', 'motivos / admin insere', 'motivos / leitura operador',
     'movimentacoes / leitura operador', 'movimentacoes / operador insere',
     'operador_filiais / leitura operador',
@@ -475,6 +499,12 @@ begin
   --           (0070:58-62). Ligá-lo quebra o registro de movimentação.
   --     Falha ruidosa, não silenciosa — e é justamente por ser ruidosa que ninguém
   --     nunca a escreveu como asserção. Ela custa uma linha e fecha a superfície.
+  --     ⚠ MEDIDO NA F62 (22/09/2026): (1) e (2) não acontecem nos nossos bancos. O dono
+  --     (`postgres`) tem BYPASSRLS no banco hospedado e é superusuário no CI, e o atributo
+  --     vence o `force` — com `force` em `membros`, a leitura segue normal (cenário 9o de
+  --     `isolamento_tenant.sql`, que também trava a premissa real: o atributo do dono). A
+  --     proibição fica: o `force` não protege nada aqui e só mudaria de comportamento no
+  --     dia em que o dono mudasse. Ver a emenda F62 da R-ACC-29.
   -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(c.relname, ', ' order by c.relname), '')
     into v_cnt, v_lista
@@ -482,7 +512,7 @@ begin
    where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relforcerowsecurity;
   if pg_temp.assert_zero_de(
        '4-bis `force row level security` desligado em toda tabela de public (R-ACC-29)' ||
-       case when v_cnt > 0 then ' — ligado em: ' || v_lista || ' (espere 42P17)' else '' end,
+       case when v_cnt > 0 then ' — ligado em: ' || v_lista || ' (proibido — R-ACC-29; o efeito real está no 9o de isolamento_tenant.sql)' else '' end,
        v_cnt, v_univ) then
     v_ok := v_ok + 1;
   else

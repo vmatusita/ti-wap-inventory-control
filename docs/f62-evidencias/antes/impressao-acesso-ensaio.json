@@ -1,0 +1,8 @@
+{
+  "banco": "ensaio (sgmvldiizsrjbxzzpmhh)",
+  "quando_utc": "2026-09-22T18:23:32Z",
+  "instrumento": "docs/f62-evidencias/impressao-acesso.sql",
+  "md5_do_instrumento": "a3caf6da9c25544ca9611aca9a145c65",
+  "canal": "MCP da Supabase, execute_sql; transaction_read_only = on; resultado pela EXCEPTION (P0001 F62_IMPRESSAO)",
+  "resultado": {"combos": {"admin|true|false|true|true|true|true|true|true|true|outro_admin=false": 1, "∅|false|false|false|false|false|false|false|false|false|outro_admin=true": 2, "operador|false|false|true|false|false|false|false|false|false|outro_admin=true": 1, "consulta|false|false|false|false|false|false|false|false|false|outro_admin=true": 1}, "n_perfis": 5, "controles": {"sem_perfil": "∅|false|false|false|false|false|false|false|false|false", "sem_sessao": "∅|false|false|false|false|false|false|false|false|false"}, "n_filiais": 6, "md5_global": "f2cfd5a11d551ca0edfcfd78f28a5ff1"}
+}

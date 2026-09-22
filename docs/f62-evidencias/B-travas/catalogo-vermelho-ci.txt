@@ -1,0 +1,75 @@
+# F62 · Frente B · a trava de CATÁLOGO nasce VERMELHA no Postgres do CI
+# PR #70, run 35770080749, job banco-sem-docker, commit 76535dd (antes de qualquer migration da F62)
+# (trecho do log do rodar-roteiros.sh, sem o prefixo de horário)
+
+ ==== supabase/tests/cargo_em_membros.sql ====
+ CREATE FUNCTION
+ BEGIN
+ CREATE FUNCTION
+ psql:supabase/tests/cargo_em_membros.sql:258: WARNING:  ✗ 1a nenhuma função de public lê ou escreve profiles.papel/profiles.ativo fora das exceções nomeadas — acusadas: apagar_usuario (b), checagens_integridade_nucleo (b), definir_papel_usuario (b), definir_status_usuario (b), definir_vinculos_usuario (b), exigir_gestao_de (b), existe_outro_admin_ativo (b), papel_atual (b): 8 de 94 fora da regra
+ psql:supabase/tests/cargo_em_membros.sql:258: NOTICE:  ✓ 1b toda exceção de k_excecoes_cargo ainda lê o cargo em profiles (a catraca no outro sentido) (0 de 1 conferidos)
+ psql:supabase/tests/cargo_em_membros.sql:258: NOTICE:  ✓ 1c nenhuma view de public lê o cargo em profiles (0 de 9 conferidos)
+ psql:supabase/tests/cargo_em_membros.sql:258: NOTICE:  ✓ 1d nenhuma policy de public/storage lê o cargo em profiles (0 de 61 conferidos)
+ psql:supabase/tests/cargo_em_membros.sql:258: NOTICE:  ✓ 2 auto-sabotagem: a varredura da 1a ACUSA as quatro funções fictícias (alias, sem alias, gravação, qualificada) — o gate SABE reprovar
+ psql:supabase/tests/cargo_em_membros.sql:258: NOTICE:  FIM cargo_em_membros: 5 asserções, 1 falhas
+ DO
+ ROLLBACK
+ ##[error]roteiro supabase/tests/cargo_em_membros.sql o contador declara 1 falha(s)
+ ##[error]roteiro supabase/tests/cargo_em_membros.sql marcou 1 ✗ (cenário falhou)
+ ==== supabase/tests/cargo_equivalencia.sql ====
+ CREATE FUNCTION
+ BEGIN
+ CREATE FUNCTION
+ CREATE FUNCTION
+ CREATE FUNCTION
+ psql:supabase/tests/cargo_equivalencia.sql:348: NOTICE:  ✓ 1 papel_atual(): antigo = vivo em toda a grade (0 de 34 conferidos)
+ psql:supabase/tests/cargo_equivalencia.sql:348: NOTICE:  ✓ 2 e_admin/e_dev/pode_escrever: antigo = vivo em toda a grade (0 de 34 conferidos)
+ psql:supabase/tests/cargo_equivalencia.sql:348: NOTICE:  ✓ 3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL) (0 de 102 conferidos)
+ psql:supabase/tests/cargo_equivalencia.sql:348: NOTICE:  ✓ 4 existe_outro_admin_ativo: antigo = vivo para cada pessoa da grade (0 de 33 conferidos)
+ psql:supabase/tests/cargo_equivalencia.sql:348: NOTICE:  (5 não se aplica antes da 0152 — não há empresa B para a segunda membership)
+ psql:supabase/tests/cargo_equivalencia.sql:348: NOTICE:  FIM cargo_equivalencia: 4 asserções, 0 falhas
+
+ ==== RESUMO ====
+   ✓ asof_desempate — 21 asserções
+   ✓ asserts_ferramenta — 7 asserções
+   ✓ cargo_dev — 58 asserções
+   ✗ cargo_em_membros — o contador declara 1 falha(s)
+   ✗ cargo_em_membros — marcou 1 ✗ (cenário falhou)
+   ✓ cargo_equivalencia — 4 asserções
+   ✓ catalogo_policies — 25 asserções
+   ✓ catalogo_secdef — 16 asserções
+   ✓ conflito_filiais — 51 asserções
+   ✓ definer_sem_tenant — 6 asserções
+   ✓ dev_destrutivo — 108 asserções
+   ✓ dominios_login — 16 asserções
+   ✓ escrita_atomica_ativos_anotacao — 16 asserções
+   ✓ f34_triagem_reserva — 21 asserções
+   ✓ f36_detentor — 18 asserções
+   ✓ f37_colaboradores_tipos — 26 asserções
+   ✓ f38_itens_com_ativo — 51 asserções
+   ✓ f41_regularizacao — 26 asserções
+   ✓ f60_recorte — 17 asserções
+   ✓ fuso_do_negocio — 5 asserções
+   ✓ import_fora_da_unidade — 14 asserções
+   ✓ import_substituir — 32 asserções
+   ✓ integridade_alarme — 38 asserções
+   ✓ isolamento_tenant — 11 asserções
+   ✓ itens_extra — 4 asserções
+   ✓ itens_quantidade — 14 asserções
+   ✓ ledger_de_migracoes — 6 asserções
+   ✓ manutencao_fornecedor — 19 asserções
+   ✓ maquina_estados — 14 asserções
+   ✓ movimentacao_grade — 45 asserções
+   ✓ papeis_rls — 77 asserções
+   ✓ pendencias_import_termo — 5 asserções
+   ✓ pendencias_item — 15 asserções
+   ✓ reabrir_pendencia_item — 4 asserções
+   ✓ restauracao — 17 asserções
+   ✓ seguranca_catalogo — 8 asserções
+   ✓ storage_termo — 13 asserções
+   ✓ transferencia_item — 18 asserções
+   ✓ transicoes_extra — 13 asserções
+   ✓ troca — 13 asserções
+   ✓ vocabulario_import — 56 asserções
+  2026-09-22 18:54:01.961 UTC [435] WARNING:  ✗ autoteste 3 — o ✗ deste é esperado e está escondido: 2 de 7 fora da regra
+  2026-09-22 18:54:02.110 UTC [437] WARNING:  ✗ 1a nenhuma função de public lê ou escreve profiles.papel/profiles.ativo fora das exceções nomeadas — acusadas: apagar_usuario (b), checagens_integridade_nucleo (b), definir_papel_usuario (b), definir_status_usuario (b), definir_vinculos_usuario (b), exigir_gestao_de (b), existe_outro_admin_ativo (b), papel_atual (b): 8 de 94 fora da regra

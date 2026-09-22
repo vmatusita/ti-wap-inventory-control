@@ -77,3 +77,104 @@ begin
   return false;
 end;
 $fn$;
+
+-- =============================================================
+-- OS AJUDANTES DE FIXTURE DO CARGO (F62, 22/09/2026)
+-- =============================================================
+-- Desde a F62 o cargo (`papel`) e o status (`ativo`) moram em `public.membros`, por
+-- empresa; `profiles.papel`/`profiles.ativo` CONGELARAM (decisão iii) e nenhum roteiro os
+-- grava mais, salvo os cenários nomeados que provam a guarda e o congelamento
+-- (`src/lib/validators/cargo-em-membros.test.ts`, describe 6). Estes três ajudantes são o
+-- jeito ÚNICO de plantar o cargo numa fixture:
+--
+--   pg_temp.plantar_cargo(pessoa, papel [, ativo [, empresa]])
+--       a membership da pessoa na empresa (padrão: a legada) passa a ter este cargo e
+--       status — cria a linha se não houver (a da empresa legada o `handle_new_user` já
+--       cria ao inserir em auth.users).
+--   pg_temp.plantar_status(pessoa, ativo [, empresa])
+--       só o status, mantendo o cargo.
+--   pg_temp.perfil_ativo_mais_antigo()
+--       o autor "qualquer" dos roteiros: o perfil não arquivado com membership ATIVA na
+--       empresa legada, o mais antigo (created_at, id) — a régua que os roteiros usavam
+--       sobre `profiles.ativo`.
+--
+-- ⚠ A JANELA DO DEV: plantar ou tirar o cargo `dev` exige `estoque.gestao_usuarios = on`
+-- (as guardas `membros_guarda_dev`/`profiles_guarda_dev` recusam até o `postgres` sem ela).
+-- Os ajudantes a abrem SÓ quando a mexida toca um dev, e devolvem o valor anterior ao
+-- sair — um cenário que prova a guarda planta direto, SEM o ajudante.
+-- =============================================================
+
+create or replace function pg_temp.plantar_cargo(
+  p_pessoa  uuid,
+  p_papel   public.papel_usuario,
+  p_ativo   boolean default true,
+  p_empresa uuid default null
+) returns void
+language plpgsql
+as $fn$
+declare
+  v_empresa uuid := coalesce(p_empresa, public.empresa_legada());
+  v_janela  text := current_setting('estoque.gestao_usuarios', true);
+  v_dev     boolean;
+begin
+  v_dev := p_papel = 'dev' or exists (
+    select 1 from public.membros m
+     where m.empresa_id = v_empresa and m.profile_id = p_pessoa and m.papel = 'dev');
+  if v_dev then
+    perform set_config('estoque.gestao_usuarios', 'on', true);
+  end if;
+  insert into public.membros (empresa_id, profile_id, papel, ativo)
+  values (v_empresa, p_pessoa, p_papel, p_ativo)
+  on conflict (empresa_id, profile_id) do update
+     set papel = excluded.papel, ativo = excluded.ativo;
+  if v_dev then
+    perform set_config('estoque.gestao_usuarios', coalesce(v_janela, ''), true);
+  end if;
+end;
+$fn$;
+
+create or replace function pg_temp.plantar_status(
+  p_pessoa  uuid,
+  p_ativo   boolean,
+  p_empresa uuid default null
+) returns void
+language plpgsql
+as $fn$
+declare
+  v_empresa uuid := coalesce(p_empresa, public.empresa_legada());
+  v_janela  text := current_setting('estoque.gestao_usuarios', true);
+  v_dev     boolean;
+begin
+  v_dev := exists (
+    select 1 from public.membros m
+     where m.empresa_id = v_empresa and m.profile_id = p_pessoa and m.papel = 'dev');
+  if v_dev then
+    perform set_config('estoque.gestao_usuarios', 'on', true);
+  end if;
+  update public.membros set ativo = p_ativo
+   where empresa_id = v_empresa and profile_id = p_pessoa;
+  if not found then
+    raise exception 'plantar_status: a pessoa % não tem membership na empresa %', p_pessoa, v_empresa;
+  end if;
+  if v_dev then
+    perform set_config('estoque.gestao_usuarios', coalesce(v_janela, ''), true);
+  end if;
+end;
+$fn$;
+
+create or replace function pg_temp.perfil_ativo_mais_antigo()
+returns uuid
+language plpgsql
+as $fn$
+declare
+  v_id uuid;
+begin
+  select p.id into v_id
+    from public.profiles p
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null
+   order by p.created_at, p.id
+   limit 1;
+  return v_id;
+end;
+$fn$;

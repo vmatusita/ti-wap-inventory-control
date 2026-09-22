@@ -153,6 +153,13 @@
     "0148_ledger_de_migracoes.sql": "16193908685dc6638ebf62be7b3466d98334f0944a31df381a8044fbdcf451eb",
     "0149_escrita_atomica_ativos_anotacao.sql": "2b4e0bb7a2e82178b3f1c9a8d010887f1f9718a7e6aaab217e73f429d2c59271",
     "0150_movimentacao_decomposta.sql": "625aeee4eff2758a7c2dc0297369e6d8622dbfee106a7917d49b341ba70f6927",
-    "0151_escrita_atomica_reconfere_no_banco.sql": "b691d6964024b6bc46495a04bc167d600683171023f51be8dde20866265e0c4c"
+    "0151_escrita_atomica_reconfere_no_banco.sql": "b691d6964024b6bc46495a04bc167d600683171023f51be8dde20866265e0c4c",
+    "0152_raiz_do_tenant.sql": "f7410133e98960342c5d6233803f9adaa81e67e377a1c055de2a8854eff76b34",
+    "0153_membros.sql": "647085a8d2e5b23fb7d13e72713b085c9ec3e3160177db037fd2a47b221e81db",
+    "0154_plataforma_admins.sql": "58341a11d392e720e0ca62cce6161b18526d7cc8c6fc37090ee8ba0c5f31d622",
+    "0155_filiais_empresa.sql": "353f311bcaa648dab79017e5aafe0272d52bf629077913f53d4b3188eea21b89",
+    "0156_vinculo_por_membership.sql": "997d3913caafe776b54c7d2024d643774b6d8b9953daa117abf61ccb066be87e",
+    "0157_funcoes_de_conjunto.sql": "e671a7a76244a824862073e8529b5efc1609a009d1c2f154b83ff70c9bf6350f",
+    "0158_cargo_em_membros.sql": "2b91ad119b59459e89c971416c1ec67752ea233e6346423903adb6df93017274"
   }
 }

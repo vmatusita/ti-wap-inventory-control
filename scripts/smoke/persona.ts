@@ -49,6 +49,7 @@
 
 import { randomBytes } from 'node:crypto'
 import type { createAdminClient } from '../env-guard'
+import { EMPRESA_LEGADA_ID } from '../../src/lib/auth/empresa-legada'
 
 export const EMAIL_PERSONA = 'seed.admin@wap.ind.br'
 const ORIGEM_TRILHA = 'smoke-import-ensaio'
@@ -157,28 +158,35 @@ export async function prepararPersona(db: Db, acesso: AcessoAuthAdmin): Promise<
     if (error) throw new Error(`Não consegui trocar a senha da persona: ${error.message}`)
   }
 
-  const { data: perfilAntes, error: leErr } = await db
-    .from('profiles')
+  // F62: o cargo e a situação moram na membership da empresa legada (membros) —
+  // profiles.papel/profiles.ativo congelaram (decisão iii).
+  const { data: membroAntes, error: leErr } = await db
+    .from('membros')
     .select('papel, ativo')
-    .eq('id', id)
+    .eq('profile_id', id)
+    .eq('empresa_id', EMPRESA_LEGADA_ID)
     .maybeSingle()
-  if (leErr) throw new Error(`Falha ao ler o perfil da persona: ${leErr.message}`)
-  if (!perfilAntes) {
+  if (leErr) throw new Error(`Falha ao ler o cargo da persona: ${leErr.message}`)
+  if (!membroAntes) {
     throw new Error(
-      `A conta ${EMAIL_PERSONA} existe no Auth mas não tem perfil em profiles — o trigger ` +
+      `A conta ${EMAIL_PERSONA} existe no Auth mas não tem membership em membros — o trigger ` +
         'handle_new_user não rodou? Confira se o e-mail é @wap.ind.br no banco de ensaio.',
     )
   }
-  const eraInativa = perfilAntes.ativo === false
-  const papelMudou = perfilAntes.papel !== 'admin'
+  const eraInativa = membroAntes.ativo === false
+  const papelMudou = membroAntes.papel !== 'admin'
 
-  const { error: upErr } = await db.from('profiles').update({ papel: 'admin', ativo: true }).eq('id', id)
-  if (upErr) throw new Error(`Falha ao gravar papel/ativo da persona: ${upErr.message}`)
+  const { error: upErr } = await db
+    .from('membros')
+    .update({ papel: 'admin', ativo: true })
+    .eq('profile_id', id)
+    .eq('empresa_id', EMPRESA_LEGADA_ID)
+  if (upErr) throw new Error(`Falha ao gravar o cargo da persona: ${upErr.message}`)
 
   if (eraNova) {
     await gravarEventoAdmin(db, 'usuario_criado', { papel: 'admin' })
   } else {
-    if (papelMudou) await gravarEventoAdmin(db, 'papel_alterado', { de: perfilAntes.papel, para: 'admin' })
+    if (papelMudou) await gravarEventoAdmin(db, 'papel_alterado', { de: membroAntes.papel, para: 'admin' })
     if (eraInativa) await gravarEventoAdmin(db, 'usuario_reativado', {})
   }
 
@@ -196,7 +204,11 @@ export async function desativarPersona(
   db: Db,
   personaId: string,
 ): Promise<{ ok: boolean; erro?: string }> {
-  const { error } = await db.from('profiles').update({ ativo: false }).eq('id', personaId)
+  const { error } = await db
+    .from('membros')
+    .update({ ativo: false })
+    .eq('profile_id', personaId)
+    .eq('empresa_id', EMPRESA_LEGADA_ID)
   if (error) return { ok: false, erro: `Falha ao desativar a persona: ${error.message}` }
   try {
     await gravarEventoAdmin(db, 'usuario_desativado', {})

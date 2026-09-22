@@ -11,7 +11,12 @@ import { PAPEL_ROTULO, eAdmin, escopoDeEscrita, papelAtende } from '@/lib/auth/p
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { Database } from '@/lib/types/database'
 import { linhaOuFalha, valorOuFalha } from '@/lib/supabase/linhas'
-import { LEITURA_PAPEL_ATUAL, LEITURA_PERFIL_OPERADOR } from '@/lib/queries/formas/auth'
+import {
+  LEITURA_MEMBRO_OPERADOR,
+  LEITURA_PAPEL_ATUAL,
+  LEITURA_PERFIL_OPERADOR,
+} from '@/lib/queries/formas/auth'
+import { EMPRESA_LEGADA_ID } from '@/lib/auth/empresa-legada'
 
 // Fonte única de `DbClient` (reauditoria de 18/09/2026, item AJ — antes também
 // declarado, duplicado, em `queries/relatorios/comum.ts`, que agora reexporta
@@ -180,11 +185,22 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: perfilBruto, error: erroPerfil } = await supabase
-    .from('profiles')
-    .select(LEITURA_PERFIL_OPERADOR.select)
-    .eq('id', user.id)
-    .maybeSingle()
+  // F62: o que é da CONTA (nome, arquivamento) vem de `profiles`; o CARGO e o STATUS vêm da
+  // membership na empresa legada (`membros`) — `profiles.papel`/`profiles.ativo` congelaram
+  // (decisão iii). É a mesma ponte que `papel_atual()` faz no banco: a empresa legada, nunca o
+  // cargo mais forte entre empresas.
+  const [
+    { data: perfilBruto, error: erroPerfil },
+    { data: membroBruto, error: erroMembro },
+  ] = await Promise.all([
+    supabase.from('profiles').select(LEITURA_PERFIL_OPERADOR.select).eq('id', user.id).maybeSingle(),
+    supabase
+      .from('membros')
+      .select(LEITURA_MEMBRO_OPERADOR.select)
+      .eq('profile_id', user.id)
+      .eq('empresa_id', EMPRESA_LEGADA_ID)
+      .maybeSingle(),
+  ])
 
   // O `error` era DESCARTADO aqui, e falha de leitura virava indistinguível de "desativado":
   // o layout mandava a pessoa para `/login?erro=acesso-desativado` e uma queda do banco
@@ -196,21 +212,28 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
     registrarFalha({ escopo: 'acesso.perfil-operador', erro: erroPerfil })
     return null
   }
+  if (erroMembro) {
+    registrarFalha({ escopo: 'acesso.membro-operador', erro: erroMembro })
+    return null
+  }
 
   // A forma errada fecha pelo MESMO caminho do erro de banco acima (registrarFalha já
   // aconteceu dentro da porta) — nenhum `catch` novo, e o mesmo "return null" de sempre.
   const lidoPerfil = linhaOuFalha(perfilBruto, LEITURA_PERFIL_OPERADOR.forma, LEITURA_PERFIL_OPERADOR.rotulo)
   if (!lidoPerfil.ok) return null
+  const lidoMembro = linhaOuFalha(membroBruto, LEITURA_MEMBRO_OPERADOR.forma, LEITURA_MEMBRO_OPERADOR.rotulo)
+  if (!lidoMembro.ok) return null
   const perfil = lidoPerfil.linha
+  const membro = lidoMembro.linha
 
-  // Sem perfil (não deveria acontecer — o trigger cria), DESATIVADO ou APAGADO: fecha.
-  // F22: `apagar_usuario` (0074) grava `excluido_em` E `ativo = false`, então o segundo
-  // teste já bastaria hoje. O terceiro é cinto e suspensório para o estado híbrido —
-  // arquivado mas ainda `ativo` — que um UPDATE manual no painel produziria: `papel_atual()`
-  // no banco já o fecha (0073), e aqui a leitura é direta em `profiles`, sem passar por ela.
-  if (!perfil || !perfil.ativo || perfil.excluido_em) return null
+  // Sem perfil ou sem membership (não deveria acontecer — o trigger cria as duas), membership
+  // DESATIVADA ou conta APAGADA: fecha. `apagar_usuario` grava `excluido_em` E desativa as
+  // memberships, então o terceiro teste já bastaria; o quarto é cinto e suspensório para o
+  // estado híbrido — arquivado mas com a membership ainda ativa — que um UPDATE manual no
+  // painel produziria: `papel_atual()` no banco já o fecha, e aqui a leitura é direta.
+  if (!perfil || !membro || !membro.ativo || perfil.excluido_em) return null
 
-  const papel = perfil.papel
+  const papel = membro.papel
 
   // Filiais de escrita: admin recebe todas as ATIVAS; operador, as vinculadas; consulta,
   // nenhuma. As duas leituras são baratas (tabelas de dezenas de linhas) e valem por
@@ -218,7 +241,7 @@ export const getOperador = cache(async (): Promise<Operador | null> => {
   const [{ data: ativas, error: erroAtivas }, { data: vinculos, error: erroVinculos }] =
     await Promise.all([
       supabase.from('filiais').select('id').eq('ativo', true),
-      supabase.from('operador_filiais').select('filial_id').eq('usuario_id', user.id),
+      supabase.from('operador_filiais').select('filial_id').eq('membro_id', membro.id),
     ])
   // Falha aqui continua FECHANDO (escopo vazio = não escreve em filial nenhuma neste
   // request), mas não pode ser muda: sem o rastro, "o operador perdeu a escrita" e "o

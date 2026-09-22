@@ -1,0 +1,146 @@
+# F62 — o CI verde sobre o código da fase (banco-sem-docker)
+# run 35783705125 · job 106935220425 · SHA f31175a (HEAD 622ee54, código idêntico) · extraído do log do job (gh api …/jobs/106935220425/logs)
+# só dado fictício: os roteiros rodam num Postgres 17 vazio, com fixtures 00000000-f62… e e-mails de fantasia
+
+## gate de deriva de tipos (db:types:diff)
+---- gate de deriva de tipos ----
+banco ....... 37 relações · 332 colunas · 94 funções
+database.ts . 37 relações · 332 colunas · 94 funções
+
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+## determinismo (duas aplicações da cadeia 0001→0158)
+as duas aplicações produziram schemas idênticos
+
+## os roteiros — a linha FIM de cada um
+[asof_desempate.sql] FIM asof_desempate: 21 asserções, 0 falhas
+[asserts_ferramenta.sql] FIM asserts_ferramenta: 7 asserções, 0 falhas
+[cargo_dev.sql] FIM cargo_dev: 71 asserções, 0 falhas
+[cargo_em_membros.sql] FIM cargo_em_membros: 5 asserções, 0 falhas
+[cargo_equivalencia.sql] FIM cargo_equivalencia: 7 asserções, 0 falhas
+[catalogo_policies.sql] FIM catalogo_policies: 25 asserções, 0 falhas
+[catalogo_secdef.sql] FIM catalogo_secdef: 16 asserções, 0 falhas
+[conflito_filiais.sql] FIM conflito_filiais: 51 asserções, 0 falhas
+[definer_sem_tenant.sql] FIM definer_sem_tenant: 6 asserções, 0 falhas
+[dev_destrutivo.sql] FIM dev_destrutivo: 108 asserções, 0 falhas
+[dominios_login.sql] FIM dominios_login: 16 asserções, 0 falhas
+[escrita_atomica_ativos_anotacao.sql] FIM escrita_atomica_ativos_anotacao: 16 asserções, 0 falhas
+[f34_triagem_reserva.sql] FIM f34_triagem_reserva: 21 asserções, 0 falhas
+[f36_detentor.sql] FIM f36_detentor: 18 asserções, 0 falhas
+[f37_colaboradores_tipos.sql] FIM f37_colaboradores_tipos: 26 asserções, 0 falhas
+[f38_itens_com_ativo.sql] FIM f38_itens_com_ativo: 51 asserções, 0 falhas
+[f41_regularizacao.sql] FIM f41_regularizacao: 26 asserções, 0 falhas
+[f60_recorte.sql] FIM f60_recorte: 17 asserções, 0 falhas
+[f62_rollback.sql] FIM f62_rollback: 4 asserções, 0 falhas
+[fuso_do_negocio.sql] FIM fuso_do_negocio: 5 asserções, 0 falhas
+[import_fora_da_unidade.sql] FIM import_fora_da_unidade: 14 asserções, 0 falhas
+[import_substituir.sql] FIM import_substituir: 32 asserções, 0 falhas
+[integridade_alarme.sql] FIM integridade_alarme: 38 asserções, 0 falhas
+[isolamento_tenant.sql] FIM isolamento_tenant: 27 asserções, 0 falhas
+[itens_extra.sql] FIM itens_extra: 4 asserções, 0 falhas
+[itens_quantidade.sql] FIM itens_quantidade: 14 asserções, 0 falhas
+[ledger_de_migracoes.sql] FIM ledger_de_migracoes: 6 asserções, 0 falhas
+[manutencao_fornecedor.sql] FIM manutencao_fornecedor: 19 asserções, 0 falhas
+[maquina_estados.sql] FIM maquina_estados: 14 asserções, 0 falhas
+[movimentacao_grade.sql] FIM movimentacao_grade: 45 asserções, 0 falhas
+[papeis_rls.sql] FIM papeis_rls: 77 asserções, 0 falhas
+[pendencias_import_termo.sql] FIM pendencias_import_termo: 5 asserções, 0 falhas
+[pendencias_item.sql] FIM pendencias_item: 15 asserções, 0 falhas
+[reabrir_pendencia_item.sql] FIM reabrir_pendencia_item: 4 asserções, 0 falhas
+[restauracao.sql] FIM restauracao: 17 asserções, 0 falhas
+[seguranca_catalogo.sql] FIM seguranca_catalogo: 8 asserções, 0 falhas
+[storage_termo.sql] FIM storage_termo: 13 asserções, 0 falhas
+[transferencia_item.sql] FIM transferencia_item: 18 asserções, 0 falhas
+[transicoes_extra.sql] FIM transicoes_extra: 13 asserções, 0 falhas
+[troca.sql] FIM troca: 13 asserções, 0 falhas
+[vocabulario_import.sql] FIM vocabulario_import: 56 asserções, 0 falhas
+
+## os roteiros da F62, asserção por asserção
+### cargo_em_membros.sql
+[cargo_em_membros.sql] ✓ 1a nenhuma função de public lê ou escreve o cargo congelado de profiles (papel/ativo) fora das exceções nomeadas (0 de 102 conferidos)
+[cargo_em_membros.sql] ✓ 1b toda exceção de k_excecoes_cargo ainda lê o cargo em profiles (a catraca no outro sentido) (0 de 1 conferidos)
+[cargo_em_membros.sql] ✓ 1c nenhuma view de public lê o cargo em profiles (0 de 9 conferidos)
+[cargo_em_membros.sql] ✓ 1d nenhuma policy de public/storage lê o cargo em profiles (0 de 62 conferidos)
+[cargo_em_membros.sql] ✓ 2 auto-sabotagem: a varredura da 1a ACUSA as quatro funções fictícias (alias, sem alias, gravação, qualificada) — o gate SABE reprovar
+[cargo_em_membros.sql] FIM cargo_em_membros: 5 asserções, 0 falhas
+### cargo_equivalencia.sql
+[cargo_equivalencia.sql] ✓ 4b existe_outro_admin_ativo com UM só admin ativo e os outros desativados ou arquivados: antigo = vivo = false (0 de 1 conferidos)
+[cargo_equivalencia.sql] ✓ 6 a recópia da 0158 reconcilia promovido, desligado e perfil sem membership, sem reescrever as linhas que já batiam nem tocar outra empresa (0 de 1 conferidos)
+[cargo_equivalencia.sql] ✓ 1 papel_atual(): antigo = vivo em toda a grade (0 de 34 conferidos)
+[cargo_equivalencia.sql] ✓ 2 e_admin/e_dev/pode_escrever: antigo = vivo em toda a grade (0 de 34 conferidos)
+[cargo_equivalencia.sql] ✓ 3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL) (0 de 102 conferidos)
+[cargo_equivalencia.sql] ✓ 4 existe_outro_admin_ativo: antigo = vivo para cada pessoa da grade (0 de 33 conferidos)
+[cargo_equivalencia.sql] ✓ 5 a ponte com DUAS memberships responde pela empresa legada, nunca pela mais forte (0 de 2 conferidos)
+[cargo_equivalencia.sql] FIM cargo_equivalencia: 7 asserções, 0 falhas
+### isolamento_tenant.sql
+[isolamento_tenant.sql] ✓ 1 o papel do roteiro (postgres) ignora RLS — contar com ele conta o universo REAL
+[isolamento_tenant.sql] ✓ 2 `authenticated` NÃO ignora RLS — "viu zero linhas" é a policy trabalhando
+[isolamento_tenant.sql] ✓ 3 `anon` NÃO ignora RLS
+[isolamento_tenant.sql] ✓ 4 `service_role` ignora RLS (desenho — é a premissa do trigger guarda_acervo da 0081)
+[isolamento_tenant.sql] ✓ 5 o bloco de grants concedeu LEITURA — sem isso "viu zero" seria permission denied (0 de 5 conferidos)
+[isolamento_tenant.sql] ✓ 6 o bloco de grants concedeu ESCRITA — recusa por privilégio se disfarça de recusa por policy (0 de 2 conferidos)
+[isolamento_tenant.sql] ✓ 7 `profiles` recebe UPDATE de COLUNA e não de TABELA (espelho da 0063)
+[isolamento_tenant.sql] ✓ 8a o universo foi contado como postgres ANTES do ataque (2 linhas na filial não vinculada)
+[isolamento_tenant.sql] ✓ 8b a operação FALHOU: operador não reescreveu ativo de filial não vinculada (0 de 2 conferidos)
+[isolamento_tenant.sql] ✓ 8c de volta como postgres, o dado original continua INTACTO (a segunda prova da recusa) (0 de 2 conferidos)
+[isolamento_tenant.sql] ✓ 8d o MESMO operador ESCREVE na filial VINCULADA (1 linha) — o recorte recorta, não tranca tudo
+[isolamento_tenant.sql] ✓ 9l toda conta nova nasce com a membership operador ATIVA na empresa legada (handle_new_user) (0 de 6 conferidos)
+[isolamento_tenant.sql] ✓ 9-fixture o universo A↔B foi montado e contado como postgres: 2 empresas, 5 filiais em A e 1 em B, as memberships e o vínculo de B
+[isolamento_tenant.sql] ✓ 9a empresas_do_membro() devolve exatamente as empresas de cada pessoa, nas duas direções (0 de 4 conferidos)
+[isolamento_tenant.sql] ✓ 9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora (0 de 6 conferidos)
+[isolamento_tenant.sql] ✓ 9d unidades_de_escrita() nunca devolve par de filial de outra empresa, nas duas direções (0 de 6 conferidos)
+[isolamento_tenant.sql] ✓ 9e o membro desativado some no statement seguinte, sem token novo (antes: A e operador; depois: nenhuma empresa, sem cargo, sem unidade)
+[isolamento_tenant.sql] ✓ 9f e_plataforma() responde só sobre o chamador (true só para a conta de plataforma, nunca NULL) (0 de 6 conferidos)
+[isolamento_tenant.sql] ✓ 9g a ponte responde pela empresa legada: consultor=admin (duas vezes), só-em-B=sem cargo
+[isolamento_tenant.sql] ✓ 9h o vínculo com membership ou filial de OUTRA empresa é recusado pelas FKs compostas, com o par simétrico aceito (0 de 5 conferidos)
+[isolamento_tenant.sql] ✓ 9i authenticated não escreve em empresas, membros, plataforma_admins nem operador_filiais (a operação falha) (0 de 8 conferidos)
+[isolamento_tenant.sql] ✓ 9i-bis de volta como postgres, empresas/membros/plataforma_admins/operador_filiais estão INTACTAS (a segunda prova da recusa)
+[isolamento_tenant.sql] ✓ 9j as tabelas da F62 (lidas do catálogo) estão SEM force row level security (0 de 5 conferidos)
+[isolamento_tenant.sql] ✓ 9k toda coluna empresa_id (lida do catálogo) é NOT NULL, amarrada por FK à raiz e sem linha nula (0 de 18 conferidos)
+[isolamento_tenant.sql] ✓ 9m o slug reservado ou fora do formato é recusado pelo CHECK (admin, todas, relatorios, maiúscula, espaço, hífen na ponta), e o legítimo passa (0 de 7 conferidos)
+[isolamento_tenant.sql] ✓ 9n empresas.config recusa jsonb que não seja objeto ("texto", [], 42, null) e aceita objeto (0 de 5 conferidos)
+[isolamento_tenant.sql] 9o (medição) com force em membros, admin_a leu papel/linhas = admin/9 — dono das definer que leem membros ignora RLS por atributo em 17 de 17
+[isolamento_tenant.sql] ✓ 9o o dono das security definer que leem membros ignora RLS por atributo (rolsuper/rolbypassrls), e por isso nem o force produz a recursão prevista (0 de 17 conferidos)
+[isolamento_tenant.sql] FIM isolamento_tenant: 27 asserções, 0 falhas
+### f62_rollback.sql
+[f62_rollback.sql] ✓ rb0 o estado depois da F62 foi montado (promovido=admin, desligado=sem cargo, dev=dev) — só na membership
+[f62_rollback.sql] ✓ rb1 rollback na ordem escrita (cópia primeiro): o corpo antigo devolve o estado MAIS NOVO — promovido=admin, desligado=sem cargo, dev=dev, e a impressão de todo perfil é a mesma de antes do rollback
+[f62_rollback.sql] ✓ rb2 SEM a cópia, o rollback devolve o estado VELHO — o desligado voltaria a ter cargo (operador/operador/operador) e a impressão muda: a cópia é o passo que impede isso
+[f62_rollback.sql] ✓ rb3 o esquema voltou ao de antes da F62: sem membros/empresas/plataforma_admins, sem empresa_id/membro_id, PK (usuario_id, filial_id), papel_atual() lendo profiles
+[f62_rollback.sql] FIM f62_rollback: 4 asserções, 0 falhas
+### cargo_dev.sql (as asserções novas da F62)
+[cargo_dev.sql] ✓ 2i-legado service role recusado ao rebaixar, na coluna congelada, um dev de antes da F62 (42501)
+[cargo_dev.sql] ✓ 2h-membros service role recusado (42501) ao conceder dev em membros
+[cargo_dev.sql] ✓ 2i-membros service role recusado ao rebaixar dev em membros (42501)
+[cargo_dev.sql] ✓ 2i-bis-membros service role recusado ao desativar dev em membros (42501)
+[cargo_dev.sql] ✓ 2j-membros service role recusado ao apagar a membership de um dev (42501)
+[cargo_dev.sql] ✓ 2j-ter service role recusado ao inserir membership já dev (42501)
+[cargo_dev.sql] ✓ 2j-quater service role recusado ao mover a membership de um dev (42501)
+[cargo_dev.sql] ✓ 2j-bis-membros a rede NÃO atrapalha mexer numa membership comum
+[cargo_dev.sql] ✓ 6b o perfil da vítima foi ARQUIVADO (excluido_em preenchido, memberships desativadas)
+[cargo_dev.sql] ✓ 8a a coluna congelada dizendo "admin" não muda nada: papel_atual()=consulta, sem escrita
+[cargo_dev.sql] ✓ 8b admin recusado ao desativar um dev promovido depois da F62 (42501)
+[cargo_dev.sql] ✓ 8c service role recusado ao arquivar um dev promovido depois da F62 (42501)
+
+## o injetor — as mutações da F62 e o total
+f62-empresas-do-membro-esquece-ativo                       isolamento_tenant.sql                9e                                detectada            324 ms
+f62-empresas-de-escrita-aceita-consulta                    isolamento_tenant.sql                9b                                detectada            336 ms
+f62-empresas-de-admin-aceita-operador                      isolamento_tenant.sql                9b                                detectada            332 ms
+f62-unidades-de-escrita-cruza-empresa                      isolamento_tenant.sql                9d                                detectada            321 ms
+f62-e-plataforma-responde-por-qualquer-um                  isolamento_tenant.sql                9f                                detectada            323 ms
+f62-ponte-esquece-arquivado                                cargo_equivalencia.sql               1,2,3                             detectada            320 ms
+f62-ponte-esquece-inativo                                  cargo_equivalencia.sql               1,2,3                             detectada            325 ms
+f62-ponte-responde-pela-empresa-errada                     cargo_equivalencia.sql               1,5                               detectada            330 ms
+f62-vinculo-de-qualquer-membership                         cargo_equivalencia.sql               3                                 detectada            326 ms
+f62-outro-admin-conta-inativo                              cargo_equivalencia.sql               4b                                detectada            316 ms
+f62-guarda-de-gestao-le-o-cargo-congelado                  cargo_dev.sql                        2c,8b                             detectada            330 ms
+f62-guarda-do-dev-em-membros-neutralizada                  cargo_dev.sql                        2h-membros,2i-membros,2j-membros  detectada            328 ms
+f62-handle-new-user-sem-membership                         isolamento_tenant.sql                9l                                detectada            324 ms
+f62-definir-papel-grava-a-coluna-congelada                 cargo_dev.sql                        2g-bis,3a                         detectada            327 ms
+f62-definir-status-grava-a-coluna-congelada                cargo_dev.sql                        3c                                detectada            336 ms
+f62-apagar-nao-desativa-memberships                        cargo_dev.sql                        6b                                detectada            334 ms
+f62-guarda-de-profiles-esquece-a-membership                cargo_dev.sql                        2i,8c                             detectada            332 ms
+f62-guarda-de-profiles-aceita-a-escrita-antiga             cargo_dev.sql                        8d                                detectada            327 ms
+f62-membros-com-force-rls                                  catalogo_policies.sql                4-bis                             detectada            333 ms
+f62-vinculo-sem-fk-composta-de-membro                      isolamento_tenant.sql                9h                                detectada            320 ms
+125/125 detectadas pelo cenário nomeado · 51265 ms no total

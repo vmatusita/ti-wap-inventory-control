@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { registrarFalha } from '@/lib/observabilidade'
 import type { TipoMovimentacao } from '@/lib/dominio'
 import type { PapelUsuario } from '@/lib/auth/papeis'
+import { EMPRESA_LEGADA_ID } from '@/lib/auth/empresa-legada'
 import { linhasOuFalha } from '@/lib/supabase/linhas'
 import { LEITURA_MOTIVOS_ADMIN, LEITURA_SENHAS_ACESSO } from '@/lib/queries/formas/admin'
 
@@ -144,32 +145,40 @@ async function lerContasAuth(): Promise<{
 // paginar — e o sintoma seria a contagem do topo parar de crescer.
 export async function listarUsuarios(): Promise<ListaUsuarios> {
   const client = await createClient()
-  const [perfisRes, vinculosRes, contas] = await Promise.all([
+  const [perfisRes, membrosRes, vinculosRes, contas] = await Promise.all([
     // F22: contas APAGADAS somem da tela. O perfil continua na tabela de propósito (é dele
     // que sai a autoria de toda movimentação antiga — ver 0073), mas ele não é mais um
     // usuário do sistema: não loga, não escreve, e listá-lo faria o admin tentar "reativar"
     // alguém cuja conta não existe mais no Auth.
     client
       .from('profiles')
-      .select('id, nome, created_at, papel, ativo')
+      .select('id, nome, created_at')
       .is('excluido_em', null)
       // F29/ADM-03b — do mais RECENTE para o mais antigo. Era `ascending: true`, e
       // quem o admin procura logo depois de convidar é justamente o recém-criado —
       // que ficava no fundo de uma lista sem busca. Ata em docs/DECISOES.md.
       .order('created_at', { ascending: false }),
-    client.from('operador_filiais').select('usuario_id, filial_id'),
+    // F62: o CARGO e a SITUAÇÃO moram na membership da empresa legada — profiles.papel/ativo
+    // congelaram. Uma linha por pessoa (unique (empresa_id, profile_id)).
+    client.from('membros').select('profile_id, papel, ativo').eq('empresa_id', EMPRESA_LEGADA_ID),
+    client.from('operador_filiais').select('usuario_id, filial_id').eq('empresa_id', EMPRESA_LEGADA_ID),
     lerContasAuth(),
   ])
 
-  // Estes dois erros NÃO podem degradar em silêncio: sem perfis a tela mentiria "nenhum
-  // usuário"; sem vínculos, um operador apareceria como se não escrevesse em filial nenhuma
-  // e o admin "corrigiria" gravando por cima.
+  // Estes erros NÃO podem degradar em silêncio: sem perfis a tela mentiria "nenhum
+  // usuário"; sem cargos, mostraria cargo nenhum; sem vínculos, um operador apareceria como
+  // se não escrevesse em filial nenhuma e o admin "corrigiria" gravando por cima.
   if (perfisRes.error) {
     throw new Error(`Falha ao listar usuários: ${perfisRes.error.message}`)
+  }
+  if (membrosRes.error) {
+    throw new Error(`Falha ao listar os cargos: ${membrosRes.error.message}`)
   }
   if (vinculosRes.error) {
     throw new Error(`Falha ao listar as filiais de escrita: ${vinculosRes.error.message}`)
   }
+
+  const membroPorPerfil = new Map((membrosRes.data ?? []).map((m) => [m.profile_id, m]))
 
   const vinculosPorUsuario = new Map<string, number[]>()
   for (const v of vinculosRes.data ?? []) {
@@ -178,19 +187,24 @@ export async function listarUsuarios(): Promise<ListaUsuarios> {
     else vinculosPorUsuario.set(v.usuario_id, [v.filial_id])
   }
 
-  const usuarios = (perfisRes.data ?? []).map((p) => {
+  // Perfil sem membership na empresa legada não é usuário DESTA empresa (e não loga:
+  // papel_atual() devolve NULL). Não acontece hoje — a F62 copiou todo perfil e o
+  // handle_new_user cria a membership —, e a lista não inventa cargo para ele.
+  const usuarios = (perfisRes.data ?? []).flatMap((p) => {
+    const membro = membroPorPerfil.get(p.id)
+    if (!membro) return []
     const conta = contas.porId.get(p.id)
-    return {
+    return [{
       id: p.id,
       nome: p.nome,
       email: conta?.email ?? null,
       created_at: p.created_at,
-      papel: p.papel,
-      ativo: p.ativo,
+      papel: membro.papel,
+      ativo: membro.ativo,
       vinculos: (vinculosPorUsuario.get(p.id) ?? []).sort((a, b) => a - b),
       banido: contas.aviso ? null : (conta?.banido ?? false),
       ultimoAcesso: conta?.ultimoAcesso ?? null,
-    }
+    }]
   })
 
   return { usuarios, avisoAuth: contas.aviso }
@@ -206,16 +220,26 @@ export async function listarUsuarios(): Promise<ListaUsuarios> {
 // (validators) e com `existe_outro_admin_ativo()` (banco, 0074) — as três precisam contar o
 // MESMO conjunto, senão a invariante fica inconsistente entre camadas. E `excluido_em is
 // null` porque uma conta apagada não administra nada.
+// F62: o cargo e a situação vêm da membership da empresa legada (como no banco, 0158); o
+// arquivamento continua sendo da CONTA (profiles). Duas leituras, o mesmo conjunto de antes.
 export async function idsDeAdminsAtivos(): Promise<string[]> {
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('profiles')
-    .select('id')
+  const { data: membros, error } = await admin
+    .from('membros')
+    .select('profile_id')
+    .eq('empresa_id', EMPRESA_LEGADA_ID)
     .in('papel', ['admin', 'dev'])
     .eq('ativo', true)
-    .is('excluido_em', null)
   if (error) throw new Error(`Falha ao conferir os administradores ativos: ${error.message}`)
-  return (data ?? []).map((p) => p.id)
+  const ids = (membros ?? []).map((m) => m.profile_id)
+  if (ids.length === 0) return []
+  const { data: vivos, error: erroVivos } = await admin
+    .from('profiles')
+    .select('id')
+    .in('id', ids)
+    .is('excluido_em', null)
+  if (erroVivos) throw new Error(`Falha ao conferir os administradores ativos: ${erroVivos.message}`)
+  return (vivos ?? []).map((p) => p.id)
 }
 
 // O caminho INVERSO: dado um e-mail, quem é ele no sistema. Devolve null quando não existe
@@ -254,16 +278,25 @@ export async function perfilPorEmail(
   }
   if (!id) return null
 
-  const { data: perfil, error: erroPerfil } = await admin
-    .from('profiles')
-    .select('id, papel, ativo')
-    .eq('id', id)
-    .maybeSingle()
+  // F62: o cargo e a situação vêm da membership da empresa legada (profiles.papel congelou).
+  const [{ data: perfil, error: erroPerfil }, { data: membro, error: erroMembro }] =
+    await Promise.all([
+      admin.from('profiles').select('id').eq('id', id).maybeSingle(),
+      admin
+        .from('membros')
+        .select('papel, ativo')
+        .eq('profile_id', id)
+        .eq('empresa_id', EMPRESA_LEGADA_ID)
+        .maybeSingle(),
+    ])
   if (erroPerfil) throw new Error(`Falha ao ler o perfil: ${erroPerfil.message}`)
-  // Conta sem perfil não deveria existir (o trigger cria). Se acontecer, devolver null diria
-  // "não há conta", que é falso — o cargo é desconhecido, e o chamador tem de tratar isso.
+  if (erroMembro) throw new Error(`Falha ao ler o cargo: ${erroMembro.message}`)
+  // Conta sem perfil (ou sem cargo) não deveria existir (o trigger cria os dois). Se
+  // acontecer, devolver null diria "não há conta", que é falso — o cargo é desconhecido, e o
+  // chamador tem de tratar isso.
   if (!perfil) throw new Error('Conta de acesso sem perfil no sistema.')
-  return { id: perfil.id, papel: perfil.papel, ativo: perfil.ativo }
+  if (!membro) throw new Error('Conta de acesso sem cargo no sistema.')
+  return { id: perfil.id, papel: membro.papel, ativo: membro.ativo }
 }
 
 // E-mail de login de uma conta, ou null se o Auth não respondeu / a conta não existe mais.
@@ -288,26 +321,36 @@ export type EstadoUsuario = {
 
 export async function getEstadoUsuario(id: string): Promise<EstadoUsuario | null> {
   const admin = createAdminClient()
-  const [{ data: perfil, error: erroPerfil }, { data: vinculos, error: erroVinculos }] =
-    await Promise.all([
-      // F22: `excluido_em is null` — uma conta apagada não é alvo de nada (as RPCs da 0074
-      // também a recusam; aqui a recusa vira "Usuário não encontrado", que é a verdade
-      // do ponto de vista da tela).
-      admin
-        .from('profiles')
-        .select('id, papel, ativo, nome')
-        .eq('id', id)
-        .is('excluido_em', null)
-        .maybeSingle(),
-      admin.from('operador_filiais').select('filial_id').eq('usuario_id', id),
-    ])
+  const [
+    { data: perfil, error: erroPerfil },
+    { data: membro, error: erroMembro },
+    { data: vinculos, error: erroVinculos },
+  ] = await Promise.all([
+    // F22: `excluido_em is null` — uma conta apagada não é alvo de nada (as RPCs da 0074
+    // também a recusam; aqui a recusa vira "Usuário não encontrado", que é a verdade
+    // do ponto de vista da tela).
+    admin.from('profiles').select('id, nome').eq('id', id).is('excluido_em', null).maybeSingle(),
+    // F62: o cargo, a situação e os vínculos são da membership da empresa legada.
+    admin
+      .from('membros')
+      .select('papel, ativo')
+      .eq('profile_id', id)
+      .eq('empresa_id', EMPRESA_LEGADA_ID)
+      .maybeSingle(),
+    admin
+      .from('operador_filiais')
+      .select('filial_id')
+      .eq('usuario_id', id)
+      .eq('empresa_id', EMPRESA_LEGADA_ID),
+  ])
   if (erroPerfil) throw new Error(`Falha ao ler o usuário: ${erroPerfil.message}`)
+  if (erroMembro) throw new Error(`Falha ao ler o cargo do usuário: ${erroMembro.message}`)
   if (erroVinculos) throw new Error(`Falha ao ler as filiais do usuário: ${erroVinculos.message}`)
-  if (!perfil) return null
+  if (!perfil || !membro) return null
   return {
     id: perfil.id,
-    papel: perfil.papel,
-    ativo: perfil.ativo,
+    papel: membro.papel,
+    ativo: membro.ativo,
     nome: perfil.nome,
     vinculos: (vinculos ?? []).map((v) => v.filial_id).sort((a, b) => a - b),
   }

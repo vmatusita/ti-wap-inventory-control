@@ -71,9 +71,10 @@ begin
     (k_outro,    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'f28.outrafilial@wap.ind.br', '', now(), now(), now());
 
-  update public.profiles set papel = 'admin'    where id = k_admin;
-  update public.profiles set papel = 'operador' where id = k_operador;
-  update public.profiles set papel = 'operador' where id = k_outro;
+  -- F62: o cargo é plantado em membros
+  perform pg_temp.plantar_cargo(k_admin, 'admin');
+  perform pg_temp.plantar_cargo(k_operador, 'operador');
+  perform pg_temp.plantar_cargo(k_outro, 'operador');
 
   -- `k_operador` escreve na filial da pendência; `k_outro`, na OUTRA.
   insert into public.operador_filiais (usuario_id, filial_id) values

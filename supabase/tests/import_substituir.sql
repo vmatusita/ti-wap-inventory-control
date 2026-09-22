@@ -145,9 +145,9 @@ begin
   -- desde a 0070) — e aí toda guarda de cargo recusava com 42501, num roteiro que
   -- passava verde ontem. É a mesma classe de não-determinismo da pendência nº 5 da
   -- F37, só que em quem o roteiro escolhe como autor.
-  select id into v_prof from public.profiles
-   where ativo and excluido_em is null
-   order by created_at, id limit 1;
+  -- F62: o cargo/status vivem em membros — o ajudante replica a mesma régua
+  -- (perfil não arquivado com membership ativa na empresa legada, mais antigo).
+  v_prof := pg_temp.perfil_ativo_mais_antigo();
   if v_prof is null then
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar este roteiro';
   end if;
@@ -163,7 +163,7 @@ begin
   -- Promover o perfil de teste é o certo, e não afrouxar a guarda: o import É operação de
   -- administrador desde a F21, então o roteiro tem de rodar como um. Dentro de
   -- `begin; … rollback;` — nada sobra.
-  update public.profiles set papel = 'admin' where id = v_prof;
+  perform pg_temp.plantar_cargo(v_prof, 'admin');  -- F62: o cargo é plantado em membros
 
   -- contexto de operador (auth.uid() lê request.jwt.claims->>'sub')
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof)::text, true);
