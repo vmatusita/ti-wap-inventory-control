@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.67.0',
+    data: '2026-09-22',
+    fase: 'F62',
+    titulo: 'O cargo de cada pessoa passou a ser guardado dentro da empresa em que ela trabalha, sem mudar o acesso de ninguém',
+    mudancas: [
+      'Nada muda na tela. Cada pessoa continua vendo e fazendo exatamente o que via e fazia antes: os mesmos cargos (Desenvolvedor, Administrador, Operador e Consulta), as mesmas filiais para registrar movimentações e a mesma leitura de tudo para quem está ativo.',
+      'Por dentro: o sistema passou a guardar o cargo e a situação (ativa ou desativada) de cada pessoa dentro da empresa em que ela trabalha, que hoje é só a WAP. É o primeiro passo para o mesmo sistema atender mais de uma empresa, cada uma com a sua equipe, sem que uma enxergue a outra.',
+      'Trocar o cargo, ativar ou desativar uma conta, mudar as filiais de um operador e apagar uma conta continuam em Administração → Usuários, com o mesmo efeito de antes: a mudança vale já no próximo clique da pessoa, sem ela precisar sair e entrar de novo.',
+      'A proteção das contas de Desenvolvedor continua a mesma: ninguém abaixo delas consegue mudar o cargo, desativar ou apagar essas contas, agora também no lugar novo em que o cargo é guardado.',
+      'Para ter certeza de que ninguém mudou de acesso, o acesso de cada conta foi registrado antes e depois da mudança, na cópia de testes e na do dia a dia, e os dois registros saíram idênticos.',
+    ],
+  },
+  {
     versao: '1.66.7',
     data: '2026-09-22',
     titulo: 'Assinaturas e service tag deixaram de gravar em dobro com dois cliques ao mesmo tempo',
