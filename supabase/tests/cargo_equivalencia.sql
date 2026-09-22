@@ -12,6 +12,8 @@
 --   2 — e_admin(), e_dev(), pode_escrever() (derivadas do papel)
 --   3 — pode_escrever_filial(f) para a filial vinculada, outra filial e NULL
 --   4 — existe_outro_admin_ativo(<a própria pessoa>)
+--  4b — a mesma trava onde ela responde "não": UM só admin ativo, os outros desativados
+--        ou arquivados (sem ele, a grade sempre tinha admin de sobra e a resposta era `true`)
 --   5 — a PONTE com DUAS memberships (só existe depois da 0152: empresa B fictícia)
 --
 -- O CORPO ANTIGO mora em `pg_temp` (`*_f61`), copiado VERBATIM do arquivo vigente antes
@@ -148,6 +150,8 @@ declare
   v_c3 bigint := 0; v_m3 bigint := 0; v_l3 text := '';
   v_c4 bigint := 0; v_m4 bigint := 0; v_l4 text := '';
   v_c5 bigint := 0; v_m5 bigint := 0; v_l5 text := '';
+  v_unico uuid;
+  v_n4b   bigint;
 
   v_antigo text;
   v_vivo   text;
@@ -323,6 +327,36 @@ begin
   end if;
 
   perform set_config('request.jwt.claims', '', true);
+
+  -- 4b — a trava do ÚLTIMO administrador, onde ela responde "não". Na grade acima sobram
+  -- sempre vários admin/dev ativos, e a resposta é `true` para todo mundo — uma trava que
+  -- passasse a contar conta DESATIVADA (ou arquivada) responderia igual e ninguém veria (o
+  -- injetor da F62 mostrou: a mutação `f62-outro-admin-conta-inativo` passava). Aqui fica UM
+  -- só admin ativo e vivo; os demais admin/dev da grade continuam existindo, mas desativados
+  -- ou arquivados. Antigo e vivo têm de responder `false` — e iguais.
+  v_unico := v_ids[array_position(v_rots, 'admin|ativo|vivo|sem vinculo')];
+  perform set_config('estoque.gestao_usuarios', 'on', true);
+  update public.profiles set ativo = false  -- F62/cargo-congelado: corpo antigo
+   where papel in ('dev', 'admin') and ativo and excluido_em is null and id <> v_unico;
+  if v_tem_membros then
+    update public.membros set ativo = false
+     where papel in ('dev', 'admin') and ativo and profile_id <> v_unico
+       and empresa_id = public.empresa_legada();
+  end if;
+  perform set_config('estoque.gestao_usuarios', 'off', true);
+  -- o cenário não é vazio: há admin/dev DESATIVADO e admin/dev ARQUIVADO-mas-ativo na grade
+  select count(*) into v_n4b
+    from unnest(v_rots) r
+   where r like any (array['admin|inativo|vivo|%', 'dev|inativo|vivo|%', 'admin|ativo|arquivado|%', 'dev|ativo|arquivado|%']);
+  v_antigo := coalesce(pg_temp.existe_outro_admin_ativo_f61(v_unico)::text, '∅');
+  v_vivo   := coalesce(public.existe_outro_admin_ativo(v_unico)::text, '∅');
+  if pg_temp.assert_zero_de('4b existe_outro_admin_ativo com UM só admin ativo e os outros desativados ou arquivados: antigo = vivo = false' ||
+       case when v_antigo is distinct from v_vivo or v_antigo <> 'false'
+            then ' — antigo=' || v_antigo || ' vivo=' || v_vivo || ' (' || v_n4b || ' admin/dev fora do jogo na grade)'
+            else '' end,
+       case when v_antigo is distinct from v_vivo or v_antigo <> 'false' then 1 else 0 end,
+       case when v_n4b >= 8 then 1 else 0 end) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   if pg_temp.assert_zero_de('1 papel_atual(): antigo = vivo em toda a grade' ||
        case when v_m1 > 0 then ' —' || v_l1 else '' end, v_m1, v_c1) then

@@ -2668,7 +2668,7 @@ const F62_CARGO = [
     id: 'f62-outro-admin-conta-inativo',
     roteiro: 'cargo_equivalencia.sql',
     classe: 'guarda-afrouxada',
-    derruba: ['4'],
+    derruba: ['4b'],
     porque:
       'A trava do último administrador passa a contar memberships DESATIVADAS: com o único admin ativo e um desativado, ela responde que "sobra outro", e o sistema deixa rebaixar ou desativar a última conta de nível administrador — trancando /admin para todo mundo.',
     sql: mutarFuncao(
