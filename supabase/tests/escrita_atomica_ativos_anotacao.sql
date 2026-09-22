@@ -43,6 +43,17 @@
 --  12. p_alterar_pendencia = false NÃO regrava a pendência: "definir service tag" e depois
 --      "corrigir patrimônio" no mesmo ativo — a regressão que a revisão adversarial pegou na
 --      primeira versão da 0149, que regravava a coluna sempre com o valor lido antes
+--
+-- O QUE PROVA DESDE A 0151 (revisão de código de 22/09/2026) — a pré-condição no WHERE, o
+-- "segundo clique" de duas escritas simultâneas visto do lado de quem chega depois:
+--  13. definir_service_tag_com_anotacao — service tag JÁ preenchida recusa (P0001), não
+--      sobrescreve e não anota
+--  14. confirmar_assinatura_termo_com_anotacao — termo JÁ 'sim' recusa (P0001), não mexe na
+--      data e não anota de novo
+--  15. desfazer_confirmacao_termo_com_anotacao — termo que JÁ NÃO é 'sim' recusa (P0001), não
+--      mexe no status e não anota
+--  16. a ordem das causas: fora do vínculo continua sendo P0002 (a recusa de sempre), mesmo
+--      quando a pré-condição também não vale
 -- =============================================================================
 
 begin;
@@ -72,6 +83,10 @@ declare
   v_ativo4     uuid;  -- corrigir patrimonio: filial v_f2 (operador sem vínculo / consulta)
   v_ativo_st   uuid;  -- definir service tag: sucesso
   v_ativo12    uuid;  -- p_alterar_pendencia = false preserva a pendência (cenário 12)
+  v_ativo13    uuid;  -- 0151: service tag já preenchida (cenário 13)
+  v_ativo14    uuid;  -- 0151: termo já 'sim' (cenário 14)
+  v_ativo15    uuid;  -- 0151: termo já não é 'sim' (cenário 15)
+  v_ativo16    uuid;  -- 0151: fora do vínculo E com service tag (cenário 16)
   v_ativo_ct   uuid;  -- confirmar assinatura termo: sucesso
   v_ativo_dt   uuid;  -- desfazer confirmacao termo: sucesso
   v_lote_a     uuid;  -- lote: pendente, filial v_f1 (cenário 9)
@@ -480,6 +495,116 @@ begin
   else
     v_falhas := v_falhas + 1;
     raise warning '✗ 12 patrimonio=% pendencia=% notas=% — esperava WAP0009294 / termo pendente / 2', v_pat, v_pend, v_cnt_nota;
+  end if;
+
+  -- =========================================================================
+  -- 13..16 — 0151: a pré-condição reconferida no banco (o "segundo clique")
+  -- =========================================================================
+  -- Cada fixture já nasce no estado que a PRIMEIRA de duas escritas simultâneas deixaria; a
+  -- chamada é a SEGUNDA, que passou pela leitura da action antes de a primeira gravar.
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
+  values ('WAP0009215', 'SVCJA13', 'notebook', v_f1)
+  returning id into v_ativo13;
+  insert into public.ativos (patrimonio, categoria, filial_id, termo_assinado, termo_data)
+  values ('WAP0009216', 'notebook', v_f1, 'sim', '2026-01-02')
+  returning id into v_ativo14;
+  insert into public.ativos (patrimonio, categoria, filial_id, termo_assinado)
+  values ('WAP0009217', 'notebook', v_f1, 'gerado')
+  returning id into v_ativo15;
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
+  values ('WAP0009218', 'SVCJA16', 'notebook', v_f2)
+  returning id into v_ativo16;
+
+  -- 13 — service tag já preenchida
+  set local role authenticated;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  v_msg := null;
+  begin
+    perform public.definir_service_tag_com_anotacao(v_ativo13, 'SVCOUTRA13', '', false, 'não deveria gravar');
+    v_msg := 'NAO_RECUSOU';
+  exception when others then
+    v_msg := sqlstate || ' ' || sqlerrm;
+  end;
+  reset role;
+  select count(*) into v_cnt_nota from public.anotacoes where ativo_id = v_ativo13;
+  if v_msg like 'P0001 %acabou de ser definida%'
+     and (select service_tag from public.ativos where id = v_ativo13) = 'SVCJA13'
+     and v_cnt_nota = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 13 definir_service_tag: service tag já preenchida recusa (P0001), não sobrescreve e não anota';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 13 definir_service_tag segundo clique — msg=% service_tag=% notas=%',
+      v_msg, (select service_tag from public.ativos where id = v_ativo13), v_cnt_nota;
+  end if;
+
+  -- 14 — termo já 'sim'
+  set local role authenticated;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  v_msg := null;
+  begin
+    perform public.confirmar_assinatura_termo_com_anotacao(v_ativo14, '2026-09-22'::date, 'não deveria gravar');
+    v_msg := 'NAO_RECUSOU';
+  exception when others then
+    v_msg := sqlstate || ' ' || sqlerrm;
+  end;
+  reset role;
+  select count(*) into v_cnt_nota from public.anotacoes where ativo_id = v_ativo14;
+  if v_msg like 'P0001 %acabou de ser confirmado%'
+     and (select termo_data from public.ativos where id = v_ativo14) = '2026-01-02'::date
+     and v_cnt_nota = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 14 confirmar_assinatura_termo: termo já sim recusa (P0001), não mexe na data e não anota de novo';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 14 confirmar_assinatura_termo segundo clique — msg=% termo_data=% notas=%',
+      v_msg, (select termo_data from public.ativos where id = v_ativo14), v_cnt_nota;
+  end if;
+
+  -- 15 — termo que já não é 'sim'
+  set local role authenticated;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  v_msg := null;
+  begin
+    perform public.desfazer_confirmacao_termo_com_anotacao(v_ativo15, 'nao'::public.termo_status, 'não deveria gravar');
+    v_msg := 'NAO_RECUSOU';
+  exception when others then
+    v_msg := sqlstate || ' ' || sqlerrm;
+  end;
+  reset role;
+  select count(*) into v_cnt_nota from public.anotacoes where ativo_id = v_ativo15;
+  if v_msg like 'P0001 %acabou de ser desfeita%'
+     and (select termo_assinado from public.ativos where id = v_ativo15) = 'gerado'
+     and v_cnt_nota = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 15 desfazer_confirmacao_termo: termo que já não é sim recusa (P0001), não mexe no status e não anota';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 15 desfazer_confirmacao_termo segundo clique — msg=% termo_assinado=% notas=%',
+      v_msg, (select termo_assinado from public.ativos where id = v_ativo15), v_cnt_nota;
+  end if;
+
+  -- 16 — fora do vínculo vence a pré-condição: P0002, a recusa de sempre
+  set local role authenticated;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  v_msg := null;
+  begin
+    -- v_ativo16 é da v_f2 (k_operador só escreve na v_f1) E já tem service tag.
+    perform public.definir_service_tag_com_anotacao(v_ativo16, 'SVCOUTRA16', '', false, 'não deveria gravar');
+    v_msg := 'NAO_RECUSOU';
+  exception when others then
+    v_msg := sqlstate;
+  end;
+  reset role;
+  select count(*) into v_cnt_nota from public.anotacoes where ativo_id = v_ativo16;
+  if v_msg = 'P0002'
+     and (select service_tag from public.ativos where id = v_ativo16) = 'SVCJA16'
+     and v_cnt_nota = 0 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 16 fora do vínculo continua P0002 mesmo com a pré-condição também violada';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 16 ordem das causas — sqlstate=% notas=%', v_msg, v_cnt_nota;
   end if;
 
   raise notice 'FIM escrita_atomica_ativos_anotacao: % asserções, % falhas', v_ok + v_falhas, v_falhas;

@@ -63,15 +63,27 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.foraDoVinculoNadaGravado)) {
     return 'Este ativo não foi encontrado ou saiu do seu vínculo de filial enquanto você salvava. Nada foi gravado — atualize a página e tente de novo.'
   }
+  // 0151 (revisão de código de 22/09/2026) — as três singulares com pré-condição a reconferem no
+  // WHERE do UPDATE. Quando outra escrita fez a mesma coisa um instante antes (dois cliques, duas
+  // abas, duas pessoas), a segunda recusa (P0001) em vez de sobrescrever e anotar em dobro.
+  if (casa(m, MSG_SQL.serviceTagAcabouDeSerDefinida)) {
+    return 'A service tag deste ativo acabou de ser definida, por outra pessoa ou em outra aba, enquanto você salvava. Nada foi gravado — atualize a página para ver a que ficou.'
+  }
+  if (casa(m, MSG_SQL.termoAcabouDeSerConfirmado)) {
+    return 'Este termo acabou de ser confirmado como assinado, por outra pessoa ou em outra aba. Nada foi gravado de novo — atualize a página.'
+  }
+  if (casa(m, MSG_SQL.confirmacaoAcabouDeSerDesfeita)) {
+    return 'A confirmação deste termo acabou de ser desfeita, por outra pessoa ou em outra aba. Nada foi gravado de novo — atualize a página.'
+  }
   // A QUINTA, o lote (`confirmar_assinatura_lote_com_anotacoes`), recusa com 42501 e frase
-  // própria quando o UPDATE confirma menos termos do que a contagem feita logo antes. Sem este
-  // ramo ela caía no genérico de 42501 ("seu cargo ou suas filiais não permitem"), falso para
-  // quem tem o cargo e o vínculo certos. A frase cita as duas causas possíveis: um termo saiu do
-  // vínculo, OU outra pessoa confirmou parte do lote no mesmo instante (a contagem e o UPDATE são
-  // dois comandos, e a confirmação concorrente cai entre eles — pendência de migration na ata de
-  // 22/09/2026 da revisão de código). Vem ANTES do genérico de 42501, como os ramos da F22/F23.
+  // própria quando algum termo pedido CONTINUA pendente depois do UPDATE — a RLS o barrou, porque
+  // ele saiu do vínculo de quem confirma entre a leitura da tela e a gravação (a action confere o
+  // vínculo antes). Sem este ramo ela caía no genérico de 42501 ("seu cargo ou suas filiais não
+  // permitem"), falso para quem tem o cargo certo. Desde a 0151 a confirmação concorrente de
+  // outra aba já não dispara esta recusa (é idempotente). Vem ANTES do genérico de 42501, como os
+  // ramos da F22/F23.
   if (casa(m, MSG_SQL.loteForaDoVinculo)) {
-    return 'O lote não foi confirmado: um ou mais termos saíram do seu vínculo de filial, ou foram confirmados por outra pessoa, enquanto você confirmava. Nada foi confirmado — atualize a página e tente de novo.'
+    return 'O lote não foi confirmado: um ou mais termos saíram do seu vínculo de filial enquanto você confirmava. Nada foi confirmado — atualize a página e tente de novo.'
   }
   if (casa(m, MSG_SQL.ajusteExige)) {
     return 'O ajuste exige o status resultante e uma justificativa (observação).'

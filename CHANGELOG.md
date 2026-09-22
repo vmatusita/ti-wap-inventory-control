@@ -10,13 +10,22 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 Entrega avulsa (**v1.66.7**). A passada de revisão de código (`/code-review`, xhigh, dez lentes) sobre tudo o que
 entrou desde a última revisão (`d89c6f0..af5cc7e`: passos 1 a 5 da reauditoria, 81 arquivos de código). Foram 7
-achados: 5 aplicados e 2 que dependem de migration nova e ficam pendentes, com o motivo. **Sem migration e sem
-dependência nova.** Ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+achados, **os 7 aplicados**. **Com migration `0151`** (recria quatro funções da 0149, sem tocar em dado), aplicada no
+ensaio e em produção antes do merge. Sem dependência nova. Ata em [`docs/DECISOES.md`](docs/DECISOES.md).
 
 - 🐞 **A recusa da confirmação em lote ganhou frase própria.** `confirmar_assinatura_lote_com_anotacoes` (0149) recusa
   com 42501 e caía no genérico "seu cargo ou suas filiais não permitem", o que é falso para quem tem cargo e vínculo
   certos, e contradizia a v1.66.3 ("vários de uma vez"). Novo ramo `MSG_SQL.loteForaDoVinculo`, antes do genérico, com
-  teste. A frase cita também a confirmação concorrente, que é a outra causa possível (ver a pendência abaixo).
+  teste.
+- 🐞 **`0151`: a confirmação concorrente deixou de recusar o lote inteiro.** A 0149 contava os pendentes num SELECT e
+  só depois fazia o UPDATE, em dois comandos com snapshots diferentes; outra aba confirmando no meio-tempo fazia a
+  conta não bater, e a função recusava tudo como "fora do vínculo". Agora a pergunta é feita DEPOIS do UPDATE: quem
+  continua pendente foi barrado pela RLS, e quem outra sessão confirmou já é `sim`.
+- 🐞 **`0151`: as três escritas singulares reconferem a pré-condição no `WHERE`.** Definir a service tag ("só quando
+  vazia"), confirmar ("ainda não é sim") e desfazer ("é sim") gravavam sempre: dois cliques simultâneos sobrescreviam e
+  deixavam duas anotações imutáveis, uma falsa. A segunda chamada recusa agora com P0001 e frase nova, traduzida no app.
+  O ativo fora do vínculo continua P0002, com a recusa de sempre. Cenários 13–16 no roteiro
+  `escrita_atomica_ativos_anotacao.sql`, e uma mutação por guarda no injetor (o lote chega a 105, o teto).
 - 🐞 **Sonda de deriva: migration nova com nome repetido deixou de passar por aplicada.** A ambiguidade de nome era
   medida só entre os arquivos ≥ 0146, e um `0151_profiles.sql` casaria com a linha `profiles` da 0001 no ledger. A
   sonda ficaria verde para sempre. Agora a contagem olha o repositório inteiro, o caso vira `nome_duplicado`, e o
@@ -25,9 +34,6 @@ dependência nova.** Ata em [`docs/DECISOES.md`](docs/DECISOES.md).
   igual ao merge. O erro possível é alarmar cedo, nunca calar. Mais três comentários que diziam coisa errada foram
   corrigidos: o de `erros.ts` ("as cinco recusam P0002", quando são quatro) e dois testes que citavam o projeto Vitest
   errado.
-- 🚧 **Pendentes (precisam de migration, e esta sessão não tinha conector do banco):** a contagem do lote antes do UPDATE
-  (confirmação concorrente recusa o lote inteiro) e as três RPCs singulares da 0149 que não reconferem a pré-condição
-  no `WHERE`. As duas corridas já existiam antes da 0149.
 
 ## 22/09/2026 — Passo 5 da reauditoria: as decisões do Johnny ✅
 

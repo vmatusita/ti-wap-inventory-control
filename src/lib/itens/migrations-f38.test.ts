@@ -179,6 +179,10 @@ const DA_F38 = [
   // (intocável) numa orquestradora fina sobre seis auxiliares `movimentacao_*`, pela receita da
   // F51. Entra pela exceção nominal `RECRIACOES_AUTORIZADAS`, e as seis entram em INTOCAVEIS.
   '0150',
+  // Revisão de código de 22/09/2026 (v1.66.7) — a `0151` recria QUATRO das cinco escritas
+  // atômicas da `0149` (nenhuma é intocável) para reconferir a pré-condição no WHERE do UPDATE.
+  // Sem enum, sem DELETE/UPDATE de topo.
+  '0151',
 ]
 
 /**
