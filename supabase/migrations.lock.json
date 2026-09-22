@@ -159,6 +159,7 @@
     "0154_plataforma_admins.sql": "58341a11d392e720e0ca62cce6161b18526d7cc8c6fc37090ee8ba0c5f31d622",
     "0155_filiais_empresa.sql": "353f311bcaa648dab79017e5aafe0272d52bf629077913f53d4b3188eea21b89",
     "0156_vinculo_por_membership.sql": "997d3913caafe776b54c7d2024d643774b6d8b9953daa117abf61ccb066be87e",
-    "0157_funcoes_de_conjunto.sql": "e671a7a76244a824862073e8529b5efc1609a009d1c2f154b83ff70c9bf6350f"
+    "0157_funcoes_de_conjunto.sql": "e671a7a76244a824862073e8529b5efc1609a009d1c2f154b83ff70c9bf6350f",
+    "0158_cargo_em_membros.sql": "2fe80c5898532879ba7fee1418174650b8d80e016d41657b04faa86356a8f695"
   }
 }
