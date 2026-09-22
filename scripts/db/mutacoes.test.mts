@@ -60,6 +60,9 @@ const ROTEIROS_DA_FICHA = [
   'dev_destrutivo.sql',
   'import_substituir.sql',
   'conflito_filiais.sql',
+  // F62 (22/09/2026): o isolamento A↔B passou a existir e a ter mutação que o derruba — a
+  // primeira vez que `isolamento_tenant.sql` é alvo do injetor (fato 17 da ordem F62).
+  'isolamento_tenant.sql',
 ]
 
 function fonteDoRoteiro(nome: string): string {
@@ -100,7 +103,18 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 105 mutações ATIVAS', () => {
+  it('tem entre 20 e 124 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 105 PARA 124 NA F62 (22/09/2026), no número EXATO — é o que a ordem da
+    // fase pede. A F62 criou ou reescreveu as funções de autorização do cargo (a ponte de
+    // papel_atual, as quatro de conjunto, e_plataforma, a guarda do dev em membros, as RPCs de
+    // conta) e a régua da F51/F59 vale igual: UMA mutação por função de autorização criada ou
+    // reescrita, cada uma derrubada por cenário nomeado. Dezenove (`F62_CARGO`): as quatro de
+    // conjunto, e_plataforma, a ponte em três eixos (arquivamento, desativação, empresa),
+    // pode_escrever_filial, existe_outro_admin_ativo, exigir_gestao_de, a guarda do dev em
+    // membros, o handle_new_user, as três escritoras voltando à coluna congelada,
+    // profiles_guarda_dev esquecendo a membership, o `force` em membros e a FK composta do
+    // vínculo. 105 + 19 = 124. Quarentena: 2 de 126, longe de um terço.
+    //
     // ⚠ O TETO SUBIU DE 95 PARA 105 NA REAUDITORIA, PASSO 4 (21/09/2026, item AG). A `0150`
     // decompôs `aplicar_movimentacao` em SEIS auxiliares, e a leitura de cobertura da fase
     // achou quatro blocos do gatilho que roteiro nenhum exercitava (estorno sem `estorno_de`,
@@ -262,7 +276,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(105)
+    expect(MUTACOES.length).toBeLessThanOrEqual(124)
   })
 
   it('os `id` são únicos', () => {
