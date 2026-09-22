@@ -23,6 +23,15 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.7',
+    data: '2026-09-22',
+    titulo: 'A confirmação de assinatura em lote passou a explicar por que foi recusada',
+    mudancas: [
+      '"Confirmar assinatura" de vários termos de uma vez, em Pendências, passou a explicar a recusa quando um dos termos sai do seu vínculo de filial, ou é confirmado por outra pessoa, no instante em que você confirma: a tela diz que nada foi confirmado e pede para atualizar a página. Antes ela dizia que o seu cargo ou as suas filiais não permitiam a operação, o que não era verdade para quem tem o acesso certo.',
+      'Por dentro, sem efeito na tela: a verificação diária de saúde do sistema, que confere se toda mudança de estrutura do banco de dados publicada também foi aplicada, deixou de dar por aplicada uma mudança nova que tenha o mesmo nome de uma antiga. Nesse caso ela passa a avisar a equipe para trocar o nome.',
+    ],
+  },
+  {
     versao: '1.66.6',
     data: '2026-09-22',
     titulo: 'As cores dos gráficos ganharam uma conferência automática, e os formulários mais longos, um ensaio de uso real',

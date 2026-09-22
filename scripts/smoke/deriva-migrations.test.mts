@@ -292,6 +292,27 @@ describe('avaliarDerivaMigrations — o contrato (P) e (D)', () => {
     expect(r.pendentes).not.toContain('0150_ledger_de_migracoes.sql')
   })
 
+  // Revisão de código de 22/09/2026: a contagem de ambiguidade olhava só os vigiados, e o nome
+  // de uma migration NOVA que repetisse o de uma anterior à base casava com a linha antiga do
+  // ledger — dada como aplicada, sem nunca ter sido, com a sonda verde para sempre.
+  it('vigiado que repete o nome de uma migration ANTERIOR à base: alarme, nunca "aplicado"', () => {
+    const r = avaliarDerivaMigrations({
+      arquivosRepo: [...REPO, '0150_profiles.sql'],
+      ledger: [
+        aplicada('20260918200300', 'escrita_atomica_ativos_anotacao'),
+        aplicada('20260918200200', 'ledger_de_migracoes'),
+        aplicada('20260918200100', 'drop_itens_nome_uidx'),
+        ...LEDGER_ATE_A_BASE,
+      ],
+      agora: AGORA,
+    })
+    expect(r.ok).toBe(false)
+    const achado = r.achados.find((a) => a.chave === 'deriva_migrations:nome_duplicado:profiles')
+    expect(achado?.motivo).toContain('0001_profiles.sql, 0150_profiles.sql')
+    expect(r.pendentes).not.toContain('0150_profiles.sql')
+    expect(r.ultimaNoLedger?.arquivo).not.toBe('0150_profiles.sql')
+  })
+
   it('nome duplicado SÓ no histórico (antes da base) não alarma', () => {
     const r = avaliarDerivaMigrations({
       arquivosRepo: [...REPO, '0100_profiles.sql'],

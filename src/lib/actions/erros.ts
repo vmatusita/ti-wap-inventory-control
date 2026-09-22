@@ -56,12 +56,22 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.estornoComPendenciaResolvida)) {
     return 'Esta devolução não pode ser estornada: a pendência de item que ela abriu já foi resolvida no estoque de itens. Para corrigir o estado do equipamento, registre um ajuste com justificativa.'
   }
-  // Reauditoria 18/09/2026 (item U, 0149): as cinco escritas atômicas "ativos + anotação"
-  // recusam (P0002) quando o UPDATE não alcança linha nenhuma — o ativo sumiu, ou saiu do
-  // vínculo de filial de quem salva, entre a leitura da tela e a gravação. A action já confere
+  // Reauditoria 18/09/2026 (item U, 0149): as QUATRO escritas atômicas singulares "ativos +
+  // anotação" recusam (P0002) quando o UPDATE não alcança linha nenhuma — o ativo sumiu, ou saiu
+  // do vínculo de filial de quem salva, entre a leitura da tela e a gravação. A action já confere
   // as duas coisas antes; isto é a corrida entre a conferência e a gravação, e nada foi gravado.
   if (casa(m, MSG_SQL.foraDoVinculoNadaGravado)) {
     return 'Este ativo não foi encontrado ou saiu do seu vínculo de filial enquanto você salvava. Nada foi gravado — atualize a página e tente de novo.'
+  }
+  // A QUINTA, o lote (`confirmar_assinatura_lote_com_anotacoes`), recusa com 42501 e frase
+  // própria quando o UPDATE confirma menos termos do que a contagem feita logo antes. Sem este
+  // ramo ela caía no genérico de 42501 ("seu cargo ou suas filiais não permitem"), falso para
+  // quem tem o cargo e o vínculo certos. A frase cita as duas causas possíveis: um termo saiu do
+  // vínculo, OU outra pessoa confirmou parte do lote no mesmo instante (a contagem e o UPDATE são
+  // dois comandos, e a confirmação concorrente cai entre eles — pendência de migration na ata de
+  // 22/09/2026 da revisão de código). Vem ANTES do genérico de 42501, como os ramos da F22/F23.
+  if (casa(m, MSG_SQL.loteForaDoVinculo)) {
+    return 'O lote não foi confirmado: um ou mais termos saíram do seu vínculo de filial, ou foram confirmados por outra pessoa, enquanto você confirmava. Nada foi confirmado — atualize a página e tente de novo.'
   }
   if (casa(m, MSG_SQL.ajusteExige)) {
     return 'O ajuste exige o status resultante e uma justificativa (observação).'

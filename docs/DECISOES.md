@@ -12920,3 +12920,40 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   própria, nunca atalho na ficha" e "scripts de design nunca tocam o banco" subiram para a raiz na revisão final.
 - **Motivo:** a regra que importa disputava atenção com o histórico de por que ela existe (item AF). A cronologia continua
   onde sempre esteve: nas atas desta página e nas emendas do ADR-002.
+
+## 2026-09-22 · Revisão de código (v1.66.7) · o intervalo v1.66.1 → v1.66.6: 7 achados, 5 aplicados
+
+- **Contexto.** A última passada de `/code-review` foi a de 18/09 (v1.66.1, `d89c6f0`). O Johnny pediu a skill sobre
+  tudo o que entrou depois dela, com correção autônoma e sem perguntas: `d89c6f0..af5cc7e`, 81 arquivos de código
+  (migrations 0147–0150, as cinco escritas atômicas, a sonda de deriva, o injetor, a caixa âmbar por token, o portão
+  de ΔE, o projeto Vitest `dom`), fora os documentos. Dez lentes em xhigh, sem verificador. A 0150 foi conferida contra
+  o corpo da 0146 trecho a trecho, e o código só foi movido: a ordem das recusas, os dois UPDATEs de um statement e a
+  ordem das escritas batem.
+- **Decisão 1 — a recusa do lote ganhou ramo próprio, e a frase cita as DUAS causas.** A quinta RPC da 0149 levanta
+  42501 com "fora do seu vínculo de filial" e caía no genérico de permissão ("seu cargo ou suas filiais não permitem"),
+  falso para quem tem cargo e vínculo, e em contradição com a v1.66.3, que anunciou a frase "nada foi gravado" para
+  "vários de uma vez". `MSG_SQL.loteForaDoVinculo` vem antes do genérico, como os ramos da F22/F23. **Motivo de citar a
+  concorrência:** a contagem de esperados e o UPDATE são dois comandos (Decisão 3), e uma confirmação de outra aba
+  entre eles dispara a mesma recusa. Enquanto a migration não vem, a frase não pode dizer só "vínculo".
+- **Decisão 2 — a ambiguidade de nome da sonda de deriva olha o repositório INTEIRO.** Um arquivo ≥ 0146 cujo
+  nome-sem-prefixo repete o de uma migration anterior à base casava com a linha antiga do ledger (`profiles` da 0001) e
+  saía como aplicado, com a sonda verde para sempre. Agora o caso é `nome_duplicado` sempre que um dos arquivos que
+  colidem é vigiado, e o arquivo sai de `pendentes` e de `aplicados`. Dois arquivos repetidos só no histórico continuam
+  fora (o teste que já existia segue valendo). Medido: hoje nenhum nome se repete em `supabase/migrations/`.
+- **Decisão 3 — NÃO aplicados, porque exigem migration e esta sessão não tinha conector do banco.** Uma migration sem
+  apply dispararia a própria sonda de deriva em 24 h. Os dois ficam para a próxima entrega com banco:
+  - `confirmar_assinatura_lote_com_anotacoes` conta `v_esperados` num SELECT antes do UPDATE. Em READ COMMITTED cada
+    comando tem snapshot próprio, e a confirmação concorrente nesse intervalo recusa o lote inteiro. O conserto é contar,
+    DEPOIS do UPDATE, os ids que continuam pendentes.
+  - `definir_service_tag_com_anotacao`, `confirmar_assinatura_termo_com_anotacao` e
+    `desfazer_confirmacao_termo_com_anotacao` gravam sempre: a pré-condição ("só define quando vazia", "ainda não é
+    sim", "é sim") vive só na leitura prévia da action. Dois cliques simultâneos deixam duas anotações imutáveis, uma
+    delas falsa. O conserto é um `and service_tag is null` (e os equivalentes) no `WHERE`, com o P0002 que já existe. A
+    corrida é anterior à 0149, e a RPC é o lugar de fechá-la.
+- **Decisão 4 — a data de entrada na `main` fica como está, documentada.** A API de commits e o `git log --diff-filter=A`
+  dão a data do commit que acrescentou o arquivo, anterior ou igual ao merge. A idade medida nunca sai menor que a real:
+  o erro possível é alarmar cedo uma migration de branch longo, nunca calar uma velha. Buscar o `merged_at` do PR
+  custaria uma ida à API por arquivo pendente para corrigir um erro que já está do lado seguro.
+- **Também corrigidos (comentário):** "as cinco recusam P0002" em `erros.ts` (são quatro); `sidebar-colapso.test.ts` e
+  `impressao-colunas.test.ts` diziam rodar no projeto `componentes`, e rodam no `puro` (são `.test.ts`).
+- **Pendências:** as duas migrations da Decisão 3.
