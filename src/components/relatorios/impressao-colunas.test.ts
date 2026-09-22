@@ -10,10 +10,12 @@ import { describe, expect, it } from 'vitest'
 // ia sem colaborador, sem termo e sem observação, e ninguém percebia porque
 // nenhum teste do repositório olhava para `print:`.
 //
-// Este arquivo lê o CÓDIGO-FONTE (não renderiza: o Vitest daqui roda em `node`,
-// sem jsdom) e cobra o contrato coluna a coluna. É deliberadamente estrutural:
-// o que ele protege é uma decisão de CSS que nenhum teste de comportamento
-// alcança, e cuja regressão é silenciosa — o defeito só aparece no papel.
+// Este arquivo lê o CÓDIGO-FONTE (não renderiza: este projeto do Vitest —
+// `componentes` — roda em `node`, sem jsdom) e cobra o contrato coluna a
+// coluna. É deliberadamente estrutural: o que ele protege é uma decisão de CSS
+// que nenhum teste de comportamento alcança, e cuja regressão é silenciosa — o
+// defeito só aparece no papel. ⚠ 22/09/2026 — nem o projeto `dom` (happy-dom)
+// alcançaria: é DOM simulado, sem layout `print:` nem paginação de verdade.
 
 const DIR = 'src/components/relatorios'
 

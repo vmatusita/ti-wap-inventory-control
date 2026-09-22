@@ -273,11 +273,41 @@ describe('5. cobertura do runner — nenhum teste do repositório fica fora', ()
     return [...CONFIG_VITEST.matchAll(/name:\s*'([^']+)'/g)].map((m) => m[1])
   }
 
+  /**
+   * Um projeto do Vitest — nome, `include` e `exclude` — recortado do texto
+   * entre o `name: '<nome>'` dele e o `name:` seguinte (ou o fim do arquivo).
+   *
+   * Nasceu na reauditoria de 22/09/2026 (passo 5, frente E/K/Y), quando o
+   * terceiro projeto (`dom`) tornou possível um buraco que os DOIS projetos da
+   * F45 não tinham como abrir: um arquivo `*.dom.test.tsx` casa tanto com o
+   * `include` de `componentes` (`*.test.tsx`, que não distingue o `.dom.` do
+   * meio) quanto com o de `dom` — só o `exclude` de `componentes` impede que
+   * ele rode NOS DOIS. `includesDaConfig`, acima, lê só o `include`: cega para
+   * essa segunda casa, ela deixaria a dupla-execução voltar em silêncio.
+   */
+  function projetosDaConfig(): { nome: string; include: string[]; exclude: string[] }[] {
+    const nomes = [...CONFIG_VITEST.matchAll(/name:\s*'([^']+)'/g)]
+    return nomes.map((m, i) => {
+      const inicio = m.index ?? 0
+      const fim = nomes[i + 1]?.index ?? CONFIG_VITEST.length
+      const bloco = CONFIG_VITEST.slice(inicio, fim)
+      const listar = (chave: 'include' | 'exclude') =>
+        [...bloco.matchAll(new RegExp(`${chave}:\\s*\\[([^\\]]*)\\]`, 'g'))].flatMap((mm) =>
+          [...mm[1].matchAll(/'([^']+)'/g)].map((s) => s[1]),
+        )
+      return { nome: m[1], include: listar('include'), exclude: listar('exclude') }
+    })
+  }
+
   it('a leitura da config funciona (guarda do próprio teste)', () => {
     const blocos = includesDaConfig()
-    expect(blocos.length, 'não achei os `include:` de vitest.config.mts').toBeGreaterThanOrEqual(2)
-    expect(blocos.flat().length).toBeGreaterThanOrEqual(3)
-    expect(blocos.flat().every((p) => p.includes('*.test.'))).toBe(true)
+    expect(blocos.length, 'não achei os `include:` de vitest.config.mts').toBeGreaterThanOrEqual(3)
+    expect(blocos.flat().length).toBeGreaterThanOrEqual(4)
+    // `*.test.` (com o asterisco) não casa mais com todo padrão desde o `dom`:
+    // `src/**/*.dom.test.tsx` tem `.dom.` entre o `*` e o `test`. `.test.` sem
+    // o asterisco continua valendo para os quatro padrões — é o que garante
+    // que a config lida de fato aponta para arquivo `*.test.*`.
+    expect(blocos.flat().every((p) => p.includes('.test.'))).toBe(true)
   })
 
   it('todo arquivo `*.test.*` está coberto por algum projeto do Vitest', () => {
@@ -292,10 +322,34 @@ describe('5. cobertura do runner — nenhum teste do repositório fica fora', ()
     ).toEqual([])
   })
 
-  it('os dois projetos se chamam `puro` e `componentes`', () => {
+  it('nenhum arquivo de teste roda em mais de um projeto (include menos exclude)', () => {
+    // A cobertura acima prova o piso (ninguém fica de fora); esta prova o teto
+    // (ninguém roda em dobro). Um arquivo `*.dom.test.tsx` sem o `exclude` de
+    // `componentes` casaria com os DOIS `include` — a suíte dele rodaria duas
+    // vezes, uma em `node` (onde as APIs de DOM que ele usa nem existem) e
+    // outra em `happy-dom`, e só a segunda passaria: verde por metade,
+    // silenciosamente.
+    const projetos = projetosDaConfig()
+    const testes = testesDoRepo(RAIZ)
+    const emDobro = testes.filter((t) => {
+      const rodamNele = projetos.filter(
+        (p) =>
+          p.include.some((padrao) => casa(padrao, t)) &&
+          !p.exclude.some((padrao) => casa(padrao, t)),
+      )
+      return rodamNele.length > 1
+    })
+    expect(
+      emDobro,
+      `estes arquivos rodam em mais de um projeto do Vitest ao mesmo tempo: ${emDobro.join(', ')}`,
+    ).toEqual([])
+  })
+
+  it('os três projetos se chamam `puro`, `componentes` e `dom`', () => {
     const nomes = nomesDosProjetos()
     expect(nomes).toContain('puro')
     expect(nomes).toContain('componentes')
+    expect(nomes).toContain('dom')
   })
 
   it('o projeto `componentes` coleta `.test.tsx`, e o `puro` não', () => {
@@ -303,6 +357,23 @@ describe('5. cobertura do runner — nenhum teste do repositório fica fora', ()
     expect(padroes.some((p) => p.endsWith('*.test.tsx'))).toBe(true)
     // O piso de componente só vale se um `.test.tsx` for realmente coletado.
     expect(casa('src/**/*.test.tsx', 'src/components/layout/aviso.test.tsx')).toBe(true)
+  })
+
+  it('o projeto `dom` coleta só `.dom.test.tsx`, e `componentes` o exclui', () => {
+    const projetos = projetosDaConfig()
+    const dom = projetos.find((p) => p.nome === 'dom')
+    const componentes = projetos.find((p) => p.nome === 'componentes')
+    expect(dom?.include, 'o projeto `dom` sumiu ou perdeu o include').toContain(
+      'src/**/*.dom.test.tsx',
+    )
+    expect(
+      componentes?.exclude,
+      '`componentes` tem de excluir `*.dom.test.tsx` — senão ele roda nos dois projetos',
+    ).toContain('src/**/*.dom.test.tsx')
+    // O ambiente é o que justifica o projeto existir: sem `happy-dom` aqui, o
+    // Radix (ResizeObserver/hasPointerCapture/scrollIntoView) morre na
+    // primeira interação. Ver o comentário do projeto em vitest.config.mts.
+    expect(CONFIG_VITEST).toMatch(/name:\s*'dom'[\s\S]*?environment:\s*'happy-dom'/)
   })
 })
 

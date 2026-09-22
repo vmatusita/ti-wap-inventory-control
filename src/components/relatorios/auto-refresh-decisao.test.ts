@@ -5,10 +5,17 @@ import { INTERVALO_REFRESH_MS, deveRefrescar } from './auto-refresh-decisao'
 
 // A regra do auto-refresh do visualizador, exercitada de verdade (F50).
 //
-// Sem jsdom (e sem poder acrescentá-lo — regra 3 do CLAUDE.md), a alternativa seria
-// afirmar que o fonte "menciona `visibilityState`", o que prova grafia, não
-// comportamento. Extrair a decisão custou um módulo a mais e paga isto: os casos
-// abaixo são os que quebrariam de verdade.
+// Sem jsdom aqui, e a alternativa seria afirmar que o fonte "menciona
+// `visibilityState`", o que prova grafia, não comportamento. Extrair a decisão
+// custou um módulo a mais e paga isto: os casos abaixo são os que quebrariam de
+// verdade.
+//
+// ⚠ 22/09/2026 — o Johnny aprovou happy-dom (projeto Vitest `dom`, reauditoria
+// passo 5), mas só para os QUATRO componentes-gigantes que mais provavelmente
+// quebrariam em silêncio numa decomposição — não é um "agora pode" geral. Para
+// uma decisão como esta, extrair a função pura continua sendo mais barato E
+// mais forte que montar um DOM inteiro só para observar `visibilityState`; o
+// padrão desta fase não muda.
 const MIN = INTERVALO_REFRESH_MS
 
 describe('deveRefrescar: aba oculta não refresca', () => {
