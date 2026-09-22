@@ -19,6 +19,9 @@ importa para quem mexe NESTE código: implementação, não a política.
   banco `dev` é o PRIMEIRO label (`add value 'dev' before 'admin'`) e portanto o MENOR na
   comparação de enum: inverter esse sinal aqui é bug clássico.
 - `acesso.ts` — as guardas de Server Action e a resolução de sessão. Ver abaixo.
+- `empresa-legada.ts` — `EMPRESA_LEGADA_ID`, o id da WAP (F62): espelho do literal que
+  `public.empresa_legada()` devolve (`0152`), e `empresa-legada.test.ts` compara os dois. É o
+  filtro da membership em `getOperador` e em `queries/admin.ts` enquanto a ponte existir (até a F64).
 
 ## `acesso.ts` — o que uma guarda nova precisa respeitar
 
@@ -41,7 +44,11 @@ importa para quem mexe NESTE código: implementação, não a política.
   falso sucesso. Por isso até o ramo "admin escreve em qualquer filial" faz UMA chamada a
   `lerVinculo`.
 - **Cargo NUNCA vem de `raw_user_meta_data`** — o próprio usuário edita esse campo; toda leitura
-  de cargo passa por `papel_atual()` (RPC) ou pela tabela `profiles` direto, nunca pelo JWT.
+  de cargo passa por `papel_atual()` (RPC) ou pela tabela `membros` direto (a membership na
+  empresa legada, `EMPRESA_LEGADA_ID` de `empresa-legada.ts`), nunca pelo JWT. **Desde a F62
+  `profiles.papel`/`ativo` estão CONGELADOS**: ler ou gravar o cargo ali reprova na mesa
+  (`src/lib/validators/cargo-em-membros.test.ts`, que varre também o TypeScript) — `profiles`
+  responde só o que é da conta (nome, `excluido_em`).
 
 ## Migrations que este diretório espelha
 
@@ -49,8 +56,10 @@ importa para quem mexe NESTE código: implementação, não a política.
 (piso de leitura por `ativo`) · `0072` (`e_admin`/`e_dev`/`pode_escrever`, dev tratado como
 admin) · `0073` (`profiles_guarda_dev`, arquivamento) · `0074` (as cinco RPCs de gestão:
 `definir_papel_usuario`/`definir_status_usuario`/`definir_vinculos_usuario`/`apagar_usuario`/
-`encerrar_sessoes_usuario`). Porquê e como funciona por baixo: ADR-002 §13 (cargo dev) e §14
-(zona destrutiva) — não repita aqui, edite lá se o comportamento mudar.
+`encerrar_sessoes_usuario`) · `0152`–`0158` (F62: `empresas`/`empresa_legada()`, `membros` e
+`membros_guarda_dev`, o vínculo por membership, e a troca de todo leitor do cargo). Porquê e
+como funciona por baixo: ADR-002 §13 (cargo dev), §14 (zona destrutiva) e §15 (o cargo por
+empresa) — não repita aqui, edite lá se o comportamento mudar.
 
 ## Página fora daqui que este modelo também rege
 

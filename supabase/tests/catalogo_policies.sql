@@ -499,6 +499,12 @@ begin
   --           (0070:58-62). Ligá-lo quebra o registro de movimentação.
   --     Falha ruidosa, não silenciosa — e é justamente por ser ruidosa que ninguém
   --     nunca a escreveu como asserção. Ela custa uma linha e fecha a superfície.
+  --     ⚠ MEDIDO NA F62 (22/09/2026): (1) e (2) não acontecem nos nossos bancos. O dono
+  --     (`postgres`) tem BYPASSRLS no banco hospedado e é superusuário no CI, e o atributo
+  --     vence o `force` — com `force` em `membros`, a leitura segue normal (cenário 9o de
+  --     `isolamento_tenant.sql`, que também trava a premissa real: o atributo do dono). A
+  --     proibição fica: o `force` não protege nada aqui e só mudaria de comportamento no
+  --     dia em que o dono mudasse. Ver a emenda F62 da R-ACC-29.
   -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(c.relname, ', ' order by c.relname), '')
     into v_cnt, v_lista
@@ -506,7 +512,7 @@ begin
    where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relforcerowsecurity;
   if pg_temp.assert_zero_de(
        '4-bis `force row level security` desligado em toda tabela de public (R-ACC-29)' ||
-       case when v_cnt > 0 then ' — ligado em: ' || v_lista || ' (espere 42P17)' else '' end,
+       case when v_cnt > 0 then ' — ligado em: ' || v_lista || ' (proibido — R-ACC-29; o efeito real está no 9o de isolamento_tenant.sql)' else '' end,
        v_cnt, v_univ) then
     v_ok := v_ok + 1;
   else
