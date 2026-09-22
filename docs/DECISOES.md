@@ -13076,3 +13076,29 @@ R-ACC-84 e as emendas de R-ACC-02/25/26/29/30; ADR-002 §15.
   desativar o perfil, e o cenário 6 acusou a recópia de "reescrever linha que já batia" — ela estava certa, a fixture
   é que chegava divergente. O 4b agora deixa o arquivado com a membership ativa (o arquivamento sozinho tem de tirá-lo
   da conta — o 4b ficou mais forte), e o 6 mede as linhas que já batiam em vez de supô-las.
+- **(l) O apply, nos dois bancos, e o portão.** SHA de código congelado `f31175a`; CI verde sobre ele (run
+  `35783705125`, 125/125). Ensaio primeiro, produção em seguida (0152 às 18:13:49, 0158 às 18:20:07, -03 — dentro de 24 h
+  do commit que acrescentou as migrations), uma `apply_migration` por arquivo, o texto do arquivo. A impressão do acesso
+  foi refeita na hora antes de cada apply (igual à gravada) e repetida depois: **igual nos dois bancos** — ensaio
+  `f2cfd5a11d551ca0edfcfd78f28a5ff1` (5 perfis), produção `a5de88cfd5b5fe4038e693db1693013f` (16 perfis, 9 combinações),
+  os dois controles iguais. **Nenhum perfil mudou de acesso.** As 61 policies com o mesmo md5; md5 do `prosrc` = arquivo
+  nas 19 funções; dados equivalentes (perfis = memberships = iguais; 0 sem membership; vínculos 0 incoerentes; devs =
+  `plataforma_admins`); advisor só com o declarado; paridade 11/11; conferidor 271 pontos, 0 recusas. Nenhum rollback foi
+  necessário. Evidência em `docs/f62-evidencias/depois/`; detalhe no Anexo A do `RUNBOOK-BANCO.md`.
+- **(m) Os tipos gerados × o `database.ts` à mão: uma diferença, de propósito.** O gerador do conector, rodado no ensaio
+  depois do apply, bate linha a linha com o `database.ts` feito à mão, exceto `operador_filiais.Insert.empresa_id` e
+  `.membro_id`: obrigatórios no gerado, OPCIONAIS no nosso. O gerador não enxerga o gatilho
+  `operador_filiais_deriva_membership`, que os preenche; o `scripts/seed.ts` grava só `(usuario_id, filial_id)` e não
+  compilaria com o gerado. O `database.ts` fica como está (o gate `db:types:diff` compara relações, colunas e funções — 37
+  · 332 · 94, verde). O comentário do hand-fix ("a geração do MCP o substitui") ficou impreciso: registro aqui, conserto
+  no próximo PATCH que tocar o arquivo.
+- **(n) O custo medido no ensaio (`medir-rls`, a mesma régua da F59/F60).** O piso de leitura manteve a FORMA — `InitPlan
+  1` com 1 loop, custo 63,32 — e a mediana subiu 0,09 ms (0,624 → 0,712). A forma POR LINHA (F1) ficou 2,4× mais cara
+  (22,5 → 54,5 ms em 1606 linhas): cada `pode_escrever_filial()` reavalia `papel_atual()`, e a ponte agora é um join.
+  Nenhuma policy de leitura usa essa forma; as de escrita com `pode_escrever_filial(filial_id)` (as exceções R1 da F59,
+  até a F66) pagam por linha ESCRITA — décimos de milissegundo num lote de movimentação. Declarado no relatório; a forma
+  içada da F66 (F3, 1,66 ms) é o que tira isso.
+- **(o) O que fica em `src/lib/escopo/**`, de propósito (critério 22).** `ESCOPO_UNICO` (`src/lib/escopo/chave.ts` e
+  `pertencimento.ts`), `chaveDoEscopo` e o `empresa: null` do funil de falhas (`src/lib/observabilidade-linha.ts`) ficam como estão: a ordem os põe fora do escopo, e nada da F62 os lê — o app ainda
+  não sabe de empresa (a ponte responde pela legada). **Destino:** a F69/F70, quando a sessão ganhar a empresa (o
+  `contextoDoApp()` e o seletor). Até lá, a chave de storage segue com o prefixo `wap` e o escopo é um só.

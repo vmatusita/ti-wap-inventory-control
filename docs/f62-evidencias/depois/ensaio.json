@@ -1,0 +1,65 @@
+{
+  "banco": "ensaio (sgmvldiizsrjbxzzpmhh)",
+  "sha_de_codigo": "f31175a",
+  "apply": {
+    "canal": "MCP da Supabase, apply_migration, uma chamada por migration, texto do arquivo no SHA congelado",
+    "ledger": ["raiz_do_tenant 20260922180319", "membros 20260922180356", "plataforma_admins 20260922180418", "filiais_empresa 20260922180506", "vinculo_por_membership 20260922180541", "funcoes_de_conjunto 20260922180609", "cargo_em_membros 20260922180805"],
+    "notify_pgrst": "reload schema — enviado depois da 0158"
+  },
+  "impressao_acesso_depois": {
+    "instrumento": "docs/f62-evidencias/impressao-acesso.sql",
+    "md5_do_instrumento": "a3caf6da9c25544ca9611aca9a145c65",
+    "resultado": {"combos": {"admin|true|false|true|true|true|true|true|true|true|outro_admin=false": 1, "∅|false|false|false|false|false|false|false|false|false|outro_admin=true": 2, "operador|false|false|true|false|false|false|false|false|false|outro_admin=true": 1, "consulta|false|false|false|false|false|false|false|false|false|outro_admin=true": 1}, "n_perfis": 5, "controles": {"sem_perfil": "∅|false|false|false|false|false|false|false|false|false", "sem_sessao": "∅|false|false|false|false|false|false|false|false|false"}, "n_filiais": 6, "md5_global": "f2cfd5a11d551ca0edfcfd78f28a5ff1"},
+    "antes_md5_global": "f2cfd5a11d551ca0edfcfd78f28a5ff1",
+    "veredito": "IGUAL — combinação a combinação, os dois controles e o md5 global"
+  },
+  "impressao_policies_depois": {
+    "instrumento": "docs/f62-evidencias/impressao-policies.sql",
+    "md5_do_instrumento": "5b1a9426210f0fb236a854475e098e04",
+    "resultado": {"novas_da_f62": ["membros / leitura operador / SELECT"], "vivas_antes_da_f62": {"public": {"n": 53, "md5": "d4fb378cf030fe003f5152866619912d"}, "storage": {"n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8"}}},
+    "veredito": "as 61 IGUAIS ao antes (53 public d4fb378c… + 8 storage f116b8d0…); a única nova é a de SELECT de membros"
+  },
+  "verificacao_pos_apply": {
+    "instrumento": "docs/f62-evidencias/verificacao-pos-apply.sql",
+    "md5_do_instrumento": "3d69c7629d197a8012dd2680cc76310b",
+    "dados": {"iguais": 5, "perfis": 5, "filiais": 6, "devs_wap": 0, "empresas": 1, "vinculos": 5, "plataforma": 0, "empresa_wap": 1, "filiais_wap": 6, "membros_wap": 5, "vinculos_wap": 5, "membros_total": 5, "vinculos_incoerentes": 0, "perfis_sem_membership": 0},
+    "tabelas_rls_force": {"membros": "10", "empresas": "10", "plataforma_admins": "10"},
+    "privilegios_anonSel_anonIns_authSel_authIns_authUpd_authDel": {"membros": "001000", "empresas": "000000", "plataforma_admins": "000000"},
+    "gatilhos": {"membros_guarda_dev": "O", "profiles_guarda_dev": "O", "operador_filiais_deriva_membership": "O"},
+    "funcoes_md5_prosrc_igual_ao_arquivo": "19 de 19 (uma assinatura cada)",
+    "funcoes": {
+      "papel_atual()": ["4779b3464a666c9b8edaba870c41516d", "exec anon/auth/svc 011", "search_path=public", "definer"],
+      "e_plataforma()": ["43ff329f39942a130e88c8eb904cf98e", "010", "search_path=\"\"", "definer"],
+      "empresa_legada()": ["227e56653eda3df22722eb67e28cc320", "011", "search_path=\"\"", "invoker"],
+      "handle_new_user()": ["6d766504686456ce57926bcbd165dc7c", "001", "search_path=public", "definer"],
+      "empresas_de_admin()": ["a722d0d70a8aba28a2d50d659411d72f", "011", "search_path=\"\"", "definer"],
+      "empresas_do_membro()": ["ed335359d3d4dd97af820b8a3d7c81a9", "011", "search_path=\"\"", "definer"],
+      "membros_guarda_dev()": ["70c7ac5831ba14c1e43dfe678f970a4d", "000", "search_path=\"\"", "definer"],
+      "empresas_de_escrita()": ["c96f45fb7927fcc1ba8076155d2ffdc3", "011", "search_path=\"\"", "definer"],
+      "profiles_guarda_dev()": ["1360e89fdba28d86ba93d552609c8dac", "000", "search_path=public", "definer"],
+      "unidades_de_escrita()": ["f5e8f227e523ac45cf925421d984bb33", "011", "search_path=\"\"", "definer"],
+      "apagar_usuario(uuid)": ["dccc68034fd856328a268e40167f071f", "010", "search_path=public", "definer"],
+      "checagens_integridade_nucleo()": ["06359abd286206bde8432609128ebccd", "000", "search_path=public", "definer"],
+      "pode_escrever_filial(smallint)": ["f835d2bf119e64a17e1a5186e79e8d3d", "011", "search_path=public", "definer"],
+      "operador_filiais_deriva_membership()": ["3d9a5e61455f40f2410fd3b9bed0e6c9", "000", "search_path=\"\"", "definer"],
+      "definir_status_usuario(uuid, boolean)": ["712cb89d3271aab0e6851bf8581b53a7", "010", "search_path=public", "definer"],
+      "definir_papel_usuario(uuid, papel_usuario)": ["160ff6d081fae9458534b5036bef50bd", "010", "search_path=public", "definer"],
+      "existe_outro_admin_ativo(uuid, uuid)": ["4b0801af1383abff71d641399ab20e25", "000", "search_path=public", "definer"],
+      "definir_vinculos_usuario(uuid, smallint[])": ["04d3b2170c1aa9a7136f0800d85e807f", "010", "search_path=public", "definer"],
+      "exigir_gestao_de(uuid, papel_usuario)": ["30b0ca4bd5aab3fff21ceee191d2f948", "000", "search_path=public", "definer"]
+    }
+  },
+  "advisors_security": {
+    "antes": {"rls_enabled_no_policy": 3, "authenticated_security_definer_function_executable": 29, "auth_leaked_password_protection": 1},
+    "depois": {"rls_enabled_no_policy": 5, "authenticated_security_definer_function_executable": 34, "auth_leaked_password_protection": 1},
+    "novos_declarados": {
+      "rls_enabled_no_policy": ["empresas", "plataforma_admins"],
+      "authenticated_security_definer_function_executable": ["e_plataforma", "empresas_de_admin", "empresas_de_escrita", "empresas_do_membro", "unidades_de_escrita"]
+    },
+    "achado_nao_declarado": 0
+  },
+  "tipos": {
+    "gerado_pelo_mcp_md5": "dfaa4ad435dabb7d8664f978b7dc0b40",
+    "diff_contra_database_ts": "só operador_filiais.Insert.empresa_id e .membro_id: obrigatórios no gerado, OPCIONAIS no database.ts — de propósito: o gatilho operador_filiais_deriva_membership os preenche, e scripts/seed.ts grava só (usuario_id, filial_id); o gerador não enxerga o gatilho. Nenhuma outra linha difere (fora o comentário do hand-fix)."
+  }
+}

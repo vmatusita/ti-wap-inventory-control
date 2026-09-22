@@ -1,0 +1,52 @@
+{
+  "banco": "produção (pbtjcalbmepmrqzprusb)",
+  "sha_de_codigo": "f31175a",
+  "janela": "22/09/2026, ledger de produção: 0152 às 18:13:49 e 0158 às 18:20:07 (-03) — dentro de 24 h do commit que acrescentou as migrations (16:02 -03, 22/09)",
+  "antes_refeito_na_hora": {
+    "quando": "22/09/2026 ~21:13 UTC, imediatamente antes do primeiro apply",
+    "md5_global": "a5de88cfd5b5fe4038e693db1693013f",
+    "igual_ao_gravado_em_antes/": true,
+    "advisors_security": {"rls_enabled_no_policy": 3, "authenticated_security_definer_function_executable": 29, "auth_leaked_password_protection": 1}
+  },
+  "apply": {
+    "canal": "MCP da Supabase, apply_migration, uma chamada por migration, o MESMO texto aplicado no ensaio (o arquivo no SHA congelado)",
+    "ordem": ["raiz_do_tenant", "membros", "plataforma_admins", "filiais_empresa", "vinculo_por_membership", "funcoes_de_conjunto", "cargo_em_membros"],
+    "resultado": "7 de 7 aplicadas sem erro",
+    "notify_pgrst": "reload schema — enviado depois da 0158"
+  },
+  "impressao_acesso_depois": {
+    "instrumento": "docs/f62-evidencias/impressao-acesso.sql",
+    "md5_do_instrumento": "a3caf6da9c25544ca9611aca9a145c65",
+    "resultado": {"combos": {"dev|true|true|true|true|true|true|true|true|true|outro_admin=true": 2, "admin|true|false|true|true|true|true|true|true|true|outro_admin=true": 2, "∅|false|false|false|false|false|false|false|false|false|outro_admin=true": 2, "operador|false|false|true|false|false|true|true|false|false|outro_admin=true": 1, "operador|false|false|true|true|true|false|false|false|false|outro_admin=true": 1, "operador|false|false|true|false|false|false|false|true|false|outro_admin=true": 1, "operador|false|false|true|false|true|false|false|false|false|outro_admin=true": 1, "operador|false|false|true|true|false|false|false|false|false|outro_admin=true": 1, "consulta|false|false|false|false|false|false|false|false|false|outro_admin=true": 5}, "n_perfis": 16, "controles": {"sem_perfil": "∅|false|false|false|false|false|false|false|false|false", "sem_sessao": "∅|false|false|false|false|false|false|false|false|false"}, "n_filiais": 6, "md5_global": "a5de88cfd5b5fe4038e693db1693013f"},
+    "antes_md5_global": "a5de88cfd5b5fe4038e693db1693013f",
+    "veredito": "IGUAL — as 9 combinações, os dois controles e o md5 global. Nenhum perfil de produção mudou de acesso."
+  },
+  "impressao_policies_depois": {
+    "resultado": {"novas_da_f62": ["membros / leitura operador / SELECT"], "vivas_antes_da_f62": {"public": {"n": 53, "md5": "d4fb378cf030fe003f5152866619912d"}, "storage": {"n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8"}}},
+    "veredito": "as 61 IGUAIS ao antes; a única nova é a de SELECT de membros"
+  },
+  "verificacao_pos_apply": {
+    "dados": {"iguais": 16, "perfis": 16, "filiais": 6, "devs_wap": 2, "empresas": 1, "vinculos": 25, "plataforma": 2, "empresa_wap": 1, "filiais_wap": 6, "membros_wap": 16, "vinculos_wap": 25, "membros_total": 16, "vinculos_incoerentes": 0, "perfis_sem_membership": 0},
+    "tabelas_rls_force": {"membros": "10", "empresas": "10", "plataforma_admins": "10"},
+    "privilegios_anonSel_anonIns_authSel_authIns_authUpd_authDel": {"membros": "001000", "empresas": "000000", "plataforma_admins": "000000"},
+    "gatilhos": {"membros_guarda_dev": "O", "profiles_guarda_dev": "O", "operador_filiais_deriva_membership": "O"},
+    "funcoes_md5_prosrc_igual_ao_arquivo": "19 de 19, os MESMOS md5 do ensaio (ver depois/ensaio.json), uma assinatura cada, grants iguais"
+  },
+  "advisors_security_depois": {
+    "rls_enabled_no_policy": 5,
+    "authenticated_security_definer_function_executable": 34,
+    "auth_leaked_password_protection": 1,
+    "novos": "os MESMOS do ensaio, todos declarados: empresas e plataforma_admins (deny-all por ausência, k_sem_select); e_plataforma e as quatro funções de conjunto (forma-alvo, grant a authenticated)",
+    "achado_nao_declarado": 0
+  },
+  "paridade_ensaio_x_producao": {
+    "instrumento": "supabase/ci/impressao-schema.sql (a sonda normalizada do RUNBOOK), as 11 classes",
+    "ensaio_e_producao": {"coluna": [324, "1c8b1cd064aa56d8688f1c1704ddebcd"], "constraint": [113, "db39d63c0308efe10345b67aaf31638d"], "enum": [7, "34837fbf7cb50082e461fd8cdad47532"], "func": [102, "112b5e483fe2244fd55612fb21e597d9"], "grant_func": [102, "c811b4b205d014fcd79ba5acda3b83ae"], "indice": [96, "6df6a176931bcadc59bf707eed81d629"], "policy": [54, "3f067eb28151e317ba384b7f68335a03"], "policy_storage": [8, "cd68b8eccf9532909791b7cf67619b08"], "rls_flag": [27, "683b7437bf9af263391abee30327a920"], "trigger": [10, "3e90748731f50b6dc5d2c98f57af483d"], "view": [9, "eccffb70b9021b329278eaf0cd2c6601"]},
+    "veredito": "11 de 11 classes IGUAIS em contagem e fingerprint"
+  },
+  "conferidor_de_formas": {
+    "comando": "NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env.local scripts/formas/conferir.mts --alvo=producao (conta do smoke; a credencial vai do arquivo para o processo, sem ser aberta nem impressa)",
+    "resultado": "271 pontos · 100398 linhas · 0 recusadas · 0 reprovados; auth.membro-operador 16/16 aceitas, auth.perfil-operador 16/16, auth.papel-atual 1/1; 3 descritores sem linha no alvo (admin.senhas-acesso, kits.ativos, kits.admin)",
+    "arquivo": "docs/f62-evidencias/depois/conferidor-producao.json"
+  }
+}

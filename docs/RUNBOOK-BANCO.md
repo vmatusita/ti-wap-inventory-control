@@ -1433,6 +1433,24 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   migration nova reemitindo as quatro com o corpo da `0149`. O app segue funcionando com o corpo antigo, e só as frases
   novas deixam de aparecer.
 
+- **`0152`→`0158` — a raiz do tenant e o cargo por empresa** (F62, 22/09/2026, v1.67.0; **aplicadas nos dois
+  bancos** em 22/09, pelo conector, uma `apply_migration` por arquivo, o texto do arquivo no SHA de código congelado
+  `f31175a`). Ledger: `raiz_do_tenant`, `membros`, `plataforma_admins`, `filiais_empresa`, `vinculo_por_membership`,
+  `funcoes_de_conjunto`, `cargo_em_membros` (produção: `0152` às 18:13:49 e `0158` às 18:20:07, -03). Ordem: CI verde
+  sobre o SHA (run `35783705125`: todos os roteiros com 0 `✗`, injetor 125/125, `db:types:diff` verde), ensaio,
+  produção. **O portão:** a impressão do acesso por perfil (`docs/f62-evidencias/impressao-acesso.sql`) refeita na hora
+  antes de cada apply e repetida depois — **igual nos dois bancos**: ensaio `f2cfd5a1…` (5 perfis), produção
+  `a5de88cf…` (16 perfis), combinação a combinação. **Verificação pós-apply** (`docs/f62-evidencias/verificacao-pos-apply.sql`),
+  igual nos dois: md5 do `prosrc` = md5 do trecho entre os `$$` do arquivo nas **19** funções criadas ou recriadas, uma
+  assinatura cada, grants como desenhados; RLS ligada e sem `force` em `empresas`/`membros`/`plataforma_admins`; dados:
+  perfis = memberships na WAP = iguais em papel e ativo (5 · 16), 0 perfil sem membership, vínculos 5 · 25 com 0
+  incoerentes, `plataforma_admins` = devs (0 · 2), 6 filiais na WAP. As 61 policies de antes com o MESMO md5 (53 em
+  `public` + 8 em Storage); a única nova é a de SELECT de `membros`. Advisor de segurança 3 → 5 e 29 → 34, só os
+  declarados (`empresas`/`plataforma_admins` sem policy; `e_plataforma` e as quatro de conjunto). **Paridade** ensaio ×
+  produção nas 11 classes: igual em contagem e fingerprint. Conferidor de formas contra produção: 271 pontos, 0 recusas.
+  Evidência em `docs/f62-evidencias/depois/`. **Rollback:** a receita "O rollback da F62" (acima) — a cópia de volta
+  primeiro, e de novo junto do desfazer.
+
   ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56) nem das
   `0146`→`0149` (passos 1 e 2 da reauditoria), embora as atas dessas fases e entregas registrem os applies.
 ---
