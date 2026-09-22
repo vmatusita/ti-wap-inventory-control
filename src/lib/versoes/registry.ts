@@ -23,6 +23,16 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.66.6',
+    data: '2026-09-22',
+    titulo: 'As cores dos gráficos ganharam uma conferência automática, e os formulários mais longos, um ensaio de uso real',
+    mudancas: [
+      'Nada muda na tela. As cores das barras e dos gráficos de situação dos equipamentos (Em uso, Em estoque, Reservado, Emprestado e as demais) continuam exatamente as mesmas, no tema claro e no escuro.',
+      'Por dentro, sem efeito na tela: antes de toda publicação, uma conferência automática passou a medir se cada cor de situação continua fácil de distinguir das outras, inclusive para quem enxerga cores de outro jeito (daltonismo). Uma dupla fica abaixo do ideal hoje, Emprestado e Defasado, e ficou registrada de propósito: o nome, o número e a legenda aparecem sempre junto da cor. Uma troca de cor futura que piore qualquer dupla passa a ser barrada.',
+      'Também por dentro: os quatro formulários mais longos do sistema (Nova movimentação, Novo equipamento e os passos de Importar) passaram a ser ensaiados automaticamente como uma pessoa os usa, preenchendo, escolhendo, clicando e enviando. É a rede de segurança para reorganizá-los por dentro, mais adiante, sem mudar o que eles fazem.',
+    ],
+  },
+  {
     versao: '1.66.5',
     data: '2026-09-21',
     titulo: 'A regra que decide o que cada movimentação faz com o equipamento continua igual, e ficou mais fácil de manter',

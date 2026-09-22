@@ -1,0 +1,83 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control/.claude/worktrees/wf_8e3f44b3-32a-2
+
+ ❯ |puro| src/lib/relatorios/paleta-graficos.test.ts (14 tests | 3 failed) 40ms
+     × nenhum alívio ficou vencido (o par já passaria do piso hoje) 17ms
+     × o portão fecha OK 3ms
+     × os 2 alívios registrados são exatamente os 2 pontos abaixo do piso da paleta atual 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o portão sobre a paleta REAL de STATUS_CHART_COLOR (decisão: MANTER) > nenhum alívio ficou vencido (o par já passaria do piso hoje)
+AssertionError: alívio(s) vencido(s):
+  · em_estoque×reservado, visão normal (registrado ΔE 10, piso 15, 22/09/2026) — o par já passa do piso hoje: tire a linha de ALIVIOS: expected [ { …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "data": "22/09/2026",
++     "justificativa": "SABOTAGEM — alívio falso, o par nunca precisou disso.",
++     "par": "em_estoque×reservado",
++     "piso": 15,
++     "valor": 10,
++     "visao": "normal",
++   },
++ ]
+
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:106:92
+    104|
+    105|   it('nenhum alívio ficou vencido (o par já passaria do piso hoje)', (…
+    106|     expect(resultado.aliviosVencidos, descreverAliviosVencidos(resulta…
+       |                                                                                            ^
+    107|   })
+    108|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o portão sobre a paleta REAL de STATUS_CHART_COLOR (decisão: MANTER) > o portão fecha OK
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:110:26
+    108|
+    109|   it('o portão fecha OK', () => {
+    110|     expect(resultado.ok).toBe(true)
+       |                          ^
+    111|   })
+    112|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |puro| src/lib/relatorios/paleta-graficos.test.ts > o portão sobre a paleta REAL de STATUS_CHART_COLOR (decisão: MANTER) > os 2 alívios registrados são exatamente os 2 pontos abaixo do piso da paleta atual
+AssertionError: expected [ { …(6) }, { …(6) }, { …(6) } ] to have a length of 2 but got 3
+
+- Expected
++ Received
+
+- 2
++ 3
+
+ ❯ src/lib/relatorios/paleta-graficos.test.ts:114:21
+    112|
+    113|   it('os 2 alívios registrados são exatamente os 2 pontos abaixo do pi…
+    114|     expect(ALIVIOS).toHaveLength(2)
+       |                     ^
+    115|     for (const al of ALIVIOS) {
+    116|       expect(al.par).toBe('emprestado×defasado')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 11 passed (14)
+   Start at  09:59:43
+   Duration  574ms (transform 146ms, setup 0ms, import 195ms, tests 40ms, environment 0ms)
+

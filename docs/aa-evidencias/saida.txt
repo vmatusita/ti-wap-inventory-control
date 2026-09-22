@@ -1,0 +1,104 @@
+=== SUPERFÍCIES ===
+card claro : #ffffff   card escuro: #171717
+Pares restritos (item 1): 21 — TODOS os pares entre os 7 vivos.
+
+=== (a) ATUAL — manter ===
+| status | hex claro | hex escuro | contraste claro | contraste escuro | fill claro | fill escuro |
+|---|---|---|---:|---:|---|---|
+| Em estoque | `#16a34a` | `#16a34a` | 3.30:1 ✅ | 5.44:1 ✅ | preto (6.37) | preto (6.37) |
+| Reservado | `#6d28d9` | `#6d28d9` | 7.10:1 ✅ | 2.52:1 ⚠️ | branco (7.10) | branco (7.10) |
+| Em uso | `#2a78d6` | `#2a78d6` | 4.42:1 ✅ | 4.06:1 ✅ | preto (4.76) | preto (4.76) |
+| Emprestado | `#06b6d4` | `#06b6d4` | 2.43:1 ⚠️ | 7.38:1 ✅ | preto (8.65) | preto (8.65) |
+| Em triagem | `#db2777` | `#db2777` | 4.60:1 ✅ | 3.90:1 ✅ | branco (4.60) | branco (4.60) |
+| Em manutenção | `#d97706` | `#d97706` | 3.19:1 ✅ | 5.63:1 ✅ | preto (6.59) | preto (6.59) |
+| Defasado | `#9ca3af` | `#9ca3af` | 2.54:1 ⚠️ | 7.06:1 ✅ | preto (8.27) | preto (8.27) |
+| Descartado | `#6b7280` | `#6b7280` | 4.83:1 ✅ | 3.71:1 ✅ | branco (4.83) | branco (4.83) |
+| Devolvido ao fornecedor | `#64748b` | `#64748b` | 4.76:1 ✅ | 3.77:1 ✅ | branco (4.76) | branco (4.76) |
+  Pior ΔE por visão, TODOS os 21 pares restritos (tema claro):
+    normal         emprestado×defasado          ΔE 11.33
+    protanopia     emprestado×defasado          ΔE 5.63
+    deuteranopia   em_estoque×em_triagem        ΔE 6.14
+    tritanopia     em_estoque×em_uso            ΔE 6.26
+
+(c') MÍNIMA (régua ESTRITA) — veredito: FALHOU (folga -2.68)
+=== (c') MÍNIMA — 3 tokens, valor único (régua estrita) ===
+| status | hex claro | hex escuro | contraste claro | contraste escuro | fill claro | fill escuro |
+|---|---|---|---:|---:|---|---|
+| Em estoque | `#16a34a` | `#16a34a` | 3.30:1 ✅ | 5.44:1 ✅ | preto (6.37) | preto (6.37) |
+| Reservado | `#722cff` | `#722cff` | 5.97:1 ✅ | 3.00:1 ✅ | branco (5.97) | branco (5.97) |
+| Em uso | `#2a78d6` | `#2a78d6` | 4.42:1 ✅ | 4.06:1 ✅ | preto (4.76) | preto (4.76) |
+| Emprestado | `#00a2c7` | `#00a2c7` | 3.00:1 ✅ | 5.97:1 ✅ | preto (6.99) | preto (6.99) |
+| Em triagem | `#db2777` | `#db2777` | 4.60:1 ✅ | 3.90:1 ✅ | branco (4.60) | branco (4.60) |
+| Em manutenção | `#d97706` | `#d97706` | 3.19:1 ✅ | 5.63:1 ✅ | preto (6.59) | preto (6.59) |
+| Defasado | `#6b727e` | `#6b727e` | 4.85:1 ✅ | 3.70:1 ✅ | branco (4.85) | branco (4.85) |
+| Descartado | `#6b7280` | `#6b7280` | 4.83:1 ✅ | 3.71:1 ✅ | branco (4.83) | branco (4.83) |
+| Devolvido ao fornecedor | `#64748b` | `#64748b` | 4.76:1 ✅ | 3.77:1 ✅ | branco (4.76) | branco (4.76) |
+  Pior ΔE por visão, TODOS os 21 pares restritos (tema claro):
+    normal         em_uso×emprestado            ΔE 12.47
+    protanopia     em_estoque×em_manutencao     ΔE 6.17
+    deuteranopia   em_estoque×em_triagem        ΔE 6.14
+    tritanopia     em_estoque×emprestado        ΔE 5.32
+
+(c') MÍNIMA (régua RELAXADA, só pisos 6/15) — veredito: FALHOU (folga -1.26)
+=== (c') MÍNIMA — 3 tokens, valor único (régua relaxada) ===
+| status | hex claro | hex escuro | contraste claro | contraste escuro | fill claro | fill escuro |
+|---|---|---|---:|---:|---|---|
+| Em estoque | `#16a34a` | `#16a34a` | 3.30:1 ✅ | 5.44:1 ✅ | preto (6.37) | preto (6.37) |
+| Reservado | `#ab7aff` | `#ab7aff` | 3.02:1 ✅ | 5.94:1 ✅ | preto (6.96) | preto (6.96) |
+| Em uso | `#2a78d6` | `#2a78d6` | 4.42:1 ✅ | 4.06:1 ✅ | preto (4.76) | preto (4.76) |
+| Emprestado | `#00a4b7` | `#00a4b7` | 3.00:1 ✅ | 5.97:1 ✅ | preto (6.99) | preto (6.99) |
+| Em triagem | `#db2777` | `#db2777` | 4.60:1 ✅ | 3.90:1 ✅ | branco (4.60) | branco (4.60) |
+| Em manutenção | `#d97706` | `#d97706` | 3.19:1 ✅ | 5.63:1 ✅ | preto (6.59) | preto (6.59) |
+| Defasado | `#676f7a` | `#676f7a` | 5.08:1 ✅ | 3.53:1 ✅ | branco (5.08) | branco (5.08) |
+| Descartado | `#6b7280` | `#6b7280` | 4.83:1 ✅ | 3.71:1 ✅ | branco (4.83) | branco (4.83) |
+| Devolvido ao fornecedor | `#64748b` | `#64748b` | 4.76:1 ✅ | 3.77:1 ✅ | branco (4.76) | branco (4.76) |
+  Pior ΔE por visão, TODOS os 21 pares restritos (tema claro):
+    normal         em_uso×emprestado            ΔE 14.37
+    protanopia     em_triagem×defasado          ΔE 6.04
+    deuteranopia   em_estoque×em_triagem        ΔE 6.14
+    tritanopia     em_estoque×emprestado        ΔE 4.74
+
+(c'') POR TEMA — veredito: claro FALHOU (folga -0.65), escuro FALHOU (folga -3.67)
+=== (c'') POR TEMA — 3 tokens, valor por tema ===
+| status | hex claro | hex escuro | contraste claro | contraste escuro | fill claro | fill escuro |
+|---|---|---|---:|---:|---|---|
+| Em estoque | `#16a34a` | `#16a34a` | 3.30:1 ✅ | 5.44:1 ✅ | preto (6.37) | preto (6.37) |
+| Reservado | `#6d28d9` | `#7736f6` | 7.10:1 ✅ | 3.11:1 ✅ | branco (7.10) | branco (5.76) |
+| Em uso | `#2a78d6` | `#2a78d6` | 4.42:1 ✅ | 4.06:1 ✅ | preto (4.76) | preto (4.76) |
+| Emprestado | `#007765` | `#06b6d4` | 5.49:1 ✅ | 7.38:1 ✅ | branco (5.49) | preto (8.65) |
+| Em triagem | `#db2777` | `#db2777` | 4.60:1 ✅ | 3.90:1 ✅ | branco (4.60) | branco (4.60) |
+| Em manutenção | `#d97706` | `#d97706` | 3.19:1 ✅ | 5.63:1 ✅ | preto (6.59) | preto (6.59) |
+| Defasado | `#8d94a1` | `#9ca3af` | 3.05:1 ✅ | 7.06:1 ✅ | preto (6.88) | preto (8.27) |
+| Descartado | `#6b7280` | `#6b7280` | 4.83:1 ✅ | 3.71:1 ✅ | branco (4.83) | branco (4.83) |
+| Devolvido ao fornecedor | `#64748b` | `#64748b` | 4.76:1 ✅ | 3.77:1 ✅ | branco (4.76) | branco (4.76) |
+  Pior ΔE por visão, TODOS os 21 pares restritos (tema claro):
+    normal         em_estoque×emprestado        ΔE 15.30
+    protanopia     em_estoque×em_manutencao     ΔE 6.17
+    deuteranopia   em_estoque×em_triagem        ΔE 6.14
+    tritanopia     em_estoque×em_uso            ΔE 6.26
+  Pior ΔE por visão, TODOS os 21 pares restritos (tema ESCURO — paleta por tema difere):
+    normal         emprestado×defasado          ΔE 11.33
+    protanopia     emprestado×defasado          ΔE 5.63
+    deuteranopia   em_estoque×em_triagem        ΔE 6.14
+    tritanopia     em_estoque×em_uso            ΔE 6.26
+
+(b') SEPARADA — veredito da régua: FALHOU (folga -5.14)
+=== (b') SEPARADA — 9 tokens reotimizados (todos os pares) ===
+| status | hex claro | hex escuro | contraste claro | contraste escuro | fill claro | fill escuro |
+|---|---|---|---:|---:|---|---|
+| Em estoque | `#536e3d` | `#536e3d` | 5.73:1 ✅ | 3.13:1 ✅ | branco (5.73) | branco (5.73) |
+| Reservado | `#6834ff` | `#6834ff` | 5.96:1 ✅ | 3.01:1 ✅ | branco (5.96) | branco (5.96) |
+| Em uso | `#2a78d6` | `#2a78d6` | 4.42:1 ✅ | 4.06:1 ✅ | preto (4.76) | preto (4.76) |
+| Emprestado | `#009de5` | `#009de5` | 3.02:1 ✅ | 5.94:1 ✅ | preto (6.95) | preto (6.95) |
+| Em triagem | `#a84694` | `#a84694` | 5.29:1 ✅ | 3.39:1 ✅ | branco (5.29) | branco (5.29) |
+| Em manutenção | `#ce8500` | `#ce8500` | 3.01:1 ✅ | 5.96:1 ✅ | preto (6.98) | preto (6.98) |
+| Defasado | `#8d94a1` | `#8d94a1` | 3.05:1 ✅ | 5.88:1 ✅ | preto (6.88) | preto (6.88) |
+| Descartado | `#6b7280` | `#6b7280` | 4.83:1 ✅ | 3.71:1 ✅ | branco (4.83) | branco (4.83) |
+| Devolvido ao fornecedor | `#64748b` | `#64748b` | 4.76:1 ✅ | 3.77:1 ✅ | branco (4.76) | branco (4.76) |
+  Pior ΔE por visão, TODOS os 21 pares restritos (tema claro):
+    normal         em_uso×emprestado            ΔE 9.86
+    protanopia     reservado×em_uso             ΔE 9.53
+    deuteranopia   reservado×em_uso             ΔE 8.00
+    tritanopia     reservado×em_uso             ΔE 8.62
+
+resultado.json escrito ao lado deste script.

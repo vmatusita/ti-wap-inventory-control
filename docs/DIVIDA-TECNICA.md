@@ -95,6 +95,31 @@
 > |---|---|:-:|:-:|:-:|:-:|
 > | **AS** | `aplicar_movimentacao()` ainda concede EXECUTE a `service_role` (a `0038` revogou de `public`, `anon` e `authenticated`, não dele). Inofensivo, porque função de gatilho recusa ser chamada fora de um gatilho, mas é a única do gatilho fora da régua dos quatro papéis que a `0150` aplicou às seis | 1 | 1 | 1 | **10** |
 
+> **Passo 5 EXECUTADO em 22/09 (v1.66.6): as cinco decisões do Johnny.** Cada uma chegou a ele com o estado medido, 2
+> a 3 opções e uma recomendação passada por verificador adversarial. Ele escolheu a recomendada nas cinco. Detalhe na
+> ata de `docs/DECISOES.md`.
+>
+> - **A ✅ fechado por decisão.** `docs/ADR-003-metodo-de-migration.md`: o método em uso vira contrato, e `db push`,
+>   `migration repair` e `db reset --linked` ficam proibidos contra os bancos vivos. Medido: o `db push` hoje **aborta**
+>   (`DbPushMissingLocalError`), não reaplica. Os 16 + 5 buracos dos ledgers ficam como fato registrado, não como pendência.
+> - **E / K / Y 🟡 desbloqueado.** Testing Library + happy-dom aprovados (só projeto `dom`). Os quatro gigantes têm
+>   treze testes de interação provados por sabotagem. **A decomposição continua em aberto**, e agora pode ser feita
+>   uma de cada vez, com rede.
+> - **AA ✅ fechado por decisão.** Cores mantidas; o portão de ΔE (`paleta-graficos.test.ts`, 21 pares × 4 visões)
+>   registra os dois alívios de emprestado×defasado e reprova qualquer piora futura. Achado de passagem: esse par já
+>   estava abaixo do mínimo sob protanopia (5,63), e o Defasado claro nunca tinha tido registro de alívio.
+> - **AF 🟡 aprovado, entra em PR próprio.** Raiz de ~4 mil tokens, 14 aninhados, `ARQUITETURA.md` §4 reescrito (ele
+>   ainda descrevia o modelo anterior à F21).
+> - **R1 ✅ fechado por decisão: `getUser()` fica.** O `getUser()` já barra sessão encerrada na requisição seguinte (o
+>   servidor de Auth consulta `auth.sessions`), e o ganho do `getClaims()` depende de uma chave assimétrica não confirmada.
+>
+> **Dois itens novos, pequenos:**
+>
+> | # | Item | Imp. | Risco | Esf. | **Prio** |
+> |---|---|:-:|:-:|:-:|:-:|
+> | **AT** | O walker de `ci-passos.test.ts` ("todo `*.test.*` está coberto") não ignora `.claude/`: com worktrees de agente abertas em `.claude/worktrees/`, a suíte local acusa centenas de testes "fora de projeto" (974 medidos). O CI não tem o diretório | 1 | 1 | 1 | **10** |
+> | **AU** | `scratch_tmp/scripts/db/{corpo-vigente,mutacoes}.mjs` estão versionados: resíduo de rascunho, e inflam qualquer grep do repositório | 1 | 1 | 1 | **10** |
+
 Revalida item a item contra a `main` de hoje (`98a78da`), 26 fases depois da rodada de 12/08 e
 três semanas depois da revisão de 30/08. **Levantamento e priorização, nenhuma correção executada.**
 Mesma fórmula de sempre: `Prioridade = (Impacto + Risco) × (6 − Esforço)`, eixos de 1 a 5, esforço
@@ -383,7 +408,7 @@ Desenhado para caber **ao lado** do multiempresa, não no lugar dele.
 **Faixa 4: antes da primeira fase do multiempresa que tocar a máquina de estados** *(✅ executada em 21/09, v1.66.5: ver o topo)*
 - **AG:** decompor `aplicar_movimentacao` pela receita da F51.
 
-**Faixa 5: decisões do Johnny**
+**Faixa 5: decisões do Johnny** *(✅ decidida em 22/09, v1.66.6: ver o topo)*
 - **A / R3:** ADR do método de migration.
 - **E / K / Y:** aprovar `@testing-library/react`. Com ele, os testes de interação dos quatro
   gigantes vêm **antes** de qualquer decomposição, nunca em big-bang.

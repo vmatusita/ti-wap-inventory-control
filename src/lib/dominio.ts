@@ -133,6 +133,14 @@ export function rotuloStatus(s: StatusAtivo): string {
 // endereço. Os nove estão em TOKEN_PARA_HEX, e `src/lib/dominio/cores.test.ts`
 // prova que os dois lados não divergem — é a mesma disciplina das travas TS↔SQL
 // da casa. Trocar a tinta de gráfico um dia passa a ser editar uma linha do CSS.
+//
+// Passo 5 · item AA (22/09/2026) — trocar um hex daqui agora passa pelo
+// PORTÃO de ΔE (`src/lib/relatorios/paleta-graficos.ts`, testado em
+// `paleta-graficos.test.ts`): ele mede os 21 pares entre os 7 status vivos sob
+// visão normal e as 3 simulações de daltonismo (Machado 2009) e reprova o
+// `npm run test` se um par cair abaixo do piso sem alívio registrado, se um
+// alívio piorar, ou se um alívio deixar de ser necessário. Nenhum valor mudou
+// nesta decisão — só nasceu o guarda-corpo.
 export const STATUS_CHART_COLOR: Record<StatusAtivo, string> = {
   em_estoque: 'var(--grafico-em-estoque)',
   reservado: 'var(--grafico-reservado)',

@@ -1,17 +1,21 @@
 import { defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 
-// DOIS projetos desde a F45. Até aqui havia um `include` só, e ele deixava dois
-// buracos: `.test.tsx` NÃO casa com `*.test.ts` (um teste de componente nunca
-// rodaria, e ninguém ficaria sabendo) e teste escrito em `scripts/env-guard.ts`,
+// TRÊS projetos desde a reauditoria de 22/09/2026 (passo 5, frente E/K/Y) — DOIS
+// desde a F45. Até a F45 havia um `include` só, e ele deixava dois buracos:
+// `.test.tsx` NÃO casa com `*.test.ts` (um teste de componente nunca rodaria, e
+// ninguém ficaria sabendo) e teste escrito em `scripts/env-guard.ts`,
 // `scripts/design/` ou `scripts/termos/` também ficava fora do runner.
 // `src/lib/ci-passos.test.ts` agora afirma que TODO `*.test.ts?(x)` do
 // repositório está coberto por algum `include` daqui — o buraco não volta em
-// silêncio.
+// silêncio — e que nenhum arquivo casa com o `include` de dois projetos ao
+// mesmo tempo (o terceiro projeto tornou esse segundo buraco possível pela
+// primeira vez, ver `componentes` abaixo).
 //
-// `puro` é EXATAMENTE o que rodava antes (mesmos dois padrões, mesmos 149
-// arquivos), acrescido de `scripts/**` para fechar o buraco. `componentes` é o
-// piso novo.
+// `puro` é EXATAMENTE o que rodava antes da F45 (mesmos dois padrões, mesmos
+// 149 arquivos), acrescido de `scripts/**` para fechar o buraco. `componentes`
+// é o piso de componente GRAU 1 (F45). `dom` é o piso GRAU 2 (interação),
+// aprovado em 22/09/2026 — ver o comentário dele, mais abaixo.
 const alias = {
   // Mesmo alias do tsconfig (@/* -> src/*), para os imports funcionarem.
   '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -101,17 +105,70 @@ export default defineConfig({
           // (`react-dom` 19.2.8) — zero dependência nova, como manda a regra 3
           // do CLAUDE.md e a decisão 4 do plano multiempresa.
           //
-          // NÃO há jsdom nem Testing Library aqui, e é de propósito: grau 2
-          // (interação, evento, estado) custa três dependências e vira proposta
-          // escrita ao Johnny depois do piloto. O que estes testes afirmam é o
-          // HTML que o servidor produz — papel ARIA, `id` de `aria-describedby`,
-          // presença de `<h1>` —, que é justamente o que quebra em silêncio.
+          // O que estes testes afirmam é o HTML que o servidor produz — papel
+          // ARIA, `id` de `aria-describedby`, presença de `<h1>` —, que é
+          // justamente o que quebra em silêncio numa decomposição.
           //
           // O transform de JSX sai de graça: o esbuild do Vitest lê
           // `"jsx": "react-jsx"` do `tsconfig.json`. Provado antes de escrever o
           // primeiro teste de verdade (docs/f45-evidencias/prova-1-transform-jsx.txt).
+          //
+          // GRAU 2 (interação, evento, estado) foi a "proposta escrita ao Johnny
+          // depois do piloto" que este comentário prometia — aprovada em
+          // 22/09/2026 (reauditoria, passo 5, frente E/K/Y) e mora no projeto
+          // `dom`, logo abaixo. Este projeto CONTINUA só grau 1: por isso o
+          // `exclude` de `*.dom.test.tsx` — sem ele um arquivo `.dom.test.tsx`
+          // (que espera jsdom/happy-dom) rodaria TAMBÉM aqui, em `environment:
+          // 'node'`, e cairia na primeira chamada de API de DOM que
+          // `renderToStaticMarkup` nunca precisou simular.
           environment: 'node',
           include: ['src/**/*.test.tsx'],
+          exclude: ['src/**/*.dom.test.tsx'],
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: 'dom',
+          testTimeout: RELOGIO,
+          // PISO DE TESTE DE COMPONENTE, GRAU 2 — interação real (Testing
+          // Library + `@testing-library/user-event`), aprovado pelo Johnny em
+          // 22/09/2026 (reauditoria de dívida técnica, passo 5, frente E/K/Y).
+          // Só para os QUATRO componentes-gigantes que mais provavelmente
+          // quebrariam em silêncio numa decomposição futura — não é o piso
+          // geral de todo componente (esse continua sendo o grau 1, acima).
+          //
+          // `happy-dom`, e NÃO `jsdom` — medido nesta própria fase (22/09/2026),
+          // não por gosto:
+          //   · o Radix (base do `Select`/`Command`/`DropdownMenu` daqui) chama
+          //     `ResizeObserver`, `Element.hasPointerCapture` /
+          //     `setPointerCapture` e `Element.scrollIntoView` em interações
+          //     comuns (abrir um combobox, rolar até um item). Rodar
+          //     `grupos-erros.dom.test.tsx` sob jsdom 30 (instalado à parte,
+          //     temporariamente, só para esta medição) reproduziu exatamente
+          //     isso: `TypeError: target.hasPointerCapture is not a function`,
+          //     lançado de dentro do `@radix-ui/react-select`, derrubando 2 dos
+          //     3 testes — o happy-dom 20 implementa as três APIs nativamente,
+          //     sem polyfill escrito à mão, e os mesmos 3 testes passam.
+          //   · desempenho: o MESMO arquivo, a mesma máquina — `environment`
+          //     (a montagem do DOM) levou 677 ms sob happy-dom contra 3,07 s
+          //     sob jsdom, e a duração total do arquivo foi 6,53 s contra
+          //     21,43 s (jsdom ainda mais lento aqui por lançar as 2 exceções
+          //     não tratadas no meio do caminho). Não é o motivo principal (o
+          //     motivo é o Radix não rodar de jeito nenhum sob jsdom), mas
+          //     pesou no desempate, e bate com o ~1,6x que o bench isolado do
+          //     levantamento mediu com 20 arquivos triviais.
+          //
+          // `include` ESTREITO de propósito: só `*.dom.test.tsx`, nunca
+          // `*.test.tsx` — um teste puro ou de render estático não precisa do
+          // custo de montar um DOM inteiro, e rodar os dois projetos sobre o
+          // mesmo arquivo duplicaria a suíte em silêncio (é o que o describe 5
+          // de `ci-passos.test.ts` passou a provar que NÃO acontece).
+          environment: 'happy-dom',
+          // Storage limpo entre testes: o ambiente é um por arquivo, e os
+          // formulários gravam memória e rascunho — ver o porquê no arquivo.
+          setupFiles: ['./vitest.setup-dom.ts'],
+          include: ['src/**/*.dom.test.tsx'],
         },
       },
     ],

@@ -1,6 +1,6 @@
 {
   "name": "estoque-ti-wap",
-  "version": "1.66.5",
+  "version": "1.66.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -54,12 +54,16 @@
   "devDependencies": {
     "@faker-js/faker": "^10.5.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "happy-dom": "^20.14.5",
     "playwright": "^1.63.0",
     "seedrandom": "^3.0.5",
     "tailwindcss": "^4",

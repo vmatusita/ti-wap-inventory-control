@@ -1,0 +1,40 @@
+Passo 5 — reauditoria de dívida técnica — Frente E/K/Y
+Medição jsdom × happy-dom (22/09/2026) — por que o projeto Vitest `dom` usa happy-dom
+
+Método: jsdom@30.1.1 instalado TEMPORARIAMENTE (`npm install --no-save jsdom@30.1.1`,
+nunca gravado em package.json/package-lock.json — hash md5 dos dois arquivos conferido
+igual antes e depois) com um `vitest.jsdom.config.mts` descartável (mesmo alias/relógio,
+`environment: 'jsdom'`), rodando o MESMO arquivo `grupos-erros.dom.test.tsx` que já roda
+verde no projeto `dom` (happy-dom). Depois: `npm uninstall jsdom --no-save` e o config
+descartável apagado — nada disso ficou no commit.
+
+=== sob happy-dom (projeto `dom` de verdade) ===
+Test Files  1 passed (1)
+     Tests  3 passed (3)
+  Duration  6.53s (transform 256ms, setup 0ms, import 4.85s, tests 763ms, environment 677ms)
+      real  0m9.558s
+
+=== sob jsdom (config descartável) ===
+Test Files  1 failed (1)
+     Tests  2 failed | 1 passed (3)
+  Duration  21.43s (transform 1.03s, setup 0ms, import 13.62s, tests 4.05s, environment 3.07s)
+      real  0m29.843s
+
+TypeError: target.hasPointerCapture is not a function
+ at node_modules/@radix-ui/react-select/dist/index.mjs:211:22
+ (lançado de dentro do Radix Select ao abrir o combobox "Categoria correta" — os dois
+ testes que interagem com o Select falham; o terceiro, que só clica num botão de ação
+ única sem Select, passa)
+
+Leitura:
+  · qualitativo — CONFIRMADO: jsdom 30 não implementa `Element.hasPointerCapture`, e o
+    Radix (base do Select/Command/DropdownMenu da casa) depende dela. Sem isso, 2 dos 3
+    testes de interação deste arquivo nem chegam a rodar a asserção — morrem no primeiro
+    clique que abre o Select.
+  · quantitativo — `environment` (montagem do DOM) 677ms (happy-dom) × 3,07s (jsdom): jsdom
+    ~4,5x mais lento só para montar o ambiente. Duração total do arquivo 6,53s × 21,43s
+    (jsdom ainda mais lento aqui por lançar 2 exceções não tratadas no meio do caminho —
+    não é uma comparação "mesma quantidade de trabalho", jsdom faz MENOS e ainda assim
+    demora mais). A ordem de grandeza bate com o ~1,6x que a documentação do próprio
+    happy-dom anuncia para operações comuns de DOM — medido aqui de novo, no código real
+    da casa, não só citado.

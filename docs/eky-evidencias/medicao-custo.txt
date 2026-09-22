@@ -1,0 +1,26 @@
+Passo 5 — reauditoria de dívida técnica — Frente E/K/Y (happy-dom + Testing Library)
+Medição do custo (item 5 da ordem), 22/09/2026
+
+=== ANTES (main, fc94b56 / v1.66.5) — npm run test (suíte inteira, 2 projetos: puro + componentes) ===
+Test Files  241 passed (241)
+     Tests  7176 passed (7176)
+  Duration  142.61s (transform 21.20s, setup 0ms, import 772.35s, tests 89.11s, environment 89ms)
+      real  2m28.857s
+
+=== DEPOIS (branch p5-eky) — npm run test (suíte inteira, 3 projetos: puro + componentes + dom) ===
+Test Files  245 passed (245)
+     Tests  7191 passed (7191)
+  Duration  177.22s (transform 38.04s, setup 0ms, import 905.36s, tests 152.02s, environment 6.25s)
+      real  2m59.625s
+
+=== DEPOIS (só o projeto novo, isolado) — npx vitest run --project dom ===
+Test Files  4 passed (4)
+     Tests  13 passed (13)
+  Duration  21.69s (transform 4.73s, setup 0ms, import 47.30s, tests 14.21s, environment 5.89s)
+      real  0m24.987s
+
+Leitura: os 4 arquivos *.dom.test.tsx (13 casos de interação) custaram ~25s isolados e
+~31s de acréscimo na suíte inteira (2m28s → 2m59s) — a diferença entre os dois números é
+o overhead de import do happy-dom/Testing Library ser pago uma vez a mais quando roda
+lado a lado com os outros dois projetos, na mesma invocação do Vitest. 245 arquivos, 7191
+testes, tudo verde nas duas pontas.

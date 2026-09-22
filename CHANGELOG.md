@@ -6,6 +6,47 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 22/09/2026 — Passo 5 da reauditoria: as decisões do Johnny ✅
+
+Entrega avulsa (**v1.66.6**): a Faixa 5 da reauditoria de dívida técnica de 18/09
+([`docs/DIVIDA-TECNICA.md`](docs/DIVIDA-TECNICA.md)), as cinco decisões que eram do dono. Cada uma chegou ao Johnny
+com o estado medido no código e nos dois bancos, 2 a 3 opções com custo e risco, e uma recomendação passada por um
+verificador adversarial. Ele escolheu a recomendada nas cinco. **Nenhuma migration, nada muda na tela, quatro
+dependências novas só de desenvolvimento.** Ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- 🧭 **A / R3: o método de migration virou ADR.** [`docs/ADR-003-metodo-de-migration.md`](docs/ADR-003-metodo-de-migration.md)
+  formaliza o que já estava em uso (conector ou Management API, trava de hash, CI em banco limpo, sonda de efeito,
+  contrato de base fixa) e proíbe `db push`, `migration repair` e `db reset --linked` contra os bancos vivos. Medido nos
+  dois ledgers: produção tem 16 arquivos sem linha e 1 linha sem arquivo, o ensaio 5 e 3, e os buracos são de
+  anotação. Lido na fonte atual da CLI, o `db push` hoje **aborta** (`DbPushMissingLocalError`) em vez de reaplicar;
+  o runbook ganhou a emenda.
+- 🧪 **E / K / Y: o grau 2 de teste de componente.** Aprovados `@testing-library/react`, `/dom`, `/user-event` e
+  `happy-dom`, só como devDependencies e só no projeto Vitest novo, `dom` (`*.dom.test.tsx`). **Treze testes de
+  interação** nos quatro gigantes (`nova-movimentacao-form`, `nova-compra-form`, `grupos-erros`, `importar-wizard`),
+  **antes** de qualquer decomposição e sem mudar uma linha deles. Cada arquivo foi provado por sabotagem (dez, todas
+  pegas). happy-dom, e não jsdom, porque o Radix chama `hasPointerCapture` e, sob o jsdom 30, dois dos três testes
+  do `grupos-erros` caem. Na integração apareceu uma corrida no teste do wizard: clique num "Avançar" ainda
+  desabilitado. O teste agora espera o botão habilitar. E o CI pegou o que a mesa não via: no Node 24 do CI, o
+  `localStorage` do happy-dom funciona e a memória da última compra vazava de um teste para o seguinte. No Node 26
+  da mesa, o `localStorage` do próprio Node o encobria. `vitest.setup-dom.ts` dá o mesmo `localStorage` aos dois e
+  limpa o storage entre testes. Evidências em [`docs/eky-evidencias/`](docs/eky-evidencias/).
+- 🎨 **AA: as cores ficam, e ganham um portão.** Medidos os 21 pares entre os 7 status vivos (a pilha esconde status
+  zerado, então qualquer par encosta), em visão normal e sob protanopia, deuteranopia e tritanopia. Das três formas de
+  separar a tinta, nenhuma fechava a régua sem trocar a identidade de ao menos dois tokens. O Johnny manteve a paleta.
+  `paleta-graficos.test.ts` passa a reprovar par abaixo do piso sem alívio, alívio que piora e alívio vencido. Os dois
+  alívios são emprestado×defasado (11,33 normal; 5,63 sob protanopia, abaixo até do mínimo). O `contraste.mjs` ganhou o
+  alívio do Defasado claro (2,54:1), que nunca teve registro, e as linhas dos tokens de gráfico que faltavam.
+  Levantamento e script em [`docs/aa-evidencias/`](docs/aa-evidencias/).
+- 🔐 **R1: `getUser()` fica.** Medido na fonte do servidor de Auth: o `getUser()` de hoje já barra sessão encerrada
+  **na requisição seguinte**, no proxy e em toda guarda de Server Action. O "até 1 h" da `0074` vale só para acesso
+  direto ao PostgREST. E o `getClaims()` só ganharia algo se a chave corrente de assinatura fosse assimétrica, o que não
+  está confirmado.
+- 📝 **AF: a dieta do `CLAUDE.md` foi aprovada** (raiz de ~4 mil tokens, 14 `CLAUDE.md` aninhados, `ARQUITETURA.md` §4
+  reescrito, porque ainda descrevia o modelo anterior à F21). Vai num PR próprio, em seguida: é documentação interna
+  e não gera versão.
+
+---
+
 ## 21/09/2026 — Passo 4 da reauditoria: o gatilho das movimentações decomposto, com o mesmo comportamento ✅ 🔒
 
 Entrega avulsa (**v1.66.5**): o passo 4 da reauditoria de dívida técnica de 18/09 (item **AG**,

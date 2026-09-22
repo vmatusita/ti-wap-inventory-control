@@ -17,7 +17,11 @@ export type AcervoPorSituacao = { segmentos: SegmentoAcervo[]; total: number }
 // saídas definitivas do acervo e a foto as-of do estoque já não os traz. A régua
 // é a mesma de `barras-empilhadas.tsx` — se um dia a foto passar a trazê-los, os
 // dois gráficos precisam continuar contando a mesma coisa.
-const FORA_DO_ACERVO: readonly StatusAtivo[] = ['descartado', 'devolvido_fornecedor']
+//
+// Passo 5 · item AA (22/09/2026) — exportada: `paleta-graficos.ts` reusa esta
+// MESMA lista para definir os "7 status vivos" do portão de ΔE, em vez de
+// duplicar os dois nomes por conta própria.
+export const FORA_DO_ACERVO: readonly StatusAtivo[] = ['descartado', 'devolvido_fornecedor']
 
 export function agregarAcervoPorSituacao(
   dados: readonly EstoqueCatStatus[],

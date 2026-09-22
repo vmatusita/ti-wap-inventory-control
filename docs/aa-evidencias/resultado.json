@@ -1,0 +1,3847 @@
+{
+  "superficies": {
+    "cardClaro": "#ffffff",
+    "cardEscuro": "#171717"
+  },
+  "statusOrdem": [
+    "em_estoque",
+    "reservado",
+    "em_uso",
+    "emprestado",
+    "em_triagem",
+    "em_manutencao",
+    "defasado",
+    "descartado",
+    "devolvido_fornecedor"
+  ],
+  "vivos": [
+    "em_estoque",
+    "reservado",
+    "em_uso",
+    "emprestado",
+    "em_triagem",
+    "em_manutencao",
+    "defasado"
+  ],
+  "rotulosStatus": {
+    "em_estoque": "Em estoque",
+    "reservado": "Reservado",
+    "em_uso": "Em uso",
+    "emprestado": "Emprestado",
+    "em_triagem": "Em triagem",
+    "em_manutencao": "Em manutenção",
+    "defasado": "Defasado",
+    "descartado": "Descartado",
+    "devolvido_fornecedor": "Devolvido ao fornecedor"
+  },
+  "paresRestritos": [
+    "em_estoque×reservado",
+    "em_estoque×em_uso",
+    "em_estoque×emprestado",
+    "em_estoque×em_triagem",
+    "em_estoque×em_manutencao",
+    "em_estoque×defasado",
+    "reservado×em_uso",
+    "reservado×emprestado",
+    "reservado×em_triagem",
+    "reservado×em_manutencao",
+    "reservado×defasado",
+    "em_uso×emprestado",
+    "em_uso×em_triagem",
+    "em_uso×em_manutencao",
+    "em_uso×defasado",
+    "emprestado×em_triagem",
+    "emprestado×em_manutencao",
+    "emprestado×defasado",
+    "em_triagem×em_manutencao",
+    "em_triagem×defasado",
+    "em_manutencao×defasado"
+  ],
+  "paletas": {
+    "atual": {
+      "em_estoque": "#16a34a",
+      "reservado": "#6d28d9",
+      "em_uso": "#2a78d6",
+      "emprestado": "#06b6d4",
+      "em_triagem": "#db2777",
+      "em_manutencao": "#d97706",
+      "defasado": "#9ca3af",
+      "descartado": "#6b7280",
+      "devolvido_fornecedor": "#64748b"
+    },
+    "minima": {
+      "em_estoque": "#16a34a",
+      "reservado": "#722cff",
+      "em_uso": "#2a78d6",
+      "emprestado": "#00a2c7",
+      "em_triagem": "#db2777",
+      "em_manutencao": "#d97706",
+      "defasado": "#6b727e",
+      "descartado": "#6b7280",
+      "devolvido_fornecedor": "#64748b"
+    },
+    "minimaRelaxada": {
+      "em_estoque": "#16a34a",
+      "reservado": "#ab7aff",
+      "em_uso": "#2a78d6",
+      "emprestado": "#00a4b7",
+      "em_triagem": "#db2777",
+      "em_manutencao": "#d97706",
+      "defasado": "#676f7a",
+      "descartado": "#6b7280",
+      "devolvido_fornecedor": "#64748b"
+    },
+    "porTema": {
+      "claro": {
+        "em_estoque": "#16a34a",
+        "reservado": "#6d28d9",
+        "em_uso": "#2a78d6",
+        "emprestado": "#007765",
+        "em_triagem": "#db2777",
+        "em_manutencao": "#d97706",
+        "defasado": "#8d94a1",
+        "descartado": "#6b7280",
+        "devolvido_fornecedor": "#64748b"
+      },
+      "escuro": {
+        "em_estoque": "#16a34a",
+        "reservado": "#7736f6",
+        "em_uso": "#2a78d6",
+        "emprestado": "#06b6d4",
+        "em_triagem": "#db2777",
+        "em_manutencao": "#d97706",
+        "defasado": "#9ca3af",
+        "descartado": "#6b7280",
+        "devolvido_fornecedor": "#64748b"
+      }
+    },
+    "separada": {
+      "em_estoque": "#536e3d",
+      "reservado": "#6834ff",
+      "em_uso": "#2a78d6",
+      "emprestado": "#009de5",
+      "em_triagem": "#a84694",
+      "em_manutencao": "#ce8500",
+      "defasado": "#8d94a1",
+      "descartado": "#6b7280",
+      "devolvido_fornecedor": "#64748b"
+    }
+  },
+  "medicoes": {
+    "atual": {
+      "claro": {
+        "contrastes": {
+          "em_estoque": 3.2957336053312796,
+          "reservado": 7.104892978519159,
+          "em_uso": 4.41543400702652,
+          "emprestado": 2.4278533783091234,
+          "em_triagem": 4.596590808200417,
+          "em_manutencao": 3.1858232404059073,
+          "defasado": 2.5388412065932826,
+          "descartado": 4.834490081424352,
+          "devolvido_fornecedor": 4.758842787868666
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.40627475679687,
+            "protanopia": 34.91986911329593,
+            "deuteranopia": 31.587613434390615,
+            "tritanopia": 19.566731292216446
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 18.71140839937588,
+            "protanopia": 18.637484817219583,
+            "deuteranopia": 17.632078252363307,
+            "tritanopia": 10.45324970019335
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.796845360758088,
+            "protanopia": 13.358719043296816,
+            "deuteranopia": 12.77021467198435,
+            "tritanopia": 12.753776390958949
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.08231131623681,
+            "protanopia": 11.380029814587798,
+            "deuteranopia": 7.568178636694813,
+            "tritanopia": 14.103750133084144
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 33.31370239330959,
+            "protanopia": 29.22155280125731,
+            "deuteranopia": 24.82886770780789,
+            "tritanopia": 28.059414160533137
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 27.66145830565084,
+            "protanopia": 17.285126344659847,
+            "deuteranopia": 25.620225014228282,
+            "tritanopia": 30.11583112519201
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 39.751812390481014,
+            "protanopia": 34.78613864332008,
+            "deuteranopia": 39.2196120357876,
+            "tritanopia": 28.92761657988902
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 31.682463282418222,
+            "protanopia": 28.35898482208505,
+            "deuteranopia": 28.998236934504607,
+            "tritanopia": 24.128854432078974
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 17.476229324210497,
+            "protanopia": 17.884703366490477,
+            "deuteranopia": 17.472421414728455,
+            "tritanopia": 14.53307261143298
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 19.935826030126158,
+            "protanopia": 17.228825154012863,
+            "deuteranopia": 21.67693400208695,
+            "tritanopia": 14.797197236974508
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 35.15758780407041,
+            "protanopia": 27.068404665309565,
+            "deuteranopia": 14.529783085764386,
+            "tritanopia": 38.90025369921361
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 28.17916782942344,
+            "protanopia": 23.72239162360895,
+            "deuteranopia": 22.23592888409566,
+            "tritanopia": 30.65077710653904
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 11.329358124028117,
+            "protanopia": 5.631255206778806,
+            "deuteranopia": 6.256310924751698,
+            "tritanopia": 11.199186947717976
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 25.321463354784907,
+            "protanopia": 23.07348978335288,
+            "deuteranopia": 11.593161557013417,
+            "tritanopia": 27.914894482148977
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 18.164083545494467,
+            "protanopia": 18.184194048903944,
+            "deuteranopia": 16.30195790030359,
+            "tritanopia": 19.53513404837512
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.40627475679687,
+            "protanopia": 34.91986911329593,
+            "deuteranopia": 31.587613434390615,
+            "tritanopia": 19.566731292216446
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.08231131623681,
+            "protanopia": 11.380029814587798,
+            "deuteranopia": 7.568178636694813,
+            "tritanopia": 14.103750133084144
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 17.476229324210497,
+            "protanopia": 17.884703366490477,
+            "deuteranopia": 17.472421414728455,
+            "tritanopia": 14.53307261143298
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 35.15758780407041,
+            "protanopia": 27.068404665309565,
+            "deuteranopia": 14.529783085764386,
+            "tritanopia": 38.90025369921361
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 18.164083545494467,
+            "protanopia": 18.184194048903944,
+            "deuteranopia": 16.30195790030359,
+            "tritanopia": 19.53513404837512
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "emprestado×defasado",
+            "valor": 11.329358124028117
+          },
+          "protanopia": {
+            "par": "emprestado×defasado",
+            "valor": 5.631255206778806
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×em_uso",
+            "valor": 6.264957797657191
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "reservado×em_uso",
+            "valor": 17.08231131623681
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 11.380029814587798
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.568178636694813
+          },
+          "tritanopia": {
+            "par": "em_triagem×em_manutencao",
+            "valor": 9.712068145651331
+          }
+        }
+      },
+      "escuro": {
+        "contrastes": {
+          "em_estoque": 5.439711578638206,
+          "reservado": 2.523308979773573,
+          "em_uso": 4.060266833225919,
+          "emprestado": 7.384235149123145,
+          "em_triagem": 3.9002471616668486,
+          "em_manutencao": 5.627380711411788,
+          "defasado": 7.061426372972686,
+          "descartado": 3.708320826205035,
+          "devolvido_fornecedor": 3.767268861818591
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.40627475679687,
+            "protanopia": 34.91986911329593,
+            "deuteranopia": 31.587613434390615,
+            "tritanopia": 19.566731292216446
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 18.71140839937588,
+            "protanopia": 18.637484817219583,
+            "deuteranopia": 17.632078252363307,
+            "tritanopia": 10.45324970019335
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.796845360758088,
+            "protanopia": 13.358719043296816,
+            "deuteranopia": 12.77021467198435,
+            "tritanopia": 12.753776390958949
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.08231131623681,
+            "protanopia": 11.380029814587798,
+            "deuteranopia": 7.568178636694813,
+            "tritanopia": 14.103750133084144
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 33.31370239330959,
+            "protanopia": 29.22155280125731,
+            "deuteranopia": 24.82886770780789,
+            "tritanopia": 28.059414160533137
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 27.66145830565084,
+            "protanopia": 17.285126344659847,
+            "deuteranopia": 25.620225014228282,
+            "tritanopia": 30.11583112519201
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 39.751812390481014,
+            "protanopia": 34.78613864332008,
+            "deuteranopia": 39.2196120357876,
+            "tritanopia": 28.92761657988902
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 31.682463282418222,
+            "protanopia": 28.35898482208505,
+            "deuteranopia": 28.998236934504607,
+            "tritanopia": 24.128854432078974
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 17.476229324210497,
+            "protanopia": 17.884703366490477,
+            "deuteranopia": 17.472421414728455,
+            "tritanopia": 14.53307261143298
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 19.935826030126158,
+            "protanopia": 17.228825154012863,
+            "deuteranopia": 21.67693400208695,
+            "tritanopia": 14.797197236974508
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 35.15758780407041,
+            "protanopia": 27.068404665309565,
+            "deuteranopia": 14.529783085764386,
+            "tritanopia": 38.90025369921361
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 28.17916782942344,
+            "protanopia": 23.72239162360895,
+            "deuteranopia": 22.23592888409566,
+            "tritanopia": 30.65077710653904
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 11.329358124028117,
+            "protanopia": 5.631255206778806,
+            "deuteranopia": 6.256310924751698,
+            "tritanopia": 11.199186947717976
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 25.321463354784907,
+            "protanopia": 23.07348978335288,
+            "deuteranopia": 11.593161557013417,
+            "tritanopia": 27.914894482148977
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 18.164083545494467,
+            "protanopia": 18.184194048903944,
+            "deuteranopia": 16.30195790030359,
+            "tritanopia": 19.53513404837512
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.40627475679687,
+            "protanopia": 34.91986911329593,
+            "deuteranopia": 31.587613434390615,
+            "tritanopia": 19.566731292216446
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.08231131623681,
+            "protanopia": 11.380029814587798,
+            "deuteranopia": 7.568178636694813,
+            "tritanopia": 14.103750133084144
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 17.476229324210497,
+            "protanopia": 17.884703366490477,
+            "deuteranopia": 17.472421414728455,
+            "tritanopia": 14.53307261143298
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 35.15758780407041,
+            "protanopia": 27.068404665309565,
+            "deuteranopia": 14.529783085764386,
+            "tritanopia": 38.90025369921361
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 18.164083545494467,
+            "protanopia": 18.184194048903944,
+            "deuteranopia": 16.30195790030359,
+            "tritanopia": 19.53513404837512
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "emprestado×defasado",
+            "valor": 11.329358124028117
+          },
+          "protanopia": {
+            "par": "emprestado×defasado",
+            "valor": 5.631255206778806
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×em_uso",
+            "valor": 6.264957797657191
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "reservado×em_uso",
+            "valor": 17.08231131623681
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 11.380029814587798
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.568178636694813
+          },
+          "tritanopia": {
+            "par": "em_triagem×em_manutencao",
+            "valor": 9.712068145651331
+          }
+        }
+      },
+      "paleta": {
+        "claro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#6d28d9",
+          "em_uso": "#2a78d6",
+          "emprestado": "#06b6d4",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#9ca3af",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        },
+        "escuro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#6d28d9",
+          "em_uso": "#2a78d6",
+          "emprestado": "#06b6d4",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#9ca3af",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        }
+      }
+    },
+    "minima": {
+      "claro": {
+        "contrastes": {
+          "em_estoque": 3.2957336053312796,
+          "reservado": 5.966325496840109,
+          "em_uso": 4.41543400702652,
+          "emprestado": 3.0030732457276668,
+          "em_triagem": 4.596590808200417,
+          "em_manutencao": 3.1858232404059073,
+          "defasado": 4.8461272916679174,
+          "descartado": 4.834490081424352,
+          "devolvido_fornecedor": 4.758842787868666
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 42.892540858657746,
+            "protanopia": 35.30516138215312,
+            "deuteranopia": 33.182686455992986,
+            "tritanopia": 15.417819806102168
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 17.987798296201646,
+            "protanopia": 17.411210705735357,
+            "deuteranopia": 16.79387033536341,
+            "tritanopia": 5.3183070272192
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.443310947788163,
+            "protanopia": 16.521479679798215,
+            "deuteranopia": 12.712458031071453,
+            "tritanopia": 12.86413745223149
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 16.856684018132395,
+            "protanopia": 9.774637604618965,
+            "deuteranopia": 7.859697033081943,
+            "tritanopia": 9.377833930414178
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 28.180943340543017,
+            "protanopia": 21.812025046976668,
+            "deuteranopia": 18.855438283230132,
+            "tritanopia": 18.053719557043767
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 30.195572878168303,
+            "protanopia": 21.154206050330064,
+            "deuteranopia": 27.32763711517428,
+            "tritanopia": 32.387387016851605
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 41.770487533405046,
+            "protanopia": 36.202390677815984,
+            "deuteranopia": 40.41227035145304,
+            "tritanopia": 29.559039003022036
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 25.838376385794255,
+            "protanopia": 21.984847603878613,
+            "deuteranopia": 22.521849508302818,
+            "tritanopia": 8.598990195478985
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 12.465370381908032,
+            "protanopia": 12.628603936007131,
+            "deuteranopia": 12.508549583798045,
+            "tritanopia": 9.02045684845968
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 14.436704659227006,
+            "protanopia": 13.979377005086047,
+            "deuteranopia": 15.0067195278423,
+            "tritanopia": 9.515097527109663
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.704941924256694,
+            "protanopia": 21.37059109830515,
+            "deuteranopia": 12.071742153456356,
+            "tritanopia": 36.479809873069804
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 27.633202227029813,
+            "protanopia": 21.340147828856548,
+            "deuteranopia": 23.023078673850524,
+            "tritanopia": 29.098510501821274
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 15.30887407484866,
+            "protanopia": 15.355376687220035,
+            "deuteranopia": 12.308196327001502,
+            "tritanopia": 16.299598273383467
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 22.60320174030393,
+            "protanopia": 7.027846012791253,
+            "deuteranopia": 6.965887198407749,
+            "tritanopia": 26.30843223081743
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.09461991578471,
+            "protanopia": 15.393876352817282,
+            "deuteranopia": 20.720202487445185,
+            "tritanopia": 22.81090643528921
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 42.892540858657746,
+            "protanopia": 35.30516138215312,
+            "deuteranopia": 33.182686455992986,
+            "tritanopia": 15.417819806102168
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 16.856684018132395,
+            "protanopia": 9.774637604618965,
+            "deuteranopia": 7.859697033081943,
+            "tritanopia": 9.377833930414178
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 12.465370381908032,
+            "protanopia": 12.628603936007131,
+            "deuteranopia": 12.508549583798045,
+            "tritanopia": 9.02045684845968
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.704941924256694,
+            "protanopia": 21.37059109830515,
+            "deuteranopia": 12.071742153456356,
+            "tritanopia": 36.479809873069804
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.09461991578471,
+            "protanopia": 15.393876352817282,
+            "deuteranopia": 20.720202487445185,
+            "tritanopia": 22.81090643528921
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 12.465370381908032
+          },
+          "protanopia": {
+            "par": "em_estoque×em_manutencao",
+            "valor": 6.171473559424595
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×emprestado",
+            "valor": 5.3183070272192
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 12.465370381908032
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.774637604618965
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.859697033081943
+          },
+          "tritanopia": {
+            "par": "em_uso×emprestado",
+            "valor": 9.02045684845968
+          }
+        }
+      },
+      "escuro": {
+        "contrastes": {
+          "em_estoque": 5.439711578638206,
+          "reservado": 3.0048377787169946,
+          "em_uso": 4.060266833225919,
+          "emprestado": 5.9698311649683236,
+          "em_triagem": 3.9002471616668486,
+          "em_manutencao": 5.627380711411788,
+          "defasado": 3.699415878706166,
+          "descartado": 3.708320826205035,
+          "devolvido_fornecedor": 3.767268861818591
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 42.892540858657746,
+            "protanopia": 35.30516138215312,
+            "deuteranopia": 33.182686455992986,
+            "tritanopia": 15.417819806102168
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 17.987798296201646,
+            "protanopia": 17.411210705735357,
+            "deuteranopia": 16.79387033536341,
+            "tritanopia": 5.3183070272192
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.443310947788163,
+            "protanopia": 16.521479679798215,
+            "deuteranopia": 12.712458031071453,
+            "tritanopia": 12.86413745223149
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 16.856684018132395,
+            "protanopia": 9.774637604618965,
+            "deuteranopia": 7.859697033081943,
+            "tritanopia": 9.377833930414178
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 28.180943340543017,
+            "protanopia": 21.812025046976668,
+            "deuteranopia": 18.855438283230132,
+            "tritanopia": 18.053719557043767
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 30.195572878168303,
+            "protanopia": 21.154206050330064,
+            "deuteranopia": 27.32763711517428,
+            "tritanopia": 32.387387016851605
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 41.770487533405046,
+            "protanopia": 36.202390677815984,
+            "deuteranopia": 40.41227035145304,
+            "tritanopia": 29.559039003022036
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 25.838376385794255,
+            "protanopia": 21.984847603878613,
+            "deuteranopia": 22.521849508302818,
+            "tritanopia": 8.598990195478985
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 12.465370381908032,
+            "protanopia": 12.628603936007131,
+            "deuteranopia": 12.508549583798045,
+            "tritanopia": 9.02045684845968
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 14.436704659227006,
+            "protanopia": 13.979377005086047,
+            "deuteranopia": 15.0067195278423,
+            "tritanopia": 9.515097527109663
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.704941924256694,
+            "protanopia": 21.37059109830515,
+            "deuteranopia": 12.071742153456356,
+            "tritanopia": 36.479809873069804
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 27.633202227029813,
+            "protanopia": 21.340147828856548,
+            "deuteranopia": 23.023078673850524,
+            "tritanopia": 29.098510501821274
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 15.30887407484866,
+            "protanopia": 15.355376687220035,
+            "deuteranopia": 12.308196327001502,
+            "tritanopia": 16.299598273383467
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 22.60320174030393,
+            "protanopia": 7.027846012791253,
+            "deuteranopia": 6.965887198407749,
+            "tritanopia": 26.30843223081743
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.09461991578471,
+            "protanopia": 15.393876352817282,
+            "deuteranopia": 20.720202487445185,
+            "tritanopia": 22.81090643528921
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 42.892540858657746,
+            "protanopia": 35.30516138215312,
+            "deuteranopia": 33.182686455992986,
+            "tritanopia": 15.417819806102168
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 16.856684018132395,
+            "protanopia": 9.774637604618965,
+            "deuteranopia": 7.859697033081943,
+            "tritanopia": 9.377833930414178
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 12.465370381908032,
+            "protanopia": 12.628603936007131,
+            "deuteranopia": 12.508549583798045,
+            "tritanopia": 9.02045684845968
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.704941924256694,
+            "protanopia": 21.37059109830515,
+            "deuteranopia": 12.071742153456356,
+            "tritanopia": 36.479809873069804
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.09461991578471,
+            "protanopia": 15.393876352817282,
+            "deuteranopia": 20.720202487445185,
+            "tritanopia": 22.81090643528921
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 12.465370381908032
+          },
+          "protanopia": {
+            "par": "em_estoque×em_manutencao",
+            "valor": 6.171473559424595
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×emprestado",
+            "valor": 5.3183070272192
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 12.465370381908032
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.774637604618965
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.859697033081943
+          },
+          "tritanopia": {
+            "par": "em_uso×emprestado",
+            "valor": 9.02045684845968
+          }
+        }
+      },
+      "paleta": {
+        "claro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#722cff",
+          "em_uso": "#2a78d6",
+          "emprestado": "#00a2c7",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#6b727e",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        },
+        "escuro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#722cff",
+          "em_uso": "#2a78d6",
+          "emprestado": "#00a2c7",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#6b727e",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        }
+      }
+    },
+    "minimaRelaxada": {
+      "claro": {
+        "contrastes": {
+          "em_estoque": 3.2957336053312796,
+          "reservado": 3.017502017069168,
+          "em_uso": 4.41543400702652,
+          "emprestado": 3.0025894065355887,
+          "em_triagem": 4.596590808200417,
+          "em_manutencao": 3.1858232404059073,
+          "defasado": 5.082878943655827,
+          "descartado": 4.834490081424352,
+          "devolvido_fornecedor": 4.758842787868666
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 35.31430381266172,
+            "protanopia": 27.55540784818121,
+            "deuteranopia": 24.75749786850035,
+            "tritanopia": 14.284688882037736
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 15.314469689388957,
+            "protanopia": 14.893141160429405,
+            "deuteranopia": 14.272911612067873,
+            "tritanopia": 4.736721586594321
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.75934331252987,
+            "protanopia": 17.192524182698186,
+            "deuteranopia": 13.40350100492641,
+            "tritanopia": 13.546804548073526
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.262207747206165,
+            "protanopia": 7.131076791044928,
+            "deuteranopia": 11.571212088929371,
+            "tritanopia": 13.888739025557777
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 22.24767598371234,
+            "protanopia": 13.844846692301664,
+            "deuteranopia": 10.799510022525391,
+            "tritanopia": 12.99930995030488
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 23.350707157905816,
+            "protanopia": 22.72050444799912,
+            "deuteranopia": 20.172979154733923,
+            "tritanopia": 25.24199703599388
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 30.32551819046152,
+            "protanopia": 30.29218377723575,
+            "deuteranopia": 30.431614407911344,
+            "tritanopia": 17.962554651703055
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 23.094349453232642,
+            "protanopia": 20.363076857251162,
+            "deuteranopia": 20.12245384318181,
+            "tritanopia": 15.035278257946985
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 14.373913449456907,
+            "protanopia": 14.292742489950228,
+            "deuteranopia": 14.335219016639334,
+            "tritanopia": 8.76804414468731
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 14.739545350995215,
+            "protanopia": 14.537174063759956,
+            "deuteranopia": 15.203218808339294,
+            "tritanopia": 9.99360765300015
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.901371532627586,
+            "protanopia": 21.029627116736503,
+            "deuteranopia": 9.764035051731039,
+            "tritanopia": 36.373035981127686
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 26.26328526744819,
+            "protanopia": 19.006757286891986,
+            "deuteranopia": 20.521204272956574,
+            "tritanopia": 29.042057769851915
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 15.642319630456747,
+            "protanopia": 15.682277650156227,
+            "deuteranopia": 12.20224830585007,
+            "tritanopia": 16.832797917339377
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 22.98529613467703,
+            "protanopia": 6.038662963534671,
+            "deuteranopia": 7.859320784382781,
+            "tritanopia": 26.688393510193308
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.738188063795146,
+            "protanopia": 15.690464448093408,
+            "deuteranopia": 21.394797464514504,
+            "tritanopia": 23.55371421346697
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 35.31430381266172,
+            "protanopia": 27.55540784818121,
+            "deuteranopia": 24.75749786850035,
+            "tritanopia": 14.284688882037736
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.262207747206165,
+            "protanopia": 7.131076791044928,
+            "deuteranopia": 11.571212088929371,
+            "tritanopia": 13.888739025557777
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 14.373913449456907,
+            "protanopia": 14.292742489950228,
+            "deuteranopia": 14.335219016639334,
+            "tritanopia": 8.76804414468731
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.901371532627586,
+            "protanopia": 21.029627116736503,
+            "deuteranopia": 9.764035051731039,
+            "tritanopia": 36.373035981127686
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.738188063795146,
+            "protanopia": 15.690464448093408,
+            "deuteranopia": 21.394797464514504,
+            "tritanopia": 23.55371421346697
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 14.373913449456907
+          },
+          "protanopia": {
+            "par": "em_triagem×defasado",
+            "valor": 6.038662963534671
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×emprestado",
+            "valor": 4.736721586594321
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 14.373913449456907
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.131076791044928
+          },
+          "deuteranopia": {
+            "par": "emprestado×em_triagem",
+            "valor": 9.764035051731039
+          },
+          "tritanopia": {
+            "par": "em_uso×emprestado",
+            "valor": 8.76804414468731
+          }
+        }
+      },
+      "escuro": {
+        "contrastes": {
+          "em_estoque": 5.439711578638206,
+          "reservado": 5.941285259003906,
+          "em_uso": 4.060266833225919,
+          "emprestado": 5.970793147409683,
+          "em_triagem": 3.9002471616668486,
+          "em_manutencao": 5.627380711411788,
+          "defasado": 3.5271035276974585,
+          "descartado": 3.708320826205035,
+          "devolvido_fornecedor": 3.767268861818591
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 35.31430381266172,
+            "protanopia": 27.55540784818121,
+            "deuteranopia": 24.75749786850035,
+            "tritanopia": 14.284688882037736
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 15.314469689388957,
+            "protanopia": 14.893141160429405,
+            "deuteranopia": 14.272911612067873,
+            "tritanopia": 4.736721586594321
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.75934331252987,
+            "protanopia": 17.192524182698186,
+            "deuteranopia": 13.40350100492641,
+            "tritanopia": 13.546804548073526
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.262207747206165,
+            "protanopia": 7.131076791044928,
+            "deuteranopia": 11.571212088929371,
+            "tritanopia": 13.888739025557777
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 22.24767598371234,
+            "protanopia": 13.844846692301664,
+            "deuteranopia": 10.799510022525391,
+            "tritanopia": 12.99930995030488
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 23.350707157905816,
+            "protanopia": 22.72050444799912,
+            "deuteranopia": 20.172979154733923,
+            "tritanopia": 25.24199703599388
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 30.32551819046152,
+            "protanopia": 30.29218377723575,
+            "deuteranopia": 30.431614407911344,
+            "tritanopia": 17.962554651703055
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 23.094349453232642,
+            "protanopia": 20.363076857251162,
+            "deuteranopia": 20.12245384318181,
+            "tritanopia": 15.035278257946985
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 14.373913449456907,
+            "protanopia": 14.292742489950228,
+            "deuteranopia": 14.335219016639334,
+            "tritanopia": 8.76804414468731
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 14.739545350995215,
+            "protanopia": 14.537174063759956,
+            "deuteranopia": 15.203218808339294,
+            "tritanopia": 9.99360765300015
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.901371532627586,
+            "protanopia": 21.029627116736503,
+            "deuteranopia": 9.764035051731039,
+            "tritanopia": 36.373035981127686
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 26.26328526744819,
+            "protanopia": 19.006757286891986,
+            "deuteranopia": 20.521204272956574,
+            "tritanopia": 29.042057769851915
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 15.642319630456747,
+            "protanopia": 15.682277650156227,
+            "deuteranopia": 12.20224830585007,
+            "tritanopia": 16.832797917339377
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 22.98529613467703,
+            "protanopia": 6.038662963534671,
+            "deuteranopia": 7.859320784382781,
+            "tritanopia": 26.688393510193308
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.738188063795146,
+            "protanopia": 15.690464448093408,
+            "deuteranopia": 21.394797464514504,
+            "tritanopia": 23.55371421346697
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 35.31430381266172,
+            "protanopia": 27.55540784818121,
+            "deuteranopia": 24.75749786850035,
+            "tritanopia": 14.284688882037736
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.262207747206165,
+            "protanopia": 7.131076791044928,
+            "deuteranopia": 11.571212088929371,
+            "tritanopia": 13.888739025557777
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 14.373913449456907,
+            "protanopia": 14.292742489950228,
+            "deuteranopia": 14.335219016639334,
+            "tritanopia": 8.76804414468731
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.901371532627586,
+            "protanopia": 21.029627116736503,
+            "deuteranopia": 9.764035051731039,
+            "tritanopia": 36.373035981127686
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 21.738188063795146,
+            "protanopia": 15.690464448093408,
+            "deuteranopia": 21.394797464514504,
+            "tritanopia": 23.55371421346697
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 14.373913449456907
+          },
+          "protanopia": {
+            "par": "em_triagem×defasado",
+            "valor": 6.038662963534671
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×emprestado",
+            "valor": 4.736721586594321
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 14.373913449456907
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.131076791044928
+          },
+          "deuteranopia": {
+            "par": "emprestado×em_triagem",
+            "valor": 9.764035051731039
+          },
+          "tritanopia": {
+            "par": "em_uso×emprestado",
+            "valor": 8.76804414468731
+          }
+        }
+      },
+      "paleta": {
+        "claro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#ab7aff",
+          "em_uso": "#2a78d6",
+          "emprestado": "#00a4b7",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#676f7a",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        },
+        "escuro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#ab7aff",
+          "em_uso": "#2a78d6",
+          "emprestado": "#00a4b7",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#676f7a",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        }
+      }
+    },
+    "porTema": {
+      "claro": {
+        "contrastes": {
+          "em_estoque": 3.2957336053312796,
+          "reservado": 7.104892978519159,
+          "em_uso": 4.41543400702652,
+          "emprestado": 5.487832517495465,
+          "em_triagem": 4.596590808200417,
+          "em_manutencao": 3.1858232404059073,
+          "defasado": 3.050929752090866,
+          "descartado": 4.834490081424352,
+          "devolvido_fornecedor": 4.758842787868666
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.40627475679687,
+            "protanopia": 34.91986911329593,
+            "deuteranopia": 31.587613434390615,
+            "tritanopia": 19.566731292216446
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 15.303152348979134,
+            "protanopia": 15.194995307839518,
+            "deuteranopia": 14.582656987764993,
+            "tritanopia": 11.657035728227257
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 18.33311260358329,
+            "protanopia": 12.425413651764758,
+            "deuteranopia": 10.458346741410502,
+            "tritanopia": 10.34678520365524
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.08231131623681,
+            "protanopia": 11.380029814587798,
+            "deuteranopia": 7.568178636694813,
+            "tritanopia": 14.103750133084144
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 29.468434824652828,
+            "protanopia": 23.113221864464606,
+            "deuteranopia": 20.865283766093526,
+            "tritanopia": 10.466310352081054
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 27.66145830565084,
+            "protanopia": 17.285126344659847,
+            "deuteranopia": 25.620225014228282,
+            "tritanopia": 30.11583112519201
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 39.751812390481014,
+            "protanopia": 34.78613864332008,
+            "deuteranopia": 39.2196120357876,
+            "tritanopia": 28.92761657988902
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 28.3353178466201,
+            "protanopia": 24.938185172494247,
+            "deuteranopia": 25.409073349366945,
+            "tritanopia": 19.43611716280591
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 18.291840509136463,
+            "protanopia": 17.741670206365168,
+            "deuteranopia": 17.498953755687534,
+            "tritanopia": 8.12782368573873
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 16.791849236416905,
+            "protanopia": 14.40655239295796,
+            "deuteranopia": 18.3596238414087,
+            "tritanopia": 11.141762798868934
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.282709434680854,
+            "protanopia": 7.873903400121963,
+            "deuteranopia": 9.957874061945457,
+            "tritanopia": 34.12057216206086
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 26.94397791324365,
+            "protanopia": 12.787241069232108,
+            "deuteranopia": 22.338378956599435,
+            "tritanopia": 30.56026613091442
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 18.265222270522703,
+            "protanopia": 13.388399490546806,
+            "deuteranopia": 15.744345857038788,
+            "tritanopia": 16.362265312229965
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 23.35626554085497,
+            "protanopia": 18.2392522936826,
+            "deuteranopia": 7.350446055281229,
+            "tritanopia": 26.447167233533143
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 17.661604488200773,
+            "protanopia": 15.851890827365336,
+            "deuteranopia": 16.214677611181283,
+            "tritanopia": 19.199290531533812
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.40627475679687,
+            "protanopia": 34.91986911329593,
+            "deuteranopia": 31.587613434390615,
+            "tritanopia": 19.566731292216446
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 17.08231131623681,
+            "protanopia": 11.380029814587798,
+            "deuteranopia": 7.568178636694813,
+            "tritanopia": 14.103750133084144
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 18.291840509136463,
+            "protanopia": 17.741670206365168,
+            "deuteranopia": 17.498953755687534,
+            "tritanopia": 8.12782368573873
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 32.282709434680854,
+            "protanopia": 7.873903400121963,
+            "deuteranopia": 9.957874061945457,
+            "tritanopia": 34.12057216206086
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 17.661604488200773,
+            "protanopia": 15.851890827365336,
+            "deuteranopia": 16.214677611181283,
+            "tritanopia": 19.199290531533812
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_estoque×emprestado",
+            "valor": 15.303152348979134
+          },
+          "protanopia": {
+            "par": "em_estoque×em_manutencao",
+            "valor": 6.171473559424595
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×em_uso",
+            "valor": 6.264957797657191
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "reservado×em_uso",
+            "valor": 17.08231131623681
+          },
+          "protanopia": {
+            "par": "emprestado×em_triagem",
+            "valor": 7.873903400121963
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.568178636694813
+          },
+          "tritanopia": {
+            "par": "em_uso×emprestado",
+            "valor": 8.12782368573873
+          }
+        }
+      },
+      "escuro": {
+        "contrastes": {
+          "em_estoque": 5.439711578638206,
+          "reservado": 3.1098985473540144,
+          "em_uso": 4.060266833225919,
+          "emprestado": 7.384235149123145,
+          "em_triagem": 3.9002471616668486,
+          "em_manutencao": 5.627380711411788,
+          "defasado": 7.061426372972686,
+          "descartado": 3.708320826205035,
+          "devolvido_fornecedor": 3.767268861818591
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.4882413742583,
+            "protanopia": 34.75486550953333,
+            "deuteranopia": 31.790846820991657,
+            "tritanopia": 15.367654541919443
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 27.11104659392615,
+            "protanopia": 25.657161800195276,
+            "deuteranopia": 25.454718561144773,
+            "tritanopia": 6.264957797657191
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 18.71140839937588,
+            "protanopia": 18.637484817219583,
+            "deuteranopia": 17.632078252363307,
+            "tritanopia": 10.45324970019335
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 37.53517584511007,
+            "protanopia": 22.900134905834598,
+            "deuteranopia": 6.144232952015397,
+            "tritanopia": 35.33411380688031
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 23.662707636267726,
+            "protanopia": 6.171473559424595,
+            "deuteranopia": 8.03253769406687,
+            "tritanopia": 28.78356884657407
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 19.796845360758088,
+            "protanopia": 13.358719043296816,
+            "deuteranopia": 12.77021467198435,
+            "tritanopia": 12.753776390958949
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 15.980107159706563,
+            "protanopia": 9.273345863097084,
+            "deuteranopia": 6.4039967427683395,
+            "tritanopia": 9.590145240236508
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 31.07970698670514,
+            "protanopia": 26.104748529319732,
+            "deuteranopia": 22.113090051743885,
+            "tritanopia": 23.164977539579144
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 28.203492680338865,
+            "protanopia": 20.57882378408337,
+            "deuteranopia": 25.931627370439948,
+            "tritanopia": 30.25204478847341
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 39.78374426039441,
+            "protanopia": 35.61384521708331,
+            "deuteranopia": 39.05701564228268,
+            "tritanopia": 27.4741770102091
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 29.829196467377795,
+            "protanopia": 26.279576290621154,
+            "deuteranopia": 27.072727695126098,
+            "tritanopia": 19.77085664400642
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 17.476229324210497,
+            "protanopia": 17.884703366490477,
+            "deuteranopia": 17.472421414728455,
+            "tritanopia": 14.53307261143298
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 30.433493387518507,
+            "protanopia": 15.900862715651149,
+            "deuteranopia": 19.64529490236768,
+            "tritanopia": 34.14817179415179
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.9093577465648,
+            "protanopia": 27.043710382572396,
+            "deuteranopia": 32.75071844644702,
+            "tritanopia": 28.79918767389567
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 19.935826030126158,
+            "protanopia": 17.228825154012863,
+            "deuteranopia": 21.67693400208695,
+            "tritanopia": 14.797197236974508
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 35.15758780407041,
+            "protanopia": 27.068404665309565,
+            "deuteranopia": 14.529783085764386,
+            "tritanopia": 38.90025369921361
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 28.17916782942344,
+            "protanopia": 23.72239162360895,
+            "deuteranopia": 22.23592888409566,
+            "tritanopia": 30.65077710653904
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 11.329358124028117,
+            "protanopia": 5.631255206778806,
+            "deuteranopia": 6.256310924751698,
+            "tritanopia": 11.199186947717976
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 25.321463354784907,
+            "protanopia": 23.07348978335288,
+            "deuteranopia": 11.593161557013417,
+            "tritanopia": 27.914894482148977
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 18.164083545494467,
+            "protanopia": 18.184194048903944,
+            "deuteranopia": 16.30195790030359,
+            "tritanopia": 19.53513404837512
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 41.4882413742583,
+            "protanopia": 34.75486550953333,
+            "deuteranopia": 31.790846820991657,
+            "tritanopia": 15.367654541919443
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 15.980107159706563,
+            "protanopia": 9.273345863097084,
+            "deuteranopia": 6.4039967427683395,
+            "tritanopia": 9.590145240236508
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 17.476229324210497,
+            "protanopia": 17.884703366490477,
+            "deuteranopia": 17.472421414728455,
+            "tritanopia": 14.53307261143298
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 35.15758780407041,
+            "protanopia": 27.068404665309565,
+            "deuteranopia": 14.529783085764386,
+            "tritanopia": 38.90025369921361
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 20.289135650534952,
+            "protanopia": 20.52560970035385,
+            "deuteranopia": 14.063154284434162,
+            "tritanopia": 9.712068145651331
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 18.164083545494467,
+            "protanopia": 18.184194048903944,
+            "deuteranopia": 16.30195790030359,
+            "tritanopia": 19.53513404837512
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "emprestado×defasado",
+            "valor": 11.329358124028117
+          },
+          "protanopia": {
+            "par": "emprestado×defasado",
+            "valor": 5.631255206778806
+          },
+          "deuteranopia": {
+            "par": "em_estoque×em_triagem",
+            "valor": 6.144232952015397
+          },
+          "tritanopia": {
+            "par": "em_estoque×em_uso",
+            "valor": 6.264957797657191
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "reservado×em_uso",
+            "valor": 15.980107159706563
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.273345863097084
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 6.4039967427683395
+          },
+          "tritanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.590145240236508
+          }
+        }
+      },
+      "paleta": {
+        "claro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#6d28d9",
+          "em_uso": "#2a78d6",
+          "emprestado": "#007765",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#8d94a1",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        },
+        "escuro": {
+          "em_estoque": "#16a34a",
+          "reservado": "#7736f6",
+          "em_uso": "#2a78d6",
+          "emprestado": "#06b6d4",
+          "em_triagem": "#db2777",
+          "em_manutencao": "#d97706",
+          "defasado": "#9ca3af",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        }
+      }
+    },
+    "separada": {
+      "claro": {
+        "contrastes": {
+          "em_estoque": 5.729007336124993,
+          "reservado": 5.959462334666742,
+          "em_uso": 4.41543400702652,
+          "emprestado": 3.0197504966730935,
+          "em_triagem": 5.291467380288201,
+          "em_manutencao": 3.0088659111237503,
+          "defasado": 3.050929752090866,
+          "descartado": 4.834490081424352,
+          "devolvido_fornecedor": 4.758842787868666
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 34.48175372736497,
+            "protanopia": 30.627614476238236,
+            "deuteranopia": 30.307887078933632,
+            "tritanopia": 9.682551806744907
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 22.820637159802903,
+            "protanopia": 23.191018008506187,
+            "deuteranopia": 22.848211138572687,
+            "tritanopia": 11.82515756501046
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 24.822388733898755,
+            "protanopia": 26.230734320333692,
+            "deuteranopia": 24.102186969266405,
+            "tritanopia": 20.30551728656852
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 23.85714708545477,
+            "protanopia": 15.602003300806643,
+            "deuteranopia": 11.694493327031545,
+            "tritanopia": 16.981708945007483
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 21.430040297471685,
+            "protanopia": 13.495410910572991,
+            "deuteranopia": 20.035085508524848,
+            "tritanopia": 24.192263985797005
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 18.67941830741828,
+            "protanopia": 17.722705759546496,
+            "deuteranopia": 17.46048730123134,
+            "tritanopia": 16.04778306421835
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 15.593949362711527,
+            "protanopia": 9.532542733308851,
+            "deuteranopia": 7.998405354019377,
+            "tritanopia": 8.624926687198418
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 23.409308908783807,
+            "protanopia": 18.05445606829492,
+            "deuteranopia": 14.892206626157249,
+            "tritanopia": 17.7930999724851
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 21.483852996210707,
+            "protanopia": 16.30282337777757,
+            "deuteranopia": 19.44340140464424,
+            "tritanopia": 22.334471809287223
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 42.587236284836514,
+            "protanopia": 36.905662421639356,
+            "deuteranopia": 40.955076548416706,
+            "tritanopia": 28.712631263350687
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 28.43494395118546,
+            "protanopia": 23.90647115862712,
+            "deuteranopia": 25.56126826630678,
+            "tritanopia": 17.16705323026041
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 9.860673535392362,
+            "protanopia": 10.359164236627013,
+            "deuteranopia": 9.708447858655909,
+            "tritanopia": 9.560676668108963
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 20.96412639348374,
+            "protanopia": 12.190472474249264,
+            "deuteranopia": 11.870173717086494,
+            "tritanopia": 23.544657268559813
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.392759069573636,
+            "protanopia": 27.710591640300482,
+            "deuteranopia": 33.16820715023863,
+            "tritanopia": 25.613969746695435
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 16.791849236416905,
+            "protanopia": 14.40655239295796,
+            "deuteranopia": 18.3596238414087,
+            "tritanopia": 11.141762798868934
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 25.750467390121486,
+            "protanopia": 20.589338533891567,
+            "deuteranopia": 13.155915189798767,
+            "tritanopia": 28.303574231213556
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 29.526127356209876,
+            "protanopia": 25.531262052080983,
+            "deuteranopia": 28.125133842372236,
+            "tritanopia": 25.529010523629896
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 13.2026592775402,
+            "protanopia": 10.250981432258776,
+            "deuteranopia": 12.077640112871782,
+            "tritanopia": 10.264984030399638
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 25.74078553014652,
+            "protanopia": 25.643082957354572,
+            "deuteranopia": 23.697472201705068,
+            "tritanopia": 13.666292673910597
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 19.241946956226673,
+            "protanopia": 18.371675496608347,
+            "deuteranopia": 11.700333137504588,
+            "tritanopia": 18.771720469577968
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 16.637502329600444,
+            "protanopia": 15.529955677237245,
+            "deuteranopia": 16.41677673301184,
+            "tritanopia": 15.602001091001691
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 34.48175372736497,
+            "protanopia": 30.627614476238236,
+            "deuteranopia": 30.307887078933632,
+            "tritanopia": 9.682551806744907
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 15.593949362711527,
+            "protanopia": 9.532542733308851,
+            "deuteranopia": 7.998405354019377,
+            "tritanopia": 8.624926687198418
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 9.860673535392362,
+            "protanopia": 10.359164236627013,
+            "deuteranopia": 9.708447858655909,
+            "tritanopia": 9.560676668108963
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 25.750467390121486,
+            "protanopia": 20.589338533891567,
+            "deuteranopia": 13.155915189798767,
+            "tritanopia": 28.303574231213556
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 25.74078553014652,
+            "protanopia": 25.643082957354572,
+            "deuteranopia": 23.697472201705068,
+            "tritanopia": 13.666292673910597
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 16.637502329600444,
+            "protanopia": 15.529955677237245,
+            "deuteranopia": 16.41677673301184,
+            "tritanopia": 15.602001091001691
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 9.860673535392362
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.532542733308851
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.998405354019377
+          },
+          "tritanopia": {
+            "par": "reservado×em_uso",
+            "valor": 8.624926687198418
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 9.860673535392362
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.532542733308851
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.998405354019377
+          },
+          "tritanopia": {
+            "par": "reservado×em_uso",
+            "valor": 8.624926687198418
+          }
+        }
+      },
+      "escuro": {
+        "contrastes": {
+          "em_estoque": 3.1293100534155887,
+          "reservado": 3.0082982736109773,
+          "em_uso": 4.060266833225919,
+          "emprestado": 5.9368614303661795,
+          "em_triagem": 3.3880659115111387,
+          "em_manutencao": 5.958338052469715,
+          "defasado": 5.876189132424724,
+          "descartado": 3.708320826205035,
+          "devolvido_fornecedor": 3.767268861818591
+        },
+        "restritos": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 34.48175372736497,
+            "protanopia": 30.627614476238236,
+            "deuteranopia": 30.307887078933632,
+            "tritanopia": 9.682551806744907
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_uso",
+            "normal": 22.820637159802903,
+            "protanopia": 23.191018008506187,
+            "deuteranopia": 22.848211138572687,
+            "tritanopia": 11.82515756501046
+          },
+          {
+            "a": "em_estoque",
+            "b": "emprestado",
+            "normal": 24.822388733898755,
+            "protanopia": 26.230734320333692,
+            "deuteranopia": 24.102186969266405,
+            "tritanopia": 20.30551728656852
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_triagem",
+            "normal": 23.85714708545477,
+            "protanopia": 15.602003300806643,
+            "deuteranopia": 11.694493327031545,
+            "tritanopia": 16.981708945007483
+          },
+          {
+            "a": "em_estoque",
+            "b": "em_manutencao",
+            "normal": 21.430040297471685,
+            "protanopia": 13.495410910572991,
+            "deuteranopia": 20.035085508524848,
+            "tritanopia": 24.192263985797005
+          },
+          {
+            "a": "em_estoque",
+            "b": "defasado",
+            "normal": 18.67941830741828,
+            "protanopia": 17.722705759546496,
+            "deuteranopia": 17.46048730123134,
+            "tritanopia": 16.04778306421835
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 15.593949362711527,
+            "protanopia": 9.532542733308851,
+            "deuteranopia": 7.998405354019377,
+            "tritanopia": 8.624926687198418
+          },
+          {
+            "a": "reservado",
+            "b": "emprestado",
+            "normal": 23.409308908783807,
+            "protanopia": 18.05445606829492,
+            "deuteranopia": 14.892206626157249,
+            "tritanopia": 17.7930999724851
+          },
+          {
+            "a": "reservado",
+            "b": "em_triagem",
+            "normal": 21.483852996210707,
+            "protanopia": 16.30282337777757,
+            "deuteranopia": 19.44340140464424,
+            "tritanopia": 22.334471809287223
+          },
+          {
+            "a": "reservado",
+            "b": "em_manutencao",
+            "normal": 42.587236284836514,
+            "protanopia": 36.905662421639356,
+            "deuteranopia": 40.955076548416706,
+            "tritanopia": 28.712631263350687
+          },
+          {
+            "a": "reservado",
+            "b": "defasado",
+            "normal": 28.43494395118546,
+            "protanopia": 23.90647115862712,
+            "deuteranopia": 25.56126826630678,
+            "tritanopia": 17.16705323026041
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 9.860673535392362,
+            "protanopia": 10.359164236627013,
+            "deuteranopia": 9.708447858655909,
+            "tritanopia": 9.560676668108963
+          },
+          {
+            "a": "em_uso",
+            "b": "em_triagem",
+            "normal": 20.96412639348374,
+            "protanopia": 12.190472474249264,
+            "deuteranopia": 11.870173717086494,
+            "tritanopia": 23.544657268559813
+          },
+          {
+            "a": "em_uso",
+            "b": "em_manutencao",
+            "normal": 32.392759069573636,
+            "protanopia": 27.710591640300482,
+            "deuteranopia": 33.16820715023863,
+            "tritanopia": 25.613969746695435
+          },
+          {
+            "a": "em_uso",
+            "b": "defasado",
+            "normal": 16.791849236416905,
+            "protanopia": 14.40655239295796,
+            "deuteranopia": 18.3596238414087,
+            "tritanopia": 11.141762798868934
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 25.750467390121486,
+            "protanopia": 20.589338533891567,
+            "deuteranopia": 13.155915189798767,
+            "tritanopia": 28.303574231213556
+          },
+          {
+            "a": "emprestado",
+            "b": "em_manutencao",
+            "normal": 29.526127356209876,
+            "protanopia": 25.531262052080983,
+            "deuteranopia": 28.125133842372236,
+            "tritanopia": 25.529010523629896
+          },
+          {
+            "a": "emprestado",
+            "b": "defasado",
+            "normal": 13.2026592775402,
+            "protanopia": 10.250981432258776,
+            "deuteranopia": 12.077640112871782,
+            "tritanopia": 10.264984030399638
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 25.74078553014652,
+            "protanopia": 25.643082957354572,
+            "deuteranopia": 23.697472201705068,
+            "tritanopia": 13.666292673910597
+          },
+          {
+            "a": "em_triagem",
+            "b": "defasado",
+            "normal": 19.241946956226673,
+            "protanopia": 18.371675496608347,
+            "deuteranopia": 11.700333137504588,
+            "tritanopia": 18.771720469577968
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 16.637502329600444,
+            "protanopia": 15.529955677237245,
+            "deuteranopia": 16.41677673301184,
+            "tritanopia": 15.602001091001691
+          }
+        ],
+        "pilha": [
+          {
+            "a": "em_estoque",
+            "b": "reservado",
+            "normal": 34.48175372736497,
+            "protanopia": 30.627614476238236,
+            "deuteranopia": 30.307887078933632,
+            "tritanopia": 9.682551806744907
+          },
+          {
+            "a": "reservado",
+            "b": "em_uso",
+            "normal": 15.593949362711527,
+            "protanopia": 9.532542733308851,
+            "deuteranopia": 7.998405354019377,
+            "tritanopia": 8.624926687198418
+          },
+          {
+            "a": "em_uso",
+            "b": "emprestado",
+            "normal": 9.860673535392362,
+            "protanopia": 10.359164236627013,
+            "deuteranopia": 9.708447858655909,
+            "tritanopia": 9.560676668108963
+          },
+          {
+            "a": "emprestado",
+            "b": "em_triagem",
+            "normal": 25.750467390121486,
+            "protanopia": 20.589338533891567,
+            "deuteranopia": 13.155915189798767,
+            "tritanopia": 28.303574231213556
+          },
+          {
+            "a": "em_triagem",
+            "b": "em_manutencao",
+            "normal": 25.74078553014652,
+            "protanopia": 25.643082957354572,
+            "deuteranopia": 23.697472201705068,
+            "tritanopia": 13.666292673910597
+          },
+          {
+            "a": "em_manutencao",
+            "b": "defasado",
+            "normal": 16.637502329600444,
+            "protanopia": 15.529955677237245,
+            "deuteranopia": 16.41677673301184,
+            "tritanopia": 15.602001091001691
+          }
+        ],
+        "piorRestrito": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 9.860673535392362
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.532542733308851
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.998405354019377
+          },
+          "tritanopia": {
+            "par": "reservado×em_uso",
+            "valor": 8.624926687198418
+          }
+        },
+        "piorPilha": {
+          "normal": {
+            "par": "em_uso×emprestado",
+            "valor": 9.860673535392362
+          },
+          "protanopia": {
+            "par": "reservado×em_uso",
+            "valor": 9.532542733308851
+          },
+          "deuteranopia": {
+            "par": "reservado×em_uso",
+            "valor": 7.998405354019377
+          },
+          "tritanopia": {
+            "par": "reservado×em_uso",
+            "valor": 8.624926687198418
+          }
+        }
+      },
+      "paleta": {
+        "claro": {
+          "em_estoque": "#536e3d",
+          "reservado": "#6834ff",
+          "em_uso": "#2a78d6",
+          "emprestado": "#009de5",
+          "em_triagem": "#a84694",
+          "em_manutencao": "#ce8500",
+          "defasado": "#8d94a1",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        },
+        "escuro": {
+          "em_estoque": "#536e3d",
+          "reservado": "#6834ff",
+          "em_uso": "#2a78d6",
+          "emprestado": "#009de5",
+          "em_triagem": "#a84694",
+          "em_manutencao": "#ce8500",
+          "defasado": "#8d94a1",
+          "descartado": "#6b7280",
+          "devolvido_fornecedor": "#64748b"
+        }
+      }
+    }
+  },
+  "rotulos": {
+    "atual": {
+      "claro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 7.104892978519159,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 8.649616236144142,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "preto",
+          "razao": 8.271490137100235,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      },
+      "escuro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 7.104892978519159,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 8.649616236144142,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "preto",
+          "razao": 8.271490137100235,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      }
+    },
+    "minima": {
+      "claro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 5.966325496840109,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 6.992836431770596,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "branco",
+          "razao": 4.8461272916679174,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      },
+      "escuro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 5.966325496840109,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 6.992836431770596,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "branco",
+          "razao": 4.8461272916679174,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      }
+    },
+    "minimaRelaxada": {
+      "claro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "preto",
+          "razao": 6.9593988276424845,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 6.993963261939955,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "branco",
+          "razao": 5.082878943655827,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      },
+      "escuro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "preto",
+          "razao": 6.9593988276424845,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 6.993963261939955,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "branco",
+          "razao": 5.082878943655827,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      }
+    },
+    "porTema": {
+      "claro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 7.104892978519159,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "branco",
+          "razao": 5.487832517495465,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "preto",
+          "razao": 6.883147665267698,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      },
+      "escuro": {
+        "em_estoque": {
+          "fill": "preto",
+          "razao": 6.371874221274971,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 5.764766914432335,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 8.649616236144142,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 4.596590808200417,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.5917028081333155,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "preto",
+          "razao": 8.271490137100235,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      }
+    },
+    "separada": {
+      "claro": {
+        "em_estoque": {
+          "fill": "branco",
+          "razao": 5.729007336124993,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 5.959462334666742,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 6.95421692061514,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 5.291467380288201,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.979373830639375,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "preto",
+          "razao": 6.883147665267698,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      },
+      "escuro": {
+        "em_estoque": {
+          "fill": "branco",
+          "razao": 5.729007336124993,
+          "passaAA": true
+        },
+        "reservado": {
+          "fill": "branco",
+          "razao": 5.959462334666742,
+          "passaAA": true
+        },
+        "em_uso": {
+          "fill": "preto",
+          "razao": 4.756044358625122,
+          "passaAA": true
+        },
+        "emprestado": {
+          "fill": "preto",
+          "razao": 6.95421692061514,
+          "passaAA": true
+        },
+        "em_triagem": {
+          "fill": "branco",
+          "razao": 5.291467380288201,
+          "passaAA": true
+        },
+        "em_manutencao": {
+          "fill": "preto",
+          "razao": 6.979373830639375,
+          "passaAA": true
+        },
+        "defasado": {
+          "fill": "preto",
+          "razao": 6.883147665267698,
+          "passaAA": true
+        },
+        "descartado": {
+          "fill": "branco",
+          "razao": 4.834490081424352,
+          "passaAA": true
+        },
+        "devolvido_fornecedor": {
+          "fill": "branco",
+          "razao": 4.758842787868666,
+          "passaAA": true
+        }
+      }
+    }
+  },
+  "mudancas": {
+    "atual": {
+      "em_estoque": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "reservado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "em_uso": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "emprestado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "em_triagem": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "em_manutencao": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "defasado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "descartado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "devolvido_fornecedor": {
+        "claro": 0,
+        "escuro": 0
+      }
+    },
+    "minima": {
+      "em_estoque": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "reservado": {
+        "claro": 6.047637552664849,
+        "escuro": 6.047637552664849
+      },
+      "em_uso": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "emprestado": {
+        "claro": 5.671648523008009,
+        "escuro": 5.671648523008009
+      },
+      "em_triagem": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "em_manutencao": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "defasado": {
+        "claro": 16.33884889674154,
+        "escuro": 16.33884889674154
+      },
+      "descartado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "devolvido_fornecedor": {
+        "claro": 0,
+        "escuro": 0
+      }
+    },
+    "minimaRelaxada": {
+      "em_estoque": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "reservado": {
+        "claro": 20.3852646480464,
+        "escuro": 20.3852646480464
+      },
+      "em_uso": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "emprestado": {
+        "claro": 5.938244443858836,
+        "escuro": 5.938244443858836
+      },
+      "em_triagem": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "em_manutencao": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "defasado": {
+        "claro": 17.49521827987076,
+        "escuro": 17.49521827987076
+      },
+      "descartado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "devolvido_fornecedor": {
+        "claro": 0,
+        "escuro": 0
+      }
+    },
+    "porTema": {
+      "em_estoque": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "reservado": {
+        "claro": 0,
+        "escuro": 5.393648510606683
+      },
+      "em_uso": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "emprestado": {
+        "claro": 21.989825947342748,
+        "escuro": 0
+      },
+      "em_triagem": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "em_manutencao": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "defasado": {
+        "claro": 4.861763146889204,
+        "escuro": 0
+      },
+      "descartado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "devolvido_fornecedor": {
+        "claro": 0,
+        "escuro": 0
+      }
+    },
+    "separada": {
+      "em_estoque": {
+        "claro": 15.641305175440218,
+        "escuro": 15.641305175440218
+      },
+      "reservado": {
+        "claro": 6.438120353580648,
+        "escuro": 6.438120353580648
+      },
+      "em_uso": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "emprestado": {
+        "claro": 8.18811004587181,
+        "escuro": 8.18811004587181
+      },
+      "em_triagem": {
+        "claro": 10.67488050070144,
+        "escuro": 10.67488050070144
+      },
+      "em_manutencao": {
+        "claro": 3.704907077861385,
+        "escuro": 3.704907077861385
+      },
+      "defasado": {
+        "claro": 4.861763146889204,
+        "escuro": 4.861763146889204
+      },
+      "descartado": {
+        "claro": 0,
+        "escuro": 0
+      },
+      "devolvido_fornecedor": {
+        "claro": 0,
+        "escuro": 0
+      }
+    }
+  },
+  "vereditos": {
+    "atual": {
+      "ok": false,
+      "folga": -3.6706418759718833
+    },
+    "minima": {
+      "ok": false,
+      "folga": -2.6816929727808
+    },
+    "minimaRelaxada": {
+      "ok": false,
+      "folga": -1.2632784134056791
+    },
+    "porTemaClaro": {
+      "ok": false,
+      "folga": -0.6495539447187708
+    },
+    "porTemaEscuro": {
+      "ok": false,
+      "folga": -3.6706418759718833
+    },
+    "separada": {
+      "ok": false,
+      "folga": -5.139326464607638
+    }
+  },
+  "hojeParesRestritos": [
+    {
+      "a": "em_estoque",
+      "b": "reservado",
+      "normal": 41.40627475679687,
+      "protanopia": 34.91986911329593,
+      "deuteranopia": 31.587613434390615,
+      "tritanopia": 19.566731292216446
+    },
+    {
+      "a": "em_estoque",
+      "b": "em_uso",
+      "normal": 27.11104659392615,
+      "protanopia": 25.657161800195276,
+      "deuteranopia": 25.454718561144773,
+      "tritanopia": 6.264957797657191
+    },
+    {
+      "a": "em_estoque",
+      "b": "emprestado",
+      "normal": 18.71140839937588,
+      "protanopia": 18.637484817219583,
+      "deuteranopia": 17.632078252363307,
+      "tritanopia": 10.45324970019335
+    },
+    {
+      "a": "em_estoque",
+      "b": "em_triagem",
+      "normal": 37.53517584511007,
+      "protanopia": 22.900134905834598,
+      "deuteranopia": 6.144232952015397,
+      "tritanopia": 35.33411380688031
+    },
+    {
+      "a": "em_estoque",
+      "b": "em_manutencao",
+      "normal": 23.662707636267726,
+      "protanopia": 6.171473559424595,
+      "deuteranopia": 8.03253769406687,
+      "tritanopia": 28.78356884657407
+    },
+    {
+      "a": "em_estoque",
+      "b": "defasado",
+      "normal": 19.796845360758088,
+      "protanopia": 13.358719043296816,
+      "deuteranopia": 12.77021467198435,
+      "tritanopia": 12.753776390958949
+    },
+    {
+      "a": "reservado",
+      "b": "em_uso",
+      "normal": 17.08231131623681,
+      "protanopia": 11.380029814587798,
+      "deuteranopia": 7.568178636694813,
+      "tritanopia": 14.103750133084144
+    },
+    {
+      "a": "reservado",
+      "b": "emprestado",
+      "normal": 33.31370239330959,
+      "protanopia": 29.22155280125731,
+      "deuteranopia": 24.82886770780789,
+      "tritanopia": 28.059414160533137
+    },
+    {
+      "a": "reservado",
+      "b": "em_triagem",
+      "normal": 27.66145830565084,
+      "protanopia": 17.285126344659847,
+      "deuteranopia": 25.620225014228282,
+      "tritanopia": 30.11583112519201
+    },
+    {
+      "a": "reservado",
+      "b": "em_manutencao",
+      "normal": 39.751812390481014,
+      "protanopia": 34.78613864332008,
+      "deuteranopia": 39.2196120357876,
+      "tritanopia": 28.92761657988902
+    },
+    {
+      "a": "reservado",
+      "b": "defasado",
+      "normal": 31.682463282418222,
+      "protanopia": 28.35898482208505,
+      "deuteranopia": 28.998236934504607,
+      "tritanopia": 24.128854432078974
+    },
+    {
+      "a": "em_uso",
+      "b": "emprestado",
+      "normal": 17.476229324210497,
+      "protanopia": 17.884703366490477,
+      "deuteranopia": 17.472421414728455,
+      "tritanopia": 14.53307261143298
+    },
+    {
+      "a": "em_uso",
+      "b": "em_triagem",
+      "normal": 30.433493387518507,
+      "protanopia": 15.900862715651149,
+      "deuteranopia": 19.64529490236768,
+      "tritanopia": 34.14817179415179
+    },
+    {
+      "a": "em_uso",
+      "b": "em_manutencao",
+      "normal": 32.9093577465648,
+      "protanopia": 27.043710382572396,
+      "deuteranopia": 32.75071844644702,
+      "tritanopia": 28.79918767389567
+    },
+    {
+      "a": "em_uso",
+      "b": "defasado",
+      "normal": 19.935826030126158,
+      "protanopia": 17.228825154012863,
+      "deuteranopia": 21.67693400208695,
+      "tritanopia": 14.797197236974508
+    },
+    {
+      "a": "emprestado",
+      "b": "em_triagem",
+      "normal": 35.15758780407041,
+      "protanopia": 27.068404665309565,
+      "deuteranopia": 14.529783085764386,
+      "tritanopia": 38.90025369921361
+    },
+    {
+      "a": "emprestado",
+      "b": "em_manutencao",
+      "normal": 28.17916782942344,
+      "protanopia": 23.72239162360895,
+      "deuteranopia": 22.23592888409566,
+      "tritanopia": 30.65077710653904
+    },
+    {
+      "a": "emprestado",
+      "b": "defasado",
+      "normal": 11.329358124028117,
+      "protanopia": 5.631255206778806,
+      "deuteranopia": 6.256310924751698,
+      "tritanopia": 11.199186947717976
+    },
+    {
+      "a": "em_triagem",
+      "b": "em_manutencao",
+      "normal": 20.289135650534952,
+      "protanopia": 20.52560970035385,
+      "deuteranopia": 14.063154284434162,
+      "tritanopia": 9.712068145651331
+    },
+    {
+      "a": "em_triagem",
+      "b": "defasado",
+      "normal": 25.321463354784907,
+      "protanopia": 23.07348978335288,
+      "deuteranopia": 11.593161557013417,
+      "tritanopia": 27.914894482148977
+    },
+    {
+      "a": "em_manutencao",
+      "b": "defasado",
+      "normal": 18.164083545494467,
+      "protanopia": 18.184194048903944,
+      "deuteranopia": 16.30195790030359,
+      "tritanopia": 19.53513404837512
+    }
+  ],
+  "oklchDe": {
+    "#16a34a": "oklch(0.630 0.170 150)",
+    "#6d28d9": "oklch(0.490 0.240 291)",
+    "#2a78d6": "oklch(0.580 0.160 255)",
+    "#06b6d4": "oklch(0.710 0.130 216)",
+    "#db2777": "oklch(0.590 0.220 0)",
+    "#d97706": "oklch(0.660 0.160 57)",
+    "#9ca3af": "oklch(0.710 0.020 264)",
+    "#6b7280": "oklch(0.550 0.020 261)",
+    "#64748b": "oklch(0.560 0.040 255)",
+    "#722cff": "oklch(0.530 0.280 288)",
+    "#00a2c7": "oklch(0.660 0.120 222)",
+    "#6b727e": "oklch(0.550 0.020 261)",
+    "#ab7aff": "oklch(0.690 0.190 297)",
+    "#00a4b7": "oklch(0.660 0.110 210)",
+    "#676f7a": "oklch(0.540 0.020 255)",
+    "#7736f6": "oklch(0.540 0.260 291)",
+    "#007765": "oklch(0.510 0.090 177)",
+    "#8d94a1": "oklch(0.670 0.020 258)",
+    "#536e3d": "oklch(0.500 0.080 132)",
+    "#6834ff": "oklch(0.540 0.270 285)",
+    "#009de5": "oklch(0.660 0.150 240)",
+    "#a84694": "oklch(0.550 0.160 336)",
+    "#ce8500": "oklch(0.680 0.140 69)"
+  }
+}

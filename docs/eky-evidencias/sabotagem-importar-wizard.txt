@@ -1,0 +1,498 @@
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control/.claude/worktrees/wf_8e3f44b3-32a-1
+
+(node:2504) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ |dom| src/components/admin/importar/importar-wizard.dom.test.tsx (3 tests | 1 failed) 7488ms
+     × extensão de arquivo inválida barra "Analisar arquivo" SEM chamar o servidor 1984ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |dom| src/components/admin/importar/importar-wizard.dom.test.tsx > ImportarWizard — Configurar → Upload → Preview → Confirmar > extensão de arquivo inválida barra "Analisar arquivo" SEM chamar o servidor
+TestingLibraryElementError: Unable to find an element with the text: O arquivo precisa ter extensão .csv ou .xlsx.. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl"[39m
+      [33mdata-size[39m=[32m"default"[39m
+      [33mdata-slot[39m=[32m"card"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"group/card-header @container/card-header grid auto-rows-min items-start rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing) gap-3"[39m
+        [33mdata-slot[39m=[32m"card-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"font-heading font-medium group-data-[size=sm]/card:text-sm text-base"[39m
+          [33mdata-slot[39m=[32m"card-title"[39m
+        [36m>[39m
+          [0mImportar acervo por arquivo[0m
+        [36m</div>[39m
+        [36m<ol[39m
+          [33mclass[39m=[32m"flex flex-wrap gap-2 text-sm"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-foreground text-background"[39m
+            [36m>[39m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0mConfigurar[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-brand-amarelo text-brand-amarelo-texto"[39m
+            [36m>[39m
+              [0m2[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0mUpload[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-muted text-muted-foreground"[39m
+            [36m>[39m
+              [0m3[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mPreview[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-muted text-muted-foreground"[39m
+            [36m>[39m
+              [0m4[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mConfirmar[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-muted text-muted-foreground"[39m
+            [36m>[39m
+              [0m5[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mResultado[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ol>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"px-(--card-spacing) space-y-6"[39m
+        [33mdata-slot[39m=[32m"card-content"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm text-muted-foreground"[39m
+          [36m>[39m
+            [0mFilial selecionada: [0m
+            [36m<strong>[39m
+              [0mFilial Fictícia 7[0m
+            [36m</strong>[39m
+            [0m. Envie o CSV ou o Excel (.xlsx) do inventário (máx. 5 MB). O [0m
+            [36m<strong>[39m
+              [0m.xlsx[0m
+            [36m</strong>[39m
+            [0m é o recomendado: preserva as datas (sem [0m
+            [36m<code>[39m
+              [0m#######[0m
+            [36m</code>[39m
+            [0m nem mês abreviado sem ano) e os acentos.[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"[39m
+              [33mdata-slot[39m=[32m"label"[39m
+              [33mfor[39m=[32m"import-arquivo"[39m
+            [36m>[39m
+              [0mArquivo (CSV ou Excel .xlsx)[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33maccept[39m=[32m".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"[39m
+              [33maria-invalid[39m=[32m"false"[39m
+              [33mclass[39m=[32m"h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"[39m
+              [33mdata-slot[39m=[32m"input"[39m
+              [33mid[39m=[32m"import-arquivo"[39m
+              [33mtype[39m=[32m"file"[39m
+            [36m/>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m>[39m
+              [0minventario.txt[0m
+              [0m · [0m
+              [0m0[0m
+              [0m [0m
+              [0mKB[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 gap-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"ghost"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-arrow-left size-4"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m12 19-7-7 7-7"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M19 12H5"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mVoltar[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 gap-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"default"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-upload size-4"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 3v12"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m17 8-5-5-5 5"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mAnalisar arquivo[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl"[39m
+      [33mdata-size[39m=[32m"default"[39m
+      [33mdata-slot[39m=[32m"card"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"group/card-header @container/card-header grid auto-rows-min items-start rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing) gap-3"[39m
+        [33mdata-slot[39m=[32m"card-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"font-heading font-medium group-data-[size=sm]/card:text-sm text-base"[39m
+          [33mdata-slot[39m=[32m"card-title"[39m
+        [36m>[39m
+          [0mImportar acervo por arquivo[0m
+        [36m</div>[39m
+        [36m<ol[39m
+          [33mclass[39m=[32m"flex flex-wrap gap-2 text-sm"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-foreground text-background"[39m
+            [36m>[39m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0mConfigurar[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-brand-amarelo text-brand-amarelo-texto"[39m
+            [36m>[39m
+              [0m2[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"font-medium"[39m
+            [36m>[39m
+              [0mUpload[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-muted text-muted-foreground"[39m
+            [36m>[39m
+              [0m3[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mPreview[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-muted text-muted-foreground"[39m
+            [36m>[39m
+              [0m4[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mConfirmar[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0m›[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"flex items-center gap-2"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums bg-muted text-muted-foreground"[39m
+            [36m>[39m
+              [0m5[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"text-muted-foreground"[39m
+            [36m>[39m
+              [0mResultado[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ol>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"px-(--card-spacing) space-y-6"[39m
+        [33mdata-slot[39m=[32m"card-content"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-sm text-muted-foreground"[39m
+          [36m>[39m
+            [0mFilial selecionada: [0m
+            [36m<strong>[39m
+              [0mFilial Fictícia 7[0m
+            [36m</strong>[39m
+            [0m. Envie o CSV ou o Excel (.xlsx) do inventário (máx. 5 MB). O [0m
+            [36m<strong>[39m
+              [0m.xlsx[0m
+            [36m</strong>[39m
+            [0m é o recomendado: preserva as datas (sem [0m
+            [36m<code>[39m
+              [0m#######[0m
+            [36m</code>[39m
+            [0m nem mês abreviado sem ano) e os acentos.[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"space-y-2"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"[39m
+              [33mdata-slot[39m=[32m"label"[39m
+              [33mfor[39m=[32m"import-arquivo"[39m
+            [36m>[39m
+              [0mArquivo (CSV ou Excel .xlsx)[0m
+            [36m</label>[39m
+            [36m<input[39m
+              [33maccept[39m=[32m".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"[39m
+              [33maria-invalid[39m=[32m"false"[39m
+              [33mclass[39m=[32m"h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"[39m
+              [33mdata-slot[39m=[32m"input"[39m
+              [33mid[39m=[32m"import-arquivo"[39m
+              [33mtype[39m=[32m"file"[39m
+            [36m/>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-xs text-muted-foreground"[39m
+            [36m>[39m
+              [0minventario.txt[0m
+              [0m · [0m
+              [0m0[0m
+              [0m [0m
+              [0mKB[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 h-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 gap-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"ghost"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-arrow-left size-4"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m12 19-7-7 7-7"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M19 12H5"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mVoltar[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 bg-primary text-primary-foreground hover:bg-primary/80 h-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 gap-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"default"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-upload size-4"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 3v12"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m17 8-5-5-5 5"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0mAnalisar arquivo[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/admin/importar/importar-wizard.dom.test.tsx:214:18
+    212|     await user.upload(input, arquivoInvalido)
+    213|
+    214|     await screen.findByText('O arquivo precisa ter extensão .csv ou .x…
+       |                  ^
+    215|     const botaoAnalisar = screen.getByRole('button', { name: 'Analisar…
+    216|     expect((botaoAnalisar as HTMLButtonElement).disabled).toBe(true)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  10:24:53
+   Duration  44.57s (transform 9.09s, setup 0ms, import 34.61s, tests 7.49s, environment 1.65s)
+

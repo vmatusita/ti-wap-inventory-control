@@ -417,6 +417,38 @@ const PARES = [
   { item: 'F32', onde: 'segmento Emprestado (ciano) sobre card escuro', texto: '#06b6d4', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
 
   // =========================================================================
+  // Passo 5 · item AA (22/09/2026) — decisão do Johnny: MANTER as cores de
+  // gráfico. Fecha a lacuna de cobertura que a reauditoria achou: até aqui
+  // NENHUMA linha desta régua media `defasado`, `descartado` ou
+  // `devolvido_fornecedor` (nenhum dos dois temas), nem `em_uso` no CLARO nem
+  // `em_triagem` no ESCURO — a F32 media só os 3 pares que ELA tocava (as
+  // trocas de matiz) e ninguém tinha voltado para completar os 9×2 = 18 pares
+  // possíveis. Nenhum valor muda aqui; as linhas abaixo só FECHAM a lacuna —
+  // exigindo 3:1 onde o par já passa, alívio só onde reprova (com o motivo).
+  // =========================================================================
+  // Defasado — o cinza de de-ênfase deliberado (croma 0,019, ver dominio.ts).
+  // O CLARO reprova o piso de elemento gráfico (2,54:1 < 3:1) — é legal aqui
+  // pela MESMA regra dos dois alívios acima: o segmento nunca depende só da
+  // cor. Rótulo de valor dentro da barra, total na ponta, legenda com o nome
+  // escrito e tooltip — 4 canais de texto além da tinta.
+  { item: 'reauditoria passo 5', onde: 'segmento Defasado (cinza) sobre card', texto: '#9ca3af', fundo: 'card', px: 12, grafico: true, alivio: true },
+  { item: 'reauditoria passo 5', onde: 'segmento Defasado (cinza) sobre card escuro', texto: '#9ca3af', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+  // Em uso — o azul da marca. O ESCURO já estava medido (item 'marca', acima);
+  // o CLARO nunca tinha entrado na régua.
+  { item: 'reauditoria passo 5', onde: 'segmento Em uso (azul) sobre card', texto: '#2a78d6', fundo: 'card', px: 12, grafico: true, exigir: true },
+  // Em triagem — o rosa (F32). O CLARO já estava medido (bloco F32, acima); o
+  // ESCURO nunca tinha entrado na régua.
+  { item: 'reauditoria passo 5', onde: 'segmento Em triagem (rosa) sobre card escuro', texto: '#db2777', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+  // Descartado e Devolvido ao fornecedor — as duas baixas TERMINAIS, fora de
+  // `STATUS_VIVOS`/FORA_DO_ACERVO (nunca empilham, spec §4), mas ainda pintam
+  // o segmento sempre que o filtro de período os inclui — nenhum dos quatro
+  // pares abaixo tinha entrado na régua até aqui.
+  { item: 'reauditoria passo 5', onde: 'segmento Descartado (cinza) sobre card', texto: '#6b7280', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'reauditoria passo 5', onde: 'segmento Descartado (cinza) sobre card escuro', texto: '#6b7280', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+  { item: 'reauditoria passo 5', onde: 'segmento Devolvido ao fornecedor (slate) sobre card', texto: '#64748b', fundo: 'card', px: 12, grafico: true, exigir: true },
+  { item: 'reauditoria passo 5', onde: 'segmento Devolvido ao fornecedor (slate) sobre card escuro', texto: '#64748b', fundo: 'card', px: 12, tema: 'escuro', grafico: true, exigir: true },
+
+  // =========================================================================
   // F40 — AS NOVE FAMÍLIAS DE SELO, agora medidas pelo TOKEN.
   //
   // Até aqui a régua media uma LISTA de pares de paleta crua, e a cor morava em

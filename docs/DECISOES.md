@@ -12778,3 +12778,123 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   Faixa 4 executada e o item AS.
 - **Pendências:** AS (o `service_role` na orquestradora) e a extração do `codigoVivo` compartilhado, as duas pequenas; a
   nota da F62 acima.
+
+## 2026-09-22 · Entrega avulsa (v1.66.6) · o passo 5 da reauditoria: as cinco decisões do Johnny
+
+- **Contexto.** A Faixa 5 da reauditoria de 18/09 reunia cinco decisões que eram do dono, não do agente: A/R3, E/K/Y,
+  AF, AA e R1. **Não foi execução autônoma:** para cada uma, um levantamento mediu o estado atual no código e nos dois
+  bancos, só leitura, e propôs 2 a 3 opções com custo e risco e uma recomendação. Um verificador adversarial refez as
+  medições e tentou derrubar cada levantamento. O Johnny decidiu pelo `AskUserQuestion`, e só o decidido foi
+  executado. Dois levantamentos caíram no verificador e foram refeitos antes de chegar a ele: o AA (abaixo) e o texto do
+  AF.
+- **Decisão 1 — A / R3: ADR do método atual.** Escolhida a opção (a). Descartadas: reparar só a anotação do ledger, e
+  adotar `db push` com o ledger reparado. `docs/ADR-003-metodo-de-migration.md` formaliza o método em uso e proíbe
+  `db push`, `migration repair` e `db reset --linked` contra os bancos vivos.
+  - **Medido em 22/09:** 149 arquivos; ledger de produção com 134 linhas, 16 arquivos sem linha
+    (`0031`–`0037`, `0039`, `0040`, `0096`, `0098`, `0110`–`0114`) e 1 linha sem arquivo; ensaio com 147, 5 e 3.
+    Produção mistura 7 `version` sequenciais com 127 timestamps.
+  - Quatro amostras por sonda de efeito confirmaram que os buracos são de anotação.
+  - **Correção de um fato de 24/07:** lido na fonte atual da CLI, o `db push` compara `version` como texto e **aborta**
+    com `DbPushMissingLocalError`; não reaplica nada. O dano descrito no runbook vem do `migration repair` que o
+    "destravaria", e ele também é proibido. `RUNBOOK-BANCO.md` ganhou a emenda.
+  - O verificador também derrubou a frase "a Parte B do `saude.yml` rodou verde hoje contra `fc94b56`": só a Parte A
+    tinha rodado. O contrato de base fixa (`0146`→`0150`) foi conferido por leitura direta nos dois ledgers.
+  - **Motivo:** o que as outras opções comprariam (trava de conteúdo e alarme de deriva) já existe. A CLI saiu do CI na
+    v1.51.1 por duas quebras de dependência externa.
+  - **Versão:** o ADR é documentação interna e não entraria no CHANGELOG sozinho; entrou na v1.66.6 junto com o resto.
+- **Decisão 2 — E / K / Y: aprovados `@testing-library/react` 16.3.3, `@testing-library/dom` 10.4.2,
+  `@testing-library/user-event` 14.6.7 e `happy-dom` 20.14.5** (MIT; um transitivo, `aria-query`, é Apache-2.0).
+  - Só devDependencies, e só no terceiro projeto do Vitest, `dom` (`src/**/*.dom.test.tsx`). O projeto `componentes`
+    passou a excluir esse padrão, e o `ci-passos.test.ts` prova que nenhum arquivo roda em dois projetos.
+  - `jest-dom` ficou de fora.
+  - **Treze testes de interação** nos quatro gigantes (1.465 + 1.413 + 1.187 + 1.171 = 5.236 linhas, iguais a 18/09):
+    o payload exato que chega à Server Action mockada, a validação que bloqueia o envio, o passo do wizard, o callback.
+    Mockados só Server Actions, `next/navigation` e `sonner`; validators e módulos puros rodam de verdade.
+  - Dez sabotagens, todas pegas: quatro do implementador e seis diferentes do revisor, uma delas no módulo puro
+    `ops-grupo.ts`, para provar que o teste o exercita de verdade.
+  - Diff dos componentes: zero.
+  - **happy-dom, e não jsdom, medido:** sob o jsdom 30, o Radix lança `target.hasPointerCapture is not a function` e
+    derruba 2 dos 3 testes do `grupos-erros`. O happy-dom 20 implementa as três APIs que ele usa. Também foi mais
+    rápido: 677 ms × 3,07 s na montagem do ambiente, no mesmo arquivo.
+  - **Incidente de integração.** A suíte cheia falhou 2 de 2 vezes no teste do payload do `importar-wizard`, que isolado
+    passava sempre.
+    - O agente de correção diagnosticou relógio (o `asyncUtilTimeout` de 1 s) e sugeriu alargá-lo. Alargado para 10 s,
+      a suíte **continuou** vermelha.
+    - A causa real: o "Avançar" do passo 3 nasce desabilitado (`!aplicavel || analisando`) e habilita um instante depois
+      do preview. Com a CPU disputada, o teste clicava nesse intervalo, e o clique num botão desabilitado não faz nada.
+    - O teste passou a esperar o botão **habilitado**; o setup de relógio foi retirado; 2 de 2 rodadas cheias verdes.
+    - Lição registrada: o relógio não era a causa, e alargá-lo teria só escondido a corrida por mais 9 s.
+  - **Incidente do CI (PR #67).** O `verificar` caiu no `nova-compra-form.dom.test.tsx`, verde na mesa: o teste do
+    bloqueio por categoria faltando chegou a chamar a Server Action mockada.
+    - **Causa:** o formulário grava categoria e filial da última compra no `localStorage` (`compra:defaults`, A5) e
+      pré-preenche a próxima montagem com elas. O ambiente do happy-dom é um por arquivo, então o "Notebook" do teste
+      de cadastro bem-sucedido chegava ao teste seguinte.
+    - **Por que a mesa não via:** no Node 26 da mesa, o `localStorage` global do próprio Node (sem
+      `--localstorage-file`, vale `undefined`) encobre o do happy-dom, e o `setItem` caía no `try/catch` do
+      componente. No Node 24 do CI ele existe e grava.
+    - **Uma hipótese errada no caminho:** a primeira "reprodução", semeando a chave dentro do teste, falhava na própria
+      linha que semeava, porque `localStorage` era `undefined`. O teste nos dois sentidos pegou isso.
+    - **Conserto:** `vitest.setup-dom.ts` (setup do projeto `dom`) garante um `localStorage` em memória quando o Node
+      o encobre, para a mesa se comportar como o CI, e limpa `localStorage` e `sessionStorage` depois de cada teste.
+      Provado nos dois sentidos: só com a primeira parte, a mesa reproduz a falha do CI com as mesmas duas mensagens;
+      com as duas, 3/3 e a suíte cheia verde.
+  - **Motivo:** é a premissa do Johnny, testar antes de decompor e nunca em big-bang. Não aprovar seria decompor sem
+    rede, e a F42 já tinha medido quatro mecanismos desses formulários que não viram função pura.
+- **Decisão 3 — AF: dieta do `CLAUDE.md` com aninhados, texto aprovado.** Raiz de ~14 KB (~4 mil tokens, contra ~10 mil
+  hoje), 14 `CLAUDE.md` aninhados para as regras locais, e `docs/ARQUITETURA.md` §4 reescrito.
+  - O §4 ainda descrevia o modelo anterior à F21 ("todo logado é admin", `USING (true)`). O erro estava vivo, e a
+    dieta ia passar a apontar para ele.
+  - **Como se chegou ao texto:** 176 regras atômicas inventariadas, uma a uma, inclusive as dos comentários da árvore
+    de pastas. Cada uma tem destino no livro-razão: raiz, aninhado, ou documento existente provado por grep.
+  - Dois verificadores, um de perda de regra e um de exatidão. O primeiro rascunho perdia regras transversais:
+    `eventos_admin`, "ninguém age sobre o próprio acesso", `lib/` × `'use client'`, `.docx` por script.
+  - A numeração das 8 regras não muda: elas são citadas por número em dezenas de arquivos.
+  - Doc do Claude Code conferida: aninhado carrega sob demanda; `@import` não economiza contexto.
+  - **Vai em PR próprio, depois deste**, porque o texto precisou de aprovação separada. É documentação interna e não
+    gera versão.
+- **Decisão 4 — AA: manter as cores, registrar os alívios e criar o portão.**
+  - **A primeira rodada caiu no verificador:** o otimizador só protegia vizinhos de `STATUS_ORDEM`, e a paleta proposta
+    derrubava em_estoque×emprestado de ΔE 10,45 para 3,38 sob tritanopia, um par vizinho no glossário.
+  - **A régua certa são os 21 pares entre os 7 status vivos.** A pilha esconde status zerado, então qualquer par
+    encosta; 16 dos 21 são vizinhos pelas grades reais.
+  - Com essa régua, **a paleta de produção já tinha um par abaixo do mínimo:** emprestado×defasado, 5,63 sob
+    protanopia (e 11,33 < 15 na visão normal). Também havia um terceiro segmento abaixo de 3:1 que nunca teve
+    registro, o Defasado claro (2,54:1).
+  - Opções medidas:
+    - mexer só nos tokens reprovados, com valor único: impossível, nenhum ciano escurecido deixa de colapsar com Em
+      estoque sob tritanopia;
+    - valor por tema: fecha o tema claro, mas Emprestado vira verde-petróleo (ΔE 22) e `TOKEN_PARA_HEX` /
+      `fillRotuloSegmento` passam a depender do tema;
+    - separação completa: cumpre o alvo 8 nos 21 pares, mas muda o matiz de 6 dos 9 tokens.
+  - O relatório "congelado" não grava cor: qualquer troca repintaria o histórico.
+  - **Feito:** `src/lib/relatorios/paleta-graficos.ts` (Machado, Oliveira & Fernandes 2009, severidade 1.0; ΔE em
+    OKLab ×100, o método da análise de 10/08 §4) e o teste que reprova três casos: par abaixo do piso sem alívio,
+    alívio que piora, alívio vencido. A lista `ALIVIOS` registra os dois pontos de hoje. O `contraste.mjs` ganhou o
+    alívio do Defasado claro e as linhas dos tokens de gráfico que não tinham nenhuma.
+  - O revisor reimplementou a conta do zero, conferiu as matrizes na fonte e comparou os 84 valores (divergência 0).
+    Seis sabotagens, todas pegas. Nenhum hex mudou.
+  - **Motivo:** cada segmento abaixo do piso tem quatro canais além da cor (rótulo, total, legenda, tooltip). O que
+    faltava era o portão, que teria pego o 5,63 quando ele nasceu.
+- **Decisão 5 — R1: `getUser()` fica.**
+  - **O que impediu em 18/09 foi governança, não técnica:** a troca foi desfeita antes de virar commit (nenhum commit
+    toca `getClaims`).
+  - **O fato novo, medido na fonte do `supabase/auth`:** o `GET /user` que o `getUser()` chama consulta
+    `auth.sessions` pelo `session_id` do token e devolve `session_not_found`. Portanto "Encerrar sessões" já vale na
+    **requisição seguinte**, e não em até 1 h, no proxy e nas cinco guardas de Server Action (todas passam por
+    `idOperador()`).
+  - O comentário da `0074` ("o access token continua válido até expirar, ~1h") descreve só o acesso direto ao PostgREST.
+    Fica corrigido aqui, porque migration aplicada não se edita.
+  - O `getClaims()` do SDK instalado (`auth-js` 2.116.0) só verifica localmente com chave assimétrica e `kid`; com HS256
+    cai no mesmo `getUser()` de rede.
+  - O JWKS de produção publica 1 chave ES256, mas isso não prova que ela é a chave corrente de assinatura. A última
+    leitura de header (10/08) dizia HS256.
+  - **Motivo:** o custo é maior do que as atas registravam, e o ganho pode ser zero.
+  - **Se um dia reabrir:** passo 0 é conferir o `alg` de um token real. A via certa seria checar o `session_id` em
+    `auth.sessions` dentro de `papel_atual()` (viável: a função já roda como `postgres`, e há índice pela chave
+    primária), que tornaria a revogação imediata até no PostgREST. Não o `jwt_exp` de 900 s.
+- **Ambiente.** As frentes rodaram em worktrees sob `.claude/worktrees/`. Enquanto elas existiam, o `ci-passos.test.ts`
+  local via 974 testes "fora de projeto", que eram as cópias do repo nas worktrees. O walker não ignora `.claude/`.
+  - As worktrees foram removidas depois da integração, e no CI isso não acontece.
+  - Registrado como item **AT** de `DIVIDA-TECNICA.md`.
+- **Pendências:** o PR do AF, logo em seguida. AT (o walker do `ci-passos` e as worktrees de agente). AU:
+  `scratch_tmp/scripts/db/` tem dois arquivos versionados por engano, achados de passagem.
