@@ -108,8 +108,10 @@
 > - **AA ✅ fechado por decisão.** Cores mantidas; o portão de ΔE (`paleta-graficos.test.ts`, 21 pares × 4 visões)
 >   registra os dois alívios de emprestado×defasado e reprova qualquer piora futura. Achado de passagem: esse par já
 >   estava abaixo do mínimo sob protanopia (5,63), e o Defasado claro nunca tinha tido registro de alívio.
-> - **AF 🟡 aprovado, entra em PR próprio.** Raiz de ~4 mil tokens, 14 aninhados, `ARQUITETURA.md` §4 reescrito (ele
->   ainda descrevia o modelo anterior à F21).
+> - **AF ✅ fechado (PR próprio, logo depois da v1.66.6).** O `CLAUDE.md` raiz foi de 34.951 para ~14.300 bytes (~4 mil
+>   tokens); as regras locais foram para 14 `CLAUDE.md` aninhados, que só carregam quando o agente mexe na pasta, e o
+>   `ARQUITETURA.md` §4 foi reescrito (ele ainda descrevia o modelo anterior à F21). Das 176 regras inventariadas, só
+>   quatro descritivas ficaram sem destino próprio (dois nomes de arquivo que se explicam e dois detalhes de script).
 > - **R1 ✅ fechado por decisão: `getUser()` fica.** O `getUser()` já barra sessão encerrada na requisição seguinte (o
 >   servidor de Auth consulta `auth.sessions`), e o ganho do `getClaims()` depende de uma chave assimétrica não confirmada.
 >
