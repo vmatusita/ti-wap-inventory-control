@@ -823,8 +823,8 @@ begin
   -- ---------------------------------------------------------------
   -- 9j/9k — A VARREDURA DAS TABELAS DA F62, sobre o CATÁLOGO (nunca lista escrita à mão):
   --      o universo são as tabelas de public cujo comentário, ou o de alguma coluna, a F62
-  --      gravou ('F62 …'). 9j: SEM `force` (R-ACC-29/R-ACC-72 — com `force`, a recursão
-  --      42P17 volta, agora em membros). "RLS ligada" NÃO é conferida aqui: mora em
+  --      gravou ('F62 …'). 9j: SEM `force` (R-ACC-29/R-ACC-72; o que o `force` faria
+  --      de fato, medido, está em 9o). "RLS ligada" NÃO é conferida aqui: mora em
   --      seguranca_catalogo.sql (asserção 2, para TODA tabela de public — Decisão 2 da F48,
   --      uma fonte por fato). 9k: toda coluna `empresa_id` é NOT NULL, amarrada por FK à
   --      raiz e sem linha nula (universo = as linhas, contadas).
@@ -914,6 +914,53 @@ begin
   end;
   if pg_temp.assert_zero_de('9n empresas.config recusa jsonb que não seja objeto ("texto", [], 42, null) e aceita objeto' ||
        case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 5) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ---------------------------------------------------------------
+  -- 9o — (Sabotagem D, a metade do 42P17) O QUE O `force` FARIA DE FATO. A R-ACC-29 (0070) e
+  --      a R-ACC-72 previam 42P17 com `force` em profiles/membros: o dono da tabela passaria
+  --      a obedecer a policy, e papel_atual() (definer do mesmo dono) recursaria. MEDIDO NA
+  --      F62: não é o "dono ignora RLS" que segura isso, é o ATRIBUTO do dono — no banco
+  --      hospedado `postgres` tem BYPASSRLS (conferido no ensaio, 22/09), aqui no CI é
+  --      superusuário, e os dois vencem o `force` ("always bypass the row security system").
+  --      Este cenário liga o `force` em membros numa subtransação DESFEITA, lê como
+  --      authenticated e registra o resultado; e confere a premissa real: toda `security
+  --      definer` de public que lê membros tem dono com rolsuper ou rolbypassrls. Se o dono
+  --      perder o atributo, a recursão fica possível — com ou sem `force` — e 9o reprova.
+  --      O `force` continua proibido (4-bis de catalogo_policies.sql): ele não protege nada
+  --      e só muda de comportamento no dia em que o dono mudar.
+  -- ---------------------------------------------------------------
+  select count(*),
+         count(*) filter (where not (r.rolsuper or r.rolbypassrls)),
+         coalesce(string_agg(p.proname || '→' || r.rolname, ', ' order by p.proname)
+                    filter (where not (r.rolsuper or r.rolbypassrls)), '')
+    into v_refs, v_cnt, v_txt
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    join pg_roles r on r.oid = p.proowner
+   where n.nspname = 'public' and p.prosecdef and p.prosrc ~* '\mmembros\M';
+  v_estado := null;
+  begin
+    alter table public.membros force row level security;
+    perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    v_estado := coalesce(public.papel_atual()::text, '∅') || '/' ||
+                (select count(*) from public.membros)::text;
+    reset role;
+    raise exception 'f62-9o-desfaz';
+  exception when others then
+    if sqlerrm <> 'f62-9o-desfaz' then
+      v_estado := 'erro ' || sqlstate || ': ' || sqlerrm;
+    end if;
+  end;
+  reset role;
+  perform set_config('request.jwt.claims', '', true);
+  raise notice '9o (medição) com force em membros, admin_a leu papel/linhas = % — dono das definer que leem membros ignora RLS por atributo em % de %',
+    v_estado, v_refs - v_cnt, v_refs;
+  if pg_temp.assert_zero_de('9o o dono das security definer que leem membros ignora RLS por atributo (rolsuper/rolbypassrls), e por isso nem o force produz a recursão prevista' ||
+       case when v_cnt > 0 or v_estado like 'erro%' or v_estado is null
+            then ' — sem o atributo: ' || v_txt || ' · leitura com force: ' || coalesce(v_estado, '∅') else '' end,
+       v_cnt + case when v_estado like 'erro%' or v_estado is null then 1 else 0 end, v_refs) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM isolamento_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
