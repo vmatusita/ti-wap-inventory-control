@@ -3,9 +3,9 @@
 -- =============================================================
 -- POR QUE ELE EXISTE
 --
--- O sistema tem 58 funções `security definer` (48 quando este arquivo nasceu na
--- F48; as três da 0138/F55, a da 0148 e as seis da 0150 fecham a conta — o
--- histórico está no comentário de `k_secdef`) — cada uma roda com o privilégio do
+-- O sistema tem 65 funções `security definer` (48 quando este arquivo nasceu na
+-- F48; as três da 0138/F55, a da 0148, as seis da 0150 e as sete da F62 fecham a conta
+-- — o histórico está no comentário de `k_secdef`) — cada uma roda com o privilégio do
 -- DONO e, por construção, IGNORA a RLS das tabelas que lê e escreve. É a superfície
 -- mais concentrada de poder do banco, e até hoje **ninguém a enumerava**. Uma função
 -- `security definer` nova podia nascer executável por `anon`, ou com `search_path`
@@ -53,8 +53,9 @@ declare
   v_secdef boolean;
 
   -- -----------------------------------------------------------------------
-  -- A TABELA-VERDADE — as 58 `security definer` de `public`, classificadas (eram 51
-  -- na medição abaixo; a 0148 trouxe uma e a 0150 trouxe seis, cada uma com o motivo).
+  -- A TABELA-VERDADE — as 65 `security definer` de `public`, classificadas (eram 51
+  -- na medição abaixo; a 0148 trouxe uma, a 0150 trouxe seis e a F62 trouxe sete, cada
+  -- uma com o motivo).
   -- Medidas em 10/09/2026 sobre as migrations 0001→0138 (eram 48 até a 0137; a
   -- F55 acrescentou TRÊS na 0138 — as três no fim desta lista, com o motivo).
   -- Ordem alfabética dentro de cada bloco. O histórico da contagem:
@@ -131,7 +132,7 @@ declare
     -- from public, anon, authenticated, service_role` nas seis; só a orquestradora, que
     -- roda como o dono, as alcança. Quem escreve em `ativos`, quem abre e quem apaga
     -- pendência de item é invariante conferida sem banco por
-    -- src/lib/validators/movimentacao-uma-porta.test.ts. 58 no total.
+    -- src/lib/validators/movimentacao-uma-porta.test.ts. 58 no total (65 com as da F62).
     'movimentacao_estornar', 'movimentacao_pendencia_de_termo_restaurada',
     'movimentacao_desfazer_pendencias_item', 'movimentacao_abrir_pendencias_item',
     'movimentacao_transicionar', 'movimentacao_detentor_sincronizado',
@@ -172,7 +173,24 @@ declare
     -- lê pela conta `consulta` do smoke agendado, para comparar o repositório
     -- com o que já foi aplicado. 52 no total (as seis da 0150, no bloco do import,
     -- levam a 58).
-    'ledger_de_migracoes'
+    'ledger_de_migracoes',
+    -- F62 (22/09/2026) — SETE, 65 no total.
+    --
+    -- As QUATRO FUNÇÕES DE CONJUNTO (0157), na forma-alvo da MATRIZ (R-ACC-68): leem
+    -- `membros` e a F66 fará as policies chamá-las; se fossem invoker, a RLS de `membros`
+    -- valeria dentro delas e a policy de `membros` as chamaria de volta — a recursão 42P17
+    -- que a 0070 provou para `profiles`. Sem parâmetro (fora de definer_sem_tenant.sql),
+    -- `search_path = ''`, `revoke public, anon` + `grant authenticated`.
+    'empresas_do_membro', 'empresas_de_escrita', 'empresas_de_admin', 'unidades_de_escrita',
+    -- `e_plataforma` (0154): responde só sobre o chamador lendo `plataforma_admins`, que
+    -- não tem policy nenhuma — a leitura tem de ser como o dono. Sem consumidor na F62.
+    'e_plataforma',
+    -- As DUAS de gatilho (0153/0156), fechadas nos quatro papéis como `profiles_guarda_dev`:
+    -- `membros_guarda_dev` é a rede final do dev em `membros` e roda para TODO chamador,
+    -- service role incluso; `operador_filiais_deriva_membership` lê `filiais` e
+    -- `membros` para preencher a membership do vínculo, e tem de enxergá-las inteiras
+    -- qualquer que seja quem insere (a RPC definer, o seed pelo service role).
+    'membros_guarda_dev', 'operador_filiais_deriva_membership'
   ];
 
   -- -----------------------------------------------------------------------
