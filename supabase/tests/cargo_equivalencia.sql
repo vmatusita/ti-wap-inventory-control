@@ -381,9 +381,12 @@ begin
   update public.profiles set ativo = false  -- F62/cargo-congelado: corpo antigo
    where papel in ('dev', 'admin') and ativo and excluido_em is null and id <> v_unico;
   if v_tem_membros then
-    update public.membros set ativo = false
-     where papel in ('dev', 'admin') and ativo and profile_id <> v_unico
-       and empresa_id = public.empresa_legada();
+    update public.membros m set ativo = false
+     where m.papel in ('dev', 'admin') and m.ativo and m.profile_id <> v_unico
+       and m.empresa_id = public.empresa_legada()
+       -- o ARQUIVADO fica com a membership ativa, como o perfil: é o arquivamento sozinho que
+       -- tem de tirá-lo da conta (e as duas fontes da grade continuam iguais)
+       and not exists (select 1 from public.profiles p where p.id = m.profile_id and p.excluido_em is not null);
   end if;
   perform set_config('estoque.cargo_congelado', 'off', true);
   perform set_config('estoque.gestao_usuarios', 'off', true);
@@ -423,11 +426,17 @@ begin
     perform set_config('estoque.cargo_congelado', 'off', true);
     perform set_config('estoque.gestao_usuarios', 'off', true);
 
+    -- as que JÁ batiam com profiles antes da recópia — só essas têm de ficar na mesma versão
+    create temp table f62_ja_batiam on commit drop as
+      select m.id
+        from public.membros m
+        join public.profiles p on p.id = m.profile_id  -- F62/cargo-congelado: recopia
+       where m.empresa_id = public.empresa_legada()
+         and m.papel = p.papel and m.ativo = p.ativo;
     select string_agg(m.id::text || '@' || m.ctid::text, ',' order by m.id)
       into v_intactas
       from public.membros m
-     where m.empresa_id = public.empresa_legada()
-       and m.profile_id not in (v_prom, v_desl, v_sem_memb);
+     where m.id in (select id from f62_ja_batiam);
     select string_agg(m.id::text || '@' || m.ctid::text || '=' || m.papel || '/' || m.ativo, ',' order by m.id)
       into v_de_b
       from public.membros m where m.empresa_id <> public.empresa_legada();
@@ -437,8 +446,7 @@ begin
     select string_agg(m.id::text || '@' || m.ctid::text, ',' order by m.id)
       into v_depois
       from public.membros m
-     where m.empresa_id = public.empresa_legada()
-       and m.profile_id not in (v_prom, v_desl, v_sem_memb);
+     where m.id in (select id from f62_ja_batiam);
     select string_agg(m.id::text || '@' || m.ctid::text || '=' || m.papel || '/' || m.ativo, ',' order by m.id)
       into v_de_b_dep
       from public.membros m where m.empresa_id <> public.empresa_legada();
