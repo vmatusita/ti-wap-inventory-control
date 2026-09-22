@@ -331,7 +331,7 @@ impressão de todo perfil volta idêntica; rb2: sem ela, o desligado recupera o 
 
 | passo | arquivo | o que faz | seguro com o app novo no ar? |
 |---|---|---|---|
-| 1 | `F62-1-copia-de-volta.sql` | copia `papel`/`ativo` de `membros` (empresa legada) para `profiles`, só onde diverge, dentro da janela `estoque.gestao_usuarios` (sem ela, `profiles_guarda_dev` recusa mexer num dev) | **sim** — o app novo não lê a coluna congelada |
+| 1 | `F62-1-copia-de-volta.sql` | trava `membros` contra escrita (SHARE ROW EXCLUSIVE, até o fim da transação) e copia `papel`/`ativo` de `membros` (empresa legada) para `profiles`, só onde diverge, com a janela `estoque.gestao_usuarios` (sem ela, `profiles_guarda_dev` recusa mexer num dev) e a marca `estoque.cargo_congelado` (sem ela, a guarda da 0158 recusa gravar a coluna congelada pela janela) | **sim** — o app novo não lê a coluna congelada |
 | 2 | `F62-2-desfaz.sql` (GERADO; a mesa reprova se divergir do corpo vigente de antes) | reemite as dez funções com o corpo de antes, derruba o que a F62 criou na ordem inversa (`0157` → `0152`), devolve `handle_new_user` ao corpo da `0057`, `notify pgrst` | **não** — derruba `membros`, que o app novo lê |
 
 **A receita:**
@@ -344,7 +344,11 @@ impressão de todo perfil volta idêntica; rb2: sem ela, o desligado recupera o 
    anterior) **antes** do passo 3 — o app velho lê a coluna que o passo 1 acabou de acertar. **Nunca** `git revert` do
    merge inteiro: tiraria do repositório as migrations já aplicadas. Se o apply foi antes do merge (a janela normal da
    fase), não há o que voltar.
-3. **O desfazer** (`F62-2-desfaz.sql`, pelo conector, o arquivo inteiro, na MESMA sessão lógica da cópia quando der).
+3. **O desfazer, COM A CÓPIA DE NOVO:** `F62-1-copia-de-volta.sql` seguido de `F62-2-desfaz.sql`, os dois no MESMO
+   `execute_sql` (uma transação só). Entre o passo 1 e este as RPCs ainda gravam em `membros` (só o desfazer as devolve a
+   `profiles`): a cópia refeita pega essa troca de cargo, e a trava que ela põe em `membros` faz a troca que chegar
+   DURANTE o desfazer esperar e FALHAR depois do `drop` — em vez de sumir com a tela dizendo "feito". *(Achado da revisão
+   adversarial da F62, 22/09/2026: rodar o desfazer sozinho perdia essa janela.)*
 4. **Conferir**: a impressão do acesso de novo — igual à do passo 0, combinação a combinação e no md5 global; `membros`,
    `empresas`, `plataforma_admins` ausentes; `operador_filiais` com a PK `(usuario_id, filial_id)`; `papel_atual()` lendo
    `profiles` (md5 do `prosrc` = o da `0073`); `get_advisors(security)` sem achado novo.

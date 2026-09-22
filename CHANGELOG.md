@@ -35,10 +35,14 @@ tocada. Nada muda na tela. Relatório em [`docs/RELATORIO-F62.md`](docs/RELATORI
   medição também. Nada muda na tela.
 - ✅ **As travas** — a varredura do cargo congelado em quatro frentes (catálogo, migrations, TypeScript e roteiros); a
   comparação do corpo antigo × o vivo numa grade de 32 pessoas + casos de borda; os cenários A↔B do isolamento com duas
-  empresas fictícias; **19 mutações novas** no injetor (124/124 detectadas); e dez sabotagens com saída real em
+  empresas fictícias; **20 mutações novas** no injetor (125/125 detectadas); e dez sabotagens com saída real em
   [`docs/f62-evidencias/`](docs/f62-evidencias). A medição achou uma premissa errada escrita desde a `0070`: com `force
   row level security` o Postgres **não** erraria `42P17` aqui — o dono das funções tem BYPASSRLS; a proibição do `force`
   fica, e o atributo do dono virou asserção.
+- ✅ **A revisão adversarial (5 lentes, 2 céticos por achado)** achou cinco lacunas, todas fechadas antes do apply: a
+  RPC antiga em voo no apply da `0158` gravaria em silêncio a coluna congelada — a guarda de `profiles` passou a
+  recusá-la (`55000`, cenário 8d, mutação nova); a recópia ganhou cenário que exercita a reconciliação (6); o rollback
+  refaz a cópia junto do desfazer, com `membros` travada; e a ata e o índice das ordens.
 
 ---
 

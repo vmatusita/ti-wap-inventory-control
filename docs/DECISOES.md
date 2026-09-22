@@ -12970,3 +12970,97 @@ literal mente — não foi remedida, porque a medição nunca usou literal). Al�
   `impressao-colunas.test.ts` diziam rodar no projeto `componentes`, e rodam no `puro` (são `.test.ts`).
 - **Pendências:** nenhuma desta revisão. Fica registrado que o injetor chegou ao teto de 105 mutações: a próxima que
   entrar sobe o teto, com o porquê escrito em `mutacoes.test.mts`.
+
+## 2026-09-22 · F62 (v1.67.0) · a raiz do tenant e o cargo por empresa
+
+**Contexto.** Ordem [`prompts/F62-raiz-do-tenant-e-cargo-por-empresa-ultracode.md`](prompts/F62-raiz-do-tenant-e-cargo-por-empresa-ultracode.md),
+a primeira fase da virada multiempresa que muda o banco. Plano medido em [`PLAN-F62.md`](PLAN-F62.md) (os 30 fatos
+remedidos, a tabela de leitores/escritores do cargo, o desenho, as doze decisões, a ordem de apply e de rollback).
+Migrations `0152`–`0158`. Relatório em [`RELATORIO-F62.md`](RELATORIO-F62.md). Regras novas: MATRIZ R-ACC-77 a
+R-ACC-84 e as emendas de R-ACC-02/25/26/29/30; ADR-002 §15.
+
+**As quatro decisões do Johnny (22/09/2026), que estenderam a ficha:**
+- **(i)** `filiais.empresa_id` nasce nesta fase, `not null`, com default constante na WAP até a F64 — e
+  `operador_filiais` ganha `empresa_id`/`membro_id` com FKs compostas.
+- **(ii)** as contas dev ganham membership como todo mundo; `plataforma_admins` é o retrato delas, sem consumidor.
+- **(iii)** `profiles.papel`/`ativo` ficam congelados (não derrubados), e o rollback copia de volta primeiro.
+- **(iv)** o seed só troca a linha do cargo; as duas empresas fictícias e as seis tabelas são da F65.
+
+**As doze decisões da fase** (detalhe no `PLAN-F62.md` §3–§7):
+1. **Colunas de `empresas`:** uuid fixo da WAP (`00000000-0000-4000-a000-000000000001`, igual nos dois bancos — a
+   paridade de catálogo e o espelho TS dependem disso); `razao_social`/`cnpj` nulos na WAP (a fase não grava dado
+   cadastral em migration); da máscara, só `patrimonio_digitos` (o prefixo fica em `import_prefixos_patrimonio` até a
+   F64); fora `logo`, `cidade` e `ativo`, sem consumidor. **Motivo:** cada coluna sem consumidor é contrato sem prova.
+2. **Slugs reservados:** lista FECHADA de 18 = segmentos de topo de `src/app/**` ∪ a ficha ∪ `todas`, com trava de
+   mesa que lê os dois lados. **Motivo:** o slug vira segmento de URL; uma empresa `admin` sequestraria a rota.
+3. **A empresa legada:** `public.empresa_legada()` (sql, stable, invoker, `search_path = ''`) + `EMPRESA_LEGADA_ID` no
+   TS, amarrados por teste. **Motivo:** um lugar só para trocar quando a ponte cair.
+4. **A ponte:** `papel_atual()` sem parâmetro, pela membership na empresa legada, exigindo membership ativa e perfil
+   não arquivado; duas memberships → a da legada, nunca a mais forte. **Motivo:** as 61 policies e todo chamador
+   intactos até a F64/F67.
+5. **`membros`:** FK `cascade` para `profiles` (espelha `operador_filiais`), `restrict` para `empresas`, guarda do dev
+   própria, policy de SELECT com o piso, INFRA. **Motivo:** o cargo vivo precisa da mesma rede que tinha em `profiles`.
+6. **`operador_filiais`:** o banco deriva empresa e membership (gatilho), a PK nova, a FK composta de filial AQUI (não
+   na F65). **Motivo:** a tabela foi reestruturada nesta fase; a FK custava seis linhas e fecha o vínculo cruzado antes
+   de existir segunda empresa. Nenhuma RPC antiga precisou mudar para continuar gravando no intervalo entre applies.
+7. **`plataforma_admins` e `e_plataforma()`:** retrato + função sem parâmetro e sem consumidor; deriva inerte, a F67
+   decide. **Motivo:** dupla escrita do cargo dev agora seria uma segunda fonte viva sem leitor.
+8. **Ordem e transação da troca:** a recópia `profiles → membros` é o primeiro comando da `0158`, sob `lock ... share row
+   exclusive` em `profiles` até o fim da transação do apply; `handle_new_user` entra já na `0153`. **Motivo:** fecha a
+   janela entre a `0153` e a `0158` (cargo mudado pelas RPCs antigas no intervalo) e a de conta nova sem membership.
+9. **As travas do cargo:** catálogo (`cargo_em_membros.sql`), mesa, TypeScript e roteiros (`cargo-em-membros.test.ts`);
+   exceções de função numa fonte só (`k_excecoes_cargo`, lida pela mesa), as de TS e de roteiro no próprio teste, todas
+   com catraca nos dois sentidos.
+10. **A comparação:** grade de CI (`cargo_equivalencia.sql`) com o corpo antigo em `pg_temp`, conferido contra o arquivo
+    vigente por teste de mesa; e a impressão do acesso por perfil antes × depois nos dois bancos.
+11. **Mutações e teto:** 19 mutações `f62-*`, uma por função de autorização criada ou reescrita; teto 105 → 124 (e
+    20 / 125 depois da revisão adversarial — (i).2 abaixo).
+12. **O que fica:** `usuario_id` em `operador_filiais` (o TS lê por ele), as colunas congeladas, o default de
+    `filiais.empresa_id` — cada um com a fase que o tira.
+
+**Decisões tomadas na execução (não estavam no plano):**
+- **(a) `profiles_guarda_dev` reconhece dev pela coluna congelada OU pela membership.** Sem isso, um dev promovido
+  depois da F62 (só `membros` diz que ele é dev) poderia ser arquivado pelo caminho direto — o cenário 8c prova. Por
+  isso ela é a única exceção nomeada da varredura do cargo congelado (`k_excecoes_cargo`, destino: o PATCH que
+  derrubar as colunas).
+- **(b) As quatro funções de conjunto exigem também o perfil não arquivado**, além da membership ativa — a mesma régua
+  da ponte; a forma-alvo da MATRIZ não dizia. **Motivo:** `apagar_usuario` arquiva o perfil; sem isso, o arquivado
+  continuaria "membro" para as policies da F66.
+- **(c) `apagar_usuario` desativa TODAS as memberships da conta**, não só a da legada. **Motivo:** apagar é da conta.
+- **(d) Os três instrumentos de desempenho da F60** (`medir-rel`, `medir-custo`, `equivalencia-rel`) ficaram como
+  estavam, nomeados em `EXCECOES_TS`: têm sha travado por `instrumentos-f60.test.mts` e medem com contas fictícias —
+  reescrevê-los invalidaria a comparação da F60.
+- **(e) O rollback é GERADO a partir do corpo vigente de antes** (`supabase/rollback/F62-2-desfaz.sql`), com trava de
+  mesa de completude, fidelidade e ordem (describe 9) e roteiro que o executa no CI (`f62_rollback.sql`, a sabotagem G).
+- **(f) O uuid da WAP é `…-4000-a000-…001`, não o `…-8000-…001` do plano:** esse já é id fictício de fixture em seis
+  lugares. PLAN corrigido.
+- **(g) O cenário 4b de `cargo_equivalencia.sql`.** O injetor do CI mostrou `f62-outro-admin-conta-inativo` passando: a
+  grade sempre tinha admin ativo de sobra e `existe_outro_admin_ativo` respondia `true` para todo mundo. O 4b deixa UM
+  admin ativo e exige antigo = vivo = `false`; a mutação passou a mirar nele (124/124).
+- **(h) A previsão do `42P17` com `force` era falsa aqui — medido.** No ensaio, `postgres` tem `rolbypassrls = true`
+  (e `rolsuper = false`); no CI é superusuário; e BYPASSRLS vence o `force`. O cenário 9o de `isolamento_tenant.sql`
+  liga o `force` em `membros` numa subtransação desfeita e lê normalmente (admin, 9 linhas); a asserção nova trava a
+  premissa real (toda definer que lê `membros` tem dono com o atributo). A proibição do `force` continua (4-bis). A
+  `0070`, a R-ACC-29, a R-ACC-72 e o runbook prometiam o `42P17`; o registro está na emenda F62 da MATRIZ, e o
+  comentário e a mensagem do 4-bis foram corrigidos.
+- **(i) A revisão adversarial da fase (5 lentes em contexto fresco, 2 céticos por achado, só leitura)** devolveu 5
+  achados; os 5 resistiram aos céticos, e os 5 foram fechados antes do apply:
+  1. **A recópia da `0158` nunca exercitava o ramo de reconciliação** (o UPDATE do upsert): na cadeia do CI nada escreve
+     em `profiles` entre a `0153` e a `0158`. → Cenário 6 de `cargo_equivalencia.sql`, com a cópia verbatim do bloco em
+     `pg_temp` (promovido, desligado e perfil sem membership reconciliados; as linhas que já batiam conferidas pelo
+     `ctid`, que muda a cada versão; a outra empresa intacta), e a trava de mesa que compara a cópia com a migration.
+  2. **A corrida do apply:** a RPC antiga em voo, bloqueada pela trava da recópia, retomava DEPOIS do commit e gravava em
+     silêncio a coluna congelada — a desativação sumia com a tela dizendo "feito". → A `profiles_guarda_dev` da `0158`
+     passou a RECUSAR (`55000`) mudar `papel`/`ativo` pela janela de gestão sem a marca `estoque.cargo_congelado`; o
+     rollback e as fixtures abrem a marca. Cenário 8d/8d-bis em `cargo_dev.sql` e a mutação
+     `f62-guarda-de-profiles-aceita-a-escrita-antiga` (teto 124 → 125). **A `0158` foi corrigida no lugar**, com
+     `db:lock --regravar-alterada`: medido em 22/09, antes, que nenhuma das sete estava no ledger nem no catálogo de
+     banco real nenhum (ensaio e produção terminavam na `escrita_atomica_reconfere_no_banco`, sem `membros`/`empresas`).
+     Migration nova (`0159`) não servia: a RPC em voo retoma no commit da `0158`, antes de qualquer migration seguinte.
+  3. **O rollback perdia a troca feita entre a cópia e o desfazer** (as RPCs gravam `membros` até o desfazer). →
+     `F62-1-copia-de-volta.sql` trava `membros` (SHARE ROW EXCLUSIVE) e a receita do RUNBOOK a roda de novo, junto do
+     `F62-2-desfaz.sql`, na mesma transação: a troca do intervalo é recopiada, e a que chegar durante o desfazer espera
+     e falha depois do `drop`.
+  4. **A ata não existia**, e três documentos apontavam para ela. → Esta.
+  5. **Faltava a F62 no índice das ordens** (`docs/prompts/README.md`, que parou na F46). → Linha da F62, com a lacuna
+     F47–F61 declarada ali mesmo.

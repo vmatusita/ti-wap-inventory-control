@@ -327,11 +327,11 @@ Até a F61 o cargo era **um por pessoa**: `profiles.papel` e `profiles.ativo`. A
 
 **As funções de conjunto (`0157`).** As quatro da forma-alvo (MATRIZ R-ACC-68), `security definer`, `search_path = ''`, sem consumidor até a F66.
 
-**A troca (`0158`).** Uma recópia sob lock (fecha a janela entre a `0153` e a troca), e as dez funções que liam ou gravavam o cargo em `profiles` recriadas para `membros`: `papel_atual`, `pode_escrever_filial`, `existe_outro_admin_ativo`, `exigir_gestao_de`, as quatro RPCs de gravação, `profiles_guarda_dev` (que passa a reconhecer dev pela membership também) e `checagens_integridade_nucleo`. `apagar_usuario` desativa **todas** as memberships da conta arquivada. As duas colunas de `profiles` ganharam o comentário LEGADO.
+**A troca (`0158`).** Uma recópia sob lock (fecha a janela entre a `0153` e a troca; a RPC antiga que estiver em voo no apply retoma depois do commit e é RECUSADA pela guarda de `profiles` — `55000` —, em vez de gravar em silêncio na coluna congelada), e as dez funções que liam ou gravavam o cargo em `profiles` recriadas para `membros`: `papel_atual`, `pode_escrever_filial`, `existe_outro_admin_ativo`, `exigir_gestao_de`, as quatro RPCs de gravação, `profiles_guarda_dev` (que passa a reconhecer dev pela membership também) e `checagens_integridade_nucleo`. `apagar_usuario` desativa **todas** as memberships da conta arquivada. As duas colunas de `profiles` ganharam o comentário LEGADO.
 
 **O app.** `getOperador()` lê cargo e status da membership na empresa legada e o que é da conta de `profiles`; `/admin/usuarios` lista a partir de `membros`. Nada muda na tela.
 
-**Rollback.** `supabase/rollback/F62-1-copia-de-volta.sql` (a membership é a verdade desde o apply: quem foi desligado depois volta desligado) e só então `F62-2-desfaz.sql` (os corpos anteriores, na ordem inversa). O roteiro `f62_rollback.sql` prova os dois caminhos no CI: com a cópia, a impressão de todo perfil volta idêntica; sem ela, o desligado recupera o cargo.
+**Rollback.** `supabase/rollback/F62-1-copia-de-volta.sql` (a membership é a verdade desde o apply: quem foi desligado depois volta desligado) e só então `F62-2-desfaz.sql` (os corpos anteriores, na ordem inversa) — este sempre junto de uma cópia refeita, na mesma transação, com `membros` travada (RUNBOOK, "O rollback da F62"). O roteiro `f62_rollback.sql` prova os dois caminhos no CI: com a cópia, a impressão de todo perfil volta idêntica; sem ela, o desligado recupera o cargo.
 
 ### 15.4 Consequências
 
