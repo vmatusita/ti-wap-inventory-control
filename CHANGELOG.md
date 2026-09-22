@@ -6,14 +6,15 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
-## 22/09/2026 — F62 · A raiz do tenant e o cargo por empresa ✅
+## 22/09/2026 — F62 · A raiz do tenant e o cargo por empresa 🚧
 
-**v1.67.0** · **com migrations `0152`–`0158`**, aplicadas no ensaio e em produção antes do merge · A primeira fase da
+**v1.67.0** · **com migrations `0152`–`0158`**, a aplicar no ensaio e em produção ANTES do merge · A primeira fase da
 virada multiempresa que muda o banco. Nascem a raiz do tenant (`empresas`, com a WAP), a membership (`membros`) e a
 tabela da plataforma — e **o cargo sai de `profiles` e passa a morar na membership**, uma linha por empresa em que a
-pessoa trabalha. **Nenhum perfil mudou de acesso:** a impressão do acesso de cada perfil, tirada antes e depois do
-apply, saiu idêntica nos dois bancos, combinação a combinação e no md5 global; nenhuma das 61 policies vivas foi
-tocada. Nada muda na tela. Relatório em [`docs/RELATORIO-F62.md`](docs/RELATORIO-F62.md); plano e censo em
+pessoa trabalha. **A promessa: nenhum perfil muda de acesso** — a impressão do acesso de cada perfil, tirada antes e
+depois do apply, tem de sair idêntica nos dois bancos, combinação a combinação e no md5 global, e é o portão do merge;
+nenhuma das 61 policies vivas é tocada. *(Em execução: o resultado medido do apply entra aqui e no relatório antes do
+merge.)* Nada muda na tela. Relatório em [`docs/RELATORIO-F62.md`](docs/RELATORIO-F62.md); plano e censo em
 [`docs/PLAN-F62.md`](docs/PLAN-F62.md); ata em [`docs/DECISOES.md`](docs/DECISOES.md).
 
 - ✅ **A raiz do tenant (`0152`)** — `empresas` com a WAP (id fixo, igual nos dois bancos, devolvido por

@@ -13064,3 +13064,15 @@ R-ACC-84 e as emendas de R-ACC-02/25/26/29/30; ADR-002 §15.
   4. **A ata não existia**, e três documentos apontavam para ela. → Esta.
   5. **Faltava a F62 no índice das ordens** (`docs/prompts/README.md`, que parou na F46). → Linha da F62, com a lacuna
      F47–F61 declarada ali mesmo.
+- **(j) A re-revisão (3 lentes sobre os consertos, 2 céticos por achado)** confirmou os cinco consertos no código — a
+  guarda nova casa o caminho exato das RPCs antigas (0074) e nenhuma escrita legítima depois da F62 passa por ele; as
+  mutações antigas de `profiles_guarda_dev` seguem casando e caindo pelo cenário certo; o rollback segue coerente — e
+  achou 4 lacunas de TEXTO, todas fechadas: o CHANGELOG e o `registry.ts` afirmavam no passado um apply e uma comparação
+  que ainda não tinham acontecido (o CHANGELOG ficou 🚧 com a promessa escrita como portão, e o texto do registry — que
+  congela com o código — virou a regra: "só é publicada se os dois registros saírem idênticos"); os links para o
+  `RELATORIO-F62.md` apontavam para um arquivo que não existia (criado, com o PENDENTE declarado); e as células de
+  R-ACC-29/30 mostravam os números da F48 ao lado dos vigentes sem dizer qual valia.
+- **(k) O CI pegou uma incoerência do próprio roteiro:** o 4b desativava a membership dos admin/dev ARQUIVADOS sem
+  desativar o perfil, e o cenário 6 acusou a recópia de "reescrever linha que já batia" — ela estava certa, a fixture
+  é que chegava divergente. O 4b agora deixa o arquivado com a membership ativa (o arquivamento sozinho tem de tirá-lo
+  da conta — o 4b ficou mais forte), e o 6 mede as linhas que já batiam em vez de supô-las.
