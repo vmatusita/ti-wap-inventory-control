@@ -1,0 +1,334 @@
+# F62 · Frente B · a trava de MESA nasce VERMELHA — 2026-09-22T18:50:39Z, HEAD da64272 + travas
+# npx vitest run src/lib/validators/cargo-em-membros.test.ts
+
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ❯ |puro| src/lib/validators/cargo-em-membros.test.ts (32 tests | 5 failed) 383ms
+     × nenhuma função vigente fora de k_excecoes_cargo lê ou escreve profiles.papel/profiles.ativo 10ms
+     × as exceções estão no formato (migration que existe, motivo > 40 caracteres, destino) 2ms
+     × nenhum arquivo fora de EXCECOES_TS lê ou grava o cargo em profiles 157ms
+     × todo comando que toca o cargo em profiles carrega a marca de uma exceção nomeada 13ms
+     × toda exceção de EXCECOES_ROTEIRO ainda marca um comando (a catraca no outro sentido) 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/cargo-em-membros.test.ts > 1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles > nenhuma função vigente fora de k_excecoes_cargo lê ou escreve profiles.papel/profiles.ativo
+AssertionError: leem o cargo congelado: apagar_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql) · checagens_integridade_nucleo (forma b, vigente em 0138_resumo_integridade_e_rotulo.sql) · definir_papel_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql) · definir_status_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql) · definir_vinculos_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql) · exigir_gestao_de (forma b, vigente em 0132_guardas_de_escopo.sql) · existe_outro_admin_ativo (forma b, vigente em 0132_guardas_de_escopo.sql) · papel_atual (forma b, vigente em 0073_dev_intocavel_e_arquivamento.sql): expected [ …(8) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "apagar_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql)",
++   "checagens_integridade_nucleo (forma b, vigente em 0138_resumo_integridade_e_rotulo.sql)",
++   "definir_papel_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql)",
++   "definir_status_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql)",
++   "definir_vinculos_usuario (forma b, vigente em 0074_rpcs_gestao_usuarios.sql)",
++   "exigir_gestao_de (forma b, vigente em 0132_guardas_de_escopo.sql)",
++   "existe_outro_admin_ativo (forma b, vigente em 0132_guardas_de_escopo.sql)",
++   "papel_atual (forma b, vigente em 0073_dev_intocavel_e_arquivamento.sql)",
++ ]
+
+ ❯ src/lib/validators/cargo-em-membros.test.ts:100:63
+     98|   it('nenhuma função vigente fora de k_excecoes_cargo lê ou escreve pr…
+     99|     const msg = J.acusadas.map((a) => `${a.nome} (forma ${a.forma}, vi…
+    100|     expect(msg, `leem o cargo congelado: ${msg.join(' · ')}`).toEqual(…
+       |                                                               ^
+    101|   })
+    102|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  |puro| src/lib/validators/cargo-em-membros.test.ts > 1. mesa: nenhuma função vigente lê ou escreve o cargo em profiles > as exceções estão no formato (migration que existe, motivo > 40 caracteres, destino)
+AssertionError: profiles_guarda_dev: migration 0158 não existe: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/validators/cargo-em-membros.test.ts:111:91
+    109|     const arquivos = new Set(MIGRATIONS.map((m) => m.arquivo.slice(0, …
+    110|     for (const e of EXCECOES) {
+    111|       expect(arquivos.has(e.migration), `${e.nome}: migration ${e.migr…
+       |                                                                                           ^
+    112|       expect(e.motivo.length, `${e.nome}: motivo curto`).toBeGreaterTh…
+    113|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  |puro| src/lib/validators/cargo-em-membros.test.ts > 4. TS e scripts: nenhum `from('profiles')` seleciona, filtra ou grava papel/ativo > nenhum arquivo fora de EXCECOES_TS lê ou grava o cargo em profiles
+AssertionError: scripts/manutencao/gerar-errata-truncamento.ts → filtro, filtro
+scripts/perf/equivalencia-rel.mjs → sql (b)
+scripts/perf/medir-custo.mjs → sql (b)
+scripts/perf/medir-itens.mjs → sql (b)
+scripts/perf/medir-rel.mjs → sql (b)
+scripts/perf/medir-rls.mjs → sql (b)
+scripts/seed.ts → select, grava, sql (b)
+scripts/smoke/import-ensaio.ts → sql (a)
+scripts/smoke/persona.ts → select, grava, grava
+src/lib/queries/admin.ts → select, filtro, filtro, select, select
+src/lib/queries/formas/auth.ts → forma: expected [ …(11) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "scripts/manutencao/gerar-errata-truncamento.ts → filtro, filtro",
++   "scripts/perf/equivalencia-rel.mjs → sql (b)",
++   "scripts/perf/medir-custo.mjs → sql (b)",
++   "scripts/perf/medir-itens.mjs → sql (b)",
++   "scripts/perf/medir-rel.mjs → sql (b)",
++   "scripts/perf/medir-rls.mjs → sql (b)",
++   "scripts/seed.ts → select, grava, sql (b)",
++   "scripts/smoke/import-ensaio.ts → sql (a)",
++   "scripts/smoke/persona.ts → select, grava, grava",
++   "src/lib/queries/admin.ts → select, filtro, filtro, select, select",
++   "src/lib/queries/formas/auth.ts → forma",
++ ]
+
+ ❯ src/lib/validators/cargo-em-membros.test.ts:183:41
+    181|       .filter((a) => a.achados.length > 0)
+    182|       .map((a) => `${a.arquivo} → ${a.achados.map((x) => x.tipo).join(…
+    183|     expect(achados, achados.join('\n')).toEqual([])
+       |                                         ^
+    184|   })
+    185|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  |puro| src/lib/validators/cargo-em-membros.test.ts > 6. roteiros: nenhum lê ou grava o cargo em profiles fora das exceções nomeadas > todo comando que toca o cargo em profiles carrega a marca de uma exceção nomeada
+AssertionError: asof_desempate.sql:156 (forma e)
+cargo_dev.sql:156 (forma c)
+cargo_dev.sql:157 (forma c)
+cargo_dev.sql:158 (forma c)
+cargo_dev.sql:159 (forma c)
+cargo_dev.sql:160 (forma c)
+cargo_dev.sql:168 (forma c)
+cargo_dev.sql:384 (forma c)
+cargo_dev.sql:400 (forma b)
+cargo_dev.sql:418 (forma c)
+cargo_dev.sql:426 (forma c)
+cargo_dev.sql:434 (forma c)
+cargo_dev.sql:501 (forma b)
+cargo_dev.sql:516 (forma b)
+cargo_dev.sql:531 (forma b)
+cargo_dev.sql:663 (forma e)
+cargo_dev.sql:1022 (forma b)
+cargo_dev.sql:1026 (forma c)
+cargo_dev.sql:1034 (forma c)
+cargo_dev.sql:1058 (forma c)
+cargo_em_membros.sql:151 (forma a)
+cargo_em_membros.sql:229 (forma b)
+cargo_em_membros.sql:232 (forma e)
+cargo_em_membros.sql:235 (forma c)
+cargo_em_membros.sql:238 (forma a)
+cargo_equivalencia.sql:52 (forma b)
+cargo_equivalencia.sql:109 (forma b)
+cargo_equivalencia.sql:185 (forma c)
+cargo_equivalencia.sql:225 (forma c)
+cargo_equivalencia.sql:226 (forma c)
+conflito_filiais.sql:156 (forma c)
+conflito_filiais.sql:157 (forma c)
+conflito_filiais.sql:158 (forma c)
+conflito_filiais.sql:161 (forma c)
+dev_destrutivo.sql:219 (forma c)
+dev_destrutivo.sql:220 (forma c)
+dev_destrutivo.sql:221 (forma c)
+dev_destrutivo.sql:227 (forma c)
+escrita_atomica_ativos_anotacao.sql:130 (forma c)
+escrita_atomica_ativos_anotacao.sql:131 (forma c)
+escrita_atomica_ativos_anotacao.sql:132 (forma c)
+escrita_atomica_ativos_anotacao.sql:133 (forma c)
+f34_triagem_reserva.sql:49 (forma e)
+f36_detentor.sql:91 (forma c)
+f38_itens_com_ativo.sql:156 (forma c)
+f38_itens_com_ativo.sql:157 (forma c)
+f41_regularizacao.sql:135 (forma c)
+f41_regularizacao.sql:136 (forma c)
+import_fora_da_unidade.sql:86 (forma e)
+import_fora_da_unidade.sql:95 (forma c)
+import_substituir.sql:148 (forma e)
+import_substituir.sql:166 (forma c)
+integridade_alarme.sql:198 (forma c)
+integridade_alarme.sql:203 (forma c)
+integridade_alarme.sql:204 (forma c)
+isolamento_tenant.sql:187 (forma c)
+itens_extra.sql:55 (forma e)
+itens_quantidade.sql:71 (forma e)
+ledger_de_migracoes.sql:69 (forma c)
+ledger_de_migracoes.sql:106 (forma c)
+ledger_de_migracoes.sql:125 (forma c)
+manutencao_fornecedor.sql:39 (forma e)
+maquina_estados.sql:42 (forma e)
+movimentacao_grade.sql:235 (forma e)
+papeis_rls.sql:213 (forma c)
+papeis_rls.sql:214 (forma c)
+papeis_rls.sql:215 (forma c)
+papeis_rls.sql:216 (forma c)
+papeis_rls.sql:944 (forma c)
+papeis_rls.sql:948 (forma a)
+papeis_rls.sql:1202 (forma c)
+papeis_rls.sql:1204 (forma a)
+pendencias_item.sql:35 (forma e)
+reabrir_pendencia_item.sql:74 (forma c)
+reabrir_pendencia_item.sql:75 (forma c)
+reabrir_pendencia_item.sql:76 (forma c)
+storage_termo.sql:114 (forma c)
+storage_termo.sql:115 (forma c)
+storage_termo.sql:116 (forma c)
+storage_termo.sql:117 (forma c)
+transferencia_item.sql:114 (forma c)
+transferencia_item.sql:115 (forma c)
+transicoes_extra.sql:51 (forma e)
+troca.sql:44 (forma e)
+troca.sql:57 (forma c)
+vocabulario_import.sql:89 (forma c)
+vocabulario_import.sql:90 (forma c)
+vocabulario_import.sql:91 (forma c): expected [ …(88) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "asof_desempate.sql:156 (forma e)",
++   "cargo_dev.sql:156 (forma c)",
++   "cargo_dev.sql:157 (forma c)",
++   "cargo_dev.sql:158 (forma c)",
++   "cargo_dev.sql:159 (forma c)",
++   "cargo_dev.sql:160 (forma c)",
++   "cargo_dev.sql:168 (forma c)",
++   "cargo_dev.sql:384 (forma c)",
++   "cargo_dev.sql:400 (forma b)",
++   "cargo_dev.sql:418 (forma c)",
++   "cargo_dev.sql:426 (forma c)",
++   "cargo_dev.sql:434 (forma c)",
++   "cargo_dev.sql:501 (forma b)",
++   "cargo_dev.sql:516 (forma b)",
++   "cargo_dev.sql:531 (forma b)",
++   "cargo_dev.sql:663 (forma e)",
++   "cargo_dev.sql:1022 (forma b)",
++   "cargo_dev.sql:1026 (forma c)",
++   "cargo_dev.sql:1034 (forma c)",
++   "cargo_dev.sql:1058 (forma c)",
++   "cargo_em_membros.sql:151 (forma a)",
++   "cargo_em_membros.sql:229 (forma b)",
++   "cargo_em_membros.sql:232 (forma e)",
++   "cargo_em_membros.sql:235 (forma c)",
++   "cargo_em_membros.sql:238 (forma a)",
++   "cargo_equivalencia.sql:52 (forma b)",
++   "cargo_equivalencia.sql:109 (forma b)",
++   "cargo_equivalencia.sql:185 (forma c)",
++   "cargo_equivalencia.sql:225 (forma c)",
++   "cargo_equivalencia.sql:226 (forma c)",
++   "conflito_filiais.sql:156 (forma c)",
++   "conflito_filiais.sql:157 (forma c)",
++   "conflito_filiais.sql:158 (forma c)",
++   "conflito_filiais.sql:161 (forma c)",
++   "dev_destrutivo.sql:219 (forma c)",
++   "dev_destrutivo.sql:220 (forma c)",
++   "dev_destrutivo.sql:221 (forma c)",
++   "dev_destrutivo.sql:227 (forma c)",
++   "escrita_atomica_ativos_anotacao.sql:130 (forma c)",
++   "escrita_atomica_ativos_anotacao.sql:131 (forma c)",
++   "escrita_atomica_ativos_anotacao.sql:132 (forma c)",
++   "escrita_atomica_ativos_anotacao.sql:133 (forma c)",
++   "f34_triagem_reserva.sql:49 (forma e)",
++   "f36_detentor.sql:91 (forma c)",
++   "f38_itens_com_ativo.sql:156 (forma c)",
++   "f38_itens_com_ativo.sql:157 (forma c)",
++   "f41_regularizacao.sql:135 (forma c)",
++   "f41_regularizacao.sql:136 (forma c)",
++   "import_fora_da_unidade.sql:86 (forma e)",
++   "import_fora_da_unidade.sql:95 (forma c)",
++   "import_substituir.sql:148 (forma e)",
++   "import_substituir.sql:166 (forma c)",
++   "integridade_alarme.sql:198 (forma c)",
++   "integridade_alarme.sql:203 (forma c)",
++   "integridade_alarme.sql:204 (forma c)",
++   "isolamento_tenant.sql:187 (forma c)",
++   "itens_extra.sql:55 (forma e)",
++   "itens_quantidade.sql:71 (forma e)",
++   "ledger_de_migracoes.sql:69 (forma c)",
++   "ledger_de_migracoes.sql:106 (forma c)",
++   "ledger_de_migracoes.sql:125 (forma c)",
++   "manutencao_fornecedor.sql:39 (forma e)",
++   "maquina_estados.sql:42 (forma e)",
++   "movimentacao_grade.sql:235 (forma e)",
++   "papeis_rls.sql:213 (forma c)",
++   "papeis_rls.sql:214 (forma c)",
++   "papeis_rls.sql:215 (forma c)",
++   "papeis_rls.sql:216 (forma c)",
++   "papeis_rls.sql:944 (forma c)",
++   "papeis_rls.sql:948 (forma a)",
++   "papeis_rls.sql:1202 (forma c)",
++   "papeis_rls.sql:1204 (forma a)",
++   "pendencias_item.sql:35 (forma e)",
++   "reabrir_pendencia_item.sql:74 (forma c)",
++   "reabrir_pendencia_item.sql:75 (forma c)",
++   "reabrir_pendencia_item.sql:76 (forma c)",
++   "storage_termo.sql:114 (forma c)",
++   "storage_termo.sql:115 (forma c)",
++   "storage_termo.sql:116 (forma c)",
++   "storage_termo.sql:117 (forma c)",
++   "transferencia_item.sql:114 (forma c)",
++   "transferencia_item.sql:115 (forma c)",
++   "transicoes_extra.sql:51 (forma e)",
++   "troca.sql:44 (forma e)",
++   "troca.sql:57 (forma c)",
++   "vocabulario_import.sql:89 (forma c)",
++   "vocabulario_import.sql:90 (forma c)",
++   "vocabulario_import.sql:91 (forma c)",
++ ]
+
+ ❯ src/lib/validators/cargo-em-membros.test.ts:227:35
+    225|       }
+    226|     }
+    227|     expect(fora, fora.join('\n')).toEqual([])
+       |                                   ^
+    228|   })
+    229|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  |puro| src/lib/validators/cargo-em-membros.test.ts > 6. roteiros: nenhum lê ou grava o cargo em profiles fora das exceções nomeadas > toda exceção de EXCECOES_ROTEIRO ainda marca um comando (a catraca no outro sentido)
+AssertionError: expected [ 'cargo_dev.sql / 2g', …(9) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "cargo_dev.sql / 2g",
++   "cargo_dev.sql / 2h",
++   "cargo_dev.sql / 2i",
++   "cargo_dev.sql / 2i-bis",
++   "cargo_dev.sql / 8a",
++   "papeis_rls.sql / 3g",
++   "papeis_rls.sql / 5g",
++   "cargo_equivalencia.sql / corpo antigo",
++   "cargo_em_membros.sql / 2",
++   "f62_rollback.sql / rollback",
++ ]
+
+ ❯ src/lib/validators/cargo-em-membros.test.ts:236:22
+    234|     }
+    235|     const sobrando = Object.keys(EXCECOES_ROTEIRO).filter((k) => !usad…
+    236|     expect(sobrando).toEqual([])
+       |                      ^
+    237|   })
+    238| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 27 passed (32)
+   Start at  15:50:41
+   Duration  1.22s (transform 108ms, setup 0ms, import 592ms, tests 383ms, environment 0ms)
+
