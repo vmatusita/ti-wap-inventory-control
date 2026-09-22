@@ -156,6 +156,8 @@
     "0151_escrita_atomica_reconfere_no_banco.sql": "b691d6964024b6bc46495a04bc167d600683171023f51be8dde20866265e0c4c",
     "0152_raiz_do_tenant.sql": "f7410133e98960342c5d6233803f9adaa81e67e377a1c055de2a8854eff76b34",
     "0153_membros.sql": "647085a8d2e5b23fb7d13e72713b085c9ec3e3160177db037fd2a47b221e81db",
-    "0154_plataforma_admins.sql": "58341a11d392e720e0ca62cce6161b18526d7cc8c6fc37090ee8ba0c5f31d622"
+    "0154_plataforma_admins.sql": "58341a11d392e720e0ca62cce6161b18526d7cc8c6fc37090ee8ba0c5f31d622",
+    "0155_filiais_empresa.sql": "353f311bcaa648dab79017e5aafe0272d52bf629077913f53d4b3188eea21b89",
+    "0156_vinculo_por_membership.sql": "997d3913caafe776b54c7d2024d643774b6d8b9953daa117abf61ccb066be87e"
   }
 }
