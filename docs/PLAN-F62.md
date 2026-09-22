@@ -134,7 +134,9 @@ nomeadas** da varredura de roteiros. Os 12 que inserem vínculo continuam inseri
 ### 3.1 `public.empresa_legada()` — a fonte única (decisão 3)
 
 `language sql stable security invoker set search_path = ''`, sem parâmetro, devolve o uuid fixo da WAP
-`00000000-0000-4000-8000-000000000001` ("o tenant nº 1"). Usada por: o default de `filiais.empresa_id`, o
+`00000000-0000-4000-a000-000000000001` ("o tenant nº 1"). *(Corrigido na execução: este plano dizia
+`…-4000-8000-…001`, e esse uuid já é id FICTÍCIO de fixture em seis lugares — `asof_desempate.sql`, as prévias de
+design, `detalhe-evento.test.ts`. A migration e o espelho TS usam a variante `a000`, que não colide.)* Usada por: o default de `filiais.empresa_id`, o
 `handle_new_user`, a ponte de `papel_atual()` e as leitoras/escritoras do cargo. O TypeScript tem a
 constante espelhada (`src/lib/auth/empresa-legada.ts`), e um teste de mesa amarra as duas ao literal da
 migration. A F67/F69 trocam UM lugar.
