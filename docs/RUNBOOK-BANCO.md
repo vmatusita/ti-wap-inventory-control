@@ -1373,6 +1373,19 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   `catalogo_secdef.sql`, a porta `movimentacao-uma-porta.test.ts` e as mutações `ag-*` de `scripts/db/mutacoes.mjs`
   reconciliados no mesmo commit.
 
+- **`0151_escrita_atomica_reconfere_no_banco.sql`** (revisão de código de 22/09/2026, v1.66.7; **aplicada nos dois
+  bancos** em 22/09, caminho A, texto do arquivo sem alteração pelo conector). Recria quatro das cinco escritas
+  atômicas da `0149` (as mesmas assinaturas, `security invoker`) para reconferir a pré-condição no `WHERE` do UPDATE, e
+  o lote para perguntar DEPOIS do UPDATE quem continua pendente. Não toca dado. Ordem: CI verde sobre o SHA aplicado
+  (run `35751364907`: 38 roteiros, 924 asserções, 0 `✗`; injetor 105/105), ensaio, ensaio de comportamento em
+  `begin; … rollback;` contra o dado do ensaio (os cenários 13–16 e os dois do lote devolvendo linhas, nada sobrando
+  depois), produção. **Verificação pós-apply**, igual nos dois bancos: md5 do `prosrc` = md5 do trecho entre os `$$`
+  do arquivo nas quatro (`8bc05beb…`, `81016770…`, `d0fbb062…`, `e3cdfc6b…`), `corrigir_patrimonio_com_anotacao`
+  intocada (`db7d17eb…`), uma assinatura cada, grants `anon=false · authenticated=true · service_role=false`; ledger
+  `escrita_atomica_reconfere_no_banco` nos dois; advisor de segurança inalterado (29 no WARN de definer). **Rollback:**
+  migration nova reemitindo as quatro com o corpo da `0149`. O app segue funcionando com o corpo antigo, e só as frases
+  novas deixam de aparecer.
+
   ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56) nem das
   `0146`→`0149` (passos 1 e 2 da reauditoria), embora as atas dessas fases e entregas registrem os applies.
 ---
