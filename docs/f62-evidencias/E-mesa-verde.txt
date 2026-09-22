@@ -1,5 +1,5 @@
-# F62 — as travas de mesa, verdes, com os casos de sabotagem (A, C-policy, H) — npx vitest run … --reporter=verbose
-# SHA 9ee4f0c · 22/09/2026 · só mesa (sem banco)
+# F62 — as travas de mesa, verdes, com os casos de sabotagem (A, C-policy, H, a recópia) — npx vitest run … --reporter=verbose
+# SHA de código congelado f31175a · 22/09/2026 · só mesa (sem banco)
 
  ✓ |puro| src/lib/auth/empresa-legada.test.ts > EMPRESA_LEGADA_ID > é o literal que public.empresa_legada() devolve no corpo vigente
  ✓ |puro| src/lib/auth/empresa-legada.test.ts > EMPRESA_LEGADA_ID > é um uuid válido (v4, variante RFC)
@@ -19,6 +19,7 @@
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > a lista de exceções está no formato (migration, motivo e destino na linha)
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 3. a doutrina, contra as policies vivas > as ocorrências R1 vivas são exatamente as exceções — nenhuma a mais, nenhuma a menos
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · coluna nua → reprova
+ ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · o falso içamento → reprova
  ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: false, vinculos: [] }
  ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: false, vinculos: [ 2 ] }
  ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > { papel: 'dev', ativo: true, arquivado: false, vinculos: [ 1, 3 ] }
@@ -71,7 +72,6 @@
  ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > sem membership na empresa legada (só em outra empresa): null — a ponte responde pela legada
  ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > duas memberships: vale a da empresa legada, nunca a mais forte
  ✓ |puro| src/lib/auth/acesso-cargo.test.ts > getOperador — o cargo em membros, o mesmo acesso de antes > o vínculo é da MEMBERSHIP: vínculo de outra membership não entra no escopo
- ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · o falso içamento → reprova
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R1 · expressão sobre coluna qualificada → reprova
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R2 · sem argumento, solta → reprova
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > R2 · = any (fn()) sem array (select …) → reprova
@@ -112,6 +112,8 @@
  ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F62) > pg_temp.papel_atual_f61 = o corpo vigente até a 0151
  ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F62) > pg_temp.pode_escrever_filial_f61 = o corpo vigente até a 0151
  ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F62) > pg_temp.existe_outro_admin_ativo_f61 = o corpo vigente até a 0151
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8-bis. a recópia do cenário 6 é o bloco da 0158, verbatim > o cenário 6 roda a recópia da 0158 sem uma vírgula de diferença
+ ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 8-bis. a recópia do cenário 6 é o bloco da 0158, verbatim > SABOTAGEM (mesa): uma cópia com o where do upsert trocado é acusada
  ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > a F62 recriou e criou funções (guarda do próprio teste)
  ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > reemite TODA função que a F62 recriou — e nenhuma outra
  ✓ |puro| src/lib/validators/cargo-em-membros.test.ts > 9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rollback/) > apagar_usuario/1 volta com o corpo vigente até a 0151
@@ -147,6 +149,6 @@
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > a identidade içada → passa
  ✓ |puro| src/lib/validators/policies-initplan.test.ts > 4. a guarda do próprio teste — reprova o que tem de reprovar (SQL sintético em memória) > o literal → passa
  Test Files  5 passed (5)
-      Tests  145 passed (145)
-   Start at  16:55:29
-   Duration  2.19s (transform 549ms, setup 0ms, import 2.06s, tests 1.93s, environment 1ms)
+      Tests  147 passed (147)
+   Start at  18:02:17
+   Duration  2.55s (transform 698ms, setup 0ms, import 2.52s, tests 2.20s, environment 1ms)

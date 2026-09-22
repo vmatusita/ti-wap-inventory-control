@@ -364,7 +364,15 @@ O teto sobe de 105 para o número exato, com o porquê datado; quarentena segue 
 
 ## 9. SHA de código congelado
 
-_(preenchido na Frente G, passo 3)_
+**`f31175a3122826d473e784716c2e83f5f76edfea`** (`f31175a`, 22/09/2026) — o último commit que toca `src/**`,
+`scripts/**` ou `supabase/**`. Depois dele, só `docs/**` e `CHANGELOG.md`.
+
+- **CI verde sobre ele:** run [`35783705125`](https://github.com/vmatusita/ti-wap-inventory-control/actions/runs/35783705125)
+  no HEAD `622ee54`, cujo código é idêntico ao do `f31175a` (`git diff --stat f31175a 622ee54 -- src scripts supabase`
+  vazio): `verificar` e `banco-sem-docker` verdes — os roteiros, o injetor (**125/125** detectadas) e o `db:types:diff`.
+  Evidência em `f62-evidencias/C-ci-verde.txt` e `D-mutacoes-f62-no-ci.txt`.
+- **O que foi aplicado nos bancos** é o texto das `0152`–`0158` NESTE SHA (conferido por md5 do arquivo e do
+  `prosrc` de cada função — ver o relatório).
 
 ## 10. O que este plano NÃO promete
 

@@ -1,46 +1,46 @@
 # F62 — as mutações da fase no injetor: o que cada uma DERRUBOU, com a mensagem real do roteiro
-# run 35776229423 (o mesmo do C-ci-verde.txt). Fonte: o log do Postgres do job, em ordem — uma sessão por
-# mutação, a mesma ordem da tabela do injetor (conferido: 124 sessões com ✗ para 124 mutações).
+# run 35783705125 (o mesmo do C-ci-verde.txt). Fonte: o log do Postgres do job, em ordem — uma sessão por
+# mutação, a mesma ordem da tabela do injetor (conferido: 125 sessões com ✗ para 125 mutações).
 # Dado 100% fictício (fixtures do CI). Linhas longas truncadas em 600 caracteres.
 
-## [106/124] f62-empresas-do-membro-esquece-ativo → isolamento_tenant.sql (espera ✗ 9e)
+## [106/125] f62-empresas-do-membro-esquece-ativo → isolamento_tenant.sql (espera ✗ 9e)
   ✗ 9e a desativação não valeu no statement seguinte: antes=00000000-0000-4000-a000-000000000001|operador depois=00000000-0000-4000-a000-000000000001|∅|0
 
-## [107/124] f62-empresas-de-escrita-aceita-consulta → isolamento_tenant.sql (espera ✗ 9b)
-  ✗ 9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora — escrita:consultor=00000000-0000-4000-a000-000000000001,5b74ec8d-ccd4-416a-bc7a-5185b9f90d91: 1 de 6 fora da regra
+## [107/125] f62-empresas-de-escrita-aceita-consulta → isolamento_tenant.sql (espera ✗ 9b)
+  ✗ 9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora — escrita:consultor=00000000-0000-4000-a000-000000000001,164e4098-9117-49ae-bc47-cfdb280c46c5: 1 de 6 fora da regra
 
-## [108/124] f62-empresas-de-admin-aceita-operador → isolamento_tenant.sql (espera ✗ 9b)
-  ✗ 9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora — admin:oper_b=7c8e1f6f-e322-4c84-8e9a-015d9049e8ee: 1 de 6 fora da regra
+## [108/125] f62-empresas-de-admin-aceita-operador → isolamento_tenant.sql (espera ✗ 9b)
+  ✗ 9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora — admin:oper_b=834d8632-1f95-46cc-8c27-48f478a96879: 1 de 6 fora da regra
 
-## [109/124] f62-unidades-de-escrita-cruza-empresa → isolamento_tenant.sql (espera ✗ 9d)
+## [109/125] f62-unidades-de-escrita-cruza-empresa → isolamento_tenant.sql (espera ✗ 9d)
   ✗ 9d unidades_de_escrita() nunca devolve par de filial de outra empresa, nas duas direções — admin_a(6 pares, 1 fora de A) consultor(6 pares, 1 fora de A): 2 de 6 fora da regra
 
-## [110/124] f62-e-plataforma-responde-por-qualquer-um → isolamento_tenant.sql (espera ✗ 9f)
+## [110/125] f62-e-plataforma-responde-por-qualquer-um → isolamento_tenant.sql (espera ✗ 9f)
   ✗ 9f e_plataforma() responde só sobre o chamador (true só para a conta de plataforma, nunca NULL) — admin_a=true oper_b=true consultor=true inativo=true sem sessao=true: 5 de 6 fora da regra
 
-## [111/124] f62-ponte-esquece-arquivado → cargo_equivalencia.sql (espera ✗ 1, 2, 3)
+## [111/125] f62-ponte-esquece-arquivado → cargo_equivalencia.sql (espera ✗ 1, 2, 3)
   ✗ 1 papel_atual(): antigo = vivo em toda a grade — [dev|ativo|arquivado|sem vinculo: antigo=∅ vivo=dev] [dev|ativo|arquivado|com vinculo: antigo=∅ vivo=dev] [admin|ativo|arquivado|sem vinculo: antigo=∅ vivo=admin] [admin|ativo|arquivado|com vinculo: antigo=∅ vivo=admin] [operador|ativo|arquivado|sem vinculo: antigo=∅ vivo=operador] [operador|ativo|arquivado|com vinculo: antigo=∅ vivo=operador] [consulta|ativo|arquivado|sem vinculo: antigo=∅ vivo=consulta] [consulta|ativo|arquivado|com vinculo: antigo=∅ vivo=consulta]: 8 de 34 fora da regra
   ✗ 2 e_admin/e_dev/pode_escrever: antigo = vivo em toda a grade — [dev|ativo|arquivado|sem vinculo: antigo=false/false/false vivo=true/true/true] [dev|ativo|arquivado|com vinculo: antigo=false/false/false vivo=true/true/true] [admin|ativo|arquivado|sem vinculo: antigo=false/false/false vivo=true/false/true] [admin|ativo|arquivado|com vinculo: antigo=false/false/false vivo=true/false/true] [operador|ativo|arquivado|sem vinculo: antigo=false/false/false vivo=false/false/true] [operador|ativo|arquivado|com vinculo: antigo=false/false/false vivo=false/false/true]: 6 de 34 fora da regra
   ✗ 3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL) — [dev|ativo|arquivado|sem vinculo f=1: antigo=false vivo=true] [dev|ativo|arquivado|sem vinculo f=2: antigo=false vivo=true] [dev|ativo|arquivado|com vinculo f=1: antigo=false vivo=true] [dev|ativo|arquivado|com vinculo f=2: antigo=false vivo=true] [admin|ativo|arquivado|sem vinculo f=1: antigo=false vivo=true] [admin|ativo|arquivado|sem vinculo f=2: antigo=false vivo=true] [admin|ativo|arquivado|com vinculo f=1: antigo=false vivo=true] [admin|ativo|arquivado|com vinculo f=2: antigo=false vivo=true] [operador|ativo|arquivado|com …
 
-## [112/124] f62-ponte-esquece-inativo → cargo_equivalencia.sql (espera ✗ 1, 2, 3)
+## [112/125] f62-ponte-esquece-inativo → cargo_equivalencia.sql (espera ✗ 1, 2, 3)
   ✗ 1 papel_atual(): antigo = vivo em toda a grade — [dev|inativo|vivo|sem vinculo: antigo=∅ vivo=dev] [dev|inativo|vivo|com vinculo: antigo=∅ vivo=dev] [admin|inativo|vivo|sem vinculo: antigo=∅ vivo=admin] [admin|inativo|vivo|com vinculo: antigo=∅ vivo=admin] [operador|inativo|vivo|sem vinculo: antigo=∅ vivo=operador] [operador|inativo|vivo|com vinculo: antigo=∅ vivo=operador] [consulta|inativo|vivo|sem vinculo: antigo=∅ vivo=consulta] [consulta|inativo|vivo|com vinculo: antigo=∅ vivo=consulta]: 8 de 34 fora da regra
   ✗ 2 e_admin/e_dev/pode_escrever: antigo = vivo em toda a grade — [dev|inativo|vivo|sem vinculo: antigo=false/false/false vivo=true/true/true] [dev|inativo|vivo|com vinculo: antigo=false/false/false vivo=true/true/true] [admin|inativo|vivo|sem vinculo: antigo=false/false/false vivo=true/false/true] [admin|inativo|vivo|com vinculo: antigo=false/false/false vivo=true/false/true] [operador|inativo|vivo|sem vinculo: antigo=false/false/false vivo=false/false/true] [operador|inativo|vivo|com vinculo: antigo=false/false/false vivo=false/false/true]: 6 de 34 fora da regra
   ✗ 3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL) — [dev|inativo|vivo|sem vinculo f=1: antigo=false vivo=true] [dev|inativo|vivo|sem vinculo f=2: antigo=false vivo=true] [dev|inativo|vivo|com vinculo f=1: antigo=false vivo=true] [dev|inativo|vivo|com vinculo f=2: antigo=false vivo=true] [admin|inativo|vivo|sem vinculo f=1: antigo=false vivo=true] [admin|inativo|vivo|sem vinculo f=2: antigo=false vivo=true] [admin|inativo|vivo|com vinculo f=1: antigo=false vivo=true] [admin|inativo|vivo|com vinculo f=2: antigo=false vivo=true] [operador|inativo|vivo|com vinculo f=1: antigo=false  …
 
-## [113/124] f62-ponte-responde-pela-empresa-errada → cargo_equivalencia.sql (espera ✗ 1, 5)
+## [113/125] f62-ponte-responde-pela-empresa-errada → cargo_equivalencia.sql (espera ✗ 1, 5)
   ✗ 1 papel_atual(): antigo = vivo em toda a grade — [dev|ativo|vivo|sem vinculo: antigo=dev vivo=∅] [dev|ativo|vivo|com vinculo: antigo=dev vivo=∅] [admin|ativo|vivo|sem vinculo: antigo=admin vivo=∅] [admin|ativo|vivo|com vinculo: antigo=admin vivo=∅] [operador|ativo|vivo|sem vinculo: antigo=operador vivo=∅] [operador|ativo|vivo|com vinculo: antigo=operador vivo=∅] [consulta|ativo|vivo|sem vinculo: antigo=consulta vivo=∅] [consulta|ativo|vivo|com vinculo: antigo=consulta vivo=∅]: 8 de 34 fora da regra
   ✗ 2 e_admin/e_dev/pode_escrever: antigo = vivo em toda a grade — [dev|ativo|vivo|sem vinculo: antigo=true/true/true vivo=false/false/false] [dev|ativo|vivo|com vinculo: antigo=true/true/true vivo=false/false/false] [admin|ativo|vivo|sem vinculo: antigo=true/false/true vivo=false/false/false] [admin|ativo|vivo|com vinculo: antigo=true/false/true vivo=false/false/false] [operador|ativo|vivo|sem vinculo: antigo=false/false/true vivo=false/false/false] [operador|ativo|vivo|com vinculo: antigo=false/false/true vivo=false/false/false]: 6 de 34 fora da regra
   ✗ 3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL) — [dev|ativo|vivo|sem vinculo f=1: antigo=true vivo=false] [dev|ativo|vivo|sem vinculo f=2: antigo=true vivo=false] [dev|ativo|vivo|com vinculo f=1: antigo=true vivo=false] [dev|ativo|vivo|com vinculo f=2: antigo=true vivo=false] [admin|ativo|vivo|sem vinculo f=1: antigo=true vivo=false] [admin|ativo|vivo|sem vinculo f=2: antigo=true vivo=false] [admin|ativo|vivo|com vinculo f=1: antigo=true vivo=false] [admin|ativo|vivo|com vinculo f=2: antigo=true vivo=false] [operador|ativo|vivo|com vinculo f=1: antigo=true vivo=false]: 9 de 1 …
   ✗ 5 a ponte com DUAS memberships responde pela empresa legada, nunca pela mais forte — [dupla admin-WAP/consulta-B: antigo=admin|true|true|true|true vivo=consulta|false|false|false|true] [dupla operador-WAP/admin-B: antigo=operador|true|false|false|true vivo=admin|true|true|true|true]: 2 de 2 fora da regra
 
-## [114/124] f62-vinculo-de-qualquer-membership → cargo_equivalencia.sql (espera ✗ 3)
+## [114/125] f62-vinculo-de-qualquer-membership → cargo_equivalencia.sql (espera ✗ 3)
   ✗ 3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL) — [operador|ativo|vivo|sem vinculo f=1: antigo=false vivo=true]: 1 de 102 fora da regra
 
-## [115/124] f62-outro-admin-conta-inativo → cargo_equivalencia.sql (espera ✗ 4b)
+## [115/125] f62-outro-admin-conta-inativo → cargo_equivalencia.sql (espera ✗ 4b)
   ✗ 4b existe_outro_admin_ativo com UM só admin ativo e os outros desativados ou arquivados: antigo = vivo = false — antigo=false vivo=true (8 admin/dev fora do jogo na grade): 1 de 1 fora da regra
 
-## [116/124] f62-guarda-de-gestao-le-o-cargo-congelado → cargo_dev.sql (espera ✗ 2c, 8b)
+## [116/125] f62-guarda-de-gestao-le-o-cargo-congelado → cargo_dev.sql (espera ✗ 2c, 8b)
   ✗ 2b ADMIN REBAIXOU um dev (deveria ser recusado)
   ✗ 2c ADMIN DESATIVOU um dev (deveria ser recusado)
   ✗ 2e ADMIN alterou os vínculos de um dev (deveria ser recusado)
@@ -62,7 +62,7 @@
   ✗ 8c SERVICE ROLE arquivou um dev promovido depois da F62 (a guarda de profiles só olhou a coluna congelada)
   ✗ TOTAL cargo_dev: 19 falha(s) — 2b_ADMIN_REBAIXOU_DEV; 2c_ADMIN_DESATIVOU_DEV; 2e_ADMIN_MEXEU_VINCULO_DEV; 2i_SERVICE_ROLE_REBAIXOU_DEV; 2i-bis_SERVICE_ROLE_DESATIVOU_DEV; 2i-membros_REBAIXOU_DEV; 2i-bis-membros_DESATIVOU_DEV; 2j-membros_APAGOU_DEV; 2j-quater_MOVEU_DEV; 3a; 3b; 3c; 3d; 6a_NAO_APAGOU; 6b_PERFIL_SUMIU; 6e_APAGADO_AINDA_LE; 8b_FIXTURE; 8b_ADMIN_DESATIVOU_DEV_NOVO; 8c_ARQUIVOU_DEV_NOVO; 
 
-## [117/124] f62-guarda-do-dev-em-membros-neutralizada → cargo_dev.sql (espera ✗ 2h-membros, 2i-membros, 2j-membros)
+## [117/125] f62-guarda-do-dev-em-membros-neutralizada → cargo_dev.sql (espera ✗ 2h-membros, 2i-membros, 2j-membros)
   ✗ 2h-membros SERVICE ROLE concedeu o cargo dev por UPDATE direto em membros
   ✗ 2i-membros SERVICE ROLE rebaixou um dev por UPDATE direto em membros
   ✗ 2i-bis-membros SERVICE ROLE desativou um dev por UPDATE direto em membros
@@ -81,31 +81,37 @@
   ✗ 8c SERVICE ROLE arquivou um dev promovido depois da F62 (a guarda de profiles só olhou a coluna congelada)
   ✗ TOTAL cargo_dev: 16 falha(s) — 2h-membros_CONCEDEU_DEV; 2i-membros_REBAIXOU_DEV; 2i-bis-membros_DESATIVOU_DEV; 2j-membros_APAGOU_DEV; 2j-ter_NASCEU_DEV; 2j-quater_MOVEU_DEV; 3a; 3b; 3c; 3d; 6a_NAO_APAGOU; 6b_PERFIL_SUMIU; 6e_APAGADO_AINDA_LE; 8b_FIXTURE; 8b_ADMIN_DESATIVOU_DEV_NOVO; 8c_ARQUIVOU_DEV_NOVO; 
 
-## [118/124] f62-handle-new-user-sem-membership → isolamento_tenant.sql (espera ✗ 9l)
+## [118/125] f62-handle-new-user-sem-membership → isolamento_tenant.sql (espera ✗ 9l)
   ✗ 9l toda conta nova nasce com a membership operador ATIVA na empresa legada (handle_new_user): 6 de 6 fora da regra
 
-## [119/124] f62-definir-papel-grava-a-coluna-congelada → cargo_dev.sql (espera ✗ 2g-bis, 3a)
+## [119/125] f62-definir-papel-grava-a-coluna-congelada → cargo_dev.sql (espera ✗ 2g-bis, 3a)
   ✗ 2g-bis a RPC não gravou: papel ficou consulta
-  ✗ 3a concessão não gravou: papel ficou operador
+  ✗ 3a dev recusado ao conceder dev (55000) O cargo e o status moram em membros desde a F62: esta alteração chegou pela versão antiga do sistema e NÃO foi gravada. Atualize a página e refaça.
+  ✗ 8b o dev não conseguiu promover o alvo (55000) O cargo e o status moram em membros desde a F62: esta alteração chegou pela versão antiga do sistema e NÃO foi gravada. Atualize a página e refaça.
   ✗ 8b ADMIN desativou um dev promovido depois da F62 (a guarda leu o cargo congelado)
-  ✗ TOTAL cargo_dev: 3 falha(s) — 2g-bis_NAO_GRAVOU; 3a_NAO_GRAVOU; 8b_ADMIN_DESATIVOU_DEV_NOVO; 
+  ✗ 8c SERVICE ROLE arquivou um dev promovido depois da F62 (a guarda de profiles só olhou a coluna congelada)
+  ✗ TOTAL cargo_dev: 5 falha(s) — 2g-bis_NAO_GRAVOU; 3a; 8b_FIXTURE; 8b_ADMIN_DESATIVOU_DEV_NOVO; 8c_ARQUIVOU_DEV_NOVO; 
 
-## [120/124] f62-definir-status-grava-a-coluna-congelada → cargo_dev.sql (espera ✗ 3c)
-  ✗ 3c desativação não gravou (ativo = t)
-  ✗ TOTAL cargo_dev: 1 falha(s) — 3c_NAO_GRAVOU; 
+## [120/125] f62-definir-status-grava-a-coluna-congelada → cargo_dev.sql (espera ✗ 3c)
+  ✗ 3c dev recusado ao desativar (55000) O cargo e o status moram em membros desde a F62: esta alteração chegou pela versão antiga do sistema e NÃO foi gravada. Atualize a página e refaça.
+  ✗ TOTAL cargo_dev: 1 falha(s) — 3c; 
 
-## [121/124] f62-apagar-nao-desativa-memberships → cargo_dev.sql (espera ✗ 6b)
+## [121/125] f62-apagar-nao-desativa-memberships → cargo_dev.sql (espera ✗ 6b)
   ✗ 6b o perfil arquivado não está no estado esperado (0 linha[s])
   ✗ TOTAL cargo_dev: 1 falha(s) — 6b_PERFIL_SUMIU; 
 
-## [122/124] f62-guarda-de-profiles-esquece-a-membership → cargo_dev.sql (espera ✗ 2i, 8c)
+## [122/125] f62-guarda-de-profiles-esquece-a-membership → cargo_dev.sql (espera ✗ 2i, 8c)
   ✗ 2i SERVICE ROLE rebaixou um dev por UPDATE direto
   ✗ 2i-bis SERVICE ROLE desativou um dev por UPDATE direto
   ✗ 8c SERVICE ROLE arquivou um dev promovido depois da F62 (a guarda de profiles só olhou a coluna congelada)
   ✗ TOTAL cargo_dev: 3 falha(s) — 2i_SERVICE_ROLE_REBAIXOU_DEV; 2i-bis_SERVICE_ROLE_DESATIVOU_DEV; 8c_ARQUIVOU_DEV_NOVO; 
 
-## [123/124] f62-membros-com-force-rls → catalogo_policies.sql (espera ✗ 4-bis)
-  ✗ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) — ligado em: membros (espere 42P17): 1 de 28 fora da regra
+## [123/125] f62-guarda-de-profiles-aceita-a-escrita-antiga → cargo_dev.sql (espera ✗ 8d)
+  ✗ 8d a escrita da RPC antiga (janela aberta, sem a marca) gravou em silêncio na coluna congelada
+  ✗ TOTAL cargo_dev: 1 falha(s) — 8d_RPC_ANTIGA_GRAVOU; 
 
-## [124/124] f62-vinculo-sem-fk-composta-de-membro → isolamento_tenant.sql (espera ✗ 9h)
+## [124/125] f62-membros-com-force-rls → catalogo_policies.sql (espera ✗ 4-bis)
+  ✗ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) — ligado em: membros (proibido — R-ACC-29; o efeito real está no 9o de isolamento_tenant.sql): 1 de 28 fora da regra
+
+## [125/125] f62-vinculo-sem-fk-composta-de-membro → isolamento_tenant.sql (espera ✗ 9h)
   ✗ 9h o vínculo com membership ou filial de OUTRA empresa é recusado pelas FKs compostas, com o par simétrico aceito — membro-de-B-em-filial-de-A-ACEITO par-legitimo-recusado(23505) recusado-mas-gravado(1): 3 de 5 fora da regra
