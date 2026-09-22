@@ -2795,6 +2795,21 @@ const F62_CARGO = [
     prova: provaMarca('public.profiles_guarda_dev()'),
   },
   {
+    id: 'f62-guarda-de-profiles-aceita-a-escrita-antiga',
+    roteiro: 'cargo_dev.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['8d'],
+    porque:
+      'A guarda de profiles volta a deixar a janela de gestão gravar a coluna CONGELADA: uma RPC antiga em voo no apply da 0158, bloqueada pela trava da recópia, retoma depois do commit e grava profiles.ativo — a desativação cai na coluna que ninguém lê, a pessoa continua ativa em membros, e a tela diz "feito".',
+    sql: mutarFuncao(
+      'public.profiles_guarda_dev()',
+      `       and coalesce(current_setting('estoque.cargo_congelado', true), '') <> 'on' then`,
+      `       and false then  ${MARCA}`,
+      'f62-guarda-de-profiles-aceita-a-escrita-antiga',
+    ),
+    prova: provaMarca('public.profiles_guarda_dev()'),
+  },
+  {
     id: 'f62-membros-com-force-rls',
     roteiro: 'catalogo_policies.sql',
     classe: 'force-rls',

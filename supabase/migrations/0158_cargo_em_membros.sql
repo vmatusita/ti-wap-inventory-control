@@ -18,9 +18,11 @@
 -- 0. A RECÓPIA, PRIMEIRO, NA MESMA TRANSAÇÃO DA TROCA. `profiles` → `membros`, idempotente
 --    (insere quem falta, corrige quem divergiu), com `profiles` travada em SHARE ROW
 --    EXCLUSIVE até o fim da transação do apply: nenhuma troca de cargo feita pelas RPCs
---    antigas entre a 0153 e esta migration se perde, e nenhuma entra durante a troca. (No
---    CI cada comando é a sua própria transação e a trava vale só para o bloco — lá não há
---    concorrência. No apply pelo conector, a migration inteira é uma transação.)
+--    antigas entre a 0153 e esta migration se perde. A RPC antiga que estiver EM VOO no
+--    apply fica bloqueada pela trava e retoma depois do commit — e aí a guarda de
+--    `profiles` (item 3) a RECUSA com 55000, em vez de deixá-la gravar em silêncio na coluna
+--    congelada. (No CI cada comando é a sua própria transação e a trava vale só para o bloco
+--    — lá não há concorrência. No apply pelo conector, a migration inteira é uma transação.)
 --
 -- 1. AS LEITORAS (a PONTE — decisão 4 da fase): `papel_atual()` continua SEM parâmetro e
 --    passa a responder pela membership na EMPRESA LEGADA (`public.empresa_legada()`) —
@@ -45,7 +47,11 @@
 --    cargo (`k_excecoes_cargo`, `supabase/tests/cargo_em_membros.sql`): continua protegendo
 --    a coluna congelada e o `excluido_em` de um dev. O "é dev?" passa a olhar TAMBÉM
 --    `membros` — senão uma conta promovida a dev depois da F62 (cujo `profiles.papel`
---    ficou no cargo antigo) perderia a proteção do `excluido_em`.
+--    ficou no cargo antigo) perderia a proteção do `excluido_em`. E, com a janela de gestão
+--    aberta, ela RECUSA (55000) mudar `papel`/`ativo` sem a marca `estoque.cargo_congelado`:
+--    é o caminho de uma RPC antiga em voo no apply, que sem isto perderia a troca de cargo
+--    dizendo "feito". O rollback (`F62-1-copia-de-volta.sql`) e as fixtures de teste que
+--    plantam a coluna congelada abrem a marca de propósito.
 --
 -- 4. LEGADO: `profiles.papel` e `profiles.ativo` ganham o comentário de congelamento.
 --
@@ -450,6 +456,17 @@ declare
   v_era_dev boolean;
 begin
   if v_oficial then
+    -- F62: a janela de gestão aberta é o caminho das RPCs — e as de HOJE gravam `membros`.
+    -- Quem grava a coluna CONGELADA com ela aberta é uma RPC ANTIGA que estava em voo no
+    -- apply da 0158 (bloqueada pela trava da recópia, ela retoma DEPOIS do commit). Sem esta
+    -- recusa, a troca de cargo cairia na coluna que ninguém mais lê e a tela diria "feito".
+    -- Escrever nela de propósito (o rollback, uma fixture de teste) pede a marca própria.
+    if tg_op = 'UPDATE'
+       and (new.papel is distinct from old.papel or new.ativo is distinct from old.ativo)
+       and coalesce(current_setting('estoque.cargo_congelado', true), '') <> 'on' then
+      raise exception 'O cargo e o status moram em membros desde a F62: esta alteração chegou pela versão antiga do sistema e NÃO foi gravada. Atualize a página e refaça.'
+        using errcode = '55000';
+    end if;
     -- Caminho oficial (as RPCs de gestão, que já checaram e_dev()/e_admin() por dentro).
     if tg_op = 'DELETE' then return old; else return new; end if;
   end if;
@@ -499,7 +516,7 @@ end;
 $$;
 
 comment on function public.profiles_guarda_dev() is
-  'F62 (era F22): REDE FINAL da proteção do cargo dev em profiles — a EXCEÇÃO NOMEADA da varredura do cargo congelado. Recusa, para QUALQUER caminho que não seja o oficial (inclusive o service role), (a) mudar papel/ativo (congelados) ou excluido_em de um dev, (b) conceder o cargo dev na coluna congelada e (c) apagar a linha de um dev. "É dev" = a coluna congelada OU uma membership dev (a fonte viva desde a 0158). O espelho em membros é membros_guarda_dev (0153).';
+  'F62 (era F22): REDE FINAL da proteção do cargo dev em profiles — a EXCEÇÃO NOMEADA da varredura do cargo congelado. Recusa, para QUALQUER caminho que não seja o oficial (inclusive o service role), (a) mudar papel/ativo (congelados) ou excluido_em de um dev, (b) conceder o cargo dev na coluna congelada e (c) apagar a linha de um dev. "É dev" = a coluna congelada OU uma membership dev (a fonte viva desde a 0158). E no caminho oficial (a janela de gestão aberta) recusa com 55000 mudar papel/ativo sem a marca estoque.cargo_congelado — a RPC antiga em voo no apply da F62 falha em vez de gravar em silêncio na coluna que ninguém lê. O espelho em membros é membros_guarda_dev (0153).';
 
 -- ---------------------------------------------------------------------------
 -- 10) checagens_integridade_nucleo — o operador sem filial, por membership

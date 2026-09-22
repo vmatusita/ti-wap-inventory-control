@@ -90,12 +90,16 @@ const EXCECOES_ROTEIRO: Record<string, string> = {
     'o service role tentando desativar um dev em profiles: profiles_guarda_dev continua recusando',
   'cargo_dev.sql / 8a':
     'a PROVA DO CONGELAMENTO: gravar profiles.papel/ativo (com a janela) não muda o acesso de ninguém',
+  'cargo_dev.sql / 8d':
+    'a RPC antiga em voo no apply da 0158: gravar a coluna congelada pela janela SEM a marca é recusado (55000), e com a marca passa',
   'papeis_rls.sql / 3g':
     'a escalada de privilégio: o operador tentando se promover por UPDATE em profiles.papel (grant de coluna)',
   'papeis_rls.sql / 5g':
     'o admin também não grava profiles.papel direto (o único caminho é a RPC)',
   'cargo_equivalencia.sql / corpo antigo':
     'a grade de comparação planta o cargo em profiles porque o corpo ANTIGO (o da F61) lê dali',
+  'cargo_equivalencia.sql / recopia':
+    'o cenário 6: a cópia verbatim da recópia da 0158 lê profiles, e o cenário planta nela o estado do intervalo entre os applies',
   'cargo_em_membros.sql / 2':
     'a auto-sabotagem da trava de catálogo: funções fictícias que leem o cargo em profiles',
 }
@@ -293,6 +297,33 @@ describe('8. a grade de comparação carrega o corpo ANTIGO verbatim (antes da F
       .replace(/pg_temp\.papel_atual_f61\(\)/g, 'public.papel_atual()')
       .replace(new RegExp(`create function pg_temp\\.${nome}_f61`, 'i'), `create function public.${nome}`)
     expect(normalizar(deVolta)).toBe(normalizar(original!.texto))
+  })
+})
+
+describe('8-bis. a recópia do cenário 6 é o bloco da 0158, verbatim', () => {
+  // A revisão adversarial da F62 achou o ramo de reconciliação da recópia (o UPDATE do
+  // upsert) sem teste: na cadeia do CI nada escreve em `profiles` entre a 0153 e a 0158. O
+  // cenário 6 de `cargo_equivalencia.sql` o exercita com uma CÓPIA do bloco — e esta trava
+  // garante que a cópia é o bloco da migration, comentários à parte.
+  const corpo = (texto: string) => {
+    const m = /\$recopia\$\s*begin([\s\S]*?)\bend\s*\$recopia\$/i.exec(texto)
+    return m ? m[1].replace(/--[^\n]*/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase() : null
+  }
+  it('o cenário 6 roda a recópia da 0158 sem uma vírgula de diferença', () => {
+    const migracao = MIGRATIONS.find((x) => x.arquivo.startsWith('0158_'))
+    const grade = ROTEIROS.find((r) => r.arquivo === 'cargo_equivalencia.sql')
+    expect(migracao, 'a 0158 não existe').toBeDefined()
+    expect(grade, 'cargo_equivalencia.sql não existe').toBeDefined()
+    const daMigracao = corpo(migracao!.sql)
+    expect(daMigracao, 'a 0158 não tem o bloco $recopia$').not.toBeNull()
+    expect(daMigracao).toContain('on conflict (empresa_id, profile_id) do update')
+    expect(corpo(grade!.texto)).toBe(daMigracao)
+  })
+  it('SABOTAGEM (mesa): uma cópia com o where do upsert trocado é acusada', () => {
+    const migracao = MIGRATIONS.find((x) => x.arquivo.startsWith('0158_'))!
+    const sabotada = migracao.sql.replace('is distinct from (excluded.papel, excluded.ativo)', 'is not distinct from (excluded.papel, excluded.ativo)')
+    expect(sabotada).not.toBe(migracao.sql)
+    expect(corpo(sabotada)).not.toBe(corpo(migracao.sql))
   })
 })
 

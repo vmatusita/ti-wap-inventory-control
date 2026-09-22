@@ -45,7 +45,10 @@
 -- coluna congelada também diz 'dev') e `k_dev` como um dev promovido DEPOIS da F62 (só a
 -- membership diz 'dev'); as 2h-membros→2j-quater provam a de `membros`; e a seção 8 prova o
 -- CONGELAMENTO (gravar a coluna congelada não muda o acesso de ninguém) e que o dev promovido
--- depois da F62 continua protegido. Os comandos que ainda gravam `profiles.papel/ativo` são
+-- depois da F62 continua protegido; a 8d, que a RPC antiga em voo no apply da 0158 (a janela
+-- de gestão aberta, gravando a coluna congelada) é RECUSADA em vez de gravar em silêncio — e
+-- que a escrita deliberada, com a marca `estoque.cargo_congelado`, passa. Os comandos que
+-- ainda gravam `profiles.papel/ativo` são
 -- exceções NOMEADAS da varredura (`-- F62/cargo-congelado: <rótulo>`).
 --
 -- Ao final, uma linha em `_cargo_dev_resumo` com os contadores — é assim que se lê o
@@ -181,8 +184,12 @@ begin
   -- `k_dev2` é como os devs de HOJE: a cópia da F62 os levou para `membros`, mas a coluna
   -- congelada de `profiles` também diz 'dev' — é o estado que a 2i-legado mede. (`k_dev` fica
   -- como um dev promovido DEPOIS da F62: só a membership diz 'dev'.)
+  -- (com a marca `estoque.cargo_congelado`: desde a 0158, a guarda de profiles recusa
+  -- gravar a coluna congelada pela janela sem ela — a 8d prova)
   perform set_config('estoque.gestao_usuarios', 'on', true);
+  perform set_config('estoque.cargo_congelado', 'on', true);
   update public.profiles set papel = 'dev' where id = k_dev2;  -- F62/cargo-congelado: fixture-legado
+  perform set_config('estoque.cargo_congelado', 'off', true);
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- Ativos em cada filial.
@@ -940,7 +947,9 @@ begin
   --     `profiles.papel`/`profiles.ativo`, a consulta viraria administradora; o cargo dela
   --     continua sendo o da membership.
   perform set_config('estoque.gestao_usuarios', 'on', true);
+  perform set_config('estoque.cargo_congelado', 'on', true);
   update public.profiles set papel = 'admin', ativo = true where id = k_consulta;  -- F62/cargo-congelado: 8a
+  perform set_config('estoque.cargo_congelado', 'off', true);
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   set local role authenticated;
@@ -990,6 +999,39 @@ begin
   exception when others then
     v_ok := v_ok + 1; raise notice '✓ 8c service role recusado ao arquivar um dev promovido depois da F62 (%)', sqlstate;
   end;
+
+  -- 8d. A RPC ANTIGA EM VOO NO APPLY DA 0158 NÃO GRAVA EM SILÊNCIO. Ela abre a janela de
+  --     gestão e grava `profiles.ativo` (o corpo da 0074) — bloqueada pela trava da recópia,
+  --     retoma DEPOIS do commit, quando o cargo já mora em `membros`. A guarda de profiles
+  --     tem de RECUSAR (55000), para a tela dizer "erro" e não "feito"; e a mesma escrita com
+  --     a marca `estoque.cargo_congelado` (o rollback, as fixtures) passa — o par positivo.
+  --     `k_operador` é operador ativo: nem dev, nem alvo de outra seção.
+  perform set_config('estoque.gestao_usuarios', 'on', true);
+  begin
+    update public.profiles set ativo = false where id = k_operador;  -- F62/cargo-congelado: 8d
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_RPC_ANTIGA_GRAVOU; ';
+    raise warning '✗ 8d a escrita da RPC antiga (janela aberta, sem a marca) gravou em silêncio na coluna congelada';
+  exception when others then
+    if sqlstate = '55000' then
+      v_ok := v_ok + 1;
+      raise notice '✓ 8d a RPC antiga em voo é recusada (55000) em vez de gravar em silêncio na coluna congelada';
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_OUTRO_ERRO; ';
+      raise warning '✗ 8d a escrita antiga falhou, mas pelo motivo errado (%) %', sqlstate, sqlerrm;
+    end if;
+  end;
+  perform set_config('estoque.cargo_congelado', 'on', true);
+  begin
+    update public.profiles set ativo = false where id = k_operador;  -- F62/cargo-congelado: 8d
+    update public.profiles set ativo = true where id = k_operador;  -- F62/cargo-congelado: 8d
+    v_ok := v_ok + 1;
+    raise notice '✓ 8d-bis com a marca (o rollback, as fixtures) a mesma escrita passa';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d-bis_MARCA_RECUSADA; ';
+    raise warning '✗ 8d-bis a escrita deliberada na coluna congelada foi recusada mesmo com a marca (%) %', sqlstate, sqlerrm;
+  end;
+  perform set_config('estoque.cargo_congelado', 'off', true);
+  perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- =========================================================================
   -- 7 — F52: AS GUARDAS DE ESCOPO NO-OP (migration 0132)

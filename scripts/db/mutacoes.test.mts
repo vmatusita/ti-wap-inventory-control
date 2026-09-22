@@ -103,7 +103,12 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 124 mutações ATIVAS', () => {
+  it('tem entre 20 e 125 mutações ATIVAS', () => {
+    // ⚠ E DE 124 PARA 125 NA REVISÃO ADVERSARIAL DA MESMA F62 (22/09/2026): a revisão achou a
+    // corrida do apply — a RPC antiga em voo, bloqueada pela trava da recópia, retomava depois
+    // do commit e gravava em silêncio a coluna congelada. A guarda de profiles passou a recusá-la
+    // (55000), e a mutação `f62-guarda-de-profiles-aceita-a-escrita-antiga` a tira (cenário 8d).
+    //
     // ⚠ O TETO SUBIU DE 105 PARA 124 NA F62 (22/09/2026), no número EXATO — é o que a ordem da
     // fase pede. A F62 criou ou reescreveu as funções de autorização do cargo (a ponte de
     // papel_atual, as quatro de conjunto, e_plataforma, a guarda do dev em membros, as RPCs de
@@ -276,7 +281,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(124)
+    expect(MUTACOES.length).toBeLessThanOrEqual(125)
   })
 
   it('os `id` são únicos', () => {

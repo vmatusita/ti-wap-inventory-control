@@ -15,6 +15,8 @@
 --  4b — a mesma trava onde ela responde "não": UM só admin ativo, os outros desativados
 --        ou arquivados (sem ele, a grade sempre tinha admin de sobra e a resposta era `true`)
 --   5 — a PONTE com DUAS memberships (só existe depois da 0152: empresa B fictícia)
+--   6 — a RECÓPIA da 0158 (cópia verbatim em pg_temp) reconcilia o que as RPCs antigas
+--       mudaram em profiles entre os applies, sem reescrever o que já batia
 --
 -- O CORPO ANTIGO mora em `pg_temp` (`*_f61`), copiado VERBATIM do arquivo vigente antes
 -- da F62 — `0073` (papel_atual), `0072` (pode_escrever_filial) e `0132`
@@ -117,6 +119,31 @@ as $$
   )
 $$;
 
+-- ---------------------------------------------------------------------------
+-- A RECÓPIA da 0158 — `0158_cargo_em_membros.sql`, o bloco `do $recopia$`, VERBATIM (só o
+-- corpo; a trava de mesa `cargo-em-membros.test.ts` compara os dois, sem comentários). No
+-- apply de verdade ela é o que salva a troca de cargo feita pelas RPCs antigas entre a 0153
+-- e a 0158 — um ramo (o UPDATE do upsert) que a cadeia de migrations do CI nunca exercita,
+-- porque nada escreve em `profiles` entre as duas. O cenário 6 abaixo o exercita.
+-- ---------------------------------------------------------------------------
+create function pg_temp.f62_recopia()
+returns void
+language plpgsql
+as $recopia$
+begin
+  lock table public.profiles in share row exclusive mode;
+  perform set_config('estoque.gestao_usuarios', 'on', true);
+  insert into public.membros as m (empresa_id, profile_id, papel, ativo, created_at)
+  select public.empresa_legada(), p.id, p.papel, p.ativo, p.created_at
+    from public.profiles p  -- F62/cargo-congelado: recopia
+  on conflict (empresa_id, profile_id) do update
+     set papel = excluded.papel,
+         ativo = excluded.ativo
+   where (m.papel, m.ativo) is distinct from (excluded.papel, excluded.ativo);
+  perform set_config('estoque.gestao_usuarios', 'off', true);
+end
+$recopia$;
+
 do $$
 declare
   v_ok     int := 0;
@@ -152,6 +179,16 @@ declare
   v_c5 bigint := 0; v_m5 bigint := 0; v_l5 text := '';
   v_unico uuid;
   v_n4b   bigint;
+  -- o cenário 6 (a recópia)
+  v_prom      uuid;
+  v_desl      uuid;
+  v_sem_memb  uuid;
+  v_intactas  text;
+  v_depois    text;
+  v_de_b      text;
+  v_de_b_dep  text;
+  v_ruins6    bigint;
+  v_txt6      text;
 
   v_antigo text;
   v_vivo   text;
@@ -166,8 +203,11 @@ begin
 
   -- =========================================================================
   -- A GRADE: 4 papéis × ativo × arquivado × vínculo = 32 pessoas.
+  -- (A marca `estoque.cargo_congelado`: desde a 0158 a guarda de profiles recusa gravar a
+  -- coluna congelada pela janela de gestão sem ela — e a grade a planta de propósito.)
   -- =========================================================================
   perform set_config('estoque.gestao_usuarios', 'on', true);
+  perform set_config('estoque.cargo_congelado', 'on', true);
   foreach v_papel in array k_papeis loop
     foreach v_ativo in array array[true, false] loop
       foreach v_arq in array array[false, true] loop
@@ -237,6 +277,7 @@ begin
       (v_empresa_b, k_dupla_operador, 'admin', true);
     insert into public.operador_filiais (usuario_id, filial_id) values (k_dupla_operador, v_f1);
   end if;
+  perform set_config('estoque.cargo_congelado', 'off', true);
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- =========================================================================
@@ -336,6 +377,7 @@ begin
   -- ou arquivados. Antigo e vivo têm de responder `false` — e iguais.
   v_unico := v_ids[array_position(v_rots, 'admin|ativo|vivo|sem vinculo')];
   perform set_config('estoque.gestao_usuarios', 'on', true);
+  perform set_config('estoque.cargo_congelado', 'on', true);
   update public.profiles set ativo = false  -- F62/cargo-congelado: corpo antigo
    where papel in ('dev', 'admin') and ativo and excluido_em is null and id <> v_unico;
   if v_tem_membros then
@@ -343,6 +385,7 @@ begin
      where papel in ('dev', 'admin') and ativo and profile_id <> v_unico
        and empresa_id = public.empresa_legada();
   end if;
+  perform set_config('estoque.cargo_congelado', 'off', true);
   perform set_config('estoque.gestao_usuarios', 'off', true);
   -- o cenário não é vazio: há admin/dev DESATIVADO e admin/dev ARQUIVADO-mas-ativo na grade
   select count(*) into v_n4b
@@ -357,6 +400,76 @@ begin
        case when v_antigo is distinct from v_vivo or v_antigo <> 'false' then 1 else 0 end,
        case when v_n4b >= 8 then 1 else 0 end) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 6 — A RECÓPIA DA 0158 RECONCILIA O QUE AS RPCs ANTIGAS MUDARAM ENTRE OS APPLIES.
+  --     O estado do intervalo 0153 → 0158: `profiles` mudou e `membros` não. Três casos:
+  --       · promovido  — a RPC antiga promoveu (consulta → admin) só em profiles;
+  --       · desligado  — a RPC antiga desativou só em profiles;
+  --       · sem membership — o perfil existe e a membership não (a linha some da cópia).
+  --     A recópia (o corpo verbatim da 0158) tem de deixar TODO perfil com a membership na
+  --     empresa legada igual a profiles, NÃO TOCAR as linhas que já batiam (o `where … is
+  --     distinct from` do upsert — conferido pelo ctid, que muda a cada nova versão da
+  --     linha) e não mexer nas memberships de outra empresa.
+  if v_tem_membros then
+    v_prom     := v_ids[array_position(v_rots, 'consulta|ativo|vivo|sem vinculo')];
+    v_desl     := v_ids[array_position(v_rots, 'operador|ativo|vivo|com vinculo')];
+    v_sem_memb := v_ids[array_position(v_rots, 'consulta|inativo|vivo|sem vinculo')];
+
+    perform set_config('estoque.gestao_usuarios', 'on', true);
+    perform set_config('estoque.cargo_congelado', 'on', true);
+    update public.profiles set papel = 'admin' where id = v_prom;  -- F62/cargo-congelado: recopia
+    update public.profiles set ativo = false where id = v_desl;  -- F62/cargo-congelado: recopia
+    delete from public.membros where profile_id = v_sem_memb and empresa_id = public.empresa_legada();
+    perform set_config('estoque.cargo_congelado', 'off', true);
+    perform set_config('estoque.gestao_usuarios', 'off', true);
+
+    select string_agg(m.id::text || '@' || m.ctid::text, ',' order by m.id)
+      into v_intactas
+      from public.membros m
+     where m.empresa_id = public.empresa_legada()
+       and m.profile_id not in (v_prom, v_desl, v_sem_memb);
+    select string_agg(m.id::text || '@' || m.ctid::text || '=' || m.papel || '/' || m.ativo, ',' order by m.id)
+      into v_de_b
+      from public.membros m where m.empresa_id <> public.empresa_legada();
+
+    perform pg_temp.f62_recopia();
+
+    select string_agg(m.id::text || '@' || m.ctid::text, ',' order by m.id)
+      into v_depois
+      from public.membros m
+     where m.empresa_id = public.empresa_legada()
+       and m.profile_id not in (v_prom, v_desl, v_sem_memb);
+    select string_agg(m.id::text || '@' || m.ctid::text || '=' || m.papel || '/' || m.ativo, ',' order by m.id)
+      into v_de_b_dep
+      from public.membros m where m.empresa_id <> public.empresa_legada();
+
+    -- os que tinham de mudar mudaram; todo perfil bate; os intactos e os de outra empresa
+    -- continuam na mesma versão de linha
+    select count(*) filter (where m.id is null or m.papel is distinct from p.papel or m.ativo is distinct from p.ativo)  -- F62/cargo-congelado: recopia
+      into v_ruins6
+      from public.profiles p
+      left join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada();
+    v_txt6 := '';
+    if v_ruins6 > 0 then v_txt6 := v_txt6 || ' perfis-divergentes=' || v_ruins6; end if;
+    if not exists (select 1 from public.membros where profile_id = v_prom and empresa_id = public.empresa_legada() and papel = 'admin' and ativo) then
+      v_txt6 := v_txt6 || ' promovido-perdido';
+    end if;
+    if not exists (select 1 from public.membros where profile_id = v_desl and empresa_id = public.empresa_legada() and not ativo) then
+      v_txt6 := v_txt6 || ' desligado-perdido';
+    end if;
+    if not exists (select 1 from public.membros where profile_id = v_sem_memb and empresa_id = public.empresa_legada() and papel = 'consulta' and not ativo) then
+      v_txt6 := v_txt6 || ' membership-nao-criada';
+    end if;
+    if v_intactas is distinct from v_depois then v_txt6 := v_txt6 || ' reescreveu-linha-que-ja-batia'; end if;
+    if v_de_b is distinct from v_de_b_dep then v_txt6 := v_txt6 || ' mexeu-em-outra-empresa'; end if;
+    if v_intactas is null or v_de_b is null then v_txt6 := v_txt6 || ' universo-vazio'; end if;
+    if pg_temp.assert_zero_de('6 a recópia da 0158 reconcilia promovido, desligado e perfil sem membership, sem reescrever as linhas que já batiam nem tocar outra empresa' ||
+         case when v_txt6 <> '' then ' —' || v_txt6 else '' end,
+         case when v_txt6 <> '' then 1 else 0 end, 1) then
+      v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  else
+    raise notice '(6 não se aplica antes da 0152 — não há membros para a recópia reconciliar)';
+  end if;
 
   if pg_temp.assert_zero_de('1 papel_atual(): antigo = vivo em toda a grade' ||
        case when v_m1 > 0 then ' —' || v_l1 else '' end, v_m1, v_c1) then
