@@ -2928,6 +2928,125 @@ const F63_ACERVO = [
   },
 ]
 
+// =============================================================================
+// F64 (23/09/2026) — `empresa_id` NO LOTE 2, O KIT E A 13ª CHECAGEM
+// =============================================================================
+// A decisão 8 do PLAN-F64, a régua da F63: mutação SÓ onde ela derruba uma trava desta fase que
+// nenhum teste de MESA derruba — as sete são estado de BANCO. Quatro quebram a FORMA de
+// `empresa_id` numa das onze de `k_lote2`, uma por defeito e cada uma numa tabela diferente (o `15e`
+// de `catalogo_policies.sql` tem de acusá-las PELO NOME — a sabotagem A; a sem coluna derruba também
+// o `15f`, a pendência que virou reprovação). Três quebram o kit: o gatilho some; o gatilho confere
+// o código e esquece a EMPRESA; a 13ª checagem confere o código e esquece a empresa (as três em
+// `kit_motivo_da_empresa.sql`, a sabotagem C).
+/** @type {Mutacao[]} */
+const F64_LOTE2_E_KIT = [
+  {
+    id: 'f64-lote2-default-literal',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'default-literal',
+    derruba: ['15e'],
+    porque:
+      'O default de motivos.empresa_id vira o LITERAL da WAP em vez de public.empresa_legada(): o valor é o mesmo hoje, mas a fonte única deixa de ser a função — trocar a empresa legada deixaria o motivo para trás em silêncio, e a F67 tiraria de uma tabela um default que não é o que ela procura.',
+    sql: `alter table public.motivos alter column empresa_id set default '00000000-0000-4000-a000-000000000001'::uuid;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_depend dp join pg_attrdef d on d.oid = dp.objid where dp.classid = 'pg_attrdef'::regclass and d.adrelid = 'public.motivos'::regclass and dp.refobjid = 'public.empresa_legada()'::regprocedure)`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f64-lote2-sem-not-null',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['15e'],
+    porque:
+      'eventos_admin.empresa_id passa a aceitar null: um escritor da F67 que esqueça a empresa grava um evento da trilha de auditoria SEM dono — invisível para o recorte da F66, legível por ninguém ou por todos.',
+    sql: `alter table public.eventos_admin alter column empresa_id drop not null;  ${MARCA}`,
+    prova: {
+      sql: `select not attnotnull from pg_attribute where attrelid = 'public.eventos_admin'::regclass and attname = 'empresa_id'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f64-lote2-fk-not-valid',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['15e'],
+    porque:
+      'A FK de senhas_acesso.empresa_id recriada NOT VALID: as senhas que já existiam deixam de ser conferidas contra empresas — e é exatamente a coluna de que a porta pública por empresa (F68) vai derivar o tenant do visualizador.',
+    sql: `alter table public.senhas_acesso drop constraint senhas_acesso_empresa_id_fkey; alter table public.senhas_acesso add constraint senhas_acesso_empresa_id_fkey foreign key (empresa_id) references public.empresas (id) not valid;  ${MARCA}`,
+    prova: {
+      sql: `select not convalidated from pg_constraint where conname = 'senhas_acesso_empresa_id_fkey'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f64-lote2-sem-coluna',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['15e', '15f'],
+    porque:
+      'import_termos_estado perde empresa_id: uma das onze sai do lote 2 calada — o De→Para de estado de uma empresa volta a ser global, e a pendência que o bloco 5 transformou em reprovação (15f) tem de acusar.',
+    sql: `alter table public.import_termos_estado drop column empresa_id;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_attribute where attrelid = 'public.import_termos_estado'::regclass and attname = 'empresa_id' and not attisdropped)`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f64-kit-sem-gatilho',
+    roteiro: 'kit_motivo_da_empresa.sql',
+    classe: 'guarda-removida',
+    derruba: ['C1', 'C2'],
+    porque:
+      'O gatilho do kit some: o motivo volta a ser texto livre sem conferência nenhuma no banco — um kit com motivo inexistente, ou com o motivo homônimo de OUTRA empresa, é gravado em silêncio e sobrevive à virada apontando para nada.',
+    sql: `drop trigger kits_modelos_motivo_da_empresa on public.kits_modelos;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_trigger where tgrelid = 'public.kits_modelos'::regclass and tgname = 'kits_modelos_motivo_da_empresa')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f64-kit-gatilho-sem-empresa',
+    roteiro: 'kit_motivo_da_empresa.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['C2'],
+    porque:
+      'O gatilho confere que o motivo EXISTE, mas esquece a EMPRESA: a quebra cross-tenant clássica — um kit da empresa A aceita o motivo da empresa B só porque o código coincide, e passa a aplicar um motivo que A nunca cadastrou.',
+    sql: mutarFuncaoSemReplace(
+      'public.kit_motivo_da_empresa()',
+      `     where m.codigo = v_motivo
+       and m.empresa_id = new.empresa_id
+`,
+      `     where m.codigo = v_motivo  ${MARCA}
+`,
+      'f64-kit-gatilho-sem-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.kit_motivo_da_empresa()'::regprocedure) not like '%m.empresa_id = new.empresa_id%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f64-checagem-sem-empresa',
+    roteiro: 'kit_motivo_da_empresa.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['C6a'],
+    porque:
+      'A 13ª checagem confere o código do motivo e esquece a empresa do kit: o kit da empresa A com o motivo que só existe na empresa B deixa de ser contado — o órfão cross-tenant, o caso que a checagem existe para denunciar, some da Integridade e do alarme.',
+    sql: mutarFuncao(
+      'public.checagens_integridade_nucleo()',
+      `          where m.codigo = k.payload->>'motivo'
+            and m.empresa_id = k.empresa_id)`,
+      `          where m.codigo = k.payload->>'motivo')  ${MARCA}`,
+      'f64-checagem-sem-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.checagens_integridade_nucleo()'::regprocedure) not like '%m.empresa_id = k.empresa_id%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -2948,6 +3067,7 @@ export const MUTACOES = [
   ...REAUDITORIA_PASSO4,
   ...F62_CARGO,
   ...F63_ACERVO,
+  ...F64_LOTE2_E_KIT,
 ]
 
 /**

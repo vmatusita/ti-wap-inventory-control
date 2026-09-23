@@ -103,7 +103,18 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 131 mutações ATIVAS', () => {
+  it('tem entre 20 e 138 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 131 PARA 138 NA F64 (23/09/2026), no número EXATO. A decisão 8 do
+    // PLAN-F64, a régua da F63: mutação só onde ela derruba uma trava DESTA fase que nenhum teste
+    // de mesa derruba — as sete são estado de banco. Quatro quebram a FORMA de `empresa_id` no lote
+    // 2 (default literal em `motivos`, `drop not null` em `eventos_admin`, FK `not valid` em
+    // `senhas_acesso`, a coluna ausente em `import_termos_estado`), e o `15e` de
+    // `catalogo_policies.sql` tem de acusá-las pelo nome (a sabotagem A; a sem coluna derruba também
+    // o `15f`, a pendência que passou a reprovar); três quebram o kit em `kit_motivo_da_empresa.sql`
+    // (o gatilho some — C1/C2; o gatilho esquece a empresa — C2; a 13ª checagem esquece a empresa —
+    // C6a). 131 + 7 = 138. O lote estava NO teto (131/131), sem folga — o número exato é a régua.
+    // Quarentena: 2 de 140, longe de um terço.
+    //
     // ⚠ O TETO SUBIU DE 125 PARA 131 NA F63 (23/09/2026), no número EXATO. A decisão 8 do
     // PLAN-F63: mutação só onde ela derruba uma trava DESTA fase que nenhum teste de mesa derruba
     // — as seis são estado de banco. Quatro quebram a FORMA de `empresa_id` no lote 1 (default
@@ -290,7 +301,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(131)
+    expect(MUTACOES.length).toBeLessThanOrEqual(138)
   })
 
   it('os `id` são únicos', () => {
