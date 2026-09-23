@@ -547,7 +547,7 @@ async function main(): Promise<void> {
     const checagensDepois = await lerChecagens(sessaoPersona)
     const divergencias = compararChecagens(checagensAntes, checagensDepois)
     marcar(
-      'as 12 checagens iguais antes×depois',
+      'as checagens de integridade iguais antes×depois',
       divergencias.length === 0,
       divergencias.length === 0 ? 'nenhuma diferença' : divergencias.map((d) => `${d.chave}: ${d.antes}→${d.depois}`).join('; '),
     )

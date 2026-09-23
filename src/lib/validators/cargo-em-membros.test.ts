@@ -338,7 +338,16 @@ describe('9. o rollback da F62 devolve EXATAMENTE o banco de antes (supabase/rol
   const DESFAZ = readFileSync(join(DIR, 'F62-2-desfaz.sql'), 'utf8')
   const COPIA = readFileSync(join(DIR, 'F62-1-copia-de-volta.sql'), 'utf8')
   const ANTES = funcoesVigentes(MIGRATIONS, PRIMEIRA_DA_F62)
-  const DEPOIS = funcoesVigentes(MIGRATIONS)
+  // F64 (23/09/2026): o estado que a F62 DEIXOU — até a 0158 —, e não o da cadeia inteira. A regra
+  // 10 da §4 do PLANO (o rollback de uma fase pressupõe o das fases de DEPOIS dela) faz o
+  // `F64-desfaz.sql` e o `F63-desfaz.sql` rodarem ANTES deste (`f62_rollback.sql`): quando o
+  // `F62-2-desfaz.sql` roda, o núcleo já voltou ao corpo da 0158 e a função do kit (0164) já caiu.
+  // Medir contra a cadeia inteira cobrava do rollback da F62 o que é do rollback da F64
+  // (`kit_motivo_da_empresa` "criada pela F62"). Até a F63 os dois recortes davam o mesmo conjunto
+  // (a F63 não criou nem recriou função) — o que esta trava prova não mudou. A completude do
+  // rollback da F64 é conferida do mesmo jeito em `rollback-f64.test.ts`.
+  const PRIMEIRA_DEPOIS_DA_F62 = '0159'
+  const DEPOIS = funcoesVigentes(MIGRATIONS, PRIMEIRA_DEPOIS_DA_F62)
   const DA_F62 = new Map(
     [...DEPOIS].filter(([, f]) => f.arquivo.slice(0, 4) >= PRIMEIRA_DA_F62),
   )

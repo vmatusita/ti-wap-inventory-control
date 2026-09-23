@@ -110,6 +110,10 @@
 --      aceite a reserva — a regra do banco não impede uma reserva aberta,
 --      só impede saldo negativo.
 --   12 backup_orfao                  → nada.
+--   13 kit_motivo_orfao (F64, 0164)  → DESLIGA o gatilho
+--      `kits_modelos_motivo_da_empresa` só para plantar o kit órfão (é o
+--      gatilho que recusa a entrada na orfandade), e o RELIGA antes de medir.
+--      Desde a F64 são TREZE chaves: o bônus estrutural e o b1 contam 13.
 --
 -- Únicas dependências de fora de `public`: `storage.objects` (cenários 3, 8,
 -- 12 — leitura; e 8, 12 — escrita) e `auth.users` (cenários 4/5 e a fixação de
@@ -743,8 +747,54 @@ begin
   end;
 
   -- ---------------------------------------------------------------------------
-  -- Bônus estrutural — o núcleo tem DOZE blocos `return query` (mesma técnica
-  -- de f41_regularizacao.sql, cenário 12, aplicada a checagens_integridade_nucleo)
+  -- 13 — kit_motivo_orfao (F64, 0164). O gatilho `kits_modelos_motivo_da_empresa`
+  -- recusa o kit órfão na entrada — por isso o estado é plantado com o gatilho
+  -- DESLIGADO dentro do bloco (o SAVEPOINT da exceção o religa se algo falhar;
+  -- o caminho feliz o religa antes de medir). A prova completa do kit — as
+  -- recusas, a empresa B, a desativação — é `kit_motivo_da_empresa.sql`.
+  -- ---------------------------------------------------------------------------
+  declare
+    v_kit64 uuid;
+  begin
+    select total into v_antes from public.checagens_integridade_nucleo()
+     where chave = 'kit_motivo_orfao';
+
+    alter table public.kits_modelos disable trigger kits_modelos_motivo_da_empresa;
+    insert into public.kits_modelos (nome, payload, criado_por)
+      values ('TESTE F64 Kit Órfão', '{"tipo": "saida", "motivo": "zzf64-inexistente", "categorias": ["notebook"]}', k_autor)
+      returning id into v_kit64;
+    alter table public.kits_modelos enable trigger kits_modelos_motivo_da_empresa;
+
+    select total into v_depois from public.checagens_integridade_nucleo()
+     where chave = 'kit_motivo_orfao';
+    if pg_temp.assert_zero_de(
+         '13a kit_motivo_orfao enxerga o kit com motivo que não existe na empresa dele (delta +1)',
+         case when v_depois = v_antes + 1 then 0 else 1 end, 1) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
+    end if;
+
+    -- Desfazer pelo caminho legítimo: tirar o motivo passa pelo gatilho.
+    update public.kits_modelos set payload = payload - 'motivo' where id = v_kit64;
+    select total into v_depois2 from public.checagens_integridade_nucleo()
+     where chave = 'kit_motivo_orfao';
+    if pg_temp.assert_zero_de(
+         '13b sem o motivo, a checagem volta ao número de antes',
+         case when v_depois2 = v_antes then 0 else 1 end, 1) then
+      v_ok := v_ok + 1;
+    else
+      v_falhas := v_falhas + 1;
+    end if;
+  exception when others then
+    v_falhas := v_falhas + 2;
+    raise warning '✗ 13 cenário kit_motivo_orfao falhou inesperadamente (% %)', sqlstate, sqlerrm;
+  end;
+
+  -- ---------------------------------------------------------------------------
+  -- Bônus estrutural — o núcleo tem TREZE blocos `return query` (mesma técnica
+  -- de f41_regularizacao.sql, cenário 12, aplicada a checagens_integridade_nucleo).
+  -- Eram DOZE até a F64; a 0164 acrescentou kit_motivo_orfao.
   -- ---------------------------------------------------------------------------
   declare
     v_n int;
@@ -755,8 +805,8 @@ begin
            / length('return query')
       into v_n;
     if pg_temp.assert_zero_de(
-         'estrutura: checagens_integridade_nucleo() tem DOZE blocos `return query`',
-         case when v_n = 12 then 0 else 1 end, 1) then
+         'estrutura: checagens_integridade_nucleo() tem TREZE blocos `return query`',
+         case when v_n = 13 then 0 else 1 end, 1) then
       v_ok := v_ok + 1;
     else
       v_falhas := v_falhas + 1;
@@ -794,16 +844,16 @@ begin
     raise notice 'b1 debug — dev: % | consulta: %', v_dev_pares, v_cons_pares;
 
     if pg_temp.assert_zero_de(
-         'b1a as DOZE chaves aparecem dos dois lados (dev_checagens_integridade / checagens_integridade_resumo)',
-         case when coalesce(array_length(v_dev_pares, 1), 0) = 12
-                and coalesce(array_length(v_cons_pares, 1), 0) = 12 then 0 else 1 end, 1) then
+         'b1a as TREZE chaves aparecem dos dois lados (dev_checagens_integridade / checagens_integridade_resumo)',
+         case when coalesce(array_length(v_dev_pares, 1), 0) = 13
+                and coalesce(array_length(v_cons_pares, 1), 0) = 13 then 0 else 1 end, 1) then
       v_ok := v_ok + 1;
     else
       v_falhas := v_falhas + 1;
     end if;
 
     if pg_temp.assert_zero_de(
-         'b1b os doze pares (chave:total) de checagens_integridade_resumo() [consulta] batem, par a par, com dev_checagens_integridade() [dev]',
+         'b1b os treze pares (chave:total) de checagens_integridade_resumo() [consulta] batem, par a par, com dev_checagens_integridade() [dev]',
          case when v_dev_pares = v_cons_pares then 0 else 1 end, 1) then
       v_ok := v_ok + 1;
     else

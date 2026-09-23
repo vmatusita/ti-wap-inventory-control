@@ -186,6 +186,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, FRASES_DO_MOTOR.unicidade)) {
     return 'Já existe um registro com esses dados. Atualize a página e tente de novo.'
   }
+  // ---- F64: o gatilho do kit (migration 0164, `kit_motivo_da_empresa`) ----
+  // O motivo do payload tem de existir NA EMPRESA DO KIT. O gatilho recusa com 23503 e frase
+  // PRÓPRIA — sem "foreign key", então o ramo genérico logo abaixo não a pega, e a frase para o
+  // operador diz o que fazer. Nenhum valor (o código do motivo) sai da mensagem do banco.
+  if (casa(m, MSG_SQL.kitMotivoForaDaEmpresa)) {
+    return 'O motivo escolhido não está cadastrado para a empresa deste kit. Escolha outro motivo ou deixe o kit sem motivo.'
+  }
   // Violacao de FK (motivo/filial inexistente).
   if (casa(m, FRASES_DO_MOTOR.chaveEstrangeira)) {
     return 'Um dos valores informados (motivo ou filial) não existe mais.'

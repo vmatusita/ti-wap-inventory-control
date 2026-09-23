@@ -371,11 +371,12 @@ describe('linha-de-base.json', () => {
     readFileSync(join(process.cwd(), 'scripts', 'smoke', 'linha-de-base.json'), 'utf8'),
   )
 
-  it('tem os dois alvos, com as MESMAS doze chaves', () => {
+  // F64 (23/09/2026): treze — kit_motivo_orfao entrou com 0 nos dois alvos.
+  it('tem os dois alvos, com as MESMAS treze chaves', () => {
     expect(Object.keys(politica.alvos).sort()).toEqual(['ensaio', 'producao'])
     const prod = Object.keys(politica.alvos.producao).sort()
     const ens = Object.keys(politica.alvos.ensaio).sort()
-    expect(prod).toHaveLength(12)
+    expect(prod).toHaveLength(13)
     expect(ens).toEqual(prod)
   })
 

@@ -1,6 +1,7 @@
 {
   "_leia": "A LINHA DE BASE DAS DOZE CHECAGENS DE INTEGRIDADE (F55, 10/09/2026). Cada numero e o total ACEITO hoje para aquela chave naquele alvo: o alarme dispara quando o total MEDIDO passa dele. Chave em zero alarma em qualquer achado; chave com achado hoje e uma CATRACA — o numero so DESCE. Subir a linha de base e decisao do Johnny, com ata em docs/DECISOES.md: o agente NUNCA a sobe, porque subir e apagar o alarme em vez de resolver o achado. Descer, sim: quando alguem limpa os achados, o smoke imprime 'a linha de base pode descer para N' e a proxima pessoa a abaixa. Ha uma linha por ALVO porque os dois bancos tem estados diferentes: o ensaio tem um operador sem filial que producao nao tem, e producao tem conflitos e backups orfaos que o ensaio nao tem — uma linha unica faria o disparo contra o ensaio alarmar sozinho todo dia. Medida em 10/09/2026 pelo SQL de contagem transcrito do corpo da 0136, e reconferida pelo nucleo depois do apply da 0138. NUNCA guarde amostra aqui: so contagem.",
   "medido_em": "2026-09-10",
+  "_f64": "A 13a chave, kit_motivo_orfao (o kit cujo motivo nao existe na empresa do kit), ENTROU em 23/09/2026 com 0 nos dois alvos, no MESMO commit da migration 0164 que a cria (a F64). Acrescentar uma chave NOVA com 0 nao e subir a linha de base: as doze de antes continuam com os numeros de 10/09/2026 (ata da F64 em docs/DECISOES.md). Os dois bancos tem 0 kits (fato 3 da ordem F64), e o gatilho da 0164 recusa o kit orfao na entrada: em operacao normal ela e SEMPRE zero.",
   "releitura_segundos": 90,
   "chaves_com_releitura": ["backup_orfao"],
   "_releitura": "A 12a (backup_orfao) tem falso positivo transitorio DOCUMENTADO pela F54 (docs/RELATORIO-F54.md §10): um backup em voo — ja subido ao bucket, com a RPC ainda rodando — aparece contado por alguns segundos. Uma sonda que alarmasse na primeira leitura abriria issue por causa de um import em andamento. Por isso, e SO para as chaves listadas acima, o avaliador le de novo depois de `releitura_segundos` e so alarma se o achado sobreviver as duas leituras.",
@@ -17,7 +18,8 @@
       "conflito_entre_filiais": 69,
       "detentor_em_estado_sem_dono": 0,
       "reserva_aberta": 0,
-      "backup_orfao": 10
+      "backup_orfao": 10,
+      "kit_motivo_orfao": 0
     },
     "ensaio": {
       "patrimonio_duplicado": 0,
@@ -31,7 +33,8 @@
       "conflito_entre_filiais": 0,
       "detentor_em_estado_sem_dono": 0,
       "reserva_aberta": 0,
-      "backup_orfao": 0
+      "backup_orfao": 0,
+      "kit_motivo_orfao": 0
     }
   }
 }

@@ -266,6 +266,14 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
     descricao:
       'Item por quantidade preso a um número de chamado sem caminho de volta. A reserva só é fechada por um lançamento do mesmo chamado, e desde a F41 (31/08/2026) NENHUMA tela emite esse lançamento — o par saiu do vocabulário, e a devolução do equipamento fecha o item pelo caminho comum. A migration 0127 converteu em saída as reservas que existiam (efeito no estoque: zero), e esta checagem existe para que não voltem em silêncio. Em operação normal é SEMPRE zero; se subir, alguém gravou uma reserva por fora da tela — payload forjado, script ou carga —, e a unidade correspondente está fora da prateleira sem ninguém conseguir devolvê-la.',
   },
+  // F64 (23/09/2026) — a 13ª, entrou NO MESMO COMMIT da migration 0164 (e na linha de base dos dois
+  // alvos, com 0, e na cobertura — scripts/smoke/cobertura.test.mts).
+  {
+    chave: 'kit_motivo_orfao',
+    nome: 'Kit com motivo que não existe',
+    descricao:
+      'Modelo de kit cujo motivo não está cadastrado na empresa do kit. Ao aplicar o kit, o motivo é descartado e a pessoa precisa escolher outro na hora. Desde a F64 (23/09/2026) o sistema recusa gravar um kit assim, então em operação normal isto é SEMPRE zero; se subir, o kit foi gravado por fora da tela (script ou carga) ou o motivo foi removido depois. Corrija o motivo no kit, ou deixe-o sem motivo — desativar o kit não tira ele desta contagem.',
+  },
 ]
 
 export const TOTAL_CHECAGENS = CHECAGENS.length

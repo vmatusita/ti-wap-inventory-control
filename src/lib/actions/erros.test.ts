@@ -312,3 +312,28 @@ describe('retrocompat — chamada com 1 argumento (sem code) segue funcionando',
     })
   })
 })
+
+describe('o gatilho do kit (F64 · 0164): o motivo tem de existir na empresa do kit', () => {
+  const FRASE = 'O motivo deste kit não existe na empresa do kit.'
+  const ESPERADO = 'O motivo escolhido não está cadastrado para a empresa deste kit. Escolha outro motivo ou deixe o kit sem motivo.'
+
+  it('a recusa do gatilho (23503, frase própria) vira a frase do kit — não a da FK genérica', () => {
+    expect(traduzErroBanco(FRASE, '23503')).toBe(ESPERADO)
+    expect(traduzErroBanco(FRASE, '23503')).not.toBe('Um dos valores informados (motivo ou filial) não existe mais.')
+  })
+
+  it('a grafia sem acento também (as mensagens viajam por caminhos diferentes)', () => {
+    expect(traduzErroBanco('O motivo deste kit nao existe na empresa do kit.', '23503')).toBe(ESPERADO)
+  })
+
+  it('a FK de VERDADE continua no ramo genérico (o do kit não a engole)', () => {
+    expect(
+      traduzErroBanco('insert or update on table "movimentacoes" violates foreign key constraint "movimentacoes_motivo_fkey"', '23503'),
+    ).toBe('Um dos valores informados (motivo ou filial) não existe mais.')
+  })
+
+  it('a recusa do kit não cai no fallback (não loga)', () => {
+    traduzErroBanco(FRASE, '23503')
+    expect(spyErro).not.toHaveBeenCalled()
+  })
+})

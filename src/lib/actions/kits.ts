@@ -37,6 +37,12 @@ const MSG_KIT_DUPLICADO = 'Já existe um kit com esse nome.'
 // Nome duplicado é a única violação de unicidade possível nesta tabela: a outra
 // chave é o uuid da PK, que não colide. Detectado pelo NOME do índice (0043) —
 // e por 'duplicate' como rede, igual ao `criarItem`.
+//
+// F64 (23/09/2026) — o BANCO recusa o kit cujo motivo não existe na empresa do kit (o gatilho
+// `kits_modelos_motivo_da_empresa`, migration 0164: 23503 com frase própria), no insert e no
+// update que muda o motivo. As duas escritas abaixo não mudam: a recusa cai no
+// `traduzErroBanco` (ramo `kitMotivoForaDaEmpresa` de `erros.ts`) e vira frase pt-BR. Desativar
+// um kit que já estava órfão continua passando (o gatilho só confere quando o motivo muda).
 function ehNomeDuplicado(mensagem: string): boolean {
   return casa(mensagem, FRASES_DO_MOTOR.duplicata) || casaConstraint(mensagem, 'kits_modelos_nome_uidx')
 }

@@ -220,6 +220,10 @@ const DA_F38 = [
   // backfill (aqui nenhum gatilho o barraria: a prova é o `xmin`). Nenhuma cria nem recria função.
   '0162',
   '0163',
+  // F64 — a `0164` cria a função de gatilho `kit_motivo_da_empresa` (INVOKER, `search_path` fixo) e o
+  // gatilho `kits_modelos_motivo_da_empresa`, e RECRIA `checagens_integridade_nucleo` com a 13ª peça
+  // (as doze de antes byte a byte — a prova é o md5 de cada peça). Nenhuma das duas é intocável.
+  '0164',
 ]
 
 /**

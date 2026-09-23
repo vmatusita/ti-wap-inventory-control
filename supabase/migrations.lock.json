@@ -165,6 +165,7 @@
     "0160_empresa_no_acervo_cadastros.sql": "3ddf400ce1781c7af60e2bc86ad20404c4fe89c1940b4d5f8f4bc2f2ae79e85c",
     "0161_empresa_no_acervo_movimento.sql": "593df05c3f2a0b4a225a07a6908c84113aa59737f3dab9bf672ab7e386860e56",
     "0162_empresa_no_vocabulario.sql": "39b729d7327f545a4da80f0afae5dac5adf6de33da180551531533dfbc631a6d",
-    "0163_empresa_nos_registros.sql": "5c0b87095e0e90bcf0261f7c19db763dc108f76dd94646b8ff2558a4c6d6d654"
+    "0163_empresa_nos_registros.sql": "5c0b87095e0e90bcf0261f7c19db763dc108f76dd94646b8ff2558a4c6d6d654",
+    "0164_kit_motivo_da_empresa.sql": "281cce27c9747d5f2770d4def0e9d1338a3df62fb660e3073803fcfbe878c448"
   }
 }

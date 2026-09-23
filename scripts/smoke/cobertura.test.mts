@@ -137,11 +137,12 @@ describe('os TRÊS conjuntos concordam', () => {
     readFileSync(join(RAIZ, 'scripts', 'smoke', 'linha-de-base.json'), 'utf8'),
   )
 
-  it('os três encontram DOZE chaves (guarda do próprio teste)', () => {
-    expect(doCatalogo).toHaveLength(12)
-    expect(doNucleo).toHaveLength(12)
+  // F64 (23/09/2026): TREZE — a 0164 acrescentou kit_motivo_orfao nos três lugares, no mesmo commit.
+  it('os três encontram TREZE chaves (guarda do próprio teste)', () => {
+    expect(doCatalogo).toHaveLength(13)
+    expect(doNucleo).toHaveLength(13)
     for (const { alvo, chaves } of chavesDaPolitica(politica)) {
-      expect(chaves, `alvo ${alvo}`).toHaveLength(12)
+      expect(chaves, `alvo ${alvo}`).toHaveLength(13)
     }
   })
 
@@ -171,11 +172,12 @@ describe('os TRÊS conjuntos concordam', () => {
     },
   )
 
-  it('a função-núcleo é a fonte VIGENTE do SQL das doze (e ninguém mais o tem)', () => {
+  it('a função-núcleo é a fonte VIGENTE do SQL das treze (e ninguém mais o tem)', () => {
     const { arquivo } = corpoVigente('public.checagens_integridade_nucleo()', RAIZ)
     // F62 (22/09/2026): a 0158 a recriou trocando SÓ a operador_sem_filial (o cargo passou a
-    // morar em membros) — as doze continuam num lugar só, agora o da 0158.
-    expect(arquivo).toBe('0158_cargo_em_membros.sql')
+    // morar em membros). F64 (23/09/2026): a 0164 a recriou acrescentando SÓ a 13ª,
+    // kit_motivo_orfao (as doze de antes byte a byte) — as treze num lugar só, agora o da 0164.
+    expect(arquivo).toBe('0164_kit_motivo_da_empresa.sql')
     // A porta da /dev delega: o corpo dela NÃO tem mais as doze.
     const daPorta = chavesDoNucleo(corpoVigente('public.dev_checagens_integridade()', RAIZ).sql)
     expect(daPorta, 'o SQL das doze voltou a existir em DOIS lugares').toEqual([])
