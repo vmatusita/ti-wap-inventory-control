@@ -210,6 +210,11 @@ const DA_F38 = [
   // função, não mexe em enum, não escreve em tabela que já existia — e nasce sob o classificador
   // (`migrations-backfill.test.ts`), a primeira com o cabeçalho de classe OBRIGATÓRIO.
   '0159',
+  // F63 — a `0160` (cadastros) e a `0161` (movimento) põem `empresa_id` nas oito tabelas do acervo
+  // com default NÃO-VOLÁTIL (`public.empresa_legada()`) — SEM `update` de backfill: é a guarda de
+  // topo logo abaixo que o proíbe, agora também dentro de `do`. Nenhuma cria nem recria função.
+  '0160',
+  '0161',
 ]
 
 /**
