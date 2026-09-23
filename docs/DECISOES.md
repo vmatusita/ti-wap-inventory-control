@@ -13460,3 +13460,30 @@ RUNBOOK, Anexo F65.
 - **(i) Os comentários que prometiam à F65 o que é da F67** (`catalogo_secdef.sql:83/110`, `cargo_dev.sql:1073`: o
   corpo real de `mesmo_escopo_de_gestao` e `exigir_ativos_da_empresa`) apontam a F67. E o cabeçalho de
   `isolamento_tenant.sql` diz o que a F65 entregou e que a regra 3 (o par simétrico) agora tem FK composta para provar.
+- **(j) A revisão adversarial: a guarda ganhou um segundo gatilho, o ÚLTIMO.** Subagentes em contexto fresco lendo pelo
+  SHA, cada achado votado por um cético instruído a refutar. **1ª rodada** (`5395c26`, sete lentes — as migrations; os
+  embeds e os tipos; os uniques, o `ON CONFLICT` e o snapshot; as guardas; as travas; os rollbacks; o escopo e os
+  dados): seis sem achado; a das guardas trouxe um, confirmado — a I3 de `imutabilidade_tenant.sql` (nenhum gatilho
+  BEFORE das 20 atribui `new.empresa_id`) só reconhecia a forma `:=`, e a própria `0156` usa `select … into
+  new.empresa_id` (fora das 20). Consertada (`2c236f6`) com as três formas do PL/pgSQL. **2ª rodada** (`2c236f6`): a lente
+  de contexto fresco sobre QUALQUER caminho que deixe `empresa_id` mudar nas 20 (gatilho existente, `on conflict do
+  update`, a janela, delete+insert por RPC, `disable trigger`, view `instead of`) — **nenhum achado**; a do predicado,
+  dois confirmados (as aspas; o `then` de uma expressão `case` do SQL). Consertados (`86b80fd`). **3ª rodada**
+  (`86b80fd`): mais dois confirmados — `get diagnostics new.empresa_id = …` e, o decisivo, **a linha copiada para uma
+  variável, alterada e devolvida** (`v_linha := new; v_linha.empresa_id := …; return v_linha`), que nenhum leitor de texto
+  acha. **Escolha:** parar de procurar a atribuição no texto e fechar pela ORDEM dos gatilhos — a `0173` põe, nas 20, um
+  segundo gatilho da mesma função, `zz_guarda_empresa`, `BEFORE UPDATE … FOR EACH ROW` SEM lista de coluna, que ordena
+  por nome depois de todos os BEFORE de UPDATE (os do mesmo evento disparam na ordem do nome) e recebe a linha FINAL; o
+  gatilho de coluna (`<tabela>_guarda_empresa`) fica, porque dispara ANTES dos gatilhos do kit e do termo e dá a frase da
+  guarda na troca direta. A I3 passa a ser ESTRUTURAL (no catálogo: o `zz_guarda_empresa` existe, é BEFORE UPDATE por
+  linha, sem coluna, sem WHEN, habilitado, e nenhum outro BEFORE de UPDATE ordena depois dele), e a I9, a auto-sabotagem:
+  um gatilho que devolve a cópia com outra empresa é BARRADO (42501, a frase da guarda) quando vem antes da guarda, e
+  ACUSADO pela I3 quando vem depois. O predicado por regex saiu. **Motivo:** uma trava estrutural completa vale mais que
+  uma lista de formas que cresce a cada rodada; o custo é uma comparação por linha atualizada nas 20. **Lição do ARE do
+  Postgres**, que custou uma tentativa na mesa: a gulodice do PRIMEIRO quantificador vale para o RE inteiro — um `(.*?)`
+  depois de `\s+` vira guloso.
+- **(k) A `0173` regravada na trava de hash (`npm run db:lock -- --regravar-alterada`).** A migration mudou (os 20
+  gatilhos `zz_guarda_empresa`, o comentário da função, o cabeçalho) depois de travada no commit `e865f08` — e NUNCA tinha
+  chegado a banco vivo nenhum: o ledger dos dois bancos termina na `0164` (conferido pelo MCP antes da mudança), e ela só
+  rodou nos bancos descartáveis do CI. É o caso que a flag existe para cobrir (o comentário de `gravar-lock.ts`). O md5
+  esperado do comentário da guarda (`depois/exatidao-esperada.json`) foi recalculado; o `prosrc` não mudou.

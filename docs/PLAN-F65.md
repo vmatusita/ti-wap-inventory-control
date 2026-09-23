@@ -254,9 +254,11 @@ sem abrir a janela destrutiva.**
 - **Grants**: `revoke all … from public, anon, authenticated, service_role` — o molde de `guarda_acervo` (o mais forte;
   o do kit deixa `service_role`). Função de gatilho não precisa de EXECUTE de quem dispara.
 - **A ressalva do `UPDATE OF`** (doc do PG 17, `sql-createtrigger`): *"changes made to the row's contents by BEFORE UPDATE
-  triggers are not considered"* — um gatilho BEFORE que mudasse `empresa_id` não dispararia a guarda. A trava
-  `imutabilidade_tenant.sql` exige que nenhuma função de gatilho BEFORE das 20 atribua `new.empresa_id` ou `new` inteiro
-  (hoje: nenhuma). `INSERT … ON CONFLICT DO UPDATE SET empresa_id = …` dispara os gatilhos de UPDATE ("will fire both
+  triggers are not considered"* — um gatilho BEFORE que mudasse `empresa_id` não dispararia a guarda de coluna.
+  **Na execução (revisão adversarial, ata (j)):** o plano era uma trava que procurasse a atribuição no TEXTO dos corpos;
+  três rodadas acharam uma forma nova a cada vez. Ficou um **segundo gatilho da mesma função, `zz_guarda_empresa`,
+  `BEFORE UPDATE … FOR EACH ROW` sem lista de coluna**, que ordena por nome DEPOIS de todos os BEFORE de UPDATE da
+  tabela e recebe a linha final; a I3 de `imutabilidade_tenant.sql` confere no catálogo que ele é o último nas 20. `INSERT … ON CONFLICT DO UPDATE SET empresa_id = …` dispara os gatilhos de UPDATE ("will fire both
   kinds of triggers as needed") — coberto. `UPDATE … SET empresa_id = <o mesmo>` dispara e passa (não é troca).
 - **A ordem com `guarda_acervo`**: em `movimentacoes`/`lancamentos_item`, `*_guarda_acervo` dispara antes de
   `*_guarda_empresa` (ordem alfabética): fora da janela, 42501 da `guarda_acervo`; dentro, 42501 da `guarda_empresa`.
