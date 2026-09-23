@@ -2,8 +2,8 @@
 
 **v1.68.0** · **migrations `0159`–`0161` aplicadas** no ensaio (15:28–15:29 UTC) e em produção (15:33–15:34 UTC) de
 23/09/2026 · SHA de código congelado **`cdc6dee`** · código no
-[PR #72](https://github.com/vmatusita/ti-wap-inventory-control/pull/72) · a conferência pós-deploy, o PR de documentação e a
-tag anotada `v1.68.0` no §15
+[PR #72](https://github.com/vmatusita/ti-wap-inventory-control/pull/72), merge **`de241b3`** · `/api/saude` com `1.68.0` · a tag
+anotada `v1.68.0` no merge do PR de documentação (§15)
 
 > A segunda fase da virada multiempresa. As oito tabelas do acervo (`ativos`, `movimentacoes`, `lancamentos_item`,
 > `pendencias_item`, `anotacoes`, `termos_gerados`, `colaboradores`, `itens`) ganham `empresa_id uuid not null`, com FK
@@ -369,14 +369,14 @@ congelado é `cdc6dee`** (`PLAN-F63.md` §8).
 | 21 | advisors mudaram só no INFO declarado; paridade ensaio × produção nas 11 classes | ✅ | +1 INFO `rls_enabled_no_policy` (`backups_migration`) nos dois, nada mais; as 11 classes iguais em contagem e fingerprint |
 | 22 | nenhuma dependência nova; `.github/workflows/**` e `CLAUDE.md` da raiz intocados | ✅ | `git diff main --stat`: sem `package-lock.json`, sem `.github/`, sem `CLAUDE.md` da raiz |
 | 23 | as emendas: MATRIZ, ADR-003, RUNBOOK (Anexo, BACKFILL, `add column`), PLANO (nota F63, fichas F64 e F67), `docs/README.md`, `docs/prompts/README.md`, ata | ✅ | os arquivos no diff; R-ACC-85 a 90 |
-| 24 | `package.json` 1.68.0, CHANGELOG e `registry.ts`; a tag `v1.68.0` publicada — ou o motivo e o comando no topo | ◐ | versão, CHANGELOG e registro no PR (`registry.test.ts`, `cobertura-changelog.test.ts` verdes); a tag vai no merge do PR de documentação (§15) |
-| 25 | os dois PRs mergeados com os checks verdes, e a conferência pós-deploy — ou o bloqueio no topo | ◐ | o PR #72 sai do rascunho e é mergeado com os dois checks verdes; a conferência e o PR de documentação no §15 |
+| 24 | `package.json` 1.68.0, CHANGELOG e `registry.ts`; a tag `v1.68.0` publicada — ou o motivo e o comando no topo | ✅ | versão, CHANGELOG e registro no merge `de241b3` (`registry.test.ts`, `cobertura-changelog.test.ts` verdes); a tag anotada `v1.68.0` no merge do PR de documentação, publicada (§15) |
+| 25 | os dois PRs mergeados com os checks verdes, e a conferência pós-deploy — ou o bloqueio no topo | ✅ | o PR #72 mergeado (`de241b3`) com `verificar` e `banco-sem-docker` verdes; `/api/saude` com `1.68.0`, smoke 109 OK · 0 falha, Parte B verde com a deriva sem pendente; o PR de documentação com os dois checks verdes (§15) |
 | 26 | as sabotagens A a I com saída real em `docs/f63-evidencias/` | ✅ | §8 |
 | 27 | nenhum dado real em migration, teste, roteiro, evidência ou log; da produção, só contagens e hashes; ninguém abriu o `.env.local` | ✅ | fixtures `WAP000…`/"Fulano"/uuids `63000000-…`; do banco vivo, só catálogo, contagens e md5 (a saída do smoke e o JSON do conferidor conferidos por grep: nenhum e-mail nem uuid); o `.env.local` entrou só por `--env-file` e pelo carregador do próprio smoke, sem ser aberto, filtrado ou impresso |
 | 28 | o relatório no padrão F45→F62, com o roteiro do Johnny no topo | ✅ | este arquivo, §1 |
 | 29 | o estado de repouso e "o que este relatório NÃO prova" | ✅ | §12 e §13 |
 
-**Placar:** 27 ✅ · 2 ◐ — os dois ◐ (24 e 25) são o merge, o deploy e a tag, fechados no §15.
+**Placar:** 29 ✅.
 
 ---
 
@@ -387,7 +387,7 @@ conferidor provaram — o app velho não lê a coluna, todo INSERT dele recebe a
 coluna atravessar sem lançar. Pode ficar assim indefinidamente; a sonda de deriva não alarma (ela procura arquivo da `main`
 no ledger, e o ledger tem as três a mais).
 
-**Se parar DEPOIS do apply e do merge** (o destino normal): as oito tabelas têm `empresa_id` preenchida com a WAP, o
+**Se parar DEPOIS do apply e do merge** (o estado de agora): as oito tabelas têm `empresa_id` preenchida com a WAP, o
 default de pé, e nada a lê. Todo INSERT sem a coluna recebe a WAP — correto enquanto houver uma empresa só, e é isso
 que a F67 corrige. `backups_migration` fica vazia até a primeira migration BACKFILL. O classificador passa a valer para
 toda migration nova. Estado terminal válido e indefinido: sem dupla escrita, sem coluna esperando backfill, sem flag.
@@ -419,7 +419,6 @@ toda migration nova. Estado terminal válido e indefinido: sem dupla escrita, se
 
 # 14. Pendências e backlog nomeado
 
-- **Desta fase:** o merge do PR #72, a conferência pós-deploy, o PR de documentação e a tag `v1.68.0` (§15).
 - **F64:** as **11** tabelas de `k_negocio` ainda sem `empresa_id` (as sete da ficha — `tipos_item`, `motivos`,
   `kits_modelos`, `senhas_acesso`, `eventos_admin`, `import_logs`, `relatorios_gerados` — e as quatro do vocabulário do
   import); **a régua do default** para elas e para `filiais` (a pergunta aberta na ficha).
@@ -437,4 +436,19 @@ toda migration nova. Estado terminal válido e indefinido: sem dupla escrita, se
 
 # 15. O merge, o deploy e a conferência pós-deploy
 
-{{POS_DEPLOY}}
+- **O merge:** [PR #72](https://github.com/vmatusita/ti-wap-inventory-control/pull/72) → **`de241b3`**, 15:48:08 UTC, com
+  `verificar` e `banco-sem-docker` verdes no head `1db4a5c` (run `35883563113`); merge normal, sem `--admin`.
+- **O deploy:** `dpl_AKqc9KRAGSLnS98cttYMZi5y289X` (commit `de241b3`), criado 15:48:12 UTC, `READY`.
+- **A janela entre o apply de produção e o deploy: cerca de 15 minutos** — a `0161` no ledger às 15:34:00 UTC, o app
+  novo no `/api/saude` às 15:49:25 UTC. Nesse intervalo o app 1.67.0 rodou sobre o esquema novo: não lê `empresa_id`, e
+  todo INSERT dele recebeu a WAP pelo default. O smoke e o conferidor rodaram DENTRO da janela (0 falha, 0 recusadas).
+- **`/api/saude`:** `{"ok":true,"versao":"1.68.0","commit":"de241b3","banco":"ok","ms":66}`.
+- **O smoke de produção** (`SMOKE_VERSAO_ESPERADA=1.68.0`): **109 OK · 1 aviso · 0 falha** (o aviso antigo de
+  `kits_modelos`).
+- **A Parte B do `saude.yml`**, disparada à mão (run `35884532184`): **verde**; a deriva de migrations com **0 pendente**,
+  a mais nova no ledger sendo a `0161_empresa_no_acervo_movimento.sql`; o aviso de `conflito_entre_filiais` (66 contra a
+  base 69) é da linha de base, não da F63.
+- **O PR de documentação** (esta evidência e o fecho do relatório) com os dois checks verdes, e a **tag anotada
+  `v1.68.0`** no merge dele, publicada.
+
+Evidência: [`depois/pos-deploy.md`](f63-evidencias/depois/pos-deploy.md) e [`depois/smoke-prod.txt`](f63-evidencias/depois/smoke-prod.txt).
