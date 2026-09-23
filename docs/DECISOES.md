@@ -13232,3 +13232,8 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
   hand-fix e a exceção da F62; smoke de produção 109 OK · 0 falha; conferidor de formas 0 recusadas em 100.513 linhas.
   **Motivo:** a ordem manda aplicar no ensaio e em produção antes do merge, com o portão fechado nos dois — e fechou sem
   nada a explicar. O rollback não foi usado em banco vivo.
+- **(h) O merge, o deploy e o fecho.** PR #72 mergeado em `de241b3` (15:48 UTC) com os dois checks verdes, merge normal.
+  A janela entre o apply de produção (15:34) e o app novo no ar (15:49) foi de cerca de 15 minutos, com o app 1.67.0 sobre
+  o esquema novo — o smoke e o conferidor rodaram dentro dela. Pós-deploy: `/api/saude` com `1.68.0 · de241b3`, smoke
+  109 OK · 0 falha, Parte B verde com a deriva sem pendente (a `0161` a mais nova do ledger). A evidência vai num PR só de
+  documentação, e a tag anotada `v1.68.0` no merge dele (evidência em `docs/f63-evidencias/depois/pos-deploy.md`).

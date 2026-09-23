@@ -6,9 +6,9 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
-## 23/09/2026 — F63 · `empresa_id` no acervo (lote 1) e a disciplina de backup de migração 🚧
+## 23/09/2026 — F63 · `empresa_id` no acervo (lote 1) e a disciplina de backup de migração ✅
 
-**v1.68.0** · **com migrations `0159`–`0161`** · A segunda fase da virada multiempresa. As oito tabelas do acervo
+**v1.68.0** · **com migrations `0159`–`0161`**, aplicadas no ensaio e em produção antes do merge · A segunda fase da virada multiempresa. As oito tabelas do acervo
 (`ativos`, `movimentacoes`, `lancamentos_item`, `pendencias_item`, `anotacoes`, `termos_gerados`, `colaboradores`,
 `itens`) ganham `empresa_id uuid not null`, com FK validada para `empresas` e o default `public.empresa_legada()` (a WAP)
 **até a fase em que a escrita passar a informar a empresa** (decisão do Johnny) — preenchida **sem nenhum `update` e sem nenhuma tupla reescrita**: o default
@@ -24,8 +24,10 @@ antes de cada comando que sobrescreve dado; e **a guarda de topo do acervo sem v
 de `catalogo_policies.sql` (a forma da coluna nas oito, nascido vermelho pelos oito nomes), `migrations-backfill.test.ts`,
 `empresa-acervo-sem-leitura.test.ts`, os roteiros `empresa_no_acervo.sql` e `f63_rollback.sql` (o esquema volta ao de
 antes da `0159`), o cenário 8 de `restauracao.sql` e seis mutações novas no injetor (teto 131). Regras: MATRIZ R-ACC-85 a
-R-ACC-90; ADR-003 e RUNBOOK, emenda F63. Plano `docs/PLAN-F63.md`, ata 2026-09-23 · F63 em `docs/DECISOES.md`, relatório
-`docs/RELATORIO-F63.md` (o estado do apply e do merge está no topo dele).
+R-ACC-90; ADR-003 e RUNBOOK, emenda F63. Nos dois bancos, o `relfilenode` e os dois md5 das oito tabelas ficaram idênticos
+antes × depois, as 62 policies byte a byte e a paridade ensaio × produção fechou nas 11 classes. Relatório em
+[`docs/RELATORIO-F63.md`](docs/RELATORIO-F63.md); plano em [`docs/PLAN-F63.md`](docs/PLAN-F63.md); ata em
+[`docs/DECISOES.md`](docs/DECISOES.md).
 
 ## 22/09/2026 — F62 · A raiz do tenant e o cargo por empresa ✅
 
