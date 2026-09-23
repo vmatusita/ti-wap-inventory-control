@@ -71,9 +71,16 @@
 --     catalogo_policies.sql, que confere a FORMA da coluna no bloco 5). O `count(*) filter
 --     (where empresa_id is null)` é conferência de COMPLETUDE, não recorte: ninguém compara a
 --     coluna do acervo com um valor de empresa aqui (describe 5 de catalogos-seguranca.test.ts).
---   · O QUE FALTA: a F64 põe a coluna nas 11 tabelas de NEGÓCIO restantes (as sete da ficha e
---     as quatro do vocabulário do import) — a 9k as alcança sozinha também; e a LEITURA do dado
---     do acervo por empresa (o recorte nas policies, a bateria A↔B de leitura) é da F66.
+--   · F64 (23/09/2026) — a MESMA varredura alcançou sozinha, de novo sem uma linha editada, as
+--     ONZE tabelas de negócio que faltavam (`k_lote2` em catalogo_policies.sql: as sete da ficha —
+--     `tipos_item`, `motivos`, `kits_modelos`, `senhas_acesso`, `eventos_admin`, `import_logs`,
+--     `relatorios_gerados` — e as quatro do vocabulário do import — `import_prefixos_patrimonio`,
+--     `import_termos_categoria`, `import_termos_estado`, `unidades_apelidos`). Com elas, as 20 de
+--     `k_negocio` têm a chave de recorte, e o bloco 5 de catalogo_policies.sql REPROVA a tabela de
+--     negócio sem ela (15f). A única leitura da coluna antes da F66 é de integridade — o motivo do
+--     kit na empresa do kit (`k_leitura_integridade`) —, e não acontece aqui.
+--   · O QUE FALTA: a LEITURA do dado por empresa — o recorte nas policies das 20, a bateria A↔B
+--     de leitura — é da F66 (e a escrita por empresa, da F67).
 -- O texto da F48 fica como registro: em 07/09/2026 `grep -rn "empresa_id" supabase/migrations/`
 -- devolvia ZERO, e escrever um placeholder seria pior do que não escrever — ou erra no psql
 -- (coluna inexistente) ou conta zero, e `assert_zero_de` levanta exceção de propósito sobre

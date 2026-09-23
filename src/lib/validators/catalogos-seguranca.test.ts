@@ -325,7 +325,10 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     // (e contar a completude, `is null`) pode; LER O DADO do acervo por empresa — comparar a
     // coluna com um valor numa tabela de negócio que não seja `filiais` — é o recorte, e é da
     // F66. A lista de negócio vem de `k_negocio` (catalogo_policies.sql), a fonte única — nunca
-    // copiada para cá.
+    // copiada para cá. EMENDA F64 (23/09/2026, decisão 10 do PLAN-F64): a F64 pôs a coluna nas
+    // onze de `k_lote2` — as 20 de negócio a têm —, e a régua NÃO muda: ela já comparava contra
+    // `k_negocio` menos `filiais`, então as onze estavam no universo desde a F63. Ler o dado de
+    // qualquer uma das 19 por empresa é o recorte, e continua sendo da F66.
     const cat = fonte('catalogo_policies')
     const m = /k_negocio text\[\] := array\[([\s\S]*?)\];/.exec(cat)
     expect(m, 'não achei k_negocio em catalogo_policies.sql').not.toBeNull()
@@ -378,14 +381,17 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(sql.split(';').filter((c) => /\bempresa_id\b/.test(c)).some((c) => /public\.ativos\b/.test(c))).toBe(false)
   })
 
-  it('o cabeçalho DIZ o que a F63 preencheu e o que falta (F64 para as tabelas restantes, F66 para a leitura)', () => {
+  it('o cabeçalho DIZ o que a F63 e a F64 preencheram e o que falta (F66 para a leitura)', () => {
     // Ausência sem motivo escrito é indistinguível de esquecimento. Até a F62 o cabeçalho
     // explicava por que a varredura do acervo estava vazia; desde a F63 ela tem as oito, e o
-    // cabeçalho tem de dizer isso E o que ainda não está lá.
+    // cabeçalho tem de dizer isso E o que ainda não está lá. EMENDA F64 (23/09/2026, decisão 10 do
+    // PLAN-F64): a F64 completou as 20 de `k_negocio` — o cabeçalho diz que ela as preencheu (e não
+    // mais "F64 para as restantes") e que o que falta é a LEITURA, da F66.
     const sql = fonte('isolamento_tenant')
     expect(sql, 'o cabeçalho não fala da chave de recorte').toContain('empresa_id')
     expect(sql, 'o cabeçalho não diz o que a F63 preencheu').toMatch(/F63[^\n]*\n?[^\n]*acervo|acervo[^\n]*F63/i)
-    expect(sql, 'o cabeçalho não nomeia a F64 (as tabelas de negócio restantes)').toMatch(/F64/)
+    expect(sql, 'o cabeçalho não diz o que a F64 preencheu (as onze de k_lote2, as 20 de k_negocio)').toMatch(/F64[\s\S]{0,400}k_lote2[\s\S]{0,600}as 20 de\s*(?:--\s*)?`k_negocio`/)
+    expect(sql, 'o cabeçalho ainda anuncia a F64 como pendente').not.toMatch(/a F64 põe a coluna nas 11 tabelas de NEGÓCIO restantes/)
     expect(sql, 'o cabeçalho não nomeia a F66 (a leitura do dado por empresa)').toMatch(/F66/)
   })
 

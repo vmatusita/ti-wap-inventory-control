@@ -288,6 +288,11 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // (`backups_migration`, 7 colunas) e a `0160`/`0161` acrescentam `empresa_id` às oito tabelas do
     // acervo; nenhuma função criada ou recriada. HAND-FIX datado no `database.ts` antes do apply; a
     // geração do MCP depois do apply no ensaio o confere. O número SUBIU porque o banco ganhou objetos.
+    //
+    // F64 (23/09/2026): relações 38 -> 38, funções 94 -> 94, colunas +11. A `0162`/`0163` acrescentam
+    // `empresa_id` às onze tabelas do lote 2; a `0164` cria UMA função — a do gatilho do kit
+    // (`kit_motivo_da_empresa`, `returns trigger`), que fica fora pela regra de sempre — e RECRIA o
+    // núcleo da integridade (mesmo nome). HAND-FIX datado no `database.ts` antes do apply.
     expect(real.relacoes.size).toBe(38)
     expect(real.funcoes.size).toBe(94)
     expect(real.colunas.size).toBeGreaterThanOrEqual(314)
