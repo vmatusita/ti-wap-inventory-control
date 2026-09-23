@@ -512,11 +512,41 @@ function chamadasForaDaLista(mascarado) {
  */
 function valvulasAbertas(mascarado, bruto) {
   const achadas = []
-  if (/\bset_config\s*\(\s*'estoque\.dev_destrutivo'/i.test(bruto)) achadas.push('set_config de estoque.dev_destrutivo (a janela destrutiva)')
+  // `set_config('<guc>', …)`: o nome vem no PRIMEIRO texto; só um literal inteiro é lido aqui — o nome
+  // MONTADO (concatenação, variável, função) é ILEGÍVEL em `lerComando` (revisão adversarial da F63).
+  for (const m of bruto.matchAll(/\bset_config\s*\(\s*'((?:[^']|'')*)'\s*,/gi)) {
+    const guc = m[1].replaceAll("''", "'").trim().toLowerCase()
+    if (guc === 'estoque.dev_destrutivo') achadas.push('set_config de estoque.dev_destrutivo (a janela destrutiva)')
+    if (guc === 'session_replication_role') achadas.push('set_config de session_replication_role (desliga gatilhos)')
+  }
   if (/\bset\s+(?:local\s+|session\s+)?estoque\.dev_destrutivo\b/i.test(mascarado)) achadas.push('set estoque.dev_destrutivo')
   if (/\bsession_replication_role\b/i.test(mascarado)) achadas.push('session_replication_role (desliga gatilhos)')
   if (/\bdisable\s+(?:always\s+)?trigger\b/i.test(mascarado)) achadas.push('disable trigger (desliga a guarda)')
   return achadas
+}
+
+/**
+ * `set_config` cujo NOME de GUC não é um texto literal inteiro (concatenação, variável, chamada): o leitor
+ * não sabe que chave ele liga — e `set_config('estoque.' || 'dev_destrutivo', 'on', …)` abriria a
+ * válvula por fora da checagem acima. Falha fechada: ILEGÍVEL.
+ */
+function setConfigComNomeMontado(mascarado) {
+  const achados = []
+  for (const m of mascarado.matchAll(/\bset_config\s*\(/gi)) {
+    let prof = 0
+    let j = m.index + m[0].length
+    const ini = j
+    for (; j < mascarado.length; j++) {
+      const ch = mascarado[j]
+      if (ch === '(') prof++
+      else if (ch === ')') {
+        if (prof === 0) break
+        prof--
+      } else if (ch === ',' && prof === 0) break
+    }
+    if (!/^\s*'_*'\s*$/.test(mascarado.slice(ini, j))) achados.push('set_config com o nome da GUC montado (o leitor não sabe qual chave ele liga)')
+  }
+  return achados
 }
 
 const DEFAULTS_NAO_VOLATEIS = /^(?:public\.empresa_legada\(\)|now\(\)|current_timestamp|current_date|localtimestamp|transaction_timestamp\(\)|statement_timestamp\(\))$/i
@@ -678,8 +708,10 @@ function lerComando(cmd) {
   for (const nome of chamadas) ilegiveis.push(`chamada de ${nome}() no apply (o leitor não vê o que ela faz)`)
   if (cmd.origem === 'topo' && !CABECAS_CONHECIDAS.some((re) => re.test(cabeca))) ilegiveis.push(`comando de topo desconhecido: «${cabeca.slice(0, 40)}»`)
   ilegiveis.push(...reescritaSemPerda(comando))
+  ilegiveis.push(...setConfigComNomeMontado(cmd.mascarado))
   return {
     cabeca,
+    comando,
     // Em comando DDL não há escrita executada: `revoke truncate on public.ativos` (0090)
     // não trunca nada, e o `do instead update` de uma regra é guardado.
     alvos: ddl ? [] : alvosDeEscrita(cmd.mascarado),
@@ -700,11 +732,51 @@ function lerComando(cmd) {
  * @returns {{ verbo: string, tabela: string, origem: 'topo'|'do' }[]}
  */
 export function escritasExecutadas(sql) {
-  const escritas = []
-  for (const cmd of comandosExecutados(sql)) {
-    for (const a of lerComando(cmd).alvos) escritas.push({ verbo: a.verbo, tabela: a.tabela, origem: cmd.origem })
+  return classificar(sql).escritas
+}
+
+function parteNormalizada(p) {
+  return p.startsWith('"') ? p.slice(1, -1).replaceAll('""', '"') : p.toLowerCase()
+}
+
+/**
+ * A IDENTIDADE das tabelas ao longo da migration (revisão adversarial da F63). O alvo de uma escrita é
+ * lido pelo NOME, e um nome muda dentro do arquivo: `alter table public.movimentacoes rename to x;
+ * update x …; alter table x rename to movimentacoes` escondia o `update` da guarda de topo, e
+ * `rename` + `create table <o nome antigo> (like …)` + `insert` fazia a cópia de uma tabela viva passar
+ * por "tabela criada aqui" (ADITIVA). E uma view criada no arquivo é atualizável: escrever nela é
+ * escrever na tabela de baixo. Aqui cada nome aponta para as tabelas ORIGINAIS (as que existiam antes
+ * da migration), e o nome que foi renomeado embora não "nasce" de novo com um `create table`.
+ */
+function novaIdentidade() {
+  const apelidos = new Map()
+  const renomeadasDe = new Set()
+  const canon = (t) => apelidos.get(t) ?? [t]
+  const RENOMEIA = new RegExp(String.raw`^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(${NOME_QUALIFICADO})\s+rename\s+to\s+(${PARTE})\s*$`, 'i')
+  const MUDA_ESQUEMA = new RegExp(String.raw`^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(${NOME_QUALIFICADO})\s+set\s+schema\s+(${PARTE})\s*$`, 'i')
+  const CRIA_VIEW = new RegExp(String.raw`^create\s+(?:or\s+replace\s+)?(?:(?:temp|temporary)\s+)?(?:recursive\s+)?view\s+(${NOME_QUALIFICADO})`, 'i')
+  function mover(de, para) {
+    apelidos.set(para, canon(de))
+    apelidos.delete(de)
+    renomeadasDe.add(de)
   }
-  return escritas
+  function registrar(comando) {
+    let m
+    if ((m = RENOMEIA.exec(comando))) {
+      const de = normalizarNome(m[1])
+      mover(de, `${de.split('.')[0]}.${parteNormalizada(m[2])}`)
+    } else if ((m = MUDA_ESQUEMA.exec(comando))) {
+      const de = normalizarNome(m[1])
+      mover(de, `${parteNormalizada(m[2])}.${de.split('.')[1]}`)
+    } else if ((m = CRIA_VIEW.exec(comando))) {
+      const bases = new Set()
+      for (const f of comando.matchAll(new RegExp(String.raw`\b(?:from|join)\s+(?:only\s+)?(${NOME_QUALIFICADO})`, 'gi'))) {
+        for (const t of canon(normalizarNome(f[1]))) bases.add(t)
+      }
+      if (bases.size) apelidos.set(normalizarNome(m[1]), [...bases])
+    }
+  }
+  return { canon, registrar, renomeadasDe }
 }
 
 // -----------------------------------------------------------------------------
@@ -740,29 +812,36 @@ export function classificar(sql) {
   const ilegiveis = []
   const valvulas = []
   const transacao = []
+  const escritas = []
+  const identidade = novaIdentidade()
+  const criadaAqui = (t) => t.startsWith('pg_temp.') || identidade.canon(t).every((x) => x.startsWith('pg_temp.') || criadasAqui.has(x))
   let risco = 0
   for (const cmd of comandos) {
     const l = lerComando(cmd)
     leituras.push({ cmd, l })
     // A tabela criada neste comando conta para os comandos SEGUINTES (e para ele mesmo,
-    // no `create table … as`/`insert` do mesmo texto não há caso real).
-    for (const t of l.criadas) criadasAqui.add(t)
+    // no `create table … as`/`insert` do mesmo texto não há caso real). O nome de uma tabela que
+    // já existia e foi RENOMEADA embora não renasce com um `create table` (a cópia viva).
+    for (const t of l.criadas) if (!identidade.renomeadasDe.has(t)) criadasAqui.add(t)
     for (const a of l.alvos) {
-      if (a.tabela.startsWith('pg_temp.') || criadasAqui.has(a.tabela)) continue
+      for (const t of identidade.canon(a.tabela)) escritas.push({ verbo: a.verbo, tabela: t, origem: cmd.origem })
+      if (criadaAqui(a.tabela)) continue
       const apaga = a.verbo === 'delete' || a.verbo === 'truncate' || (a.verbo === 'merge' && /\bthen\s+delete\b/i.test(cmd.mascarado))
       const classe = apaga ? 'DESTRUTIVA' : 'BACKFILL'
-      motivos[classe].push(`${a.verbo} em ${a.tabela}${cmd.origem === 'do' ? ' (dentro de do)' : ''}`)
+      const nomes = identidade.canon(a.tabela).join(', ')
+      motivos[classe].push(`${a.verbo} em ${nomes}${nomes !== a.tabela ? ` (pelo nome ${a.tabela})` : ''}${cmd.origem === 'do' ? ' (dentro de do)' : ''}`)
       risco = Math.max(risco, RISCO[classe])
     }
     for (const d of l.destrutiva) {
       // a tabela criada NESTA migration não tem dado de antes a perder
-      if (d.tabelas.length && d.tabelas.every((t) => criadasAqui.has(t))) continue
+      if (d.tabelas.length && d.tabelas.every(criadaAqui)) continue
       motivos.DESTRUTIVA.push(d.motivo)
       risco = Math.max(risco, 2)
     }
+    identidade.registrar(l.comando)
     for (const a of l.addColumn) {
       const alvo = /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?("(?:[^"]|"")+"(?:\s*\.\s*"(?:[^"]|"")+")?|[a-z_][a-z0-9_$.]*)/i.exec(cmd.mascarado)
-      if (alvo && criadasAqui.has(normalizarNome(alvo[1]))) continue
+      if (alvo && criadaAqui(normalizarNome(alvo[1]))) continue
       ilegiveis.push(`add column ${a}`)
     }
     ilegiveis.push(...l.ilegiveis)
@@ -778,6 +857,7 @@ export function classificar(sql) {
     ilegiveis,
     valvulas,
     transacao,
+    escritas,
     criadas: [...criadasAqui],
   }
 }

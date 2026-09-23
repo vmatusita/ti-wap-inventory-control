@@ -286,6 +286,69 @@ describe('2. a regra a partir da 0159 — sabotagem A', () => {
 })
 
 // -----------------------------------------------------------------------------
+// 2-bis. o que a REVISÃO ADVERSARIAL da F63 achou (e cada caso agora reprova)
+// -----------------------------------------------------------------------------
+
+describe('2-bis. os furos da revisão adversarial da F63', () => {
+  const reprova = (sql: string, padrao: RegExp) => {
+    expect(conferirMigration(NOME, sql).join(' · '), `esperava reprovar por ${padrao}`).toMatch(padrao)
+  }
+
+  it('R1 — `set_config(session_replication_role)` é a válvula, na forma de função também', () => {
+    reprova(migracao('ADITIVA', "select set_config('session_replication_role', 'replica', false);"), /abre válvula das guardas: set_config de session_replication_role/)
+  })
+
+  it('R2 — `set_config` com o NOME da GUC montado (concatenação) é ILEGÍVEL — a válvula não escapa pela concatenação', () => {
+    const sql = migracao('ADITIVA', "do $$ begin perform set_config('estoque.' || 'dev_destrutivo', 'on', false); end $$;")
+    expect(classificar(sql).veredito).toBe(ILEGIVEL)
+    reprova(sql, /set_config com o nome da GUC montado/)
+    // o literal inteiro continua sendo lido, e o `set_config` comum continua sem escrita
+    expect(classificar("select set_config('request.jwt.claims', '{}', true);").veredito).toBe('ADITIVA')
+  })
+
+  it('R3 — `rename` + `create table <o nome antigo>` + `insert`: a cópia de uma tabela viva NÃO é "criada aqui"', () => {
+    const sql = migracao(
+      'ADITIVA',
+      [
+        'alter table public.ativos rename to ativos_velha_f63;',
+        'create table public.ativos (like ativos_velha_f63 including all);',
+        'insert into public.ativos select * from ativos_velha_f63;',
+      ].join('\n'),
+    )
+    expect(classificar(sql).calculada).toBe('BACKFILL')
+    reprova(sql, /declara ADITIVA e executa BACKFILL/)
+  })
+
+  it('R4 — escrever por um nome RENOMEADO, por outro ESQUEMA ou por uma VIEW criada aqui é escrever na tabela original', () => {
+    const ida = 'alter table public.movimentacoes rename to movs_tmp_f63;\nupdate movs_tmp_f63 set ordem = 1 where true;\nalter table movs_tmp_f63 rename to movimentacoes;'
+    expect(escritasExecutadas(ida).map((e: { verbo: string; tabela: string }) => `${e.verbo} ${e.tabela}`)).toEqual(['update public.movimentacoes'])
+    expect(classificar(ida).calculada).toBe('BACKFILL')
+    const esquema = 'alter table public.ativos set schema arquivo;\ndelete from arquivo.ativos where true;'
+    expect(escritasExecutadas(esquema).map((e: { verbo: string; tabela: string }) => `${e.verbo} ${e.tabela}`)).toEqual(['delete public.ativos'])
+    expect(classificar(esquema).calculada).toBe('DESTRUTIVA')
+    const view = 'create view public.v_f63 as select * from public.lancamentos_item;\nupdate public.v_f63 set quantidade = 0 where true;'
+    expect(escritasExecutadas(view).map((e: { verbo: string; tabela: string }) => `${e.verbo} ${e.tabela}`)).toEqual(['update public.lancamentos_item'])
+    expect(classificar(view).calculada).toBe('BACKFILL')
+    // o par legítimo: a tabela criada aqui, renomeada e escrita, continua ADITIVA
+    expect(classificar('create table public.nova (a int);\nalter table public.nova rename to nova2;\ninsert into nova2 values (1);').calculada).toBe('ADITIVA')
+  })
+
+  it('R5 — `backups_migration` continua FECHADA no texto da 0159 (a regressão que o CI, sem default privilege, não veria)', () => {
+    // O Postgres do CI não tem o `alter default privileges` do projeto hospedado: lá a tabela nova
+    // nasce sem grant nenhum, COM ou SEM o revoke — e o bloco 6 de empresa_no_acervo.sql passaria
+    // igual se o revoke sumisse. Esta é a trava de mesa do texto; a do banco hospedado é a
+    // verificação pós-apply (privilégios 00000 nos três papéis).
+    const texto = semComentarios(doCorpus('0159').sql).replace(/\s+/g, ' ')
+    expect(texto).toContain('alter table public.backups_migration enable row level security;')
+    expect(texto).toContain('revoke all on public.backups_migration from anon, authenticated, service_role;')
+    expect(texto).toContain('revoke all on sequence public.backups_migration_id_seq from anon, authenticated, service_role;')
+    expect(texto).not.toMatch(/force row level security/i)
+    expect(texto).not.toMatch(/create policy/i)
+    expect(texto).not.toMatch(/\bgrant\b/i)
+  })
+})
+
+// -----------------------------------------------------------------------------
 // 3. a cadeia real — a regra nas novas, o censo nas antigas
 // -----------------------------------------------------------------------------
 

@@ -813,6 +813,15 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     ['num comentário de fim de linha — IGNORADO', 'select 1; -- update public.ativos set status = null', []],
     ['num comentário de bloco aninhado — IGNORADO', '/* /* aninhado */ delete from public.ativos */ select 1;', []],
     ['`revoke truncate on public.ativos` — não é truncate', 'revoke truncate on public.ativos from anon;', []],
+    // Revisão adversarial da F63: o NOME da tabela muda dentro do arquivo — e a escrita continua sendo nela.
+    [
+      'por um nome renomeado de ida e volta',
+      'alter table public.movimentacoes rename to movs_tmp;\nupdate movs_tmp set ordem = 1 where true;\nalter table movs_tmp rename to movimentacoes;',
+      ['update public.movimentacoes'],
+    ],
+    ['por um nome renomeado, com `delete`', 'alter table public.ativos rename to ativos_tmp;\ndelete from ativos_tmp where true;', ['delete public.ativos']],
+    ['depois de `set schema`', 'alter table public.ativos set schema arquivo;\nupdate arquivo.ativos set status = status where true;', ['update public.ativos']],
+    ['por uma view criada no arquivo', 'create view public.v_tmp as select * from public.lancamentos_item;\ndelete from public.v_tmp where true;', ['delete public.lancamentos_item']],
   ])('a guarda de topo acusa (ou ignora) %s', (_nome, sql, esperado) => {
     expect(violacoesDaGuarda('0170_sabotagem_b.sql', sql)).toEqual(esperado)
   })
