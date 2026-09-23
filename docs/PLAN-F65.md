@@ -268,7 +268,7 @@ sem abrir a janela destrutiva.**
 
 - **Um gatilho de coerência**, sem checagem de integridade nova (a contagem do "antes" provou o dado coerente — 0 nos dois
   bancos —, e checagem nova arrastaria a ordem do alarme da F64 para esta fase): `public.termo_da_empresa()` (INVOKER,
-  `search_path = public`, `revoke all` dos quatro papéis) e o gatilho `termos_gerados_da_empresa`, `BEFORE INSERT OR
+  `search_path = public`, `revoke all` dos quatro papéis) e o gatilho `termos_gerados_ids_da_empresa`, `BEFORE INSERT OR
   UPDATE OF movimentacao_ids, ativo_ids, empresa_id … FOR EACH ROW`.
 - **A regra na forma POSITIVA**: todo id distinto de `movimentacao_ids` existe em `movimentacoes` COM a empresa do termo,
   e todo id distinto de `ativo_ids` existe em `ativos` COM a empresa do termo. A forma positiva continua certa depois da

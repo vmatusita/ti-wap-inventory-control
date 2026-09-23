@@ -842,12 +842,14 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
   })
 
   it('15h usa o predicado ÚNICO por comando (revisão adversarial da F64), e 15j confere as exceções de volta (os dois sentidos)', () => {
-    const sql = semComentarios(cat)
+    // F65: pelo DESPACHANTE (`pg_temp.leitura_de_empresa`, que aplica o mesmo predicado com as tabelas de cada
+    // exceção de `k_leitura_tenant`); a chamada quebra linha no SQL, e o espaço é normalizado aqui.
+    const sql = semComentarios(cat).replace(/\s+/g, ' ')
     // a exceção vale por COMANDO, não pela função inteira: o predicado de `_asserts.sql` recebe as
     // exceções E as tabelas do kit; o corpo é lido pelo léxico (`apagar_usuario`, 0158, cita
     // `eventos_admin` num comentário)
     // os DOIS lotes: a régua da decisão 7 vale para as dezenove (2ª rodada da revisão adversarial)
-    const CHAMADA = 'pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit)'
+    const CHAMADA = 'pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit, k_leitura_tenant)'
     expect(sql, '15h não usa o predicado único de _asserts.sql sobre os dois lotes').toContain(CHAMADA)
     // A isenção pela função inteira não volta por NENHUM caminho (2ª rodada: a trava antiga só
     // reconhecia o alias `c.` que o próprio conserto aposentou): no trecho de 15h — do fim do 15g ao
@@ -860,21 +862,23 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     const trecho = sql.slice(i15g, i15h)
     expect(trecho.split(CHAMADA).length, '15h chama o predicado uma vez só').toBe(2)
     expect(trecho.split(CHAMADA).join(''), '15h usa a lista de exceções fora do predicado (isenção pela função inteira)').not.toMatch(
-      /k_leitura_integridade|k_tabelas_leitura_kit/,
+      /k_leitura_integridade|k_tabelas_leitura_kit|k_leitura_tenant/,
     )
     expect(trecho, '15h filtra por proname fora do predicado').not.toMatch(/proname\s*(?:=|<>|!=|~|\bin\b|\bis\b|\blike\b)/i)
     expect(sql).toMatch(/from unnest\(k_leitura_integridade\) as nome/)
     const asserts = fonte('_asserts')
     expect(asserts, '_asserts.sql perdeu o léxico do corpo').toMatch(/create or replace function pg_temp\.sql_so_codigo\(p_texto text\)/)
     expect(asserts, '_asserts.sql perdeu o predicado da leitura do lote').toMatch(/create or replace function pg_temp\.leitura_de_empresa_do_lote\(/)
+    expect(asserts, '_asserts.sql perdeu o despachante da F65').toMatch(/create or replace function pg_temp\.leitura_de_empresa\(/)
+    expect(asserts, 'o predicado perdeu o furo fechado na F65 (gatilho numa tabela do lote conta como leitura)').toMatch(/v_gatilho_no_lote/)
     // e o predicado exige a ORIGEM provada nas exceções: `new`/`old` pelo gatilho, e o apelido no comando
     expect(asserts, 'o predicado não confere o gatilho de new/old').toMatch(/from pg_trigger t/)
     expect(asserts, 'o predicado não acusa a origem que o comando não prova').toMatch(/de origem que o comando não prova/)
   })
 
   it('15h sabe reprovar a isenção reintroduzida com outro alias (a trava acima, sabotada)', () => {
-    const sql = semComentarios(cat)
-    const CHAMADA = 'pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit)'
+    const sql = semComentarios(cat).replace(/\s+/g, ' ')
+    const CHAMADA = 'pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit, k_leitura_tenant)'
     const sabotado = sql.replace(CHAMADA, `${CHAMADA} as le, not (x.proname = any (k_leitura_integridade)) as isenta`)
     const trecho = sabotado.slice(sabotado.search(/assert_zero_de\(\s*'15g /), sabotado.search(/assert_zero_de\(\s*'15h /))
     expect(trecho.split(CHAMADA).join('')).toMatch(/k_leitura_integridade/)
@@ -898,5 +902,81 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
       expect(t, 'empresa_no_vocabulario.sql não declara a cópia das tabelas da leitura do kit').not.toBeNull()
       expect([...t![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort()).toEqual(lista('k_tabelas_leitura_kit'))
     }
+  })
+})
+
+describe('14. a integridade estrutural do tenant (F65): as cópias batem com a fonte única, e as listas nominais não crescem caladas', () => {
+  // PLAN-F65 §3. Os quatro roteiros novos que precisam da tabela-verdade de negócio a COPIAM de `k_negocio`
+  // (catalogo_policies.sql) — um `\ir` de dentro de um bloco `do` não existe —, e esta trava amarra cada cópia à
+  // fonte. As listas nominais (as exceções de forma, de unicidade e de guarda) são conferidas aqui POR EXTENSO: uma
+  // entrada nova é decisão, e decisão passa por esta trava e pelo motivo escrito no roteiro. E `k_leitura_tenant`
+  // (as três exceções de leitura da F65) tem duas cópias em roteiros da F63/F64, amarradas também.
+  const cat = fonte('catalogo_policies')
+  const lista = (sql: string, nome: string) => {
+    const m = new RegExp(String.raw`${nome}\s+(?:constant\s+)?text\[\]\s*:=\s*array\[([\s\S]*?)\]`).exec(sql)
+    if (!m) throw new Error(`não achei ${nome}`)
+    return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]).sort()
+  }
+  const negocio = lista(cat, 'k_negocio')
+  const ROTEIROS = ['forma_multiempresa', 'unicidade_por_empresa', 'imutabilidade_tenant', 'integridade_tenant'] as const
+
+  it.each([...ROTEIROS, 'f65_rollback'])('%s.sql existe e emite UMA linha FIM fechando o bloco', (nome) => {
+    expect(existsSync(join(PASTA, `${nome}.sql`)), `supabase/tests/${nome}.sql não existe`).toBe(true)
+    const linhas = fonte(nome).split('\n')
+    const i = linhas.findIndex((l) => l.includes(`raise notice 'FIM ${nome}: % asserções, % falhas', v_ok + v_falhas, v_falhas;`))
+    expect(i, `${nome}.sql: sem a linha FIM no molde da F45`).toBeGreaterThan(-1)
+    expect(linhas.filter((l) => l.includes(`'FIM ${nome}:`)).length).toBe(1)
+    expect((linhas[i + 1] ?? '').trim()).toMatch(/^end(\s*\$\$;)?$/)
+  })
+
+  it.each(ROTEIROS)('%s.sql copia k_negocio EXATAMENTE da fonte única', (nome) => {
+    expect(lista(fonte(nome), 'k_negocio'), `${nome}.sql: a cópia de k_negocio divergiu de catalogo_policies.sql`).toEqual(negocio)
+  })
+
+  it('as listas nominais são EXATAMENTE as da decisão (uma entrada nova passa por aqui)', () => {
+    expect(lista(fonte('forma_multiempresa'), 'k_fk_fora_da_forma')).toEqual(['operador_filiais_filial_id_fkey'])
+    expect(lista(fonte('forma_multiempresa'), 'k_pares_com_duas_relacoes')).toEqual(['movimentacoes→filiais'])
+    expect(lista(fonte('unicidade_por_empresa'), 'k_unicidade_implicita')).toEqual([
+      'ativos_patrimonio_service_tag_uidx', 'ativos_service_tag_sem_patrimonio_uidx', 'lanc_item_estorna_uidx',
+      'movimentacoes_ordem_uidx', 'relatorios_gerados_periodo_de_periodo_ate_filial_id_versao_key',
+      'termos_gerados_tipo_movimentacao_ids_key',
+    ])
+    // decisão 2 do Johnny: toda tabela de negócio tem a guarda, sem exceção
+    expect(/k_sem_guarda_empresa\s+text\[\]\s*:=\s*array\[\]::text\[\]/.test(fonte('imutabilidade_tenant'))).toBe(true)
+    const semGuarda = lista(fonte('imutabilidade_tenant'), 'k_empresa_id_sem_guarda')
+    expect(semGuarda).toEqual(['membros', 'operador_filiais'])
+    expect(semGuarda.filter((t) => negocio.includes(t)), 'uma tabela de NEGÓCIO entrou na lista da infra sem guarda').toEqual([])
+  })
+
+  it('cada entrada nominal tem o motivo escrito no roteiro (o nome aparece num comentário acima da lista)', () => {
+    const casos: [string, string[]][] = [
+      ['forma_multiempresa', ['operador_filiais_filial_id_fkey', 'movimentacoes→filiais']],
+      ['unicidade_por_empresa', lista(fonte('unicidade_por_empresa'), 'k_unicidade_implicita')],
+      ['imutabilidade_tenant', ['membros', 'operador_filiais']],
+    ]
+    for (const [nome, entradas] of casos) {
+      const comentarios = fonte(nome).split('\n').filter((l) => /^\s*--/.test(l)).join('\n')
+      for (const e of entradas) expect(comentarios.includes(`· ${e}`), `${nome}.sql: ${e} sem o motivo escrito ("· ${e}")`).toBe(true)
+    }
+  })
+
+  it('k_leitura_tenant: as três exceções da F65, e as cópias em empresa_no_acervo e empresa_no_vocabulario batem', () => {
+    const tenant = lista(cat, 'k_leitura_tenant')
+    expect(tenant.map((e) => e.split(':')[0])).toEqual(['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'])
+    // a guarda cobre as 20 de negócio; as outras duas, só as tabelas delas
+    const tabelas = Object.fromEntries(tenant.map((e) => [e.split(':')[0], e.split(':')[1].split(',').sort()]))
+    expect(tabelas.guarda_empresa).toEqual(negocio)
+    expect(tabelas.termo_da_empresa).toEqual(['ativos', 'movimentacoes', 'termos_gerados'])
+    expect(tabelas.vocabulario_unidades_guarda).toEqual(['filiais', 'unidades_apelidos'])
+    expect(lista(fonte('empresa_no_vocabulario'), 'k_leitura_tenant'), 'empresa_no_vocabulario.sql: a cópia divergiu').toEqual(tenant)
+    expect(lista(fonte('empresa_no_acervo'), 'k_leitura_tenant_nomes'), 'empresa_no_acervo.sql: a cópia dos nomes divergiu').toEqual(
+      tenant.map((e) => e.split(':')[0]),
+    )
+  })
+
+  it('15k confere k_leitura_tenant de volta (existe, lê, e a guarda cobre as 20), com o rótulo literal', () => {
+    const sql = semComentarios(cat)
+    expect(sql).toMatch(/assert_zero_de\(\s*'15k /)
+    expect(sql).toMatch(/from unnest\(k_leitura_tenant\) as e/)
   })
 })

@@ -58,8 +58,42 @@ const leituraIntegridade = () => listaDoCatalogo('k_leitura_integridade', 'das e
 /** As tabelas cuja coluna as exceções podem ler — e só nelas (`k_tabelas_leitura_kit`, a fonte única). */
 const TABELAS_DA_LEITURA_DO_KIT: readonly string[] = listaDoCatalogo('k_tabelas_leitura_kit', 'das tabelas da leitura do kit')
 
+// EMENDA F65 (23/09/2026). A F65 cria três leituras legítimas de `empresa_id` no SQL — integridade e
+// identidade, não recorte: `guarda_empresa` (só `new`/`old`, nas 20 de negócio), `termo_da_empresa`
+// (`termos_gerados`, `movimentacoes`, `ativos`) e a diagonal por empresa de `vocabulario_unidades_guarda`
+// (`filiais`, `unidades_apelidos`). Cada uma lê SÓ das tabelas dela: a fonte única é `k_leitura_tenant`
+// em catalogo_policies.sql, entrada `função:tabela,tabela` — o mesmo despachante de
+// `pg_temp.leitura_de_empresa` (_asserts.sql), aqui no disco.
+const LEITURA_TENANT: ReadonlyMap<string, readonly string[]> = (() => {
+  const m = /k_leitura_tenant text\[\] := array\[([\s\S]*?)\];/.exec(CATALOGO)
+  if (!m) throw new Error('catalogo_policies.sql: não achei k_leitura_tenant — a fonte única das exceções da F65')
+  return new Map([...m[1].matchAll(/'([a-z_0-9]+):([a-z_0-9,]+)'/g)].map((x) => [x[1], x[2].split(',')] as const))
+})()
+
 /** A exceção nomeada da varredura TS: o espelho gerado do banco. */
 const EXCECOES_TS = ['src/lib/types/database.ts'] as const
+
+// EMENDA F65 (23/09/2026 — decisões 5 e 6 do PLAN-F65). Duas cadeias TS passam a citar `empresa_id` de
+// uma das dezenove ANTES da F66 — nenhuma é recorte (as duas continuam sem filtro de empresa): a
+// IDENTIDADE da chave do snapshot (o índice da 0171 é por empresa, e a badge "superada" tem de agrupar
+// pela mesma chave) e o ÁRBITRO do `ON CONFLICT` dos colaboradores (o unique da 0172/0174 é por empresa,
+// e o Postgres só infere o índice com EXATAMENTE essas colunas). Exceção NOMINAL, por arquivo E tabela,
+// cada uma usada exatamente uma vez — um `.eq('empresa_id', …)` novo no mesmo arquivo segue reprovado
+// pela catraca abaixo, que compara trecho a trecho.
+const EXCECOES_TS_F65: readonly { arquivo: string; tabela: string; motivo: string }[] = [
+  {
+    arquivo: 'src/lib/queries/gerados.ts',
+    tabela: 'relatorios_gerados',
+    motivo: 'F65 (decisão 6): a chave da versão do snapshot é por empresa — identidade da chave, não recorte',
+  },
+  {
+    arquivo: 'src/lib/actions/colaboradores.ts',
+    tabela: 'colaboradores',
+    motivo: 'F65 (decisão 5): o árbitro do ON CONFLICT é o unique por empresa — alvo de inferência, não recorte',
+  },
+]
+const ehExcecaoTsF65 = (l: Leitura) =>
+  EXCECOES_TS_F65.some((e) => l.onde.startsWith(`${e.arquivo}:`) && l.tabela === e.tabela)
 
 // Todo fonte JS/TS que o bundler aceita — `.mts`/`.cts` e os `.js` também (2ª rodada da revisão
 // adversarial: a varredura só via `.ts`/`.tsx`, e um utilitário `.mts` novo escaparia das duas travas).
@@ -185,8 +219,16 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
     for (const t of oito) expect(leituras.some((l) => l.tabela === t), `nenhuma consulta a ${t}`).toBe(true)
   })
 
-  it('nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id', () => {
-    expect(leituras.filter(citaEmpresaId).map((l) => `${l.onde} (${l.tabela})`)).toEqual([])
+  it('nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id — fora das duas exceções nominais da F65', () => {
+    expect(leituras.filter((l) => citaEmpresaId(l) && !ehExcecaoTsF65(l)).map((l) => `${l.onde} (${l.tabela})`)).toEqual([])
+  })
+
+  it('cada exceção nominal da F65 é usada por EXATAMENTE uma cadeia (a lista não guarda fantasma nem cobre duas)', () => {
+    for (const e of EXCECOES_TS_F65) {
+      const usos = leituras.filter((l) => citaEmpresaId(l) && l.onde.startsWith(`${e.arquivo}:`) && l.tabela === e.tabela)
+      expect(usos.map((l) => l.onde), `${e.arquivo} (${e.tabela})`).toHaveLength(1)
+      expect(e.motivo.length, `${e.arquivo} sem motivo`).toBeGreaterThan(20)
+    }
   })
 
   it('nenhuma consulta de tabela DINÂMICA (`.from(variavel)`) cita empresa_id', () => {
@@ -272,6 +314,20 @@ const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> =
     ],
     motivo: 'F62: a lista de usuários e os vínculos (membros, operador_filiais) na empresa legada',
   },
+  // F65 — as duas exceções nominais (EXCECOES_TS_F65, lá em cima): partem de uma das dezenove, e só elas podem.
+  'src/lib/queries/gerados.ts': {
+    trechos: [
+      ".from('relatorios_gerados') .select('id, empresa_id",
+      ".from('relatorios_gerados') .select('id, empresa_id, periodo_de, periodo_ate, filial_id, versao') .in('periodo_de', datas) if (eVersoes) { registrarFalha({ escopo: 'gerados.versoes-superadas', erro: eVersoes }) } else { for (const v of versoes ?? []) { const empresa = v.empresa_id",
+    ],
+    motivo: 'F65 (decisão 6): a empresa de cada versão, para a chave do snapshot (o índice da 0171)',
+  },
+  'src/lib/actions/colaboradores.ts': {
+    trechos: [
+      ".from('colaboradores') .upsert( aCriar.map((g) => ({ nome: g.grafia_exemplo.trim(), filial_id: g.filial_id, criado_por: aut.uid, })), { onConflict: 'empresa_id",
+    ],
+    motivo: 'F65 (decisão 5): o alvo do ON CONFLICT da consolidação (o unique por empresa da 0172/0174)',
+  },
 }
 
 describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/**', () => {
@@ -290,12 +346,13 @@ describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do litera
     expect(achado, 'empresa_id apareceu, sumiu ou mudou de consulta num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66').toEqual(esperado)
   })
 
-  it('nenhum trecho liberado parte de uma das oito', () => {
+  it('nenhum trecho liberado parte de uma das oito — fora das exceções nominais da F65, cada uma da SUA tabela', () => {
     for (const [a, { trechos }] of Object.entries(EMPRESA_ID_NO_APP)) {
       for (const t of trechos) {
         const tabela = /^\.from\(\s*['"`]([a-z_0-9]+)['"`]/.exec(t)?.[1]
         expect(tabela, `${a}: trecho sem o .from( da tabela — «${t}»`).toBeDefined()
-        expect(oito.includes(tabela!), `${a}: o trecho lê ${tabela}, uma das oito`).toBe(false)
+        const nominal = EXCECOES_TS_F65.some((e) => e.arquivo === a && e.tabela === tabela)
+        expect(oito.includes(tabela!) && !nominal, `${a}: o trecho lê ${tabela}, uma das oito`).toBe(false)
       }
     }
   })
@@ -346,6 +403,22 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   /** As tabelas das oito que um COMANDO lê ou escreve (`from`/`join`/`update`/`into`). */
   const tabelasDoAcervo = (cmd: string) => [...cmd.matchAll(new RegExp(RE_TABELA, 'gi'))].map((m) => m[1].toLowerCase()).filter((t) => oito.includes(t))
 
+  // As tabelas em que cada função é GATILHO, lidas do disco (`create trigger … on T … execute function F(`).
+  // Um `drop trigger X on T` não é seguido: nenhuma migration derruba gatilho de função que interesse aqui, e o
+  // catálogo (15h, no CI) é a palavra final sobre o vivo.
+  const GATILHOS = new Map<string, Set<string>>()
+  for (const arquivo of readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort()) {
+    const sql = semComentariosSql(readFileSync(join(DIR, arquivo), 'utf8').replace(/\r\n/g, '\n'))
+    const RE = /create\s+(?:or\s+replace\s+)?(?:constraint\s+)?trigger\s+[a-z_0-9]+[^;]*?\bon\s+(?:public\.)?([a-z_0-9]+)[^;]*?execute\s+(?:function|procedure)\s+(?:public\.)?([a-z_0-9]+)\s*\(/gi
+    for (const m of sql.matchAll(RE)) {
+      const funcao = m[2].toLowerCase()
+      if (!GATILHOS.has(funcao)) GATILHOS.set(funcao, new Set())
+      GATILHOS.get(funcao)!.add(m[1].toLowerCase())
+    }
+  }
+  /** As tabelas das dezenove em que a função é gatilho — a linha que o `new`/`old` dela lê (F65, o fato 21). */
+  const gatilhosNoLote = (funcao: string) => [...(GATILHOS.get(funcao) ?? [])].filter((t) => oito.includes(t))
+
   /**
    * Os comandos de um corpo que LEEM `empresa_id` de uma das oito. Por COMANDO — partido pelo léxico
    * do leitor único (`comandosDoTexto`: o `;` dentro de texto não parte, o texto entre aspas sai) —, porque uma função
@@ -353,13 +426,17 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
    * (`checagens_integridade_nucleo`, desde a F62). Dentro do comando: `x.empresa_id` conta se `x`
    * é uma das oito ou o alias de uma delas; `empresa_id` sem qualificador conta se o comando lê ou
    * escreve uma das oito.
+   *
+   * F65 (o fato 21 da ordem — o furo que `pg_temp.leitura_de_empresa_do_lote` também tinha): `new.empresa_id`/
+   * `old.empresa_id` numa função que é GATILHO de uma das dezenove é ler a coluna da linha do gatilho, sem citar
+   * a tabela no corpo — a forma de `guarda_empresa`. Conta, com as tabelas do gatilho (`gatilhos`).
    */
-  function leEmpresaIdDoAcervo(corpo: string): string[] {
-    return comandosQueLeem(corpo).map((c) => c.trecho)
+  function leEmpresaIdDoAcervo(corpo: string, gatilhos: readonly string[] = []): string[] {
+    return comandosQueLeem(corpo, gatilhos).map((c) => c.trecho)
   }
 
-  /** Os comandos que leem, com as tabelas dos lotes que cada um toca (a régua da exceção do kit). */
-  function comandosQueLeem(corpo: string): { trecho: string; tabelas: string[] }[] {
+  /** Os comandos que leem, com as tabelas dos lotes que cada um toca (a régua das exceções). */
+  function comandosQueLeem(corpo: string, gatilhos: readonly string[] = []): { trecho: string; tabelas: string[] }[] {
     const achados: { trecho: string; tabelas: string[] }[] = []
     for (const cmd of comandosDoTexto(corpo)) {
       // sem caixa: o Postgres dobra o identificador sem aspas (`A.EMPRESA_ID` é `a.empresa_id`)
@@ -376,6 +453,11 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
       )
       for (const m of cmd.matchAll(/(?:\b([a-z_][a-z0-9_]*)\s*\.\s*)?\bempresa_id\b/gi)) {
         const q = m[1]?.toLowerCase()
+        // F65: a linha do gatilho — conta se a função é gatilho de uma das dezenove.
+        if ((q === 'new' || q === 'old') && gatilhos.length > 0) {
+          achados.push({ trecho: cmd.replace(/\s+/g, ' ').trim().slice(0, 120), tabelas: [...new Set([...tabelasDoAcervo(cmd), ...gatilhos])] })
+          break
+        }
         // O qualificador resolvido é uma tabela real (a própria, ou o apelido direto dela): conta se é uma das oito.
         // O que NÃO se resolve — o apelido de um subselect ou de um CTE (3ª rodada da revisão adversarial: `select
         // x.empresa_id from (select * from public.ativos) x`), uma variável de registro — é DESCONHECIDO, e cai na
@@ -399,24 +481,22 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   /** A exceção do kit: função nominal E o comando só toca `kits_modelos`/`motivos` dos lotes. */
   const ehLeituraDoKit = (funcao: string, tabelas: string[]) =>
     excecoes.includes(funcao) && tabelas.length > 0 && tabelas.every((t) => TABELAS_DA_LEITURA_DO_KIT.includes(t))
+  /** As tabelas cuja coluna a função pode ler: as DELA em `k_leitura_tenant` (F65) ou, fora dela, as do kit (F64). */
+  const permitidasPara = (funcao: string): readonly string[] => LEITURA_TENANT.get(funcao) ?? TABELAS_DA_LEITURA_DO_KIT
+  /** O despachante (o espelho de `pg_temp.leitura_de_empresa`): a exceção da F65 é da função e das tabelas dela. */
+  const ehExcecao = (funcao: string, tabelas: string[]) =>
+    LEITURA_TENANT.has(funcao)
+      ? tabelas.length > 0 && tabelas.every((t) => permitidasPara(funcao).includes(t))
+      : ehLeituraDoKit(funcao, tabelas)
   const nomeDaChave = (k: string) => /^[a-z_]+\.([a-z_0-9]+)\(/.exec(k)?.[1] ?? k
 
-  // As tabelas em que cada função é GATILHO, lidas do disco (`create trigger … on T … execute function F(`).
-  const GATILHOS = new Map<string, Set<string>>()
-  for (const arquivo of readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort()) {
-    const sql = semComentariosSql(readFileSync(join(DIR, arquivo), 'utf8').replace(/\r\n/g, '\n'))
-    const RE = /create\s+(?:or\s+replace\s+)?(?:constraint\s+)?trigger\s+[a-z_0-9]+[^;]*?\bon\s+(?:public\.)?([a-z_0-9]+)[^;]*?execute\s+(?:function|procedure)\s+(?:public\.)?([a-z_0-9]+)\s*\(/gi
-    for (const m of sql.matchAll(RE)) {
-      const funcao = m[2].toLowerCase()
-      if (!GATILHOS.has(funcao)) GATILHOS.set(funcao, new Set())
-      GATILHOS.get(funcao)!.add(m[1].toLowerCase())
-    }
-  }
-  /** `new`/`old` são a linha do gatilho: valem só se TODO gatilho que executa a função está numa tabela do kit. */
-  const gatilhoNoKit = (funcao: string) => {
+  /** `new`/`old` são a linha do gatilho: valem só se TODO gatilho que executa a função está numa tabela permitida a ela. */
+  const gatilhoPermitido = (funcao: string) => {
     const tabelas = GATILHOS.get(funcao)
-    return !!tabelas && tabelas.size > 0 && [...tabelas].every((t) => TABELAS_DA_LEITURA_DO_KIT.includes(t))
+    return !!tabelas && tabelas.size > 0 && [...tabelas].every((t) => permitidasPara(funcao).includes(t))
   }
+  /** O nome da F64, mantido: para as duas exceções do kit, "permitida" é "do kit". */
+  const gatilhoNoKit = (funcao: string) => !LEITURA_TENANT.has(funcao) && gatilhoPermitido(funcao)
 
   /**
    * NAS EXCEÇÕES, a origem de cada `x.empresa_id` tem de ser PROVADA no próprio comando (2ª rodada da revisão adversarial
@@ -437,7 +517,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
         if (!q) continue
         const trecho = `${q}.empresa_id em "${cmd.replace(/\s+/g, ' ').trim().slice(0, 100)}"`
         if (q === 'new' || q === 'old') {
-          if (!gatilhoNoKit(funcao)) achados.push(`${trecho} (sem gatilho no kit)`)
+          if (!gatilhoPermitido(funcao)) achados.push(`${trecho} (sem gatilho no kit)`)
           continue
         }
         // a declaração sem o `distinct from` (não declara nada), e o nome declarado sem `.` depois: em
@@ -447,20 +527,57 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
         const origens = [...decl.matchAll(new RegExp(String.raw`${DECLARA}([a-z_][a-z0-9_]*)\s+(?:as\s+)?${q}\b(?!\s*\.)`, 'g'))].map((o) => o[1])
         if (new RegExp(String.raw`${DECLARA}${q}\b(?!\s*\.)`).test(decl)) origens.push(q)
         if (origens.length === 0) achados.push(`${trecho} (origem que o comando não prova)`)
-        else if (origens.some((o) => oito.includes(o) && !TABELAS_DA_LEITURA_DO_KIT.includes(o))) achados.push(`${trecho} (outra tabela do lote)`)
+        else if (origens.some((o) => oito.includes(o) && !permitidasPara(funcao).includes(o))) achados.push(`${trecho} (outra tabela do lote)`)
       }
     }
     return achados
   }
 
-  it('nenhuma função vigente lê empresa_id de uma das dezenove (fora da leitura do kit nas duas exceções nominais)', () => {
+  it('nenhuma função vigente lê empresa_id de uma das dezenove (fora da leitura do kit nas duas exceções nominais e das tabelas de cada exceção da F65)', () => {
     expect(
       [...vigentes.entries()].flatMap(([k, v]) =>
-        comandosQueLeem(v.texto)
-          .filter((c) => !ehLeituraDoKit(nomeDaChave(k), c.tabelas))
+        comandosQueLeem(v.texto, gatilhosNoLote(nomeDaChave(k)))
+          .filter((c) => !ehExcecao(nomeDaChave(k), c.tabelas))
           .map((c) => `${k} (vigente em ${v.arquivo}): ${c.trecho}`),
       ),
     ).toEqual([])
+  })
+
+  it('as exceções da F65 (k_leitura_tenant) são as três, cada uma é função vigente, LÊ, e prova a origem no comando', () => {
+    expect([...LEITURA_TENANT.keys()].sort()).toEqual(['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'])
+    for (const [nome, tabelas] of LEITURA_TENANT) {
+      const defs = [...vigentes.entries()].filter(([k]) => nomeDaChave(k) === nome)
+      expect(defs.length, `${nome}: não há função vigente com esse nome nas migrations`).toBe(1)
+      const leituras = comandosQueLeem(defs[0][1].texto, gatilhosNoLote(nome))
+      expect(leituras.length, `${nome}: a exceção não lê empresa_id de tabela nenhuma dos lotes — exceção sem uso é fantasma`).toBeGreaterThan(0)
+      expect(leituras.filter((c) => !ehExcecao(nome, c.tabelas)).map((c) => c.trecho), nome).toEqual([])
+      expect(origensNaoProvadas(nome, defs[0][1].texto), nome).toEqual([])
+      expect(tabelas.length, nome).toBeGreaterThan(0)
+    }
+    // a guarda é gatilho em EXATAMENTE as tabelas da entrada dela — as 20 de negócio (o 15k, no disco)
+    expect([...(GATILHOS.get('guarda_empresa') ?? [])].sort()).toEqual([...(LEITURA_TENANT.get('guarda_empresa') ?? [])].sort())
+    expect(LEITURA_TENANT.get('guarda_empresa')).toHaveLength(20)
+  })
+
+  it.each([
+    ['o gatilho de uma das dezenove lendo new.empresa_id (o fato 21: sem citar a tabela)', "if new.empresa_id is distinct from old.empresa_id then raise exception 'x'; end if", ['ativos'], true],
+    ['par legítimo: o mesmo corpo numa função que NÃO é gatilho dos lotes', "if new.empresa_id is distinct from old.empresa_id then raise exception 'x'; end if", [], false],
+  ])('SABOTAGEM F (disco, F65) — %s', (_nome, corpo, gatilhos, acusa) => {
+    expect(leEmpresaIdDoAcervo(corpo, gatilhos).length > 0).toBe(acusa)
+  })
+
+  it.each([
+    ['termo_da_empresa lendo a coluna de uma tabela que não é dela', 'termo_da_empresa', 'select count(*) into v from public.eventos_admin e where e.empresa_id = new.empresa_id', true],
+    ['vocabulario_unidades_guarda lendo ativos', 'vocabulario_unidades_guarda', 'perform 1 from public.ativos a where a.empresa_id = new.empresa_id', true],
+    ['uma função fora de k_leitura_tenant com o corpo do termo', 'rel_qualquer', 'select count(distinct m.id) into v from public.movimentacoes m where m.empresa_id = p_e', true],
+    ['par legítimo: termo_da_empresa lendo movimentacoes e ativos, declarados no comando', 'termo_da_empresa', 'select count(distinct m.id) into v from public.movimentacoes m where m.id = any (new.movimentacao_ids) and m.empresa_id = new.empresa_id', false],
+    ['par legítimo: a diagonal lendo unidades_apelidos', 'vocabulario_unidades_guarda', 'select ua.filial_id into v from public.unidades_apelidos ua where ua.apelido_chave = v_chave and ua.empresa_id = new.empresa_id', false],
+  ])('SABOTAGEM F (disco, F65, o despachante) — %s', (_nome, funcao, corpo, acusa) => {
+    const tabelasGatilho = gatilhosNoLote(funcao)
+    const acusou =
+      comandosQueLeem(corpo, tabelasGatilho).filter((c) => !ehExcecao(funcao, c.tabelas)).length > 0 ||
+      (LEITURA_TENANT.has(funcao) && origensNaoProvadas(funcao, corpo).length > 0)
+    expect(acusou).toBe(acusa)
   })
 
   it('as exceções nominais (k_leitura_integridade) são as duas do kit, cada uma é função vigente, e cada uma LÊ (a lista não guarda fantasma)', () => {

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 // enum devolvem EXATAMENTE o que devolviam; a guarda de topo passa a ver a `0133` (o `do` com a
 // janela destrutiva) — e só ela, na faixa de `DA_F38`.
 import { escritasExecutadas, semComentarios, textoExecutado, textoExecutadoMascarado, trocasDeTabela } from '../../../scripts/db/classificar-migration.mjs'
+import { definicoesDeFuncao } from '../../../scripts/db/corpo-vigente.mjs'
 
 // Guarda de ARQUIVO para a promessa central da F38 (critério 9 da ordem): as
 // migrations da fase recriam UMA função existente, e só uma.
@@ -224,6 +225,24 @@ const DA_F38 = [
   // gatilho `kits_modelos_motivo_da_empresa`, e RECRIA `checagens_integridade_nucleo` com a 13ª peça
   // (as doze de antes byte a byte — a prova é o md5 de cada peça). Nenhuma das duas é intocável.
   '0164',
+  // F65 (23/09/2026) — a integridade estrutural do tenant. Da `0165` à `0172` e a `0174`: só
+  // constraint e índice (unique `(empresa_id, id)` nos pais, as FKs compostas com o MESMO nome e as
+  // mesmas ações, a PK dos motivos por empresa, os uniques por empresa pelo provisório → drop →
+  // rename). Nenhuma escreve linha nem cria função, e nenhuma reescreve tupla (a prova é o
+  // relfilenode e o md5 de `(chave, xmin)`, no apply).
+  '0165',
+  '0166',
+  '0167',
+  '0168',
+  '0169',
+  '0170',
+  '0171',
+  '0172',
+  // F65 — a `0173` cria `guarda_empresa` e `termo_da_empresa` (INVOKER, `search_path` fixo, sem
+  // grant) e os gatilhos; RECRIA `vocabulario_unidades_guarda` com DUAS linhas a mais (a diagonal
+  // por empresa) — o resto byte a byte da 0139, e a prova é o teste logo abaixo. Nenhuma é intocável.
+  '0173',
+  '0174',
 ]
 
 /**
@@ -918,6 +937,49 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       const bloco = tudo.slice(i, tudo.indexOf('$$;', i))
       expect(bloco, `${fn} não declara security invoker`).toMatch(/security\s+invoker/i)
       expect(bloco, `${fn} é security definer`).not.toMatch(/security\s+definer/i)
+    }
+  })
+})
+
+// F65 · Frente C — A DIAGONAL POR EMPRESA, NA MESA. A `0173` recria `vocabulario_unidades_guarda` (0139)
+// com DUAS linhas a mais — a procura do nome de outra filial e a do apelido passam a olhar só a empresa da
+// linha — e nada mais. A prova é o texto: o corpo da 0173 é o da 0139 com exatamente essas duas linhas
+// inseridas, cada uma logo depois da sua âncora (o md5 do corpo vivo contra o da 0139 fica no roteiro
+// `integridade_tenant.sql`, no banco do CI). Uma terceira linha mudada — um advisory tocado, uma frase
+// reescrita — reprova aqui antes de reprovar lá.
+describe('F65 — a diagonal por empresa é a da 0139 com duas linhas a mais', () => {
+  const corpo = (arquivo: string) => {
+    const defs = definicoesDeFuncao(readFileSync(join(DIR, arquivo), 'utf8').replace(/\r\n/g, '\n')).filter(
+      (d: { nome: string }) => d.nome === 'vocabulario_unidades_guarda',
+    )
+    expect(defs, `${arquivo}: vocabulario_unidades_guarda definida uma vez`).toHaveLength(1)
+    return (defs[0] as { texto: string }).texto.split('\n')
+  }
+  // Lidos DENTRO de cada caso: sem a 0173, só estes casos caem — o resto do arquivo segue de pé.
+  const antes = () => corpo('0139_vocabulario_import.sql')
+  const depois = () => corpo('0173_guarda_empresa.sql')
+  const INSERIDAS = [
+    { ancora: '     where public.vocabulario_chave(f.nome) = v_chave and f.id <> new.filial_id', linha: '       and f.empresa_id = new.empresa_id' },
+    { ancora: '     where ua.apelido_chave = v_chave', linha: '       and ua.empresa_id = new.empresa_id' },
+  ]
+
+  it('o corpo da 0173 tem exatamente duas linhas a mais que o da 0139', () => {
+    expect(depois().length - antes().length).toBe(2)
+  })
+
+  it('tirando as duas linhas da diagonal, o corpo é o da 0139 BYTE A BYTE', () => {
+    const semDiagonal = depois().filter((l) => !INSERIDAS.some((i) => i.linha === l))
+    expect(semDiagonal).toEqual(antes())
+  })
+
+  it('cada linha nova vem LOGO DEPOIS da sua âncora, uma vez só', () => {
+    const d = depois()
+    const a = antes()
+    for (const { ancora, linha } of INSERIDAS) {
+      expect(d.filter((l) => l === linha), linha).toHaveLength(1)
+      const i = d.indexOf(linha)
+      expect(d[i - 1], `a linha "${linha.trim()}" não segue a âncora`).toBe(ancora)
+      expect(a.filter((l) => l === ancora), `a âncora "${ancora.trim()}" sumiu da 0139`).toHaveLength(1)
     }
   })
 })

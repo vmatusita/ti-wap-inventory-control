@@ -136,6 +136,24 @@ declare
   -- mesa `empresa-acervo-sem-leitura.test.ts` a LÊ daqui.
   k_tabelas_leitura_kit text[] := array['kits_modelos', 'motivos'];
 
+  -- F65 (23/09/2026) — AS LEITURAS DE `empresa_id` DA INTEGRIDADE DO TENANT (decisão 12 do PLAN-F65): três funções que a
+  -- F65 cria ou recria leem a coluna — integridade e identidade, não recorte; nenhuma decide o que alguém VÊ. Cada uma
+  -- pode ler SÓ das tabelas da entrada (`função:tabela,tabela`), POR COMANDO, com a origem provada (o predicado único
+  -- `pg_temp.leitura_de_empresa_do_lote`, pelo despachante `pg_temp.leitura_de_empresa`, `_asserts.sql`):
+  --   · guarda_empresa              (0173) — a função dos 20 gatilhos BEFORE UPDATE OF empresa_id: compara new × old da
+  --                                   linha do gatilho, e só isso (não toca tabela — imutabilidade_tenant.sql, I2); as
+  --                                   tabelas são as 20 de `k_negocio` (onde ela é gatilho);
+  --   · termo_da_empresa            (0173) — o gatilho de `termos_gerados`: todo id dos arrays é de `movimentacoes`/`ativos`
+  --                                   da empresa do termo;
+  --   · vocabulario_unidades_guarda (0173, recriada) — a diagonal nome × apelido, procurada só na empresa da linha.
+  -- É a FONTE ÚNICA: o 15h e o 15k usam, `empresa-acervo-sem-leitura.test.ts` LÊ daqui, e o describe 14 de
+  -- `catalogos-seguranca.test.ts` amarra as cópias dos roteiros (`empresa_no_acervo.sql`, `empresa_no_vocabulario.sql`).
+  k_leitura_tenant text[] := array[
+    'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
+    'termo_da_empresa:termos_gerados,movimentacoes,ativos',
+    'vocabulario_unidades_guarda:filiais,unidades_apelidos'
+  ];
+
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
   --   · profiles          (0001) — identidade da CONTA, não do acervo. Na virada o
   --                                cargo migra para `membros.papel` (plano §5 → F62,
@@ -1483,10 +1501,15 @@ begin
   -- decisão 7 vale para as dezenove, e o bloco 6 de `empresa_no_acervo.sql` (F63) isenta o núcleo
   -- pelo NOME inteiro — aqui ele responde por comando também nas oito. Universo: as funções cujo
   -- corpo cita uma das dezenove.
+  -- F65: pelo despachante (as três exceções da F65 com as tabelas DELAS), e o universo conta também a função que é
+  -- GATILHO numa das dezenove (ela lê a linha por `new`/`old` sem citar a tabela — o furo que a F65 fechou).
   with f as (
     select p.proname,
-           p.prosrc ~* ('\m(' || array_to_string(k_lote1 || k_lote2, '|') || ')\M') as toca,
-           pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit) as le
+           p.prosrc ~* ('\m(' || array_to_string(k_lote1 || k_lote2, '|') || ')\M')
+             or exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                         where t.tgfoid = p.oid and not t.tgisinternal and c.relname::text = any (k_lote1 || k_lote2)) as toca,
+           pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit,
+                                      k_leitura_tenant) as le
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
   )
@@ -1533,6 +1556,43 @@ begin
        '15j toda exceção nominal de leitura (k_leitura_integridade) é uma função que existe' ||
        case when v_cnt > 0 then ' — não existe: ' || v_lista else '' end,
        v_cnt, array_length(k_leitura_integridade, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- 15k — F65: toda exceção de `k_leitura_tenant` é uma função que EXISTE e que LÊ `empresa_id` (a lista não guarda
+  --        fantasma — o predicado SEM a exceção a acusaria), não é também exceção do kit, e as tabelas de
+  --        `guarda_empresa` são exatamente as de `k_negocio` (onde ela é gatilho). Antes da 0173 reprova pelas duas
+  --        funções que ainda não existem e pela diagonal que ainda não lê a coluna.
+  select count(*), coalesce(string_agg(x, '; ' order by x), '')
+    into v_cnt, v_lista
+    from (
+      select split_part(e, ':', 1) || ' (não existe)' as x
+        from unnest(k_leitura_tenant) as e
+       where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                          where n.nspname = 'public' and p.proname = split_part(e, ':', 1))
+      union all
+      select split_part(e, ':', 1) || ' (não lê empresa_id — exceção fantasma)'
+        from unnest(k_leitura_tenant) as e
+       where exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                      where n.nspname = 'public' and p.proname = split_part(e, ':', 1))
+         and not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                          where n.nspname = 'public' and p.proname = split_part(e, ':', 1)
+                            and pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, array[]::text[], array[]::text[]) is not null)
+      union all
+      select split_part(e, ':', 1) || ' (também é exceção do kit)'
+        from unnest(k_leitura_tenant) as e where split_part(e, ':', 1) = any (k_leitura_integridade)
+      union all
+      select 'guarda_empresa (as tabelas não são as de k_negocio)'
+       where (select array_agg(t order by t) from unnest(string_to_array(
+                (select split_part(e, ':', 2) from unnest(k_leitura_tenant) as e where split_part(e, ':', 1) = 'guarda_empresa'), ',')) as t)
+             is distinct from (select array_agg(t order by t) from unnest(k_negocio) as t)
+    ) s;
+  if pg_temp.assert_zero_de(
+       '15k toda exceção de leitura da F65 (k_leitura_tenant) é uma função que existe e LÊ empresa_id, fora das do kit; a guarda cobre as 20 de negócio' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, array_length(k_leitura_tenant, 1)::bigint + 1) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

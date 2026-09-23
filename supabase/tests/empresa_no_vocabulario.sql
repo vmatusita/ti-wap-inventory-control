@@ -112,6 +112,14 @@ declare
   -- E a cópia de `k_tabelas_leitura_kit` (as tabelas que as exceções podem ler, por comando) — o
   -- describe 13 confere que é a mesma lista.
   k_tabelas_leitura_kit constant text[] := array['kits_modelos', 'motivos'];
+  -- F65 (23/09/2026): as exceções de leitura da F65, cada uma com as tabelas DELA — CÓPIA de `k_leitura_tenant`
+  -- (catalogo_policies.sql, a fonte única; o describe 14 amarra). A auto-sabotagem 6b conta as funções acusadas pelo
+  -- despachante `pg_temp.leitura_de_empresa` — o mesmo do 15h —, que aplica a exceção da F65 por comando.
+  k_leitura_tenant constant text[] := array[
+    'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
+    'termo_da_empresa:termos_gerados,movimentacoes,ativos',
+    'vocabulario_unidades_guarda:filiais,unidades_apelidos'
+  ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162) — o texto que o CI aplica.
   k_escritores constant text[] := array[
@@ -354,10 +362,13 @@ begin
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 4c — as QUATRO tabelas sem `id`: a PK lida do catálogo é a natural, e dá uma chave não nula por linha.
+  --      F65 (23/09/2026): a 0168 e a 0169 trocaram a PK das quatro para `(empresa_id, <a natural>)` — é o que o
+  --      catálogo devolve agora, e é o que o instrumento tem de ler (a prova é a mesma: ele lê a PK do CATÁLOGO, não uma
+  --      coluna escrita à mão — por isso a PK mudou e ele acompanhou).
   v_ruins := 0; v_rot := ''; v_univ := 0;
   for v_txt, v_estado in
-    select * from (values ('motivos', 'codigo'), ('import_prefixos_patrimonio', 'prefixo'),
-                          ('import_termos_categoria', 'termo'), ('import_termos_estado', 'termo')) as x(t, pk)
+    select * from (values ('motivos', 'empresa_id,codigo'), ('import_prefixos_patrimonio', 'empresa_id,prefixo'),
+                          ('import_termos_categoria', 'empresa_id,termo'), ('import_termos_estado', 'empresa_id,termo')) as x(t, pk)
   loop
     v_rot := v_rot || ' ' || v_txt || '[' || pg_temp.f64_pk(('public.' || v_txt)::regclass) || ' ' || pg_temp.f64_chaves(('public.' || v_txt)::regclass) || ']';
     if pg_temp.f64_pk(('public.' || v_txt)::regclass) <> v_estado then v_ruins := v_ruins + 1; end if;
@@ -437,7 +448,7 @@ begin
            || '/' ||
            (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public'
-               and pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null)::text
+               and pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_onze, k_leitura_integridade, k_tabelas_leitura_kit, k_leitura_tenant) is not null)::text
       into v_estado;
     raise exception 'f64-6b-desfaz';
   exception when others then

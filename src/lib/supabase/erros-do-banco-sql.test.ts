@@ -90,8 +90,14 @@ function itensDePrimeiroNivel(lista: string): string[] {
   return itens
 }
 
-export function nomesVivos(migrations: readonly { sql: string }[]): Set<string> {
-  const vivos = new Set<string>()
+/** Como o nome foi ESCRITO na migration que o deixou vivo — o `tipo` de `CONSTRAINTS_TRADUZIDAS` (F65). */
+export type OrigemDoNome = 'check' | 'unique-implicita' | 'unique-nomeada' | 'indice-unico' | 'outro'
+
+const origemDaConstraint = (resto: string): OrigemDoNome =>
+  /^\s*check\b/.test(resto) ? 'check' : /^\s*(unique|primary\s+key)\b/.test(resto) ? 'unique-nomeada' : 'outro'
+
+export function nomesVivos(migrations: readonly { sql: string }[]): Map<string, OrigemDoNome> {
+  const vivos = new Map<string, OrigemDoNome>()
   for (const { sql: bruto } of migrations) {
     const sql = semComentario(bruto).toLowerCase()
     // Os comandos se aplicam na ORDEM EM QUE APARECEM no arquivo — não "todos os create, depois
@@ -107,7 +113,9 @@ export function nomesVivos(migrations: readonly { sql: string }[]): Set<string> 
       const inicio = (m.index ?? 0) + m[0].length - 1
       const fim = fimDoComando(sql, inicio)
       const corpo = sql.slice(inicio + 1, fim === -1 ? sql.length : fim)
-      for (const c of corpo.matchAll(/constraint\s+([a-z_][a-z0-9_]*)/g)) vivos.add(c[1])
+      for (const c of corpo.matchAll(/constraint\s+([a-z_][a-z0-9_]*)/g)) {
+        vivos.set(c[1], origemDaConstraint(corpo.slice((c.index ?? 0) + c[0].length)))
+      }
       // Cada definição de coluna é um item de PRIMEIRO NÍVEL da lista — vírgula dentro de parêntese
       // (`numeric(10,2)`, `check (x in ('a','b'))`) ou de texto não separa. A primeira versão partia
       // em "vírgula + quebra de linha" e dava o `unique` de `slug` ao `id` quando os dois dividiam a
@@ -115,21 +123,28 @@ export function nomesVivos(migrations: readonly { sql: string }[]): Set<string> 
       for (const item of itensDePrimeiroNivel(corpo)) {
         const col = /^\s*([a-z_][a-z0-9_]*)\s+[a-z]/.exec(item)?.[1]
         if (col && /\bunique\b/.test(item) && !/^\s*(constraint|unique|primary|foreign|check|exclude)\b/.test(item)) {
-          vivos.add(`${tabela}_${col}_key`.slice(0, 63))
+          vivos.set(`${tabela}_${col}_key`.slice(0, 63), 'unique-implicita')
         }
       }
     })
-    em(/add\s+constraint\s+([a-z_][a-z0-9_]*)/g, (m) => vivos.add(m[1]))
-    em(/create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/g, (m) => vivos.add(m[1]))
+    em(/add\s+constraint\s+([a-z_][a-z0-9_]*)/g, (m) =>
+      vivos.set(m[1], origemDaConstraint(sql.slice((m.index ?? 0) + m[0].length))),
+    )
+    em(/create\s+(unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/g, (m) =>
+      vivos.set(m[2], m[1] ? 'indice-unico' : 'outro'),
+    )
     em(/drop\s+index\s+(?:concurrently\s+)?(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/g, (m) => vivos.delete(m[1]))
     em(/drop\s+constraint\s+(?:if\s+exists\s+)?([a-z_][a-z0-9_]*)/g, (m) => vivos.delete(m[1]))
+    // renomear ESCREVE o nome novo por extenso: a unique implícita renomeada vira nomeada
     em(/rename\s+constraint\s+([a-z_][a-z0-9_]*)\s+to\s+([a-z_][a-z0-9_]*)/g, (m) => {
+      const antes = vivos.get(m[1]) ?? 'outro'
       vivos.delete(m[1])
-      vivos.add(m[2])
+      vivos.set(m[2], antes === 'unique-implicita' ? 'unique-nomeada' : antes)
     })
     em(/alter\s+index\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s+rename\s+to\s+([a-z_][a-z0-9_]*)/g, (m) => {
+      const antes = vivos.get(m[1]) ?? 'outro'
       vivos.delete(m[1])
-      vivos.add(m[2])
+      vivos.set(m[2], antes)
     })
     eventos.sort((a, b) => a.pos - b.pos).forEach((e) => e.aplicar())
   }
@@ -167,7 +182,18 @@ describe('a réplica do esquema e dos corpos vivos (guarda do próprio teste)', 
       { sql: 'drop index if exists public.t_x_idx; alter table t add constraint t_ck check (id > 0);' },
       { sql: 'alter table t rename constraint t_ck to t_ck2;' },
     ])
-    expect([...r].sort()).toEqual(['t_ck2', 't_nome_uidx', 't_slug_key'])
+    expect([...r.keys()].sort()).toEqual(['t_ck2', 't_nome_uidx', 't_slug_key'])
+    expect(Object.fromEntries(r)).toEqual({ t_ck2: 'check', t_nome_uidx: 'indice-unico', t_slug_key: 'unique-implicita' })
+  })
+  it('a origem acompanha a recriação: implícita → provisória → drop → rename vira NOMEADA (o caso da 0170)', () => {
+    const r = nomesVivos([
+      { sql: 'create table public.t (id int primary key, slug text not null unique);' },
+      { sql: 'alter table t add constraint t_slug_key_f65 unique (empresa_id, slug);\nalter table t drop constraint t_slug_key;\nalter table t rename constraint t_slug_key_f65 to t_slug_key;' },
+      { sql: 'create unique index t_n_uidx_f65 on t (empresa_id, n);\ndrop index t_n_uidx;\nalter index public.t_n_uidx_f65 rename to t_n_uidx;' },
+    ])
+    expect(r.get('t_slug_key')).toBe('unique-nomeada')
+    expect(r.get('t_n_uidx')).toBe('indice-unico')
+    expect(r.has('t_slug_key_f65') || r.has('t_n_uidx_f65')).toBe(false)
   })
   it('drop e create do MESMO nome no mesmo arquivo: vale a ordem do texto (o caso da 0091)', () => {
     const base = { sql: 'create unique index t_nome_uidx on t (nome);' }
@@ -208,6 +234,10 @@ describe('CONSTRAINTS_TRADUZIDAS — cada nome existe no esquema vivo', () => {
   it.each(Object.entries(CONSTRAINTS_TRADUZIDAS))('%s', (nome, { tabela }) => {
     expect(NOMES_VIVOS.has(nome), `${nome} não existe no esquema que as migrations produzem hoje`).toBe(true)
     expect(TABELAS_VIVAS.has(tabela), `${nome}: a tabela ${tabela} não existe`).toBe(true)
+  })
+  // F65 — até aqui o `tipo` era só declarado, e a 0170 o tornaria mentira em silêncio (fato 9).
+  it.each(Object.entries(CONSTRAINTS_TRADUZIDAS))('%s: o tipo declarado é a forma viva', (nome, { tipo }) => {
+    expect(NOMES_VIVOS.get(nome), `${nome}: declarado ${tipo}, vivo como ${NOMES_VIVOS.get(nome)}`).toBe(tipo)
   })
   it.each(Object.entries(TABELAS_CITADAS_EM_ERRO))('a tabela citada %s (%s) existe viva', (_chave, tabela) => {
     expect(TABELAS_VIVAS.has(tabela)).toBe(true)

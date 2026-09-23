@@ -48,6 +48,10 @@ declare
   -- de catalogos-seguranca.test.ts.
   k_oito constant text[] := array['anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item',
                                   'movimentacoes', 'pendencias_item', 'termos_gerados'];
+  -- F65 (23/09/2026): as exceções nominais de leitura da F65 — CÓPIA dos nomes de `k_leitura_tenant`
+  -- (catalogo_policies.sql, a fonte única; o describe 14 de catalogos-seguranca.test.ts amarra). O 7b as isenta pelo
+  -- NOME, como já isentava o núcleo; quem as confere POR COMANDO, com as tabelas de cada uma, é o 15h.
+  k_leitura_tenant_nomes constant text[] := array['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'];
   k_autor   constant uuid := '63000000-0000-4000-8000-000000000001';
   -- uma empresa que NÃO existe (o v4 fictício) — o alvo da FK
   k_fantasma constant uuid := '63000000-0000-4000-8000-0000000000f0';
@@ -530,8 +534,8 @@ begin
   -- o acervo; a leitura por comando e por alias é conferida no disco por
   -- src/lib/validators/empresa-acervo-sem-leitura.test.ts.
   select count(*),
-         count(*) filter (where p.prosrc ~ '\mempresa_id\M' and p.proname <> 'checagens_integridade_nucleo'),
-         coalesce(string_agg(p.proname, ', ') filter (where p.prosrc ~ '\mempresa_id\M' and p.proname <> 'checagens_integridade_nucleo'), '')
+         count(*) filter (where p.prosrc ~ '\mempresa_id\M' and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes))),
+         coalesce(string_agg(p.proname, ', ') filter (where p.prosrc ~ '\mempresa_id\M' and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes))), '')
     into v_univ, v_ruins, v_rot
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prosrc ~ v_re_oito;
@@ -559,7 +563,7 @@ begin
            || '/' ||
            (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public' and p.prosrc ~ v_re_oito and p.prosrc ~ '\mempresa_id\M'
-               and p.proname <> 'checagens_integridade_nucleo')::text
+               and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes)))::text
       into v_estado;
     raise exception 'f63-7d-desfaz';
   exception when others then
