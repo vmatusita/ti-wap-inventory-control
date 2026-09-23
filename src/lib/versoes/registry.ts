@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.68.0',
+    data: '2026-09-23',
+    fase: 'F63',
+    titulo: 'Cada equipamento, movimentação, item, colaborador, anotação e termo passou a registrar a empresa a que pertence, sem mudar nada na tela',
+    mudancas: [
+      'Nada muda na tela. Ativos, Movimentações, Itens, Pendências, os termos e os relatórios mostram exatamente o que mostravam, para as mesmas pessoas, e os formulários pedem as mesmas informações de antes.',
+      'Por dentro: o sistema passou a registrar a qual empresa pertence cada equipamento, cada movimentação, cada item e cada lançamento de item, cada pendência, cada colaborador, cada anotação e cada termo gerado. Hoje todos são da WAP, e o que for cadastrado a partir de agora também é registrado como da WAP, sem ninguém precisar escolher.',
+      'O registro foi feito sem regravar nenhum dado: todo o histórico ficou exatamente como estava. Para ter certeza, o conteúdo das oito áreas é conferido antes e depois da mudança, na cópia de testes e na do dia a dia.',
+      'As mudanças que alteram dados já existentes passaram a guardar antes o valor antigo de cada informação alterada, para que seja possível voltar atrás exatamente como estava. Uma alteração assim só é aceita se guardar esse registro primeiro.',
+      'Ninguém ainda usa a empresa para separar o que cada pessoa vê: isso vem numa etapa seguinte, quando o sistema passar a atender mais de uma empresa.',
+    ],
+  },
+  {
     versao: '1.67.0',
     data: '2026-09-22',
     fase: 'F62',
