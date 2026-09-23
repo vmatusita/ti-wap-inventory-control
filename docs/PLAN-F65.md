@@ -449,7 +449,7 @@ correções da revisão adversarial. PR como rascunho desde o push 1.
 
 ## 7. SHA de código congelado
 
-*(preenchido no fechamento: o último commit que toca `src/**`, `scripts/**` ou `supabase/**`.)*
+**`a525a9a`** — o último commit que toca `src/**`, `scripts/**` ou `supabase/**` (a guarda última, da 3ª rodada da revisão adversarial). CI do HEAD `32e4bb7` (só documentação por cima): run `35931622477`, `verificar` e `banco-sem-docker` verdes — 51 roteiros, 1.095 asserções, injetor 143/143, tipos 38·358·94.
 
 ---
 

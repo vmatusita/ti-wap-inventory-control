@@ -13487,3 +13487,13 @@ RUNBOOK, Anexo F65.
   chegado a banco vivo nenhum: o ledger dos dois bancos termina na `0164` (conferido pelo MCP antes da mudança), e ela só
   rodou nos bancos descartáveis do CI. É o caso que a flag existe para cobrir (o comentário de `gravar-lock.ts`). O md5
   esperado do comentário da guarda (`depois/exatidao-esperada.json`) foi recalculado; o `prosrc` não mudou.
+- **(l) A 4ª rodada limpa, o SHA congelado, e o apply barrado.** A 4ª rodada da revisão adversarial (SHA `a525a9a`, a
+  guarda última e a regressão) não confirmou nada: a lente da regressão sem achado; a da guarda, um achado refutado pelo
+  cético (`session_replication_role = replica` exige superusuário — a mesma classe de `disable trigger`, fora do modelo;
+  vai para o "não prova" do relatório). **SHA de código congelado: `a525a9a`** (CI do HEAD `32e4bb7`, run `35931622477`:
+  51 roteiros, 1.095 asserções, 0 ✗; injetor 143/143; tipos 38·358·94). O "antes" foi refeito no ensaio (idêntico ao
+  das 14h) e, às 23:21 UTC, o `apply_migration` da `0165` no ensaio foi **recusado pelo classificador de segurança**. Pela
+  ordem: registrado, sem nova tentativa nem reformulação; nada foi aplicado em banco nenhum; o PR #77 fica em rascunho e
+  SEM merge (o código novo exige a `0172` no banco); o comando e a sequência para retomar estão no topo do
+  `RELATORIO-F65.md`. **Desvio declarado** da memória do projeto (*"bloqueio do classificador costuma ser transitório"*):
+  a ordem manda não repetir, e ela prevalece.
