@@ -13188,3 +13188,29 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
 - **(e) O conector da Supabase amanheceu desligado** ("disabled in your connector settings", em todas as ferramentas).
   Sem ele, o "antes" dos bancos não foi tirado e nada foi aplicado; o PR segue sem merge até ele voltar (o caminho B e
   o estado no topo do `RELATORIO-F63.md`).
+- **(f) A revisão adversarial, em duas rodadas** (contexto fresco, lentes separadas, céticos instruídos a refutar cada
+  achado; detalhe no §9 do `RELATORIO-F63.md`). **1ª rodada** (5 lentes, 13 achados, 3 confirmados pela maioria dos
+  céticos): a ordem de lock da `0161` estava ERRADA — `criar_movimentacao_com_itens` trava `ativos` com `for update`
+  ANTES do primeiro INSERT, e a `0161` começava por `movimentacoes`; reordenada (`ativos`, `movimentacoes`,
+  `pendencias_item`, `lancamentos_item`) e retravada com `db:lock -- --regravar-alterada`, o que só vale porque ela
+  nunca foi aplicada em banco nenhum. O RECORTE do describe 5 passou a ler os dois sentidos. O terceiro era o
+  `RELATORIO-F63.md` ainda fora do git — o rascunho, versionado no fecho. E, embora descartados ou
+  já corrigidos quando os céticos rodaram, entraram como endurecimento: a identidade das tabelas no classificador
+  (rename de ida e volta, rename + recriação, view criada no arquivo), a válvula por `set_config` (inclusive com o nome
+  montado, que vira ILEGÍVEL), a catraca do literal `empresa_id` em `src/**`, os tipos do par de backup (array, jsonb,
+  enum, numeric, timestamptz, identity, gerada), o texto da `0159` travado na mesa (o CI sem default privilege não veria
+  o `revoke` sumir), o INSERT do restaurador com lote misto e a nota "um valor anterior por célula" no RUNBOOK.
+  **2ª rodada** (3 lentes sobre os consertos, 6 achados, 5 confirmados por 2 de 2): (i) a TROCA de tabela — a cópia
+  transformada que assume o nome por rename duplo, ou outra tabela renomeada para o nome liberado — passava como
+  ADITIVA e a guarda de topo não via: `rename`/`set schema` de tabela que já existia e `rename column` dela viraram
+  DESTRUTIVA, e a guarda passou a reprovar `rename`/`set schema`/`drop table` das três guardadas (e o rename PARA o
+  nome delas), pelas duas leituras; o censo das 157 muda só na classe calculada da `0057` (o `rename column` de
+  `profiles`: ADITIVA → DESTRUTIVA, veredito ILEGÍVEL de antes), agora congelada também; (ii) o bloco de backup
+  aceitava o valor e a chave de OUTRA tabela do `join`: os dois têm de vir do apelido da tabela do `from`; (iii) a
+  catraca comparava só a CONTAGEM por arquivo: passou a comparar o trecho desde o `.from(` de cada ocorrência (a
+  linha é sempre a mesma `.eq('empresa_id', …)`); (iv) as extensões `.mts`/`.cts`/`.js` entraram na varredura de
+  `src/**`; (v) o RECORTE passou a ler cast na coluna, `not in`, `between` e comparação de ordem. O descartado (o
+  `split(';')` cru no corpo das funções) foi corrigido mesmo assim — os comandos passaram a sair do léxico único
+  (`comandosDoTexto`), também no describe 5 —, e o caso novo expôs um furo que já existia: o apelido de `into v_n`
+  engolia o `from` seguinte e a tabela sumia da leitura (lookahead). **Motivo:** cada achado confirmado é uma
+  trava que passava verde diante do que ela existe para barrar.

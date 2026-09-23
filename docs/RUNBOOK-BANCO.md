@@ -377,7 +377,8 @@ antigo. Até a F62 isso era protocolo à mão (a `0111` guardou o backup das lin
   risco sobre DADO que já existia: **ADITIVA** cria, comenta, concede, indexa, acrescenta coluna com default sem
   reescrita, escreve SÓ em tabela criada na mesma migration; **BACKFILL** faz `update`, `insert … on conflict do update`
   ou `insert` em tabela que já existia; **DESTRUTIVA** faz `delete`, `truncate`, `drop table`, `drop column`,
-  `alter column … type` ou `drop … cascade`. A declarada nunca é MENOR que a calculada.
+  `alter column … type`, `drop … cascade`, ou TROCA o que um nome aponta: `rename`/`set schema` de uma tabela que já
+  existia, ou `rename column` dela (a cópia transformada que assume o nome é uma reescrita sem `update`). A declarada nunca é MENOR que a calculada.
 - O classificador é `scripts/db/classificar-migration.mjs` (sem dependência, sem banco): `node
   scripts/db/classificar-migration.mjs` confere os arquivos ≥ `0159`; com `--censo`, imprime a classe calculada da cadeia
   inteira. A trava de mesa é `src/lib/validators/migrations-backfill.test.ts`, e a guarda de topo de
@@ -419,15 +420,17 @@ update public.x t
   esquecer de trocar, o que faria o rollback restaurar as linhas de OUTRA migration. O classificador reprova.
 - O `where` do bloco é **byte a byte** o `where` do comando (um espaço de diferença reprova; um `… or true` também). Para a
   tabela inteira: `where true` nos dois.
-- `to_jsonb(<alias>.<coluna>)` é da MESMA coluna do literal `coluna`, e o `from` é a MESMA tabela do comando.
+- `to_jsonb(<alias>.<coluna>)` é da MESMA coluna do literal `coluna`, o `from` é a MESMA tabela do comando, e o
+  `<alias>` do valor e o da chave são o APELIDO dessa tabela do `from` — com um `join`, `to_jsonb(o.status)` guardaria a
+  coluna homônima de outra tabela, e o classificador reprova.
 - O rollback usa `jsonb_populate_record`: devolve o tipo certo (array, jsonb, enum) e o `null` (SQL NULL em
   `valor_anterior` quer dizer que o valor ERA null). Ensaiado por `supabase/tests/empresa_no_acervo.sql`, bloco 5.
 - **Fora da receita, e por isso reprovados:** `merge` (não tem `where` verificável — escreva `update`), o backfill dentro
   de `do` (escreva no topo), a escrita aninhada num CTE. `insert` puro em tabela existente é BACKFILL sem par (não há
   valor anterior); o rodapé diz como apagar o que entrou.
 - **O acervo tem uma trava a mais, sem válvula**: a guarda de topo de `migrations-f38.test.ts` reprova `update`/`delete`/
-  `merge`/`truncate` em `movimentacoes`, `lancamentos_item` e `ativos` — de topo OU dentro de `do` — **mesmo com classe
-  declarada**. A única exceção é a `0133` (anterior à régua, nominal e fechada). Um backfill legítimo de `ativos` no
+  `merge`/`truncate` em `movimentacoes`, `lancamentos_item` e `ativos`, e a TROCA delas (`rename`, `set schema`, `drop
+  table`, outra tabela renomeada para o nome delas) — de topo OU dentro de `do` — **mesmo com classe declarada**. A única exceção é a `0133` (anterior à régua, nominal e fechada). Um backfill legítimo de `ativos` no
   futuro entra por **exceção nominal NOVA** em `EXCECOES_TOPO_NO_ACERVO`, com o motivo e a **decisão do Johnny** citados
   na linha — e isso exige mexer, de propósito, na asserção que impede a lista de crescer a partir da `0159`. Em
   `movimentacoes`/`lancamentos_item` o backfill nem roda: a `guarda_acervo` recusa UPDATE até do service role, e abrir a

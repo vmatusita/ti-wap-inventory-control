@@ -234,6 +234,7 @@ fica fora da ordem e reprova a partir da `0159`.
 | `delete`, `truncate` | DESTRUTIVA | |
 | `drop table|schema|sequence`, `alter table … drop [column]`, `drop … cascade` | DESTRUTIVA | `cascade` derruba dependentes — inclusive coluna gerada ou default |
 | `alter column … type` | DESTRUTIVA | reescreve e converte; o leitor estático não sabe quando não reescreve |
+| `rename`/`set schema` de tabela que já existia, `rename column` dela | DESTRUTIVA | o nome passa a apontar para outro dado: a cópia transformada que assume o nome é uma reescrita sem `update` (2ª rodada da revisão adversarial); a tabela criada no próprio arquivo fica poupada, e `rename constraint` é ADITIVA |
 | `drop function|view|policy|trigger|index` sem `cascade` | ADITIVA | não há dado; o risco de segurança de um drop é das OUTRAS travas (intocáveis, catálogos) |
 | `create or replace view` | ADITIVA | não há dado |
 | `add column` com default literal ou da lista fechada (`public.empresa_legada()`, `now()`, `current_timestamp`, `current_date`, `localtimestamp`, `transaction_timestamp()`, `statement_timestamp()`) | ADITIVA | caminho rápido do PG 11+ |
