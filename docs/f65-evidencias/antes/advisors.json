@@ -1,0 +1,15 @@
+{
+  "_fonte": "get_advisors do MCP (security e performance), nos dois bancos, 2026-09-23 (Frente A). Só nível, nome do lint e nome de objeto de esquema.",
+  "seguranca": {
+    "producao": {"INFO rls_enabled_no_policy": 6, "WARN authenticated_security_definer_function_executable": 34, "WARN auth_leaked_password_protection": 1,
+                  "rls_enabled_no_policy": ["ambiente", "backups_migration", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"]},
+    "ensaio":   {"INFO rls_enabled_no_policy": 6, "WARN authenticated_security_definer_function_executable": 34, "WARN auth_leaked_password_protection": 1}
+  },
+  "performance": {
+    "producao": {"INFO unindexed_foreign_keys": 31, "INFO no_primary_key": 1, "INFO unused_index": 8, "WARN multiple_permissive_policies": 1,
+                  "unindexed_foreign_keys": ["anotacoes_criado_por_fkey", "anotacoes_empresa_id_fkey", "ativos_empresa_id_fkey", "colaboradores_criado_por_fkey", "colaboradores_empresa_id_fkey", "eventos_admin_empresa_id_fkey", "import_logs_criado_por_fkey", "import_logs_empresa_id_fkey", "import_prefixos_patrimonio_empresa_id_fkey", "import_termos_categoria_empresa_id_fkey", "import_termos_estado_empresa_id_fkey", "itens_criado_por_fkey", "itens_empresa_id_fkey", "kits_modelos_criado_por_fkey", "kits_modelos_empresa_id_fkey", "lancamentos_item_empresa_id_fkey", "motivos_empresa_id_fkey", "movimentacoes_empresa_id_fkey", "operador_filiais_filial_da_empresa_fk", "pendencias_item_empresa_id_fkey", "pendencias_item_resolvida_por_fkey", "relatorios_gerados_empresa_id_fkey", "relatorios_gerados_filial_id_fkey", "relatorios_gerados_gerado_por_fkey", "senhas_acesso_criado_por_fkey", "senhas_acesso_empresa_id_fkey", "termos_gerados_atualizado_por_fkey", "termos_gerados_empresa_id_fkey", "termos_gerados_gerado_por_fkey", "tipos_item_empresa_id_fkey", "unidades_apelidos_empresa_id_fkey"],
+                  "_nota": "19 das 31 são *_empresa_id_fkey (o fato 3 dizia 18)"},
+    "ensaio":   {"INFO unindexed_foreign_keys": 31, "INFO no_primary_key": 1, "INFO unused_index": 11, "WARN multiple_permissive_policies": 1,
+                  "_nota": "a mesma lista de unindexed_foreign_keys; unused_index difere por ambiente (uso de índice)"}
+  }
+}

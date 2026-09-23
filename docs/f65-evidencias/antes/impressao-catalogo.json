@@ -1,0 +1,23 @@
+{
+  "_consulta": "docs/f65-evidencias/impressao-catalogo.sql (execute_sql do MCP, só leitura). Produção rodou o texto final; o ensaio rodou a versão anterior do MESMO arquivo (só a forma da listagem mudou — as fórmulas dos md5 são as mesmas), e o texto final é refeito nos dois logo antes do apply.",
+  "_quando": "2026-09-23, Frente A — antes de qualquer apply da F65",
+  "ensaio_igual_producao": true,
+  "fks": {"total": 58, "md5": "1541f1558d206d84e69ab42962b88af8", "de_negocio": 23, "de_negocio_simples": 23, "de_negocio_compostas": 0, "de_negocio_nao_validadas": 0, "pares_de_negocio_com_duas_relacoes": ["movimentacoes→filiais"], "deferrable": ["pendencias_item_movimentacao_id_fkey (DEFERRABLE INITIALLY DEFERRED)"]},
+  "uniques": {"total": 37, "md5": "bc692b3b8de749f1ad9c9bb05054bd15", "com_empresa_id": 1},
+  "pais": {"tabelas_com_empresa_id_id": 1, "lista": ["filiais"]},
+  "gatilhos": {"total": 8, "md5": "45f69cb8fdc1c68655abda939ba06f3c"},
+  "funcoes": {"total": 103, "md5_todas": "95b75d7b0c1349419bde3102c8e092db", "sem_as_da_f65": 102, "md5_sem_as_da_f65": "689fbd32732595068fe7ca077e06d862", "as_da_f65": {"vocabulario_unidades_guarda()": "91e80d533d72191325e614d24e15a881"}},
+  "advisory": {"funcoes": 12, "chamadas_reais": 16, "lista": {
+    "apagar_ativos_conflito_filiais(uuid[],text,text,text)": {"md5": "717a8e39790d849194cde9262914b422", "chamadas": 1},
+    "criar_movimentacao_com_itens(jsonb,jsonb,uuid)": {"md5": "046ecfc854b221c88a3abf2f388d66c0", "chamadas": 1},
+    "estornar_movimentacao_com_itens(uuid,text,jsonb,uuid)": {"md5": "bada9395dbc34f6e7e79802291c06176", "chamadas": 1},
+    "importar_ativos_substituir(jsonb,text,jsonb,jsonb)": {"md5": "07927879fdda470e8211da3c346b1745", "chamadas": 1},
+    "lancar_itens_lote(jsonb,uuid)": {"md5": "3df9cc3a5a9988692e955bd561cf8b89", "chamadas": 1},
+    "reabrir_pendencias_item_com_estornos(uuid[],text,jsonb,uuid)": {"md5": "127a7ac9bae0eae10d87f545084f4b7c", "chamadas": 1},
+    "resetar_acervo(smallint,text,text,text,jsonb)": {"md5": "c352a4d002c97e2aaf607e5932aad6be", "chamadas": 3},
+    "resetar_itens(smallint,text,text,text,jsonb)": {"md5": "e024d6f11030552fecdaee4a1da062fe", "chamadas": 3},
+    "resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid)": {"md5": "a1b8a8bd767373d738c5135801fb152e", "chamadas": 1},
+    "transferir_item(smallint,smallint,jsonb,date,text,text,text,uuid)": {"md5": "7a0ad14668a6d2419fbcdb33b8e5418b", "chamadas": 1},
+    "valida_lancamento_item()": {"md5": "be4be02fe97acfe7aff9a752cd73b58d", "chamadas": 1},
+    "vocabulario_unidades_guarda()": {"md5": "91e80d533d72191325e614d24e15a881", "chamadas": 1}}}
+}

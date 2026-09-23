@@ -1,0 +1,30 @@
+{
+  "_consulta": "docs/f65-evidencias/impressao-tenant.sql (execute_sql do MCP, só leitura), corte = '' (o antes)",
+  "_alvo": "producao",
+  "_projeto": "pbtjcalbmepmrqzprusb",
+  "_quando": "2026-09-23, Frente A — antes de qualquer apply da F65 (refeita logo antes do apply)",
+  "corte_para_o_depois": "26088",
+  "corte_usado": null,
+  "tabelas": {
+    "anotacoes": {"pk": "id", "chave": "id", "linhas": 21, "relfilenode": "18126", "md5_chave_xmin": "94abd2fd9f253e88834f90f592f69e38", "md5_conteudo": "ddc496820b00dc2ffa930dee5ffb0cbb", "janela": 0},
+    "ativos": {"pk": "id", "chave": "id", "linhas": 1649, "relfilenode": "17779", "md5_chave_xmin": "96aaf6036368d364bea23fef729df228", "md5_conteudo": "85444819e790c87c752c2bce5f746590", "janela": 0},
+    "colaboradores": {"pk": "id", "chave": "id", "linhas": 41, "relfilenode": "19899", "md5_chave_xmin": "9f4b287a6d4807cbce1f4bb6f9f85c6f", "md5_conteudo": "eb57e7f60ea1af80e7390866723d41e5", "janela": 0},
+    "eventos_admin": {"pk": "id", "chave": "id", "linhas": 102, "relfilenode": "18966", "md5_chave_xmin": "5e5c28590c9bced843320de6f451a062", "md5_conteudo": "6ad74fe27b8a74cae7cd00f95df3916f", "janela": 0},
+    "filiais": {"pk": "id", "chave": "id", "linhas": 6, "relfilenode": "17760", "md5_chave_xmin": "7e927542cf6e99f5a81cd760f4dfbeaf", "md5_conteudo": "f2416176d93eeb00265cb362c62a4152", "janela": 0},
+    "import_logs": {"pk": "id", "chave": "id", "linhas": 12, "relfilenode": "18390", "md5_chave_xmin": "d993ed779222846de91010481ff0437f", "md5_conteudo": "e3bb5528e4d6543e00319de3dd55a008", "janela": 0},
+    "import_prefixos_patrimonio": {"pk": "prefixo", "chave": "prefixo", "linhas": 7, "relfilenode": "20951", "md5_chave_xmin": "da0f98ccbc1a5e8232e335fd7e1ecdf2", "md5_conteudo": "61ddba73d18071f82f3e903d07f10a58", "janela": 0},
+    "import_termos_categoria": {"pk": "termo", "chave": "termo", "linhas": 5, "relfilenode": "20926", "md5_chave_xmin": "6f91312801f0c2ddabbf72cca8c66345", "md5_conteudo": "2724d50268d52dba8e3ada8a01fe1b45", "janela": 0},
+    "import_termos_estado": {"pk": "termo", "chave": "termo", "linhas": 17, "relfilenode": "20938", "md5_chave_xmin": "9ee3a06d218d052a76ba87969d62f792", "md5_conteudo": "32f2830d192d1d6ccc79dd8118e3f53a", "janela": 0},
+    "itens": {"pk": "id", "chave": "id", "linhas": 23, "relfilenode": "20524", "md5_chave_xmin": "362208b589e1044215e639c359d0886e", "md5_conteudo": "faa5abdcbd9db2a04e6e959d413431c7", "janela": 0},
+    "kits_modelos": {"pk": "id", "chave": "id", "linhas": 0, "relfilenode": "18677", "md5_chave_xmin": "vazia", "md5_conteudo": "vazia", "janela": 0},
+    "lancamentos_item": {"pk": "id", "chave": "id", "linhas": 184, "relfilenode": "18161", "md5_chave_xmin": "df08a4c00a11c123ef05678749adc5dd", "md5_conteudo": "907a243badb5b860dd6562e049efac35", "janela": 0},
+    "motivos": {"pk": "codigo", "chave": "codigo", "linhas": 14, "relfilenode": "17771", "md5_chave_xmin": "0d3e74e4885efc6b7353a42253a0825c", "md5_conteudo": "97c1fa60b7ddc1bc2da684cf29dacaa7", "janela": 0},
+    "movimentacoes": {"pk": "id", "chave": "id", "linhas": 3631, "relfilenode": "17801", "md5_chave_xmin": "a4b9d03d87c4a9be70414ab9c446afcd", "md5_conteudo": "07b24f645522c55e268a3a7ea3e4e55f", "janela": 0},
+    "pendencias_item": {"pk": "id", "chave": "id", "linhas": 17, "relfilenode": "18737", "md5_chave_xmin": "b771520ab239711b8748ba2d615ab7fb", "md5_conteudo": "a10c9f0456ee08f1a6ac48378994d5a0", "janela": 0},
+    "relatorios_gerados": {"pk": "id", "chave": "id", "linhas": 13, "relfilenode": "17953", "md5_chave_xmin": "716c86b315fd7086f852a847fada63d0", "md5_conteudo": "81355dd608efe5e800075baf3e15ad66", "janela": 0},
+    "senhas_acesso": {"pk": "id", "chave": "id", "linhas": 5, "relfilenode": "17844", "md5_chave_xmin": "ef7a0aa71b7ff3ae6a0d4eabf5bde499", "md5_conteudo": "92e69d3a3ea0d6e3deb75fe36a04effe", "janela": 0},
+    "termos_gerados": {"pk": "id", "chave": "id", "linhas": 123, "relfilenode": "18247", "md5_chave_xmin": "a705b370025180f14aa247a2ad00c3ab", "md5_conteudo": "97c18708794c9017233866b0a58e0ec9", "janela": 0},
+    "tipos_item": {"pk": "id", "chave": "id", "linhas": 10, "relfilenode": "19945", "md5_chave_xmin": "d807d5f94d68232f0836ce42fa24962c", "md5_conteudo": "5c54fae4dc1c13cdb91cae9b676e5555", "janela": 0},
+    "unidades_apelidos": {"pk": "id", "chave": "id", "linhas": 13, "relfilenode": "20904", "md5_chave_xmin": "b93b27b4c671cb16f8b32ba8f7bf6c04", "md5_conteudo": "c5bc5446b0a4409ff476ccd3bf33a2dc", "janela": 0}
+  }
+}
