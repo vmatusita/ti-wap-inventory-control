@@ -121,10 +121,11 @@ do $$
 declare
   v_ok     int := 0;
   v_falhas int := 0;
-  -- A IMPRESSÃO DO CI ANTES DA 0162: medida no push das travas vermelhas da F64 — a cadeia até a
-  -- 0161, este mesmo roteiro, este mesmo `F64-desfaz.sql` rodando em vazio. Ver
-  -- `docs/f64-evidencias/B-travas/`.
-  k_pre_0162   constant text := 'a-medir-no-push-das-travas';
+  -- A IMPRESSÃO DO CI ANTES DA 0162: medida no push das travas vermelhas da F64 (PR #75, run
+  -- 35894254468, commit 6f3a38c — a cadeia até a 0161, este mesmo roteiro, este mesmo
+  -- `F64-desfaz.sql` rodando em vazio). Ver
+  -- `docs/f64-evidencias/B-travas/catalogo-kit-rollback-vermelho-ci.txt`.
+  k_pre_0162   constant text := '9ab2b820d7cdaa5d46cd6e9f17424054';
   -- O md5 do `prosrc` de checagens_integridade_nucleo() na 0158 — o dos dois bancos antes da F64.
   k_nucleo_0158 constant text := '06359abd286206bde8432609128ebccd';
   v_antes_sem  text := current_setting('f64rb.antes_sem_f64');

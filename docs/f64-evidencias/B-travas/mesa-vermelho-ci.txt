@@ -1,0 +1,24 @@
+# F64 · Frente B — as travas de MESA, vermelhas no CI (job verificar 107294108568, run 35894254468, commit 6f3a38c)
+
+##[error]AssertionError: checagens_integridade_nucleo: a exceção não lê empresa_id de kits_modelos/motivos — exceção sem uso é fantasma: expected false to be true // Object.is equality
+##[error]AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+##[error]AssertionError: expected '\'useserver\'import{cookies,headers}f…' not to match /const\{data:excedeu\}=awaitchamarRpc\(/
+##[error]AssertionError: expected 'redirecionou' to deeply equal { erro: Any<String> }
+##[error]AssertionError: expected [ 'patrimonio_duplicado', …(11) ] to include 'kit_motivo_orfao'
+##[error]AssertionError: expected [ { chave: 'kit_motivo_orfao', …(3) } ] to deeply equal []
+##[error]AssertionError: expected undefined to be +0 // Object.is equality
+##[error]AssertionError: o error de registrar_tentativa_senha é descartado — o rate-limit falha ABERTO: expected false to be true // Object.is equality
+##[error]TypeError: .toMatch() expects to receive a string, but got undefined
+^[[2m Test Files ^[[22m ^[[1m^[[31m5 failed^[[39m^[[22m^[[2m | ^[[22m^[[1m^[[32m248 passed^[[39m^[[22m^[[90m (253)^[[39m
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m scripts/smoke/alarme.test.mts^[[2m > ^[[22mavaliarIntegridade — a chave nova da F64 e a ordem do apply × merge^[[2m > ^[[22mcom a linha de base do arquivo (alvo ensaio) e kit_motivo_orfao em 0: verde
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m scripts/smoke/alarme.test.mts^[[2m > ^[[22mavaliarIntegridade — a chave nova da F64 e a ordem do apply × merge^[[2m > ^[[22mcom a linha de base do arquivo (alvo producao) e kit_motivo_orfao em 0: verde
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m scripts/smoke/cobertura.test.mts^[[2m > ^[[22ma chave da F64 (kit_motivo_orfao) está nos TRÊS lugares^[[2m > ^[[22mna linha de base do alvo `ensaio`, com 0 (chave NOVA, não subida)
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m scripts/smoke/cobertura.test.mts^[[2m > ^[[22ma chave da F64 (kit_motivo_orfao) está nos TRÊS lugares^[[2m > ^[[22mna linha de base do alvo `producao`, com 0 (chave NOVA, não subida)
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m scripts/smoke/cobertura.test.mts^[[2m > ^[[22ma chave da F64 (kit_motivo_orfao) está nos TRÊS lugares^[[2m > ^[[22mno SQL vigente de checagens_integridade_nucleo()
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m scripts/smoke/cobertura.test.mts^[[2m > ^[[22ma chave da F64 (kit_motivo_orfao) está nos TRÊS lugares^[[2m > ^[[22mno catálogo curado CHECAGENS, com nome e descrição próprios (não a descrição de chave desconhecida)
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m src/lib/actions/senhas-rate-limit.test.ts^[[2m > ^[[22mentrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D)^[[2m > ^[[22mcom `error` na RPC: RECUSA — nenhuma senha lida nem conferida, nenhum cookie, nenhum redirect
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m src/lib/actions/senhas-rate-limit.test.ts^[[2m > ^[[22mentrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D)^[[2m > ^[[22mcom `error`: a mensagem é genérica — a MESMA para qualquer senha, e não é a de senha errada
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m src/lib/actions/senhas-rate-limit.test.ts^[[2m > ^[[22mentrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D)^[[2m > ^[[22mcom `error`: registra a falha UMA vez, com escopo próprio e SEM o IP em lugar nenhum do argumento
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m src/lib/actions/senhas.test.ts^[[2m > ^[[22mactions/senhas.ts — o rate-limit falha FECHADO (F64)^[[2m > ^[[22ma forma que falhava ABERTO não está no módulo
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m src/lib/actions/senhas.test.ts^[[2m > ^[[22mactions/senhas.ts — o rate-limit falha FECHADO (F64)^[[2m > ^[[22mentrarComSenha lê o error do contador e recusa com ele antes de ler e conferir senha
+^[[41m^[[1m FAIL ^[[22m^[[49m ^[[30m^[[43m puro ^[[49m^[[39m src/lib/validators/empresa-acervo-sem-leitura.test.ts^[[2m > ^[[22mninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco)^[[2m > ^[[22mas exceções nominais (k_leitura_integridade) são as duas do kit, cada uma é função vigente, e cada uma LÊ (a lista não guarda fantasma)
