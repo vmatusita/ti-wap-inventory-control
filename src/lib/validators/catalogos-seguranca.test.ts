@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { comandosDoTexto } from '../../../scripts/db/classificar-migration.mjs'
 import { listarMigrations } from '../../../scripts/db/corpo-vigente.mjs'
 import { lerExcecoesDoCatalogo } from '../../../scripts/db/predicado-policies.mjs'
 import { lerExcecoesDeRecorte } from '../../../scripts/db/recorte-rel.mjs'
@@ -300,8 +301,16 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
    * distinct from`). `is null` / `is not null` NÃO é recorte — é conferência de completude.
    */
   // Nos DOIS sentidos (revisão adversarial da F63): `a.empresa_id = v` e `v = a.empresa_id` são o mesmo recorte.
-  const RECORTE =
-    /\bempresa_id\s*(?:=|<>|!=|\bin\b|\bis\s+(?:not\s+)?distinct\s+from\b)|(?:=|<>|!=|\bdistinct\s+from)\s*(?:[a-z_][a-z0-9_]*\.)?empresa_id\b/i
+  // E com CAST na coluna, `not in`, `between` e comparação de ordem (2ª rodada): `a.empresa_id::text = v::text`
+  // e `empresa_id not in (…)` escapavam. A régua é TEXTUAL — a coluna embrulhada numa função
+  // (`coalesce(a.empresa_id, …) = v`) não é lida aqui; a trava do recorte no banco é o bloco 7 de
+  // `empresa_no_acervo.sql`, que lê o catálogo.
+  const CAST = String.raw`(?:\s*::\s*[a-z_][a-z0-9_]*(?:\s*\[\s*\])?)*`
+  const RECORTE = new RegExp(
+    String.raw`\bempresa_id${CAST}\s*(?:=|<>|!=|<=|>=|<|>|\bnot\s+in\b|\bin\b|\b(?:not\s+)?between\b|\bis\s+(?:not\s+)?distinct\s+from\b)` +
+      String.raw`|(?:=|<>|!=|<=|>=|<|>|\bin\b|\bdistinct\s+from)\s*\(?\s*(?:[a-z_][a-z0-9_]*\.)?empresa_id\b`,
+    'i',
+  )
 
   it('vê a coluna do ACERVO só pelo CATÁLOGO — nenhum comando compara empresa_id de tabela de negócio com um valor (até a F66)', () => {
     // EMENDA F63 (23/09/2026 — decisão 10 do PLAN-F63). Até a F61 este teste reprovava QUALQUER
@@ -319,9 +328,10 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(m, 'não achei k_negocio em catalogo_policies.sql').not.toBeNull()
     const acervo = [...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).filter((t) => t !== 'filiais')
     expect(acervo.length, 'k_negocio veio vazio — o teste compararia com nada').toBeGreaterThan(10)
-    const comandos = semComentarios(fonte('isolamento_tenant'))
-      .split(';')
-      .filter((c) => /\bempresa_id\b/.test(c))
+    // Os comandos pelo léxico único (2ª rodada): o `;` de dentro de um texto não parte o comando, o texto
+    // entre aspas sai (o `attname = 'empresa_id'` do catálogo não é o recorte), e o corpo de função e de
+    // `do` entra.
+    const comandos = comandosDoTexto(fonte('isolamento_tenant')).filter((c) => /\bempresa_id\b/.test(c))
     expect(comandos.length, 'a seção 9 não cita empresa_id — os cenários A↔B sumiram?').toBeGreaterThan(0)
     const lendoOAcervo = comandos.filter((c) => acervo.some((t) => new RegExp(`public\\.${t}\\b`).test(c)) && RECORTE.test(c))
     expect(
@@ -340,6 +350,25 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(RECORTE.test('select 1 from public.ativos where v_emp <> empresa_id')).toBe(true)
     expect(RECORTE.test('select count(*) filter (where empresa_id is null) from public.ativos')).toBe(false)
     expect(RECORTE.test("a.attname = 'empresa_id' and not a.attisdropped")).toBe(false)
+    // 2ª rodada: o cast na coluna, `not in`, `between`, a ordem, e o valor à esquerda entre parênteses
+    expect(RECORTE.test('select 1 from public.ativos a where a.empresa_id::text = v_emp::text')).toBe(true)
+    expect(RECORTE.test('where empresa_id :: uuid = v_emp')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id not in (select id from public.empresas)')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id between v_a and v_b')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id > v_a')).toBe(true)
+    expect(RECORTE.test('where v_emp in (a.empresa_id)')).toBe(true)
+    // e o que continua não sendo recorte: a completude com cast, e um PARÂMETRO de nome parecido
+    expect(RECORTE.test('where empresa_id::text is null')).toBe(false)
+    expect(RECORTE.test('where p_empresa_id = v_emp')).toBe(false)
+  })
+
+  it('os comandos do roteiro vêm do léxico único: o `;` de dentro de um texto não esconde o recorte', () => {
+    const sql = "do $$ begin perform 1 from public.ativos a where a.nome = 'x; y' and a.empresa_id = v_emp; end $$;"
+    const cmds = comandosDoTexto(sql).filter((c) => /\bempresa_id\b/.test(c))
+    expect(cmds).toHaveLength(1)
+    expect(/public\.ativos\b/.test(cmds[0]) && RECORTE.test(cmds[0])).toBe(true)
+    // o split cru partia o comando e separava a tabela do recorte
+    expect(sql.split(';').filter((c) => /\bempresa_id\b/.test(c)).some((c) => /public\.ativos\b/.test(c))).toBe(false)
   })
 
   it('o cabeçalho DIZ o que a F63 preencheu e o que falta (F64 para as tabelas restantes, F66 para a leitura)', () => {

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { semComentarios as semComentariosSql } from '../../../scripts/db/classificar-migration.mjs'
+import { comandosDoTexto, semComentarios as semComentariosSql } from '../../../scripts/db/classificar-migration.mjs'
 import { definicoesDeFuncao } from '../../../scripts/db/corpo-vigente.mjs'
 import { semComentarios } from '@/lib/layout/texto-fonte'
 
@@ -45,12 +45,17 @@ function lote1(): string[] {
 /** A exceção nomeada da varredura TS: o espelho gerado do banco. */
 const EXCECOES_TS = ['src/lib/types/database.ts'] as const
 
+// Todo fonte JS/TS que o bundler aceita — `.mts`/`.cts` e os `.js` também (2ª rodada da revisão
+// adversarial: a varredura só via `.ts`/`.tsx`, e um utilitário `.mts` novo escaparia das duas travas).
+const FONTE = /\.(?:[cm]?[jt]s|[jt]sx)$/
+const TESTE = /\.test\.(?:[cm]?[jt]s|[jt]sx)$/
+
 function arquivosFonte(dir: string): string[] {
   const saida: string[] = []
   for (const nome of readdirSync(dir)) {
     const caminho = join(dir, nome)
     if (statSync(caminho).isDirectory()) saida.push(...arquivosFonte(caminho))
-    else if (/\.(ts|tsx)$/.test(nome) && !/\.test\.(ts|tsx)$/.test(nome)) saida.push(caminho)
+    else if (FONTE.test(nome) && !TESTE.test(nome)) saida.push(caminho)
   }
   return saida
 }
@@ -168,6 +173,11 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
     for (const a of EXCECOES_TS) expect(() => statSync(join(RAIZ, a)), `${a} sumiu`).not.toThrow()
   })
 
+  it('o universo de arquivos é todo fonte JS/TS de src/** — `.mts`, `.cts`, `.js` e `.jsx` também, teste fora', () => {
+    for (const n of ['a.ts', 'a.tsx', 'a.mts', 'a.cts', 'a.js', 'a.jsx', 'a.mjs', 'a.cjs', 'a.d.ts']) expect(FONTE.test(n) && !TESTE.test(n), n).toBe(true)
+    for (const n of ['a.test.ts', 'a.test.tsx', 'a.test.mts', 'a.dom.test.tsx', 'a.css', 'a.json', 'a.md']) expect(FONTE.test(n) && !TESTE.test(n), n).toBe(false)
+  })
+
   // SABOTAGEM I (TS) — cada um destes, sintético, TEM de acusar; e o par legítimo, não.
   it.each([
     ['`.eq(empresa_id)` em ativos', "const { data } = await supabase.from('ativos').select('id').eq('empresa_id', empresa)", true],
@@ -187,12 +197,22 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
 })
 
 /**
- * O literal `empresa_id` num texto TS, sem comentário e com os textos concatenados colados
- * (`'empresa' + '_id'` vira `'empresa_id'`).
+ * Cada ocorrência do literal `empresa_id` num texto TS — sem comentário e com os textos
+ * concatenados colados (`'empresa' + '_id'` vira `'empresa_id'`) —, com o TRECHO que a situa: do
+ * `.from(` mais próximo antes dela até ela, com o espaço normalizado (sem `.from(` antes, os 120
+ * caracteres de antes). O trecho, e não a contagem, é o que a catraca compara (2ª rodada da revisão
+ * adversarial): a linha é sempre a mesma `.eq('empresa_id', EMPRESA_LEGADA_ID)`, e uma troca 1-por-1
+ * no mesmo arquivo manteria a contagem.
  */
-function ocorrenciasDeEmpresaId(fonte: string): number {
+function ocorrenciasDeEmpresaId(fonte: string): string[] {
   const texto = semComentarios(fonte).replace(/(['"`])\s*\+\s*\1/g, '')
-  return (texto.match(/\bempresa_id\b/g) ?? []).length
+  return [...texto.matchAll(/\bempresa_id\b/g)].map((m) => {
+    const de = texto.lastIndexOf('.from(', m.index)
+    return texto
+      .slice(de >= 0 ? de : Math.max(0, m.index - 120), m.index + 'empresa_id'.length)
+      .replace(/\s+/g, ' ')
+      .trim()
+  })
 }
 
 /**
@@ -201,29 +221,54 @@ function ocorrenciasDeEmpresaId(fonte: string): number {
  * .select(C)`), o texto PARTIDO (`'empresa' + '_id'`) e o construtor REATRIBUÍDO noutra instrução (`let q
  * = supabase.from('ativos')…; q = q.eq('empresa_id', x)` — o idioma de `queries/ativos.ts` e
  * `queries/itens.ts`). Os três têm uma coisa em comum: o literal `empresa_id` aparece no fonte. Então
- * a catraca conta o literal, arquivo a arquivo, em todo `src/**` (fora de teste e do `database.ts`), e
- * o número tem de ser EXATAMENTE o daqui — hoje, só as leituras de `membros`/`operador_filiais` da F62.
- * Uma ocorrência nova, em qualquer arquivo e por qualquer caminho, reprova e obriga a olhar; a F66,
- * que é quem pode ler, acrescenta as dela com o motivo.
+ * a catraca lê o literal, arquivo a arquivo, em todo `src/**` (fora de teste e do `database.ts`), e cada
+ * ocorrência tem de ser EXATAMENTE uma das daqui, pelo TRECHO desde o `.from(` — hoje, só as leituras
+ * de `membros`/`operador_filiais` da F62. Uma ocorrência nova, em qualquer arquivo e por qualquer
+ * caminho — ou uma trocada no lugar de outra —, reprova e obriga a olhar; a F66, que é quem pode ler,
+ * acrescenta as dela com o motivo.
  */
-const EMPRESA_ID_NO_APP: Record<string, { n: number; motivo: string }> = {
-  'src/lib/auth/acesso.ts': { n: 1, motivo: 'F62: o cargo pela membership na empresa legada (membros)' },
-  'src/lib/queries/admin.ts': { n: 6, motivo: 'F62: a lista de usuários e os vínculos (membros, operador_filiais) na empresa legada' },
+const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> = {
+  'src/lib/auth/acesso.ts': {
+    trechos: [".from('membros') .select(LEITURA_MEMBRO_OPERADOR.select) .eq('profile_id', user.id) .eq('empresa_id"],
+    motivo: 'F62: o cargo pela membership na empresa legada (membros)',
+  },
+  'src/lib/queries/admin.ts': {
+    trechos: [
+      ".from('membros').select('profile_id, papel, ativo').eq('empresa_id",
+      ".from('operador_filiais').select('usuario_id, filial_id').eq('empresa_id",
+      ".from('membros') .select('profile_id') .eq('empresa_id",
+      ".from('membros') .select('papel, ativo') .eq('profile_id', id) .eq('empresa_id",
+      ".from('membros') .select('papel, ativo') .eq('profile_id', id) .eq('empresa_id",
+      ".from('operador_filiais') .select('filial_id') .eq('usuario_id', id) .eq('empresa_id",
+    ],
+    motivo: 'F62: a lista de usuários e os vínculos (membros, operador_filiais) na empresa legada',
+  },
 }
 
 describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/**', () => {
+  const oito = lote1()
   const arquivos = arquivosFonte(join(RAIZ, 'src'))
     .map((a) => relative(RAIZ, a).replaceAll('\\', '/'))
     .filter((a) => !(EXCECOES_TS as readonly string[]).includes(a))
 
-  it('o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, e em nenhum outro lugar', () => {
-    const achado: Record<string, number> = {}
+  it('o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar', () => {
+    const achado: Record<string, string[]> = {}
     for (const a of arquivos) {
-      const n = ocorrenciasDeEmpresaId(readFileSync(join(RAIZ, a), 'utf8'))
-      if (n) achado[a] = n
+      const trechos = ocorrenciasDeEmpresaId(readFileSync(join(RAIZ, a), 'utf8'))
+      if (trechos.length) achado[a] = trechos
     }
-    const esperado = Object.fromEntries(Object.entries(EMPRESA_ID_NO_APP).map(([a, { n }]) => [a, n]))
-    expect(achado, 'empresa_id apareceu (ou sumiu) num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66').toEqual(esperado)
+    const esperado = Object.fromEntries(Object.entries(EMPRESA_ID_NO_APP).map(([a, { trechos }]) => [a, trechos]))
+    expect(achado, 'empresa_id apareceu, sumiu ou mudou de consulta num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66').toEqual(esperado)
+  })
+
+  it('nenhum trecho liberado parte de uma das oito', () => {
+    for (const [a, { trechos }] of Object.entries(EMPRESA_ID_NO_APP)) {
+      for (const t of trechos) {
+        const tabela = /^\.from\(\s*['"`]([a-z_0-9]+)['"`]/.exec(t)?.[1]
+        expect(tabela, `${a}: trecho sem o .from( da tabela — «${t}»`).toBeDefined()
+        expect(oito.includes(tabela!), `${a}: o trecho lê ${tabela}, uma das oito`).toBe(false)
+      }
+    }
   })
 
   it('toda entrada da catraca tem motivo escrito', () => {
@@ -237,11 +282,19 @@ describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do litera
     ['o template', "const COL = `empresa_id`\nawait supabase.from('movimentacoes').select(`id, ${COL}`)"],
     ['o construtor reatribuído noutra instrução', "let q = supabase.from('ativos').select('id')\nif (x) q = q.eq('empresa_id', v)"],
   ])('a catraca conta %s', (_nome, fonte) => {
-    expect(ocorrenciasDeEmpresaId(fonte)).toBeGreaterThan(0)
+    expect(ocorrenciasDeEmpresaId(fonte).length).toBeGreaterThan(0)
+  })
+
+  it('a troca 1-por-1 no mesmo arquivo muda o trecho — a contagem ficaria igual (2ª rodada)', () => {
+    const legitima = "const m = await supabase.from('membros').select('papel').eq('empresa_id', EMPRESA_LEGADA_ID)"
+    const trocada = "let q = supabase.from('ativos').select('id')\nif (x) q = q.eq('empresa_id', EMPRESA_LEGADA_ID)"
+    expect(ocorrenciasDeEmpresaId(trocada)).toHaveLength(ocorrenciasDeEmpresaId(legitima).length)
+    expect(ocorrenciasDeEmpresaId(trocada)).not.toEqual(ocorrenciasDeEmpresaId(legitima))
+    expect(ocorrenciasDeEmpresaId(trocada)[0]).toMatch(/^\.from\('ativos'\)/)
   })
 
   it('a catraca não conta o comentário (o par legítimo)', () => {
-    expect(ocorrenciasDeEmpresaId("// o empresa_id só na F66\nawait supabase.from('ativos').select('id')")).toBe(0)
+    expect(ocorrenciasDeEmpresaId("// o empresa_id só na F66\nawait supabase.from('ativos').select('id')")).toEqual([])
   })
 })
 
@@ -254,22 +307,26 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     const sql = semComentariosSql(readFileSync(join(DIR, arquivo), 'utf8').replace(/\r\n/g, '\n'))
     for (const d of definicoesDeFuncao(sql)) vigentes.set(`${d.esquema}.${d.nome}(${d.tipos.join(',')})`, { arquivo, texto: d.texto })
   }
-  const RE_TABELA = String.raw`\b(?:from|join|update|into)\s+(?:only\s+)?(?:public\.)?([a-z_][a-z0-9_]*)(?:\s+(?:as\s+)?([a-z_][a-z0-9_]*))?`
-  const NAO_ALIAS = new Set(['where', 'on', 'set', 'join', 'left', 'right', 'inner', 'full', 'cross', 'using', 'order', 'group', 'limit', 'returning', 'values', 'select', 'natural', 'lateral', 'for', 'and', 'or', 'union', 'having', 'window', 'offset', 'fetch', 'when', 'then', 'loop', 'into'])
+  // O apelido é lido por LOOKAHEAD (2ª rodada da revisão adversarial): consumido, ele engolia a palavra
+  // seguinte — em `select count(*) into v_n from public.ativos a`, o "apelido" de `v_n` era o `from`, e
+  // `public.ativos a` sumia da leitura.
+  const RE_TABELA = String.raw`\b(?:from|join|update|into)\s+(?:only\s+)?(?:public\.)?([a-z_][a-z0-9_]*)(?=(?:\s+(?:as\s+)?([a-z_][a-z0-9_]*))?)`
+  const NAO_ALIAS = new Set(['where', 'on', 'set', 'join', 'left', 'right', 'inner', 'full', 'cross', 'using', 'order', 'group', 'limit', 'returning', 'values', 'select', 'natural', 'lateral', 'for', 'and', 'or', 'union', 'having', 'window', 'offset', 'fetch', 'when', 'then', 'loop', 'into', 'from', 'as'])
 
   /** As tabelas das oito que um COMANDO lê ou escreve (`from`/`join`/`update`/`into`). */
   const tabelasDoAcervo = (cmd: string) => [...cmd.matchAll(new RegExp(RE_TABELA, 'gi'))].map((m) => m[1].toLowerCase()).filter((t) => oito.includes(t))
 
   /**
-   * Os comandos de um corpo que LEEM `empresa_id` de uma das oito. Por COMANDO (o texto entre
-   * `;`), porque uma função pode ler `m.empresa_id` de `membros` num comando e contar `ativos`
-   * noutro (`checagens_integridade_nucleo`, desde a F62). Dentro do comando: `x.empresa_id`
-   * conta se `x` é uma das oito ou o alias de uma delas; `empresa_id` sem qualificador conta se o
-   * comando lê ou escreve uma das oito.
+   * Os comandos de um corpo que LEEM `empresa_id` de uma das oito. Por COMANDO — partido pelo léxico
+   * do leitor único (`comandosDoTexto`: o `;` dentro de texto não parte, o texto entre aspas sai) —, porque uma função
+   * pode ler `m.empresa_id` de `membros` num comando e contar `ativos` noutro
+   * (`checagens_integridade_nucleo`, desde a F62). Dentro do comando: `x.empresa_id` conta se `x`
+   * é uma das oito ou o alias de uma delas; `empresa_id` sem qualificador conta se o comando lê ou
+   * escreve uma das oito.
    */
   function leEmpresaIdDoAcervo(corpo: string): string[] {
     const achados: string[] = []
-    for (const cmd of corpo.split(';')) {
+    for (const cmd of comandosDoTexto(corpo)) {
       if (!/\bempresa_id\b/.test(cmd)) continue
       const alias = new Map<string, string>()
       for (const m of cmd.matchAll(new RegExp(RE_TABELA, 'gi'))) {
@@ -306,6 +363,11 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     ['um corpo gravando empresa_id em itens', 'insert into public.itens (nome, empresa_id) values (p_nome, p_empresa)', true],
     ['par legítimo: membros.empresa_id', 'select m.empresa_id from public.membros m limit 1', false],
     ['par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo)', 'select count(*) into v from public.ativos; select 1 from public.membros m where m.empresa_id = public.empresa_legada()', false],
+    // 2ª rodada da revisão adversarial: o `;` dentro de TEXTO não parte o comando; o `into v_n from` não esconde a tabela
+    ['`select … into v_n from` a tabela das oito', 'select count(*) into v_n from public.ativos a where a.empresa_id = p_x', true],
+    ['um `;` num texto entre o alias e a leitura', "select count(*) into v_n from public.ativos a, public.movimentacoes m where m.motivo = 'estado; transicao invalida' and a.empresa_id = p_x", true],
+    ['a leitura dentro do corpo dollar-quoted de uma função', "create function public.f() returns int language plpgsql as $f$ begin raise notice 'a; b'; return (select count(*) from public.itens i where i.empresa_id is null); end $f$", true],
+    ['par legítimo: `empresa_id` só dentro de um texto', "select count(*) from public.ativos a where a.observacao = 'a.empresa_id; x'", false],
   ])('SABOTAGEM I (disco) — %s', (_nome, corpo, acusa) => {
     expect(leEmpresaIdDoAcervo(corpo).length > 0).toBe(acusa)
   })
