@@ -379,10 +379,14 @@ primeiro**, dentro de 24 h do commit das migrations (sonda de deriva).
    function if exists public.kit_motivo_da_empresa()`; `create or replace function
    public.checagens_integridade_nucleo()` com o corpo da `0158` **byte a byte** e o `comment on
    function` da `0158` (a prova: o md5 do `prosrc` volta ao de antes);
-2. (`0163`) `drop column if exists empresa_id` em `eventos_admin`, `import_logs`,
-   `relatorios_gerados`, `senhas_acesso`, `kits_modelos`;
-3. (`0162`) o mesmo em `motivos`, `tipos_item`, `unidades_apelidos`, `import_termos_estado`,
-   `import_termos_categoria`, `import_prefixos_patrimonio`.
+2. (`0163`) `drop column if exists empresa_id` em `kits_modelos`, `senhas_acesso`,
+   `relatorios_gerados`, `import_logs`, `eventos_admin`;
+3. (`0162`) o mesmo em `import_prefixos_patrimonio`, `import_termos_categoria`,
+   `import_termos_estado`, `unidades_apelidos`, `tipos_item`, `motivos`.
+
+Dentro de cada migration, as tabelas saem na MESMA ordem do apply — a ordem em que o app toma os
+locks — e só ENTRE as migrations a ordem é a inversa (o molde de `F63-desfaz.sql`: tomar os locks na
+ordem do app evita o ciclo de espera com uma escrita em curso).
 
 Com `set lock_timeout = '2s'` / `reset`, sem `begin`/`commit` (quem roda decide a transação). O
 ledger não é reescrito. `drop column` não reescreve (a coluna fica `attisdropped`); a FK e o
