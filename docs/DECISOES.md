@@ -13107,3 +13107,83 @@ R-ACC-84 e as emendas de R-ACC-02/25/26/29/30; ADR-002 §15.
   membership. Conferência pós-deploy, só leitura: `/api/saude` com `1.67.0`/`fa10b54`; smoke de produção 109 OK, 1
   aviso antigo, 0 falha; Parte B do `saude.yml` à mão verde, com a sonda de deriva em 0 pendente. Evidência em
   `docs/f62-evidencias/depois/pos-deploy.md`. Tag anotada `v1.67.0` no merge do PR de documentação.
+
+## 2026-09-23 · F63 (v1.68.0) · `empresa_id` no acervo (lote 1) e a disciplina de backup de migração
+
+**Contexto.** Ordem [`prompts/F63-empresa-no-acervo-e-backup-de-migracao-ultracode.md`](prompts/F63-empresa-no-acervo-e-backup-de-migracao-ultracode.md),
+a segunda fase da virada. Plano medido em [`PLAN-F63.md`](PLAN-F63.md) (os 26 fatos remedidos, o censo dos escritores e
+leitores das oito tabelas, o censo da cadeia pelo classificador, as dez decisões, a ordem de apply e de rollback).
+Migrations `0159`–`0161`. Relatório em [`RELATORIO-F63.md`](RELATORIO-F63.md). Regras novas: MATRIZ R-ACC-85 a R-ACC-90
+e a emenda de R-ACC-30; ADR-003, emenda F63; RUNBOOK, "A disciplina de backup de migração".
+
+**A decisão do Johnny (23/09/2026), que muda a ficha:** o default `public.empresa_legada()` das oito tabelas do acervo
+FICA até a F67. Tirá-lo agora obrigaria 18 funções SQL, 9 pontos do app, o seed, a carga, a restauração e 27 roteiros a
+informar a empresa, e três casos (`itens`, `termos_gerados`, colaborador sem filial) nem têm pai de onde tirá-la. Fica
+escrito na coluna (`comment on column`, "o default cai na F67"), aqui e na ficha da F67 com o orçamento. **Desvio
+declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo depois do `not null`" da decisão 2 do §1.
+
+**As dez decisões da fase** (detalhe no `PLAN-F63.md` §4):
+1. **As migrations:** três — `0159` (`backups_migration`), `0160` (as quatro frias: `colaboradores`, `itens`,
+   `termos_gerados`, `anotacoes`, como canário) e `0161` (as quatro quentes, na ordem em que o app toma os locks:
+   `movimentacoes`, `lancamentos_item`, `ativos`, `pendencias_item`). **Motivo:** três a quatro tabelas por migration
+   (a ficha); a ordem de lock igual à do app evita o ciclo de espera com uma escrita em curso.
+2. **O lock:** `set lock_timeout = '2s'` no topo e `reset` no fim, sem `begin`/`commit` no arquivo. **Motivo:** o CI
+   aplica cada comando solto (`psql -f`, sem `-1`), onde `set local` não vale (doc do PG 17: "emits a warning and
+   otherwise has no effect"); `set` + `reset` vale no CI e no `apply_migration` (se o apply for transação e abortar, o
+   `set` some junto). No CI a migration de quatro tabelas não é atômica — o rollback usa `if exists`. Lock que não vem:
+   no máximo três tentativas em 30 min; nunca subir o timeout, nunca matar sessão do app.
+3. **As classes:** o risco sobre DADO que já existia — ADITIVA < BACKFILL < DESTRUTIVA, e ILEGÍVEL fora da ordem. Os
+   limites finos (a tabela do `PLAN-F63.md` §4): `insert` em tabela criada antes é BACKFILL sem par (não há valor
+   anterior); upsert com `do update` é BACKFILL com par; `merge` é BACKFILL (DESTRUTIVA com `then delete`) e reprova a
+   partir da `0159` (sem `where` verificável); `alter column … type` e `drop … cascade` são DESTRUTIVA; `drop` de
+   função/view/policy/gatilho/índice sem `cascade` e `create or replace view` são ADITIVA (não há dado; o risco de
+   segurança é das outras travas); o `do` é código executado; SQL dinâmico, `call`, chamada fora da lista fechada e
+   default volátil são ILEGÍVEL. **O censo:** a `0111` é BACKFILL e ILEGÍVEL (o `update` chama `status_tem_detentor()`
+   no apply); a `0158` declara ADITIVA e é BACKFILL (upsert em `membros` dentro de `do`); **e a `0156` também** (update
+   em `operador_filiais`) — as duas ficam como estão (migration aplicada não se edita).
+4. **`backups_migration`:** `(id identity, migration, tabela, coluna, chave text, valor_anterior jsonb, gravado_em)`,
+   CHECK do formato do arquivo, da tabela e da coluna, `unique (migration, tabela, coluna, chave)`, RLS ligada, zero
+   policy, `revoke all` dos três papéis (e da sequência), sem `force`; `k_infra` + `k_sem_select`. Retenção: até uma
+   migration DESTRUTIVA nomeada, no mínimo 90 dias depois do apply em produção. ~150 bytes por par (~1 MB um backfill de
+   uma coluna no acervo inteiro). **Motivo:** o par, não a linha (Free, 500 MB); SQL NULL = o valor era null, e o
+   rollback por `jsonb_populate_record` devolve o tipo certo.
+5. **O leitor único:** `scripts/db/classificar-migration.mjs`, com o léxico do Postgres; a guarda de topo de
+   `migrations-f38.test.ts` passou a usá-lo (`semComentarios`, `textoExecutado`, `escritasExecutadas`) — medido antes da
+   troca: as leituras de `create`/`drop function` e de enum devolvem o MESMO sobre as 157. Falha fechada: delimitador
+   sem fecho lança (e a guarda o reporta como "ilegível para a guarda", como antes). A guarda ficou SEM VÁLVULA (a
+   classe não a destrava), vê dentro de `do`, lê alias/`only`/nome citado/`merge`/`truncate`/upsert, e ganhou a exceção
+   nominal FECHADA da `0133`.
+6. **A trava do lote 1:** bloco 5 de `catalogo_policies.sql` (15a/15b/15c), SÓ LEITURA como o resto do arquivo;
+   `k_lote1` ao lado de `k_negocio` é a fonte única das oito; o default conferido pelo `pg_depend`; as 11 sem a coluna,
+   um aviso de pendência da F64. Nasceu vermelha pelos oito nomes (run `35865427382`).
+7. **A trava "ninguém lê":** TS (`empresa-acervo-sem-leitura.test.ts`: as cadeias `.from('<t>')…` e os descritores
+   `leituraDeRelacao` das oito; a exceção nomeada é `database.ts`), disco (o corpo vigente das funções, por comando e
+   por alias) e catálogo (bloco 7 de `empresa_no_acervo.sql`: policies, funções e views, com auto-sabotagem; a exceção
+   nomeada é `checagens_integridade_nucleo`, que lê `m.empresa_id` de `membros`).
+8. **O injetor:** seis mutações (`f63-lote1-*` em quatro tabelas, uma por defeito da forma; `f63-backups-*`), teto 125
+   → 131 no número exato, quarentena 2 de 133. **Motivo:** são estado de banco, que nenhum teste de mesa derruba.
+9. **O instrumento:** `docs/f63-evidencias/impressao-acervo.sql`, o mesmo texto antes e depois, com UM parâmetro
+   declarado (o corte = `pg_snapshot_xmin(pg_current_snapshot())` do "antes"). Critério: `relfilenode` igual sem
+   exceção; no ensaio os dois md5 idênticos; em produção idênticos ou com `0 < janela < linhas` (a atividade do app,
+   contada); `janela = linhas` é backfill → rollback.
+10. **O describe 5:** ver a coluna pelo CATÁLOGO (e contar a completude, `is null`) pode — a 9k passou a ver as oito
+    sozinha; comparar `empresa_id` com um VALOR numa tabela de negócio (`=`, `<>`, `in`, `any`, `is distinct from`) é
+    o recorte, proibido até a F66.
+
+**Decisões tomadas na execução:**
+- **(a) O rollback ENTRE fases.** `F62-2-desfaz.sql` faz `drop table public.empresas` e `drop function
+  public.empresa_legada()` sem `cascade`; com as oito FKs e os oito defaults da F63, recusaria. `f62_rollback.sql`
+  passou a rodar `F63-desfaz.sql` ANTES nos dois caminhos (a ordem inversa do apply entre fases) — o que ele prova não
+  muda; o push das travas mostrou o roteiro verde com a F63 desfeita em vazio. Regra R-ACC-90.
+- **(b) A impressão do esquema de antes da `0159`** (colunas visíveis, constraints, gatilhos, índices, policies,
+  RLS/force das oito) foi MEDIDA no CI do push das travas, que ainda não tinha as migrations (`c533eeff…`), e virou a
+  constante do rb3 de `f63_rollback.sql`; o rb4 confere, sem constante, que o rollback tira exatamente o que a fase
+  declarou (as linhas que citam `empresa_id`).
+- **(c) As 17 leituras de linha inteira** (`select: '*'`) sobre as oito — a ficha do ativo e 16 de backup/exportação —
+  são todas `z.looseObject` (decisão 5 da F58): a coluna chega nelas depois do apply e atravessa sem lançar. Nenhuma
+  forma estrita lista a coluna; o conferidor de formas contra produção é a prova (Frente G).
+- **(d) O único uso vivo de `Tables<'ativos'>`** (`AtivoFicha`) ganhou `empresa_id`; a prévia estática da ficha
+  (`scripts/design/previa-ficha-dados.ts`) monta o objeto inteiro e passou a pôr a empresa legada nele.
+- **(e) O conector da Supabase amanheceu desligado** ("disabled in your connector settings", em todas as ferramentas).
+  Sem ele, o "antes" dos bancos não foi tirado e nada foi aplicado; o PR segue sem merge até ele voltar (o caminho B e
+  o estado no topo do `RELATORIO-F63.md`).

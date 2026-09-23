@@ -34,6 +34,20 @@ função de 400 linhas colando uma cópia que envelhece e some do radar).
 precisa emitir `✗ <rótulo>` literal ou `assert_zero_de('<rótulo>'` — um helper que emita o
 rótulo por outro caminho deixa a mutação INVISÍVEL para o injetor (v1.66.5).
 
+## O classificador de migrations (`classificar-migration.mjs`, F63)
+
+O LEITOR ÚNICO de migration: imita o léxico do Postgres (comentário, inclusive de bloco aninhado, só fora de texto e de
+dollar-quote; `$$` e `$rótulo$`), tira o corpo de `create function|procedure` (texto guardado) e MANTÉM o de `do`
+(código executado). Falha fechada: delimitador sem fecho LANÇA. A guarda de topo de
+`src/lib/itens/migrations-f38.test.ts` lê por ele — não reescreva um leitor privado de migration num teste.
+
+Ele também CLASSIFICA (ADITIVA < BACKFILL < DESTRUTIVA; ILEGÍVEL para SQL dinâmico, chamada de função fora da lista
+fechada `FUNCOES_SEM_ESCRITA` e default volátil) e CONFERE a regra a partir da `0159`: cabeçalho `-- classe:`, classe
+declarada ≥ calculada, o bloco de `backups_migration` antes de cada comando que sobrescreve dado, nenhuma válvula, sem
+`begin`/`commit`, ROLLBACK no rodapé. `node scripts/db/classificar-migration.mjs` confere; `--censo` imprime a cadeia.
+Crescer `FUNCOES_SEM_ESCRITA` é decisão escrita na ata, como toda exceção nominal. Receita: `docs/RUNBOOK-BANCO.md`,
+"A disciplina de backup de migração".
+
 ## O gate de deriva de tipos (`diff-tipos.mjs` + `tipos-conjuntos.mjs`)
 
 `npm run db:types:diff` compara CONJUNTOS entre o catálogo do Postgres e
