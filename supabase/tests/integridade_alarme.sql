@@ -320,11 +320,13 @@ begin
     select total into v_antes from public.checagens_integridade_nucleo()
      where chave = 'termo_sem_arquivo';
 
-    -- `movimentacao_ids`/`ativo_ids` não têm FK (são arrays) — um uuid
-    -- fabricado basta para provar a checagem, sem precisar de movimentação
-    -- nem ativo reais.
+    -- `movimentacao_ids`/`ativo_ids` não têm FK (são arrays). Até a F65 a fixture punha
+    -- um uuid FABRICADO em cada um; desde a 0173 o gatilho `termos_gerados_ids_da_empresa`
+    -- recusa id que não existe NA EMPRESA DO TERMO (23503). A checagem aqui é a do ARQUIVO
+    -- que falta no bucket, e os arrays vazios (o termo "degenerado", que o sistema
+    -- conhece) bastam para prová-la, sem movimentação nem ativo reais.
     insert into public.termos_gerados (tipo, movimentacao_ids, ativo_ids, dados, arquivo_path, gerado_por)
-      values ('responsabilidade_notebook', array[gen_random_uuid()], array[gen_random_uuid()],
+      values ('responsabilidade_notebook', '{}'::uuid[], '{}'::uuid[],
               '{}'::jsonb, 'zzf55/termo-orfao.docx', k_autor)
       returning id into v_termo;
 

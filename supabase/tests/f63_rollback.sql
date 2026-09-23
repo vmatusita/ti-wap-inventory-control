@@ -77,6 +77,12 @@ language sql as $f$
      and a.attname = 'empresa_id' and not a.attisdropped
 $f$;
 
+-- F65 (23/09/2026): a F65 sai primeiro, e ANTES da medição "antes" — ela pendura FKs compostas, uniques por empresa e
+-- o gatilho `UPDATE OF empresa_id` nas colunas que os rollbacks da F64 e da F63 derrubam (sem ela fora, o `drop column`
+-- recusa pela dependência), e TROCA objetos das oito mantendo o nome (o "antes sem a F63" tem de ser o estado que a F63
+-- e a F64 deixaram). O que este roteiro prova não muda.
+\ir ../rollback/F65-desfaz.sql
+
 select pg_temp.f63_impressao_esquema(true)  as antes_sem_f63,
        pg_temp.f63_colunas_visiveis()       as colunas_antes
 \gset
@@ -84,7 +90,7 @@ select pg_temp.f63_impressao_esquema(true)  as antes_sem_f63,
 -- F64 (23/09/2026): a fase de DEPOIS sai primeiro — o inverso do apply ENTRE fases (regra 10 da §4
 -- do PLANO-MULTIEMPRESA). A F64 não toca as oito (põe a coluna nas onze do lote 2 e o gatilho do
 -- kit), então o que este roteiro prova não muda; é a ordem que o RUNBOOK manda para desfazer a F63
--- num banco que já tem a F64.
+-- num banco que já tem a F64. (A F65 saiu antes da medição "antes", logo acima.)
 \ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
 
