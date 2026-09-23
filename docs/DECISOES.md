@@ -13332,3 +13332,19 @@ contrato sem prova.
   `'desenvolvimento'`. A ordem só afirmava o do ensaio; registrado, sem ação.
 - **(g) O Context7 não indexa o PostgreSQL 17** (só 15, 16, 18 e `current`): as citações da regra 6 vieram direto de
   `postgresql.org/docs/17`.
+- **(h) A revisão adversarial: a exceção do kit valia pela FUNÇÃO no catálogo.** Sete revisores de contexto fresco (lentes
+  separadas) sobre o diff inteiro; seis sem achado. O das travas trouxe dois, cada um votado por céticos instruídos a
+  refutar: **confirmado** — 15h (`catalogo_policies.sql`) e o bloco 6 de `empresa_no_vocabulario.sql` isentavam as duas
+  exceções nominais pelo NOME, a função inteira, enquanto a decisão 7 do PLAN e a R-ACC-96 dizem que a exceção vale só
+  no COMANDO que toca `kits_modelos`/`motivos` (a trava de disco já fazia por comando); **refutado** — o `--` dentro de
+  um texto escondendo a leitura que vem depois na mesma linha (nenhum corpo vivo tem a forma). **Escolha:** um predicado
+  ÚNICO em `_asserts.sql` para os dois roteiros — `pg_temp.sql_so_codigo` (o léxico do Postgres: comentário de linha e de
+  bloco aninhado saem; texto, `E'…'` e dollar-quote viram `''`; identificador citado e `$1` ficam — o espelho do `lexar`
+  do leitor único) e `pg_temp.leitura_de_empresa_do_lote` (fora das exceções, a função inteira; nas exceções, o comando
+  partido por `;` que cita `empresa_id` e uma tabela do lote fora de `k_tabelas_leitura_kit`, a lista nova ao lado de
+  `k_leitura_integridade`). O bloco 6 ganhou 6c (a função do gatilho recriada na transação com um comando a mais lendo
+  `eventos_admin.empresa_id` é ACUSADA) e 6d (oito casos do léxico — o que também fecha o refutado). **Motivo:** a
+  trava que diz "por comando" e só confere "por função" deixa passar a leitura que ela promete barrar; e duas cópias do
+  predicado divergiriam. **Limite, registrado no RELATORIO-F64:** texto dentro de aspas não conta como leitura — o mesmo
+  corte do leitor único de disco —, logo SQL dinâmico (`execute 'select … empresa_id …'`) não é visto por nenhuma das
+  duas travas.

@@ -130,6 +130,11 @@ declare
   -- a lê daqui (e lá a exceção vale só nos comandos que tocam `kits_modelos`/`motivos`), e o
   -- describe 13 amarra a cópia da auto-sabotagem de `empresa_no_vocabulario.sql` a ela.
   k_leitura_integridade text[] := array['checagens_integridade_nucleo', 'kit_motivo_da_empresa'];
+  -- E as tabelas cuja coluna as duas exceções podem ler — e SÓ elas, e só no COMANDO que as toca
+  -- (revisão adversarial da F64: a exceção valia pela função inteira no catálogo). Fonte única: o
+  -- 15h a usa pelo predicado `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`), e a trava de
+  -- mesa `empresa-acervo-sem-leitura.test.ts` a LÊ daqui.
+  k_tabelas_leitura_kit text[] := array['kits_modelos', 'motivos'];
 
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
   --   · profiles          (0001) — identidade da CONTA, não do acervo. Na virada o
@@ -1360,9 +1365,11 @@ begin
   --         asserção 1a já reprova tabela não classificada.
   --   15g/15h/15i — NINGUÉM LÊ `empresa_id` DO LOTE 2 ANTES DA F66 (decisão 7), pelo catálogo: a
   --         policy das onze não cita a coluna; a função de `public` que toca uma das onze não a lê,
-  --         fora das exceções nominais de `k_leitura_integridade`; a view, idem. O corpo é lido SEM
-  --         comentário (o `prosrc` guarda os comentários: `apagar_usuario`, 0158, cita
-  --         `eventos_admin` num comentário e lê `membros.empresa_id` — não é leitura do lote 2);
+  --         fora das exceções nominais de `k_leitura_integridade` — e NELAS, só no COMANDO que toca
+  --         `k_tabelas_leitura_kit`; a view, idem. O corpo é lido pelo LÉXICO (`pg_temp.sql_so_codigo`:
+  --         sem comentário, sem texto, sem dollar-quote — o `prosrc` guarda os comentários, e
+  --         `apagar_usuario`, 0158, cita `eventos_admin` num comentário e lê `membros.empresa_id`,
+  --         o que não é leitura do lote 2);
   --   15j — cada exceção nominal de `k_leitura_integridade` é uma função que EXISTE (a lista não
   --         guarda fantasma; antes da 0164 reprova por `kit_motivo_da_empresa`).
   -- O DEFAULT FICA ATÉ A F67 (decisão 1 do Johnny, 23/09/2026): 15e EXIGE o default, e a F67 a
@@ -1466,21 +1473,24 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
-  -- 15h — as funções de `public` cujo corpo (sem comentário) toca uma das onze não leem empresa_id,
-  -- fora das exceções nominais.
-  with corpo as (
+  -- 15h — as funções de `public` que tocam uma das onze não leem empresa_id — pelo predicado ÚNICO
+  -- `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`): o CÓDIGO do corpo pelo léxico do Postgres
+  -- (sem comentário, sem texto, sem dollar-quote); fora das exceções nominais a função inteira
+  -- reprova, e NAS exceções reprova o COMANDO que lê a coluna junto de uma tabela do lote que não
+  -- seja de `k_tabelas_leitura_kit` (revisão adversarial da F64). Universo: as funções cujo corpo
+  -- cita uma das onze.
+  with f as (
     select p.proname,
-           regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') as texto
+           p.prosrc ~ ('\m(' || array_to_string(k_lote2, '|') || ')\M') as toca,
+           pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote2, k_leitura_integridade, k_tabelas_leitura_kit) as le
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
   )
-  select count(*),
-         count(*) filter (where c.texto ~ '\mempresa_id\M' and not (c.proname = any (k_leitura_integridade))),
-         coalesce(string_agg(c.proname, ', ' order by c.proname)
-                    filter (where c.texto ~ '\mempresa_id\M' and not (c.proname = any (k_leitura_integridade))), '')
+  select count(*) filter (where f.toca),
+         count(*) filter (where f.le is not null),
+         coalesce(string_agg(f.le, '; ' order by f.proname) filter (where f.le is not null), '')
     into v_univ, v_cnt, v_lista
-    from corpo c
-   where c.texto ~ ('\m(' || array_to_string(k_lote2, '|') || ')\M');
+    from f;
   if pg_temp.assert_zero_de(
        '15h nenhuma função de public lê empresa_id junto de uma das onze do lote 2 (fora das exceções nominais de k_leitura_integridade)' ||
        case when v_cnt > 0 then ' — lê: ' || v_lista else '' end,

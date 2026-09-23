@@ -837,12 +837,23 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     }
   })
 
-  it('15h usa a lista de exceções pelo nome da coluna do catálogo, e 15j a confere de volta (os dois sentidos)', () => {
+  it('as tabelas que as exceções podem ler são as duas do kit, e só elas', () => {
+    expect(lista('k_tabelas_leitura_kit')).toEqual(['kits_modelos', 'motivos'])
+  })
+
+  it('15h usa o predicado ÚNICO por comando (revisão adversarial da F64), e 15j confere as exceções de volta (os dois sentidos)', () => {
     const sql = semComentarios(cat)
-    expect(sql).toMatch(/c\.proname = any \(k_leitura_integridade\)/)
+    // a exceção vale por COMANDO, não pela função inteira: o predicado de `_asserts.sql` recebe as
+    // exceções E as tabelas do kit; o corpo é lido pelo léxico (`apagar_usuario`, 0158, cita
+    // `eventos_admin` num comentário)
+    expect(sql, '15h não usa o predicado único de _asserts.sql').toMatch(
+      /pg_temp\.leitura_de_empresa_do_lote\(p\.proname, p\.prosrc, k_lote2, k_leitura_integridade, k_tabelas_leitura_kit\)/,
+    )
+    expect(sql, '15h voltou a isentar a função inteira pelo nome').not.toMatch(/c\.proname = any \(k_leitura_integridade\)/)
     expect(sql).toMatch(/from unnest\(k_leitura_integridade\) as nome/)
-    // o corpo é lido SEM comentário: `apagar_usuario` (0158) cita `eventos_admin` num comentário
-    expect(sql, '15h lê o prosrc com os comentários — falso positivo em apagar_usuario').toMatch(/regexp_replace\(regexp_replace\(p\.prosrc/)
+    const asserts = fonte('_asserts')
+    expect(asserts, '_asserts.sql perdeu o léxico do corpo').toMatch(/create or replace function pg_temp\.sql_so_codigo\(p_texto text\)/)
+    expect(asserts, '_asserts.sql perdeu o predicado da leitura do lote').toMatch(/create or replace function pg_temp\.leitura_de_empresa_do_lote\(/)
   })
 
   it('os roteiros da F64 que listam as onze tabelas ou as exceções listam EXATAMENTE a fonte única', () => {
@@ -858,6 +869,9 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
       const m = /k_leitura_integridade\s+(?:constant\s+)?text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(fonte('empresa_no_vocabulario'))
       expect(m, 'empresa_no_vocabulario.sql não declara a cópia das exceções da auto-sabotagem').not.toBeNull()
       expect([...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort()).toEqual(leitura)
+      const t = /k_tabelas_leitura_kit\s+(?:constant\s+)?text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(fonte('empresa_no_vocabulario'))
+      expect(t, 'empresa_no_vocabulario.sql não declara a cópia das tabelas da leitura do kit').not.toBeNull()
+      expect([...t![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort()).toEqual(lista('k_tabelas_leitura_kit'))
     }
   })
 })

@@ -30,6 +30,10 @@
 --       (`k_leitura_integridade`, a cópia amarrada pelo describe 13) LEEM — não são fantasma —, e
 --       uma policy de `tipos_item` e uma função que leem a coluna, fictícias, são ACUSADAS pelo
 --       predicado das asserções 15g/15h de `catalogo_policies.sql` (o gate sabe reprovar).
+--       E (revisão adversarial da F64) a exceção vale por COMANDO, não pela função: a do kit
+--       recriada com um comando a mais que lê `eventos_admin.empresa_id` é ACUSADA (6c); e o léxico
+--       do predicado (`pg_temp.sql_so_codigo`, em `_asserts.sql`) não deixa um `--` dentro de texto
+--       esconder a leitura, nem conta a que está em comentário, texto ou dollar-quote (6d).
 --
 -- Tudo por `pg_temp.assert_zero_de`, que recusa universo vazio; rótulo literal (o injetor lê por
 -- token). ESCREVE — `begin; … rollback;`: nada sobra no banco. A tabela de fixture
@@ -102,6 +106,9 @@ declare
   -- A CÓPIA das exceções nominais de leitura (a fonte única é `k_leitura_integridade` em
   -- catalogo_policies.sql; o describe 13 confere que as duas listas são a mesma).
   k_leitura_integridade constant text[] := array['checagens_integridade_nucleo', 'kit_motivo_da_empresa'];
+  -- E a cópia de `k_tabelas_leitura_kit` (as tabelas que as exceções podem ler, por comando) — o
+  -- describe 13 confere que é a mesma lista.
+  k_tabelas_leitura_kit constant text[] := array['kits_modelos', 'motivos'];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162) — o texto que o CI aplica.
   k_escritores constant text[] := array[
@@ -134,7 +141,6 @@ declare
   v_m0     text;
   v_m1     text;
   v_miss   boolean;
-  v_re_onze text;
 begin
   select id into v_f1 from public.filiais where ativo order by id limit 1;
   if v_f1 is null then
@@ -396,16 +402,22 @@ begin
   -- ==========================================================================
   -- 6 — NINGUÉM LÊ `empresa_id` DO LOTE 2 (a metade SQL da sabotagem F).
   -- ==========================================================================
-  -- O predicado é o de 15h (catalogo_policies.sql): o corpo SEM comentário, citando uma das onze E
-  -- `empresa_id`. As duas exceções nominais LEEM (não são fantasma).
-  v_re_onze := '\m(' || array_to_string(k_onze, '|') || ')\M';
-  select count(*) into v_n
+  -- O predicado é o ÚNICO de 15h (catalogo_policies.sql): `pg_temp.leitura_de_empresa_do_lote`
+  -- (`_asserts.sql`) — o CÓDIGO do corpo pelo léxico do Postgres; fora das exceções a função inteira,
+  -- nas exceções o COMANDO que lê a coluna junto de uma tabela do lote fora de `k_tabelas_leitura_kit`.
+  -- 6a — as duas exceções nominais LEEM (não são fantasma): cada uma tem um comando que lê
+  --      `empresa_id` junto de `kits_modelos`/`motivos` — e o predicado NÃO as acusa.
+  select count(*) filter (where exists (
+           select 1 from regexp_split_to_table(pg_temp.sql_so_codigo(p.prosrc), ';') as s(cmd)
+            where s.cmd ~ '\mempresa_id\M'
+              and s.cmd ~ ('\m(' || array_to_string(k_tabelas_leitura_kit, '|') || ')\M'))),
+         count(*) filter (where pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null)
+    into v_n, v_ruins
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.proname = any (k_leitura_integridade)
-     and regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') ~ v_re_onze
-     and regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') ~ '\mempresa_id\M';
-  if pg_temp.assert_zero_de('6a as duas exceções nominais (kit_motivo_da_empresa, checagens_integridade_nucleo) LEEM empresa_id junto de uma das onze — a lista não guarda fantasma',
-       2 - least(v_n, 2), 2) then
+   where n.nspname = 'public' and p.proname = any (k_leitura_integridade);
+  if pg_temp.assert_zero_de('6a as duas exceções nominais LEEM empresa_id de kits_modelos/motivos (a lista não guarda fantasma) e o predicado não as acusa' ||
+       case when v_n <> 2 or v_ruins > 0 then ' — leem ' || v_n || ' de 2, acusadas ' || v_ruins else '' end,
+       (2 - least(v_n, 2)) + v_ruins, 4) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 6b — a AUTO-SABOTAGEM: uma policy de tipos_item e uma função que leem a coluna são acusadas.
@@ -421,9 +433,8 @@ begin
                and (coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'))::text
            || '/' ||
            (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-             where n.nspname = 'public' and not (p.proname = any (k_leitura_integridade))
-               and regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') ~ v_re_onze
-               and regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') ~ '\mempresa_id\M')::text
+             where n.nspname = 'public'
+               and pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null)::text
       into v_estado;
     raise exception 'f64-6b-desfaz';
   exception when others then
@@ -432,6 +443,64 @@ begin
   if pg_temp.assert_zero_de('6b auto-sabotagem: a policy de tipos_item e a função que leem empresa_id do lote 2 são ACUSADAS pelo predicado de 15g/15h (o gate sabe reprovar)' ||
        case when v_estado is distinct from '1/1' then ' — acusou ' || coalesce(v_estado, '∅') || ' (esperado 1/1)' else '' end,
        case when v_estado = '1/1' then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 6c — A EXCEÇÃO VALE POR COMANDO (revisão adversarial da F64): a função do gatilho do kit,
+  --      recriada na transação com um comando a mais que lê `eventos_admin.empresa_id`, é ACUSADA —
+  --      o nome dela na lista de exceções não a isenta inteira.
+  v_estado := null;
+  begin
+    create or replace function public.kit_motivo_da_empresa() returns trigger language plpgsql set search_path = public as $s$
+    begin
+      if not exists (select 1 from public.motivos m where m.codigo = new.payload->>'motivo' and m.empresa_id = new.empresa_id) then
+        raise exception 'f64 sabotagem';
+      end if;
+      perform count(*) from public.eventos_admin e where e.empresa_id = new.empresa_id;
+      return new;
+    end
+    $s$;
+    select coalesce(pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_onze, k_leitura_integridade, k_tabelas_leitura_kit), 'NAO ACUSOU')
+      into v_estado
+      from pg_proc p where p.oid = 'public.kit_motivo_da_empresa()'::regprocedure;
+    raise exception 'f64-6c-desfaz';
+  exception when others then
+    if sqlerrm <> 'f64-6c-desfaz' then v_estado := 'erro ' || sqlstate || ': ' || sqlerrm; end if;
+  end;
+  raise notice '6c (medição) a exceção com um comando a mais: %', v_estado;
+  if pg_temp.assert_zero_de('6c a exceção nominal que lê empresa_id de OUTRA tabela do lote (eventos_admin) num comando é ACUSADA — a exceção vale por comando, não pela função' ||
+       case when v_estado is null or v_estado not like 'kit_motivo_da_empresa (num comando que lê outra tabela do lote:%' then ' — ' || coalesce(v_estado, '∅') else '' end,
+       case when v_estado like 'kit_motivo_da_empresa (num comando que lê outra tabela do lote:%eventos_admin%' then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 6d — O LÉXICO (`pg_temp.sql_so_codigo`): o `--` dentro de um texto não esconde a leitura que vem
+  --      depois na mesma linha; a leitura só em comentário, em texto ou em dollar-quote não conta.
+  v_ruins := 0; v_rot := '';
+  if pg_temp.leitura_de_empresa_do_lote('f64_qualquer', 'if p = ''ok -- x'' then null; end if; select m.empresa_id from public.motivos m;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (o -- dentro do texto escondeu a leitura)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('f64_qualquer', E'select 1; -- m.empresa_id de public.motivos\nselect 2;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (acusou a leitura em comentário de linha)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('f64_qualquer', 'select ''m.empresa_id from public.motivos''; select 2;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (acusou a leitura dentro de texto)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('f64_qualquer', 'perform $q$ select m.empresa_id from public.motivos m $q$; select 2;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (acusou a leitura dentro de dollar-quote)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('f64_qualquer', '/* a /* aninhado */ m.empresa_id de public.motivos */ select 1;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (acusou a leitura em comentário de bloco aninhado)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('kit_motivo_da_empresa', 'select 1 from public.motivos m where m.empresa_id = new.empresa_id; select 2 from public.kits_modelos k where k.empresa_id = new.empresa_id;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (acusou a exceção lendo só kits_modelos/motivos)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('checagens_integridade_nucleo', 'select 1 from public.senhas_acesso s where s.empresa_id = public.empresa_legada();', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (a exceção lendo senhas_acesso passou)';
+  end if;
+  if pg_temp.sql_so_codigo('select $1, "a--b", ''x;y'' from t; -- fim') is distinct from 'select $1, "a--b", '''' from t; ' then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (o léxico: ' || coalesce(pg_temp.sql_so_codigo('select $1, "a--b", ''x;y'' from t; -- fim'), '∅') || ')';
+  end if;
+  if pg_temp.assert_zero_de('6d o léxico do predicado: o -- dentro de texto não esconde a leitura; comentário, texto e dollar-quote não contam; a exceção vale por comando; $1 e identificador citado ficam' ||
+       case when v_ruins > 0 then ' — fora da regra:' || v_rot else '' end, v_ruins, 8) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM empresa_no_vocabulario: % asserções, % falhas', v_ok + v_falhas, v_falhas;

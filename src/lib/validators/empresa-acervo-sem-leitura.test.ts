@@ -55,8 +55,8 @@ const lote2 = () => listaDoCatalogo('k_lote2', 'das onze')
 const lotes = () => [...lote1(), ...lote2()]
 /** As exceções nominais de leitura (F64): as duas leituras de integridade do kit. */
 const leituraIntegridade = () => listaDoCatalogo('k_leitura_integridade', 'das exceções de leitura')
-/** As tabelas cuja coluna as exceções podem ler — e só nelas. */
-const TABELAS_DA_LEITURA_DO_KIT = ['kits_modelos', 'motivos'] as const
+/** As tabelas cuja coluna as exceções podem ler — e só nelas (`k_tabelas_leitura_kit`, a fonte única). */
+const TABELAS_DA_LEITURA_DO_KIT: readonly string[] = listaDoCatalogo('k_tabelas_leitura_kit', 'das tabelas da leitura do kit')
 
 /** A exceção nomeada da varredura TS: o espelho gerado do banco. */
 const EXCECOES_TS = ['src/lib/types/database.ts'] as const
@@ -397,7 +397,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
 
   /** A exceção do kit: função nominal E o comando só toca `kits_modelos`/`motivos` dos lotes. */
   const ehLeituraDoKit = (funcao: string, tabelas: string[]) =>
-    excecoes.includes(funcao) && tabelas.length > 0 && tabelas.every((t) => (TABELAS_DA_LEITURA_DO_KIT as readonly string[]).includes(t))
+    excecoes.includes(funcao) && tabelas.length > 0 && tabelas.every((t) => TABELAS_DA_LEITURA_DO_KIT.includes(t))
   const nomeDaChave = (k: string) => /^[a-z_]+\.([a-z_0-9]+)\(/.exec(k)?.[1] ?? k
 
   it('nenhuma função vigente lê empresa_id de uma das dezenove (fora da leitura do kit nas duas exceções nominais)', () => {

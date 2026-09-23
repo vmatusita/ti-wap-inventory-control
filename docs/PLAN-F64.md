@@ -298,13 +298,16 @@ escrita do app a qualquer hora, mas a escrita é um INSERT curto: o ALTER espera
   **fora das duas exceções nominais**: `kit_motivo_da_empresa` e `checagens_integridade_nucleo`, e
   nelas SÓ em comando que toque `kits_modelos`/`motivos` (a leitura do kit). Caso sintético: um corpo
   lendo `motivos.empresa_id` que não seja uma das duas → acusa; as duas exceções passam.
-- **Catálogo** (`supabase/tests/empresa_no_vocabulario.sql`, bloco "ninguém lê"): nenhuma policy das
-  onze cita `empresa_id` (universo 22); nenhuma função de `public` lê `empresa_id` junto de uma das
-  onze fora das exceções; nenhuma view; e a auto-sabotagem (uma policy de `tipos_item` citando a
-  coluna e uma função lendo `motivos.empresa_id`, na transação desfeita) é acusada.
-- **A lista das exceções mora numa fonte só:** `k_leitura_integridade` em
-  `supabase/tests/empresa_no_vocabulario.sql`, com o motivo de cada uma; a trava TS a LÊ de lá (como
-  lê `k_lote1`), e exige que sejam exatamente as duas.
+- **Catálogo** (15g–15i de `catalogo_policies.sql` e o bloco 6 de `empresa_no_vocabulario.sql`): nenhuma
+  policy das onze cita `empresa_id` (universo 22); nenhuma função de `public` lê `empresa_id` junto de
+  uma das onze — fora das exceções, a função inteira; NELAS, por COMANDO, como no disco (revisão
+  adversarial, ata F64 (h)) —; nenhuma view; e a auto-sabotagem (uma policy de `tipos_item` citando a
+  coluna, uma função lendo `motivos.empresa_id`, e a função do gatilho com um comando a mais lendo
+  `eventos_admin.empresa_id`, na transação desfeita) é acusada. O predicado é ÚNICO, em `_asserts.sql`
+  (`pg_temp.leitura_de_empresa_do_lote`, sobre o léxico `pg_temp.sql_so_codigo`).
+- **A lista das exceções mora numa fonte só:** `k_leitura_integridade` (e, ao lado, `k_tabelas_leitura_kit`
+  — as tabelas que elas podem ler) em `supabase/tests/catalogo_policies.sql`; a trava TS as LÊ de lá
+  (como lê `k_lote1`), exige que sejam exatamente as duas, e o describe 13 amarra as cópias do roteiro.
 
 ### Decisão 8 — o injetor
 
