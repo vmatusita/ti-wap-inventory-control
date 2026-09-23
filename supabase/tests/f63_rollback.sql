@@ -97,10 +97,11 @@ do $$
 declare
   v_ok     int := 0;
   v_falhas int := 0;
-  -- A IMPRESSÃO DO CI ANTES DA 0159: medida no push das travas vermelhas da F63 (a cadeia até a
-  -- 0158, este mesmo roteiro, este mesmo `F63-desfaz.sql` rodando em vazio). Ver
-  -- `docs/f63-evidencias/B-travas/`.
-  k_pre_0159   constant text := 'a-medir-no-push-das-travas';
+  -- A IMPRESSÃO DO CI ANTES DA 0159: medida no push das travas vermelhas da F63 (PR #72, run
+  -- 35865427382, commit 8a8b3d7 — a cadeia até a 0158, este mesmo roteiro, este mesmo
+  -- `F63-desfaz.sql` rodando em vazio). Ver
+  -- `docs/f63-evidencias/B-travas/catalogo-e-rollback-vermelho-ci.txt`.
+  k_pre_0159   constant text := 'c533eeff15f4196c2f8a5ec4721ff570';
   v_antes_sem  text := current_setting('f63rb.antes_sem_f63');
   v_depois     text := current_setting('f63rb.depois');
   v_col_antes  bigint := current_setting('f63rb.colunas_antes')::bigint;
