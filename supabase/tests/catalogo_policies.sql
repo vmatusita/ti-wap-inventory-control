@@ -132,9 +132,15 @@ declare
   --   `operador_filiais` CONTINUA infra (fato 14 da ordem F62): ganhou `empresa_id` e
   --   `membro_id` (0156), mas é o vínculo de ESCRITA de uma membership — a chave de recorte
   --   dele é a membership, não a linha.
+  -- F63 (23/09/2026) — nove no total:
+  --   · backups_migration (0159) — o PAR DE BACKUP das migrations que alteram dado: o que ela
+  --                                guarda é do MECANISMO de migração (a chave e o valor anterior
+  --                                de uma célula), escrito pela migration e lido pelo rollback
+  --                                dela; não se recorta por empresa.
   k_infra text[] := array[
     'profiles', 'operador_filiais', 'senha_tentativas', 'ambiente',
-    '_bkp_relatorios_gerados_f6a', 'empresas', 'membros', 'plataforma_admins'
+    '_bkp_relatorios_gerados_f6a', 'empresas', 'membros', 'plataforma_admins',
+    'backups_migration'
   ];
 
   -- =======================================================================
@@ -166,11 +172,15 @@ declare
   --                         revogada na própria migration.
   --   · plataforma_admins — F62 (0154): só `e_plataforma()` (definer) a lê. Mesmo idioma
   --                         de `ambiente`.
+  --   · backups_migration — F63 (0159): o par de backup de migração; quem escreve é a migration
+  --                         e quem lê é o rollback dela, os dois como o dono. RLS ligada, zero
+  --                         policy e revoke all dos três papéis da API — o molde de `ambiente`.
   --
   -- ⚠ A asserção 4 confere esta lista no SENTIDO CONTRÁRIO: nome aqui que passe a TER
   -- policy de SELECT também REPROVA. Exceção não sobrevive ao motivo que a criou.
   -- =======================================================================
-  k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente', 'empresas', 'plataforma_admins'];
+  k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente', 'empresas', 'plataforma_admins',
+                               'backups_migration'];
 
   -- =======================================================================
   -- O PISO DE LEITURA CONGELADO (R-ACC-25, migration 0070).
