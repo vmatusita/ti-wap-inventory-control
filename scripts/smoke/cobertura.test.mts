@@ -137,11 +137,12 @@ describe('os TRÊS conjuntos concordam', () => {
     readFileSync(join(RAIZ, 'scripts', 'smoke', 'linha-de-base.json'), 'utf8'),
   )
 
-  it('os três encontram DOZE chaves (guarda do próprio teste)', () => {
-    expect(doCatalogo).toHaveLength(12)
-    expect(doNucleo).toHaveLength(12)
+  // F64 (23/09/2026): TREZE — a 0164 acrescentou kit_motivo_orfao nos três lugares, no mesmo commit.
+  it('os três encontram TREZE chaves (guarda do próprio teste)', () => {
+    expect(doCatalogo).toHaveLength(13)
+    expect(doNucleo).toHaveLength(13)
     for (const { alvo, chaves } of chavesDaPolitica(politica)) {
-      expect(chaves, `alvo ${alvo}`).toHaveLength(12)
+      expect(chaves, `alvo ${alvo}`).toHaveLength(13)
     }
   })
 
@@ -171,13 +172,43 @@ describe('os TRÊS conjuntos concordam', () => {
     },
   )
 
-  it('a função-núcleo é a fonte VIGENTE do SQL das doze (e ninguém mais o tem)', () => {
+  it('a função-núcleo é a fonte VIGENTE do SQL das treze (e ninguém mais o tem)', () => {
     const { arquivo } = corpoVigente('public.checagens_integridade_nucleo()', RAIZ)
     // F62 (22/09/2026): a 0158 a recriou trocando SÓ a operador_sem_filial (o cargo passou a
-    // morar em membros) — as doze continuam num lugar só, agora o da 0158.
-    expect(arquivo).toBe('0158_cargo_em_membros.sql')
+    // morar em membros). F64 (23/09/2026): a 0164 a recriou acrescentando SÓ a 13ª,
+    // kit_motivo_orfao (as doze de antes byte a byte) — as treze num lugar só, agora o da 0164.
+    expect(arquivo).toBe('0164_kit_motivo_da_empresa.sql')
     // A porta da /dev delega: o corpo dela NÃO tem mais as doze.
     const daPorta = chavesDoNucleo(corpoVigente('public.dev_checagens_integridade()', RAIZ).sql)
     expect(daPorta, 'o SQL das doze voltou a existir em DOIS lugares').toEqual([])
+  })
+})
+
+// F64 (23/09/2026) — A CHAVE NOVA NOS TRÊS LUGARES, NO MESMO COMMIT (fato 14 da ordem F64). A 0164
+// acrescenta a 13ª peça ao núcleo, `kit_motivo_orfao` (o kit cujo motivo não existe na empresa do
+// kit). Os testes acima comparam os três conjuntos ENTRE SI — uma chave que não estivesse em NENHUM
+// dos três passaria verde. Esta trava exige a chave nos três: no SQL vigente do núcleo, no catálogo
+// curado `CHECAGENS` (com nome e descrição próprios) e na linha de base dos DOIS alvos, com 0 — uma
+// chave NOVA entrando com zero, o que não é "subir a linha de base" (ata da F64). Nasceu VERMELHA
+// (push das travas da F64), antes de a chave existir em lugar nenhum.
+describe('a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares', () => {
+  const CHAVE_F64 = 'kit_motivo_orfao'
+  const fonteDev = readFileSync(join(RAIZ, 'src', 'lib', 'queries', 'dev.ts'), 'utf8')
+  const politica = JSON.parse(readFileSync(join(RAIZ, 'scripts', 'smoke', 'linha-de-base.json'), 'utf8'))
+
+  it('no SQL vigente de checagens_integridade_nucleo()', () => {
+    expect(chavesDoNucleo(corpoVigente('public.checagens_integridade_nucleo()', RAIZ).sql)).toContain(CHAVE_F64)
+  })
+
+  it('no catálogo curado CHECAGENS, com nome e descrição próprios (não a descrição de chave desconhecida)', () => {
+    expect(chavesDoCatalogo(fonteDev)).toContain(CHAVE_F64)
+    const entrada = new RegExp(String.raw`chave:\s*'${CHAVE_F64}'[\s\S]*?nome:\s*'([^']+)'[\s\S]*?descricao:\s*'([^']+)'`).exec(fonteDev)
+    expect(entrada, 'a entrada da chave nova não tem nome e descrição').not.toBeNull()
+    expect(entrada![1].length).toBeGreaterThan(10)
+    expect(entrada![2].length).toBeGreaterThan(40)
+  })
+
+  it.each(Object.keys(politica.alvos))('na linha de base do alvo `%s`, com 0 (chave NOVA, não subida)', (alvo) => {
+    expect(politica.alvos[alvo][CHAVE_F64]).toBe(0)
   })
 })

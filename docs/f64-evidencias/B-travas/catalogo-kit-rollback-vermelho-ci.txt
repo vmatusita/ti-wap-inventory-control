@@ -1,0 +1,64 @@
+# F64 · Frente B — as travas de BANCO, vermelhas no CI antes da correção (23/09/2026)
+# PR #75, run 35894254468 (job banco-sem-docker 107294108866), commit 6f3a38c — a cadeia até a 0161,
+# SEM a 0162–0164: os roteiros novos e emendados rodando sobre o banco de antes da fase.
+# Extraído do log do job (só as linhas das travas da F64 e as medições); nenhum dado real (o CI é fictício).
+
+==== supabase/tests/catalogo_policies.sql ====
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15a todo nome do lote 1 (k_lote1) é tabela de NEGÓCIO (k_negocio) (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force) (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma (0 de 1 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15d o lote 2 (k_lote2) é de NEGÓCIO, disjunto do lote 1, e os dois lotes com filiais são k_negocio inteiro (0 de 31 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: WARNING:  ✗ 15e as onze do lote 2 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force) — fora da forma: eventos_admin (sem a coluna empresa_id); import_logs (sem a coluna empresa_id); import_prefixos_patrimonio (sem a coluna empresa_id); import_termos_categoria (sem a coluna empresa_id); import_termos_estado (sem a coluna empresa_id); kits_modelos (sem a coluna empresa_id); motivos (sem a coluna empresa_id); relatorios_gerados (sem a coluna empresa_id); senhas_acesso (sem a coluna empresa_id); tipos_item (sem a coluna empresa_id); unidades_apelidos (sem a coluna empresa_id): 11 de 11 fora da regra
+psql:supabase/tests/catalogo_policies.sql:1528: WARNING:  ✗ 15f toda tabela de NEGÓCIO tem empresa_id (a pendência da F64 reprova; a infra fica em k_infra, com o motivo) — sem a coluna: eventos_admin, import_logs, import_prefixos_patrimonio, import_termos_categoria, import_termos_estado, kits_modelos, motivos, relatorios_gerados, senhas_acesso, tipos_item, unidades_apelidos: 11 de 20 fora da regra
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15g nenhuma policy das onze do lote 2 cita empresa_id (o recorte é da F66) (0 de 22 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15h nenhuma função de public lê empresa_id junto de uma das onze do lote 2 (fora das exceções nominais de k_leitura_integridade) (0 de 14 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  ✓ 15i nenhuma view de public lê empresa_id junto de uma das onze do lote 2 (0 de 9 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1528: WARNING:  ✗ 15j toda exceção nominal de leitura (k_leitura_integridade) é uma função que existe — não existe: kit_motivo_da_empresa: 1 de 2 fora da regra
+psql:supabase/tests/catalogo_policies.sql:1528: NOTICE:  FIM catalogo_policies: 35 asserções, 3 falhas
+##[error]roteiro supabase/tests/catalogo_policies.sql o contador declara 3 falha(s)
+##[error]roteiro supabase/tests/catalogo_policies.sql marcou 3 ✗ (cenário falhou)
+==== supabase/tests/f62_rollback.sql ====
+psql:supabase/tests/f62_rollback.sql:200: NOTICE:  ✓ rb0 o estado depois da F62 foi montado (promovido=admin, desligado=sem cargo, dev=dev) — só na membership
+psql:supabase/tests/f62_rollback.sql:200: NOTICE:  ✓ rb1 rollback na ordem escrita (cópia primeiro): o corpo antigo devolve o estado MAIS NOVO — promovido=admin, desligado=sem cargo, dev=dev, e a impressão de todo perfil é a mesma de antes do rollback
+psql:supabase/tests/f62_rollback.sql:200: NOTICE:  ✓ rb2 SEM a cópia, o rollback devolve o estado VELHO — o desligado voltaria a ter cargo (operador/operador/operador) e a impressão muda: a cópia é o passo que impede isso
+psql:supabase/tests/f62_rollback.sql:200: NOTICE:  ✓ rb3 o esquema voltou ao de antes da F62: sem membros/empresas/plataforma_admins, sem empresa_id/membro_id, PK (usuario_id, filial_id), papel_atual() lendo profiles
+psql:supabase/tests/f62_rollback.sql:200: NOTICE:  FIM f62_rollback: 4 asserções, 0 falhas
+==== supabase/tests/f63_rollback.sql ====
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  (medição) impressão do esquema das oito DEPOIS do rollback: c533eeff15f4196c2f8a5ec4721ff570 · antes, sem o que a F63 declarou: c533eeff15f4196c2f8a5ec4721ff570
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  ✓ rb0 antes do rollback, as oito tabelas do acervo TÊM empresa_id visível (0 de 8 conferidos)
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  ✓ rb1 depois do rollback, nenhuma das oito tem empresa_id visível (0 de 8 conferidos)
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  ✓ rb2 depois do rollback, public.backups_migration não existe (0 de 1 conferidos)
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  ✓ rb3 o esquema das oito depois do rollback é o do CI antes da 0159 (0 de 1 conferidos)
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  ✓ rb4 o rollback tira exatamente o que a F63 declarou (antes sem empresa_id = depois) (0 de 1 conferidos)
+psql:supabase/tests/f63_rollback.sql:144: NOTICE:  FIM f63_rollback: 5 asserções, 0 falhas
+==== supabase/tests/f64_rollback.sql ====
+psql:supabase/tests/f64_rollback.sql:169: NOTICE:  (medição) impressão do esquema das onze DEPOIS do rollback: 9ab2b820d7cdaa5d46cd6e9f17424054 · antes, sem o que a F64 declarou: edd4bcf933df4d3b5a4dfbb5bb839b60 · depois, sem: edd4bcf933df4d3b5a4dfbb5bb839b60
+psql:supabase/tests/f64_rollback.sql:169: WARNING:  ✗ rb0 antes do rollback, as onze tabelas do lote 2 TÊM empresa_id visível, e o gatilho e a função do kit existem — colunas 0 de 11, kit 0 de 2: 13 de 13 fora da regra
+psql:supabase/tests/f64_rollback.sql:169: NOTICE:  ✓ rb1 depois do rollback, nenhuma das onze tem empresa_id visível (0 de 11 conferidos)
+psql:supabase/tests/f64_rollback.sql:169: NOTICE:  ✓ rb2 depois do rollback, o gatilho e a função do kit sumiram, e o núcleo voltou ao corpo da 0158 (0 de 3 conferidos)
+psql:supabase/tests/f64_rollback.sql:169: WARNING:  ✗ rb3 o esquema das onze (e as duas funções) depois do rollback é o do CI antes da 0162 — impressão 9ab2b820d7cdaa5d46cd6e9f17424054, esperada a-medir-no-push-das-travas: 1 de 1 fora da regra
+psql:supabase/tests/f64_rollback.sql:169: NOTICE:  ✓ rb4 o rollback tira exatamente o que a F64 declarou (antes sem a F64 = depois sem a F64) (0 de 1 conferidos)
+psql:supabase/tests/f64_rollback.sql:169: NOTICE:  FIM f64_rollback: 5 asserções, 2 falhas
+##[error]roteiro supabase/tests/f64_rollback.sql o contador declara 2 falha(s)
+##[error]roteiro supabase/tests/f64_rollback.sql marcou 2 ✗ (cenário falhou)
+==== supabase/tests/kit_motivo_da_empresa.sql ====
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  (medição) motivos.empresa_id existe: f · o gatilho do kit existe: f · kit_motivo_orfao antes: -1
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  (medição) o motivo da empresa B não nasceu: 42703 — column "empresa_id" of relation "motivos" does not exist
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C1 kit com motivo INEXISTENTE é recusado pelo gatilho (23503, a frase do kit) e, como postgres, o kit não ficou — aceito · ficou: 1: 2 de 2 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C2 kit da WAP com o motivo que só existe na empresa B é recusado (o motivo tem de ser da EMPRESA DO KIT) e o kit não ficou — aceito · ficou: 1: 2 de 2 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  ✓ C3 kit SEM motivo (chave ausente, null JSON, vazio, só espaços) é aceito — e o null JSON de ->> é SQL NULL (0 de 5 conferidos)
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C4 kit com o motivo da PRÓPRIA empresa é aceito (o da WAP na WAP, o da B num kit da B) — fora da regra: B → 42703: column "empresa_id" of relation "kits_modelos" does not exist: 1 de 2 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C5 o UPDATE que troca o motivo por um inexistente, pelo da outra empresa, ou muda a empresa do kit para uma sem o motivo é recusado — fora da regra: motivo-inexistente(passou) motivo-da-B(passou) empresa-para-B(42703): 3 de 3 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C5-bis de volta como postgres, o kit recusado continua com o motivo e a empresa de antes: 1 de 1 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  (medição) C6 kit_motivo_orfao: -1 → -1 · amostra com os dois ids: f
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C6a a checagem nova conta cada kit órfão fabricado — o do motivo inexistente E o da WAP com o motivo da empresa B — -1 → -1 (não desligou o gatilho: 42704): 1 de 1 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C6b a amostra da checagem nova traz o id de cada kit órfão (nenhum código de motivo, nenhum nome): 1 de 1 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  ✓ C6c DESATIVAR um kit órfão continua possível — pelo update só do ativo e pelo da tela, que reenvia o payload (0 de 4 conferidos)
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C6d o órfão desativado continua contado (a checagem conta todo kit: a reativação não passa pelo gatilho): 1 de 1 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C7 tirar o motivo do kit órfão é aceito, e a checagem nova desce um: 1 de 2 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  ✓ C8a as 12 peças antigas de checagens_integridade_nucleo estão byte a byte (o md5 de cada uma contra o da 0158) (0 de 12 conferidos)
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C8b o núcleo tem 13 peças — as 12 e a kit_motivo_orfao — tem 12: 1 de 1 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: WARNING:  ✗ C9 pela sessão de um admin (RLS ligada) o gatilho aceita o motivo da empresa do kit e recusa o da outra — e, como postgres, só o aceito ficou — fora da regra: motivo-da-B(passou): 2 de 4 fora da regra
+psql:supabase/tests/kit_motivo_da_empresa.sql:382: NOTICE:  FIM kit_motivo_da_empresa: 14 asserções, 11 falhas
+##[error]roteiro supabase/tests/kit_motivo_da_empresa.sql o contador declara 11 falha(s)
+##[error]roteiro supabase/tests/kit_motivo_da_empresa.sql marcou 11 ✗ (cenário falhou)

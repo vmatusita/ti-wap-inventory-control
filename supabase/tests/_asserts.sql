@@ -178,3 +178,240 @@ begin
   return v_id;
 end;
 $fn$;
+
+-- =============================================================
+-- O LÉXICO DO CORPO DE FUNÇÃO E A LEITURA DE `empresa_id` DO LOTE 2 (F64, 23/09/2026)
+-- =============================================================
+-- Achado da revisão adversarial da F64 (confirmado por cético): a trava "ninguém lê
+-- `empresa_id` do lote 2 antes da F66" (15h de `catalogo_policies.sql`, bloco 6 de
+-- `empresa_no_vocabulario.sql`) isentava as duas exceções nominais do kit pelo NOME da função
+-- inteira — enquanto a decisão 7 do PLAN-F64 e a R-ACC-96 dizem que a exceção vale SÓ nos
+-- COMANDOS que tocam `kits_modelos`/`motivos`. Partir o corpo por comando exige saber onde está
+-- o texto: um `;` ou um `--` dentro de uma string não parte nem comenta nada. Por isso os dois
+-- ajudantes abaixo, um lugar só para os dois roteiros:
+--
+--   pg_temp.sql_so_codigo(texto)
+--       o CÓDIGO de um corpo de função, com o léxico do Postgres: comentário de linha (`--` até a
+--       quebra) e de bloco (`/* */`, aninhado) SAEM; texto (`'…'` com `''`, e `E'…'` com a barra) e
+--       dollar-quote (`$$…$$`, `$tag$…$tag$`) viram o texto vazio `''`; identificador citado
+--       (`"…"`) fica, porque é código; `$1` é parâmetro posicional, não dollar-quote. Espelho do
+--       leitor único de migrations (`scripts/db/classificar-migration.mjs`, `lexar`) — o mesmo
+--       léxico que a trava de mesa usa no disco.
+--   pg_temp.leitura_de_empresa_do_lote(função, corpo, lote, exceções, tabelas do kit)
+--       NULL se o corpo não lê `empresa_id` de uma tabela do lote; senão, o que acusa. FORA das
+--       exceções nominais, a FUNÇÃO inteira reprova se o código cita uma tabela do lote e
+--       `empresa_id` (a régua de antes, só que sem texto nem comentário); NAS exceções, a leitura
+--       tem de ser PROVADAMENTE do kit, por COMANDO (o código partido por `;`): (a) reprova o comando
+--       que cita `empresa_id` junto de uma tabela do lote que não seja do kit; (b) cada `x.empresa_id`
+--       resolve `x` no próprio comando (`from|join|update|into T [as] x`) para uma tabela do kit ou
+--       de fora do lote, e `new`/`old` só valem se todo gatilho que executa a função está numa
+--       tabela do kit. O que não se prova ACUSA — a variável de registro de `select * into v from
+--       public.eventos_admin …; if v.empresa_id …` (2ª rodada da revisão adversarial: dois comandos,
+--       e nenhum dos dois casava as duas regras de (a)) e o apelido de subselect. A exceção se
+--       escreve com apelido no próprio comando.
+-- =============================================================
+
+create or replace function pg_temp.sql_so_codigo(p_texto text)
+returns text
+language plpgsql
+immutable
+as $fn$
+declare
+  a     text[] := string_to_array(coalesce(p_texto, ''), null);
+  n     int;
+  i     int := 1;
+  k     int;
+  lt    int;
+  prof  int;
+  esc   boolean;
+  c     text;
+  prox  text;
+  tag   text;
+  saida text[] := '{}';
+begin
+  n := coalesce(array_length(a, 1), 0);
+  while i <= n loop
+    c := a[i];
+    prox := case when i < n then a[i + 1] else '' end;
+    if c = '-' and prox = '-' then
+      -- comentário de linha: sai até a quebra (a quebra fica, e separa o que vem depois)
+      while i <= n and a[i] <> E'\n' loop
+        i := i + 1;
+      end loop;
+    elsif c = '/' and prox = '*' then
+      -- comentário de bloco, aninhado como no Postgres
+      prof := 1;
+      i := i + 2;
+      while i <= n and prof > 0 loop
+        if a[i] = '/' and i < n and a[i + 1] = '*' then
+          prof := prof + 1;
+          i := i + 2;
+        elsif a[i] = '*' and i < n and a[i + 1] = '/' then
+          prof := prof - 1;
+          i := i + 2;
+        else
+          i := i + 1;
+        end if;
+      end loop;
+      saida := array_append(saida, ' '::text);
+    elsif c = '''' then
+      -- texto: `''` é o apóstrofo; em `E'…'` a barra escapa o caractere seguinte
+      esc := i > 1 and lower(a[i - 1]) = 'e' and (i = 2 or a[i - 2] !~ '[A-Za-z0-9_]');
+      i := i + 1;
+      while i <= n loop
+        if esc and a[i] = '\' then
+          i := i + 2;
+        elsif a[i] = '''' then
+          if i < n and a[i + 1] = '''' then
+            i := i + 2;
+          else
+            i := i + 1;
+            exit;
+          end if;
+        else
+          i := i + 1;
+        end if;
+      end loop;
+      saida := array_append(saida, ''''''::text);
+    elsif c = '"' then
+      -- identificador citado: é CÓDIGO, fica inteiro
+      saida := array_append(saida, c);
+      i := i + 1;
+      while i <= n loop
+        saida := array_append(saida, a[i]);
+        if a[i] = '"' then
+          if i < n and a[i + 1] = '"' then
+            saida := array_append(saida, a[i + 1]);
+            i := i + 2;
+          else
+            i := i + 1;
+            exit;
+          end if;
+        else
+          i := i + 1;
+        end if;
+      end loop;
+    elsif c = '$' and (i = 1 or a[i - 1] !~ '[A-Za-z0-9_]') then
+      -- dollar-quote: `$` + tag opcional (letra ou _, depois letra, dígito ou _) + `$`
+      k := i + 1;
+      if k <= n and a[k] ~ '[A-Za-z_]' then
+        k := k + 1;
+        while k <= n and a[k] ~ '[A-Za-z0-9_]' loop
+          k := k + 1;
+        end loop;
+      end if;
+      if k <= n and a[k] = '$' then
+        tag := array_to_string(a[i:k], '');
+        lt := k - i + 1;
+        i := k + 1;
+        while i <= n loop
+          if a[i] = '$' and array_to_string(a[i:i + lt - 1], '') = tag then
+            i := i + lt;
+            exit;
+          end if;
+          i := i + 1;
+        end loop;
+        saida := array_append(saida, ''''''::text);
+      else
+        -- `$1`, `$2`…: parâmetro posicional
+        saida := array_append(saida, c);
+        i := i + 1;
+      end if;
+    else
+      saida := array_append(saida, c);
+      i := i + 1;
+    end if;
+  end loop;
+  return array_to_string(saida, '');
+end;
+$fn$;
+
+create or replace function pg_temp.leitura_de_empresa_do_lote(
+  p_funcao      text,
+  p_corpo       text,
+  p_lote        text[],
+  p_excecoes    text[],
+  p_tabelas_kit text[]
+) returns text
+language plpgsql
+as $fn$
+declare
+  v_re_lote text := '\m(' || array_to_string(p_lote, '|') || ')\M';
+  v_fora    text[];
+  v_re_fora text;
+  v_codigo  text;
+  v_cmd     text;
+  v_trecho  text;
+  v_q       text;
+  v_origens text[];
+  v_gatilho boolean;
+  v_decl    text;
+begin
+  -- o texto cru já descarta quase tudo (e poupa o léxico das funções que não interessam)
+  if p_corpo is null or p_corpo !~* v_re_lote or p_corpo !~* '\mempresa_id\M' then
+    return null;
+  end if;
+  -- o código em minúsculas: o Postgres dobra o identificador sem aspas (`FROM Public.Motivos`)
+  v_codigo := lower(pg_temp.sql_so_codigo(p_corpo));
+  if v_codigo !~ v_re_lote or v_codigo !~ '\mempresa_id\M' then
+    return null;
+  end if;
+  if not (p_funcao = any (p_excecoes)) then
+    return p_funcao;
+  end if;
+  -- NAS EXCEÇÕES, a leitura tem de ser PROVADAMENTE do kit.
+  v_fora := array(select t from unnest(p_lote) as t where not (t = any (p_tabelas_kit)));
+  v_re_fora := '\m(' || array_to_string(v_fora, '|') || ')\M';
+  -- `new`/`old` são a linha do gatilho: valem só se TODO gatilho que executa a função está numa
+  -- tabela do kit (e há ao menos um)
+  select coalesce(bool_and(c.relname::text = any (p_tabelas_kit)), false)
+    into v_gatilho
+    from pg_trigger t
+    join pg_proc p on p.oid = t.tgfoid
+    join pg_namespace pn on pn.oid = p.pronamespace
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace cn on cn.oid = c.relnamespace
+   where pn.nspname = 'public' and cn.nspname = 'public'
+     and p.proname::text = p_funcao and not t.tgisinternal;
+  for v_cmd in select s from regexp_split_to_table(v_codigo, ';') as s loop
+    continue when v_cmd !~ '\mempresa_id\M';
+    v_trecho := left(btrim(regexp_replace(v_cmd, '\s+', ' ', 'g')), 100);
+    -- (a) o comando cita uma tabela do lote que não é do kit
+    if v_cmd ~ v_re_fora then
+      return p_funcao || ' (num comando que lê outra tabela do lote: ' || v_trecho || ')';
+    end if;
+    -- (b) cada `x.empresa_id` resolve `x` NO PRÓPRIO COMANDO: a tabela declarada com esse nome ou
+    --     apelido (`from|join|update|into T [as] x`) tem de ser do kit ou de fora do lote. O que não
+    --     se resolve — a variável de registro de `select * into v from …`, o apelido de subselect —
+    --     ACUSA. Sem qualificador passa: com (a), a coluna só pode ser de tabela permitida.
+    --     A declaração é lida sem o `distinct from` (não declara nada) e o nome declarado não pode vir
+    --     seguido de `.`: em `p is distinct from v.empresa_id`, `v` não vira tabela.
+    v_decl := regexp_replace(v_cmd, '\mdistinct\s+from\M', 'distinct de', 'g');
+    for v_q in
+      select m[1] from regexp_matches(v_cmd, '(?:\m([a-z_][a-z0-9_]*)\s*\.\s*)?\mempresa_id\M', 'g') as m
+    loop
+      continue when v_q is null;
+      if v_q in ('new', 'old') then
+        continue when v_gatilho;
+        return p_funcao || ' (' || v_q || '.empresa_id sem que todo gatilho da função esteja numa tabela do kit: '
+               || v_trecho || ')';
+      end if;
+      v_origens := array(
+        select distinct x[1]
+          from regexp_matches(v_decl,
+                 '\m(?:from|join|update|into)\s+(?:only\s+)?(?:public\s*\.\s*)?([a-z_][a-z0-9_]*)\s+(?:as\s+)?'
+                 || v_q || '\M(?!\s*\.)', 'g') as x);
+      if v_decl ~ ('\m(?:from|join|update|into)\s+(?:only\s+)?(?:public\s*\.\s*)?' || v_q || '\M(?!\s*\.)') then
+        v_origens := v_origens || v_q;
+      end if;
+      if cardinality(v_origens) = 0 then
+        return p_funcao || ' (' || v_q || '.empresa_id de origem que o comando não prova: ' || v_trecho || ')';
+      end if;
+      if exists (select 1 from unnest(v_origens) as o where o = any (v_fora)) then
+        return p_funcao || ' (' || v_q || '.empresa_id de outra tabela do lote: ' || v_trecho || ')';
+      end if;
+    end loop;
+  end loop;
+  return null;
+end;
+$fn$;

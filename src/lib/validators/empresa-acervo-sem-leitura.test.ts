@@ -33,14 +33,30 @@ import { semComentarios } from '@/lib/layout/texto-fonte'
 // (decisão 6); aqui ela é só lida.
 // =============================================================================
 
+// EMENDA F64 (23/09/2026 — decisão 7 do PLAN-F64). A F64 põe a coluna nas ONZE tabelas de negócio
+// restantes (`k_lote2`), e a mesma régua passa a valer para as DEZENOVE (lote 1 + lote 2): ninguém lê
+// `empresa_id` delas antes da F66. Com UMA exceção de propósito, nomeada: a ficha F64 manda conferir
+// que o motivo do kit existe NA EMPRESA DO KIT, e isso é ler `kits_modelos.empresa_id` e
+// `motivos.empresa_id` — leitura de INTEGRIDADE, não recorte. As duas funções que o fazem moram em
+// `k_leitura_integridade` (catalogo_policies.sql, a fonte única), e a exceção vale SÓ nos comandos
+// delas que tocam `kits_modelos`/`motivos` (a leitura do kit) — o mesmo corpo lendo a coluna de outra
+// tabela do lote continua reprovado.
 const RAIZ = process.cwd()
 const CATALOGO = readFileSync(join(RAIZ, 'supabase', 'tests', 'catalogo_policies.sql'), 'utf8')
 
-function lote1(): string[] {
-  const m = /k_lote1 text\[\] := array\[([\s\S]*?)\];/.exec(CATALOGO)
-  if (!m) throw new Error('catalogo_policies.sql: não achei k_lote1 — a fonte única das oito')
+function listaDoCatalogo(nome: string, oQue: string): string[] {
+  const m = new RegExp(String.raw`${nome} text\[\] := array\[([\s\S]*?)\];`).exec(CATALOGO)
+  if (!m) throw new Error(`catalogo_policies.sql: não achei ${nome} — a fonte única ${oQue}`)
   return [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1])
 }
+const lote1 = () => listaDoCatalogo('k_lote1', 'das oito')
+const lote2 = () => listaDoCatalogo('k_lote2', 'das onze')
+/** As dezenove tabelas de negócio que têm `empresa_id` pelos lotes 1 (F63) e 2 (F64). */
+const lotes = () => [...lote1(), ...lote2()]
+/** As exceções nominais de leitura (F64): as duas leituras de integridade do kit. */
+const leituraIntegridade = () => listaDoCatalogo('k_leitura_integridade', 'das exceções de leitura')
+/** As tabelas cuja coluna as exceções podem ler — e só nelas (`k_tabelas_leitura_kit`, a fonte única). */
+const TABELAS_DA_LEITURA_DO_KIT: readonly string[] = listaDoCatalogo('k_tabelas_leitura_kit', 'das tabelas da leitura do kit')
 
 /** A exceção nomeada da varredura TS: o espelho gerado do banco. */
 const EXCECOES_TS = ['src/lib/types/database.ts'] as const
@@ -142,7 +158,8 @@ function leiturasDoAcervo(fonte: string, arquivo: string, oito: readonly string[
 const citaEmpresaId = (l: Leitura) => /\bempresa_id\b/.test(l.texto)
 
 describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', () => {
-  const oito = lote1()
+  // Desde a F64: as dezenove (os dois lotes). O nome `oito` fica — é o universo da trava, que cresceu.
+  const oito = lotes()
   const arquivos = arquivosFonte(join(RAIZ, 'src'))
     .map((a) => relative(RAIZ, a).replaceAll('\\', '/'))
     .filter((a) => !(EXCECOES_TS as readonly string[]).includes(a))
@@ -151,13 +168,20 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
   const dinamicas = todas.flatMap((t) => t.dinamicas)
 
   it('a lista das oito vem de k_lote1 (catalogo_policies.sql) e tem as oito', () => {
-    expect([...oito].sort()).toEqual(
+    expect([...lote1()].sort()).toEqual(
       ['anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item', 'movimentacoes', 'pendencias_item', 'termos_gerados'],
     )
   })
 
-  it('o universo NÃO é vazio: há consultas às oito tabelas, e cada uma das oito é consultada', () => {
-    expect(leituras.length, 'a varredura não achou consulta nenhuma às oito — ela olhou alguma coisa?').toBeGreaterThan(100)
+  it('a lista das onze vem de k_lote2 (catalogo_policies.sql) e tem as onze (F64)', () => {
+    expect([...lote2()].sort()).toEqual([
+      'eventos_admin', 'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria', 'import_termos_estado',
+      'kits_modelos', 'motivos', 'relatorios_gerados', 'senhas_acesso', 'tipos_item', 'unidades_apelidos',
+    ])
+  })
+
+  it('o universo NÃO é vazio: há consultas às dezenove tabelas, e cada uma é consultada', () => {
+    expect(leituras.length, 'a varredura não achou consulta nenhuma às dezenove — ela olhou alguma coisa?').toBeGreaterThan(140)
     for (const t of oito) expect(leituras.some((l) => l.tabela === t), `nenhuma consulta a ${t}`).toBe(true)
   })
 
@@ -186,6 +210,11 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
     ['`?.` e argumento de tipo', "await c?.from('movimentacoes').select<string>('*')?.filter('empresa_id', 'eq', x)", true],
     ['descritor de forma com `select` citando a coluna', "export const L = leituraDeRelacao({ rotulo: 'x', origem: 'lancamentos_item', select: 'id, empresa_id', forma: F, ordem: ['id'] })", true],
     ['descritor de forma com `ordem` pela coluna', "leituraDeRelacao({ rotulo: 'x', origem: 'anotacoes', select: 'id', forma: F, ordem: ['empresa_id', 'id'] })", true],
+    // F64 — o lote 2 (sabotagem F da ordem)
+    ['`.eq(empresa_id)` em eventos_admin (F64)', "await admin.from('eventos_admin').select('id, acao').eq('empresa_id', e).order('quando')", true],
+    ['`.select(id, empresa_id)` em senhas_acesso (F64)', "const { data } = await admin.from('senhas_acesso').select('id, empresa_id').eq('ativa', true)", true],
+    ['descritor de forma de motivos citando a coluna (F64)', "leituraDeRelacao({ rotulo: 'x', origem: 'motivos', select: 'codigo, rotulo, empresa_id', forma: F, ordem: ['codigo'] })", true],
+    ['par legítimo: o lote 2 SEM a coluna', "await admin.from('eventos_admin').select('id, acao, alvo').order('quando', { ascending: false })", false],
     ['par legítimo: tabela da F62 (membros)', "await supabase.from('membros').select('id').eq('empresa_id', EMPRESA_LEGADA_ID)", false],
     ['par legítimo: a cadeia das oito SEM a coluna', "await supabase.from('ativos').select('id, patrimonio').eq('filial_id', f)", false],
     ['par legítimo: empresa_id num COMENTÁRIO', "await supabase.from('ativos').select('id') // empresa_id só na F66", false],
@@ -246,7 +275,7 @@ const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> =
 }
 
 describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/**', () => {
-  const oito = lote1()
+  const oito = lotes()
   const arquivos = arquivosFonte(join(RAIZ, 'src'))
     .map((a) => relative(RAIZ, a).replaceAll('\\', '/'))
     .filter((a) => !(EXCECOES_TS as readonly string[]).includes(a))
@@ -299,7 +328,8 @@ describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do litera
 })
 
 describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco)', () => {
-  const oito = lote1()
+  const oito = lotes()
+  const excecoes = leituraIntegridade()
   const DIR = join(RAIZ, 'supabase', 'migrations')
   // O corpo vigente: a ÚLTIMA definição de cada (nome, tipos) na ordem de aplicação.
   const vigentes = new Map<string, { arquivo: string; texto: string }>()
@@ -325,9 +355,15 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
    * escreve uma das oito.
    */
   function leEmpresaIdDoAcervo(corpo: string): string[] {
-    const achados: string[] = []
+    return comandosQueLeem(corpo).map((c) => c.trecho)
+  }
+
+  /** Os comandos que leem, com as tabelas dos lotes que cada um toca (a régua da exceção do kit). */
+  function comandosQueLeem(corpo: string): { trecho: string; tabelas: string[] }[] {
+    const achados: { trecho: string; tabelas: string[] }[] = []
     for (const cmd of comandosDoTexto(corpo)) {
-      if (!/\bempresa_id\b/.test(cmd)) continue
+      // sem caixa: o Postgres dobra o identificador sem aspas (`A.EMPRESA_ID` é `a.empresa_id`)
+      if (!/\bempresa_id\b/i.test(cmd)) continue
       const alias = new Map<string, string>()
       for (const m of cmd.matchAll(new RegExp(RE_TABELA, 'gi'))) {
         const tabela = m[1].toLowerCase()
@@ -347,7 +383,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
         const real = q ? alias.get(q) : undefined
         const tabela = q ? (real && !ctes.has(real) ? real : oito.includes(q) ? q : null) : null
         if (tabela ? oito.includes(tabela) : tabelasDoAcervo(cmd).length > 0) {
-          achados.push(cmd.replace(/\s+/g, ' ').trim().slice(0, 120))
+          achados.push({ trecho: cmd.replace(/\s+/g, ' ').trim().slice(0, 120), tabelas: [...new Set(tabelasDoAcervo(cmd))] })
           break
         }
       }
@@ -360,10 +396,119 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     expect([...vigentes.values()].filter((v) => tabelasDoAcervo(v.texto).length > 0).length).toBeGreaterThan(40)
   })
 
-  it('nenhuma função vigente lê empresa_id de uma das oito', () => {
+  /** A exceção do kit: função nominal E o comando só toca `kits_modelos`/`motivos` dos lotes. */
+  const ehLeituraDoKit = (funcao: string, tabelas: string[]) =>
+    excecoes.includes(funcao) && tabelas.length > 0 && tabelas.every((t) => TABELAS_DA_LEITURA_DO_KIT.includes(t))
+  const nomeDaChave = (k: string) => /^[a-z_]+\.([a-z_0-9]+)\(/.exec(k)?.[1] ?? k
+
+  // As tabelas em que cada função é GATILHO, lidas do disco (`create trigger … on T … execute function F(`).
+  const GATILHOS = new Map<string, Set<string>>()
+  for (const arquivo of readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort()) {
+    const sql = semComentariosSql(readFileSync(join(DIR, arquivo), 'utf8').replace(/\r\n/g, '\n'))
+    const RE = /create\s+(?:or\s+replace\s+)?(?:constraint\s+)?trigger\s+[a-z_0-9]+[^;]*?\bon\s+(?:public\.)?([a-z_0-9]+)[^;]*?execute\s+(?:function|procedure)\s+(?:public\.)?([a-z_0-9]+)\s*\(/gi
+    for (const m of sql.matchAll(RE)) {
+      const funcao = m[2].toLowerCase()
+      if (!GATILHOS.has(funcao)) GATILHOS.set(funcao, new Set())
+      GATILHOS.get(funcao)!.add(m[1].toLowerCase())
+    }
+  }
+  /** `new`/`old` são a linha do gatilho: valem só se TODO gatilho que executa a função está numa tabela do kit. */
+  const gatilhoNoKit = (funcao: string) => {
+    const tabelas = GATILHOS.get(funcao)
+    return !!tabelas && tabelas.size > 0 && [...tabelas].every((t) => TABELAS_DA_LEITURA_DO_KIT.includes(t))
+  }
+
+  /**
+   * NAS EXCEÇÕES, a origem de cada `x.empresa_id` tem de ser PROVADA no próprio comando (2ª rodada da revisão adversarial
+   * da F64 — o espelho de `pg_temp.leitura_de_empresa_do_lote`, `_asserts.sql`): `x` é uma tabela declarada NO COMANDO
+   * (`from|join|update|into T [as] x`, ou o próprio nome da tabela) do kit ou de fora dos lotes; `new`/`old` só com todo
+   * gatilho da função numa tabela do kit. A variável de registro de `select * into v from public.eventos_admin …; if
+   * v.empresa_id …` — a leitura partida em dois comandos, que nenhum dos dois casava — e o apelido de subselect ACUSAM:
+   * a exceção se escreve com apelido no próprio comando. Sem qualificador passa: `comandosQueLeem` já recusa o comando
+   * que cita tabela do lote fora do kit, e aí a coluna só pode ser de tabela permitida.
+   */
+  function origensNaoProvadas(funcao: string, corpo: string): string[] {
+    const achados: string[] = []
+    for (const bruto of comandosDoTexto(corpo)) {
+      const cmd = bruto.toLowerCase()
+      if (!/\bempresa_id\b/.test(cmd)) continue
+      for (const m of cmd.matchAll(/(?:\b([a-z_][a-z0-9_]*)\s*\.\s*)?\bempresa_id\b/g)) {
+        const q = m[1]
+        if (!q) continue
+        const trecho = `${q}.empresa_id em "${cmd.replace(/\s+/g, ' ').trim().slice(0, 100)}"`
+        if (q === 'new' || q === 'old') {
+          if (!gatilhoNoKit(funcao)) achados.push(`${trecho} (sem gatilho no kit)`)
+          continue
+        }
+        // a declaração sem o `distinct from` (não declara nada), e o nome declarado sem `.` depois: em
+        // `p is distinct from v.empresa_id`, `v` não vira tabela
+        const decl = cmd.replace(/\bdistinct\s+from\b/g, 'distinct de')
+        const DECLARA = String.raw`\b(?:from|join|update|into)\s+(?:only\s+)?(?:public\s*\.\s*)?`
+        const origens = [...decl.matchAll(new RegExp(String.raw`${DECLARA}([a-z_][a-z0-9_]*)\s+(?:as\s+)?${q}\b(?!\s*\.)`, 'g'))].map((o) => o[1])
+        if (new RegExp(String.raw`${DECLARA}${q}\b(?!\s*\.)`).test(decl)) origens.push(q)
+        if (origens.length === 0) achados.push(`${trecho} (origem que o comando não prova)`)
+        else if (origens.some((o) => oito.includes(o) && !TABELAS_DA_LEITURA_DO_KIT.includes(o))) achados.push(`${trecho} (outra tabela do lote)`)
+      }
+    }
+    return achados
+  }
+
+  it('nenhuma função vigente lê empresa_id de uma das dezenove (fora da leitura do kit nas duas exceções nominais)', () => {
     expect(
-      [...vigentes.entries()].flatMap(([k, v]) => leEmpresaIdDoAcervo(v.texto).map((c) => `${k} (vigente em ${v.arquivo}): ${c}`)),
+      [...vigentes.entries()].flatMap(([k, v]) =>
+        comandosQueLeem(v.texto)
+          .filter((c) => !ehLeituraDoKit(nomeDaChave(k), c.tabelas))
+          .map((c) => `${k} (vigente em ${v.arquivo}): ${c.trecho}`),
+      ),
     ).toEqual([])
+  })
+
+  it('as exceções nominais (k_leitura_integridade) são as duas do kit, cada uma é função vigente, e cada uma LÊ (a lista não guarda fantasma)', () => {
+    expect([...excecoes].sort()).toEqual(['checagens_integridade_nucleo', 'kit_motivo_da_empresa'])
+    for (const nome of excecoes) {
+      const defs = [...vigentes.entries()].filter(([k]) => nomeDaChave(k) === nome)
+      expect(defs.length, `${nome}: não há função vigente com esse nome nas migrations`).toBe(1)
+      expect(
+        comandosQueLeem(defs[0][1].texto).some((c) => ehLeituraDoKit(nome, c.tabelas)),
+        `${nome}: a exceção não lê empresa_id de kits_modelos/motivos — exceção sem uso é fantasma`,
+      ).toBe(true)
+    }
+  })
+
+  it.each([
+    ['a exceção lendo kits_modelos e motivos (a leitura do kit)', 'kit_motivo_da_empresa', "if not exists (select 1 from public.motivos m where m.codigo = v_motivo and m.empresa_id = new.empresa_id) then raise exception 'x'; end if", false],
+    ['a exceção lendo a coluna de OUTRA tabela do lote', 'kit_motivo_da_empresa', 'select count(*) into v from public.eventos_admin e where e.empresa_id = new.empresa_id', true],
+    ['uma função que NÃO é exceção lendo motivos.empresa_id', 'rel_por_motivo', 'select m.codigo from public.motivos m where m.empresa_id = p_empresa', true],
+    ['uma função que não é exceção lendo tipos_item.empresa_id sem qualificador', 'qualquer', 'select count(*) from public.tipos_item where empresa_id = p_e', true],
+  ])('SABOTAGEM F (disco, F64) — %s', (_nome, funcao, corpo, acusa) => {
+    expect(comandosQueLeem(corpo).filter((c) => !ehLeituraDoKit(funcao, c.tabelas)).length > 0).toBe(acusa)
+  })
+
+  it('nas duas exceções, a origem de cada x.empresa_id do corpo vigente é PROVADA no próprio comando', () => {
+    for (const nome of excecoes) {
+      const defs = [...vigentes.entries()].filter(([k]) => nomeDaChave(k) === nome)
+      expect(defs.length, nome).toBe(1)
+      expect(origensNaoProvadas(nome, defs[0][1].texto), nome).toEqual([])
+    }
+  })
+
+  it('o gatilho do kit está só em kits_modelos (o new/old dele vale); o núcleo não é gatilho (o dele não vale)', () => {
+    expect([...(GATILHOS.get('kit_motivo_da_empresa') ?? [])]).toEqual(['kits_modelos'])
+    expect(gatilhoNoKit('kit_motivo_da_empresa')).toBe(true)
+    expect(gatilhoNoKit('checagens_integridade_nucleo')).toBe(false)
+  })
+
+  it.each([
+    ['a variável de registro de eventos_admin (dois comandos)', 'kit_motivo_da_empresa', "select * into v_e from public.eventos_admin where id = p_id; if v_e.empresa_id <> public.empresa_legada() then raise exception 'x'; end if", true],
+    ['a variável de registro de kits_modelos — nem do kit ela se prova', 'kit_motivo_da_empresa', 'select * into v_k from public.kits_modelos where id = p_id; if v_k.empresa_id is null then return new; end if', true],
+    ['new.empresa_id numa função sem gatilho no kit', 'checagens_integridade_nucleo', 'perform 1 from public.motivos m where m.empresa_id = new.empresa_id', true],
+    ['o apelido de subselect', 'checagens_integridade_nucleo', 'select x.empresa_id from (select * from public.motivos) x', true],
+    ['o `is distinct from` não faz da variável de registro uma tabela', 'kit_motivo_da_empresa', "select * into v_e from public.eventos_admin where id = p_id; if new.empresa_id is distinct from v_e.empresa_id then raise exception 'x'; end if", true],
+    ['em MAIÚSCULAS, de outra tabela do lote', 'kit_motivo_da_empresa', 'PERFORM 1 FROM PUBLIC.EVENTOS_ADMIN E WHERE E.EMPRESA_ID = NEW.EMPRESA_ID', true],
+    ['par legítimo: o apelido de membros e o de motivos, declarados no comando', 'checagens_integridade_nucleo', 'select count(*) from public.membros m join public.motivos o on o.codigo = m.papel where m.empresa_id = o.empresa_id', false],
+    ['par legítimo: a leitura do kit pelo gatilho do kit', 'kit_motivo_da_empresa', 'if not exists (select 1 from public.motivos m where m.codigo = v_motivo and m.empresa_id = new.empresa_id) then return new; end if', false],
+  ])('SABOTAGEM F (disco, F64, 2ª rodada) — %s', (_nome, funcao, corpo, acusa) => {
+    expect(origensNaoProvadas(funcao, corpo).length > 0).toBe(acusa)
   })
 
   it.each([
@@ -381,6 +526,8 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     ['um `;` num texto entre o alias e a leitura', "select count(*) into v_n from public.ativos a, public.movimentacoes m where m.motivo = 'estado; transicao invalida' and a.empresa_id = p_x", true],
     ['a leitura dentro do corpo dollar-quoted de uma função', "create function public.f() returns int language plpgsql as $f$ begin raise notice 'a; b'; return (select count(*) from public.itens i where i.empresa_id is null); end $f$", true],
     ['par legítimo: `empresa_id` só dentro de um texto', "select count(*) from public.ativos a where a.observacao = 'a.empresa_id; x'", false],
+    // F64, 2ª rodada: a caixa não esconde (o Postgres dobra o identificador sem aspas)
+    ['em MAIÚSCULAS', 'SELECT A.EMPRESA_ID FROM PUBLIC.ATIVOS A', true],
   ])('SABOTAGEM I (disco) — %s', (_nome, corpo, acusa) => {
     expect(leEmpresaIdDoAcervo(corpo).length > 0).toBe(acusa)
   })

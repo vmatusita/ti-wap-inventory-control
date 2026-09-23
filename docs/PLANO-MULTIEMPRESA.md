@@ -831,6 +831,21 @@ decidir no começo desta fase:** o default das tabelas daqui (e o de `filiais`, 
 segue a régua que o Johnny deu às oito do acervo — `public.empresa_legada()` até a F67, quando a escrita recebe a
 empresa — ou cai aqui, com os escritores de cada uma informando a empresa?)*
 
+*(Nota F64, 23/09/2026: executada pela ordem [`prompts/F64-empresa-no-vocabulario-e-na-infra-ultracode.md`](prompts/F64-empresa-no-vocabulario-e-na-infra-ultracode.md),
+plano [`PLAN-F64.md`](PLAN-F64.md), migrations `0162`–`0164` (não `0148`–`0150`). **As onze tabelas** (não doze —
+faltavam as quatro do vocabulário do import; `filiais`/`operador_filiais` a F62 já fez; `senha_tentativas` e
+`ambiente` ficam em `k_infra`, com o motivo) ganharam `empresa_id uuid not null default public.empresa_legada()
+references empresas (id)` SEM `update` — e ali nenhum gatilho barraria o `update` ingênuo: a prova é o `xmin`, pela PK
+LIDA DO CATÁLOGO (quatro das onze não têm `id`). As 20 de `k_negocio` têm a chave, e a pendência REPROVA (15f).
+**As três decisões do Johnny** mudaram a ficha: (1) o default das onze e o de `filiais` FICAM até a F67 — o
+*"`eventos_admin` na origem"* e o fim do default de `filiais` foram para a F67; (2) a troca da PK de `motivos` e da FK
+de `movimentacoes`, e as PKs naturais do vocabulário do import, foram para a F65 — nenhuma constraint existente mudou;
+(3) o rate-limit falha FECHADO (reverte a X4). **O kit** é validado NO BANCO (gatilho `kits_modelos_motivo_da_empresa`,
+que confere a ENTRADA na orfandade — desativar um órfão continua possível), com a 13ª checagem `kit_motivo_orfao`;
+as duas leituras de `empresa_id` que isso exige são as exceções nominais de `k_leitura_integridade`. **A máscara do
+patrimônio** mora em `import_prefixos_patrimonio`, agora por empresa — não nasceu `empresas.patrimonio_prefixo`.
+**Regras novas:** MATRIZ R-ACC-91 a R-ACC-97; ADR-003, emenda F64; RUNBOOK, Anexo F64.)*
+
 **Não entra.** Trocar as UNIQUE globais (F65).
 
 **Entregas.** Migrations `0148`–`0150`, `src/lib/auditoria-registro.ts`, `src/lib/actions/senhas.ts`, `src/lib/actions/kits.ts`, `database.ts`.
@@ -869,6 +884,16 @@ o seed não semeia (`senhas_acesso`, `termos_gerados`, `relatorios_gerados`, `ki
 ao menos um patrimônio nas duas, cobertura mínima das tabelas de negócio. Na F62 o seed só grava o cargo em `membros`.
 Já feito na F62, e fora desta lista: `unique (empresa_id, id)` em `filiais` e `membros`, e as FKs compostas de
 `operador_filiais` (membership e filial da mesma empresa).)*
+
+*(Nota F64, 23/09/2026 — decisão 2 do Johnny: **vieram da F64 para cá** (1) **a troca da PK de `motivos`** de `(codigo)`
+para `(empresa_id, codigo)` **junto da FK composta `(empresa_id, motivo)` de `movimentacoes`** — na MESMA migration
+(errar ali é recusa de INSERT na tabela mais quente); a FK de hoje é `movimentacoes_motivo_fkey (motivo) references
+motivos(codigo)`, e o update do motivo é por `.eq('codigo', …)` (`admin.ts:761-763`), e `rel_por_motivo_filiais`/
+`rel_resumo_filiais` juntam por código; (2) **as PKs naturais do vocabulário do import** — `import_prefixos_patrimonio
+(prefixo)`, `import_termos_categoria (termo)`, `import_termos_estado (termo)` — para `(empresa_id, …)`; (3) os uniques
+globais das onze: `tipos_item.slug`, `kits_modelos_nome_uidx`, `unidades_apelidos_apelido_chave_uidx`. O índice
+`eventos_admin_quando_idx` e `import_logs_created_idx` liderados por `empresa_id` já estavam na lista. **O rollback da
+F65 roda ANTES do da F64** (`supabase/rollback/F64-desfaz.sql`), e o `f64_rollback.sql` passa a rodá-lo antes do dele.)*
 
 **Não entra.** Policy.
 
@@ -953,8 +978,22 @@ Já feito na F62, e fora desta lista: `unique (empresa_id, id)` em `filiais` e `
   `criarColaborador`, `consolidarColaboradores` e `estornarLancamento`. **Três casos não têm pai de onde tirar a
   empresa** (`itens`, `termos_gerados`, colaborador sem filial): a fonte é a empresa de quem escreve, que só existe
   depois desta fase dar a empresa à escrita.
-
-**Não entra.** A porta pública (F68).
+- *(Nota F64, 23/09/2026 — **TIRAR O DEFAULT DAS ONZE E O DE `filiais`**, decisão 1 do Johnny.)* A F64 deu `empresa_id`
+  às onze tabelas do lote 2 (`tipos_item`, `motivos`, `kits_modelos`, `senhas_acesso`, `eventos_admin`, `import_logs`,
+  `relatorios_gerados`, `import_prefixos_patrimonio`, `import_termos_categoria`, `import_termos_estado`,
+  `unidades_apelidos`) com o default `public.empresa_legada()`, e o manteve; é aqui que ele cai, junto com o das oito,
+  com a trava **15e** de `catalogo_policies.sql` invertida no MESMO commit (hoje ela EXIGE o default). **Vieram da F64
+  para cá:** (a) **`eventos_admin.empresa_id` preenchido NA ORIGEM** — o único escritor TS, `src/lib/auditoria-registro.ts:30`
+  (15 chamadas de `registrarEventoAdmin`: admin 5, dev 3, importar 3, senhas 2, unidades-apelidos 2), e as **8 funções
+  SQL** que gravam na trilha (`apagar_ativo`, `apagar_ativos_conflito_filiais`, `apagar_item`, `apagar_movimentacao`,
+  `forcar_estado_ativo`, `forcar_saldo_item`, `resetar_acervo`, `resetar_itens`); (b) **o fim do default de `filiais`**
+  (a nota F62 da ficha F64: a empresa passa a vir de quem cria a filial, `admin.ts:610`) e, com ele, a ponte de
+  `papel_atual()`/`EMPRESA_LEGADA_ID`. **O orçamento medido na F64** (`PLAN-F64.md` §2), tudo o que passa a informar a
+  empresa: `import_gravar_trilha` (`import_logs`); os INSERTs TS `tipos-item.ts:104`, `admin.ts:733` (motivos),
+  `kits.ts:64`, `senhas.ts:161`, `relatorios.ts:143`, `unidades-apelidos.ts:62`; os scripts `seed.ts:1525`,
+  `smoke/persona.ts:80`, `manutencao/gerar-errata-truncamento.ts`; e os roteiros que inserem nas onze (a tabela do fato 8
+  da ordem F64: 38 INSERTs em ~15 roteiros, mais 22 em `filiais` em 10). As três tabelas de termo e prefixo do import não
+  têm escritor fora de migration.
 
 **Entregas.** Migrations `0160`–`0165`, `src/lib/actions/{importar,conflitos,termos,dev-destrutivo}.ts`, `supabase/tests/{definer_escopo,storage_por_empresa,conflito_entre_empresas,realtime_escopo,termo_bloqueado}.sql`.
 
@@ -985,6 +1024,13 @@ Já feito na F62, e fora desta lista: `unique (empresa_id, id)` em `filiais` e `
 - **Minimização:** o painel público é montado sem dado pessoal (`p_com_pessoas => false`), e os blocos com nome de pessoa **não são computados** — não são montados e descartados.
 - **A diagonal**, que é o ataque novo desta fase: `relatorio_publico_dados` exige que o slug pedido **bata com a empresa da sessão**.
 - `fronteira-viewer.test.ts` reescrito para a superfície nova (que passa a ser duas RPCs, não N módulos de query).
+
+*(Nota F64, 23/09/2026: **o `error` do rate-limit já não é descartado.** Desde a F64 (decisão 3 do Johnny, que reverte
+a X4) `entrarComSenha` lê `{ data, error }` de `registrar_tentativa_senha` e, com `error`, RECUSA antes de ler ou
+conferir qualquer senha, com mensagem genérica, e registra a falha sem o IP. **Fica para cá, como a ficha já dizia:** a
+varredura linear com scrypt, a rota por empresa, as cinco recusas com a mesma cara e o teto por `(empresa, origem)`.
+`senhas_acesso.empresa_id` existe desde a `0163` (default a WAP até a F67) e ninguém a lê — o primeiro leitor é esta
+fase.)*
 
 **Não entra.** Subdomínio por empresa (o slug na rota basta, e a resolução fica numa função só — trocar "slug na rota" por "slug no host" depois é mudança localizada).
 

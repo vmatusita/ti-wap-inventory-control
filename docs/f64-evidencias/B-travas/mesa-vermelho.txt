@@ -1,0 +1,26 @@
+# F64 · Frente B — as travas de MESA, vermelhas antes da correção (23/09/2026)
+# commit: travas vermelhas (antes do rate-limit, das migrations 0162–0164 e da chave nova)
+# comando: npm run test
+
+      Tests  12 failed | 7626 passed (7638)
+ FAIL  |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge > com a linha de base do arquivo (alvo ensaio) e kit_motivo_orfao em 0: verde
+ FAIL  |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge > com a linha de base do arquivo (alvo producao) e kit_motivo_orfao em 0: verde
+ FAIL  |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > na linha de base do alvo `ensaio`, com 0 (chave NOVA, não subida)
+ FAIL  |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > na linha de base do alvo `producao`, com 0 (chave NOVA, não subida)
+ FAIL  |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > no SQL vigente de checagens_integridade_nucleo()
+ FAIL  |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > no catálogo curado CHECAGENS, com nome e descrição próprios (não a descrição de chave desconhecida)
+ FAIL  |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `error` na RPC: RECUSA — nenhuma senha lida nem conferida, nenhum cookie, nenhum redirect
+ FAIL  |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `error`: a mensagem é genérica — a MESMA para qualquer senha, e não é a de senha errada
+ FAIL  |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `error`: registra a falha UMA vez, com escopo próprio e SEM o IP em lugar nenhum do argumento
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > a forma que falhava ABERTO não está no módulo
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > entrarComSenha lê o error do contador e recusa com ele antes de ler e conferir senha
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > as exceções nominais (k_leitura_integridade) são as duas do kit, cada uma é função vigente, e cada uma LÊ (a lista não guarda fantasma)
+ Test Files  5 failed | 248 passed (253)
+AssertionError: checagens_integridade_nucleo: a exceção não lê empresa_id de kits_modelos/motivos — exceção sem uso é fantasma: expected false to be true // Object.is equality
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+AssertionError: expected '\'useserver\'import{cookies,headers}f…' not to match /const\{data:excedeu\}=awaitchamarRpc\(/
+AssertionError: expected 'redirecionou' to deeply equal { erro: Any<String> }
+AssertionError: expected [ 'patrimonio_duplicado', …(11) ] to include 'kit_motivo_orfao'
+AssertionError: expected [ { chave: 'kit_motivo_orfao', …(3) } ] to deeply equal []
+AssertionError: expected undefined to be +0 // Object.is equality
+AssertionError: o error de registrar_tentativa_senha é descartado — o rate-limit falha ABERTO: expected false to be true // Object.is equality

@@ -180,6 +180,12 @@ export const MSG_SQL = {
     'já é apelido de outra filial',
     'ja e apelido de outra filial',
   ],
+  // o gatilho do kit (F64 · 0164, `kit_motivo_da_empresa`) — 23503 com frase PRÓPRIA, sem "foreign
+  // key": o motivo do payload tem de existir na empresa do kit. Não é a FK de verdade.
+  kitMotivoForaDaEmpresa: [
+    'o motivo deste kit não existe na empresa do kit',
+    'o motivo deste kit nao existe na empresa do kit',
+  ],
   // raises P0001 da RPC do import
   estadoDaFilialMudou: ['estado da filial mudou'],
   planoVazio: ['plano de import vazio'],

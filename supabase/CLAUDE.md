@@ -26,7 +26,8 @@ mesmo commit — já está na raiz. Aqui, o detalhe de cada subpasta.
   (receita BACKFILL no `docs/RUNBOOK-BANCO.md`); coluna nova em tabela viva é `add column … not null default
   <não-volátil>`, sem `update`, com `lock_timeout` por `set`/`reset`.
 - **`supabase/rollback/`** guarda os rollbacks de fase (fora do ledger e da trava de hash), cada um ensaiado no CI por um
-  roteiro `f<N>_rollback.sql`. O de uma fase pressupõe o das fases posteriores (o da F62 roda o da F63 antes).
+  roteiro `f<N>_rollback.sql`. O de uma fase pressupõe o das fases posteriores (o da F62 roda o da F64 e o da F63
+  antes; o da F63, o da F64).
 - **Apply:** pelo conector ou pela Management API, ensaio primeiro (`docs/RUNBOOK-BANCO.md`). **Nunca**
   `supabase db push`, `migration repair` ou `db reset --linked` contra produção ou ensaio: o ledger não
   casa com os arquivos por construção, e quem confere o banco é a sonda de efeito, não o ledger

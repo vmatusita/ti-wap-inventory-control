@@ -463,6 +463,29 @@ update public.x t
    `xmin` a partir do corte do "antes"); `janela = linhas` é backfill. E, no catálogo, `atthasmissing = true`, a FK
    `convalidated`, o default preso à função pelo `pg_depend`.
 4. **O rollback**: `drop column if exists` (sem reescrita; a coluna fica `attisdropped`).
+5. **(F64) A PK do CATÁLOGO, não o `id`.** A tabela sem coluna `id` (PK natural: `motivos (codigo)`,
+   `import_prefixos_patrimonio (prefixo)`, `import_termos_* (termo)`) não cabe no md5 de `(id, xmin)`. O instrumento
+   lê a PK de `pg_constraint.conkey` e usa, como chave e como ordem de cada linha, o `jsonb` array dos valores da PK na
+   ordem de `conkey` (`docs/f64-evidencias/impressao-vocabulario.sql`, gerado de um molde para as tabelas não
+   divergirem por cópia); ele imprime a PK que leu (`SEM PK` acusaria a tabela sem ela). E onde nenhum gatilho barra o
+   `update` ingênuo (as onze da F64), o `xmin` é a ÚNICA prova de que ele não houve.
+
+### A migration que acrescenta uma checagem de integridade (F64)
+
+A `checagens_integridade_nucleo()` é o SQL das checagens; a Parte B do `saude.yml` a lê todo dia (06:43) pela
+`checagens_integridade_resumo()` e ALARMA toda chave que a política (`scripts/smoke/linha-de-base.json`) não conhece.
+Por isso, ao acrescentar uma peça:
+
+1. **Recrie o núcleo com as peças antigas BYTE A BYTE** — copie o corpo vigente do arquivo (por script, nunca à mão) e
+   acrescente a peça nova antes do `end;`. A prova é o md5 de cada peça (`return query … from d;`) antes × depois.
+2. **No MESMO commit da migration:** a chave no catálogo curado `CHECAGENS` (`src/lib/queries/dev.ts`, nome e descrição),
+   na linha de base dos DOIS alvos com 0 (chave nova com 0 NÃO é subir a linha de base — as antigas não se tocam) e na
+   cobertura (`scripts/smoke/cobertura.test.mts`); e os contadores que contam as peças (`f41_regularizacao.sql`,
+   `integridade_alarme.sql`).
+3. **A ordem do apply × merge:** entre o apply em produção e o merge, o banco devolve a chave e a `main` não a conhece —
+   uma Parte B nessa janela abre o alarme "checagem que a política não conhece". Aplique fora da madrugada (a agendada é
+   às 06:43), e mergeie logo depois das provas (impressão, smoke a partir da branch, conferidor). Se a issue abrir mesmo
+   assim: registre a hora e a run, **não mexa na linha de base**, siga para o merge; a Parte B seguinte a fecha.
 
 ### O rollback da F63 — e a ordem ENTRE fases
 
@@ -474,8 +497,22 @@ update public.x t
   migration que o gravou vem antes). Num banco vivo: o `execute_sql` do conector com o conteúdo EXATO do arquivo que o
   CI ensaia (`supabase/tests/f63_rollback.sql`, que prova o esquema das oito voltando à impressão de antes da `0159`) —
   a única escrita fora do `apply_migration`, e só num desfecho ruim. O ledger fica (a linha das três continua lá).
-- **Entre fases:** o rollback de uma fase pressupõe o das fases DEPOIS dela. O da F62 exige o da F63 antes; o da F63
-  exigirá o da F65 antes (quando a F65 pendurar FK composta e unique nas oito).
+- **Entre fases:** o rollback de uma fase pressupõe o das fases DEPOIS dela. O da F62 exige o da F64 e o da F63 antes;
+  o da F63 exige o da F64 antes (desde a F64); o da F64 exigirá o da F65 antes (quando a F65 trocar a PK de `motivos` e
+  pendurar os uniques por empresa nas onze).
+
+### O rollback da F64
+
+- **Quando:** os mesmos gatilhos do da F63 — `relfilenode` mudou, md5 de `(pk, xmin)` divergiu além da janela, advisor
+  não declarado que cita objeto da fase, smoke/conferidor de formas recusou. Em produção, **imediato**.
+- **O arquivo:** `supabase/rollback/F64-desfaz.sql` — `0164` → `0163` → `0162`: sai o gatilho
+  `kits_modelos_motivo_da_empresa` e a função `kit_motivo_da_empresa()`, `checagens_integridade_nucleo()` VOLTA ao corpo
+  da `0158` (copiado byte a byte; o md5 do `prosrc` volta a `06359abd…`), e `drop column if exists empresa_id` nas onze
+  (dentro de cada migration, na ordem de lock do app). Ensaiado no CI por `supabase/tests/f64_rollback.sql` até a
+  impressão de antes da `0162` (`9ab2b820…`). Num banco vivo: o `execute_sql` com o conteúdo EXATO do arquivo. O ledger
+  fica. **Depois de um rollback em produção**, a linha de base ainda conhece `kit_motivo_orfao` e o núcleo não a devolve:
+  a Parte B alarma "checagem esperada que o resumo NÃO devolveu" até o `revert` da `main` — o rollback do banco e o
+  revert do código andam juntos.
 
 ## Restauração — recolocar DADO a partir de um backup (F54, 09/09/2026)
 
@@ -1580,6 +1617,14 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   (`docs/f63-evidencias/impressao-acervo.sql`) antes × depois: `relfilenode` e md5 de `(id, xmin)` iguais nas oito.
   **Estado do apply e as provas:** `docs/RELATORIO-F63.md` (topo) e `docs/f63-evidencias/`. **Rollback:** "O rollback
   da F63", acima.
+- **`0162`→`0164` — `empresa_id` no vocabulário e na infra (lote 2), o kit e a 13ª checagem** (F64, 23/09/2026,
+  v1.69.0). `0162_empresa_no_vocabulario` (`import_prefixos_patrimonio`, `import_termos_categoria`,
+  `import_termos_estado`, `unidades_apelidos`, `tipos_item`, `motivos`) e `0163_empresa_nos_registros`
+  (`kits_modelos`, `senhas_acesso`, `relatorios_gerados`, `import_logs`, `eventos_admin`): a forma da `0160`, SEM
+  update, com `lock_timeout` de 2 s; `0164_kit_motivo_da_empresa` (o gatilho INVOKER do kit e o núcleo com a 13ª peça,
+  `kit_motivo_orfao`). Ledger: `empresa_no_vocabulario`, `empresa_nos_registros`, `kit_motivo_da_empresa`. **O
+  portão** é `docs/f64-evidencias/impressao-vocabulario.sql` antes × depois (a PK do catálogo). **Estado do apply e as
+  provas:** `docs/RELATORIO-F64.md` (topo) e `docs/f64-evidencias/`. **Rollback:** "O rollback da F64", acima.
 
   ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56) nem das
   `0146`→`0149` (passos 1 e 2 da reauditoria), embora as atas dessas fases e entregas registrem os applies.

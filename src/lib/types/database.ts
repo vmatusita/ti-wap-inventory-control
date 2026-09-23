@@ -389,12 +389,14 @@ export type Database = {
         }
         Relationships: []
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       eventos_admin: {
         Row: {
           acao: string
           alvo: string | null
           autor: string | null
           detalhe: Json | null
+          empresa_id: string
           id: string
           quando: string
         }
@@ -403,6 +405,7 @@ export type Database = {
           alvo?: string | null
           autor?: string | null
           detalhe?: Json | null
+          empresa_id?: string
           id?: string
           quando?: string
         }
@@ -411,6 +414,7 @@ export type Database = {
           alvo?: string | null
           autor?: string | null
           detalhe?: Json | null
+          empresa_id?: string
           id?: string
           quando?: string
         }
@@ -420,6 +424,13 @@ export type Database = {
             columns: ["autor"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_admin_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]
@@ -463,6 +474,7 @@ export type Database = {
           },
         ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       import_logs: {
         Row: {
           anotacoes_apagadas: number
@@ -473,6 +485,7 @@ export type Database = {
           correcoes: Json
           created_at: string
           criado_por: string
+          empresa_id: string
           filial_id: number
           id: string
           modo: string
@@ -489,6 +502,7 @@ export type Database = {
           correcoes?: Json
           created_at?: string
           criado_por: string
+          empresa_id?: string
           filial_id: number
           id?: string
           modo: string
@@ -505,6 +519,7 @@ export type Database = {
           correcoes?: Json
           created_at?: string
           criado_por?: string
+          empresa_id?: string
           filial_id?: number
           id?: string
           modo?: string
@@ -521,6 +536,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "import_logs_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "import_logs_filial_id_fkey"
             columns: ["filial_id"]
             isOneToOne: false
@@ -529,53 +551,89 @@ export type Database = {
           },
         ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       import_prefixos_patrimonio: {
         Row: {
+          empresa_id: string
           prefixo: string
         }
         Insert: {
+          empresa_id?: string
           prefixo: string
         }
         Update: {
+          empresa_id?: string
           prefixo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_prefixos_patrimonio_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       import_termos_categoria: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
+          empresa_id: string
           rotulo: string | null
           termo: string
         }
         Insert: {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
+          empresa_id?: string
           rotulo?: string | null
           termo: string
         }
         Update: {
           categoria?: Database["public"]["Enums"]["categoria_ativo"]
+          empresa_id?: string
           rotulo?: string | null
           termo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_termos_categoria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       import_termos_estado: {
         Row: {
+          empresa_id: string
           estado: Database["public"]["Enums"]["status_ativo"]
           rotulo: string | null
           termo: string
         }
         Insert: {
+          empresa_id?: string
           estado: Database["public"]["Enums"]["status_ativo"]
           rotulo?: string | null
           termo: string
         }
         Update: {
+          empresa_id?: string
           estado?: Database["public"]["Enums"]["status_ativo"]
           rotulo?: string | null
           termo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_termos_estado_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       itens: {
@@ -642,11 +700,13 @@ export type Database = {
           },
         ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       kits_modelos: {
         Row: {
           ativo: boolean
           created_at: string
           criado_por: string
+          empresa_id: string
           id: string
           nome: string
           payload: Json
@@ -655,6 +715,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por: string
+          empresa_id?: string
           id?: string
           nome: string
           payload: Json
@@ -663,6 +724,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por?: string
+          empresa_id?: string
           id?: string
           nome?: string
           payload?: Json
@@ -673,6 +735,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_modelos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]
@@ -855,26 +924,38 @@ export type Database = {
           },
         ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       motivos: {
         Row: {
           aplica_a: Database["public"]["Enums"]["tipo_movimentacao"][]
           ativo: boolean
           codigo: string
+          empresa_id: string
           rotulo: string
         }
         Insert: {
           aplica_a: Database["public"]["Enums"]["tipo_movimentacao"][]
           ativo?: boolean
           codigo: string
+          empresa_id?: string
           rotulo: string
         }
         Update: {
           aplica_a?: Database["public"]["Enums"]["tipo_movimentacao"][]
           ativo?: boolean
           codigo?: string
+          empresa_id?: string
           rotulo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "motivos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       movimentacoes: {
@@ -1249,9 +1330,11 @@ export type Database = {
         }
         Relationships: []
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       relatorios_gerados: {
         Row: {
           dados: Json
+          empresa_id: string
           filial_id: number | null
           gerado_em: string
           gerado_por: string
@@ -1263,6 +1346,7 @@ export type Database = {
         }
         Insert: {
           dados: Json
+          empresa_id?: string
           filial_id?: number | null
           gerado_em?: string
           gerado_por: string
@@ -1274,6 +1358,7 @@ export type Database = {
         }
         Update: {
           dados?: Json
+          empresa_id?: string
           filial_id?: number | null
           gerado_em?: string
           gerado_por?: string
@@ -1284,6 +1369,13 @@ export type Database = {
           versao?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "relatorios_gerados_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "relatorios_gerados_filial_id_fkey"
             columns: ["filial_id"]
@@ -1318,11 +1410,13 @@ export type Database = {
         }
         Relationships: []
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       senhas_acesso: {
         Row: {
           ativa: boolean
           created_at: string
           criado_por: string
+          empresa_id: string
           hash: string
           id: string
           rotulo: string
@@ -1332,6 +1426,7 @@ export type Database = {
           ativa?: boolean
           created_at?: string
           criado_por: string
+          empresa_id?: string
           hash: string
           id?: string
           rotulo: string
@@ -1341,6 +1436,7 @@ export type Database = {
           ativa?: boolean
           created_at?: string
           criado_por?: string
+          empresa_id?: string
           hash?: string
           id?: string
           rotulo?: string
@@ -1352,6 +1448,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "senhas_acesso_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]
@@ -1424,10 +1527,12 @@ export type Database = {
           },
         ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       tipos_item: {
         Row: {
           ativo: boolean
           created_at: string
+          empresa_id: string
           id: number
           ordem: number
           rotulo: string
@@ -1436,6 +1541,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          empresa_id?: string
           id?: never
           ordem?: number
           rotulo: string
@@ -1444,18 +1550,29 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          empresa_id?: string
           id?: never
           ordem?: number
           rotulo?: string
           slug?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tipos_item_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
+      // F64 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0162/0163); a geração do MCP o substitui.
       unidades_apelidos: {
         Row: {
           apelido: string
           apelido_chave: string | null
           created_at: string
+          empresa_id: string
           filial_id: number
           id: number
         }
@@ -1463,6 +1580,7 @@ export type Database = {
           apelido: string
           apelido_chave?: string | null
           created_at?: string
+          empresa_id?: string
           filial_id: number
           id?: never
         }
@@ -1470,10 +1588,18 @@ export type Database = {
           apelido?: string
           apelido_chave?: string | null
           created_at?: string
+          empresa_id?: string
           filial_id?: number
           id?: never
         }
         Relationships: [
+          {
+            foreignKeyName: "unidades_apelidos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "unidades_apelidos_filial_id_fkey"
             columns: ["filial_id"]

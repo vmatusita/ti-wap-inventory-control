@@ -215,6 +215,15 @@ const DA_F38 = [
   // topo logo abaixo que o proíbe, agora também dentro de `do`. Nenhuma cria nem recria função.
   '0160',
   '0161',
+  // F64 (23/09/2026) — `empresa_id` no lote 2. A `0162` (o vocabulário) e a `0163` (os registros)
+  // põem a coluna nas onze tabelas de negócio restantes com default NÃO-VOLÁTIL — SEM `update` de
+  // backfill (aqui nenhum gatilho o barraria: a prova é o `xmin`). Nenhuma cria nem recria função.
+  '0162',
+  '0163',
+  // F64 — a `0164` cria a função de gatilho `kit_motivo_da_empresa` (INVOKER, `search_path` fixo) e o
+  // gatilho `kits_modelos_motivo_da_empresa`, e RECRIA `checagens_integridade_nucleo` com a 13ª peça
+  // (as doze de antes byte a byte — a prova é o md5 de cada peça). Nenhuma das duas é intocável.
+  '0164',
 ]
 
 /**

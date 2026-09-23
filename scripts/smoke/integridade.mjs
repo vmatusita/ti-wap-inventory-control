@@ -433,7 +433,7 @@ async function main() {
     for (const d of podeDescer) {
       log(`  [AVISO] ${d.chave}: hoje ${d.total}, base ${d.base} — a linha de base pode DESCER`)
     }
-    if (ok) log('  todas as doze dentro da linha de base.')
+    if (ok) log('  todas as checagens dentro da linha de base.')
 
     // (4) A DERIVA DE MIGRATIONS (item AE, passo 2 da reauditoria de 18/09/2026).
     // Roda na MESMA sessão da conta `consulta`, por cima do veredito das doze —

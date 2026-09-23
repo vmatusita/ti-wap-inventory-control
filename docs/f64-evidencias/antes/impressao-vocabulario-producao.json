@@ -1,0 +1,53 @@
+{
+  "_medido": "23/09/2026 ~14:45 (-03), PRODUÇÃO pbtjcalbmepmrqzprusb, pelo execute_sql do MCP (só leitura), ANTES de qualquer apply da F64 (ledger com 145 linhas). Texto: docs/f64-evidencias/impressao-vocabulario.sql, linhas 46–350, com o PARÂMETRO vazio (o 'antes'). Só contagem e hash. O corte para o 'depois' de produção será o do 'antes' refeito logo antes do apply.",
+  "kit": { "gatilhos_habilitados": 0, "gatilhos_nao_internos": 0 },
+  "nucleo": {
+    "pecas": 12,
+    "md5_prosrc": "06359abd286206bde8432609128ebccd",
+    "md5_por_peca": {
+      "backup_orfao": "aaed90c40f1e086e748436c4dc52f122",
+      "reserva_aberta": "e25b5ad5bf7b5e34dfeb579b83f14420",
+      "conta_sem_perfil": "823aed733b8328949679b3ec99175093",
+      "perfil_sem_conta": "da4cd7036ec01a689bcdb1135a391418",
+      "termo_sem_arquivo": "40d1eca73e3a9f38d7eab7dd428be680",
+      "arquivo_termo_orfao": "0a7c1a70c92a2bf8cf895af830bc950f",
+      "operador_sem_filial": "0f9ab464e82fb050b20ecc5ad15a4801",
+      "ativo_filial_inativa": "5ecc19e57e6d7fa086d8722dd62daa5b",
+      "patrimonio_duplicado": "edad45c10d5d7167275eb5e98b77ddf5",
+      "conflito_entre_filiais": "37012c5ebb03917838034060aec41eae",
+      "pendencia_de_estornada": "f554a49743a8b4941f5256b4a30ce564",
+      "detentor_em_estado_sem_dono": "a57b0927a6787938cbfd9f102edc4554"
+    }
+  },
+  "tabelas": {
+    "motivos": { "pk": "codigo", "janela": 0, "linhas": 14, "empresa_id": "ausente", "md5_pk_xmin": "0d3e74e4885efc6b7353a42253a0825c", "relfilenode": "17771", "md5_conteudo": "07f44706f2a2e826160e306e1f946d9a" },
+    "tipos_item": { "pk": "id", "janela": 0, "linhas": 10, "empresa_id": "ausente", "md5_pk_xmin": "d807d5f94d68232f0836ce42fa24962c", "relfilenode": "19945", "md5_conteudo": "182a5ba202d78050caa5e5dbe622abd9" },
+    "import_logs": { "pk": "id", "janela": 0, "linhas": 12, "empresa_id": "ausente", "md5_pk_xmin": "d993ed779222846de91010481ff0437f", "relfilenode": "18390", "md5_conteudo": "275f10ac17b6a1e056ee4938ce290347" },
+    "kits_modelos": { "pk": "id", "janela": 0, "linhas": 0, "empresa_id": "ausente", "md5_pk_xmin": "vazia", "relfilenode": "18677", "md5_conteudo": "vazia" },
+    "eventos_admin": { "pk": "id", "janela": 0, "linhas": 102, "empresa_id": "ausente", "md5_pk_xmin": "5e5c28590c9bced843320de6f451a062", "relfilenode": "18966", "md5_conteudo": "18334c26593ea78b01dd79a4247116dd" },
+    "senhas_acesso": { "pk": "id", "janela": 0, "linhas": 5, "empresa_id": "ausente", "md5_pk_xmin": "ef7a0aa71b7ff3ae6a0d4eabf5bde499", "relfilenode": "17844", "md5_conteudo": "905e7a1366f6de83c42f3bf66633a3df" },
+    "unidades_apelidos": { "pk": "id", "janela": 0, "linhas": 13, "empresa_id": "ausente", "md5_pk_xmin": "b93b27b4c671cb16f8b32ba8f7bf6c04", "relfilenode": "20904", "md5_conteudo": "9ef4138bfdeb5a524034fb18c8e1a079" },
+    "relatorios_gerados": { "pk": "id", "janela": 0, "linhas": 13, "empresa_id": "ausente", "md5_pk_xmin": "716c86b315fd7086f852a847fada63d0", "relfilenode": "17953", "md5_conteudo": "e1eeac548c5cda0d11d6131daf165652" },
+    "import_termos_estado": { "pk": "termo", "janela": 0, "linhas": 17, "empresa_id": "ausente", "md5_pk_xmin": "9ee3a06d218d052a76ba87969d62f792", "relfilenode": "20938", "md5_conteudo": "ddca7f43e8b9596a19cba8b6b40506eb" },
+    "import_termos_categoria": { "pk": "termo", "janela": 0, "linhas": 5, "empresa_id": "ausente", "md5_pk_xmin": "6f91312801f0c2ddabbf72cca8c66345", "relfilenode": "20926", "md5_conteudo": "10339564065e62ccbf11304122b1733a" },
+    "import_prefixos_patrimonio": { "pk": "prefixo", "janela": 0, "linhas": 7, "empresa_id": "ausente", "md5_pk_xmin": "da0f98ccbc1a5e8232e335fd7e1ecdf2", "relfilenode": "20951", "md5_conteudo": "af2efb8f6dcc3a1a07a2af3ab0c5cf43" }
+  },
+  "rate_limit": { "funcoes": 1, "md5_prosrc": "0c2abf7daceb38fe3eb11b9aee12d8a3" },
+  "corte_usado": null,
+  "escritores_sql": {
+    "funcoes": 9,
+    "md5_prosrc": "5bbe6d798812915a52a5953f185d956f",
+    "por_funcao": {
+      "apagar_ativo#apagar_ativo(uuid,text,text)": "1433ac8da1e8b4aee4ed35dd0af6e2ce",
+      "apagar_item#apagar_item(smallint,text,text)": "6ee27bacf8d19efe9e48c8303a53b7c6",
+      "apagar_movimentacao#apagar_movimentacao(uuid,text,text)": "b81e8e6e7b212d61ca7a0fe03c0bff5c",
+      "resetar_itens#resetar_itens(smallint,text,text,text,jsonb)": "e024d6f11030552fecdaee4a1da062fe",
+      "resetar_acervo#resetar_acervo(smallint,text,text,text,jsonb)": "c352a4d002c97e2aaf607e5932aad6be",
+      "forcar_estado_ativo#forcar_estado_ativo(uuid,status_ativo,text)": "c199abcf2d4ea5e5055d4eb14b5a9eb0",
+      "forcar_saldo_item#forcar_saldo_item(smallint,smallint,integer,text)": "e0a6906de4b9182896bc08a7ce1bd194",
+      "apagar_ativos_conflito_filiais#apagar_ativos_conflito_filiais(uuid[],text,text,text)": "717a8e39790d849194cde9262914b422",
+      "import_gravar_trilha#import_gravar_trilha(jsonb,smallint,text,jsonb,uuid,integer,integer,integer,integer,integer)": "3587aa25577ed90ecb516c41e0dd11b2"
+    }
+  },
+  "corte_para_o_depois": "26042"
+}
