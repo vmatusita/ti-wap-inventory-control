@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
+import { registrarFalha } from '@/lib/observabilidade'
 import { type ActionResult } from '@/lib/actions/erros'
 import { criarSenhaSchema } from '@/lib/validators/senha'
 import {
@@ -58,11 +59,19 @@ export async function entrarComSenha(
   const admin = createAdminClient()
 
   // Rate-limit PERSISTENTE (§3.9.1): contador atômico no Postgres, compartilhado
-  // entre instâncias. Falha ABERTO se a RPC der erro — a senha é a barreira real,
-  // não travamos o acesso por um hiccup de infra.
-  const { data: excedeu } = await chamarRpc(admin, 'registrar_tentativa_senha', {
+  // entre instâncias. Falha FECHADO desde a F64 (23/09/2026 — ata da F64 em
+  // docs/DECISOES.md, que reverte a X4): se o contador der erro, a entrada RECUSA antes de
+  // ler ou conferir qualquer senha. Falhar aberto liberava a varredura justamente quando o
+  // banco estava sob pressão. A mensagem é genérica e não depende da senha digitada (nada
+  // aqui revela se ela existe); a falha vai para o log SEM o IP — dado pessoal que o funil
+  // redige por valor e nenhum padrão dele reconhece.
+  const { data: excedeu, error: erroContador } = await chamarRpc(admin, 'registrar_tentativa_senha', {
     p_ip: ipCliente(h),
   })
+  if (erroContador) {
+    registrarFalha({ escopo: 'senhas.contador-de-tentativas', erro: erroContador })
+    return { erro: 'Não foi possível conferir a senha agora. Tente de novo em instantes.' }
+  }
   if (excedeu) {
     return { erro: 'Muitas tentativas. Aguarde um instante e tente de novo.' }
   }
