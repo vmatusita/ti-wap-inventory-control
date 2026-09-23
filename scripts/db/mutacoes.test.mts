@@ -103,7 +103,16 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 125 mutações ATIVAS', () => {
+  it('tem entre 20 e 131 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 125 PARA 131 NA F63 (23/09/2026), no número EXATO. A decisão 8 do
+    // PLAN-F63: mutação só onde ela derruba uma trava DESTA fase que nenhum teste de mesa derruba
+    // — as seis são estado de banco. Quatro quebram a FORMA de `empresa_id` no lote 1 (default
+    // literal, `drop not null`, FK `not valid`, a coluna ausente), cada uma numa tabela diferente,
+    // e o `15b` de `catalogo_policies.sql` tem de acusá-las pelo nome (a sabotagem C); duas abrem
+    // `backups_migration` (a policy que o `4` acusa pela simetria de `k_sem_select`; o grant que
+    // o `6a` de `empresa_no_acervo.sql` acusa). 125 + 6 = 131. O lote estava NO teto (125/125),
+    // sem folga — o número exato é a régua. Quarentena: 2 de 133, longe de um terço.
+    //
     // ⚠ E DE 124 PARA 125 NA REVISÃO ADVERSARIAL DA MESMA F62 (22/09/2026): a revisão achou a
     // corrida do apply — a RPC antiga em voo, bloqueada pela trava da recópia, retomava depois
     // do commit e gravava em silêncio a coluna congelada. A guarda de profiles passou a recusá-la
@@ -281,7 +290,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(125)
+    expect(MUTACOES.length).toBeLessThanOrEqual(131)
   })
 
   it('os `id` são únicos', () => {

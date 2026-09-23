@@ -2837,6 +2837,96 @@ const F62_CARGO = [
   },
 ]
 
+// =============================================================================
+// F63 (23/09/2026) — `empresa_id` NO ACERVO e O PAR DE BACKUP DE MIGRAÇÃO
+// =============================================================================
+// A decisão 8 do PLAN-F63: mutação SÓ onde ela derruba uma trava desta fase que nenhum teste
+// de MESA derruba — e as seis são estado de BANCO (a forma da coluna, a tabela fechada), que a
+// mesa não vê. Quatro quebram a FORMA de `empresa_id` numa das oito tabelas de `k_lote1`, uma
+// por defeito, cada uma numa tabela diferente (o bloco 5 de `catalogo_policies.sql` tem de
+// acusar as quatro PELO NOME — a sabotagem C); duas abrem `backups_migration` (a policy que a
+// simetria de `k_sem_select` acusa; o grant que o bloco 6 de `empresa_no_acervo.sql` acusa).
+const F63_ACERVO = [
+  {
+    id: 'f63-lote1-default-literal',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'default-literal',
+    derruba: ['15b'],
+    porque:
+      'O default de ativos.empresa_id vira o LITERAL da WAP em vez de public.empresa_legada(): o valor é o mesmo hoje, mas a fonte única deixa de ser a função — trocar a empresa legada (por migration) passaria a deixar esta coluna para trás em silêncio, e a F67 tiraria de uma tabela um default que não é o que ela procura.',
+    sql: `alter table public.ativos alter column empresa_id set default '00000000-0000-4000-a000-000000000001'::uuid;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_depend dp join pg_attrdef d on d.oid = dp.objid where dp.classid = 'pg_attrdef'::regclass and d.adrelid = 'public.ativos'::regclass and dp.refobjid = 'public.empresa_legada()'::regprocedure)`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f63-lote1-sem-not-null',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['15b'],
+    porque:
+      'movimentacoes.empresa_id passa a aceitar null: um INSERT que mande empresa_id nulo (um escritor da F67 esquecendo a empresa) grava movimentação SEM dono — invisível para o recorte da F66 e fora da FK composta da F65.',
+    sql: `alter table public.movimentacoes alter column empresa_id drop not null;  ${MARCA}`,
+    prova: {
+      sql: `select not attnotnull from pg_attribute where attrelid = 'public.movimentacoes'::regclass and attname = 'empresa_id'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f63-lote1-fk-not-valid',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['15b'],
+    porque:
+      'A FK de itens.empresa_id recriada NOT VALID: as linhas que já existiam deixam de ser conferidas contra empresas — uma empresa apagada ou um valor forjado antes da recriação passa a morar no acervo sem que o banco tenha provado que o dono existe.',
+    sql: `alter table public.itens drop constraint itens_empresa_id_fkey; alter table public.itens add constraint itens_empresa_id_fkey foreign key (empresa_id) references public.empresas (id) not valid;  ${MARCA}`,
+    prova: {
+      sql: `select not convalidated from pg_constraint where conname = 'itens_empresa_id_fkey'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f63-lote1-sem-coluna',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['15b'],
+    porque:
+      'anotacoes perde empresa_id: uma das oito tabelas do acervo sai do lote 1 calada, e o recorte da F66 teria uma tabela de negócio sem a chave — a anotação de um ativo da empresa A legível por todas.',
+    sql: `alter table public.anotacoes drop column empresa_id;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_attribute where attrelid = 'public.anotacoes'::regclass and attname = 'empresa_id' and not attisdropped)`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f63-backups-ganha-policy',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'policy-permissiva',
+    derruba: ['4'],
+    porque:
+      'backups_migration ganha uma policy de SELECT para authenticated: com o grant do projeto hospedado, todo logado leria o valor ANTERIOR de cada célula que uma migration alterou — inclusive dado que a migration existiu para corrigir.',
+    sql: `create policy f63_mutacao_le_backup on public.backups_migration for select to authenticated using (true);  ${MARCA}`,
+    prova: {
+      sql: `select exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'backups_migration')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f63-backups-legivel',
+    roteiro: 'empresa_no_acervo.sql',
+    classe: 'grant-devolvido',
+    derruba: ['6a'],
+    porque:
+      'O revoke de backups_migration some para authenticated (o grant que o default privilege do projeto hospedado dá a toda tabela nova): o par de backup deixa de ser do dono — a tabela fechada no molde de ambiente vira tabela de API.',
+    sql: `grant select on public.backups_migration to authenticated;  ${MARCA}`,
+    prova: {
+      sql: `select has_table_privilege('authenticated', 'public.backups_migration', 'select')`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -2856,6 +2946,7 @@ export const MUTACOES = [
   ...REAUDITORIA_PASSO2,
   ...REAUDITORIA_PASSO4,
   ...F62_CARGO,
+  ...F63_ACERVO,
 ]
 
 /**
