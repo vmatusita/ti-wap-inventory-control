@@ -1,0 +1,28 @@
+{
+  "_medido": "23/09/2026 17:49 UTC (observed_at), get_advisors(type=security) pelo MCP, ANTES de qualquer apply da F64. IDÊNTICO nos dois bancos. Contado por nível e nome; os nomes de tabela e de função são código.",
+  "producao": {
+    "INFO": { "rls_enabled_no_policy": { "n": 6, "tabelas": ["ambiente", "backups_migration", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"] } },
+    "WARN": {
+      "authenticated_security_definer_function_executable": { "n": 34 },
+      "auth_leaked_password_protection": { "n": 1 }
+    },
+    "ERROR": {}
+  },
+  "ensaio": {
+    "INFO": { "rls_enabled_no_policy": { "n": 6, "tabelas": ["ambiente", "backups_migration", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"] } },
+    "WARN": {
+      "authenticated_security_definer_function_executable": { "n": 34 },
+      "auth_leaked_password_protection": { "n": 1 }
+    },
+    "ERROR": {}
+  },
+  "funcoes_definer_executaveis_por_authenticated": [
+    "apagar_ativo", "apagar_ativos_conflito_filiais", "apagar_item", "apagar_movimentacao", "apagar_usuario",
+    "checagens_integridade_resumo", "definir_papel_usuario", "definir_status_usuario", "definir_vinculos_usuario",
+    "dev_checagens_integridade", "e_admin", "e_dev", "e_plataforma", "empresas_de_admin", "empresas_de_escrita",
+    "empresas_do_membro", "encerrar_sessoes_usuario", "estorno_item_coerente", "forcar_estado_ativo", "forcar_saldo_item",
+    "importar_ativos_substituir", "ledger_de_migracoes", "papel_atual", "pode_escrever", "pode_escrever_arquivo_termo",
+    "pode_escrever_filial", "pode_escrever_termo", "pode_ler_arquivo_termo", "previa_reset", "resetar_acervo",
+    "resetar_itens", "termo_ancora_coerente", "ultima_migracao_aplicada", "unidades_de_escrita"
+  ]
+}

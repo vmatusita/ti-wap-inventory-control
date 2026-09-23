@@ -1,0 +1,13 @@
+{
+  "_medido": "23/09/2026 ~14:50 (-03), pelo execute_sql do MCP (só leitura), ANTES de qualquer apply da F64, com o texto de docs/f64-evidencias/impressao-policies.sql. IDÊNTICO nos dois bancos.",
+  "producao": {
+    "vivas": { "public": { "n": 54, "md5": "886118ad686f67c857cf0d370fd6828d" }, "storage": { "n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8" } },
+    "do_lote2": { "tabelas": 11, "policies": 22, "citam_empresa_id": 0 },
+    "do_negocio": { "tabelas": 20, "policies": 49, "citam_empresa_id": 0 }
+  },
+  "ensaio": {
+    "vivas": { "public": { "n": 54, "md5": "886118ad686f67c857cf0d370fd6828d" }, "storage": { "n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8" } },
+    "do_lote2": { "tabelas": 11, "policies": 22, "citam_empresa_id": 0 },
+    "do_negocio": { "tabelas": 20, "policies": 49, "citam_empresa_id": 0 }
+  }
+}
