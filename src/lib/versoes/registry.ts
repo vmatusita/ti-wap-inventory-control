@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.70.0',
+    data: '2026-09-23',
+    fase: 'F65',
+    titulo: 'O sistema passou a recusar sozinho a mistura de dados entre empresas: nada aponta para o cadastro de outra empresa, os nomes únicos valem dentro de cada empresa, e um registro não muda de empresa',
+    mudancas: [
+      'Nada muda nas telas: cadastrar, movimentar, gerar termo, consolidar colaboradores, importar e gerar relatório funcionam como antes, para as mesmas pessoas. Hoje só existe a WAP, e nenhum dado foi regravado — o conteúdo foi conferido antes e depois, na cópia de testes e na do dia a dia.',
+      'Por dentro, o sistema passou a recusar por conta própria qualquer ligação entre registros de empresas diferentes: um equipamento, uma movimentação, um lançamento de item, uma pendência ou uma anotação nunca apontam para filial, colaborador, item, tipo de item ou motivo de outra empresa. E um termo só reúne movimentações e equipamentos da empresa em que é emitido.',
+      'Os nomes que não podem se repetir — o nome e o identificador da filial, o tipo de item, o colaborador, o item, o kit, o apelido de filial, o motivo e os termos da importação — passaram a não poder se repetir DENTRO da mesma empresa. Os avisos de nome repetido continuam os mesmos.',
+      'Um registro não muda de empresa, nem pelas ferramentas do desenvolvedor. A tentativa é recusada com o aviso "A empresa de um registro não pode ser trocada. Nada foi gravado."',
+      'Em Relatórios gerados, a marca "superada" passa a comparar só as versões do mesmo período da MESMA empresa. Hoje nada muda na lista; com uma segunda empresa, o relatório de uma não marca o da outra como superado.',
+    ],
+  },
+  {
     versao: '1.69.0',
     data: '2026-09-23',
     fase: 'F64',
