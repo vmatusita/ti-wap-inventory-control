@@ -24,7 +24,9 @@
 --   I8 — a auto-sabotagem: uma tabela SINTÉTICA de `public` com a coluna e sem o gatilho é acusada pela I1 (o gate sabe
 --        reprovar a tabela nova);
 --   I9 — a auto-sabotagem da I3: o predicado de atribuição acusa as três formas do PL/pgSQL (`:=`, `=` como comando,
---        `into`) — inclusive a forma real da `0156` — e deixa passar a comparação e o `insert … values (new.empresa_id)`.
+--        `into`), com aspas, em maiúsculas e dentro de `case` — inclusive a forma real da `0156` — e deixa passar a
+--        comparação (também a do `then` de um `case` do SQL) e o `insert …
+--        values (new.empresa_id)`.
 -- Antes da 0173 ela reprova nas 20 (a trava que nasceu vermelha, docs/f65-evidencias/B-travas/).
 --
 -- DADOS: uma linha fictícia em cada uma das 20 (pg_temp.f65_plantar, _asserts.sql), na empresa legada; uma empresa B
@@ -71,9 +73,23 @@ $f$;
 create function pg_temp.f65_atribui_empresa(p_src text) returns boolean
 language plpgsql as $f$
 declare
-  v_cod  text := regexp_replace(lower(pg_temp.sql_so_codigo(coalesce(p_src, ''))), '\m(insert|merge)\s+into\M', '\1_em', 'g');
+  -- sem caixa (o PL/pgSQL dobra NEW), sem as aspas de identificador simples (`"new"."empresa_id"` é o mesmo alvo) e com
+  -- `insert into`/`merge into` fora da regra do `into`
+  v_cod  text := regexp_replace(
+                   regexp_replace(lower(pg_temp.sql_so_codigo(coalesce(p_src, ''))), '"([a-z_][a-z0-9_$]*)"', '\1', 'g'),
+                   '\m(insert|merge)\s+into\M', '\1_em', 'g');
   v_alvo text;
+  v_novo text;
 begin
+  -- O `case … end` do SQL (uma EXPRESSÃO) vira um termo neutro, do mais interno para fora: o `then`/`else` dele não
+  -- começa comando, e `case … then new.empresa_id = old.empresa_id … end` é comparação (2ª rodada da revisão
+  -- adversarial). A expressão nunca contém `;`; o `case` do PL/pgSQL (um COMANDO) sempre contém — e fica: o `then`
+  -- dele começa comando.
+  loop
+    v_novo := regexp_replace(v_cod, '\mcase\M((?!\mcase\M|\mend\M)[^;])*\mend\M(?!\s*(case|if|loop)\M)', ' expr_caso ', 'g');
+    exit when v_novo = v_cod;
+    v_cod := v_novo;
+  end loop;
   if v_cod ~ '\mnew\s*(\.\s*empresa_id\s*)?:=' then
     return true;
   end if;
@@ -307,6 +323,11 @@ begin
       ('select * into new (a linha)',   'begin select * into new from public.ativos a limit 1; return new; end',           true),
       ('new := a linha',                'begin new := jsonb_populate_record(new, v_j); return new; end',                   true),
       ('execute … into new.empresa_id', 'begin execute ''select 1'' into new.empresa_id using v; return new; end',        true),
+      ('o identificador entre aspas',   'begin "new"."empresa_id" := v_e; return new; end',                               true),
+      ('maiúsculas e espaço antes do .', 'BEGIN NEW . EMPRESA_ID = v_e; RETURN NEW; END',                                true),
+      ('o case do PL/pgSQL que atribui', 'begin case tg_op when ''UPDATE'' then new.empresa_id = v_e; else null; end case; return new; end', true),
+      ('a atribuição de um case do SQL', 'begin new.empresa_id = case when v then v_e else old.empresa_id end; return new; end', true),
+      ('par: o then do case do SQL (leitura)', 'begin v_mudou := case tg_op when ''UPDATE'' then new.empresa_id = old.empresa_id else false end; return new; end', false),
       ('par: a comparação no if',       'begin if new.empresa_id = old.empresa_id then return new; end if; return null; end', false),
       ('par: a comparação no where',    'begin perform 1 from public.filiais f where f.empresa_id = new.empresa_id; return new; end', false),
       ('par: o insert que LÊ a coluna', 'begin insert into public.t (empresa_id) values (new.empresa_id); return new; end', false),
@@ -317,7 +338,7 @@ begin
   if pg_temp.assert_zero_de(
        'I9 auto-sabotagem da I3: o predicado acusa as três formas de atribuição do PL/pgSQL (:=, = como comando, into) e deixa passar a leitura' ||
        case when v_cnt > 0 then ' — errou: ' || v_lista else '' end,
-       v_cnt, 14) then
+       v_cnt, 19) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM imutabilidade_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
