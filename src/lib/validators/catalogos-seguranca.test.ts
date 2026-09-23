@@ -306,9 +306,12 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
   // (`coalesce(a.empresa_id, …) = v`) não é lida aqui; a trava do recorte no banco é o bloco 7 de
   // `empresa_no_acervo.sql`, que lê o catálogo.
   const CAST = String.raw`(?:\s*::\s*[a-z_][a-z0-9_]*(?:\s*\[\s*\])?)*`
+  // E (3ª rodada) o parêntese em volta da coluna (`(a.empresa_id) = v`) e o equijoin implícito `join … using
+  // (empresa_id)`, que compara a coluna das duas tabelas sem operador nenhum.
   const RECORTE = new RegExp(
-    String.raw`\bempresa_id${CAST}\s*(?:=|<>|!=|<=|>=|<|>|\bnot\s+in\b|\bin\b|\b(?:not\s+)?between\b|\bis\s+(?:not\s+)?distinct\s+from\b)` +
-      String.raw`|(?:=|<>|!=|<=|>=|<|>|\bin\b|\bdistinct\s+from)\s*\(?\s*(?:[a-z_][a-z0-9_]*\.)?empresa_id\b`,
+    String.raw`\bempresa_id${CAST}(?:\s*\))*\s*(?:=|<>|!=|<=|>=|<|>|\bnot\s+in\b|\bin\b|\b(?:not\s+)?between\b|\bis\s+(?:not\s+)?distinct\s+from\b)` +
+      String.raw`|(?:=|<>|!=|<=|>=|<|>|\bin\b|\bdistinct\s+from)\s*\(?\s*(?:[a-z_][a-z0-9_]*\.)?empresa_id\b` +
+      String.raw`|\busing\s*\([^)]*\bempresa_id\b[^)]*\)`,
     'i',
   )
 
@@ -357,6 +360,10 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(RECORTE.test('where t.empresa_id between v_a and v_b')).toBe(true)
     expect(RECORTE.test('where t.empresa_id > v_a')).toBe(true)
     expect(RECORTE.test('where v_emp in (a.empresa_id)')).toBe(true)
+    // 3ª rodada: o parêntese em volta da coluna, e o equijoin por `using`
+    expect(RECORTE.test('where (a.empresa_id) = v_emp')).toBe(true)
+    expect(RECORTE.test('select 1 from public.movimentacoes m join public.colaboradores c using (empresa_id)')).toBe(true)
+    expect(RECORTE.test('join public.itens i using (id, empresa_id)')).toBe(true)
     // e o que continua não sendo recorte: a completude com cast, e um PARÂMETRO de nome parecido
     expect(RECORTE.test('where empresa_id::text is null')).toBe(false)
     expect(RECORTE.test('where p_empresa_id = v_emp')).toBe(false)

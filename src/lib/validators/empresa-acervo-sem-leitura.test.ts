@@ -334,9 +334,18 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
         alias.set(tabela, tabela)
         if (m[2] && !NAO_ALIAS.has(m[2].toLowerCase())) alias.set(m[2].toLowerCase(), tabela)
       }
+      // O nome de um CTE aparece depois de `from` como se fosse tabela — mas não é uma.
+      const ctes = new Set(
+        [...cmd.matchAll(/(?:\bwith(?:\s+recursive)?|,)\s*([a-z_][a-z0-9_]*)\s+as\s*(?:(?:not\s+)?materialized\s*)?\(/gi)].map((c) => c[1].toLowerCase()),
+      )
       for (const m of cmd.matchAll(/(?:\b([a-z_][a-z0-9_]*)\s*\.\s*)?\bempresa_id\b/gi)) {
         const q = m[1]?.toLowerCase()
-        const tabela = q ? (alias.get(q) ?? q) : null
+        // O qualificador resolvido é uma tabela real (a própria, ou o apelido direto dela): conta se é uma das oito.
+        // O que NÃO se resolve — o apelido de um subselect ou de um CTE (3ª rodada da revisão adversarial: `select
+        // x.empresa_id from (select * from public.ativos) x`), uma variável de registro — é DESCONHECIDO, e cai na
+        // mesma régua do sem qualificador: conta se o comando lê ou escreve uma das oito.
+        const real = q ? alias.get(q) : undefined
+        const tabela = q ? (real && !ctes.has(real) ? real : oito.includes(q) ? q : null) : null
         if (tabela ? oito.includes(tabela) : tabelasDoAcervo(cmd).length > 0) {
           achados.push(cmd.replace(/\s+/g, ' ').trim().slice(0, 120))
           break
@@ -365,6 +374,10 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     ['par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo)', 'select count(*) into v from public.ativos; select 1 from public.membros m where m.empresa_id = public.empresa_legada()', false],
     // 2ª rodada da revisão adversarial: o `;` dentro de TEXTO não parte o comando; o `into v_n from` não esconde a tabela
     ['`select … into v_n from` a tabela das oito', 'select count(*) into v_n from public.ativos a where a.empresa_id = p_x', true],
+    // 3ª rodada: o apelido que não é de tabela real — subselect, CTE — não livra a leitura
+    ['pelo apelido de um SUBSELECT sobre uma das oito', 'select x.empresa_id from (select * from public.ativos) x where x.id = 5', true],
+    ['pelo apelido de um CTE sobre uma das oito', 'with x as (select * from public.movimentacoes) select x.empresa_id from x', true],
+    ['par legítimo: o apelido de um subselect sobre membros', 'select x.empresa_id from (select * from public.membros) x', false],
     ['um `;` num texto entre o alias e a leitura', "select count(*) into v_n from public.ativos a, public.movimentacoes m where m.motivo = 'estado; transicao invalida' and a.empresa_id = p_x", true],
     ['a leitura dentro do corpo dollar-quoted de uma função', "create function public.f() returns int language plpgsql as $f$ begin raise notice 'a; b'; return (select count(*) from public.itens i where i.empresa_id is null); end $f$", true],
     ['par legítimo: `empresa_id` só dentro de um texto', "select count(*) from public.ativos a where a.observacao = 'a.empresa_id; x'", false],
