@@ -104,9 +104,11 @@ declare
     'senhas_acesso', 'termos_gerados', 'tipos_item', 'unidades_apelidos'
   ];
   -- O md5 do conjunto (assinatura:md5 do prosrc) das funções de `public` que a F65 NÃO cria nem recria — medido no
-  -- Postgres do CI ANTES da 0165 (a cadeia até a 0164; ver docs/f65-evidencias/B-travas/). A F65 cria
-  -- `guarda_empresa`/`termo_da_empresa` e recria `vocabulario_unidades_guarda`; todas as outras ficam byte a byte.
-  k_funcoes_pre_0165 constant text := '9fa5e4669eb15ea8f199fd392613d30e';
+  -- Postgres do CI ANTES da 0165 (a cadeia até a 0164: run 35925340234, push 1; docs/f65-evidencias/B-travas/). A F65
+  -- cria `guarda_empresa`/`termo_da_empresa` e recria `vocabulario_unidades_guarda`; todas as outras ficam byte a byte.
+  -- ⚠ O CI é a régua: a mesa em PGlite (Postgres em WASM) mede outro valor para a MESMA cadeia (9fa5e466…), igual com o
+  -- roteiro sozinho e com a suíte inteira — diferença de ambiente, não de ordem de roteiro (nenhum deixa função em public).
+  k_funcoes_pre_0165 constant text := 'b3c0d79079c66f2b66f7903a54ede79f';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() da 0139 (o dos dois bancos antes da F65).
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
 begin
@@ -521,7 +523,9 @@ begin
     from pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda');
-  raise notice '(medição) L4: md5 das funções de public fora das três da F65: %', v_m0;
+  raise notice '(medição) L4: md5 das funções de public fora das três da F65: % (% funções)', v_m0,
+    (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
+        and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'));
   if pg_temp.assert_zero_de(
        'L4 o corpo das funções de public que a F65 não cria nem recria é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,

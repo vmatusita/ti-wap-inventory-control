@@ -1,0 +1,144 @@
+✓ rls-movimentacao-confia-na-filial-declarada → papeis_rls.sql [2c-bis,2c-ter]: detectada (também: 2g)
+✓ rls-lancamento-de-item-confere-papel-e-esquece-filial → papeis_rls.sql [2e]: detectada
+✓ rls-edicao-de-ativo-confere-papel-e-esquece-filial → papeis_rls.sql [2g]: detectada
+✓ rls-piso-de-leitura-aberto-em-ativos → papeis_rls.sql [4d]: detectada
+✓ rls-desligada-em-senhas-de-acesso → papeis_rls.sql [3d,5f]: detectada
+✓ rls-auditoria-visivel-a-quem-escreve → papeis_rls.sql [3f]: detectada
+✓ rls-trilha-do-import-visivel-a-quem-escreve → papeis_rls.sql [3e]: detectada
+✓ rls-bucket-de-backup-visivel-a-quem-escreve → papeis_rls.sql [6e]: detectada
+✓ rls-termo-perde-as-invariantes-da-ancora → papeis_rls.sql [2i-bis-3]: detectada
+✓ ancora-do-termo-sempre-coerente → papeis_rls.sql [2i-bis-3]: detectada
+✓ leitura-de-colaboradores-sem-piso → papeis_rls.sql [4i]: detectada (também: 1i-bis, 3c-ter)
+✓ catalogo-rls-desligada-numa-tabela → seguranca_catalogo.sql [2]: detectada
+✓ catalogo-tabela-de-backup-sem-rls → seguranca_catalogo.sql [2]: detectada
+✓ catalogo-view-sem-security-invoker → seguranca_catalogo.sql [3]: detectada
+✓ catalogo-funcao-gatilho-executavel-por-authenticated → seguranca_catalogo.sql [4]: detectada
+✓ catalogo-gatilho-de-lancamento-vira-definer → seguranca_catalogo.sql [4c]: detectada
+✓ catalogo-rpc-de-escrita-executavel-por-anon → seguranca_catalogo.sql [1]: detectada
+✓ dev-guarda-de-gestao-aceita-nivel-admin → cargo_dev.sql [2a,2b,2c,2e]: detectada (também: 2i, 2i-bis, 2i-membros, 2i-bis-membros, 2j-membros, 2j-quater, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 4a, 4b, 4c, 8a, 8b, 8c)
+✓ dev-apagar-conta-aceita-nivel-admin → cargo_dev.sql [2f-bis]: detectada (também: 3a, 3b, 4a, 7j, 7j-bis)
+✓ dev-encerrar-sessoes-aceita-nivel-admin → cargo_dev.sql [2f]: detectada
+✓ dev-trigger-deixa-conceder-cargo-por-update-direto → cargo_dev.sql [2h]: detectada
+✓ dev-auxiliar-de-gestao-executavel-por-authenticated → cargo_dev.sql [5e]: detectada
+✓ gestao-encerrar-sessoes-mira-o-alvo-errado → cargo_dev.sql [3d]: detectada
+✓ destrutivo-justificativa-sem-tamanho-minimo → dev_destrutivo.sql [12b,12e]: detectada
+✓ destrutivo-guarda-do-acervo-aceita-update → dev_destrutivo.sql [2i,2k]: detectada
+✓ destrutivo-guarda-do-acervo-aceita-delete → dev_destrutivo.sql [2j,2l,2m,13c]: detectada
+✓ destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho → dev_destrutivo.sql [2f,2n]: detectada (também: 2h)
+✓ import-sem-revalidacao-de-contagens → import_substituir.sql [2]: detectada
+✓ import-revalidacao-nao-compara-o-vivo → import_substituir.sql [0b,5a]: detectada (também: 5a-bis)
+✓ import-revalidacao-ignora-pendencia-nova-do-acervo → import_substituir.sql [5a-bis]: detectada
+✓ import-sem-exigencia-de-backup → import_substituir.sql [3]: detectada
+✓ import-trilha-do-apagado-mente-nas-anotacoes → import_substituir.sql [0g]: detectada
+✓ import-ativo-nasce-sem-origem-importacao → import_substituir.sql [4b]: detectada (também: 0h)
+✓ import-compra-de-abertura-sem-marcador → import_substituir.sql [1e,0h]: detectada
+✓ import-conferencia-de-estado-cega → import_substituir.sql [0f]: detectada
+✓ import-contagem-de-conflitos-mentida → import_substituir.sql [0c]: detectada
+✓ import-auxiliar-destrutiva-vira-api → import_substituir.sql [0e]: detectada
+✓ import-trilha-com-id-perdido → import_substituir.sql [0d]: detectada
+✓ import-nao-desvincula-lancamento-da-pendencia → import_substituir.sql [5c]: detectada (também: 5d, 5e, 5f, 5g, 5l)
+✓ import-nao-desvincula-lancamento-da-movimentacao → import_substituir.sql [5c]: detectada (também: 5d, 5e, 5f, 5g, 5l)
+✓ import-nao-apaga-pendencias-do-acervo → import_substituir.sql [5c]: detectada (também: 5d, 5e, 5f, 5g, 5l)
+✓ import-nao-anula-ponteiro-de-substituto → import_substituir.sql [5c]: detectada (também: 5d, 5e, 5f, 5g, 5l)
+✓ conflito-justificativa-sem-tamanho-minimo → conflito_filiais.sql [5f]: detectada (também: 4a, 4b, 3b)
+✓ conflito-confirmacao-com-numero-errado-aceita → conflito_filiais.sql [5d,5e]: detectada (também: 4a, 4b, 4e, 3b)
+✓ conflito-backup-em-arquivo-sem-prefixo-do-digest → conflito_filiais.sql [11e,11f,11g,11h]: detectada
+✓ catalogo-tabela-nova-nao-classificada → catalogo_policies.sql [1a,3]: detectada
+✓ catalogo-policy-volta-a-ser-sempre-verdadeira → catalogo_policies.sql [5,6a]: detectada
+✓ catalogo-force-row-level-security-ligado → catalogo_policies.sql [4-bis]: detectada (também: 15c, 15e)
+✓ catalogo-tabela-nova-na-publication-do-realtime → catalogo_policies.sql [9a]: detectada
+✓ catalogo-storage-decide-so-por-bucket → catalogo_policies.sql [7]: detectada (também: 11b)
+✓ catalogo-security-definer-nova-nao-classificada → catalogo_secdef.sql [1a]: detectada
+✓ catalogo-security-definer-com-search-path-solto → catalogo_secdef.sql [3]: detectada
+✓ catalogo-security-definer-executavel-por-anon → catalogo_secdef.sql [4]: detectada
+✓ f52-escopo-de-gestao-some-do-corpo → cargo_dev.sql [7c]: detectada
+✓ f52-escopo-de-gestao-passa-a-recusar → cargo_dev.sql [7a,7j]: detectada (também: 2g-bis, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 8b, 8c, 7j-bis)
+✓ f52-admin-ativo-volta-a-igualdade-crua → cargo_dev.sql [7f,7i]: detectada (também: 5d, 3b, 4a, 4b, 4d, 8a, 7j, 7j-bis)
+✓ f52-import-perde-a-guarda-de-filial → import_fora_da_unidade.sql [5a-ter]: detectada
+✓ f52-backup-do-import-aceita-qualquer-prefixo → import_fora_da_unidade.sql [2a]: detectada
+✓ f52-import-volta-a-nao-conferir-confirmacao → import_fora_da_unidade.sql [3a]: detectada
+✓ f52-import-perde-a-janela-de-idempotencia → import_fora_da_unidade.sql [4a]: detectada
+✓ f52-mesa-perde-a-guarda-de-pertencimento → conflito_filiais.sql [10b]: detectada
+✓ f53-asof-volta-ao-desempate-por-id → asof_desempate.sql [3a]: detectada (também: 1, 10a)
+✓ f53-trava-do-estorno-volta-ao-uuid → asof_desempate.sql [4c]: detectada (também: 4d, 10a)
+✓ f53-asof-passa-a-ordenar-so-por-ordem → asof_desempate.sql [6a]: detectada
+✓ ordem-deixa-de-ser-generated-always → restauracao.sql [2a]: detectada
+✓ indice-unico-da-ordem-sumiu → restauracao.sql [2c]: detectada
+✓ guarda-acervo-aceita-forcado-fora-da-janela → restauracao.sql [5a]: detectada
+✓ trigger-para-de-abrir-pendencia-de-item → restauracao.sql [1b,3c]: detectada
+✓ nucleo-perde-uma-checagem → integridade_alarme.sql [11a]: detectada
+✓ resumo-de-integridade-alcancavel-por-anon → integridade_alarme.sql [b2c]: detectada
+✓ resumo-de-integridade-devolve-amostra → integridade_alarme.sql [b3]: detectada
+✓ rotulo-de-ambiente-alcancavel-por-authenticated → integridade_alarme.sql [c4]: detectada
+✓ vocabulario-perde-a-guarda-de-ambiguidade → vocabulario_import.sql [6a]: detectada (também: 6c, 6e, 6g)
+✓ vocabulario-perde-o-indice-de-nome-unico → vocabulario_import.sql [6e]: detectada
+✓ doutrina-policy-renomeada-escapa-do-universo → catalogo_policies.sql [10a,10b]: detectada
+✓ doutrina-arvore-com-no-que-o-analisador-nao-le → catalogo_policies.sql [10c]: detectada
+✓ doutrina-leitura-passa-a-linha-para-funcao → catalogo_policies.sql [11a]: detectada
+✓ doutrina-excecao-sobrevive-ao-conserto → catalogo_policies.sql [11b]: detectada
+✓ doutrina-funcao-sem-argumento-solta → catalogo_policies.sql [12]: detectada
+✓ doutrina-subselect-le-tabela → catalogo_policies.sql [13a]: detectada
+✓ doutrina-subselect-olha-a-linha → catalogo_policies.sql [13b]: detectada
+✓ doutrina-array-sobre-funcao-que-nao-devolve-conjunto → catalogo_policies.sql [14]: detectada
+✓ f60-recorte-volta-a-is-null-or → catalogo_secdef.sql [7c]: detectada
+✓ f60-rel-nova-sem-recorte → catalogo_secdef.sql [7a,7b]: detectada
+✓ f60-rel-vira-strict → catalogo_secdef.sql [7d]: detectada
+✓ f60-rel-perde-execute-do-service-role → catalogo_secdef.sql [7e]: detectada
+✓ f60-excecao-apodrece → catalogo_secdef.sql [7f]: detectada
+✓ f60-excecao-ganha-overload → catalogo_secdef.sql [7g]: detectada
+✓ f60-asof-pre-filtra-pela-filial-de-hoje → asof_desempate.sql [11a]: detectada
+✓ f60-saldo-consolidado-so-das-ativas → f60_recorte.sql [2a]: detectada
+✓ reaud-u-escrita-atomica-sem-guarda-de-zero-linhas → escrita_atomica_ativos_anotacao.sql [3,4,5]: detectada
+✓ u151-service-tag-sobrescreve-a-que-ja-existe → escrita_atomica_ativos_anotacao.sql [13]: detectada
+✓ u151-confirmacao-em-dobro → escrita_atomica_ativos_anotacao.sql [14]: detectada
+✓ u151-desfazer-o-que-nao-esta-confirmado → escrita_atomica_ativos_anotacao.sql [15]: detectada
+✓ reaud-ae-ledger-sem-guarda-de-papel → ledger_de_migracoes.sql [2a]: detectada
+✓ ag-estorno-sem-guarda-de-identidade → movimentacao_grade.sql [2k]: detectada
+✓ ag-estorno-sem-recusa-de-origem-ausente → movimentacao_grade.sql [2b]: detectada
+✓ ag-estorno-aceita-origem-de-outro-ativo → movimentacao_grade.sql [2c]: detectada
+✓ ag-pendencia-de-termo-ressuscita-itens-faltantes → movimentacao_grade.sql [1f,2l]: detectada (também: 2m)
+✓ ag-estorno-deixa-pendencias-de-item → movimentacao_grade.sql [1f,2j]: detectada
+✓ ag-destino-volta-a-cobrir-so-transferencia → movimentacao_grade.sql [2y,2z]: detectada
+✓ ag-ajuste-sem-justificativa → movimentacao_grade.sql [2v]: detectada
+✓ ag-detentor-fantasma-sobrevive → movimentacao_grade.sql [1d,2q]: detectada (também: 2t)
+✓ ag-pendencia-de-item-sem-colaborador-da-epoca → movimentacao_grade.sql [3d,3e]: detectada (também: 1e)
+✓ ag-auxiliar-executavel-por-authenticated → movimentacao_grade.sql [4a]: detectada
+✓ f62-empresas-do-membro-esquece-ativo → isolamento_tenant.sql [9e]: detectada
+✓ f62-empresas-de-escrita-aceita-consulta → isolamento_tenant.sql [9b]: detectada
+✓ f62-empresas-de-admin-aceita-operador → isolamento_tenant.sql [9b]: detectada
+✓ f62-unidades-de-escrita-cruza-empresa → isolamento_tenant.sql [9d]: detectada
+✓ f62-e-plataforma-responde-por-qualquer-um → isolamento_tenant.sql [9f]: detectada
+✓ f62-ponte-esquece-arquivado → cargo_equivalencia.sql [1,2,3]: detectada
+✓ f62-ponte-esquece-inativo → cargo_equivalencia.sql [1,2,3]: detectada
+✓ f62-ponte-responde-pela-empresa-errada → cargo_equivalencia.sql [1,5]: detectada (também: 2, 3)
+✓ f62-vinculo-de-qualquer-membership → cargo_equivalencia.sql [3]: detectada
+✓ f62-outro-admin-conta-inativo → cargo_equivalencia.sql [4b]: detectada
+✓ f62-guarda-de-gestao-le-o-cargo-congelado → cargo_dev.sql [2c,8b]: detectada (também: 2b, 2e, 2i, 2i-bis, 2i-membros, 2i-bis-membros, 2j-membros, 2j-quater, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 8c)
+✓ f62-guarda-do-dev-em-membros-neutralizada → cargo_dev.sql [2h-membros,2i-membros,2j-membros]: detectada (também: 2i-bis-membros, 2j-ter, 2j-quater, 3a, 3b, 3c, 3d, 6a, 6b, 6e, 8b, 8c)
+✓ f62-handle-new-user-sem-membership → isolamento_tenant.sql [9l]: detectada
+✓ f62-definir-papel-grava-a-coluna-congelada → cargo_dev.sql [2g-bis,3a]: detectada (também: 8b, 8c)
+✓ f62-definir-status-grava-a-coluna-congelada → cargo_dev.sql [3c]: detectada
+✓ f62-apagar-nao-desativa-memberships → cargo_dev.sql [6b]: detectada
+✓ f62-guarda-de-profiles-esquece-a-membership → cargo_dev.sql [2i,8c]: detectada (também: 2i-bis)
+✓ f62-guarda-de-profiles-aceita-a-escrita-antiga → cargo_dev.sql [8d]: detectada
+✓ f62-membros-com-force-rls → catalogo_policies.sql [4-bis]: detectada
+✓ f62-vinculo-sem-fk-composta-de-membro → isolamento_tenant.sql [9h]: detectada
+✓ f63-lote1-default-literal → catalogo_policies.sql [15b]: detectada
+✓ f63-lote1-sem-not-null → catalogo_policies.sql [15b]: detectada
+✓ f63-lote1-fk-not-valid → catalogo_policies.sql [15b]: detectada
+✓ f63-lote1-sem-coluna → catalogo_policies.sql [15b]: detectada (também: 15f)
+✓ f63-backups-ganha-policy → catalogo_policies.sql [4]: detectada (também: 5, 6c, 10a)
+✓ f63-backups-legivel → empresa_no_acervo.sql [6a]: detectada (também: 6b)
+✓ f64-lote2-default-literal → catalogo_policies.sql [15e]: detectada (também: 15c)
+✓ f64-lote2-sem-not-null → catalogo_policies.sql [15e]: detectada (também: 15c)
+✓ f64-lote2-fk-not-valid → catalogo_policies.sql [15e]: detectada (também: 15c)
+✓ f64-lote2-sem-coluna → catalogo_policies.sql [15e,15f]: detectada
+✓ f64-kit-sem-gatilho → kit_motivo_da_empresa.sql [C1,C2]: detectada (também: C5, C5-bis, C9)
+✓ f64-kit-gatilho-sem-empresa → kit_motivo_da_empresa.sql [C2]: detectada (também: C5, C5-bis, C9)
+✓ f64-checagem-sem-empresa → kit_motivo_da_empresa.sql [C6a]: detectada (também: C6b, C6d, C7)
+✓ f65-fk-simples → forma_multiempresa.sql [F1,F4]: detectada (também: F6)
+✓ f65-snapshot-sem-empresa → unicidade_por_empresa.sql [U1]: detectada
+✓ f65-guarda-com-janela → imutabilidade_tenant.sql [I2,I4]: detectada
+✓ f65-diagonal-global → integridade_tenant.sql [H1,H3]: detectada
+✓ f65-termo-sem-empresa → integridade_tenant.sql [I1]: detectada
+RESUMO: 143 mutação(ões), 0 com problema

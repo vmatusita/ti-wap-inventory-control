@@ -1,0 +1,52 @@
+# CI do push 1 — run 35925340234, commit 3486836 — job verificar (107398966646): os testes de mesa vermelhos
+
+ FAIL   puro  src/lib/actions/colaboradores-onconflict.test.ts > o onConflict dos colaboradores casa com um unique do esquema-alvo (F65, decisão 5) > o árbitro é o unique POR EMPRESA com o nome contratual — o global morreu na 0174
+ FAIL   puro  src/lib/actions/colaboradores-onconflict.test.ts > o onConflict dos colaboradores casa com um unique do esquema-alvo (F65, decisão 5) > no intermediário (0172 aplicada, 0174 não) os DOIS alvos inferem — o app velho e o novo
+ FAIL   puro  src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda migration listada como da fase existe no disco
+ FAIL   puro  src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista
+ FAIL   puro  src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118
+ FAIL   puro  src/lib/itens/migrations-f38.test.ts > F65 — a diagonal por empresa é a da 0139 com duas linhas a mais > o corpo da 0173 tem exatamente duas linhas a mais que o da 0139
+ FAIL   puro  src/lib/itens/migrations-f38.test.ts > F65 — a diagonal por empresa é a da 0139 com duas linhas a mais > tirando as duas linhas da diagonal, o corpo é o da 0139 BYTE A BYTE
+ FAIL   puro  src/lib/itens/migrations-f38.test.ts > F65 — a diagonal por empresa é a da 0139 com duas linhas a mais > cada linha nova vem LOGO DEPOIS da sua âncora, uma vez só
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > a chave única do snapshot, no banco (lida do disco) > as definições vigentes são a 0010 (unique da tabela) e a 0171 (o índice por empresa, com o nome contratual)
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > a chave única do snapshot, no banco (lida do disco) > o índice é a unique da tabela COM a empresa na frente, e dá ao Consolidado (NULL) uma chave concreta
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > os parâmetros são as colunas da chave, na ordem do índice (a empresa primeiro)
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > a chave tem uma parte por coluna, na mesma ordem
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > mudar QUALQUER coluna da chave muda a chave (nenhuma é ignorada)
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > o consolidado (filial null) tem chave própria, que não colide com filial nenhuma
+ FAIL   puro  src/lib/relatorios/chave-versao-sql.test.ts > a segunda pista da renumeração casa pelo NOME do índice (o laço da F57, fechado na F65) > ehViolacaoDeVersao reconhece a violação pelo nome do índice LIDO DO SQL
+ FAIL   puro  src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > cada exceção nominal da F65 é usada por EXATAMENTE uma cadeia (a lista não guarda fantasma nem cobre duas)
+ FAIL   puro  src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar
+ FAIL   puro  src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > as exceções da F65 (k_leitura_tenant) são as três, cada uma é função vigente, LÊ, e prova a origem no comando
+ FAIL   puro  src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F65, o despachante) — par legítimo: termo_da_empresa lendo movimentacoes e ativos, declarados no comando
+ FAIL   puro  src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > a F65 criou a guarda e a do termo, e recriou a diagonal (guarda do próprio teste)
+ FAIL   puro  src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > a F65 criou 21 gatilhos: os 20 da guarda e o do termo (guarda do próprio teste)
+ FAIL   puro  src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > a F65 tornou 23 FKs compostas, todas começando por empresa_id (guarda do próprio teste)
+ FAIL   puro  src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > cada unique (empresa_id, id) dos pais sai, e cada índice provisório (_f65) é tratado pelo nome
+ FAIL   puro  src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > cada comment on da F65 sobre objeto que já existia tem o seu de volta no rollback (o da função criada sai com ela)
+ Test Files  5 failed | 251 passed (256)
+##[error]AssertionError: expected [ 'nome_chave' ] to deeply equal [ 'empresa_id', 'nome_chave' ]
+##[error]AssertionError: expected false to be true // Object.is equality
+##[error]AssertionError: expected [ '0116', '0117', '0118', …(46) ] to deeply equal [ '0116', '0117', '0118', …(56) ]
+##[error]AssertionError: migration nova sem cobertura em DA_F38: expected [ '0116', '0117', '0118', …(46) ] to deeply equal [ '0116', '0117', '0118', …(56) ]
+##[error]AssertionError: 0165 recria valida_lancamento_item: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+##[error]Error: ENOENT: no such file or directory, open 'supabase/migrations/0173_guarda_empresa.sql'
+##[error]Error: ENOENT: no such file or directory, open 'supabase/migrations/0173_guarda_empresa.sql'
+##[error]Error: ENOENT: no such file or directory, open 'supabase/migrations/0173_guarda_empresa.sql'
+##[error]Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+##[error]Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+##[error]Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+##[error]AssertionError: expected [ …(3) ] to deeply equal [ …(4) ]
+##[error]AssertionError: expected '00000000-0000-4000-8000-00000000000a|…' not to be '00000000-0000-4000-8000-00000000000a|…' // Object.is equality
+##[error]AssertionError: expected '00000000-0000-4000-8000-00000000000a|…' not to be '00000000-0000-4000-8000-00000000000a|…' // Object.is equality
+##[error]Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+##[error]AssertionError: src/lib/queries/gerados.ts (relatorios_gerados): expected [] to have a length of 1 but got +0
+##[error]AssertionError: empresa_id apareceu, sumiu ou mudou de consulta num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66: expected { …(2) } to deeply equal { …(4) }
+##[error]AssertionError: guarda_empresa: não há função vigente com esse nome nas migrations: expected +0 to be 1 // Object.is equality
+##[error]AssertionError: expected true to be false // Object.is equality
+##[error]AssertionError: expected [] to deeply equal [ 'guarda_empresa/0', …(1) ]
+##[error]AssertionError: expected [] to have a length of 20 but got +0
+##[error]AssertionError: expected +0 to be 23 // Object.is equality
+##[error]AssertionError: expected [] to have a length of 7 but got +0
+##[error]AssertionError: expected 0 to be greater than 0
+##[error]Process completed with exit code 1.
