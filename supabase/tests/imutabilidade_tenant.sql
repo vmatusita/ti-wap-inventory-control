@@ -22,7 +22,9 @@
 --   I6 — `INSERT … ON CONFLICT (id) DO UPDATE SET empresa_id = excluded.empresa_id` dispara a guarda (42501);
 --   I7 — o par legítimo: `update … set empresa_id = empresa_id` (a mesma) PASSA — a guarda recusa a TROCA, não a escrita;
 --   I8 — a auto-sabotagem: uma tabela SINTÉTICA de `public` com a coluna e sem o gatilho é acusada pela I1 (o gate sabe
---        reprovar a tabela nova).
+--        reprovar a tabela nova);
+--   I9 — a auto-sabotagem da I3: o predicado de atribuição acusa as três formas do PL/pgSQL (`:=`, `=` como comando,
+--        `into`) — inclusive a forma real da `0156` — e deixa passar a comparação e o `insert … values (new.empresa_id)`.
 -- Antes da 0173 ela reprova nas 20 (a trava que nasceu vermelha, docs/f65-evidencias/B-travas/).
 --
 -- DADOS: uma linha fictícia em cada uma das 20 (pg_temp.f65_plantar, _asserts.sql), na empresa legada; uma empresa B
@@ -55,6 +57,42 @@ language sql as $f$
           and (t.tgtype & 16) = 16    -- UPDATE
           and (t.tgtype & (4 | 8 | 32)) = 0   -- só UPDATE (não INSERT, DELETE, TRUNCATE)
           and array_to_string(t.tgattr::int2[], ',') = a.attnum::text)
+$f$;
+
+-- I3 como função: o corpo (lido pelo léxico, sem comentário nem texto) ATRIBUI `new.empresa_id` ou `new` inteiro?
+-- As três formas de atribuição do PL/pgSQL (revisão adversarial da F65 — a primeira versão só via a `:=`):
+--   (1) `new.empresa_id := …` / `new := …`;
+--   (2) `new.empresa_id = …` / `new = …` como COMANDO (o PL/pgSQL aceita `=` na atribuição) — no começo de um
+--       comando, depois de `;`, `begin`, `then`, `else` ou `loop`; a comparação (`if new.empresa_id = …`, `where … =
+--       new.empresa_id`) não começa comando e não conta;
+--   (3) `select|execute|fetch … into new.empresa_id` / `into new` — a lista de alvos do `into`, até `from`/`using`/`;`
+--       (a forma que a `0156` usa de verdade em `operador_filiais_deriva_membership`). O `insert into … values
+--       (new.empresa_id)` LÊ a coluna, não atribui: sai antes.
+create function pg_temp.f65_atribui_empresa(p_src text) returns boolean
+language plpgsql as $f$
+declare
+  v_cod  text := regexp_replace(lower(pg_temp.sql_so_codigo(coalesce(p_src, ''))), '\m(insert|merge)\s+into\M', '\1_em', 'g');
+  v_alvo text;
+begin
+  if v_cod ~ '\mnew\s*(\.\s*empresa_id\s*)?:=' then
+    return true;
+  end if;
+  if v_cod ~ '(^|;|\mbegin\M|\mthen\M|\melse\M|\mloop\M)\s*new\s*(\.\s*empresa_id\s*)?=(?!=)' then
+    return true;
+  end if;
+  -- ⚠ Sem quantificador preguiçoso: no ARE do Postgres a gula do PRIMEIRO quantificador vale para o RE inteiro, e um
+  -- `(.*?)` depois de `\s+` vira guloso e engole os comandos seguintes. A lista de alvos é `[^;]*`, cortada no
+  -- primeiro `from`/`using` à parte.
+  for v_alvo in
+    select regexp_replace(m[1], '\m(from|using)\M.*$', '')
+      from regexp_matches(v_cod, '\minto\s+(?:strict\s+)?([^;]*)', 'g') as m
+  loop
+    if v_alvo ~ '\mnew\M\s*(\.\s*empresa_id\M|,|$)' then
+      return true;
+    end if;
+  end loop;
+  return false;
+end
 $f$;
 
 do $$
@@ -137,8 +175,8 @@ begin
   -- I3 — nenhum gatilho BEFORE das tabelas de negócio atribui new.empresa_id nem new inteiro
   -- ==========================================================================
   select count(distinct p.oid),
-         count(distinct p.oid) filter (where lower(pg_temp.sql_so_codigo(p.prosrc)) ~ '\mnew\s*(\.\s*empresa_id\s*)?:=' ),
-         coalesce(string_agg(distinct p.proname, ', ') filter (where lower(pg_temp.sql_so_codigo(p.prosrc)) ~ '\mnew\s*(\.\s*empresa_id\s*)?:='), '')
+         count(distinct p.oid) filter (where pg_temp.f65_atribui_empresa(p.prosrc)),
+         coalesce(string_agg(distinct p.proname, ', ') filter (where pg_temp.f65_atribui_empresa(p.prosrc)), '')
     into v_univ, v_cnt, v_lista
     from pg_trigger t
     join pg_class c on c.oid = t.tgrelid
@@ -253,6 +291,33 @@ begin
        'I8 auto-sabotagem: uma tabela SINTÉTICA com empresa_id e sem a guarda é acusada pela I1' ||
        case when v_cnt <> 1 then ' — acusou ' || v_cnt || ' (esperado 1) ' || v_lista else '' end,
        case when v_cnt = 1 then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- I9 — a auto-sabotagem da I3: o predicado de atribuição acusa CADA forma do PL/pgSQL e deixa passar a leitura
+  -- (revisão adversarial da F65: a primeira versão só via a `:=`, e a `0156` usa `select … into new.empresa_id`).
+  select count(*) filter (where pg_temp.f65_atribui_empresa(c.corpo) <> c.atribui),
+         coalesce(string_agg(c.caso, ', ') filter (where pg_temp.f65_atribui_empresa(c.corpo) <> c.atribui), '')
+    into v_cnt, v_lista
+    from (values
+      ('a :=',                          'begin new.empresa_id := v_e; return new; end',                                   true),
+      ('o = como comando',              'begin if v then new.empresa_id = v_e; end if; return new; end',                  true),
+      ('o = depois de ;',               'begin v := 1; new.empresa_id = v_e; return new; end',                             true),
+      ('select … into new.empresa_id',  'begin select f.empresa_id into new.empresa_id from public.filiais f; return new; end', true),
+      ('select … into strict',          'begin select 1, f.empresa_id into strict v, new.empresa_id from public.filiais f; return new; end', true),
+      ('select * into new (a linha)',   'begin select * into new from public.ativos a limit 1; return new; end',           true),
+      ('new := a linha',                'begin new := jsonb_populate_record(new, v_j); return new; end',                   true),
+      ('execute … into new.empresa_id', 'begin execute ''select 1'' into new.empresa_id using v; return new; end',        true),
+      ('par: a comparação no if',       'begin if new.empresa_id = old.empresa_id then return new; end if; return null; end', false),
+      ('par: a comparação no where',    'begin perform 1 from public.filiais f where f.empresa_id = new.empresa_id; return new; end', false),
+      ('par: o insert que LÊ a coluna', 'begin insert into public.t (empresa_id) values (new.empresa_id); return new; end', false),
+      ('par: outra coluna',             'begin new.status := ''x''; select 1 into new.filial_id from public.filiais f; return new; end', false),
+      ('par: into outra variável',      'begin select f.empresa_id into v_e from public.filiais f where f.id = new.filial_id; return new; end', false),
+      ('a forma real da 0156',          (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.operador_filiais_deriva_membership()')), true)
+    ) as c(caso, corpo, atribui);
+  if pg_temp.assert_zero_de(
+       'I9 auto-sabotagem da I3: o predicado acusa as três formas de atribuição do PL/pgSQL (:=, = como comando, into) e deixa passar a leitura' ||
+       case when v_cnt > 0 then ' — errou: ' || v_lista else '' end,
+       v_cnt, 14) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM imutabilidade_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
