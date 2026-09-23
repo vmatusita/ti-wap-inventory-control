@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 // da troca, sobre as 157 migrations: as leituras de `create function`, de `drop function` e de
 // enum devolvem EXATAMENTE o que devolviam; a guarda de topo passa a ver a `0133` (o `do` com a
 // janela destrutiva) — e só ela, na faixa de `DA_F38`.
-import { escritasExecutadas, semComentarios, textoExecutado, trocasDeTabela } from '../../../scripts/db/classificar-migration.mjs'
+import { escritasExecutadas, semComentarios, textoExecutado, textoExecutadoMascarado, trocasDeTabela } from '../../../scripts/db/classificar-migration.mjs'
 
 // Guarda de ARQUIVO para a promessa central da F38 (critério 9 da ordem): as
 // migrations da fase recriam UMA função existente, e só uma.
@@ -320,7 +320,9 @@ function escritasDeTopoNoAcervo(sql: string): string[] {
     const [esquema, tabela] = e.tabela.split('.')
     if (esquema === 'public' && (TABELAS_GUARDADAS as readonly string[]).includes(tabela)) achadas.add(`${e.verbo} public.${tabela}`)
   }
-  const texto = textoExecutado(sql)
+  // As regex leem o texto executado MASCARADO (3ª rodada da revisão adversarial): a prosa de dentro de um `comment on
+  // … is '…'` ou de um `raise notice '…'` não é comando — e a própria F63 pede comentário com data e motivo na coluna.
+  const texto = textoExecutadoMascarado(sql)
   for (const t of TABELAS_GUARDADAS) {
     if (reApaga(t).test(texto)) achadas.add(`delete public.${t}`)
     if (reReescreve(t).test(texto)) achadas.add(`update public.${t}`)
@@ -857,6 +859,16 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     ['`drop table`, declarada DESTRUTIVA', '-- classe: DESTRUTIVA\ndrop table if exists public.lancamentos_item cascade;', ['drop table public.lancamentos_item']],
     ['`drop table` numa lista', 'drop table public._f99_backup, public.movimentacoes;', ['drop table public.movimentacoes']],
     ['o que NÃO é troca: `rename` de outra tabela, `drop table` de nome parecido, `rename constraint` — IGNORADO', 'alter table public.ativos_fixture rename to ativos_fixture2;\ndrop table public.ativos_velha;\nalter table public.ativos rename constraint a_fk to b_fk;', []],
+    // 3ª rodada: a PROSA de dentro de um texto não é comando — a F63 pede comentário com data e motivo na coluna
+    [
+      'a prosa num `comment on column … is` — IGNORADA',
+      "comment on column public.movimentacoes.empresa_id is 'não fazemos update public.movimentacoes set nada aqui; nem delete from public.ativos; nem drop table public.lancamentos_item';",
+      [],
+    ],
+    ['a prosa num `raise notice` dentro de `do` — IGNORADA', "do $$ begin raise notice 'nunca: update public.ativos set status = x; alter table public.ativos rename to y'; end $$;", []],
+    ['a prosa num CHECK — IGNORADA', "alter table public.x add constraint c check (nota !~ 'update public.movimentacoes set');", []],
+    // e o nome CITADO continua visto (o identificador não é mascarado)
+    ['com o nome citado, mesmo lendo o texto mascarado', 'update "ativos" set status = status where true;', ['update public.ativos']],
   ])('a guarda de topo acusa (ou ignora) %s', (_nome, sql, esperado) => {
     expect(violacoesDaGuarda('0170_sabotagem_b.sql', sql)).toEqual(esperado)
   })

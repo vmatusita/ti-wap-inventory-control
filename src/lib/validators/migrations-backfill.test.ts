@@ -401,6 +401,24 @@ describe('2-bis. os furos da revisão adversarial da F63', () => {
     // o controle: o par lido da tabela do from, com a outra no from, passa
     expect(conferirMigration(NOME, migracao('BACKFILL', bloco('t.id::text', 'to_jsonb(t.status)', ', public.outra o'), RODAPE_BACKUP))).toEqual([])
   })
+
+  // 3ª rodada da revisão adversarial (23/09/2026)
+  it('R8 — sem o apelido, o valor e a chave reprovam: a coluna que só a tabela do join tem seria dela, sem erro', () => {
+    const W = "where o.id = t.id and t.status = 'a'"
+    const bloco = (chave: string, valor: string) =>
+      [
+        'insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)',
+        `select '${NOME}', 'public.x', 'status', ${chave}, ${valor}`,
+        '  from public.x t join public.outra o on true',
+        ` ${W};`,
+        "update public.x t set status = 'b' from public.outra o",
+        ` ${W};`,
+      ].join('\n')
+    reprova(migracao('BACKFILL', bloco('t.id::text', 'to_jsonb(status)'), RODAPE_BACKUP), /não é to_jsonb\(<alias>\.<coluna>\), com o apelido da tabela do from/)
+    reprova(migracao('BACKFILL', bloco('id::text', 'to_jsonb(t.status)'), RODAPE_BACKUP), /a chave do backup não está qualificada pelo apelido da tabela do from \(t\.<coluna>\)/)
+    reprova(migracao('BACKFILL', bloco("'fixa'", 'to_jsonb(t.status)'), RODAPE_BACKUP), /a chave do backup não está qualificada/)
+    expect(conferirMigration(NOME, migracao('BACKFILL', bloco('t.id::text', 'to_jsonb(t.status)'), RODAPE_BACKUP))).toEqual([])
+  })
 })
 
 // -----------------------------------------------------------------------------

@@ -334,6 +334,19 @@ export function textoExecutado(sql) {
     .join(';\n')
 }
 
+/**
+ * O MESMO texto executado, com o conteúdo de todo texto entre aspas (e de dollar-quote que não é corpo de rotina)
+ * trocado por `_` — o identificador citado fica. Para casar padrão de COMANDO sem ler a prosa de dentro de um
+ * `comment on … is '…'` ou de um `raise notice '…'` (3ª rodada da revisão adversarial: a guarda de topo reprovava
+ * uma migration ADITIVA cujo comentário dizia "não fazemos update public.movimentacoes set …").
+ * @param {string} sql
+ */
+export function textoExecutadoMascarado(sql) {
+  return comandosExecutados(sql)
+    .map((c) => c.mascarado)
+    .join(';\n')
+}
+
 // -----------------------------------------------------------------------------
 // 3. A LEITURA DE UM COMANDO — alvos de escrita, chamadas, válvulas
 // -----------------------------------------------------------------------------
@@ -1063,8 +1076,10 @@ function lerBlocoDeBackup(cmd, nomeArquivo) {
   else if (migration !== nomeArquivo) problemas.push(`o literal migration do backup é '${migration}', e o arquivo é '${nomeArquivo}' (bloco copiado de outra migration?)`)
   if (tabela === null || !/^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/.test(tabela)) problemas.push('o 2º item do backup (tabela) não é um texto literal esquema.tabela')
   if (coluna === null || !/^[a-z_][a-z0-9_]*$/.test(coluna)) problemas.push('o 3º item do backup (coluna) não é um texto literal de coluna')
-  const valor = /^to_jsonb\s*\(\s*(?:([a-z_][a-z0-9_]*)\s*\.\s*)?("?)([a-z_][a-z0-9_]*)\2\s*\)$/i.exec(itens[4].masc)
-  if (!valor) problemas.push('o 5º item do backup (valor_anterior) não é to_jsonb(<alias>.<coluna>)')
+  // O apelido é OBRIGATÓRIO (3ª rodada da revisão adversarial): sem ele, uma coluna que só a tabela do `join` tem é
+  // resolvida para ela em silêncio — o Postgres só erra quando o nome é ambíguo.
+  const valor = /^to_jsonb\s*\(\s*([a-z_][a-z0-9_]*)\s*\.\s*("?)([a-z_][a-z0-9_]*)\2\s*\)$/i.exec(itens[4].masc)
+  if (!valor) problemas.push('o 5º item do backup (valor_anterior) não é to_jsonb(<alias>.<coluna>), com o apelido da tabela do from')
   else if (coluna !== null && valor[3].toLowerCase() !== coluna) problemas.push(`o backup guarda to_jsonb(…${valor[3]}) mas declara a coluna '${coluna}'`)
   const alvoFrom = new RegExp(String.raw`^from\s+(?:only\s+)?(${NOME_QUALIFICADO})(?:\s+(?:as\s+)?(${PARTE}))?`, 'i').exec(cmd.mascarado.slice(froms[0]))
   if (!alvoFrom) problemas.push('o from do backup não nomeia uma tabela')
@@ -1072,13 +1087,15 @@ function lerBlocoDeBackup(cmd, nomeArquivo) {
     if (tabela !== null && normalizarNome(alvoFrom[1]) !== tabela) problemas.push(`o backup lê de ${normalizarNome(alvoFrom[1])} mas declara a tabela '${tabela}'`)
     // O valor e a chave vêm da TABELA DO FROM (2ª rodada da revisão adversarial da F63). Com um `join`,
     // `to_jsonb(o.preco)` guardaria a coluna homônima de OUTRA tabela — e o rollback devolveria um valor que a linha
-    // nunca teve; `o.id::text` apontaria o rollback para outras linhas. Sem qualificação, a coluna ambígua é erro do
-    // próprio Postgres no apply.
+    // nunca teve; `o.id::text` apontaria o rollback para outras linhas. E qualificados SEMPRE (3ª rodada): sem o
+    // apelido, a coluna que só a tabela do `join` tem é dela, sem erro nenhum.
     const apelido = alvoFrom[2] && !NAO_APELIDO_NO_FROM.has(alvoFrom[2].toLowerCase()) ? parteNormalizada(alvoFrom[2]) : normalizarNome(alvoFrom[1]).split('.')[1]
-    if (valor && valor[1] && valor[1].toLowerCase() !== apelido) {
+    if (valor && valor[1].toLowerCase() !== apelido) {
       problemas.push(`o valor_anterior do backup vem de ${valor[1]}.${valor[3]}, e a tabela do from é ${apelido} (a coluna de outra tabela do join?)`)
     }
-    for (const q of itens[3].masc.matchAll(/(?<![\w$.])([a-z_][a-z0-9_$]*)\s*\.\s*(?=[a-z_"])/gi)) {
+    const qualificadores = [...itens[3].masc.matchAll(/(?<![\w$.])([a-z_][a-z0-9_$]*)\s*\.\s*(?=[a-z_"])/gi)]
+    if (!qualificadores.length) problemas.push(`a chave do backup não está qualificada pelo apelido da tabela do from (${apelido}.<coluna>)`)
+    for (const q of qualificadores) {
       if (q[1].toLowerCase() !== apelido) problemas.push(`a chave do backup vem de ${q[1]}., e a tabela do from é ${apelido} (a chave de outra tabela do join?)`)
     }
   }
