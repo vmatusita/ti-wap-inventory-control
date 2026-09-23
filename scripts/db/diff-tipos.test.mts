@@ -283,9 +283,14 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // (`membros_guarda_dev`, `operador_filiais_deriva_membership`) ficam fora, pela regra de
     // sempre. O `database.ts` as ganhou por HAND-FIX datado antes do apply; a regeneração do
     // ensaio pelo MCP, depois do apply, o substitui. O número SUBIU porque o banco ganhou objetos.
-    expect(real.relacoes.size).toBe(37)
+    //
+    // F63 (23/09/2026): relações 37 -> 38, funções 94 -> 94, colunas +15. A `0159` cria UMA tabela
+    // (`backups_migration`, 7 colunas) e a `0160`/`0161` acrescentam `empresa_id` às oito tabelas do
+    // acervo; nenhuma função criada ou recriada. HAND-FIX datado no `database.ts` antes do apply; a
+    // geração do MCP depois do apply no ensaio o confere. O número SUBIU porque o banco ganhou objetos.
+    expect(real.relacoes.size).toBe(38)
     expect(real.funcoes.size).toBe(94)
-    expect(real.colunas.size).toBeGreaterThanOrEqual(299)
+    expect(real.colunas.size).toBeGreaterThanOrEqual(314)
   })
 
   it('conhece objetos-âncora do schema', () => {

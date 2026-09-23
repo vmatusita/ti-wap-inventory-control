@@ -424,8 +424,11 @@ begin
         end case;
         reset role;
         v_ruins := v_ruins + 1; v_rot := v_rot || ' ' || v_papel || ':' || v_op;
-      exception when insufficient_privilege then
-        null;
+      exception
+        when insufficient_privilege then
+          null;
+        when others then
+          v_ruins := v_ruins + 1; v_rot := v_rot || ' ' || v_papel || ':' || v_op || '(' || sqlstate || ')';
       end;
       reset role;
     end loop;
