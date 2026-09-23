@@ -299,7 +299,9 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
    * O RECORTE: `empresa_id` comparado com um VALOR (`=`, `<>`, `!=`, `in`, `= any`, `is [not]
    * distinct from`). `is null` / `is not null` NÃO é recorte — é conferência de completude.
    */
-  const RECORTE = /\bempresa_id\s*(?:=|<>|!=|\bin\b|\bis\s+(?:not\s+)?distinct\s+from\b)/i
+  // Nos DOIS sentidos (revisão adversarial da F63): `a.empresa_id = v` e `v = a.empresa_id` são o mesmo recorte.
+  const RECORTE =
+    /\bempresa_id\s*(?:=|<>|!=|\bin\b|\bis\s+(?:not\s+)?distinct\s+from\b)|(?:=|<>|!=|\bdistinct\s+from)\s*(?:[a-z_][a-z0-9_]*\.)?empresa_id\b/i
 
   it('vê a coluna do ACERVO só pelo CATÁLOGO — nenhum comando compara empresa_id de tabela de negócio com um valor (até a F66)', () => {
     // EMENDA F63 (23/09/2026 — decisão 10 do PLAN-F63). Até a F61 este teste reprovava QUALQUER
@@ -333,6 +335,9 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(RECORTE.test('select 1 from public.itens i where i.empresa_id in (select 1)')).toBe(true)
     expect(RECORTE.test('where m.empresa_id <> v_emp_b')).toBe(true)
     expect(RECORTE.test('where t.empresa_id is distinct from v_emp')).toBe(true)
+    // o valor à esquerda — a forma espelhada
+    expect(RECORTE.test('select 1 from public.ativos a where v_emp_a = a.empresa_id')).toBe(true)
+    expect(RECORTE.test('select 1 from public.ativos where v_emp <> empresa_id')).toBe(true)
     expect(RECORTE.test('select count(*) filter (where empresa_id is null) from public.ativos')).toBe(false)
     expect(RECORTE.test("a.attname = 'empresa_id' and not a.attisdropped")).toBe(false)
   })

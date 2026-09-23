@@ -389,6 +389,77 @@ begin
        case when v_ruins > 0 then ' — passou:' || v_rot else '' end, v_ruins, 3) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
+  -- 5e — OS TIPOS (revisão adversarial da F63): a receita devolve array, jsonb, enum, numeric e
+  --      timestamptz — e o null de cada um —, numa tabela com identity, coluna gerada e not null
+  --      (o jsonb_populate_record monta a linha INTEIRA do tipo antes de a receita tirar uma coluna).
+  create table public.f63_fixture_tipos (
+    id     int primary key,
+    lista  text[],
+    doc    jsonb,
+    estado public.status_ativo,
+    valor  numeric(10, 2),
+    quando timestamptz,
+    seq    bigint generated always as identity,
+    dobro  int generated always as (id * 2) stored,
+    obrig  text not null default 'x'
+  );
+  insert into public.f63_fixture_tipos (id, lista, doc, estado, valor, quando)
+  values (1, array['a', 'b'], '{"k": [1, 2]}'::jsonb, 'em_uso', 12.34, '2026-01-02 03:04:05+00'),
+         (2, null, null, null, null, null);
+  select md5(string_agg(to_jsonb(t)::text, '|' order by t.id)) into v_m0 from public.f63_fixture_tipos t;
+
+  insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)
+  select '0998_tipos.sql', 'public.f63_fixture_tipos', 'lista', t.id::text, to_jsonb(t.lista)
+    from public.f63_fixture_tipos t
+   where true;
+  insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)
+  select '0998_tipos.sql', 'public.f63_fixture_tipos', 'doc', t.id::text, to_jsonb(t.doc)
+    from public.f63_fixture_tipos t
+   where true;
+  insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)
+  select '0998_tipos.sql', 'public.f63_fixture_tipos', 'estado', t.id::text, to_jsonb(t.estado)
+    from public.f63_fixture_tipos t
+   where true;
+  insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)
+  select '0998_tipos.sql', 'public.f63_fixture_tipos', 'valor', t.id::text, to_jsonb(t.valor)
+    from public.f63_fixture_tipos t
+   where true;
+  insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)
+  select '0998_tipos.sql', 'public.f63_fixture_tipos', 'quando', t.id::text, to_jsonb(t.quando)
+    from public.f63_fixture_tipos t
+   where true;
+  update public.f63_fixture_tipos t
+     set lista = array['z'], doc = '{"novo": true}'::jsonb, estado = 'em_estoque', valor = 99.99,
+         quando = '2030-01-01 00:00:00+00'
+   where true;
+
+  update public.f63_fixture_tipos t
+     set lista = (jsonb_populate_record(null::public.f63_fixture_tipos, jsonb_build_object('lista', b.valor_anterior))).lista
+    from public.backups_migration b
+   where b.migration = '0998_tipos.sql' and b.tabela = 'public.f63_fixture_tipos' and b.coluna = 'lista' and b.chave = t.id::text;
+  update public.f63_fixture_tipos t
+     set doc = (jsonb_populate_record(null::public.f63_fixture_tipos, jsonb_build_object('doc', b.valor_anterior))).doc
+    from public.backups_migration b
+   where b.migration = '0998_tipos.sql' and b.tabela = 'public.f63_fixture_tipos' and b.coluna = 'doc' and b.chave = t.id::text;
+  update public.f63_fixture_tipos t
+     set estado = (jsonb_populate_record(null::public.f63_fixture_tipos, jsonb_build_object('estado', b.valor_anterior))).estado
+    from public.backups_migration b
+   where b.migration = '0998_tipos.sql' and b.tabela = 'public.f63_fixture_tipos' and b.coluna = 'estado' and b.chave = t.id::text;
+  update public.f63_fixture_tipos t
+     set valor = (jsonb_populate_record(null::public.f63_fixture_tipos, jsonb_build_object('valor', b.valor_anterior))).valor
+    from public.backups_migration b
+   where b.migration = '0998_tipos.sql' and b.tabela = 'public.f63_fixture_tipos' and b.coluna = 'valor' and b.chave = t.id::text;
+  update public.f63_fixture_tipos t
+     set quando = (jsonb_populate_record(null::public.f63_fixture_tipos, jsonb_build_object('quando', b.valor_anterior))).quando
+    from public.backups_migration b
+   where b.migration = '0998_tipos.sql' and b.tabela = 'public.f63_fixture_tipos' and b.coluna = 'quando' and b.chave = t.id::text;
+
+  select md5(string_agg(to_jsonb(t)::text, '|' order by t.id)) into v_m1 from public.f63_fixture_tipos t;
+  raise notice '5e (medição) a linha inteira antes do backfill % · depois do rollback %', v_m0, v_m1;
+  if pg_temp.assert_zero_de('5e o rollback devolve array, jsonb, enum, numeric e timestamptz (e o null de cada um), com identity, coluna gerada e not null na tabela',
+       case when v_m1 = v_m0 then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
   -- ==========================================================================
   -- 6 — backups_migration FECHADA (o molde de public.ambiente).
   -- ==========================================================================

@@ -186,6 +186,65 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
   })
 })
 
+/**
+ * O literal `empresa_id` num texto TS, sem comentário e com os textos concatenados colados
+ * (`'empresa' + '_id'` vira `'empresa_id'`).
+ */
+function ocorrenciasDeEmpresaId(fonte: string): number {
+  const texto = semComentarios(fonte).replace(/(['"`])\s*\+\s*\1/g, '')
+  return (texto.match(/\bempresa_id\b/g) ?? []).length
+}
+
+/**
+ * A CATRACA (revisão adversarial da F63). A varredura acima lê a CADEIA que começa em `.from(…)`, e
+ * a revisão mostrou três caminhos que ela não segue: a coluna numa CONSTANTE (`const C = 'empresa_id';
+ * .select(C)`), o texto PARTIDO (`'empresa' + '_id'`) e o construtor REATRIBUÍDO noutra instrução (`let q
+ * = supabase.from('ativos')…; q = q.eq('empresa_id', x)` — o idioma de `queries/ativos.ts` e
+ * `queries/itens.ts`). Os três têm uma coisa em comum: o literal `empresa_id` aparece no fonte. Então
+ * a catraca conta o literal, arquivo a arquivo, em todo `src/**` (fora de teste e do `database.ts`), e
+ * o número tem de ser EXATAMENTE o daqui — hoje, só as leituras de `membros`/`operador_filiais` da F62.
+ * Uma ocorrência nova, em qualquer arquivo e por qualquer caminho, reprova e obriga a olhar; a F66,
+ * que é quem pode ler, acrescenta as dela com o motivo.
+ */
+const EMPRESA_ID_NO_APP: Record<string, { n: number; motivo: string }> = {
+  'src/lib/auth/acesso.ts': { n: 1, motivo: 'F62: o cargo pela membership na empresa legada (membros)' },
+  'src/lib/queries/admin.ts': { n: 6, motivo: 'F62: a lista de usuários e os vínculos (membros, operador_filiais) na empresa legada' },
+}
+
+describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/**', () => {
+  const arquivos = arquivosFonte(join(RAIZ, 'src'))
+    .map((a) => relative(RAIZ, a).replaceAll('\\', '/'))
+    .filter((a) => !(EXCECOES_TS as readonly string[]).includes(a))
+
+  it('o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, e em nenhum outro lugar', () => {
+    const achado: Record<string, number> = {}
+    for (const a of arquivos) {
+      const n = ocorrenciasDeEmpresaId(readFileSync(join(RAIZ, a), 'utf8'))
+      if (n) achado[a] = n
+    }
+    const esperado = Object.fromEntries(Object.entries(EMPRESA_ID_NO_APP).map(([a, { n }]) => [a, n]))
+    expect(achado, 'empresa_id apareceu (ou sumiu) num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66').toEqual(esperado)
+  })
+
+  it('toda entrada da catraca tem motivo escrito', () => {
+    for (const [a, { motivo }] of Object.entries(EMPRESA_ID_NO_APP)) expect(motivo.length, `${a} sem motivo`).toBeGreaterThan(20)
+  })
+
+  // SABOTAGEM I (a indireção que a revisão achou) — cada forma ACRESCENTA uma ocorrência que a catraca vê.
+  it.each([
+    ['a coluna numa constante', "const CAMPO = 'empresa_id'\nawait supabase.from('ativos').select(CAMPO)"],
+    ['o texto partido', "await supabase.from('itens').select('id,' + 'empresa' + '_id')"],
+    ['o template', "const COL = `empresa_id`\nawait supabase.from('movimentacoes').select(`id, ${COL}`)"],
+    ['o construtor reatribuído noutra instrução', "let q = supabase.from('ativos').select('id')\nif (x) q = q.eq('empresa_id', v)"],
+  ])('a catraca conta %s', (_nome, fonte) => {
+    expect(ocorrenciasDeEmpresaId(fonte)).toBeGreaterThan(0)
+  })
+
+  it('a catraca não conta o comentário (o par legítimo)', () => {
+    expect(ocorrenciasDeEmpresaId("// o empresa_id só na F66\nawait supabase.from('ativos').select('id')")).toBe(0)
+  })
+})
+
 describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco)', () => {
   const oito = lote1()
   const DIR = join(RAIZ, 'supabase', 'migrations')
