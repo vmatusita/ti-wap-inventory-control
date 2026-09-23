@@ -13221,3 +13221,14 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
   funções, e o RECORTE passou a ler `join … using (empresa_id)` e o parêntese em volta da coluna. A 3ª rodada sem
   confirmado encerrou a revisão; o SHA de código congelado é `cdc6dee` (`PLAN-F63.md` §8). **Motivo:** cada achado
   confirmado é uma trava que passava verde diante do que ela existe para barrar.
+- **(g) A retomada e o apply (23/09/2026, tarde).** O Johnny religou as ferramentas do conector uma a uma (a primeira
+  religada não chegou à sessão; a segunda, sim). Conferidos `list_projects` (os dois `ACTIVE_HEALTHY`) e a `main` parada
+  em `3c1c761` — sem rebase nem CI novo. O "antes" nos dois bancos (acervo, policies, advisor) e, antes de cada apply, o
+  "antes" refeito; o apply pelo `apply_migration` do MCP, ensaio 15:28–15:29 UTC e produção 15:33–15:34 UTC, as seis na
+  primeira tentativa. **A transação do MCP, medida (decisão 2):** o `xmin` das linhas de catálogo de cada migration é o
+  da linha dela no ledger — o apply é UMA transação com o registro, e o arquivo vai como um statement. **O portão:**
+  `relfilenode` e os dois md5 iguais nas oito, nos dois bancos, janela 0 em produção; 62 policies byte a byte; advisor
+  +1 INFO (`backups_migration`); 11 classes de paridade iguais; tipos do MCP = `database.ts` fora os comentários de
+  hand-fix e a exceção da F62; smoke de produção 109 OK · 0 falha; conferidor de formas 0 recusadas em 100.513 linhas.
+  **Motivo:** a ordem manda aplicar no ensaio e em produção antes do merge, com o portão fechado nos dois — e fechou sem
+  nada a explicar. O rollback não foi usado em banco vivo.

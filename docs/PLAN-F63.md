@@ -446,8 +446,8 @@ consertar o que o CI mostrar. PR como rascunho desde o push 1.
 
 **`cdc6dee`** (23/09/2026) — o último commit que toca `src/**`, `scripts/**` ou `supabase/**`, depois das três rodadas
 da revisão adversarial (a 3ª sem achado confirmado). Daqui em diante, só `docs/**` e `CHANGELOG.md`. O CI dele é o do §10
-do `RELATORIO-F63.md`; o apply nos bancos (Frente G, passos 5 em diante) ficou PENDENTE do conector — se a `main` andar
-antes do apply, rebase, CI novo e um SHA novo aqui.
+do `RELATORIO-F63.md`. O apply nos bancos (Frente G, passos 5 em diante) esperou o conector voltar e foi feito sobre este
+SHA, sem mudar código: ensaio 15:28–15:29 UTC e produção 15:33–15:34 UTC de 23/09/2026 (`RELATORIO-F63.md` §7).
 
 ---
 

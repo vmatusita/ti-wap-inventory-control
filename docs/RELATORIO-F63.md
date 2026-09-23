@@ -1,9 +1,9 @@
 # Relatório F63 — `empresa_id` no acervo (lote 1) e a disciplina de backup de migração
 
-**v1.68.0** · **migrations `0159`–`0161`, ⚠ AINDA NÃO APLICADAS em banco real** (o conector da Supabase está desligado
-nesta sessão) · 23/09/2026 · SHA de código congelado **`cdc6dee`** · código no
-[PR #72](https://github.com/vmatusita/ti-wap-inventory-control/pull/72), **aberto e SEM merge** · documentação de fecho e a
-tag anotada `v1.68.0` ficam para depois do apply
+**v1.68.0** · **migrations `0159`–`0161` aplicadas** no ensaio (15:28–15:29 UTC) e em produção (15:33–15:34 UTC) de
+23/09/2026 · SHA de código congelado **`cdc6dee`** · código no
+[PR #72](https://github.com/vmatusita/ti-wap-inventory-control/pull/72) · a conferência pós-deploy, o PR de documentação e a
+tag anotada `v1.68.0` no §15
 
 > A segunda fase da virada multiempresa. As oito tabelas do acervo (`ativos`, `movimentacoes`, `lancamentos_item`,
 > `pendencias_item`, `anotacoes`, `termos_gerados`, `colaboradores`, `itens`) ganham `empresa_id uuid not null`, com FK
@@ -16,58 +16,29 @@ tag anotada `v1.68.0` ficam para depois do apply
 > acervo sem válvula**, que agora enxerga dentro de `do` — e por isso achou a `0133`, que já tinha feito, com a janela
 > destrutiva aberta, o backfill que a ficha proíbe.
 >
-> **Tudo o que não depende do banco vivo está entregue e verde no CI** (run `35877703900`, no SHA congelado `cdc6dee`: 43 roteiros, 1.002 asserções, 0 ✗;
-> injetor 131/131; `db:types:diff` verde; o rollback ensaiado devolvendo o esquema das oito ao de antes da `0159`, pela
-> impressão medida no próprio CI). **O que falta é o banco:** o "antes", o apply no ensaio e em produção, as provas
-> pós-apply, o merge, o deploy e a tag — o caminho está no §1, passo a passo.
+> **O portão fechou nos dois bancos:** nas oito tabelas, o `relfilenode`, o md5 de `(id, xmin)` e o md5 do conteúdo ficaram
+> **idênticos** antes × depois — em produção também, com janela 0 (o app não escreveu no acervo durante o apply). As 62
+> policies ficaram byte a byte; o advisor ganhou só o INFO declarado (`backups_migration`); as 11 classes da paridade
+> ensaio × produção são iguais; o smoke de produção logo depois do apply deu 109 OK · 0 falha e o conferidor de formas,
+> **0 recusadas** em 100.513 linhas. CI do SHA congelado: run `35877703900` (43 roteiros, 1.002 asserções, 0 ✗; injetor
+> 131/131; `db:types:diff` verde).
 
 ---
 
 # 1. O ROTEIRO DO JOHNNY — o que ficou com você, e por quê
 
-## 1.1 ⚠ PENDENTE: o conector da Supabase está desligado
+## 1.1 O conector desligado, e a retomada
 
-No começo da run, **todas** as ferramentas do conector da Supabase (`list_projects`, `execute_sql`, `list_migrations`)
-responderam *"This tool has been disabled in your connector settings"* — com o conector aparecendo como `connected` no
-status da sessão. É o bloqueio por ferramenta que a F60 já viu: não é o classificador de segurança, não volta sozinho,
-e só você o desfaz (nas configurações do conector no claude.ai). Conferido de novo cinco vezes ao longo da run (09:52, 10:36, 11:06,
-11:11 e 11:56), sempre com a mesma resposta. Pela ordem ("Bloqueios reais — o MCP não está conectado"): **nada foi aplicado, nenhuma
-impressão de banco foi tirada, o PR está aberto e SEM merge** (o `database.ts` descreve colunas que produção ainda não
-tem).
+A run começou com **todas** as ferramentas do conector da Supabase respondendo *"This tool has been disabled in your
+connector settings"* (o conector aparecia como `connected`: o bloqueio era por ferramenta, nas configurações do claude.ai).
+Pela ordem ("Bloqueios reais"), a fase entregou tudo o que não dependia do banco — o código, as três rodadas da revisão
+adversarial, o SHA congelado `cdc6dee` e o CI verde — com o PR em rascunho e sem merge, e o caminho B no topo deste
+relatório. Conferido de novo cinco vezes ao longo da run, sempre bloqueado.
 
-**O caminho recomendado — religar o conector e deixar a fase terminar sozinha:**
-
-1. Religue as ferramentas do conector da Supabase no claude.ai.
-2. Numa sessão nova, na raiz do repositório, na branch `f63-empresa-no-acervo`, cole:
-
-   ```text
-   Retome a F63 a partir do §1 do docs/RELATORIO-F63.md: o conector da Supabase voltou. Confira list_projects,
-   confira que a main não andou (senão rebase + CI novo), e siga a Frente G da ordem
-   docs/prompts/F63-empresa-no-acervo-e-backup-de-migracao-ultracode.md a partir do passo 5 (o "antes" nos dois
-   bancos, o apply no ensaio e as provas, o apply em produção e as provas, o smoke e o conferidor de formas, o merge,
-   a conferência pós-deploy, o PR de documentação e a tag v1.68.0). O CI do SHA congelado já está verde.
-   ```
-
-**O caminho B — se preferir aplicar à mão, no SQL Editor** (a ordem é rígida; cada passo nos DOIS bancos, **ensaio
-primeiro**, e produção dentro de 24 h do commit das migrations — a sonda de deriva abre alarme depois disso):
-
-| passo | o quê | como |
-|---|---|---|
-| 0 | a foto de **antes** (obrigatória ANTES de qualquer apply) | rode `docs/f63-evidencias/impressao-acervo.sql` como está (o parâmetro vazio) e guarde o JSON — anote o `corte_para_o_depois`; rode `docs/f63-evidencias/impressao-policies.sql`; anote os avisos de segurança do painel (Advisors) por nível |
-| 1 | `0159_backups_migration.sql` | o texto EXATO do arquivo, uma execução; depois `insert into supabase_migrations.schema_migrations (version, name) values ('<aaaammddhhmmss>', 'backups_migration');` |
-| 2 | `0160_empresa_no_acervo_cadastros.sql` | idem; ledger `empresa_no_acervo_cadastros`. Se aparecer `canceling statement due to lock timeout`, espere e repita (no máximo três vezes em 30 min) — nunca suba o timeout |
-| 3 | `0161_empresa_no_acervo_movimento.sql` | idem; ledger `empresa_no_acervo_movimento` |
-| 4 | `notify pgrst, 'reload schema';` | |
-| 5 | a prova | `docs/f63-evidencias/verificacao-pos-apply.sql` (as oito com `uuid · not null · atthasmissing = true`, default preso à função, FK validada, comentário F67, as três contagens iguais; `backups_migration` com RLS, sem force, zero policy, privilégios `00000` nos três papéis) e `impressao-acervo.sql` **com o `corte_para_o_depois` do passo 0 no lugar de `''`**: o `relfilenode` das oito tem de ser **igual** ao do antes, sem exceção; no ensaio os dois md5 idênticos; em produção idênticos ou com `0 < janela < linhas`. `impressao-policies.sql` igual ao antes. Advisors: só +1 INFO `rls_enabled_no_policy` (`backups_migration`) |
-| 6 | se o passo 5 divergir | **rollback imediato** com o texto exato de `supabase/rollback/F63-desfaz.sql` (em produção, antes do diagnóstico) — e o PR não é mergeado |
-| 7 | produção | repita 0–5 em produção; logo depois, `node scripts/smoke/smoke-prod.mjs` (0 falha) — o app no ar ainda é o velho, lendo o esquema novo |
-| 8 | o merge | marque o PR #72 como pronto e faça o merge com `verificar` e `banco-sem-docker` verdes |
-| 9 | a conferência pós-deploy | `/api/saude` com `1.68.0` e o commit do merge; `node scripts/smoke/smoke-prod.mjs`; `gh workflow run saude.yml -f partes=b` verde |
-| 10 | a tag | `git tag -a v1.68.0 <merge do PR de documentação> -m "v1.68.0 — F63"` e `git push origin v1.68.0` |
-
-```bash
-gh pr ready 72
-```
+Às ~12:20 (-03) você religou as ferramentas uma a uma, e a fase retomou pelo roteiro: `list_projects` (os dois projetos
+`ACTIVE_HEALTHY`, PostgreSQL 17.6), a `main` sem andar (`3c1c761`, ancestral da branch — sem rebase nem CI novo), e a Frente
+G do passo 5 em diante: o "antes" nos dois bancos, o apply no ensaio e as provas, o apply em produção e as provas, a
+paridade, o smoke e o conferidor de formas (§7). Nada do caminho B precisou ser feito à mão.
 
 ## 1.2 Depois do deploy (5 minutos, só leitura)
 
@@ -128,8 +99,8 @@ cai na WAP em silêncio. A F67 o tira, com o orçamento medido aqui (§5), e inv
 
 A tabela inteira dos 26 fatos está no [`PLAN-F63.md`](PLAN-F63.md) §1. As divergências, cada uma explicada:
 
-**As doze que a ordem já trazia** — confirmadas no disco (as de banco vivo, pela medição da ordem de 23/09, até o
-conector voltar):
+**As doze que a ordem já trazia** — confirmadas no disco, e as de banco vivo no "antes" dos dois bancos (§7: as contagens
+das oito, as 62 policies, o advisor 5 · 34 · 1, as 18 escritoras):
 
 1. **A numeração:** `0159`–`0161`, não `0145`–`0147` (a F60 gastou esses números).
 2. **O default pela função**, não pelo literal `'<wap>'`: a fonte única é `public.empresa_legada()` (decisão 3 da F62).
@@ -171,7 +142,8 @@ conector voltar):
 19. **O lote do injetor estava NO teto** (125/125, sem folga): o teto subiu no número exato, 131.
 20. **`scratch_tmp/scripts/db/{corpo-vigente,mutacoes}.mjs` estão rastreados pelo git** — cópia de worktree de agente;
     fora do escopo, backlog (§14).
-21. **O conector da Supabase amanheceu desligado** — a razão de o §1 existir.
+21. **O conector da Supabase amanheceu desligado** e só voltou no fim da run (religado pelo Johnny, ~12:20 -03): o apply
+    veio depois do SHA congelado, sem mudar uma linha de código (§1.1).
 
 **O que esta ordem acrescenta à ficha** (declarado): a impressão do acervo com `relfilenode` e `(id, xmin)`; o
 `lock_timeout`; o `do` tratado como código executado; o leitor único, com a exceção nominal da `0133`; a trava "ninguém
@@ -218,13 +190,57 @@ da fase (`0159`–`0161`): ADITIVA declarada = calculada, sem problema nenhum.
 
 ---
 
-# 7. A impressão do acervo antes × depois — ⚠ PENDENTE (o conector)
+# 7. O apply e as provas, nos dois bancos
 
-O instrumento está pronto e versionado: [`f63-evidencias/impressao-acervo.sql`](f63-evidencias/impressao-acervo.sql)
-(por tabela: linhas, `relfilenode`, md5 de `(id, xmin)`, md5 do conteúdo sem `empresa_id`, a janela; e o md5 do `prosrc`
-das 18 escritoras), com a prova de que os dois instrumentos enxergam o que dizem enxergar feita no Postgres do CI
-(sabotagem D, §8). **Nenhuma impressão de banco vivo foi tirada** — nem o "antes" (`f63-evidencias/antes/PENDENTE.md`),
-nem o "depois". O §1 diz como.
+**O canal:** o MCP da Supabase, `apply_migration`, uma chamada por migration, com o texto EXATO do arquivo no SHA congelado
+e o nome sem prefixo (`backups_migration`, `empresa_no_acervo_cadastros`, `empresa_no_acervo_movimento` — os nomes que a
+sonda de deriva procura). Ensaio 15:28:31–15:29:47 UTC; produção 15:33:07–15:34:00 UTC. **Nenhum `lock_timeout` disparou**
+— as seis aplicações entraram na primeira tentativa. `notify pgrst, 'reload schema'` depois da `0161`, nos dois.
+
+**A transação do apply, medida (decisão 2):** o `xmin` das linhas de catálogo que cada migration criou (`pg_attribute`,
+`pg_constraint`, `pg_description`) é o MESMO da linha dela no ledger — 13282/13284/13287 no ensaio, 26008/26010/26012 em
+produção —, e o ledger guarda o arquivo como um statement só. Ou seja: o `apply_migration` roda o arquivo inteiro e o
+registro no ledger numa transação única; um `lock_timeout` no meio teria desfeito a migration toda, ledger incluído. O
+`set`/`reset` do arquivo serve aos dois caminhos (no CI cada comando confirma sozinho).
+
+**A impressão do acervo** ([`impressao-acervo.sql`](f63-evidencias/impressao-acervo.sql), md5 `ded95c86…`, o mesmo texto
+nas quatro rodadas; o "antes" de produção refeito logo antes do apply, corte 26006):
+
+| tabela | ensaio: linhas · `relfilenode` | produção: linhas · `relfilenode` | md5 `(id, xmin)` e md5 do conteúdo | janela |
+|---|---|---|---|---|
+| `ativos` | 1606 · 17713 | 1649 · 17779 | **iguais** antes × depois, nos dois | 0 · 0 |
+| `movimentacoes` | 3245 · 17735 | 3630 · 17801 | **iguais** | 0 · 0 |
+| `lancamentos_item` | 35 · 17887 | 184 · 18161 | **iguais** | 0 · 0 |
+| `pendencias_item` | 23 · 18341 | 17 · 18737 | **iguais** | 0 · 0 |
+| `anotacoes` | 0 · 17935 (vazia) | 21 · 18126 | **iguais** (`vazia` = `vazia` no ensaio) | 0 · 0 |
+| `termos_gerados` | 2 · 17963 | 123 · 18247 | **iguais** | 0 · 0 |
+| `colaboradores` | 0 · 25387 (vazia) | 41 · 19899 | **iguais** (`vazia` = `vazia` no ensaio) | 0 · 0 |
+| `itens` | 7 · 25705 | 23 · 20524 | **iguais** | 0 · 0 |
+
+O `relfilenode` igual SEM EXCEÇÃO nos dois bancos, e os dois md5 idênticos também em produção — nem a janela precisou
+explicar nada (0 linha escrita pelo app entre o "antes" e o "depois"). Depois do apply, as oito com `uuid · not null=t ·
+atthasmissing=t`. As 18 escritoras: o mesmo md5 do `prosrc` (`4513812b…`) antes e depois, nos dois bancos — critério 13.
+
+**A verificação pós-apply** ([`verificacao-pos-apply.sql`](f63-evidencias/verificacao-pos-apply.sql)): nas oito, nos dois
+bancos, `uuid` · `not null` · `atthasmissing` · o default preso a `public.empresa_legada()` pelo `pg_depend` · a FK para
+`empresas` validada · o comentário dizendo F67 — tudo `true`; `count(*) = count(empresa_id) = da legada` em todas
+(produção: 1649 · 3630 · 184 · 17 · 21 · 123 · 41 · 23 — `anotacoes` e `colaboradores`, vazias no ensaio, provadas aqui).
+`backups_migration`: RLS ligada, sem `force`, zero policy, 0 linha, privilégios `00000` em `anon`, `authenticated` e
+`service_role`.
+
+**O resto das provas:**
+
+| prova | ensaio | produção |
+|---|---|---|
+| as 62 policies ([`impressao-policies.sql`](f63-evidencias/impressao-policies.sql)) | `public` 54 · `886118ad…`, Storage 8 · `f116b8d0…`, as 23 do acervo sem `empresa_id` — **iguais ao antes** | idem, **iguais ao antes** |
+| advisor de segurança | 5 → **6 INFO** (+`backups_migration`), 34 WARN, 1 WARN Auth | idem — **só o INFO declarado** |
+| paridade ensaio × produção (`supabase/ci/impressao-schema.sql`) | as **11 classes iguais** em contagem e fingerprint (339 colunas · 126 constraints · 7 enums · 102 funções · 102 grants · 98 índices · 54 + 8 policies · 28 flags de RLS · 10 gatilhos · 9 views) | |
+| tipos pelo MCP | md5 `9f4a1506…`; contra o `database.ts`, iguais fora os 18 comentários de hand-fix e o `Insert` de `operador_filiais` (a exceção da F62, ata (m)) | md5 `9f4a1506…` — idêntico ao do ensaio |
+| smoke de produção logo depois do apply | | **109 OK · 1 aviso · 0 falha** (o aviso antigo de `kits_modelos`), com o app 1.67.0 lendo o esquema novo |
+| conferidor de formas | | **271 pontos · 100.513 linhas · 0 recusadas · 0 reprovados** |
+
+Evidência: [`antes/`](f63-evidencias/antes/) e [`depois/`](f63-evidencias/depois/) (`ensaio.json`, `producao.json`,
+`smoke-prod-pos-apply.txt`, `conferidor-producao.json`) — só contagens e hashes.
 
 ---
 
@@ -310,63 +326,66 @@ congelado é `cdc6dee`** (`PLAN-F63.md` §8).
 | `k_negocio` · `k_infra` · `k_sem_select` | 20 · 8 · 5 | **20 · 9 · 6** (+`backups_migration`) | `catalogo_policies.sql` |
 | `k_lote1` | — | **8** (a fonte única das oito) | idem |
 | tabelas de negócio com `empresa_id` | 1 (`filiais`) | **9** (as oito + `filiais`); faltam 11 (F64) | 15c e o aviso da F64 |
-| policies (`public` · Storage) | 54 · 8 | **54 · 8** — nenhuma policy criada nem tocada (no CI; nos bancos vivos, ⏳) | `catalogo_policies.sql` |
+| policies (`public` · Storage) | 54 · 8 | **54 · 8**, byte a byte iguais antes × depois nos dois bancos — nenhuma criada nem tocada | `impressao-policies.sql` |
 | funções criadas ou recriadas | — | **0** (as 18 escritoras intactas) | `git diff` das migrations |
 | o censo das 157 pelo classificador (veredito) | — | ADITIVA 139 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5 | `migrations-backfill.test.ts` |
 | o censo das 157 (classe calculada) | — | ADITIVA 141 · BACKFILL 13 · DESTRUTIVA 3 | idem |
 | regras da MATRIZ | até R-ACC-84 | **até R-ACC-90** (+6) | `MATRIZ-REGRAS.md` |
-| advisors (ensaio / produção) | 5 INFO · 34 WARN · 1 WARN Auth (a medição da ordem) | ⏳ esperado: +1 INFO `rls_enabled_no_policy` (`backups_migration`) | o conector |
+| advisors de segurança (ensaio = produção) | 5 INFO · 34 WARN · 1 WARN Auth | **6 INFO** (+`backups_migration`, o declarado) · 34 WARN · 1 WARN Auth | `get_advisors` |
+| as oito no banco vivo: linhas · `relfilenode` · md5 `(id, xmin)` · md5 do conteúdo | ensaio 1606 · 3245 · 35 · 23 · 0 · 2 · 0 · 7; produção 1649 · 3630 · 184 · 17 · 21 · 123 · 41 · 23 | **iguais antes × depois nos dois bancos**, janela 0 (§7) | `impressao-acervo.sql` |
+| paridade ensaio × produção (11 classes) | iguais (F62) | **iguais**: 339 colunas · 126 constraints · 102 funções · 98 índices · 54 + 8 policies · 28 flags de RLS · 10 gatilhos · 9 views · 7 enums | `impressao-schema.sql` |
+| smoke de produção | 109 OK · 1 aviso · 0 falha | **109 OK · 1 aviso · 0 falha**, logo depois do apply | `smoke-prod.mjs` |
+| conferidor de formas (produção) | 271 pontos · 100.398 linhas · 0 recusadas (F62) | **271 pontos · 100.513 linhas · 0 recusadas** | `conferir.mts` |
 | `npm run build` | verde | **verde** (`Compiled successfully`, 32 páginas estáticas); `verificar:actions` VERDE sobre 24 chunks; `contraste` verde | a mesa |
 
 ---
 
 # 11. Os 29 critérios, autoverificados
 
-✅ atendido e conferido · ⏳ PENDENTE do banco vivo (o conector, §1) · ◐ a parte do repositório/CI atendida, a do banco
-pendente.
+✅ atendido e conferido · ◐ a parte até o merge atendida; o resto (o deploy, a conferência, a tag) no §15.
 
 | # | critério | | evidência |
 |---|---|---|---|
 | 1 | lint, test, typecheck, build limpos; contraste e verificar:actions verdes; `banco-sem-docker` verde com roteiros, injetor e `db:types:diff` | ✅ | mesa no SHA `cdc6dee`: 252 arquivos · 7.600 testes, lint e `tsc` sem saída, build verde, `verificar:actions` VERDE (24 chunks), contraste verde; CI run `35877703900` (`verificar` e `banco-sem-docker` verdes) |
 | 2 | `PLAN-F63.md` com os 26 fatos, os censos, o desenho, as decisões, a ordem das migrations e a de rollback — anterior ao 1º commit em `supabase/`/`src/`/`scripts/` | ✅ | `db172e9` (09:57) antes de `8a8b3d7` (10:11, as travas); §8 com o SHA congelado |
-| 3 | a impressão "antes" (acervo, policies, advisor) nos dois bancos, antes de qualquer apply | ⏳ | os instrumentos em `f63-evidencias/`; `antes/PENDENTE.md` |
+| 3 | a impressão "antes" (acervo, policies, advisor) nos dois bancos, antes de qualquer apply | ✅ | [`antes/`](f63-evidencias/antes/): o acervo, as policies e o advisor dos DOIS bancos entre 15:24 e 15:27 UTC, antes do primeiro apply (15:28:31); o de produção refeito logo antes do apply dele — só contagens e hashes |
 | 4 | migrations a partir da `0159`, cabeçalho validado, rollback no rodapé, `db:lock` no mesmo commit, `DA_F38`; sem enum novo, `update`/`delete` de topo no acervo, janela destrutiva, nome repetido, função criada | ✅ | `node scripts/db/classificar-migration.mjs` ("todas passam"); `migrations-lock.test.ts`; `DA_F38` + `0159`–`0161`; a guarda de topo verde; nenhuma `create function` nas três |
-| 5 | `backups_migration`: RLS, zero policy, `revoke all` dos três papéis, sem `force`; `k_infra` e `k_sem_select` com motivo; INFO declarado; ida e volta verde | ◐ | CI: 6a/6b/6c, 5a–5e, 4 e 10a de `catalogo_policies`; R5 (o texto da `0159` na mesa); o INFO declarado no RUNBOOK e no §1 — medi-lo no painel é ⏳ |
-| 6 | as oito com `uuid not null`, FK validada, default exatamente `public.empresa_legada()` e comentário "até a F67" — no CI e nos dois bancos | ◐ | CI: 15b (pelo `pg_depend`) e as quatro mutações `f63-lote1-*`; comentário nas duas migrations; nos bancos, `verificacao-pos-apply.sql` ⏳ |
-| 7 | `count(*) = count(empresa_id) = da legada` nas oito, nos dois bancos; universo zero do ensaio declarado | ◐ | CI: 1b; o universo zero de `anotacoes`/`colaboradores` no ensaio declarado (§3, item 11); nos bancos ⏳ |
-| 8 | `relfilenode` e md5 de `(id, xmin)` iguais antes × depois nas oito, nos dois bancos, com `atthasmissing` | ◐ | o instrumento provado no CI (sabotagem D: 4a/4b/4c, 3b); nos bancos ⏳ |
+| 5 | `backups_migration`: RLS, zero policy, `revoke all` dos três papéis, sem `force`; `k_infra` e `k_sem_select` com motivo; INFO declarado; ida e volta verde | ✅ | nos dois bancos, `verificacao-pos-apply.sql`: RLS, sem force, 0 policy, 0 linha, `00000` nos três papéis; o advisor 5 → 6 INFO só por ela; no CI, 6a/6b/6c, 5a–5e, 4 e 10a; R5 na mesa |
+| 6 | as oito com `uuid not null`, FK validada, default exatamente `public.empresa_legada()` e comentário "até a F67" — no CI e nos dois bancos | ✅ | CI: 15b e as quatro mutações `f63-lote1-*`; nos dois bancos, `verificacao-pos-apply.sql` — as seis marcas `true` nas oito |
+| 7 | `count(*) = count(empresa_id) = da legada` nas oito, nos dois bancos; universo zero do ensaio declarado | ✅ | as três contagens iguais em todas, nos dois bancos; `anotacoes` e `colaboradores`, vazias no ensaio (0), provadas em produção (21 e 41) |
+| 8 | `relfilenode` e md5 de `(id, xmin)` iguais antes × depois nas oito, nos dois bancos, com `atthasmissing` | ✅ | §7: o `relfilenode` igual sem exceção e os DOIS md5 idênticos nos dois bancos (em produção, janela 0 — nada a explicar); `atthasmissing = t` nas oito |
 | 9 | o classificador lê as 157 sem lançar, trata `do` como executado, vê `$rótulo$` e `$$` em comentário, falha fechado; cabeçalho obrigatório ≥ `0159`; as regras de BACKFILL reprovam | ✅ | `migrations-backfill.test.ts` (describe 1, 2, 2-bis R1–R7, 3); o censo em `censo-cadeia.md` |
 | 10 | a guarda de topo reprova `update`/`delete` de topo nas três, mesmo DESTRUTIVA, dentro de `do`, pelo leitor único; exceção nominal fechada (só `0133`) e que não cresce | ✅ | `migrations-f38.test.ts` (a sabotagem B, a exceção exaustiva e fechada, a `0133` sem a exceção vermelha) — e agora também a TROCA da tabela |
 | 11 | a trava do lote 1 nasceu vermelha pelos oito nomes e está verde; reprova default literal, `drop not null`, FK `not valid`, sem a coluna | ✅ | `B-travas/catalogo-e-rollback-vermelho-ci.txt` (run `35865427382`); `C-ci-verde.txt` (as quatro mensagens, cada tabela pelo nome) |
 | 12 | "ninguém lê `empresa_id` do acervo" verde e acusa o caso sintético | ✅ | `empresa-acervo-sem-leitura.test.ts` (TS, catraca por trecho, disco) e o bloco 7 (catálogo, com auto-sabotagem 7d) |
-| 13 | nenhum escritor mudou: md5 do `prosrc` das 18 igual nos dois bancos; os 9 pontos TS e os scripts intocados; nenhum dos 27 roteiros precisou de `empresa_id` | ◐ | nenhuma função nas três migrations; `git diff main` sem `src/lib/actions/**`, `seed.ts`, `carga.ts`, `restaurar.mjs`; os 27 roteiros verdes sem edição de `empresa_id`; o md5 do `prosrc` nos bancos (`impressao-acervo.sql`, `escritores_sql`) ⏳ |
-| 14 | as 62 policies byte a byte antes × depois, nos dois bancos | ◐ | nenhuma policy nas três migrations; `impressao-policies.sql` nos bancos ⏳ |
+| 13 | nenhum escritor mudou: md5 do `prosrc` das 18 igual nos dois bancos; os 9 pontos TS e os scripts intocados; nenhum dos 27 roteiros precisou de `empresa_id` | ✅ | o md5 do `prosrc` das 18 (`4513812b…`) igual antes × depois, e igual entre os bancos; `git diff main` sem `src/lib/actions/**`, `seed.ts`, `carga.ts`, `restaurar.mjs`; os 27 roteiros verdes sem edição |
+| 14 | as 62 policies byte a byte antes × depois, nos dois bancos | ✅ | `impressao-policies.sql`: `public` 54 · `886118ad…`, Storage 8 · `f116b8d0…` — iguais antes × depois nos dois |
 | 15 | describe 5 emendado, describe 9 verde, `isolamento_tenant.sql` verde, o cabeçalho diz o que a F63 preencheu e o que falta | ✅ | `catalogos-seguranca.test.ts` (describe 5 com o RECORTE nos dois sentidos, com cast e `not in`, sobre o léxico único; describe 9); `isolamento_tenant` 27 asserções no CI |
-| 16 | `database.ts` com hand-fix declarado, conferido contra a geração do MCP depois do apply no ensaio; `db:types:diff` verde | ◐ | hand-fix datado (comentários F63); `db:types:diff` verde (38/347/94); a geração do MCP ⏳ |
-| 17 | o conferidor de formas contra produção, depois do apply: 0 recusadas | ⏳ | passo 7 do §1 |
+| 16 | `database.ts` com hand-fix declarado, conferido contra a geração do MCP depois do apply no ensaio; `db:types:diff` verde | ✅ | a geração do MCP no ensaio bate com o `database.ts` fora os 18 comentários de hand-fix e a exceção da F62 (ata (m)); a de produção é idêntica à do ensaio; `db:types:diff` verde (38/347/94) |
+| 17 | o conferidor de formas contra produção, depois do apply: 0 recusadas | ✅ | 271 pontos · 100.513 linhas · **0 recusadas** · 0 reprovados ([`depois/conferidor-producao.json`](f63-evidencias/depois/conferidor-producao.json)) |
 | 18 | a decisão do injetor na ata; mutação detectada, teto exato com porquê datado, quarentena < ⅓ | ✅ | ata, decisão 8; `mutacoes.test.mts` (teto 131 com o comentário datado); 131/131; quarentena 2/133 |
 | 19 | `restauracao.sql` prova o backup sem a chave (WAP) e com a chave | ✅ | 8a/8b no CI; `restaurar-guarda.test.mts` (o INSERT com e sem a coluna, e o lote misto) |
 | 20 | o rollback na ordem inversa em `supabase/rollback/F63-*.sql`, ensaiado no CI até o esquema de antes da `0159` | ✅ | `F63-desfaz.sql`; `f63_rollback.sql` rb0–rb4 (`c533eeff…` = `c533eeff…`); `f62_rollback.sql` rodando-o antes |
-| 21 | advisors mudaram só no INFO declarado; paridade ensaio × produção nas 11 classes | ⏳ | passos 5 e 7 do §1 |
+| 21 | advisors mudaram só no INFO declarado; paridade ensaio × produção nas 11 classes | ✅ | +1 INFO `rls_enabled_no_policy` (`backups_migration`) nos dois, nada mais; as 11 classes iguais em contagem e fingerprint |
 | 22 | nenhuma dependência nova; `.github/workflows/**` e `CLAUDE.md` da raiz intocados | ✅ | `git diff main --stat`: sem `package-lock.json`, sem `.github/`, sem `CLAUDE.md` da raiz |
 | 23 | as emendas: MATRIZ, ADR-003, RUNBOOK (Anexo, BACKFILL, `add column`), PLANO (nota F63, fichas F64 e F67), `docs/README.md`, `docs/prompts/README.md`, ata | ✅ | os arquivos no diff; R-ACC-85 a 90 |
-| 24 | `package.json` 1.68.0, CHANGELOG e `registry.ts`; a tag `v1.68.0` publicada — ou o motivo e o comando no topo | ◐ | versão, CHANGELOG e registro no PR (`registry.test.ts`, `cobertura-changelog.test.ts` verdes); a tag NÃO publicada — o motivo (o conector) e o comando no topo e no §1 |
-| 25 | os dois PRs mergeados com os checks verdes, e a conferência pós-deploy — ou o bloqueio no topo | ⏳ | o bloqueio no topo; o PR #72 aberto e SEM merge |
+| 24 | `package.json` 1.68.0, CHANGELOG e `registry.ts`; a tag `v1.68.0` publicada — ou o motivo e o comando no topo | ◐ | versão, CHANGELOG e registro no PR (`registry.test.ts`, `cobertura-changelog.test.ts` verdes); a tag vai no merge do PR de documentação (§15) |
+| 25 | os dois PRs mergeados com os checks verdes, e a conferência pós-deploy — ou o bloqueio no topo | ◐ | o PR #72 sai do rascunho e é mergeado com os dois checks verdes; a conferência e o PR de documentação no §15 |
 | 26 | as sabotagens A a I com saída real em `docs/f63-evidencias/` | ✅ | §8 |
-| 27 | nenhum dado real em migration, teste, roteiro, evidência ou log; da produção, só contagens e hashes; ninguém abriu o `.env.local` | ✅ | fixtures `WAP000…`/"Fulano"/uuids `63000000-…`; nenhuma leitura de banco vivo nesta run; nem eu nem os agentes (os prompts proíbem) abrimos `.env*` |
+| 27 | nenhum dado real em migration, teste, roteiro, evidência ou log; da produção, só contagens e hashes; ninguém abriu o `.env.local` | ✅ | fixtures `WAP000…`/"Fulano"/uuids `63000000-…`; do banco vivo, só catálogo, contagens e md5 (a saída do smoke e o JSON do conferidor conferidos por grep: nenhum e-mail nem uuid); o `.env.local` entrou só por `--env-file` e pelo carregador do próprio smoke, sem ser aberto, filtrado ou impresso |
 | 28 | o relatório no padrão F45→F62, com o roteiro do Johnny no topo | ✅ | este arquivo, §1 |
 | 29 | o estado de repouso e "o que este relatório NÃO prova" | ✅ | §12 e §13 |
 
-**Placar:** 17 ✅ · 8 ◐ · 4 ⏳ — todo ◐ e ⏳ pela mesma causa, o conector da Supabase desligado.
+**Placar:** 27 ✅ · 2 ◐ — os dois ◐ (24 e 25) são o merge, o deploy e a tag, fechados no §15.
 
 ---
 
 # 12. O estado de repouso
 
-**Se o projeto parar aqui por dois meses** (o código no PR #72, sem merge, e os bancos sem a F63): nada muda para
-ninguém — produção continua na `v1.67.0`, sem as colunas, e o app no ar não sabe delas. O PR fica velho: a `main` que
-andar exige rebase e um CI novo antes do apply (o `migrations.lock.json` e o `DA_F38` reprovam qualquer colisão de número
-de migration na mesa). Nada para desfazer.
+**Se o projeto parar entre o apply e o merge** (os bancos com a F63, o app na `v1.67.0`): é o estado que o smoke e o
+conferidor provaram — o app velho não lê a coluna, todo INSERT dele recebe a WAP pelo default, e as formas frouxas deixam a
+coluna atravessar sem lançar. Pode ficar assim indefinidamente; a sonda de deriva não alarma (ela procura arquivo da `main`
+no ledger, e o ledger tem as três a mais).
 
 **Se parar DEPOIS do apply e do merge** (o destino normal): as oito tabelas têm `empresa_id` preenchida com a WAP, o
 default de pé, e nada a lê. Todo INSERT sem a coluna recebe a WAP — correto enquanto houver uma empresa só, e é isso
@@ -389,23 +408,18 @@ toda migration nova. Estado terminal válido e indefinido: sem dupla escrita, se
   trocada inteira; a coluna fica com o classificador (DESTRUTIVA, declarada). E o RECORTE do describe 5 é textual: a
   coluna embrulhada numa função de mais de um argumento (`coalesce(a.empresa_id, x) = v`) não é lida ali — a trava no
   banco é o bloco 7 de `empresa_no_acervo.sql`, que lê o catálogo.
-- **Que a janela de produção tenha ficado sem tráfego.** Ela é contada pelo instrumento, não suposta — e, nesta run,
-  nem foi medida (o conector).
-- **Que a fase tenha sido aplicada em algum banco real.** Não foi (§1). O que está provado é no Postgres 17 do CI: as
-  três migrations aplicam sem erro, sem reescrita, com a forma travada, com o rollback voltando ao esquema de antes.
-- **Que o `apply_migration` do MCP envolva a migration numa transação.** Não medido (o conector); o desenho do
-  `lock_timeout` (`set` + `reset`, `drop column if exists` no rollback) serve aos dois casos.
-- **Que o hand-fix do `database.ts` seja byte a byte o que o gerador daria.** O `db:types:diff` (conjuntos) está verde;
-  a conferência contra a geração do MCP depois do apply no ensaio é passo do §1.
+- **Que o rollback funcione num banco vivo.** Ele foi ensaiado no Postgres do CI (rb0–rb4) e não foi executado em banco
+  vivo — não houve motivo: o portão fechou nos dois.
+- **Que o `database.ts` seja o arquivo gerado.** Ele bate com a geração do MCP (§7), mas carrega os comentários de
+  hand-fix e a exceção da F62; a troca pelo gerado fica para a próxima fase que regenerar os tipos.
+- **Que a migration seja atômica no CI.** Não é (cada `alter` confirma sozinho, `psql -f` sem `-1`); no MCP é (§7). O
+  rollback usa `if exists` por isso.
 
 ---
 
 # 14. Pendências e backlog nomeado
 
-- **Desta fase (o §1):** o "antes" nos dois bancos, o apply no ensaio e em produção com as provas (a impressão, a
-  verificação pós-apply, as policies, os advisors, a paridade das 11 classes), o smoke logo depois do apply de produção,
-  o conferidor de formas contra produção (0 recusadas), a geração dos tipos pelo MCP conferida contra o hand-fix, o
-  merge, a conferência pós-deploy, o PR de documentação e a tag `v1.68.0`.
+- **Desta fase:** o merge do PR #72, a conferência pós-deploy, o PR de documentação e a tag `v1.68.0` (§15).
 - **F64:** as **11** tabelas de `k_negocio` ainda sem `empresa_id` (as sete da ficha — `tipos_item`, `motivos`,
   `kits_modelos`, `senhas_acesso`, `eventos_admin`, `import_logs`, `relatorios_gerados` — e as quatro do vocabulário do
   import); **a régua do default** para elas e para `filiais` (a pergunta aberta na ficha).
@@ -418,3 +432,9 @@ toda migration nova. Estado terminal válido e indefinido: sem dupla escrita, se
 - **PATCH** (do backlog da F62): derrubar `profiles.papel`/`ativo` a partir de 13/10/2026.
 - **Avulso:** `scratch_tmp/scripts/db/{corpo-vigente,mutacoes}.mjs` rastreados pelo git (cópia de worktree de agente)
   — remover numa entrega própria.
+
+---
+
+# 15. O merge, o deploy e a conferência pós-deploy
+
+{{POS_DEPLOY}}

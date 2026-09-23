@@ -1,0 +1,16 @@
+{
+  "quando": "2026-09-23 — observed_at 15:26:59Z (ensaio) e 15:27:01Z (produção), antes de qualquer apply da F63",
+  "canal": "MCP da Supabase, get_advisors(type=security), contado por nível e nome",
+  "ensaio (sgmvldiizsrjbxzzpmhh)": {
+    "INFO": { "rls_enabled_no_policy": 5 },
+    "WARN": { "authenticated_security_definer_function_executable": 34, "auth_leaked_password_protection": 1 },
+    "rls_enabled_no_policy_tabelas": ["ambiente", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"]
+  },
+  "produção (pbtjcalbmepmrqzprusb)": {
+    "INFO": { "rls_enabled_no_policy": 5 },
+    "WARN": { "authenticated_security_definer_function_executable": 34, "auth_leaked_password_protection": 1 },
+    "rls_enabled_no_policy_tabelas": ["ambiente", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"]
+  },
+  "esperado_depois": "+1 INFO rls_enabled_no_policy (backups_migration, deny-all declarado); nada mais",
+  "veredito": "iguais nos dois bancos e iguais à linha de base da ordem (5 INFO · 34 WARN · 1 WARN Auth)"
+}
