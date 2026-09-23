@@ -240,10 +240,12 @@ begin
        case when v_ruins > 0 then ' — fora da regra:' || v_rot else '' end, v_ruins, 3) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
-  -- a segunda metade: como postgres, o kit continua com o motivo da WAP (e na WAP)
+  -- a segunda metade: como postgres, o kit continua com o motivo da WAP (e na WAP). Duas
+  -- conferências — o motivo e a empresa —, e por isso universo 2: sem o gatilho (a mutação
+  -- f64-kit-sem-gatilho) as duas escritas passam e as duas caem aqui.
   v_ruins := 0;
   if v_kit is null then
-    v_ruins := 1;
+    v_ruins := 2;
   else
     select count(*) into v_ruins from public.kits_modelos
      where id = v_kit and payload->>'motivo' is distinct from 'f64-da-wap';
@@ -252,7 +254,7 @@ begin
         into v_ruins using v_ruins, v_kit, k_legada;
     end if;
   end if;
-  if pg_temp.assert_zero_de('C5-bis de volta como postgres, o kit recusado continua com o motivo e a empresa de antes', v_ruins, 1) then
+  if pg_temp.assert_zero_de('C5-bis de volta como postgres, o kit recusado continua com o motivo e a empresa de antes', v_ruins, 2) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
