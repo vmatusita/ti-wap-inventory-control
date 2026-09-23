@@ -157,11 +157,18 @@ export async function listarRelatoriosGerados(
   // unicidade começa por `periodo_de`, então nenhuma versão do mesmo período escapa
   // do `.in(...)`. Página vazia não consulta nada.
   const maxPorChave = new Map<string, number>()
+  // F65 — a chave da versão é POR EMPRESA (o índice da 0171): a empresa de cada linha da página sai
+  // desta mesma consulta, pelo `id` (toda linha da página está no `.in('periodo_de', datas)` por
+  // construção). A forma da lista (`formas/relatorios-gerados.ts`) não muda.
+  const empresaPorId = new Map<string, string>()
   const datas = [...new Set(rows.map((r) => r.periodo_de))]
   if (datas.length > 0) {
+    // ⚠ A PRIMEIRA LEITURA TS DE `empresa_id` ANTES DA F66 — identidade da CHAVE do snapshot, não
+    // recorte: a consulta continua sem filtro de empresa. É exceção NOMINAL da trava "ninguém lê"
+    // (`src/lib/validators/empresa-acervo-sem-leitura.test.ts`), por este trecho.
     const { data: versoes, error: eVersoes } = await client
       .from('relatorios_gerados')
-      .select('periodo_de, periodo_ate, filial_id, versao')
+      .select('id, empresa_id, periodo_de, periodo_ate, filial_id, versao')
       .in('periodo_de', datas)
     // Falhar aqui só custa a badge — a lista continua de pé, sem afirmar vigência
     // que não pôde conferir (o `Map` vazio faz `superada` ser false em todas).
@@ -169,10 +176,18 @@ export async function listarRelatoriosGerados(
       registrarFalha({ escopo: 'gerados.versoes-superadas', erro: eVersoes })
     } else {
       for (const v of versoes ?? []) {
-        const k = chaveVersao(v.periodo_de, v.periodo_ate, v.filial_id)
+        const empresa = v.empresa_id
+        empresaPorId.set(v.id, empresa)
+        const k = chaveVersao(empresa, v.periodo_de, v.periodo_ate, v.filial_id)
         maxPorChave.set(k, Math.max(maxPorChave.get(k) ?? 0, v.versao))
       }
     }
+  }
+  // Sem a empresa da linha (a consulta das versões falhou), a chave não casa nada e `superada` é
+  // false — a mesma degradação de antes: a lista não afirma o que não conferiu.
+  const chaveDaLinha = (r: (typeof rows)[number]) => {
+    const empresa = empresaPorId.get(r.id)
+    return empresa === undefined ? null : chaveVersao(empresa, r.periodo_de, r.periodo_ate, r.filial_id)
   }
 
   const linhas = rows.map((r) => ({
@@ -185,9 +200,10 @@ export async function listarRelatoriosGerados(
     filialSlug: r.filial?.slug ?? null,
     autorNome: r.autor.nome,
     temObservacao: !!(r.observacao && r.observacao.trim()),
-    superada:
-      (maxPorChave.get(chaveVersao(r.periodo_de, r.periodo_ate, r.filial_id)) ?? r.versao) >
-      r.versao,
+    superada: (() => {
+      const k = chaveDaLinha(r)
+      return k !== null && (maxPorChave.get(k) ?? r.versao) > r.versao
+    })(),
   }))
 
   // `pageAtual` e não `page`: quando a faixa recuou, o rodapé precisa mostrar a página que

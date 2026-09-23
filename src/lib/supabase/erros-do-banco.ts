@@ -45,7 +45,10 @@ export function casa(mensagem: string | null | undefined, grafias: readonly stri
 // ---------------------------------------------------------------------------
 
 export type ConstraintTraduzida = {
-  readonly tipo: 'check' | 'indice-unico' | 'unique-implicita'
+  // `unique-implicita`: o nome nunca é escrito em migration (vem de `unique` numa coluna de `create
+  // table`); `unique-nomeada`: escrito por `add constraint`/`rename constraint`; `indice-unico`:
+  // escrito por `create unique index`/`alter index … rename`. Conferido em erros-do-banco-sql.test.ts (F65).
+  readonly tipo: 'check' | 'indice-unico' | 'unique-implicita' | 'unique-nomeada'
   readonly tabela: string
 }
 
@@ -68,14 +71,16 @@ export const CONSTRAINTS_TRADUZIDAS = {
   ativos_patrimonio_service_tag_uidx: { tipo: 'indice-unico', tabela: 'ativos' },
   filiais_nome_chave_uidx: { tipo: 'indice-unico', tabela: 'filiais' },
   unidades_apelidos_apelido_chave_uidx: { tipo: 'indice-unico', tabela: 'unidades_apelidos' },
-  // nome IMPLÍCITO (`slug text not null unique`, 0003) — nunca escrito por extenso em migration
-  filiais_slug_key: { tipo: 'unique-implicita', tabela: 'filiais' },
-  // ⚠ O LAÇO DA F65: recriar este índice com outro nome mata a segunda pista da renumeração da F29
+  // nasceu IMPLÍCITO (`slug text not null unique`, 0003); a F65 (0170) o recriou por empresa com o
+  // MESMO nome, escrito por extenso (provisório → drop → rename constraint)
+  filiais_slug_key: { tipo: 'unique-nomeada', tabela: 'filiais' },
+  // o laço da F57, fechado na F65 (0171): recriado por empresa com o MESMO nome — a segunda pista da
+  // renumeração da F29 continua casando
   relatorios_gerados_periodo_filial_versao_uidx: { tipo: 'indice-unico', tabela: 'relatorios_gerados' },
   colaboradores_nome_chave_uidx: { tipo: 'indice-unico', tabela: 'colaboradores' },
   colaboradores_nome_nao_vazio: { tipo: 'check', tabela: 'colaboradores' },
   kits_modelos_nome_uidx: { tipo: 'indice-unico', tabela: 'kits_modelos' },
-  tipos_item_slug_key: { tipo: 'unique-implicita', tabela: 'tipos_item' },
+  tipos_item_slug_key: { tipo: 'unique-nomeada', tabela: 'tipos_item' },
   tipos_item_slug_formato: { tipo: 'check', tabela: 'tipos_item' },
   tipos_item_rotulo_nao_vazio: { tipo: 'check', tabela: 'tipos_item' },
 } as const satisfies Record<string, ConstraintTraduzida>

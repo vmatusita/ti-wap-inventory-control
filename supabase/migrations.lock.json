@@ -171,6 +171,8 @@
     "0166_fk_composta_acervo.sql": "8124ccdf34a1c766eaff867edc56810ab023fbec1bd5d8cc06b3670c0944345f",
     "0167_fk_composta_cadastros.sql": "5fd68f11c90d92a85e96e4fc9f8a5c1291366e2f6c7184a505af843daec3e5cd",
     "0168_motivos_por_empresa.sql": "79a906aa95c82900ec7054b90ce1efc873f030bf91486e15f683b710951744cb",
-    "0169_vocabulario_import_por_empresa.sql": "1571698e4c25556fad343c13cae353d4f1c16bde89ecf439686aadfe54e94b33"
+    "0169_vocabulario_import_por_empresa.sql": "1571698e4c25556fad343c13cae353d4f1c16bde89ecf439686aadfe54e94b33",
+    "0170_unicidade_por_empresa.sql": "66632c8f2a9d52871a57c97de8eb821dac6a53ab2b634d214051c97308cef857",
+    "0171_snapshot_por_empresa.sql": "61267871dd2961a5bb5e1374fe90c81207d47e96046f1a03fce51eb8ebf89450"
   }
 }
