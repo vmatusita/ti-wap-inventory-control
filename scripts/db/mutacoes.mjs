@@ -2846,6 +2846,7 @@ const F62_CARGO = [
 // por defeito, cada uma numa tabela diferente (o bloco 5 de `catalogo_policies.sql` tem de
 // acusar as quatro PELO NOME — a sabotagem C); duas abrem `backups_migration` (a policy que a
 // simetria de `k_sem_select` acusa; o grant que o bloco 6 de `empresa_no_acervo.sql` acusa).
+/** @type {Mutacao[]} */
 const F63_ACERVO = [
   {
     id: 'f63-lote1-default-literal',
