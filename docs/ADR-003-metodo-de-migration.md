@@ -109,3 +109,22 @@ banco com dado real:
 
 Isto não reabre o ADR: a ressalva continua a mesma (a CLI fora do fluxo). A regra é a R-ACC-85 a R-ACC-90 da
 [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F63.
+
+## Emenda F64 (23/09/2026) — a prova pela PK do catálogo, a checagem nova e o rollback encadeado
+
+O método continua o mesmo. A F64 (três migrations, `0162`–`0164`: `empresa_id` nas onze tabelas de negócio restantes,
+o gatilho do kit e a 13ª checagem de integridade) acrescenta três pontos ao que a F63 escreveu:
+
+1. **A prova de "nenhuma tupla reescrita" lê a PK do CATÁLOGO** (`pg_constraint.conkey`), nunca uma coluna `id` escrita
+   à mão: quatro das onze tabelas têm PK natural (`motivos (codigo)`, `import_prefixos_patrimonio (prefixo)`,
+   `import_termos_* (termo)`). O instrumento (`docs/f64-evidencias/impressao-vocabulario.sql`) imprime a PK que leu; e
+   ali NENHUM gatilho barraria o `update` ingênuo — só o `xmin` prova que ele não houve.
+2. **A migration que acrescenta uma checagem de integridade muda o que a sonda agendada lê.** A chave nova entra, no
+   MESMO commit da migration, no catálogo curado da tela, na linha de base do alarme (com 0 nos dois alvos — chave nova
+   não é subir a linha de base) e na cobertura; e o merge vem logo depois das provas do apply de produção, porque entre
+   os dois a Parte B do `saude.yml` alarma a chave que a `main` ainda não conhece.
+3. **O rollback de uma fase continua pressupondo o das fases de DEPOIS dela**, e agora são três encadeados: o da F62
+   roda o da F64 e o da F63 antes; o da F63 roda o da F64 antes. A completude de cada rollback (o que ele derruba e o que
+   reemite) é conferida contra o estado que a SUA fase deixou.
+
+A regra é a R-ACC-91 a R-ACC-97 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F64.

@@ -13237,3 +13237,98 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
   o esquema novo — o smoke e o conferidor rodaram dentro dela. Pós-deploy: `/api/saude` com `1.68.0 · de241b3`, smoke
   109 OK · 0 falha, Parte B verde com a deriva sem pendente (a `0161` a mais nova do ledger). A evidência vai num PR só de
   documentação, e a tag anotada `v1.68.0` no merge dele (evidência em `docs/f63-evidencias/depois/pos-deploy.md`).
+
+
+## 2026-09-23 · F64 (v1.69.0) · `empresa_id` no vocabulário e na infra (lote 2), o kit na empresa do kit e o rate-limit fechado
+
+**Contexto.** Ordem [`prompts/F64-empresa-no-vocabulario-e-na-infra-ultracode.md`](prompts/F64-empresa-no-vocabulario-e-na-infra-ultracode.md),
+a terceira fase da virada. Plano medido em [`PLAN-F64.md`](PLAN-F64.md) (os 26 fatos remedidos, o censo dos escritores
+e leitores das onze tabelas — o orçamento da F67 —, as onze decisões, a ordem de apply e de rollback). Migrations
+`0162`–`0164`. Relatório em [`RELATORIO-F64.md`](RELATORIO-F64.md). Regras novas: MATRIZ R-ACC-91 a R-ACC-97; ADR-003,
+emenda F64; RUNBOOK, Anexo F64.
+
+**As três decisões do Johnny (23/09/2026), que mudam a ficha:**
+1. **O default `public.empresa_legada()` das onze, e o de `filiais`, FICA até a F67** — a régua da F63. Nenhum escritor
+   muda nesta fase. Saem da ficha F64 e vão para a da F67: o *"`eventos_admin.empresa_id` preenchido na ORIGEM"*
+   (`auditoria-registro.ts` e as oito funções que gravam na trilha) e o fim do default de `filiais` da nota F62 (com a
+   ponte de `papel_atual()`/`EMPRESA_LEGADA_ID`). **Desvio declarado** de dois itens da ficha e da nota F62.
+2. **A troca da PK de `motivos` para `(empresa_id, codigo)` e a FK composta `(empresa_id, motivo)` de `movimentacoes` vão
+   para a F65**, junto das PKs naturais do vocabulário do import (`prefixo`, `termo`). A F64 não toca constraint
+   existente nenhuma. **Desvio declarado** do *"trocar a chave e a FK juntas, na mesma migration"* da ficha.
+3. **O rate-limit da senha de visualização falha FECHADO.** **ESTA DECISÃO REVERTE A X4** desta ata (15/07/2026, Sprint
+   4 — endurecimento: *"Falha ABERTO se a RPC der erro (a senha é a barreira real; não travar por hiccup de infra)"*). O
+   motivo da reversão: falhar aberto desliga o rate-limit exatamente quando o banco está sob pressão — e a varredura
+   linear de scrypt que ele protege (F68) é o trabalho mais caro da porta pública. `error` na RPC agora recusa com
+   mensagem genérica, antes de ler ou conferir qualquer senha, e vai para `registrarFalha` sem o IP.
+
+**As onze decisões da fase** (detalhe no `PLAN-F64.md` §3):
+1. **As migrations:** três — `0162` (o vocabulário: `import_prefixos_patrimonio`, `import_termos_categoria`,
+   `import_termos_estado`, `unidades_apelidos`, `tipos_item`, `motivos`), `0163` (os registros: `kits_modelos`,
+   `senhas_acesso`, `relatorios_gerados`, `import_logs`, `eventos_admin`) e `0164` (o kit e a checagem, numa própria).
+   **Motivo:** a natureza de cada grupo e a ordem de lock do app (o vocabulário é lido antes da escrita que valida
+   motivo; `eventos_admin` é gravada por último em cada operação).
+2. **O lock:** a forma da F63, `set lock_timeout = '2s'` / `reset`, sem `begin`/`commit`; três tentativas em 30 min.
+3. **O gatilho do kit:** `kit_motivo_da_empresa()` INVOKER + `kits_modelos_motivo_da_empresa` BEFORE INSERT OR UPDATE OF
+   `payload, empresa_id`. "Tem motivo" = `payload->>'motivo'` não nulo e não vazio depois de `btrim` (o que o Zod
+   normaliza; o null JSON de `->>` é SQL NULL, provado no roteiro); a comparação pelo valor exato. **Confere a ENTRADA na
+   orfandade**: no INSERT sempre, no UPDATE só quando o motivo ou a empresa MUDAM — porque a desativação passa pelo
+   `atualizarKit`, que reenvia o payload inteiro (medido; o `update of payload` dispararia mesmo sem mudança). Errcode
+   `23503` com frase própria, sem `foreign key`; ramo novo `kitMotivoForaDaEmpresa` em `MSG_SQL`/`erros.ts`. **Motivo:**
+   a regra crítica no banco (a action só traduz); invoker porque quem grava kit é o admin pela sessão e `motivos` é
+   legível pelo piso (sem entrar em `k_secdef` nem somar WARN no advisor).
+4. **A checagem nova:** `kit_motivo_orfao`, a 13ª peça, amostra = id do kit, conta TODO kit (ativo ou não: a reativação
+   não passa pelo gatilho). Curada em `CHECAGENS`; as 12 peças antigas byte a byte (o corpo da `0164` é o da `0158`
+   copiado por script com a peça nova antes do `end;`; o md5 de cada peça é igual no CI e nos dois bancos).
+5. **O rate-limit:** `{ data: excedeu, error: erroContador }`; com `error`, `registrarFalha({ escopo:
+   'senhas.contador-de-tentativas', erro })` SEM `ctx` (o IP não vai: o funil redige por valor e nenhum padrão casa um
+   IPv4; `details`/`hint` nunca vão) e *"Não foi possível conferir a senha agora. Tente de novo em instantes."* — genérica
+   e independente da senha. Teste de mesa com a RPC simulada (`senhas-rate-limit.test.ts`) e trava de fonte
+   (`senhas.test.ts`) que reprova a volta ao `const { data: excedeu }`.
+6. **A trava do lote 2:** `k_lote2` (a fonte única das onze) e o bloco 5 ganha 15d (lote 2 ⊆ negócio, disjunto, e os
+   lotes com `filiais` = `k_negocio`), 15e (as onze na forma, pelo nome), **15f (a pendência que era aviso REPROVA)**,
+   15g/15h/15i (ninguém lê pelo catálogo) e 15j (as exceções existem). 15a/15b/15c intocados (o injetor os lê pelo
+   rótulo). Describe 13 irmão do 12. Nasceu vermelha pelos onze nomes (run `35894254468`).
+7. **A trava "ninguém lê":** o universo passa às dezenove; as duas exceções NOMINAIS — `kit_motivo_da_empresa` e
+   `checagens_integridade_nucleo`, e só nos comandos que tocam `kits_modelos`/`motivos` — moram em
+   `k_leitura_integridade` (catalogo_policies.sql), lidas pela trava de mesa e usadas pelo 15h; o corpo é lido sem
+   comentário (o `prosrc` guarda comentários: `apagar_usuario` cita `eventos_admin` num e lê `membros.empresa_id`).
+8. **O injetor:** sete mutações (`F64_LOTE2_E_KIT`: quatro na forma da coluna, uma por tabela e por defeito; o gatilho
+   some; o gatilho esquece a empresa; a checagem esquece a empresa), teto 131 → 138 no número exato, quarentena 2 de 140.
+9. **O instrumento:** `impressao-vocabulario.sql` com a PK LIDA DO CATÁLOGO (`pg_constraint.conkey`) como `jsonb` array
+   — quatro das onze não têm `id` —, o mesmo critério da F63 (relfilenode sem exceção; ensaio md5 idênticos; produção
+   idênticos ou `0 < janela < linhas`). Gerado de um molde para as onze não divergirem por cópia.
+10. **O describe 5 e o 12:** a régua do recorte NÃO muda (já comparava contra `k_negocio` menos `filiais`); muda o
+    cabeçalho de `isolamento_tenant.sql` (a F64 completou as 20; o que falta é a leitura, na F66). O 12 intocado.
+11. **A ordem do alarme:** apply de produção → provas → smoke a partir da branch → conferidor → merge imediato → deploy →
+    Parte B à mão. **Acrescentar a chave nova com 0 na linha de base NÃO é subir a linha de base** (as doze antigas
+    continuam com os números de 10/09/2026, e um teste o prova): é declarar que a checagem nasce hoje-zero. Uma Parte B
+    que caia na janela abre o alarme "que a política não conhece" — registrar, não calar, e a seguinte o fecha.
+
+**O fato 25, a máscara do patrimônio:** com `empresa_id` em `import_prefixos_patrimonio`, o prefixo por empresa É o dado
+dessa tabela. A F64 NÃO cria `empresas.patrimonio_prefixo` — a decisão 1 da F62 vale igual: coluna sem consumidor é
+contrato sem prova.
+
+**Decisões tomadas na execução:**
+- **(a) O conector desligado e religado.** Às ~13:40 as ferramentas do conector da Supabase passaram a responder
+  "disabled in your connector settings" (depois de a exploração já ter medido os fatos 1–3, 14 e 16 no MCP); voltaram
+  às ~14:30. O "antes" foi tirado depois da volta, antes de qualquer apply. Registrado na memória do projeto.
+- **(b) O describe 9 de `cargo-em-membros.test.ts` mede o estado que a F62 DEIXOU (até a `0158`).** Com a `0164`, a
+  função nova do kit (vigente ≥ `0152`) passava a ser cobrada do rollback da F62. Pela regra 10, o rollback da F64 roda
+  ANTES do da F62 (e devolve o núcleo à `0158`); até a F63 os dois recortes davam o mesmo conjunto. A completude do
+  rollback da F64 ganhou a trava própria, no mesmo molde (`rollback-f64.test.ts`).
+- **(c) Os contadores de checagem.** `f41_regularizacao.sql` (12 → 13 blocos, "toda fase que acrescenta checagem tem de
+  bumpá-lo") e `integridade_alarme.sql` (o cenário 13 plantado com o gatilho desligado na transação; a estrutura e o b1 em
+  13) no commit da `0164`; `cobertura.test.mts` (13, o núcleo na `0164`) e `alarme.test.mts` (treze chaves). O "doze" do
+  `saude.yml:7` fica (workflow fora do escopo) — backlog.
+- **(d) O C5-bis do roteiro do kit, universo 2.** O injetor (run `35897823362`) mostrou que, sem o gatilho, as duas
+  conferências do C5-bis caíam e o `assert_zero_de` abortava por "contagem incoerente" (universo declarado 1) em vez de
+  acusar. Corrigido para 2.
+- **(e) Achado fora do escopo: o corpo vivo de `apagar_movimentacao` e `resetar_acervo`** nos dois bancos (md5 do
+  `prosrc` `b81e8e6e…` e `c352a4d0…`, iguais entre produção e ensaio) não é o texto da migration vigente (`0090`/`0089`
+  dão `1ec28fd2…` e `bdf3e76d…`; nem em CRLF). As outras oito escritoras batem. A F64 não as toca (a prova é antes ×
+  depois no mesmo banco, e no CI o texto do arquivo); a investigação (`pg_get_functiondef` × arquivo, só leitura) vai ao
+  backlog como entrega avulsa.
+- **(f) `rotulo_de_ambiente()` não existe em produção** (o `to_regprocedure` não resolve) — só no ensaio responde
+  `'desenvolvimento'`. A ordem só afirmava o do ensaio; registrado, sem ação.
+- **(g) O Context7 não indexa o PostgreSQL 17** (só 15, 16, 18 e `current`): as citações da regra 6 vieram direto de
+  `postgresql.org/docs/17`.

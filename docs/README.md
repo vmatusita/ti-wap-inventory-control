@@ -132,7 +132,26 @@ o método, no [`ADR-003`](ADR-003-metodo-de-migration.md), emenda F63; o plano m
 | alterar dado vivo numa migration (backfill) | a receita BACKFILL, no mesmo lugar | o classificador — o bloco de backup com o nome do arquivo e o `where` byte a byte; no acervo, a guarda de topo de `migrations-f38.test.ts`, sem válvula |
 | pôr uma coluna nova numa tabela viva | a receita do `add column` sem reescrita | `docs/f63-evidencias/impressao-acervo.sql` antes × depois — `relfilenode` e md5 de `(id, xmin)` iguais |
 | ler `empresa_id` do acervo | é da F66 — não leia antes | `src/lib/validators/empresa-acervo-sem-leitura.test.ts` + `supabase/tests/empresa_no_acervo.sql` (bloco 7) |
-| desfazer a F63 | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), "O rollback da F63" | `supabase/tests/f63_rollback.sql` — o esquema das oito volta ao de antes da `0159` |
+| desfazer a F63 | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), "O rollback da F63" (e o da F64 ANTES) | `supabase/tests/f63_rollback.sql` — o esquema das oito volta ao de antes da `0159` |
+
+## Antes de mexer no vocabulário, nos registros de negócio, no kit ou na integridade (F64)
+
+Desde a F64 (23/09/2026) as **20 tabelas de negócio** têm `empresa_id` (as onze do lote 2 — `tipos_item`, `motivos`,
+`kits_modelos`, `senhas_acesso`, `eventos_admin`, `import_logs`, `relatorios_gerados` e as quatro do vocabulário do
+import — com o default da WAP até a F67), e a tabela de negócio sem a chave reprova. O kit só aceita motivo que existe
+na empresa do kit (no banco), a integridade ganhou `kit_motivo_orfao`, e o contador de tentativas da senha falha
+FECHADO. As regras estão na **emenda F64** de [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-91 a R-ACC-97); o plano
+medido, em [`PLAN-F64.md`](PLAN-F64.md).
+
+| se você vai… | leia | a trava |
+|---|---|---|
+| criar tabela de negócio nova, ou tirar a coluna de uma | [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), R-ACC-91 | `supabase/tests/catalogo_policies.sql` bloco 5 (15d–15f) — tabela de negócio sem `empresa_id` reprova |
+| pôr coluna nova numa tabela sem `id` (PK natural) | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), a receita do `add column`, passo 5 | `docs/f64-evidencias/impressao-vocabulario.sql` — a PK lida do catálogo |
+| acrescentar uma checagem de integridade | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), "A migration que acrescenta uma checagem de integridade" | `scripts/smoke/cobertura.test.mts` — a chave no SQL, em `CHECAGENS` e na linha de base dos dois alvos, no mesmo commit |
+| mexer no kit ou no motivo | `supabase/migrations/0164_kit_motivo_da_empresa.sql` | `supabase/tests/kit_motivo_da_empresa.sql` (C1–C9) |
+| mexer na entrada por senha de visualização | [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), R-ACC-95 | `src/lib/actions/senhas-rate-limit.test.ts` + `senhas.test.ts` — o `error` do contador descartado reprova |
+| ler `empresa_id` de qualquer tabela de negócio | é da F66 — só as duas leituras de integridade do kit `k_leitura_integridade` | `src/lib/validators/empresa-acervo-sem-leitura.test.ts` + `catalogo_policies.sql` 15g–15j |
+| desfazer a F64 | [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), "O rollback da F64" | `supabase/tests/f64_rollback.sql` — o esquema das onze volta ao de antes da `0162` |
 
 ## Regras para quem escreve documentação aqui
 
