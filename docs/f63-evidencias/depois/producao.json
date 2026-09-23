@@ -1,0 +1,88 @@
+{
+  "banco": "produção (pbtjcalbmepmrqzprusb)",
+  "sha_de_codigo": "cdc6dee",
+  "antes_refeito": {
+    "quando": "logo antes do apply de produção (~15:32 UTC)",
+    "corte_para_o_depois": "26006",
+    "veredito": "igual ao 'antes' das 15:25 UTC em todas as oito (nenhum tráfego no intervalo)"
+  },
+  "apply": {
+    "canal": "MCP da Supabase, apply_migration, uma chamada por migration, o texto EXATO do arquivo no SHA congelado — produção 4 minutos depois do ensaio",
+    "ledger": [
+      "backups_migration 20260923123307",
+      "empresa_no_acervo_cadastros 20260923123334",
+      "empresa_no_acervo_movimento 20260923123400"
+    ],
+    "quando": "2026-09-23, 15:33:07–15:34:00 UTC (12:33–12:34 -03)",
+    "lock_timeout": "nenhum disparo (as três na primeira tentativa)",
+    "notify_pgrst": "reload schema — enviado depois da 0161",
+    "transacao_medida": "ledger 26008/26010/26012; o pg_attribute das quatro da 0161 com xmin 26012 = o da linha dela no ledger — a mesma transação única do ensaio"
+  },
+  "impressao_acervo_depois": {
+    "instrumento": "docs/f63-evidencias/impressao-acervo.sql",
+    "md5_do_instrumento": "ded95c867ad43f08aeb0ca74461f98db",
+    "corte_usado": "26006 (o corte do 'antes' refeito)",
+    "tabelas": {
+      "ativos": { "linhas": 1649, "relfilenode": "17779", "md5_id_xmin": "f683ab558bf5aa7d280e688db133957c", "md5_conteudo": "89ff95763f45d1bdb9456485f7f1c07a", "janela": 0 },
+      "movimentacoes": { "linhas": 3630, "relfilenode": "17801", "md5_id_xmin": "4639857401a8385087249238bcbad778", "md5_conteudo": "ce48f8a1f98378beb1313de821ad8b66", "janela": 0 },
+      "lancamentos_item": { "linhas": 184, "relfilenode": "18161", "md5_id_xmin": "36a14365da1f8d943e2759f29284c6c2", "md5_conteudo": "5e221c19bc51e7f8a61c8c4e9f0cdc88", "janela": 0 },
+      "pendencias_item": { "linhas": 17, "relfilenode": "18737", "md5_id_xmin": "2de6a05826d78696427b9b08c69aed2f", "md5_conteudo": "7ceac8e3e469dbaace6ae780d46dc1cb", "janela": 0 },
+      "anotacoes": { "linhas": 21, "relfilenode": "18126", "md5_id_xmin": "2a35fa5f41964f00a596b95d717ab8dd", "md5_conteudo": "18ce193c98bac51103318319707a3b6f", "janela": 0 },
+      "termos_gerados": { "linhas": 123, "relfilenode": "18247", "md5_id_xmin": "0d72619d29f473332b7a3101289e455e", "md5_conteudo": "c8cbc057ea89503aaed602f6f3c8ef3d", "janela": 0 },
+      "colaboradores": { "linhas": 41, "relfilenode": "19899", "md5_id_xmin": "17d7da3a0668b0ce90628a0b7ba9b021", "md5_conteudo": "a214c9753f359f90a0681f032b329eca", "janela": 0 },
+      "itens": { "linhas": 23, "relfilenode": "20524", "md5_id_xmin": "4b5f17bbd4da51062e3ec715926621c6", "md5_conteudo": "ff5da681c7261e639531a27d46008de6", "janela": 0 }
+    },
+    "empresa_id": "as oito: uuid · not null=t · atthasmissing=t",
+    "escritores_sql": { "funcoes": 18, "md5_prosrc": "4513812b65c581203af2e1130cbc8c6a" },
+    "backups_migration": true,
+    "veredito": "IGUAL AO ANTES nas oito — relfilenode sem exceção, e os dois md5 IDÊNTICOS (não foi preciso explicar nada pela janela: janela 0, o app não escreveu no acervo entre o 'antes' e o 'depois'). As 18 escritoras com o mesmo md5 do ensaio."
+  },
+  "verificacao_pos_apply": {
+    "acervo": "as oito: uuid · not_null · atthasmissing = true · default_e_empresa_legada (pg_depend) · fk_para_empresas_validada · comentario_cita_f67 — TODOS true",
+    "contagens": {
+      "ativos": [1649, 1649, 1649], "movimentacoes": [3630, 3630, 3630], "lancamentos_item": [184, 184, 184], "pendencias_item": [17, 17, 17],
+      "anotacoes": [21, 21, 21], "termos_gerados": [123, 123, 123], "colaboradores": [41, 41, 41], "itens": [23, 23, 23]
+    },
+    "contagens_legenda": "[count(*), count(empresa_id), count(*) filter (where empresa_id = public.empresa_legada())] — anotacoes e colaboradores, vazias no ensaio, provadas aqui",
+    "backups_migration": { "rls": true, "force": false, "policies": 0, "linhas": 0, "privilegios": { "anon": "00000", "authenticated": "00000", "service_role": "00000" } }
+  },
+  "impressao_policies_depois": {
+    "vivas": { "public": { "n": 54, "md5": "886118ad686f67c857cf0d370fd6828d" }, "storage": { "n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8" } },
+    "do_acervo": { "policies": 23, "citam_empresa_id": 0 },
+    "veredito": "IGUAL AO ANTES, byte a byte"
+  },
+  "advisors_security_depois": {
+    "INFO": { "rls_enabled_no_policy": 6 },
+    "WARN": { "authenticated_security_definer_function_executable": 34, "auth_leaked_password_protection": 1 },
+    "diferenca": "+1 INFO rls_enabled_no_policy: public.backups_migration — o declarado; nada mais"
+  },
+  "paridade_ensaio_x_producao": {
+    "instrumento": "supabase/ci/impressao-schema.sql (as 11 classes)",
+    "resultado": {
+      "coluna": [339, "c2683d750ae22dd17bb2982abfd52c7b"], "constraint": [126, "effcbcedf5f33ddd153b2ec43879e17f"],
+      "enum": [7, "34837fbf7cb50082e461fd8cdad47532"], "func": [102, "112b5e483fe2244fd55612fb21e597d9"],
+      "grant_func": [102, "c811b4b205d014fcd79ba5acda3b83ae"], "indice": [98, "2f0b047ac4aab1a66e246a10badd5e42"],
+      "policy": [54, "3f067eb28151e317ba384b7f68335a03"], "policy_storage": [8, "cd68b8eccf9532909791b7cf67619b08"],
+      "rls_flag": [28, "0b95c89a31d36e88406a1617fa270523"], "trigger": [10, "3e90748731f50b6dc5d2c98f57af483d"],
+      "view": [9, "eccffb70b9021b329278eaf0cd2c6601"]
+    },
+    "veredito": "as 11 classes IGUAIS em contagem e fingerprint nos dois bancos"
+  },
+  "tipos": {
+    "md5_gerado": "9f4a150627ef2f17fe96b383851f8625",
+    "veredito": "idêntico ao gerado do ensaio"
+  },
+  "smoke_logo_depois_do_apply": {
+    "comando": "node scripts/smoke/smoke-prod.mjs (o script carrega as SMOKE_* sozinho; o arquivo não foi aberto)",
+    "resultado": "109 OK · 1 aviso · 0 n/a · 0 falha — o app no ar (1.67.0, commit 3c1c761) lendo o esquema novo",
+    "aviso": "o antigo, kits_modelos (não há kit cadastrado — RLS não comprovada); não é da F63",
+    "saida": "docs/f63-evidencias/depois/smoke-prod-pos-apply.txt"
+  },
+  "conferidor_de_formas": {
+    "comando": "NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env.local scripts/formas/conferir.mts --alvo=producao (conta do smoke; a credencial vai do arquivo para o processo, sem ser aberta nem impressa)",
+    "totais": { "pontos": 271, "linhas_lidas": 100513, "recusadas": 0, "com_erro": 0, "reprovados": 0 },
+    "sha": "32cac11 (só docs depois do cdc6dee; o código é o congelado)",
+    "saida": "docs/f63-evidencias/depois/conferidor-producao.json",
+    "veredito": "0 recusadas — nenhuma forma estrita viu a coluna (as 17 leituras de linha inteira são frouxas, decisão 5 da F58)"
+  }
+}

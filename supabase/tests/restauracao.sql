@@ -76,6 +76,16 @@ declare
   v_pid6     uuid;
   v_ativo_sub7 uuid;
   v_sub7       uuid;
+
+  -- F63 (0160/0161) — cenário 8: o backup de ANTES da F63 (sem a chave `empresa_id`) e o de
+  -- DEPOIS (com ela). Ids próprios, para não colidir com nada acima.
+  v_ativo8a  constant uuid := '63000000-0000-4000-8000-0000000008a1';
+  v_ativo8b  constant uuid := '63000000-0000-4000-8000-0000000008b1';
+  v_anot8b   constant uuid := '63000000-0000-4000-8000-0000000008b2';
+  v_emp8     uuid;
+  v_e8a      uuid;
+  v_e8b      uuid;
+  v_e8c      uuid;
 begin
   select id into v_f1 from public.filiais where ativo order by id limit 1;
   if v_f1 is null then
@@ -506,6 +516,41 @@ begin
   else
     v_falhas := v_falhas + 1;
     raise warning '✗ 7a substitui_ativo_id não religado: esperado %, obtido %', v_ativo, v_sub7;
+  end if;
+
+  -- =========================================================================
+  -- 8 — F63 (sabotagem H): `empresa_id` NO BACKUP, ou não.
+  -- `scripts/db/restaurar.mjs` (`sqlDeInsercao`, :272) monta o INSERT com as colunas que as
+  -- LINHAS DO BACKUP trazem. Um backup de ANTES da F63 não tem a chave `empresa_id`: o INSERT a
+  -- omite e o default da coluna (`public.empresa_legada()`, até a F67) preenche — a linha volta
+  -- na WAP. Um de DEPOIS traz a chave: a linha volta com a empresa que o backup disser, mesmo
+  -- que não seja a WAP (uma empresa B fictícia, aqui). Os INSERTs abaixo têm a FORMA que o
+  -- restaurador monta (lista de colunas = chaves do backup).
+  -- =========================================================================
+  insert into public.ativos (id, patrimonio, service_tag, categoria, filial_id, origem, status)
+  values (v_ativo8a, 'WAP0063801', 'F63REST1', 'notebook', v_f1, 'cadastro', 'em_estoque');
+
+  insert into public.empresas (slug, nome) values ('f63-restauracao-b', 'Empresa B da restauração (F63)')
+  returning id into v_emp8;
+  insert into public.ativos (id, patrimonio, service_tag, categoria, filial_id, origem, status, empresa_id)
+  values (v_ativo8b, 'WAP0063802', 'F63REST2', 'notebook', v_f1, 'cadastro', 'em_estoque', v_emp8);
+  insert into public.anotacoes (id, ativo_id, texto, criado_por, empresa_id)
+  values (v_anot8b, v_ativo8b, 'anotação fictícia restaurada (F63)', k_autor, v_emp8);
+
+  select empresa_id into v_e8a from public.ativos where id = v_ativo8a;
+  select empresa_id into v_e8b from public.ativos where id = v_ativo8b;
+  select empresa_id into v_e8c from public.anotacoes where id = v_anot8b;
+  if pg_temp.assert_zero_de('8a um backup SEM a chave empresa_id (anterior à F63) restaura com a WAP (o default)',
+       case when v_e8a = public.empresa_legada() then 0 else 1 end, 1) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+  if pg_temp.assert_zero_de('8b um backup COM a chave empresa_id restaura com a empresa que ele traz (ativo e anotação)',
+       (case when v_e8b = v_emp8 then 0 else 1 end) + (case when v_e8c = v_emp8 then 0 else 1 end), 2) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
   end if;
 
   raise notice 'FIM restauracao: % asserções, % falhas', v_ok + v_falhas, v_falhas;

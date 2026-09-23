@@ -1,0 +1,71 @@
+{
+  "banco": "ensaio (sgmvldiizsrjbxzzpmhh)",
+  "sha_de_codigo": "cdc6dee",
+  "apply": {
+    "canal": "MCP da Supabase, apply_migration, uma chamada por migration, o texto EXATO do arquivo no SHA congelado",
+    "ledger": [
+      "backups_migration 20260923122831",
+      "empresa_no_acervo_cadastros 20260923122901",
+      "empresa_no_acervo_movimento 20260923122947"
+    ],
+    "quando": "2026-09-23, 15:28:31–15:29:47 UTC (12:28–12:29 -03)",
+    "lock_timeout": "nenhum disparo (as três na primeira tentativa)",
+    "notify_pgrst": "reload schema — enviado depois da 0161",
+    "transacao_medida": {
+      "o_que": "decisão 2 da ordem: como o apply_migration trata a transação",
+      "como": "xmin das linhas de catálogo que cada migration criou (pg_attribute, pg_constraint, pg_description) × xmin da linha dela no ledger",
+      "resultado": {
+        "0159": "pg_class de backups_migration 13282 = ledger 13282",
+        "0160": "pg_attribute/pg_constraint/pg_description das quatro 13284 = ledger 13284",
+        "0161": "pg_attribute das quatro 13287 = ledger 13287"
+      },
+      "ledger_statements": "1 por migration (o arquivo inteiro guardado como um statement)",
+      "conclusao": "o apply_migration roda o arquivo INTEIRO e o registro no ledger numa transação só: um lock_timeout no meio desfaz a migration toda, ledger incluído. O set/reset de lock_timeout vale nos dois caminhos (no CI cada comando confirma sozinho; aqui, tudo ou nada)."
+    }
+  },
+  "verificacao_pos_apply": {
+    "instrumento": "docs/f63-evidencias/verificacao-pos-apply.sql",
+    "md5_do_instrumento": "430397d914e328da617a377896de0c42",
+    "acervo": "as oito: uuid · not_null · atthasmissing = true · default_e_empresa_legada (pg_depend) · fk_para_empresas_validada · comentario_cita_f67 — TODOS true",
+    "contagens": {
+      "ativos": [1606, 1606, 1606], "movimentacoes": [3245, 3245, 3245], "lancamentos_item": [35, 35, 35], "pendencias_item": [23, 23, 23],
+      "anotacoes": [0, 0, 0], "termos_gerados": [2, 2, 2], "colaboradores": [0, 0, 0], "itens": [7, 7, 7]
+    },
+    "contagens_legenda": "[count(*), count(empresa_id), count(*) filter (where empresa_id = public.empresa_legada())]",
+    "backups_migration": { "rls": true, "force": false, "policies": 0, "linhas": 0, "privilegios": { "anon": "00000", "authenticated": "00000", "service_role": "00000" } }
+  },
+  "impressao_acervo_depois": {
+    "instrumento": "docs/f63-evidencias/impressao-acervo.sql",
+    "md5_do_instrumento": "ded95c867ad43f08aeb0ca74461f98db",
+    "corte_usado": "13281 (o corte_para_o_depois do 'antes')",
+    "tabelas": {
+      "ativos": { "linhas": 1606, "relfilenode": "17713", "md5_id_xmin": "a3194cc42e94d632ef2e9d74d7b32938", "md5_conteudo": "ea693fd15e20ff98a080262c043c8e34", "janela": 0 },
+      "movimentacoes": { "linhas": 3245, "relfilenode": "17735", "md5_id_xmin": "40c1bf3b3929727f2a009bc7eb12b409", "md5_conteudo": "ccaa70f3a5491b191efa76be9679592c", "janela": 0 },
+      "lancamentos_item": { "linhas": 35, "relfilenode": "17887", "md5_id_xmin": "e31755301b94edee5bd73eca45c9ab64", "md5_conteudo": "e91d5793850212747fbf9007c2a9f447", "janela": 0 },
+      "pendencias_item": { "linhas": 23, "relfilenode": "18341", "md5_id_xmin": "14676439605234d6ae1ead8c636bc5b5", "md5_conteudo": "a536e84f2005a16d92a5c6ff3df4ec02", "janela": 0 },
+      "anotacoes": { "linhas": 0, "relfilenode": "17935", "md5_id_xmin": "vazia", "md5_conteudo": "vazia", "janela": 0 },
+      "termos_gerados": { "linhas": 2, "relfilenode": "17963", "md5_id_xmin": "dbb848e5fb971b2dc4408c287c93eb59", "md5_conteudo": "89b37fe9aafc87b02ab999739869fd77", "janela": 0 },
+      "colaboradores": { "linhas": 0, "relfilenode": "25387", "md5_id_xmin": "vazia", "md5_conteudo": "vazia", "janela": 0 },
+      "itens": { "linhas": 7, "relfilenode": "25705", "md5_id_xmin": "23432de5356573aada479f08008f7b64", "md5_conteudo": "68ea09b83866b2daad50104c765e6dcd", "janela": 0 }
+    },
+    "empresa_id": "as oito: uuid · not null=t · atthasmissing=t",
+    "escritores_sql": { "funcoes": 18, "md5_prosrc": "4513812b65c581203af2e1130cbc8c6a" },
+    "backups_migration": true,
+    "veredito": "IGUAL AO ANTES nas oito — relfilenode, md5 de (id, xmin) e md5 do conteúdo idênticos, janela 0; as 18 escritoras com o mesmo md5. Nenhuma tupla reescrita."
+  },
+  "impressao_policies_depois": {
+    "vivas": { "public": { "n": 54, "md5": "886118ad686f67c857cf0d370fd6828d" }, "storage": { "n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8" } },
+    "do_acervo": { "policies": 23, "citam_empresa_id": 0 },
+    "veredito": "IGUAL AO ANTES, byte a byte"
+  },
+  "advisors_security_depois": {
+    "INFO": { "rls_enabled_no_policy": 6 },
+    "WARN": { "authenticated_security_definer_function_executable": 34, "auth_leaked_password_protection": 1 },
+    "diferenca": "+1 INFO rls_enabled_no_policy: public.backups_migration — o declarado; nada mais"
+  },
+  "tipos": {
+    "canal": "MCP generate_typescript_types, extraído do JSON salvo em tool-results (nunca transcrito)",
+    "md5_gerado": "9f4a150627ef2f17fe96b383851f8625",
+    "contra_o_database_ts": "igual, fora (a) as 18 linhas de comentário '// F62/F63 hand-fix' e (b) o Insert de operador_filiais com empresa_id?/membro_id? opcionais — a exceção declarada da F62, ata (m). Nenhuma diferença da F63."
+  }
+}

@@ -360,6 +360,123 @@ impressão de todo perfil volta idêntica; rb2: sem ela, o desligado recupera o 
 **Ensaio primeiro** quando houver tempo; em emergência de produção, a cópia vai direto — ela é idempotente e não
 derruba nada.
 
+⚠ **Desde a F63 (23/09/2026), o rollback da F62 exige o da F63 ANTES** — a ordem inversa do apply entre fases. A F62
+derruba `empresas` e `empresa_legada()` sem `cascade`, e a F63 pendurou nelas oito FKs e oito defaults: rodar
+`F62-2-desfaz.sql` com a F63 no banco recusa. Receita "O rollback da F63", abaixo; o roteiro `f62_rollback.sql` já roda
+`F63-desfaz.sql` antes dos dois caminhos.
+
+## A disciplina de backup de migração (F63, 23/09/2026)
+
+A F63 criou três peças: o cabeçalho de classe OBRIGATÓRIO, o classificador que o confere contra o que o arquivo
+executa, e a tabela `public.backups_migration`, onde toda migration que sobrescreve dado vivo guarda antes o valor
+antigo. Até a F62 isso era protocolo à mão (a `0111` guardou o backup das linhas FORA do repositório); agora é trava.
+
+### A classe e o classificador
+
+- Todo arquivo a partir da `0159` começa com `-- classe: ADITIVA | BACKFILL | DESTRUTIVA` (um só). A classe mede o
+  risco sobre DADO que já existia: **ADITIVA** cria, comenta, concede, indexa, acrescenta coluna com default sem
+  reescrita, escreve SÓ em tabela criada na mesma migration; **BACKFILL** faz `update`, `insert … on conflict do update`
+  ou `insert` em tabela que já existia; **DESTRUTIVA** faz `delete`, `truncate`, `drop table`, `drop column`,
+  `alter column … type`, `drop … cascade`, ou TROCA o que um nome aponta: `rename`/`set schema` de uma tabela que já
+  existia, ou `rename column` dela (a cópia transformada que assume o nome é uma reescrita sem `update`). A declarada nunca é MENOR que a calculada.
+- O classificador é `scripts/db/classificar-migration.mjs` (sem dependência, sem banco): `node
+  scripts/db/classificar-migration.mjs` confere os arquivos ≥ `0159`; com `--censo`, imprime a classe calculada da cadeia
+  inteira. A trava de mesa é `src/lib/validators/migrations-backfill.test.ts`, e a guarda de topo de
+  `src/lib/itens/migrations-f38.test.ts` lê pelo MESMO leitor.
+- **O leitor é o do Postgres**: comentário (inclusive de bloco aninhado) só fora de texto e de dollar-quote; o corpo de
+  `create function|procedure` é texto GUARDADO (sai); o corpo de `do` é código EXECUTADO (entra, e cada comando dele é
+  classificado como se fosse de topo). Delimitador sem fecho LANÇA.
+- **ILEGÍVEL reprova** a partir da `0159`: SQL dinâmico (`execute`), `call`, chamada no apply de função fora da lista
+  fechada `FUNCOES_SEM_ESCRITA` (o leitor não vê o que ela faz), `add column` com default fora da lista fechada de
+  não-voláteis, coluna gerada STORED, serial/identity em tabela existente, reescrita sem perda. Precisa de uma dessas?
+  Separe em migration própria e declare o motivo na ata — o classificador não tem válvula.
+- **Válvulas proibidas** em qualquer código executado (topo ou `do`): `set_config`/`set` de `estoque.dev_destrutivo`,
+  `session_replication_role`, `alter table … disable trigger`. E sem `begin`/`commit` de topo: quem decide a transação é
+  o apply.
+- **O rodapé** traz o `ROLLBACK` escrito (depois do último comando).
+
+### Receita: migration BACKFILL
+
+Antes de CADA comando que sobrescreve valor de tabela que já existia, o bloco canônico — um por coluna alterada, na
+forma EXATA abaixo (o classificador lê item a item):
+
+```sql
+-- classe: BACKFILL
+insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)
+select '0170_exemplo.sql', 'public.x', 'status', t.id::text, to_jsonb(t.status)
+  from public.x t
+ where t.status = 'antigo';
+update public.x t
+   set status = 'novo'
+ where t.status = 'antigo';
+-- ROLLBACK (a partir de backups_migration):
+--   update public.x t
+--      set status = (jsonb_populate_record(null::public.x, jsonb_build_object('status', b.valor_anterior))).status
+--     from public.backups_migration b
+--    where b.migration = '0170_exemplo.sql' and b.tabela = 'public.x' and b.coluna = 'status' and b.chave = t.id::text;
+```
+
+- O literal `migration` é **exatamente** o nome do arquivo — o erro mais provável é copiar o bloco de outra migration e
+  esquecer de trocar, o que faria o rollback restaurar as linhas de OUTRA migration. O classificador reprova.
+- O `where` do bloco é **byte a byte** o `where` do comando (um espaço de diferença reprova; um `… or true` também). Para a
+  tabela inteira: `where true` nos dois.
+- `to_jsonb(<alias>.<coluna>)` é da MESMA coluna do literal `coluna`, o `from` é a MESMA tabela do comando, e o
+  `<alias>` do valor e o da chave são o APELIDO dessa tabela do `from`, SEMPRE escrito — com um `join`, `to_jsonb(o.status)`
+  guardaria a coluna homônima de outra tabela, e sem o apelido a coluna que só a do `join` tem seria dela, sem erro; o
+  classificador reprova as duas.
+- O rollback usa `jsonb_populate_record`: devolve o tipo certo (array, jsonb, enum) e o `null` (SQL NULL em
+  `valor_anterior` quer dizer que o valor ERA null). Ensaiado por `supabase/tests/empresa_no_acervo.sql`, bloco 5.
+- **Fora da receita, e por isso reprovados:** `merge` (não tem `where` verificável — escreva `update`), o backfill dentro
+  de `do` (escreva no topo), a escrita aninhada num CTE. `insert` puro em tabela existente é BACKFILL sem par (não há
+  valor anterior); o rodapé diz como apagar o que entrou.
+- **O acervo tem uma trava a mais, sem válvula**: a guarda de topo de `migrations-f38.test.ts` reprova `update`/`delete`/
+  `merge`/`truncate` em `movimentacoes`, `lancamentos_item` e `ativos`, e a TROCA delas (`rename`, `set schema`, `drop
+  table`, outra tabela renomeada para o nome delas) — de topo OU dentro de `do` — **mesmo com classe declarada**. A única exceção é a `0133` (anterior à régua, nominal e fechada). Um backfill legítimo de `ativos` no
+  futuro entra por **exceção nominal NOVA** em `EXCECOES_TOPO_NO_ACERVO`, com o motivo e a **decisão do Johnny** citados
+  na linha — e isso exige mexer, de propósito, na asserção que impede a lista de crescer a partir da `0159`. Em
+  `movimentacoes`/`lancamentos_item` o backfill nem roda: a `guarda_acervo` recusa UPDATE até do service role, e abrir a
+  janela `estoque.dev_destrutivo` para isso é proibido.
+- **Um valor anterior por célula, por migration** (`unique (migration, tabela, coluna, chave)`): o rollback devolve O
+  valor de antes, sem ambiguidade. Duas passadas na MESMA coluna da MESMA tabela numa migration só funcionam com `where`s
+  mutuamente exclusivos; se a segunda precisar tocar linha que a primeira já tocou, ela vai numa migration NOVA (com o
+  par dela). No CI cada comando confirma sozinho: a segunda passada que colidir (`23505`) deixaria a primeira aplicada.
+- **Retenção:** os pares ficam até uma migration DESTRUTIVA nomeada apagá-los — no mínimo 90 dias depois do apply em
+  produção.
+
+### Receita: `add column` sem reescrita (a coluna nova numa tabela viva)
+
+1. `add column <c> <tipo> not null default <expressão não-volátil> [references …]` — num comando só. O PG 11+ guarda o
+   valor no catálogo (`attmissingval`, `atthasmissing = true`) e NÃO reescreve tupla nem dispara gatilho. **Sem
+   `update` de backfill** e **sem `set not null` separado**. Default aceito sem reescrita (a lista fechada do
+   classificador): literal, `public.empresa_legada()`, `now()`, `current_timestamp`, `current_date`, `localtimestamp`,
+   `transaction_timestamp()`, `statement_timestamp()`. Default volátil (`gen_random_uuid()`, `clock_timestamp()`,
+   `nextval`) reescreve a tabela inteira.
+2. **O lock**: ADD COLUMN toma ACCESS EXCLUSIVE; a FK toma SHARE ROW EXCLUSIVE na tabela referenciada e valida com uma
+   varredura. `set lock_timeout = '2s';` no topo e `reset lock_timeout;` no fim — NÃO `set local` (o CI aplica cada
+   comando solto, `psql -f` sem `-1`, e ali `set local` não vale), e sem `begin`/`commit`. Várias tabelas: na ordem em
+   que o app toma os locks. Se o lock não vier: registrar e repetir, **no máximo três vezes em 30 min**; nunca subir o
+   timeout, nunca matar sessão do app.
+3. **As provas, nos DOIS bancos, com o MESMO texto antes e depois** (`docs/f63-evidencias/impressao-acervo.sql`):
+   `pg_relation_filenode()` igual (nenhuma reescrita da tabela) e o md5 de `(id, xmin)` igual (nenhum update — o
+   `relfilenode` sozinho NÃO vê um update: o MVCC grava a versão nova no mesmo arquivo; o `xmin` sobrevive ao freeze
+   desde o PG 9.4). Em produção, o md5 pode diferir SÓ pela atividade do app entre as duas fotos (a `janela`: linhas com
+   `xmin` a partir do corte do "antes"); `janela = linhas` é backfill. E, no catálogo, `atthasmissing = true`, a FK
+   `convalidated`, o default preso à função pelo `pg_depend`.
+4. **O rollback**: `drop column if exists` (sem reescrita; a coluna fica `attisdropped`).
+
+### O rollback da F63 — e a ordem ENTRE fases
+
+- **Quando:** o `relfilenode` mudou, o md5 de `(id, xmin)` divergiu além da janela, apareceu advisor não declarado que
+  cita objeto da fase, ou o smoke/conferidor de formas recusou depois do apply. Em produção, **imediato**, antes do
+  diagnóstico.
+- **O arquivo:** `supabase/rollback/F63-desfaz.sql` — `0161` → `0160` → `0159` (a ordem inversa do apply), `drop column
+  if exists` nas oito, e `backups_migration` só se estiver VAZIA (recusa com 55000 se houver par gravado: o rollback da
+  migration que o gravou vem antes). Num banco vivo: o `execute_sql` do conector com o conteúdo EXATO do arquivo que o
+  CI ensaia (`supabase/tests/f63_rollback.sql`, que prova o esquema das oito voltando à impressão de antes da `0159`) —
+  a única escrita fora do `apply_migration`, e só num desfecho ruim. O ledger fica (a linha das três continua lá).
+- **Entre fases:** o rollback de uma fase pressupõe o das fases DEPOIS dela. O da F62 exige o da F63 antes; o da F63
+  exigirá o da F65 antes (quando a F65 pendurar FK composta e unique nas oito).
+
 ## Restauração — recolocar DADO a partir de um backup (F54, 09/09/2026)
 
 **Rollback e restauração são coisas diferentes, e confundi-las custa caro.** Tudo o que está
@@ -655,13 +772,16 @@ npm run db:lock -- --regravar-alterada
 E, usando-a, **diga no commit** por que a migration não tinha sido aplicada em lugar nenhum. Se
 houver dúvida se ela chegou, a **sonda de efeito** da seção acima responde; o ledger, não.
 
-### Quem acrescenta migration atualiza DUAS listas
+### Quem acrescenta migration atualiza DUAS listas (e escreve a classe)
 
 1. `supabase/migrations.lock.json`, por `npm run db:lock`.
 2. `src/lib/itens/migrations-f38.test.ts`, que já exigia (desde a F38) que toda migration a partir da
    `0116` esteja numa lista dele.
+3. (F63) O cabeçalho `-- classe: ADITIVA | BACKFILL | DESTRUTIVA` e o `ROLLBACK` no rodapé, a partir da `0159` —
+   `src/lib/validators/migrations-backfill.test.ts` confere contra o que o arquivo executa ("A disciplina de backup de
+   migração", acima).
 
-As duas reprovam sozinhas e nomeiam o arquivo — nenhuma depende de alguém lembrar.
+As três reprovam sozinhas e nomeiam o arquivo — nenhuma depende de alguém lembrar.
 
 ### O banco do CI na mesa (sem o Docker do Supabase)
 
@@ -1450,6 +1570,16 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
   produção nas 11 classes: igual em contagem e fingerprint. Conferidor de formas contra produção: 271 pontos, 0 recusas.
   Evidência em `docs/f62-evidencias/depois/`. **Rollback:** a receita "O rollback da F62" (acima) — a cópia de volta
   primeiro, e de novo junto do desfazer.
+
+- **`0159`→`0161` — `empresa_id` no acervo (lote 1) e a tabela do par de backup** (F63, 23/09/2026, v1.68.0).
+  `0159_backups_migration` (ADITIVA: a tabela fechada no molde de `ambiente`), `0160_empresa_no_acervo_cadastros`
+  (`colaboradores`, `itens`, `termos_gerados`, `anotacoes`) e `0161_empresa_no_acervo_movimento` (`ativos`,
+  `movimentacoes`, `pendencias_item`, `lancamentos_item`, na ordem de lock do app): `add column empresa_id uuid not null default public.empresa_legada()
+  references public.empresas (id)`, SEM update, com `lock_timeout` de 2 s. Ledger: `backups_migration`,
+  `empresa_no_acervo_cadastros`, `empresa_no_acervo_movimento`. **O portão** é a impressão do acervo
+  (`docs/f63-evidencias/impressao-acervo.sql`) antes × depois: `relfilenode` e md5 de `(id, xmin)` iguais nas oito.
+  **Estado do apply e as provas:** `docs/RELATORIO-F63.md` (topo) e `docs/f63-evidencias/`. **Rollback:** "O rollback
+  da F63", acima.
 
   ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56) nem das
   `0146`→`0149` (passos 1 e 2 da reauditoria), embora as atas dessas fases e entregas registrem os applies.

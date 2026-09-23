@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { comandosDoTexto } from '../../../scripts/db/classificar-migration.mjs'
 import { listarMigrations } from '../../../scripts/db/corpo-vigente.mjs'
 import { lerExcecoesDoCatalogo } from '../../../scripts/db/predicado-policies.mjs'
 import { lerExcecoesDeRecorte } from '../../../scripts/db/recorte-rel.mjs'
@@ -295,38 +296,97 @@ describe('4. cada catálogo lê a superfície que promete ler', () => {
 })
 
 describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => {
-  it('cita `empresa_id` em código SÓ junto das tabelas da F62 — nunca junto de tabela de ACERVO (F63/F65)', () => {
-    // EMENDA F62 (22/09/2026). Até a F61 este teste reprovava QUALQUER `empresa_id` em código:
-    // a coluna não existia, e escrever a varredura seria erro de psql ou asserção sobre
-    // conjunto vazio. A F62 criou a coluna em `filiais`, `membros` e `operador_filiais`, e os
-    // cenários A↔B (seção 9) e a varredura 9k — que lê do CATÁLOGO quais tabelas têm a
-    // coluna — a usam. O que continua proibido é o roteiro "saber" do `empresa_id` do ACERVO
-    // antes de a F63 criá-lo: nenhum comando junta `empresa_id` com uma tabela de NEGÓCIO
-    // que não seja `filiais`. A lista de negócio vem de `k_negocio` (catalogo_policies.sql),
-    // a fonte única — nunca copiada para cá.
+  /**
+   * O RECORTE: `empresa_id` comparado com um VALOR (`=`, `<>`, `!=`, `in`, `= any`, `is [not]
+   * distinct from`). `is null` / `is not null` NÃO é recorte — é conferência de completude.
+   */
+  // Nos DOIS sentidos (revisão adversarial da F63): `a.empresa_id = v` e `v = a.empresa_id` são o mesmo recorte.
+  // E com CAST na coluna, `not in`, `between` e comparação de ordem (2ª rodada): `a.empresa_id::text = v::text`
+  // e `empresa_id not in (…)` escapavam. A régua é TEXTUAL — a coluna embrulhada numa função
+  // (`coalesce(a.empresa_id, …) = v`) não é lida aqui; a trava do recorte no banco é o bloco 7 de
+  // `empresa_no_acervo.sql`, que lê o catálogo.
+  const CAST = String.raw`(?:\s*::\s*[a-z_][a-z0-9_]*(?:\s*\[\s*\])?)*`
+  // E (3ª rodada) o parêntese em volta da coluna (`(a.empresa_id) = v`) e o equijoin implícito `join … using
+  // (empresa_id)`, que compara a coluna das duas tabelas sem operador nenhum.
+  const RECORTE = new RegExp(
+    String.raw`\bempresa_id${CAST}(?:\s*\))*\s*(?:=|<>|!=|<=|>=|<|>|\bnot\s+in\b|\bin\b|\b(?:not\s+)?between\b|\bis\s+(?:not\s+)?distinct\s+from\b)` +
+      String.raw`|(?:=|<>|!=|<=|>=|<|>|\bin\b|\bdistinct\s+from)\s*\(?\s*(?:[a-z_][a-z0-9_]*\.)?empresa_id\b` +
+      String.raw`|\busing\s*\([^)]*\bempresa_id\b[^)]*\)`,
+    'i',
+  )
+
+  it('vê a coluna do ACERVO só pelo CATÁLOGO — nenhum comando compara empresa_id de tabela de negócio com um valor (até a F66)', () => {
+    // EMENDA F63 (23/09/2026 — decisão 10 do PLAN-F63). Até a F61 este teste reprovava QUALQUER
+    // `empresa_id` em código; a F62 passou a permitir as tabelas DELA (`filiais`, `membros`,
+    // `operador_filiais`) e proibia juntar a coluna com tabela de negócio, porque a coluna do
+    // ACERVO ainda não existia. A F63 a criou nas oito de `k_lote1`, e a varredura 9k — que lê do
+    // CATÁLOGO quais tabelas têm a coluna e confere `not null` + FK + nenhuma linha nula — passou
+    // a vê-las SOZINHA, sem uma linha editada. A fronteira nova: VER a coluna pelo catálogo
+    // (e contar a completude, `is null`) pode; LER O DADO do acervo por empresa — comparar a
+    // coluna com um valor numa tabela de negócio que não seja `filiais` — é o recorte, e é da
+    // F66. A lista de negócio vem de `k_negocio` (catalogo_policies.sql), a fonte única — nunca
+    // copiada para cá.
     const cat = fonte('catalogo_policies')
     const m = /k_negocio text\[\] := array\[([\s\S]*?)\];/.exec(cat)
     expect(m, 'não achei k_negocio em catalogo_policies.sql').not.toBeNull()
     const acervo = [...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).filter((t) => t !== 'filiais')
     expect(acervo.length, 'k_negocio veio vazio — o teste compararia com nada').toBeGreaterThan(10)
-    const comandos = semComentarios(fonte('isolamento_tenant'))
-      .split(';')
-      .filter((c) => /\bempresa_id\b/.test(c))
+    // Os comandos pelo léxico único (2ª rodada): o `;` de dentro de um texto não parte o comando, o texto
+    // entre aspas sai (o `attname = 'empresa_id'` do catálogo não é o recorte), e o corpo de função e de
+    // `do` entra.
+    const comandos = comandosDoTexto(fonte('isolamento_tenant')).filter((c) => /\bempresa_id\b/.test(c))
     expect(comandos.length, 'a seção 9 não cita empresa_id — os cenários A↔B sumiram?').toBeGreaterThan(0)
-    const juntos = comandos.filter((c) => acervo.some((t) => new RegExp(`public\\.${t}\\b`).test(c)))
+    const lendoOAcervo = comandos.filter((c) => acervo.some((t) => new RegExp(`public\\.${t}\\b`).test(c)) && RECORTE.test(c))
     expect(
-      juntos.map((c) => c.trim().slice(0, 160)),
-      'isolamento_tenant.sql junta empresa_id com tabela de ACERVO — a coluna nasce lá na F63/F65',
+      lendoOAcervo.map((c) => c.trim().slice(0, 160)),
+      'isolamento_tenant.sql LÊ o acervo por empresa_id — o recorte do acervo é da F66',
     ).toEqual([])
   })
 
-  it('o cabeçalho DIZ por que a varredura da chave de recorte está vazia', () => {
-    // O contrário do teste acima, e igualmente obrigatório: ausência sem motivo escrito
-    // é indistinguível de esquecimento, e quem chegar na F63 não saberia que a linha
-    // era esperada.
+  it('a régua do recorte sabe reprovar, e distingue a completude (guarda do próprio teste)', () => {
+    expect(RECORTE.test('select count(*) from public.ativos where empresa_id = v_emp_a')).toBe(true)
+    expect(RECORTE.test('select 1 from public.itens i where i.empresa_id in (select 1)')).toBe(true)
+    expect(RECORTE.test('where m.empresa_id <> v_emp_b')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id is distinct from v_emp')).toBe(true)
+    // o valor à esquerda — a forma espelhada
+    expect(RECORTE.test('select 1 from public.ativos a where v_emp_a = a.empresa_id')).toBe(true)
+    expect(RECORTE.test('select 1 from public.ativos where v_emp <> empresa_id')).toBe(true)
+    expect(RECORTE.test('select count(*) filter (where empresa_id is null) from public.ativos')).toBe(false)
+    expect(RECORTE.test("a.attname = 'empresa_id' and not a.attisdropped")).toBe(false)
+    // 2ª rodada: o cast na coluna, `not in`, `between`, a ordem, e o valor à esquerda entre parênteses
+    expect(RECORTE.test('select 1 from public.ativos a where a.empresa_id::text = v_emp::text')).toBe(true)
+    expect(RECORTE.test('where empresa_id :: uuid = v_emp')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id not in (select id from public.empresas)')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id between v_a and v_b')).toBe(true)
+    expect(RECORTE.test('where t.empresa_id > v_a')).toBe(true)
+    expect(RECORTE.test('where v_emp in (a.empresa_id)')).toBe(true)
+    // 3ª rodada: o parêntese em volta da coluna, e o equijoin por `using`
+    expect(RECORTE.test('where (a.empresa_id) = v_emp')).toBe(true)
+    expect(RECORTE.test('select 1 from public.movimentacoes m join public.colaboradores c using (empresa_id)')).toBe(true)
+    expect(RECORTE.test('join public.itens i using (id, empresa_id)')).toBe(true)
+    // e o que continua não sendo recorte: a completude com cast, e um PARÂMETRO de nome parecido
+    expect(RECORTE.test('where empresa_id::text is null')).toBe(false)
+    expect(RECORTE.test('where p_empresa_id = v_emp')).toBe(false)
+  })
+
+  it('os comandos do roteiro vêm do léxico único: o `;` de dentro de um texto não esconde o recorte', () => {
+    const sql = "do $$ begin perform 1 from public.ativos a where a.nome = 'x; y' and a.empresa_id = v_emp; end $$;"
+    const cmds = comandosDoTexto(sql).filter((c) => /\bempresa_id\b/.test(c))
+    expect(cmds).toHaveLength(1)
+    expect(/public\.ativos\b/.test(cmds[0]) && RECORTE.test(cmds[0])).toBe(true)
+    // o split cru partia o comando e separava a tabela do recorte
+    expect(sql.split(';').filter((c) => /\bempresa_id\b/.test(c)).some((c) => /public\.ativos\b/.test(c))).toBe(false)
+  })
+
+  it('o cabeçalho DIZ o que a F63 preencheu e o que falta (F64 para as tabelas restantes, F66 para a leitura)', () => {
+    // Ausência sem motivo escrito é indistinguível de esquecimento. Até a F62 o cabeçalho
+    // explicava por que a varredura do acervo estava vazia; desde a F63 ela tem as oito, e o
+    // cabeçalho tem de dizer isso E o que ainda não está lá.
     const sql = fonte('isolamento_tenant')
-    expect(sql, 'o cabeçalho não explica a ausência da chave de recorte').toContain('empresa_id')
-    expect(sql, 'o cabeçalho não nomeia a fase que preenche a varredura').toMatch(/F63|F65/)
+    expect(sql, 'o cabeçalho não fala da chave de recorte').toContain('empresa_id')
+    expect(sql, 'o cabeçalho não diz o que a F63 preencheu').toMatch(/F63[^\n]*\n?[^\n]*acervo|acervo[^\n]*F63/i)
+    expect(sql, 'o cabeçalho não nomeia a F64 (as tabelas de negócio restantes)').toMatch(/F64/)
+    expect(sql, 'o cabeçalho não nomeia a F66 (a leitura do dado por empresa)').toMatch(/F66/)
   })
 
   it('traz a convenção de honestidade escrita no cabeçalho', () => {
@@ -681,6 +741,47 @@ describe('11. a lista única de exceções do recorte das rel_* (F60, bloco 7)',
       "    'rel_x', -- 0063 · motivo: curto · destino: F66", // motivo raso
     ]) {
       expect(lerExcecoesDeRecorte(embrulhar(ruim)).problemas.length, ruim).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('12. o lote 1 da chave de recorte (F63): a lista das oito mora numa fonte só, e a trava a lê do catálogo', () => {
+  // DECISÃO 6 DO PLAN-F63. `k_lote1` (catalogo_policies.sql) é a ÚNICA lista das oito tabelas
+  // do acervo que ganharam `empresa_id` na F63. A trava do bloco 5 (15a/15b/15c) a confere
+  // contra `k_negocio` e contra o catálogo, e as outras peças que precisam da lista a LEEM
+  // daqui (`empresa-acervo-sem-leitura.test.ts`) ou são conferidas contra ela (o roteiro do
+  // rollback e o do default, logo abaixo) — uma lista escrita à mão que esquece uma tabela é
+  // exatamente o defeito que esta amarração impede.
+  const cat = fonte('catalogo_policies')
+  const lote1 = (() => {
+    const m = /k_lote1 text\[\] := array\[([\s\S]*?)\];/.exec(cat)
+    if (!m) throw new Error('catalogo_policies.sql: não achei k_lote1')
+    return [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort()
+  })()
+
+  it('k_lote1 são as oito tabelas do acervo da ficha F63', () => {
+    expect(lote1).toEqual(['anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item', 'movimentacoes', 'pendencias_item', 'termos_gerados'])
+  })
+
+  it('o bloco 5 confere a lista contra k_negocio (15a) e contra o catálogo (15b/15c), com o default pelo pg_depend', () => {
+    const sql = semComentarios(cat)
+    expect(sql, '15a: k_lote1 não é conferida contra k_negocio').toMatch(/from unnest\(k_lote1\) as nome\s+where not \(nome = any \(k_negocio\)\)/)
+    expect(sql, 'a leitura de catálogo não cobre o lote 1 E as tabelas de negócio que já têm a coluna').toMatch(/unnest\(k_negocio \|\| k_lote1\)/)
+    expect(sql, '15b: o default não é conferido pelo pg_depend').toMatch(/refobjid = 'public\.empresa_legada\(\)'::regprocedure/)
+    expect(sql, '15b: a FK não exige convalidated').toMatch(/k\.convalidated/)
+    expect(sql, '15b: não confere o force').toMatch(/relforcerowsecurity/)
+    for (const rotulo of ['15a', '15b', '15c']) {
+      expect(sql, `o rótulo ${rotulo} não está literal num assert_zero_de (o injetor lê por token)`).toMatch(new RegExp(String.raw`assert_zero_de\(\s*'${rotulo} `))
+    }
+  })
+
+  it('os roteiros da F63 que listam as oito tabelas listam EXATAMENTE k_lote1', () => {
+    for (const nome of ['f63_rollback', 'empresa_no_acervo']) {
+      const caminho = join(PASTA, `${nome}.sql`)
+      if (!existsSync(caminho)) continue // nasce com as migrations (commits seguintes)
+      const m = /k_oito\s+(?:constant\s+)?text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(fonte(nome)) ?? /array\[([^\]]*'movimentacoes'[^\]]*)\]/.exec(fonte(nome))
+      expect(m, `${nome}.sql não declara a lista das oito`).not.toBeNull()
+      expect([...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort(), `${nome}.sql lista outras tabelas que não as de k_lote1`).toEqual(lote1)
     }
   })
 })

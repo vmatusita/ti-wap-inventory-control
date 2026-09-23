@@ -6,6 +6,27 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 23/09/2026 — F63 · `empresa_id` no acervo (lote 1) e a disciplina de backup de migração 🚧
+
+**v1.68.0** · **com migrations `0159`–`0161`** · A segunda fase da virada multiempresa. As oito tabelas do acervo
+(`ativos`, `movimentacoes`, `lancamentos_item`, `pendencias_item`, `anotacoes`, `termos_gerados`, `colaboradores`,
+`itens`) ganham `empresa_id uuid not null`, com FK validada para `empresas` e o default `public.empresa_legada()` (a WAP)
+**até a fase em que a escrita passar a informar a empresa** (decisão do Johnny) — preenchida **sem nenhum `update` e sem nenhuma tupla reescrita**: o default
+não-volátil do PG 11+ guarda o valor no catálogo, e a prova é a impressão do acervo antes × depois nos dois bancos
+(`relfilenode` e md5 de `(id, xmin)` iguais). **Nada lê a coluna** (o recorte por empresa é de uma fase seguinte) e **nenhum escritor mudou**
+(18 funções, 9 pontos do app, 27 roteiros: todos intactos, e verdes).
+E a disciplina que faltava a migration que mexe em dado: **o cabeçalho de classe** (`-- classe: ADITIVA | BACKFILL |
+DESTRUTIVA`) obrigatório a partir da `0159`, conferido por um **classificador** (`scripts/db/classificar-migration.mjs`,
+o leitor único que imita o léxico do Postgres — o corpo de função é guardado, o de `do` é executado); **a tabela
+`backups_migration`** (o par chave/valor anterior, fechada no molde de `ambiente`) com o bloco de backup obrigatório
+antes de cada comando que sobrescreve dado; e **a guarda de topo do acervo sem válvula**, que agora enxerga dentro de
+`do` e lê alias (a regex antiga não via a `0133`, que entrou como a única exceção nominal, fechada). Travas: o bloco 5
+de `catalogo_policies.sql` (a forma da coluna nas oito, nascido vermelho pelos oito nomes), `migrations-backfill.test.ts`,
+`empresa-acervo-sem-leitura.test.ts`, os roteiros `empresa_no_acervo.sql` e `f63_rollback.sql` (o esquema volta ao de
+antes da `0159`), o cenário 8 de `restauracao.sql` e seis mutações novas no injetor (teto 131). Regras: MATRIZ R-ACC-85 a
+R-ACC-90; ADR-003 e RUNBOOK, emenda F63. Plano `docs/PLAN-F63.md`, ata 2026-09-23 · F63 em `docs/DECISOES.md`, relatório
+`docs/RELATORIO-F63.md` (o estado do apply e do merge está no topo dele).
+
 ## 22/09/2026 — F62 · A raiz do tenant e o cargo por empresa ✅
 
 **v1.67.0** · **com migrations `0152`–`0158`**, aplicadas no ensaio e em produção antes do merge · A primeira fase da

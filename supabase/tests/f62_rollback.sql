@@ -25,6 +25,10 @@
 --         `plataforma_admins`, `filiais.empresa_id`; `operador_filiais` com a PK de antes;
 --         `papel_atual()` lendo `profiles`).
 --
+-- DESDE A F63 (23/09/2026): os dois caminhos rodam ANTES `supabase/rollback/F63-desfaz.sql` —
+-- a fase de depois sai primeiro (ordem inversa do apply entre fases). Sem isso o `drop table
+-- public.empresas` da F62 recusaria pelas FKs da F63.
+--
 -- Os resultados atravessam o `rollback to savepoint` como variáveis do psql (`\gset`) — é
 -- o único estado que o desfazer não leva junto. DADOS 100% FICTÍCIOS. Tudo dentro de
 -- `begin; … rollback;`: nada do rollback ensaiado sobra no banco.
@@ -92,6 +96,11 @@ select pg_temp.f62_impressao()               as antes_hash,
 -- O ROLLBACK SEM A CÓPIA (só o passo 2 em diante) — o que NÃO se pode fazer
 -- ---------------------------------------------------------------------------
 savepoint s_rollback;
+-- F63 (23/09/2026): a fase de DEPOIS sai primeiro — a F63 pendura em `empresas` e em
+-- `empresa_legada()` oito FKs e oito defaults, e o `drop` da F62 (sem cascade) recusaria. É a
+-- ordem inversa do apply ENTRE fases (regra 10 da §4). Não muda o que este roteiro prova: o
+-- cargo, a cópia de volta e o esquema de antes da F62.
+\ir ../rollback/F63-desfaz.sql
 \ir ../rollback/F62-2-desfaz.sql
 select pg_temp.f62_impressao()               as sem_copia_hash,
        pg_temp.f62_papel_de(:'k_promovido') as sem_copia_promovido,
@@ -103,6 +112,7 @@ rollback to savepoint s_rollback;
 -- ---------------------------------------------------------------------------
 -- O ROLLBACK NA ORDEM ESCRITA: a cópia de volta PRIMEIRO
 -- ---------------------------------------------------------------------------
+\ir ../rollback/F63-desfaz.sql
 \ir ../rollback/F62-1-copia-de-volta.sql
 \ir ../rollback/F62-2-desfaz.sql
 select pg_temp.f62_impressao()               as com_copia_hash,

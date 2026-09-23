@@ -787,6 +787,19 @@ duas empresas fictícias montadas pelo próprio roteiro. Regras novas: MATRIZ R-
 
 **Repouso.** Perfeito e indefinido.
 
+*(Nota F63, 23/09/2026: executada pela ordem [`prompts/F63-empresa-no-acervo-e-backup-de-migracao-ultracode.md`](prompts/F63-empresa-no-acervo-e-backup-de-migracao-ultracode.md),
+plano [`PLAN-F63.md`](PLAN-F63.md), migrations `0159`–`0161` (não `0145`–`0147`). **A decisão do Johnny** mudou a ficha
+num ponto: **o default `public.empresa_legada()` das oito FICA até a F67** (ver a ficha da F67) — o `drop default` "logo
+depois do `not null`" da decisão 2 do §1 e desta ficha foi adiado, com o orçamento medido. **Os desvios medidos:** o
+default é a FUNÇÃO, não o literal `'<wap>'` (fonte única, decisão 3 da F62); não há `set not null` separado (o `not null`
+vem no próprio `add column`), e a mitigação do ACCESS EXCLUSIVE por `check … not valid` não se aplica — o que entrou foi
+`lock_timeout` de 2 s; em `ativos` o `update` ingênuo NÃO aborta (a guarda é só BEFORE DELETE) — reescreve em silêncio,
+e a prova de que não houve é o `relfilenode` + o md5 de `(id, xmin)` antes × depois; a guarda de topo que já existia
+(F51) é MAIS forte que a trava desta ficha, e ficou sem válvula (a exceção por classe DESTRUTIVA a afrouxaria), agora
+vendo dentro de `do`, com a `0133` como única exceção nominal; a `0156` e a `0158` declaram ADITIVA e executam BACKFILL
+(censo, não se editam); o ensaio tem `anotacoes` e `colaboradores` vazias. **Regras novas:** MATRIZ R-ACC-85 a R-ACC-90;
+ADR-003, emenda F63; RUNBOOK, "A disciplina de backup de migração".)*
+
 ---
 
 ### F64 — `empresa_id` no vocabulário e na infra (lote 2)
@@ -805,6 +818,18 @@ duas empresas fictícias montadas pelo próprio roteiro. Regras novas: MATRIZ R-
 `filiais.empresa_id not null default public.empresa_legada()`, com `unique (empresa_id, id)`; `operador_filiais` com
 `empresa_id`/`membro_id` e FKs compostas. O que sobra aqui para as duas é **tirar o default** (a empresa passa a vir
 de quem cria a filial) e, com ele, a ponte de `papel_atual()` e `EMPRESA_LEGADA_ID` no app.)*
+
+*(Nota F63, 23/09/2026: **a lista acima está incompleta** — `k_negocio` tem mais QUATRO tabelas que precisam da chave
+de recorte e não aparecem aqui: as do vocabulário do import da F56, `import_prefixos_patrimonio`,
+`import_termos_categoria`, `import_termos_estado` e `unidades_apelidos` (o De→Para de UMA empresa é dado dela). Medido
+pelo aviso de pendência do bloco 5 de `catalogo_policies.sql`: são **11** as tabelas de negócio ainda sem `empresa_id`
+depois da F63 — as sete de negócio da lista acima (`tipos_item`, `motivos`, `kits_modelos`, `senhas_acesso`,
+`eventos_admin`, `import_logs`, `relatorios_gerados`; `filiais` e `operador_filiais` a F62 já fez, e `senha_tentativas`
+e `ambiente` são infra) e as quatro do import. A
+trava do lote 1 (15b/15c) já cobre a forma da coluna em toda tabela de negócio que a tiver. **A pergunta aberta, para
+decidir no começo desta fase:** o default das tabelas daqui (e o de `filiais`, que a F62 prometeu tirar nesta fase)
+segue a régua que o Johnny deu às oito do acervo — `public.empresa_legada()` até a F67, quando a escrita recebe a
+empresa — ou cai aqui, com os escritores de cada uma informando a empresa?)*
 
 **Não entra.** Trocar as UNIQUE globais (F65).
 
@@ -909,6 +934,25 @@ Já feito na F62, e fora desta lista: `unique (empresa_id, id)` em `filiais` e `
 - **Storage.** Bucket `termos`: `pode_ler_arquivo_termo` (criada na F50 com a regra de hoje) passa a exigir que o `termos_gerados` correspondente seja da empresa da sessão — **pelo join, não pelo caminho**, o que dispensa mover um único objeto (mover os 67 objetos existentes exigiria reescrever `arquivo_path` por igualdade de string, e a janela em que o par path↔linha fica quebrado é exatamente a que desarma a proteção de escrita via o `coalesce(…, true)`). Bucket `backups-import`: prefixo `import/empresa-<id>/filial-<id>/` para objetos novos (os antigos continuam resolvendo, porque `import_logs.backup_path` guarda o literal); as 4 policies passam a exigir `(storage.foldername(name))[2] = any(array(select …))`, mantendo `e_admin()` — cinto e suspensórios, porque é o objeto de maior valor do sistema. Objetos legados ficam fora de todo prefixo, isto é, invisíveis: comportamento seguro, mas **decidido de propósito e escrito**.
 - **`persistirTermo` invertido** (linha antes do upload, com rollback correto no ramo de INSERT) e só então `coalesce(…, true)` vira `false` em `pode_escrever_arquivo_termo`. Os dois são um trabalho só, nesta ordem: hoje objeto que nenhuma linha referencia é gravável e apagável por qualquer `pode_escrever()`, e basta o par path↔linha divergir para o bucket inteiro ficar aberto. A limpeza de órfão migra para ferramenta nomeada na Zona destrutiva. Cuidado: `persistirTermo` reutiliza id existente (UPDATE) num dos ramos e apaga órfãos de variantes antigas — inverter é mais trabalho que trocar duas linhas.
 - **Realtime:** `filter: 'empresa_id=eq.<id>'` nas três assinaturas (o gancho existe desde a F50) **e** RLS na publication `supabase_realtime`. O filtro do cliente é ergonomia; a trava mora no Postgres. Sem isso, `postgres_changes` entrega o **payload da linha** ao navegador de todo cliente aberto de toda empresa, por um canal que nenhuma auditoria de RLS de tabela examina.
+
+- *(Nota F63, 23/09/2026 — **TIRAR O DEFAULT DAS OITO**, decisão do Johnny.)* A F63 deu `empresa_id` às oito tabelas do
+  acervo com `default public.empresa_legada()` e o manteve de propósito: é aqui, quando a escrita passa a receber a
+  empresa, que ele cai (`alter column empresa_id drop default`, uma migration por lote, com a trava 15b de
+  `catalogo_policies.sql` invertida no MESMO commit — hoje ela EXIGE o default). **O orçamento medido na F63** (o censo
+  de `PLAN-F63.md` §2), tudo o que passa a informar a empresa: **18 funções SQL** que inserem nas oito
+  (`criar_compra_lote`, `devolver_ao_fornecedor`, `import_criar_ativos`, `criar_movimentacao_com_itens`,
+  `estornar_movimentacao_com_itens`, `forcar_estado_ativo`, `import_lancar_movimentacoes`, `forcar_saldo_item`,
+  `lancar_itens_lote`, `reabrir_pendencias_item_com_estornos`, `resolver_pendencias_item_com_lancamentos`,
+  `transferir_item`, `movimentacao_abrir_pendencias_item`, `confirmar_assinatura_lote_com_anotacoes`,
+  `confirmar_assinatura_termo_com_anotacao`, `corrigir_patrimonio_com_anotacao`, `definir_service_tag_com_anotacao`,
+  `desfazer_confirmacao_termo_com_anotacao`); **9 pontos TS** (`itens.ts:448/572/711`, `ativos.ts:128`,
+  `pendencias.ts:442`, `termos.ts:532`, `colaboradores.ts:167/198/301`); os scripts (`seed.ts`, `import/carga.ts`,
+  `smoke/fixtures-passe2.ts`) e `db/restaurar.mjs` (um backup de antes da F63 não tem a chave — com o default fora, ele
+  precisa preencher); **27 roteiros** com 569 INSERTs nas oito; e os **quatro pontos do `INVENTARIO-LEITURAS.md`** que
+  diziam "precisa de `empresa_id` explícito — a F63 derruba o default" e passaram para cá: `criarColaboradorInline`,
+  `criarColaborador`, `consolidarColaboradores` e `estornarLancamento`. **Três casos não têm pai de onde tirar a
+  empresa** (`itens`, `termos_gerados`, colaborador sem filial): a fonte é a empresa de quem escreve, que só existe
+  depois desta fase dar a empresa à escrita.
 
 **Não entra.** A porta pública (F68).
 

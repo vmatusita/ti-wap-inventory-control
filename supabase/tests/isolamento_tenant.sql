@@ -11,8 +11,9 @@
 -- FICTÍCIA, criada aqui, com filial própria de slug diferente (o unique global de
 -- `filiais.slug` é da F65). Os cenários provam, nas DUAS direções, o que as funções de
 -- conjunto e as FKs compostas decidem. ⚠ O QUE AINDA NÃO SE PROVA AQUI: que o ACERVO de A é
--- invisível para B — as 61 policies continuam com o piso (todo logado ativo lê tudo) até a
--- F66/F72, e o acervo nem tem `empresa_id` antes da F63.
+-- invisível para B — as policies continuam com o piso (todo logado ativo lê tudo) até a
+-- F66/F72. Desde a F63 o acervo TEM `empresa_id` (as oito de `k_lote1`, preenchidas pelo default
+-- da WAP), mas NADA a lê: nem policy, nem app, nem este roteiro — ler o dado por empresa é da F66.
 --
 -- (Texto da F48, mantido como registro:) Hoje existe UMA empresa, e escrever "a empresa A não
 -- vê o dado da empresa B" com uma empresa só produziria um ✓ sobre conjunto vazio:
@@ -56,25 +57,27 @@
 --    porque a F65 acrescenta `(empresa_id, id)` e os cenários dela a herdam.)
 --
 -- ---------------------------------------------------------------------------
--- A LINHA QUE ESTE ARQUIVO SÓ ESCREVE PELA METADE (F62)
+-- A LINHA QUE ESTE ARQUIVO ESCREVE AOS POUCOS (F62 → F63 → F64)
 -- ---------------------------------------------------------------------------
 -- A ficha do plano pede, entre as varreduras schema-wide, "nenhuma linha com a chave
--- de recorte nula". Desde a F62 ela EXISTE para as tabelas que a F62 criou ou alterou
--- (`filiais`, `membros`, `operador_filiais` — cenário 9k, iterado sobre o CATÁLOGO pela
--- coluna `empresa_id`); as tabelas de ACERVO só ganham a coluna na F63/F65, e a mesma
--- varredura as alcança sozinha quando a coluna existir. O texto da F48 fica como
--- registro: em 07/09/2026 `grep -rn "empresa_id" supabase/migrations/` devolvia ZERO.
--- Escrever um placeholder seria pior do que não escrever: ou erra no psql (coluna
--- inexistente) ou conta zero, e `assert_zero_de` levanta exceção de propósito sobre
--- universo vazio, o roteiro morre antes do `FIM` e o runner reprova.
---
--- A varredura que a F63/F65 vai pôr aqui, para quem chegar depois não ter de inventá-la:
---
---     -- para cada tabela de NEGÓCIO classificada em catalogo_policies.sql:
---     --   select count(*) from public.<tabela> where empresa_id is null
---     -- esperado 0, com o universo = count(*) da tabela (assert_zero_de).
---     -- Iterando pelo CATÁLOGO, nunca por lista de 20 nomes escrita à mão —
---     -- `eventos_admin` é exatamente a que uma lista à mão esqueceria.
+-- de recorte nula". Ela é o cenário 9k, iterado sobre o CATÁLOGO pela coluna `empresa_id`
+-- (nunca por lista de nomes escrita à mão — `eventos_admin` é exatamente a que uma lista à mão
+-- esqueceria): toda tabela de `public` que TEM a coluna tem de tê-la NOT NULL, amarrada por FK
+-- à raiz e sem linha nula.
+--   · F62 (22/09/2026) — a 9k passou a existir, com `filiais`, `membros` e `operador_filiais`.
+--   · F63 (23/09/2026) — a MESMA varredura alcançou sozinha, sem uma linha editada, as oito
+--     tabelas do ACERVO (`ativos`, `movimentacoes`, `lancamentos_item`, `pendencias_item`,
+--     `anotacoes`, `termos_gerados`, `colaboradores`, `itens` — `k_lote1` em
+--     catalogo_policies.sql, que confere a FORMA da coluna no bloco 5). O `count(*) filter
+--     (where empresa_id is null)` é conferência de COMPLETUDE, não recorte: ninguém compara a
+--     coluna do acervo com um valor de empresa aqui (describe 5 de catalogos-seguranca.test.ts).
+--   · O QUE FALTA: a F64 põe a coluna nas 11 tabelas de NEGÓCIO restantes (as sete da ficha e
+--     as quatro do vocabulário do import) — a 9k as alcança sozinha também; e a LEITURA do dado
+--     do acervo por empresa (o recorte nas policies, a bateria A↔B de leitura) é da F66.
+-- O texto da F48 fica como registro: em 07/09/2026 `grep -rn "empresa_id" supabase/migrations/`
+-- devolvia ZERO, e escrever um placeholder seria pior do que não escrever — ou erra no psql
+-- (coluna inexistente) ou conta zero, e `assert_zero_de` levanta exceção de propósito sobre
+-- universo vazio.
 --
 -- ---------------------------------------------------------------------------
 -- ONDE MORAM AS VARREDURAS SCHEMA-WIDE (F48, Decisão 2)

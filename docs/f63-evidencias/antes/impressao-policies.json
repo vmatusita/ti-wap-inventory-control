@@ -1,0 +1,15 @@
+{
+  "quando": "2026-09-23, ~15:26 UTC — antes de qualquer apply da F63",
+  "instrumento": "docs/f63-evidencias/impressao-policies.sql",
+  "md5_do_instrumento": "15df09c26473f8c23b7ff3c26caf9f01",
+  "canal": "MCP da Supabase, execute_sql, o texto EXATO do arquivo",
+  "ensaio (sgmvldiizsrjbxzzpmhh)": {
+    "vivas": { "public": { "n": 54, "md5": "886118ad686f67c857cf0d370fd6828d" }, "storage": { "n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8" } },
+    "do_acervo": { "policies": 23, "citam_empresa_id": 0 }
+  },
+  "produção (pbtjcalbmepmrqzprusb)": {
+    "vivas": { "public": { "n": 54, "md5": "886118ad686f67c857cf0d370fd6828d" }, "storage": { "n": 8, "md5": "f116b8d0da8bda75038564a44720c2e8" } },
+    "do_acervo": { "policies": 23, "citam_empresa_id": 0 }
+  },
+  "veredito": "as 62 vivas (54 + 8) iguais byte a byte entre os dois bancos; as 23 do acervo não citam empresa_id"
+}

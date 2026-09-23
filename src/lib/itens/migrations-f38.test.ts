@@ -1,6 +1,14 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+// F63 (23/09/2026) — O LEITOR ÚNICO. Os dois leitores privados deste arquivo (`semComentarios`,
+// que só tirava a linha que COMEÇA com `--`, e `semCorposDeFuncao`, que só tirava `$$ … $$` e
+// APAGAVA o `do` executado junto) saíram: a guarda de topo e o classificador de migrations leem
+// pelo MESMO léxico (`scripts/db/classificar-migration.mjs`, decisão 5 do PLAN-F63). Medido antes
+// da troca, sobre as 157 migrations: as leituras de `create function`, de `drop function` e de
+// enum devolvem EXATAMENTE o que devolviam; a guarda de topo passa a ver a `0133` (o `do` com a
+// janela destrutiva) — e só ela, na faixa de `DA_F38`.
+import { escritasExecutadas, semComentarios, textoExecutado, textoExecutadoMascarado, trocasDeTabela } from '../../../scripts/db/classificar-migration.mjs'
 
 // Guarda de ARQUIVO para a promessa central da F38 (critério 9 da ordem): as
 // migrations da fase recriam UMA função existente, e só uma.
@@ -197,6 +205,16 @@ const DA_F38 = [
   '0156',
   '0157',
   '0158',
+  // F63 (23/09/2026) — `empresa_id` no acervo e a disciplina de backup de migração. A `0159` cria
+  // `backups_migration` (tabela nova, vazia, fechada no molde de `ambiente`). Não cria nem recria
+  // função, não mexe em enum, não escreve em tabela que já existia — e nasce sob o classificador
+  // (`migrations-backfill.test.ts`), a primeira com o cabeçalho de classe OBRIGATÓRIO.
+  '0159',
+  // F63 — a `0160` (cadastros) e a `0161` (movimento) põem `empresa_id` nas oito tabelas do acervo
+  // com default NÃO-VOLÁTIL (`public.empresa_legada()`) — SEM `update` de backfill: é a guarda de
+  // topo logo abaixo que o proíbe, agora também dentro de `do`. Nenhuma cria nem recria função.
+  '0160',
+  '0161',
 ]
 
 /**
@@ -245,22 +263,101 @@ function arquivosDaFase(): { nome: string; sql: string }[] {
     .map((nome) => ({ nome, sql: readFileSync(join(DIR, nome), 'utf8') }))
 }
 
-/** O SQL sem as linhas de comentário `--`. */
-function semComentarios(sql: string): string {
-  return sql
-    .split('\n')
-    .filter((l) => !l.trimStart().startsWith('--'))
-    .join('\n')
+// `semComentarios` e `textoExecutado` vêm do leitor único (import no topo). `textoExecutado` é o
+// SQL que a migration EXECUTA ao ser aplicada: sem comentário (de linha, de fim de linha e de
+// bloco), sem o CORPO de `create function|procedure` (`$$` ou `$rótulo$` — texto que o Postgres
+// guarda, não comando que ele roda: a distinção que a F51 tornou necessária) e COM o corpo de todo
+// `do` (que o Postgres RODA no apply — a distinção que a F63 tornou necessária).
+
+/**
+ * As tabelas do acervo que a guarda de topo vigia, e os verbos que apagam ou reescrevem
+ * registro. `insert` fica de fora de propósito: acrescentar linha não apaga nem reescreve
+ * nenhuma (a `0127` insere em `lancamentos_item` dentro de um `do`, e é legítimo).
+ */
+const TABELAS_GUARDADAS = ['movimentacoes', 'lancamentos_item', 'ativos'] as const
+const VERBOS_QUE_APAGAM_OU_REESCREVEM = ['delete', 'update', 'upsert', 'merge', 'truncate']
+
+// A regex de antes da F63 era `update\s+(public\.)?<t>\s+set` — CEGA A ALIAS: não casava
+// `update public.movimentacoes m set …`, que é exatamente a forma da `0133`. Mesmo vendo o `do`,
+// a guarda antiga não a pegaria. Estas aceitam `only`, esquema e nome citados e o alias.
+const reApaga = (t: string) =>
+  new RegExp(String.raw`\bdelete\s+from\s+(?:only\s+)?(?:"?public"?\s*\.\s*)?"?${t}"?\b`, 'i')
+const reReescreve = (t: string) =>
+  new RegExp(String.raw`\bupdate\s+(?:only\s+)?(?:"?public"?\s*\.\s*)?"?${t}"?(?:\s+(?:as\s+)?(?!set\b)[a-z_][a-z0-9_]*)?\s+set\b`, 'i')
+// A TROCA da tabela inteira (2ª rodada da revisão adversarial da F63): `rename`/`set schema` da tabela guardada, outra
+// tabela renomeada PARA o nome dela (ou devolvida ao `public` com o nome dela), e o `drop table`. Uma cópia
+// transformada que assume o nome é o `update` que não aparece no texto.
+const reTroca = (t: string) =>
+  new RegExp(String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:"?public"?\s*\.\s*)?"?${t}"?\s+(rename\s+to|set\s+schema)\b`, 'i')
+const reOcupaONome = (t: string) => new RegExp(String.raw`\balter\s+table\b[^;]*?\brename\s+to\s+"?${t}"?\s*(?:;|$)`, 'im')
+const reVoltaAoPublic = (t: string) =>
+  new RegExp(String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?"?[a-z_][a-z0-9_]*"?\s*\.\s*"?${t}"?\s+set\s+schema\s+"?public"?(?![\w$])`, 'i')
+const reDerruba = (t: string) =>
+  new RegExp(String.raw`\bdrop\s+table\s+(?:if\s+exists\s+)?(?:[^;]*,\s*)?(?:"?public"?\s*\.\s*)?"?${t}"?(?![\w$])`, 'i')
+
+/**
+ * O que a migration APAGA ou REESCREVE no acervo ao ser aplicada — de topo OU dentro de `do`.
+ * Duas leituras sobre o MESMO léxico, somadas (basta uma acusar): as escritas e as TROCAS de
+ * tabela que o classificador extrai comando a comando (alias, `only`, nome citado, `merge`,
+ * `truncate`, o `do update` do upsert; `rename`/`set schema`/`drop table` da guardada ou para o
+ * nome dela) e as regex sobre o texto executado. Devolve `'<verbo> public.<tabela>'`, sem
+ * repetição, ordenado. O `rename column` e o `drop column` de uma guardada ficam com o
+ * classificador (DESTRUTIVA, declarada): a guarda é da LINHA, e da tabela trocada inteira.
+ *
+ * ⚠ NÃO LÊ A CLASSE DECLARADA. A ficha F63 pedia "reprovar `update` … salvo classe DESTRUTIVA com
+ * justificativa"; isso AFROUXARIA esta guarda, que desde a F51 não tem válvula nenhuma (fato 13).
+ * Uma classe declarada não a destrava — a sabotagem B prova.
+ */
+function escritasDeTopoNoAcervo(sql: string): string[] {
+  const achadas = new Set<string>()
+  for (const e of escritasExecutadas(sql)) {
+    const [esquema, tabela] = e.tabela.split('.')
+    if (esquema === 'public' && (TABELAS_GUARDADAS as readonly string[]).includes(tabela) && VERBOS_QUE_APAGAM_OU_REESCREVEM.includes(e.verbo)) {
+      achadas.add(`${e.verbo === 'upsert' ? 'update' : e.verbo} public.${tabela}`)
+    }
+  }
+  for (const e of trocasDeTabela(sql)) {
+    const [esquema, tabela] = e.tabela.split('.')
+    if (esquema === 'public' && (TABELAS_GUARDADAS as readonly string[]).includes(tabela)) achadas.add(`${e.verbo} public.${tabela}`)
+  }
+  // As regex leem o texto executado MASCARADO (3ª rodada da revisão adversarial): a prosa de dentro de um `comment on
+  // … is '…'` ou de um `raise notice '…'` não é comando — e a própria F63 pede comentário com data e motivo na coluna.
+  const texto = textoExecutadoMascarado(sql)
+  for (const t of TABELAS_GUARDADAS) {
+    if (reApaga(t).test(texto)) achadas.add(`delete public.${t}`)
+    if (reReescreve(t).test(texto)) achadas.add(`update public.${t}`)
+    const troca = reTroca(t).exec(texto)
+    if (troca) achadas.add(`${/^rename/i.test(troca[1]) ? 'rename' : 'set schema'} public.${t}`)
+    if (reOcupaONome(t).test(texto)) achadas.add(`rename public.${t}`)
+    if (reVoltaAoPublic(t).test(texto)) achadas.add(`set schema public.${t}`)
+    if (reDerruba(t).test(texto)) achadas.add(`drop table public.${t}`)
+  }
+  return [...achadas].sort()
 }
 
 /**
- * O SQL sem os CORPOS dollar-quoted (`$$ … $$`), isto é: só o que a migration
- * EXECUTA ao ser aplicada. Corpo de função é texto que o Postgres guarda, não
- * comando que ele roda — a distinção que a F51 tornou necessária (ver a asserção
- * de DELETE abaixo, e a "guarda da guarda" que prova que ela não virou peneira).
+ * A EXCEÇÃO NOMINAL E FECHADA da guarda de topo — as migrations ANTERIORES à 0159 que já fizeram,
+ * no apply, o que a guarda proíbe. Aplicadas nos dois bancos, elas não se editam (regra 8 da §4
+ * do plano); a lista existe para a guarda continuar LIGADA para todo o resto.
+ *
+ * ⚠ A LISTA NÃO CRESCE. A asserção logo abaixo reprova qualquer chave a partir da `0159`: a F63 é a
+ * fase que criou a disciplina de backup, e depois dela um backfill legítimo no acervo não vira
+ * exceção por conveniência. Um backfill de `ativos` que a operação precise de verdade entra por
+ * exceção NOVA, com o motivo e a DECISÃO DO JOHNNY citados na linha — e mexer na asserção de "não
+ * cresce" é, de propósito, o ponto de revisão (`docs/RUNBOOK-BANCO.md`, receita BACKFILL).
  */
-function semCorposDeFuncao(sql: string): string {
-  return sql.replace(/\$\$[\s\S]*?\$\$/g, '\n/* corpo de função */\n')
+const EXCECOES_TOPO_NO_ACERVO: Record<string, { escritas: readonly string[]; motivo: string }> = {
+  '0133': {
+    escritas: ['update public.movimentacoes'],
+    motivo:
+      'F53 (09/09/2026): o backfill de movimentacoes.ordem, UM update em todas as linhas, dentro de um do $$ com a janela estoque.dev_destrutivo aberta e fechada no mesmo bloco — provado por hash do par (id, data, created_at, tipo) antes e depois. Aplicada nos dois bancos; não se edita. A guarda só passou a vê-la na F63, quando o leitor único deixou de apagar o do e a regex passou a ler o alias.',
+  },
+}
+
+/** As escritas da migration que a exceção nominal NÃO cobre — o veredito da guarda. */
+function violacoesDaGuarda(nome: string, sql: string): string[] {
+  const liberadas = EXCECOES_TOPO_NO_ACERVO[nome.slice(0, 4)]?.escritas ?? []
+  return escritasDeTopoNoAcervo(sql).filter((e) => !liberadas.includes(e))
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -284,6 +381,19 @@ function semCorposDeFuncao(sql: string): string {
 /** O trecho em volta de `i`, numa linha, para a mensagem de falha. */
 function ilegivel(sql: string, i: number, comando: string): Error {
   return new Error(`${comando} ilegível para a guarda perto de «${sql.slice(Math.max(0, i - 40), i + 60).replace(/\s+/g, ' ')}»`)
+}
+
+/**
+ * O SQL sem comentário, pelo leitor único — e, se o LÉXICO não souber ler (aspa, dollar-quote
+ * ou comentário de bloco sem fecho), o mesmo "ilegível para a guarda" de sempre: a falha
+ * fechada continua sendo desta guarda, com o trecho, e não uma lista menor.
+ */
+function semComentariosDaGuarda(sql: string, comando: string): string {
+  try {
+    return semComentarios(sql)
+  } catch (e) {
+    throw new Error(`${comando} ilegível para a guarda — ${(e as Error).message}`)
+  }
 }
 
 function pularEspacos(sql: string, i: number): number {
@@ -354,7 +464,7 @@ function fimDosParenteses(sql: string, i: number): number {
  * tem de ser a lista de argumentos — senão a leitura LANÇA.
  */
 function funcoesDefinidas(sql: string): string[] {
-  const texto = semComentarios(sql)
+  const texto = semComentariosDaGuarda(sql, '`create function`')
   const nomes: string[] = []
   for (const m of texto.matchAll(/\bcreate\s+(?:or\s+replace\s+)?function\s+/gi)) {
     const lido = lerNomeDeRotina(texto, m.index + m[0].length)
@@ -382,7 +492,7 @@ function funcoesDefinidas(sql: string): string[] {
  * que sobra depois deles. Os parênteses são opcionais (`drop function x;` vale quando o nome é único).
  */
 function funcoesDerrubadas(sql: string): string[] {
-  const texto = semComentarios(sql)
+  const texto = semComentariosDaGuarda(sql, '`drop function`/`drop routine`')
   const nomes: string[] = []
   for (const m of texto.matchAll(/\bdrop\s+(?:function|routine)\s+(?:if\s+exists\s+)?/gi)) {
     let i = m.index + m[0].length
@@ -649,17 +759,39 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     //
     // O mesmo raciocínio, com as mesmas palavras, já estava em
     // `scripts/db/mutacoes.test.mts` (describe 5).
+    //
+    // ⚠ F63 (23/09/2026): a regra passou a valer TAMBÉM dentro de `do` — um `do $$ … $$` é
+    // EXECUTADO no apply, e o leitor antigo o apagava como se fosse corpo de função. A única
+    // migration da faixa que isso alcança é a `0133`, que entra pela exceção nominal FECHADA
+    // (`EXCECOES_TOPO_NO_ACERVO`), exaustiva: ela escreve EXATAMENTE o que a exceção diz.
     for (const { nome, sql } of arquivosDaFase()) {
-      const deTopo = semCorposDeFuncao(semComentarios(sql))
-      for (const tabela of ['movimentacoes', 'lancamentos_item', 'ativos']) {
-        expect(deTopo, `${nome} apaga de ${tabela} no apply`).not.toMatch(
-          new RegExp(`delete\\s+from\\s+(public\\.)?${tabela}\\b`, 'i'),
-        )
-        expect(deTopo, `${nome} atualiza ${tabela} em massa no apply`).not.toMatch(
-          new RegExp(`update\\s+(public\\.)?${tabela}\\s+set`, 'i'),
-        )
-      }
+      expect(violacoesDaGuarda(nome, sql), `${nome} apaga ou reescreve o acervo no apply`).toEqual([])
     }
+  })
+
+  it('a exceção nominal da guarda de topo é exaustiva — a migration liberada escreve exatamente o declarado', () => {
+    for (const [num, { escritas }] of Object.entries(EXCECOES_TOPO_NO_ACERVO)) {
+      const arquivo = arquivosDaFase().find((a) => a.nome.startsWith(num))
+      expect(arquivo, `${num} está em EXCECOES_TOPO_NO_ACERVO mas não existe no disco (ou saiu de DA_F38)`).toBeDefined()
+      expect(escritasDeTopoNoAcervo(arquivo!.sql), `${num} escreve fora da exceção declarada`).toEqual([...escritas].sort())
+    }
+  })
+
+  it('a exceção nominal da guarda de topo é FECHADA: nenhuma chave a partir da 0159, e toda uma com motivo', () => {
+    // A F63 criou a disciplina de backup; depois dela, a lista não cresce por conveniência. Mexer
+    // aqui exige decisão do Johnny citada na exceção (RUNBOOK-BANCO.md, receita BACKFILL).
+    for (const [num, { motivo }] of Object.entries(EXCECOES_TOPO_NO_ACERVO)) {
+      expect(num < '0159', `${num}: exceção nova da guarda de topo a partir da 0159`).toBe(true)
+      expect(motivo.length, `${num}: exceção sem motivo escrito`).toBeGreaterThan(80)
+    }
+    expect(Object.keys(EXCECOES_TOPO_NO_ACERVO)).toEqual(['0133'])
+  })
+
+  it('SEM a exceção, a 0133 real reprova — a guarda VÊ o `do` e o alias (sabotagem B)', () => {
+    const real = arquivosDaFase().find((a) => a.nome.startsWith('0133'))!
+    expect(escritasDeTopoNoAcervo(real.sql)).toEqual(['update public.movimentacoes'])
+    // o MESMO texto com outro número não herda a exceção — ela é por migration, não por conteúdo
+    expect(violacoesDaGuarda('0159_copia_da_0133.sql', real.sql)).toEqual(['update public.movimentacoes'])
   })
 
   it('a varredura de DELETE ainda reprova um comando de TOPO (guarda da guarda)', () => {
@@ -676,8 +808,69 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     const noTopo = `${dentroDoCorpo}\n\ndelete from public.ativos where filial_id = 1;\n`
 
     const re = /delete\s+from\s+(public\.)?ativos\b/i
-    expect(semCorposDeFuncao(dentroDoCorpo), 'corpo de função deveria ser ignorado').not.toMatch(re)
-    expect(semCorposDeFuncao(noTopo), 'delete de TOPO deveria continuar sendo pego').toMatch(re)
+    expect(textoExecutado(dentroDoCorpo), 'corpo de função deveria ser ignorado').not.toMatch(re)
+    expect(textoExecutado(noTopo), 'delete de TOPO deveria continuar sendo pego').toMatch(re)
+    // e pelas duas leituras da guarda, não só pela regex
+    expect(escritasDeTopoNoAcervo(dentroDoCorpo)).toEqual([])
+    expect(escritasDeTopoNoAcervo(noTopo)).toEqual(['delete public.ativos'])
+  })
+
+  // SABOTAGEM B (F63): a guarda NÃO afrouxou. Cada caso é uma migration sintética a partir da
+  // 0159 — nenhuma herda exceção — e a guarda tem de acusar o que ela escreve no acervo, ou de
+  // IGNORAR o que só está guardado num corpo de função.
+  const DESTRUTIVA_JUSTIFICADA = [
+    '-- classe: DESTRUTIVA (justificativa: reordenar o acervo inteiro, decisão fictícia)',
+    'update public.movimentacoes set ordem = ordem where true;',
+  ].join('\n')
+  it.each([
+    ['declarada DESTRUTIVA, com justificativa — a classe não destrava', DESTRUTIVA_JUSTIFICADA, ['update public.movimentacoes']],
+    ['dentro de `do $$ … $$`', 'do $$ begin update public.movimentacoes set ordem = ordem where true; end $$;', ['update public.movimentacoes']],
+    ['dentro de `do $rotulo$ … $rotulo$`, depois de um `$$` num comentário', '-- um $$ aqui não abre corpo\ndo $x$ begin delete from public.lancamentos_item where true; end $x$;', ['delete public.lancamentos_item']],
+    ['com alias (a forma da 0133)', 'update public.movimentacoes m set ordem = 1 where m.id is null;', ['update public.movimentacoes']],
+    ['com `only` e nome citado', 'update only "public"."ativos" set status = status where true;', ['update public.ativos']],
+    ['num CTE (`with … update`)', 'with c as (select 1) update public.ativos a set status = a.status where true;', ['update public.ativos']],
+    ['`merge into`', 'merge into public.ativos a using (select 1 as x) s on true when matched then update set status = a.status;', ['merge public.ativos']],
+    ['`truncate`', 'truncate public.lancamentos_item;', ['truncate public.lancamentos_item']],
+    ['`insert … on conflict do update`', "insert into public.ativos (id) values ('00000000-0000-4000-8000-000000000001') on conflict (id) do update set status = excluded.status;", ['update public.ativos']],
+    ['dentro de `create function … $function$` — IGNORADO', 'create or replace function public.f() returns void language plpgsql as $function$ begin update public.movimentacoes set ordem = 1; end $function$;', []],
+    ['num comentário de fim de linha — IGNORADO', 'select 1; -- update public.ativos set status = null', []],
+    ['num comentário de bloco aninhado — IGNORADO', '/* /* aninhado */ delete from public.ativos */ select 1;', []],
+    ['`revoke truncate on public.ativos` — não é truncate', 'revoke truncate on public.ativos from anon;', []],
+    // Revisão adversarial da F63: o NOME da tabela muda dentro do arquivo — e a escrita continua sendo nela.
+    // (Desde a 2ª rodada, o próprio `rename`/`set schema` da tabela guardada também é acusado.)
+    [
+      'por um nome renomeado de ida e volta',
+      'alter table public.movimentacoes rename to movs_tmp;\nupdate movs_tmp set ordem = 1 where true;\nalter table movs_tmp rename to movimentacoes;',
+      ['rename public.movimentacoes', 'update public.movimentacoes'],
+    ],
+    ['por um nome renomeado, com `delete`', 'alter table public.ativos rename to ativos_tmp;\ndelete from ativos_tmp where true;', ['delete public.ativos', 'rename public.ativos']],
+    ['depois de `set schema`', 'alter table public.ativos set schema arquivo;\nupdate arquivo.ativos set status = status where true;', ['set schema public.ativos', 'update public.ativos']],
+    ['por uma view criada no arquivo', 'create view public.v_tmp as select * from public.lancamentos_item;\ndelete from public.v_tmp where true;', ['delete public.lancamentos_item']],
+    // 2ª rodada da revisão adversarial: a TROCA da tabela inteira, sem `update` nem `delete` no texto.
+    [
+      'a cópia transformada que assume o nome (rename duplo)',
+      'create table public.ativos_copia (like public.ativos including all);\ninsert into public.ativos_copia select id, upper(patrimonio) from public.ativos;\nalter table public.ativos rename to ativos_velha;\nalter table public.ativos_copia rename to ativos;',
+      ['rename public.ativos'],
+    ],
+    ['outra tabela que já existia renomeada para o nome (só DDL)', 'alter table public.movimentacoes rename to movs_v2;\nalter table public.movs_staging rename to movimentacoes;', ['rename public.movimentacoes']],
+    ['só o destino: outra tabela renomeada PARA o nome', 'alter table public.lanc_staging rename to lancamentos_item;', ['rename public.lancamentos_item']],
+    ['a volta ao `public` com o nome da guardada', 'alter table arquivo.ativos set schema public;', ['set schema public.ativos']],
+    ['dentro de `do`', 'do $$ begin alter table public.ativos rename to ativos_velha; end $$;', ['rename public.ativos']],
+    ['`drop table`, declarada DESTRUTIVA', '-- classe: DESTRUTIVA\ndrop table if exists public.lancamentos_item cascade;', ['drop table public.lancamentos_item']],
+    ['`drop table` numa lista', 'drop table public._f99_backup, public.movimentacoes;', ['drop table public.movimentacoes']],
+    ['o que NÃO é troca: `rename` de outra tabela, `drop table` de nome parecido, `rename constraint` — IGNORADO', 'alter table public.ativos_fixture rename to ativos_fixture2;\ndrop table public.ativos_velha;\nalter table public.ativos rename constraint a_fk to b_fk;', []],
+    // 3ª rodada: a PROSA de dentro de um texto não é comando — a F63 pede comentário com data e motivo na coluna
+    [
+      'a prosa num `comment on column … is` — IGNORADA',
+      "comment on column public.movimentacoes.empresa_id is 'não fazemos update public.movimentacoes set nada aqui; nem delete from public.ativos; nem drop table public.lancamentos_item';",
+      [],
+    ],
+    ['a prosa num `raise notice` dentro de `do` — IGNORADA', "do $$ begin raise notice 'nunca: update public.ativos set status = x; alter table public.ativos rename to y'; end $$;", []],
+    ['a prosa num CHECK — IGNORADA', "alter table public.x add constraint c check (nota !~ 'update public.movimentacoes set');", []],
+    // e o nome CITADO continua visto (o identificador não é mascarado)
+    ['com o nome citado, mesmo lendo o texto mascarado', 'update "ativos" set status = status where true;', ['update public.ativos']],
+  ])('a guarda de topo acusa (ou ignora) %s', (_nome, sql, esperado) => {
+    expect(violacoesDaGuarda('0170_sabotagem_b.sql', sql)).toEqual(esperado)
   })
 
   it('toda função NOVA da fase é declarada security invoker', () => {

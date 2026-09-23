@@ -480,3 +480,33 @@ describe('14. `main()` recusa versão acima da que o restaurador conhece (crité
     expect(versaoDoBackup({ bloco: 'acervo' }) > MAIOR_VERSAO_CONHECIDA).toBe(false)
   })
 })
+
+describe('F63 · `empresa_id` no backup — o INSERT que o restaurador monta (sabotagem H, a metade TS)', () => {
+  // `sqlDeInsercao` monta a lista de colunas com as CHAVES das linhas do backup. `restauracao.sql`
+  // (cenário 8) prova, no Postgres do CI, o que o banco faz com as duas formas; aqui se prova que o
+  // restaurador GERA essas duas formas. `scripts/db/restaurar.mjs` não muda na F63.
+  const antes = { id: '63000000-0000-4000-8000-0000000008a1', patrimonio: 'WAP0063801' }
+  const depois = { id: '63000000-0000-4000-8000-0000000008b1', patrimonio: 'WAP0063802', empresa_id: '63000000-0000-4000-8000-0000000000e8' }
+
+  it('backup de ANTES da F63 (sem a chave): a coluna fica FORA do INSERT — o default (a empresa legada) preenche', () => {
+    const sql = sqlDeInsercao('ativos', [antes])
+    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio\)/)
+    expect(sql).not.toContain('empresa_id')
+  })
+
+  it('backup de DEPOIS da F63 (com a chave): a coluna ENTRA, com a empresa que o backup traz', () => {
+    const sql = sqlDeInsercao('ativos', [depois])
+    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, empresa_id\)/)
+    expect(sql).toContain("'63000000-0000-4000-8000-0000000000e8'")
+  })
+
+  it('lote MISTO (as duas formas juntas): a linha sem a chave vai com null EXPLÍCITO — e o banco recusa ALTO (23502), nunca grava errado', () => {
+    // Achado da revisão adversarial da F63, registrado e NÃO corrigido aqui (o restaurador é intocado
+    // nesta fase): um backup só é misto se alguém juntar arquivos de antes e de depois da F63. Com a
+    // coluna `not null`, o null explícito é recusado pelo banco — a restauração falha alto, não
+    // grava a empresa errada. A F67 (que tira o default) é quem faz o restaurador preencher a empresa.
+    const sql = sqlDeInsercao('ativos', [antes, depois])
+    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, empresa_id\)/)
+    expect(sql).toContain("'WAP0063801', null)")
+  })
+})

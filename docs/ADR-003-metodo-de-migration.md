@@ -85,3 +85,27 @@ Lido na fonte atual da Supabase CLI (`findPendingMigrations` e `db-push-core`), 
 - **Reabrir este ADR quando:** alguém além do Johnny passar a operar o banco (o [`SYSTEM-DESIGN-2026-08-30.md`](SYSTEM-DESIGN-2026-08-30.md)
   já apontava esse gatilho), ou a CLI voltar ao fluxo por outro motivo, por exemplo uma fase do multiempresa. Nesse dia, a
   emenda precisa trazer uma trava executável contra `db push`, não só esta prosa.
+
+## Emenda F63 (23/09/2026) — a classe da migration e o par de backup
+
+O método de APLICAR não muda (conector, ensaio primeiro, sonda de efeito, nunca `db push`/`repair`). O que a F63
+acrescenta é uma disciplina sobre o que a migration FAZ, porque a virada multiempresa é uma fila de migrations sobre um
+banco com dado real:
+
+1. **A classe no cabeçalho é obrigatória a partir da `0159`** — `-- classe: ADITIVA | BACKFILL | DESTRUTIVA` — e um
+   classificador estático (`scripts/db/classificar-migration.mjs`, o leitor único que a guarda de topo também usa)
+   confere que a declarada não é menor que a calculada. Ele lê como o Postgres lê: o corpo de função é guardado, o de
+   `do` é executado. O que ele não sabe ler (SQL dinâmico, chamada de função no apply, default volátil) reprova como
+   ILEGÍVEL. O censo das 157 anteriores é evidência, não trava — migration aplicada não se edita.
+2. **Quem sobrescreve dado vivo guarda antes o valor antigo** em `public.backups_migration` (o par por coluna, no bloco
+   canônico, com o nome do arquivo e o `where` byte a byte), e o rodapé traz o rollback que o devolve. Receita no
+   [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md), "A disciplina de backup de migração".
+3. **A coluna nova numa tabela viva nasce sem reescrita** (`add column … not null default <não-volátil>`, sem `update`,
+   com `lock_timeout` por `set`/`reset`), e a prova é por impressão antes × depois nos DOIS bancos: `relfilenode` e md5
+   de `(id, xmin)`.
+4. **O rollback declara a ordem ENTRE fases**: o de uma fase pressupõe o das fases posteriores (o da F62 exige o da F63
+   antes). Os arquivos de rollback moram em `supabase/rollback/`, fora do ledger e da trava de hash, e são ensaiados no
+   CI por roteiro.
+
+Isto não reabre o ADR: a ressalva continua a mesma (a CLI fora do fluxo). A regra é a R-ACC-85 a R-ACC-90 da
+[`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F63.

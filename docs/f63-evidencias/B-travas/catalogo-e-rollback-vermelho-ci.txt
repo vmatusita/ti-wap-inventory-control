@@ -1,0 +1,122 @@
+# F63 · Frente B · as travas de CATÁLOGO nascem VERMELHAS no Postgres do CI
+# PR #72, run 35865427382, job banco-sem-docker, commit 8a8b3d7 (antes de qualquer migration da F63)
+# (trechos do log do rodar-roteiros.sh, sem o prefixo de horário)
+
+==== supabase/tests/catalogo_policies.sql ====
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 1a toda tabela de public está CLASSIFICADA negócio × infra (0 de 28 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 1b todo nome classificado ainda existe no catálogo (0 de 28 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 2 toda tabela de NEGÓCIO tem policy de SELECT (0 de 20 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 3 nenhuma tabela de public fica sem SELECT por CATEGORIA (0 de 28 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 4 toda exceção deny-all ainda descreve o banco (0 de 5 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) (0 de 28 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 5 nenhuma policy com predicado equivalente a `true` (0 de 62 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 6a o piso `papel_atual()` continua nas 20 policies de SELECT congeladas (0 de 20 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 6b as 3 que decidem por CARGO não afrouxaram para o piso (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 6c toda policy de SELECT de public está numa das duas listas do piso (0 de 23 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 7 nenhuma policy de storage.objects decide só por `bucket_id` (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 8a nenhuma policy de Storage fora do conjunto congelado (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 8b nenhuma policy de Storage congelada sumiu (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 9a nenhuma tabela NOVA na publication do Realtime (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 9b nenhuma das 3 congeladas saiu da publication (0 de 3 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 10a toda policy de public está no universo congelado da doutrina (0 de 54 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 10b toda policy do universo congelado ainda existe (0 de 54 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 10c toda árvore de policy tem só nós que o analisador da doutrina lê (0 de 476 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 10d o analisador de árvore sabe reprovar (12 árvores sintéticas) (0 de 80 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 11a R1 nenhuma função recebe dado da linha fora da lista de exceções (0 de 87 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 11b toda exceção da doutrina ainda descreve uma ocorrência viva (0 de 18 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 12 R2 nenhuma função sem dado da linha fora de (select …) (0 de 87 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 13a R3 nenhum sub-select de policy lê tabela ou view (0 de 75 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 13b R3 nenhum sub-select de policy olha a linha fora de argumento de função (0 de 75 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 14 alvo de array (select …) em policy é função que devolve conjunto (0 de 87 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 15a todo nome do lote 1 (k_lote1) é tabela de NEGÓCIO (k_negocio) (0 de 8 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: WARNING:  ✗ 15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force) — fora da forma: anotacoes (sem a coluna empresa_id); ativos (sem a coluna empresa_id); colaboradores (sem a coluna empresa_id); itens (sem a coluna empresa_id); lancamentos_item (sem a coluna empresa_id); movimentacoes (sem a coluna empresa_id); pendencias_item (sem a coluna empresa_id); termos_gerados (sem a coluna empresa_id): 8 de 8 fora da regra
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  ✓ 15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma (0 de 1 conferidos)
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  (15 — pendência nomeada da F64, sem reprovar) tabelas de negócio ainda sem empresa_id: eventos_admin, import_logs, import_prefixos_patrimonio, import_termos_categoria, import_termos_estado, kits_modelos, motivos, relatorios_gerados, senhas_acesso, tipos_item, unidades_apelidos
+psql:supabase/tests/catalogo_policies.sql:1313: NOTICE:  FIM catalogo_policies: 28 asserções, 1 falhas
+##[error]roteiro supabase/tests/catalogo_policies.sql o contador declara 1 falha(s)
+##[error]roteiro supabase/tests/catalogo_policies.sql marcou 1 ✗ (cenário falhou)
+
+# o rollback da F62 continua verde com o da F63 rodando ANTES (em vazio, antes da 0159):
+==== supabase/tests/f62_rollback.sql ====
+psql:supabase/rollback/F63-desfaz.sql:32: NOTICE:  column "empresa_id" of relation "movimentacoes" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:33: NOTICE:  column "empresa_id" of relation "lancamentos_item" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:34: NOTICE:  column "empresa_id" of relation "ativos" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:35: NOTICE:  column "empresa_id" of relation "pendencias_item" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:38: NOTICE:  column "empresa_id" of relation "colaboradores" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:39: NOTICE:  column "empresa_id" of relation "itens" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:40: NOTICE:  column "empresa_id" of relation "termos_gerados" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:41: NOTICE:  column "empresa_id" of relation "anotacoes" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:54: NOTICE:  table "backups_migration" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:32: NOTICE:  column "empresa_id" of relation "movimentacoes" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:33: NOTICE:  column "empresa_id" of relation "lancamentos_item" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:34: NOTICE:  column "empresa_id" of relation "ativos" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:35: NOTICE:  column "empresa_id" of relation "pendencias_item" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:38: NOTICE:  column "empresa_id" of relation "colaboradores" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:39: NOTICE:  column "empresa_id" of relation "itens" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:40: NOTICE:  column "empresa_id" of relation "termos_gerados" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:41: NOTICE:  column "empresa_id" of relation "anotacoes" does not exist, skipping
+psql:supabase/rollback/F63-desfaz.sql:54: NOTICE:  table "backups_migration" does not exist, skipping
+psql:supabase/tests/f62_rollback.sql:196: NOTICE:  ✓ rb0 o estado depois da F62 foi montado (promovido=admin, desligado=sem cargo, dev=dev) — só na membership
+psql:supabase/tests/f62_rollback.sql:196: NOTICE:  ✓ rb1 rollback na ordem escrita (cópia primeiro): o corpo antigo devolve o estado MAIS NOVO — promovido=admin, desligado=sem cargo, dev=dev, e a impressão de todo perfil é a mesma de antes do rollback
+psql:supabase/tests/f62_rollback.sql:196: NOTICE:  ✓ rb2 SEM a cópia, o rollback devolve o estado VELHO — o desligado voltaria a ter cargo (operador/operador/operador) e a impressão muda: a cópia é o passo que impede isso
+psql:supabase/tests/f62_rollback.sql:196: NOTICE:  ✓ rb3 o esquema voltou ao de antes da F62: sem membros/empresas/plataforma_admins, sem empresa_id/membro_id, PK (usuario_id, filial_id), papel_atual() lendo profiles
+psql:supabase/tests/f62_rollback.sql:196: NOTICE:  FIM f62_rollback: 4 asserções, 0 falhas
+
+# a medição da impressão do esquema ANTES da 0159 (rb0 e rb3 vermelhos de propósito neste push):
+==== supabase/tests/f63_rollback.sql ====
+psql:supabase/tests/f63_rollback.sql:137: NOTICE:  (medição) impressão do esquema das oito DEPOIS do rollback: c533eeff15f4196c2f8a5ec4721ff570 · antes, sem o que a F63 declarou: c533eeff15f4196c2f8a5ec4721ff570
+psql:supabase/tests/f63_rollback.sql:137: WARNING:  ✗ rb0 antes do rollback, as oito tabelas do acervo TÊM empresa_id visível — só 0 de 8: 8 de 8 fora da regra
+psql:supabase/tests/f63_rollback.sql:137: NOTICE:  ✓ rb1 depois do rollback, nenhuma das oito tem empresa_id visível (0 de 8 conferidos)
+psql:supabase/tests/f63_rollback.sql:137: NOTICE:  ✓ rb2 depois do rollback, public.backups_migration não existe (0 de 1 conferidos)
+psql:supabase/tests/f63_rollback.sql:137: WARNING:  ✗ rb3 o esquema das oito depois do rollback é o do CI antes da 0159 — impressão c533eeff15f4196c2f8a5ec4721ff570, esperada a-medir-no-push-das-travas: 1 de 1 fora da regra
+psql:supabase/tests/f63_rollback.sql:137: NOTICE:  ✓ rb4 o rollback tira exatamente o que a F63 declarou (antes sem empresa_id = depois) (0 de 1 conferidos)
+psql:supabase/tests/f63_rollback.sql:137: NOTICE:  FIM f63_rollback: 5 asserções, 2 falhas
+##[error]roteiro supabase/tests/f63_rollback.sql o contador declara 2 falha(s)
+##[error]roteiro supabase/tests/f63_rollback.sql marcou 2 ✗ (cenário falhou)
+
+==== RESUMO ====
+  ✓ asof_desempate — 21 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 71 asserções
+  ✓ cargo_em_membros — 5 asserções
+  ✓ cargo_equivalencia — 7 asserções
+  ✗ catalogo_policies — o contador declara 1 falha(s)
+  ✗ catalogo_policies — marcou 1 ✗ (cenário falhou)
+  ✓ catalogo_secdef — 16 asserções
+  ✓ conflito_filiais — 51 asserções
+  ✓ definer_sem_tenant — 6 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ escrita_atomica_ativos_anotacao — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 26 asserções
+  ✓ f60_recorte — 17 asserções
+  ✓ f62_rollback — 4 asserções
+  ✗ f63_rollback — o contador declara 2 falha(s)
+  ✗ f63_rollback — marcou 2 ✗ (cenário falhou)
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_fora_da_unidade — 14 asserções
+  ✓ import_substituir — 32 asserções
+  ✓ integridade_alarme — 38 asserções
+  ✓ isolamento_tenant — 27 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ ledger_de_migracoes — 6 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ movimentacao_grade — 45 asserções
+  ✓ papeis_rls — 77 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 15 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ restauracao — 17 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ storage_termo — 13 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  ✓ vocabulario_import — 56 asserções
+  42 roteiro(s), 977 asserções no total

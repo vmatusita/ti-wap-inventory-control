@@ -93,6 +93,17 @@ declare
     'senhas_acesso', 'termos_gerados', 'tipos_item', 'unidades_apelidos'
   ];
 
+  -- F63 (23/09/2026) — O LOTE 1 DA CHAVE DE RECORTE: as oito tabelas do ACERVO que a F63 põe
+  -- `empresa_id` (0160, 0161). É a FONTE ÚNICA da lista das oito (decisão 6 do PLAN-F63): o
+  -- bloco 5 abaixo a confere contra `k_negocio` (15a) e contra o catálogo (15b), e a trava de mesa
+  -- `src/lib/validators/empresa-acervo-sem-leitura.test.ts` a LÊ daqui — nunca uma cópia. As 11
+  -- tabelas de `k_negocio` que ficam sem a coluna são a F64 (as sete da ficha e as quatro do
+  -- vocabulário do import, fato 18); `filiais` já a tem desde a F62 (0155).
+  k_lote1 text[] := array[
+    'anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item', 'movimentacoes',
+    'pendencias_item', 'termos_gerados'
+  ];
+
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
   --   · profiles          (0001) — identidade da CONTA, não do acervo. Na virada o
   --                                cargo migra para `membros.papel` (plano §5 → F62,
@@ -121,9 +132,15 @@ declare
   --   `operador_filiais` CONTINUA infra (fato 14 da ordem F62): ganhou `empresa_id` e
   --   `membro_id` (0156), mas é o vínculo de ESCRITA de uma membership — a chave de recorte
   --   dele é a membership, não a linha.
+  -- F63 (23/09/2026) — nove no total:
+  --   · backups_migration (0159) — o PAR DE BACKUP das migrations que alteram dado: o que ela
+  --                                guarda é do MECANISMO de migração (a chave e o valor anterior
+  --                                de uma célula), escrito pela migration e lido pelo rollback
+  --                                dela; não se recorta por empresa.
   k_infra text[] := array[
     'profiles', 'operador_filiais', 'senha_tentativas', 'ambiente',
-    '_bkp_relatorios_gerados_f6a', 'empresas', 'membros', 'plataforma_admins'
+    '_bkp_relatorios_gerados_f6a', 'empresas', 'membros', 'plataforma_admins',
+    'backups_migration'
   ];
 
   -- =======================================================================
@@ -155,11 +172,15 @@ declare
   --                         revogada na própria migration.
   --   · plataforma_admins — F62 (0154): só `e_plataforma()` (definer) a lê. Mesmo idioma
   --                         de `ambiente`.
+  --   · backups_migration — F63 (0159): o par de backup de migração; quem escreve é a migration
+  --                         e quem lê é o rollback dela, os dois como o dono. RLS ligada, zero
+  --                         policy e revoke all dos três papéis da API — o molde de `ambiente`.
   --
   -- ⚠ A asserção 4 confere esta lista no SENTIDO CONTRÁRIO: nome aqui que passe a TER
   -- policy de SELECT também REPROVA. Exceção não sobrevive ao motivo que a criou.
   -- =======================================================================
-  k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente', 'empresas', 'plataforma_admins'];
+  k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente', 'empresas', 'plataforma_admins',
+                               'backups_migration'];
 
   -- =======================================================================
   -- O PISO DE LEITURA CONGELADO (R-ACC-25, migration 0070).
@@ -366,6 +387,10 @@ declare
   v_f_linha   oid;
   v_f_sem     oid;
   v_f_uid     oid;
+  -- F63 — o bloco 5 (a chave de recorte no acervo): uma leitura de catálogo só, em arrays.
+  v_l1_tab    text[];
+  v_l1_def    text[];
+  v_l1_lote   boolean[];
 begin
   -- ===============================================================
   -- BLOCO 1 — AS POLICIES DE `public`
@@ -1183,6 +1208,116 @@ begin
   else
     v_falhas := v_falhas + 1;
   end if;
+
+  -- ===============================================================
+  -- BLOCO 5 — A CHAVE DE RECORTE NO ACERVO, LOTE 1 (F63, 23/09/2026)
+  -- ===============================================================
+  -- A F63 põe `empresa_id uuid not null default public.empresa_legada() references
+  -- public.empresas (id)` nas oito tabelas de `k_lote1` (0160, 0161) — SEM update de backfill: o
+  -- default não-volátil do PG 11+ preenche as linhas que já existem pelo catálogo. Este bloco é a
+  -- trava que reprova a volta, e é por catálogo, sem ler uma linha:
+  --   15a — `k_lote1` ⊆ `k_negocio`: a lista das oito sai da tabela-verdade de negócio.
+  --   15b — cada tabela de `k_lote1` tem a coluna VISÍVEL, `uuid`, `not null`, FK VALIDADA para
+  --         `public.empresas (id)` sobre ela sozinha, e default que é SÓ a chamada de
+  --         `public.empresa_legada()` — conferido pelo `pg_depend` (a dependência do default
+  --         na função), não pelo texto de `pg_get_expr`, que qualifica o nome conforme o
+  --         `search_path`; e nenhuma com `force row level security`. O ✗ nomeia cada tabela e
+  --         cada defeito. (Antes das migrations da F63 ela reprova pelos oito nomes — é a trava
+  --         que nasceu vermelha, `docs/f63-evidencias/B-travas/`.)
+  --   15c — DERIVADA DO CATÁLOGO: toda tabela de `k_negocio` que TEM a coluna obedece à mesma
+  --         forma, esteja ou não em `k_lote1` (hoje `filiais`, desde a F62).
+  -- As tabelas de `k_negocio` ainda SEM a coluna saem num aviso de pendência nomeada da F64 —
+  -- sem reprovar: são as sete da ficha F64 e as quatro do vocabulário do import (fato 18).
+  -- O DEFAULT FICA ATÉ A F67 (decisão do Johnny, 23/09/2026): por isso 15b EXIGE o default, e a
+  -- F67 inverte esta asserção no commit em que o tira.
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
+    into v_cnt, v_lista
+    from unnest(k_lote1) as nome
+   where not (nome = any (k_negocio));
+  if pg_temp.assert_zero_de(
+       '15a todo nome do lote 1 (k_lote1) é tabela de NEGÓCIO (k_negocio)' ||
+       case when v_cnt > 0 then ' — fora de k_negocio: ' || v_lista else '' end,
+       v_cnt, array_length(k_lote1, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- Uma leitura só: o lote 1 inteiro MAIS toda tabela de negócio que já tem a coluna.
+  with alvo as (
+    select nome as tabela, to_regclass('public.' || nome) as rel, nome = any (k_lote1) as no_lote
+      from unnest(k_negocio || k_lote1) as nome
+     group by nome
+  ), col as (
+    select a.tabela, a.rel, a.no_lote, att.attnum, att.atttypid, att.attnotnull,
+           (select d.oid from pg_attrdef d where d.adrelid = a.rel and d.adnum = att.attnum) as def_oid,
+           (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d where d.adrelid = a.rel and d.adnum = att.attnum) as def_txt
+      from alvo a
+      left join pg_attribute att on att.attrelid = a.rel and att.attname = 'empresa_id' and not att.attisdropped
+     where a.no_lote or att.attnum is not null
+  )
+  select coalesce(array_agg(c.tabela order by c.tabela), '{}'),
+         coalesce(array_agg(concat_ws(', ',
+           case when c.rel is null then 'a tabela não existe' end,
+           case when c.rel is not null and c.attnum is null then 'sem a coluna empresa_id' end,
+           case when c.attnum is not null and c.atttypid <> 'uuid'::regtype then 'empresa_id não é uuid' end,
+           case when c.attnum is not null and not c.attnotnull then 'empresa_id aceita null' end,
+           case when c.attnum is not null and not exists (
+                  select 1 from pg_constraint k
+                   where k.conrelid = c.rel and k.contype = 'f' and k.convalidated
+                     and k.confrelid = 'public.empresas'::regclass and k.conkey = array[c.attnum])
+                then 'sem FK VALIDADA para public.empresas (id)' end,
+           case when c.attnum is not null and not (
+                  c.def_oid is not null
+                  and exists (select 1 from pg_depend dp
+                               where dp.classid = 'pg_attrdef'::regclass and dp.objid = c.def_oid
+                                 and dp.refclassid = 'pg_proc'::regclass
+                                 and dp.refobjid = 'public.empresa_legada()'::regprocedure)
+                  and c.def_txt ~ '^(public\.)?empresa_legada\(\)$')
+                then 'default não é public.empresa_legada() (' || coalesce(c.def_txt, 'nenhum') || ')' end,
+           case when c.rel is not null and (select k.relforcerowsecurity from pg_class k where k.oid = c.rel)
+                then 'force row level security' end
+         ) order by c.tabela), '{}'),
+         coalesce(array_agg(c.no_lote order by c.tabela), '{}')
+    into v_l1_tab, v_l1_def, v_l1_lote
+    from col c;
+
+  select count(*) filter (where d <> ''),
+         coalesce(string_agg(t || ' (' || d || ')', '; ' order by t) filter (where d <> ''), '')
+    into v_cnt, v_lista
+    from unnest(v_l1_tab, v_l1_def, v_l1_lote) as x(t, d, l)
+   where l;
+  if pg_temp.assert_zero_de(
+       '15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force)' ||
+       case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
+       v_cnt, array_length(k_lote1, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  select count(*), count(*) filter (where d <> ''),
+         coalesce(string_agg(t || ' (' || d || ')', '; ' order by t) filter (where d <> ''), '')
+    into v_univ, v_cnt, v_lista
+    from unnest(v_l1_tab, v_l1_def, v_l1_lote) as x(t, d, l)
+   where not l;
+  if pg_temp.assert_zero_de(
+       '15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma' ||
+       case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  select coalesce(string_agg(nome, ', ' order by nome), '')
+    into v_lista
+    from unnest(k_negocio) as nome
+   where not (nome = any (k_lote1))
+     and not exists (select 1 from pg_attribute a
+                      where a.attrelid = to_regclass('public.' || nome) and a.attname = 'empresa_id' and not a.attisdropped);
+  raise notice '(15 — pendência nomeada da F64, sem reprovar) tabelas de negócio ainda sem empresa_id: %', v_lista;
 
   raise notice 'FIM catalogo_policies: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

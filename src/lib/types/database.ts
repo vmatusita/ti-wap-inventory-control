@@ -65,11 +65,13 @@ export type Database = {
         }
         Relationships: []
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       anotacoes: {
         Row: {
           ativo_id: string
           created_at: string
           criado_por: string
+          empresa_id: string
           id: string
           texto: string
         }
@@ -77,6 +79,7 @@ export type Database = {
           ativo_id: string
           created_at?: string
           criado_por: string
+          empresa_id?: string
           id?: string
           texto: string
         }
@@ -84,6 +87,7 @@ export type Database = {
           ativo_id?: string
           created_at?: string
           criado_por?: string
+          empresa_id?: string
           id?: string
           texto?: string
         }
@@ -116,14 +120,23 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "anotacoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
         ]
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       ativos: {
         Row: {
           armazenamento: string | null
           categoria: Database["public"]["Enums"]["categoria_ativo"]
           colaborador_atual: string | null
           created_at: string
+          empresa_id: string
           filial_id: number
           fornecedor: string | null
           hostname: string | null
@@ -153,6 +166,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
           colaborador_atual?: string | null
           created_at?: string
+          empresa_id?: string
           filial_id: number
           fornecedor?: string | null
           hostname?: string | null
@@ -182,6 +196,7 @@ export type Database = {
           categoria?: Database["public"]["Enums"]["categoria_ativo"]
           colaborador_atual?: string | null
           created_at?: string
+          empresa_id?: string
           filial_id?: number
           fornecedor?: string | null
           hostname?: string | null
@@ -207,6 +222,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ativos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ativos_filial_id_fkey"
             columns: ["filial_id"]
@@ -237,11 +259,44 @@ export type Database = {
           },
         ]
       }
+      // F63 hand-fix (23/09/2026): escrito à mão antes do apply (0159); a geração do MCP o substitui.
+      backups_migration: {
+        Row: {
+          chave: string
+          coluna: string
+          gravado_em: string
+          id: number
+          migration: string
+          tabela: string
+          valor_anterior: Json | null
+        }
+        Insert: {
+          chave: string
+          coluna: string
+          gravado_em?: string
+          id?: never
+          migration: string
+          tabela: string
+          valor_anterior?: Json | null
+        }
+        Update: {
+          chave?: string
+          coluna?: string
+          gravado_em?: string
+          id?: never
+          migration?: string
+          tabela?: string
+          valor_anterior?: Json | null
+        }
+        Relationships: []
+      }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       colaboradores: {
         Row: {
           ativo: boolean
           created_at: string
           criado_por: string
+          empresa_id: string
           filial_id: number | null
           id: string
           matricula: string | null
@@ -253,6 +308,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por: string
+          empresa_id?: string
           filial_id?: number | null
           id?: string
           matricula?: string | null
@@ -264,6 +320,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por?: string
+          empresa_id?: string
           filial_id?: number | null
           id?: string
           matricula?: string | null
@@ -277,6 +334,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "colaboradores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -513,11 +577,13 @@ export type Database = {
         }
         Relationships: []
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       itens: {
         Row: {
           ativo: boolean
           created_at: string
           criado_por: string | null
+          empresa_id: string
           estoque_minimo: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id: number
@@ -530,6 +596,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por?: string | null
+          empresa_id?: string
           estoque_minimo?: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id?: never
@@ -542,6 +609,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por?: string | null
+          empresa_id?: string
           estoque_minimo?: number
           grupo?: Database["public"]["Enums"]["grupo_item"]
           id?: never
@@ -556,6 +624,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -602,6 +677,7 @@ export type Database = {
           },
         ]
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       lancamentos_item: {
         Row: {
           chamado: string | null
@@ -610,6 +686,7 @@ export type Database = {
           created_at: string
           criado_por: string
           data: string
+          empresa_id: string
           estorna_id: string | null
           filial_id: number
           forcado: boolean
@@ -629,6 +706,7 @@ export type Database = {
           created_at?: string
           criado_por: string
           data?: string
+          empresa_id?: string
           estorna_id?: string | null
           filial_id: number
           forcado?: boolean
@@ -648,6 +726,7 @@ export type Database = {
           created_at?: string
           criado_por?: string
           data?: string
+          empresa_id?: string
           estorna_id?: string | null
           filial_id?: number
           forcado?: boolean
@@ -680,6 +759,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_item_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -790,6 +876,7 @@ export type Database = {
         }
         Relationships: []
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       movimentacoes: {
         Row: {
           ativo_id: string
@@ -800,6 +887,7 @@ export type Database = {
           created_at: string
           criado_por: string
           data: string
+          empresa_id: string
           estorno_de: string | null
           filial_destino_id: number | null
           filial_id: number
@@ -826,6 +914,7 @@ export type Database = {
           created_at?: string
           criado_por: string
           data?: string
+          empresa_id?: string
           estorno_de?: string | null
           filial_destino_id?: number | null
           filial_id: number
@@ -852,6 +941,7 @@ export type Database = {
           created_at?: string
           criado_por?: string
           data?: string
+          empresa_id?: string
           estorno_de?: string | null
           filial_destino_id?: number | null
           filial_id?: number
@@ -910,6 +1000,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -996,12 +1093,14 @@ export type Database = {
           },
         ]
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       pendencias_item: {
         Row: {
           ativo_id: string
           colaborador: string | null
           created_at: string
           desfecho: string | null
+          empresa_id: string
           filial_id: number
           id: string
           item: string
@@ -1016,6 +1115,7 @@ export type Database = {
           colaborador?: string | null
           created_at?: string
           desfecho?: string | null
+          empresa_id?: string
           filial_id: number
           id?: string
           item: string
@@ -1030,6 +1130,7 @@ export type Database = {
           colaborador?: string | null
           created_at?: string
           desfecho?: string | null
+          empresa_id?: string
           filial_id?: number
           id?: string
           item?: string
@@ -1059,6 +1160,13 @@ export type Database = {
             columns: ["ativo_id"]
             isOneToOne: false
             referencedRelation: "v_pendencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pendencias_item_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
@@ -1248,6 +1356,7 @@ export type Database = {
           },
         ]
       }
+      // F63 hand-fix (23/09/2026): empresa_id escrito à mão antes do apply (0160/0161); a geração do MCP o substitui.
       termos_gerados: {
         Row: {
           arquivo_path: string
@@ -1257,6 +1366,7 @@ export type Database = {
           colaborador: string | null
           created_at: string
           dados: Json
+          empresa_id: string
           gerado_por: string
           id: string
           movimentacao_ids: string[]
@@ -1270,6 +1380,7 @@ export type Database = {
           colaborador?: string | null
           created_at?: string
           dados: Json
+          empresa_id?: string
           gerado_por: string
           id?: string
           movimentacao_ids: string[]
@@ -1283,6 +1394,7 @@ export type Database = {
           colaborador?: string | null
           created_at?: string
           dados?: Json
+          empresa_id?: string
           gerado_por?: string
           id?: string
           movimentacao_ids?: string[]
@@ -1294,6 +1406,13 @@ export type Database = {
             columns: ["atualizado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termos_gerados_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
           {
