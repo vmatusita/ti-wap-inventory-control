@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.69.0',
+    data: '2026-09-23',
+    fase: 'F64',
+    titulo: 'Tipos de item, motivos, kits, senhas de visualização, relatórios gerados, a importação e a trilha de auditoria passaram a registrar a empresa; o kit não aceita mais motivo que não existe',
+    mudancas: [
+      'Nada muda nas telas de Administração: tipos de item, motivos, kits, filiais e apelidos, senhas de visualização, a trilha de auditoria, os relatórios gerados e a importação mostram e pedem exatamente o que mostravam e pediam, para as mesmas pessoas.',
+      'Por dentro: o sistema passou a registrar a qual empresa pertence cada tipo de item, cada motivo, cada kit, cada senha de visualização, cada relatório gerado, cada registro de importação, cada apelido de filial, o vocabulário da importação e cada linha da trilha de auditoria. Hoje todos são da WAP, e o que for cadastrado a partir de agora também, sem ninguém precisar escolher. Nenhum dado foi regravado: o conteúdo foi conferido antes e depois, na cópia de testes e na do dia a dia.',
+      'Um kit não aceita mais um motivo que não existe. Ao criar ou editar um kit com um motivo que não está cadastrado, o sistema recusa com o aviso "O motivo escolhido não está cadastrado para a empresa deste kit" e pede para escolher outro motivo ou deixar o kit sem motivo. Desativar um kit continua funcionando sempre.',
+      'A tela de Integridade ganhou a conferência "Kit com motivo que não existe", que conta os kits nessa situação. Hoje é zero.',
+      'Se o contador de tentativas da senha de visualização falhar, a entrada por senha passa a recusar com o aviso "Não foi possível conferir a senha agora. Tente de novo em instantes." em vez de liberar. Antes, uma falha do contador deixava tentar senhas sem limite.',
+    ],
+  },
+  {
     versao: '1.68.0',
     data: '2026-09-23',
     fase: 'F63',

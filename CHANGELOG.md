@@ -6,6 +6,31 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 23/09/2026 — F64 · `empresa_id` no vocabulário e na infra (lote 2), o kit na empresa do kit e o rate-limit fechado ✅
+
+**v1.69.0** · **com migrations `0162`–`0164`**, aplicadas no ensaio e em produção antes do merge · A terceira fase da virada multiempresa. As onze
+tabelas de negócio que ainda não tinham a chave de recorte (`tipos_item`, `motivos`, `kits_modelos`, `senhas_acesso`,
+`eventos_admin`, `import_logs`, `relatorios_gerados` e as quatro do vocabulário do import — `import_prefixos_patrimonio`,
+`import_termos_categoria`, `import_termos_estado`, `unidades_apelidos`) ganham `empresa_id uuid not null`, com FK validada
+para `empresas` e o default `public.empresa_legada()` (a WAP) **até a fase em que a escrita passar a informar a empresa**
+(decisão do Johnny) — **sem nenhum `update` e sem nenhuma tupla reescrita**, e aqui nenhum gatilho barraria o `update`
+ingênuo: a prova é o `relfilenode` e o md5 de `(pk, xmin)` antes × depois nos dois bancos, com a PK **lida do catálogo**
+(quatro das onze não têm `id`). Com elas, **as 20 tabelas de negócio têm a chave**, e a tabela de negócio sem ela
+**reprova** (o aviso de pendência virou asserção). **Nenhum escritor mudou e nada lê a coluna para recortar.** Três
+peças mudam comportamento: **o kit** passa a ser recusado **pelo banco** quando o motivo não existe na empresa do kit (o
+gatilho `kits_modelos_motivo_da_empresa`, que confere a entrada na orfandade — desativar um kit órfão continua possível),
+com a recusa traduzida em pt-BR; **a integridade ganha a 13ª checagem**, `kit_motivo_orfao`, conhecida no mesmo commit
+pela tela, pela linha de base do alarme (com 0 nos dois alvos) e pela cobertura, com as doze de antes byte a byte; e **o
+contador de tentativas da senha de visualização falha FECHADO** — o `error` que era descartado agora recusa a entrada
+com mensagem genérica e vai para o log sem o IP (reverte a decisão X4). A troca da PK de `motivos` e as chaves por
+empresa ficam para a fase de integridade estrutural. Travas: o bloco 5 de `catalogo_policies.sql` (15d–15j, nascido
+vermelho pelos onze nomes), os roteiros `kit_motivo_da_empresa.sql`, `empresa_no_vocabulario.sql` e `f64_rollback.sql`
+(com o da F63 e o da F62 rodando o da F64 antes), `senhas-rate-limit.test.ts` e a trava de fonte de `senhas.ts`, a chave
+nova nos três lugares, a trava "ninguém lê" estendida às dezenove tabelas com as duas exceções nominais do kit, e sete
+mutações novas no injetor (teto 138). Regras: MATRIZ R-ACC-91 a R-ACC-97; ADR-003 e RUNBOOK, emenda F64. Relatório em
+[`docs/RELATORIO-F64.md`](docs/RELATORIO-F64.md); plano em [`docs/PLAN-F64.md`](docs/PLAN-F64.md); ata em
+[`docs/DECISOES.md`](docs/DECISOES.md).
+
 ## 23/09/2026 — F63 · `empresa_id` no acervo (lote 1) e a disciplina de backup de migração ✅
 
 **v1.68.0** · **com migrations `0159`–`0161`**, aplicadas no ensaio e em produção antes do merge · A segunda fase da virada multiempresa. As oito tabelas do acervo
