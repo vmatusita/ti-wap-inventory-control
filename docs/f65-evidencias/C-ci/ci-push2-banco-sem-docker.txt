@@ -1,0 +1,71 @@
+# CI do push 2 — run 35925951229, commit e288cb5 (as dez migrations e o código): tudo verde
+
+---- gate de deriva de tipos ----
+banco ....... 38 relações · 358 colunas · 94 funções
+database.ts . 38 relações · 358 colunas · 94 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+==== RESUMO ====
+  ✓ asof_desempate — 21 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 71 asserções
+  ✓ cargo_em_membros — 5 asserções
+  ✓ cargo_equivalencia — 7 asserções
+  ✓ catalogo_policies — 36 asserções
+  ✓ catalogo_secdef — 16 asserções
+  ✓ conflito_filiais — 51 asserções
+  ✓ definer_sem_tenant — 6 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ empresa_no_acervo — 23 asserções
+  ✓ empresa_no_vocabulario — 15 asserções
+  ✓ escrita_atomica_ativos_anotacao — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 26 asserções
+  ✓ f60_recorte — 17 asserções
+  ✓ f62_rollback — 4 asserções
+  ✓ f63_rollback — 5 asserções
+  ✓ f64_rollback — 5 asserções
+  ✓ f65_rollback — 5 asserções
+  ✓ forma_multiempresa — 8 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_fora_da_unidade — 14 asserções
+  ✓ import_substituir — 32 asserções
+  ✓ imutabilidade_tenant — 8 asserções
+  ✓ integridade_alarme — 40 asserções
+  ✓ integridade_tenant — 24 asserções
+  ✓ isolamento_tenant — 27 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ kit_motivo_da_empresa — 14 asserções
+  ✓ ledger_de_migracoes — 6 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ movimentacao_grade — 45 asserções
+  ✓ papeis_rls — 77 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 15 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ restauracao — 19 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ storage_termo — 13 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  ✓ unicidade_por_empresa — 3 asserções
+  ✓ vocabulario_import — 56 asserções
+  51 roteiro(s), 1094 asserções no total
+
+mutações ativas ..... 143
+em quarentena ....... 2 (declaradas, NÃO executadas)
+controle verde: 25 roteiro(s), nenhum ✗.
+143/143 detectadas pelo cenário nomeado · 64329 ms no total
+
+f63_rollback.sql:150: NOTICE:  (medição) impressão do esquema das oito DEPOIS do rollback: c533eeff15f4196c2f8a5ec4721ff570 · antes, sem o que a F63 declarou: c533eeff15f4196c2f8a5ec4721ff570
+f64_rollback.sql:176: NOTICE:  (medição) impressão do esquema das onze DEPOIS do rollback: 9ab2b820d7cdaa5d46cd6e9f17424054 · antes, sem o que a F64 declarou: edd4bcf933df4d3b5a4dfbb5bb839b60 · depois, sem: edd4bcf933df4d3b5a4dfbb5bb839b60
+f65_rollback.sql:190: NOTICE:  (medição) impressão do esquema das 20 DEPOIS do rollback: 1c72ca42784d716f9009cc68f504c8f3 · antes, sem o que a F65 declarou: 548711b04d4af05ad1f110447260186c · depois, sem: 548711b04d4af05ad1f110447260186c
+integridade_tenant.sql:536: NOTICE:  (medição) D: 23 FKs entre tabelas de negócio no catálogo
+integridade_tenant.sql:536: NOTICE:  (medição) L4: md5 das funções de public fora das três da F65: b3c0d79079c66f2b66f7903a54ede79f (102 funções)

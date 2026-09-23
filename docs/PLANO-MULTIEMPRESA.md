@@ -895,6 +895,29 @@ globais das onze: `tipos_item.slug`, `kits_modelos_nome_uidx`, `unidades_apelido
 `eventos_admin_quando_idx` e `import_logs_created_idx` liderados por `empresa_id` já estavam na lista. **O rollback da
 F65 roda ANTES do da F64** (`supabase/rollback/F64-desfaz.sql`), e o `f64_rollback.sql` passa a rodá-lo antes do dele.)*
 
+*(Nota F65, 23/09/2026: executada pela ordem [`prompts/F65-integridade-estrutural-do-tenant-ultracode.md`](prompts/F65-integridade-estrutural-do-tenant-ultracode.md),
+plano [`PLAN-F65.md`](PLAN-F65.md), migrations `0165`–`0174` (não `0151`–`0155`). **Os desvios medidos** (fatos da
+ordem, remedidos): os pais são **sete** (`ativos`, `movimentacoes`, `pendencias_item`, `lancamentos_item`,
+`colaboradores`, `itens`, `tipos_item`) mais `filiais` (F62) e `motivos` (pela PK), não "~11"; as FKs entre tabelas de
+negócio são **23** exatas — `ativos` tem duas (não quatro: `categoria` é enum, `colaborador_atual` é texto),
+`termos_gerados` não tem nenhuma (os ids são `uuid[]` — no lugar da FK, o gatilho de coerência
+`termos_gerados_ids_da_empresa`), e `operador_filiais`/`membros` a F62 já fez; `pendencias_item_movimentacao_id_fkey` é
+`deferrable initially deferred` e a composta preservou; os uniques por empresa são **catorze** (os seis da ficha que
+existem — `itens (lower(nome))` saiu na `0147` —, mais o snapshot, `unidades_apelidos_apelido_chave_uidx`,
+`filiais_nome_chave_uidx`, as três PKs do import e os dois parciais), e seis ficam "por tenant de forma implícita",
+nominais; as
+travas advisory são **16** chamadas reais em 12 funções (não 13). **A guarda da empresa vale nas 20 tabelas de
+negócio** (não só em quatro — decisão 2 do Johnny: derivada do catálogo, sem exceção para a janela, 42501), inclusive
+`movimentacoes`/`lancamentos_item`, que a janela destrutiva abre ao UPDATE. **Sem `not valid`**: no `apply_migration`
+a migration é uma transação só, e a contagem de violações deu 0 nos dois bancos — as FKs nasceram validadas, uma
+varredura cada. **Os ✗ nasceram como `warning`** (vermelhos no PR em rascunho, verdes no commit seguinte), não
+`notice`. **O unique global de `colaboradores` saiu em DOIS passos** (o por empresa ao lado, `0172`; o global só depois
+do deploy, `0174`) — o `ON CONFLICT (nome_chave)` do app velho não perdeu o árbitro. **Nada converteu**: os ids ficam
+globais e as 16 travas advisory ficam como estão (decisão 10 do PLAN-F65; a regra de converter todas numa migration
+só fica escrita na ata). **As três decisões do Johnny:** (1) os índices de lista liderados por `empresa_id` foram para
+a F66; (2) a guarda em toda tabela de negócio; (3) o seed de duas empresas para o backlog. **Regras novas:** MATRIZ
+R-ACC-98 a R-ACC-107; ADR-003, emenda F65; RUNBOOK, Anexo F65.)*
+
 **Não entra.** Policy.
 
 **Entregas.** Migrations `0151`–`0155`, `supabase/tests/{forma_multiempresa,unicidade_por_empresa,imutabilidade_tenant}.sql`, `src/lib/relatorios/versao-snapshot.ts`, `src/lib/queries/gerados.ts`, `database.ts`.
@@ -925,6 +948,19 @@ F65 roda ANTES do da F64** (`supabase/rollback/F64-desfaz.sql`), e o `f64_rollba
 - Uma mutação nova no injetor por classe de policy, incluindo a quebra cross-tenant clássica ("a guarda confere o papel e esquece o tenant").
 - **`eventos_admin`** entra junto e merece nota: desde a F23 ela guarda backups jsonb do acervo apagado, é lida por `e_admin()` sem escopo, é insert-only sem policy de escrita (não existe caminho de expurgo por dentro do modelo), e `alvo` guarda e-mail de convidado. Considerar mandar o jsonb volumoso para o bucket (como o reset já faz acima de 25 registros) e deixar só o ponteiro — isso a devolve a metadado e faz o recorte proteger menos superfície.
 - **O comprimento vira regra do banco, não só do Zod.** Há 9 CHECK em 126 migrations contra 61 `.max()` nos validators, e **quatro caminhos de escrita que não passam por Zod nenhum** (a RPC do import com jsonb cru, a Zona destrutiva, os ~30 `createAdminClient()`, os scripts). Em banco compartilhado isso é o vizinho barulhento: um cliente enche 500 MB e derruba todos. CHECK de comprimento nas colunas de texto livre das tabelas de negócio, com os tetos derivados dos `.max()` que já existem.
+- *(Nota F65, 23/09/2026 — **OS ÍNDICES DE LISTA**, decisão 1 do Johnny: vieram da F65 para cá, porque é aqui que alguém
+  passa a LER por empresa.)* `mov_created_idx`, `movimentacoes_ordem_lista_idx`, `lanc_item_created_idx`,
+  `eventos_admin_quando_idx`, `import_logs_created_idx`, o `(empresa_id, ordem)` de `movimentacoes` e o `(empresa_id,
+  updated_at desc, id asc)` que `/ativos` nunca teve — liderados por `empresa_id`, o antigo caindo no MESMO commit. **A
+  medição que esta fase precisa fazer antes**: o `EXPLAIN (ANALYZE, BUFFERS)` das listas com o predicado da policy nova
+  (`empresa_id = any (array (select …))`), antes × depois do índice, nos dois bancos; o p95 de `/ativos` contra a linha
+  de base da F59 (1.037 ms a frio); e o `create index` comum (o `concurrently` não roda no `apply_migration`, que é uma
+  transação — RUNBOOK, Anexo F65). As chaves naturais que só a F65 tornou por empresa (`slug`, `nome_chave`, `codigo`,
+  o vocabulário do import) já têm `empresa_id` na FRENTE do unique — o prefixo que o recorte usa.
+- *(Nota F65 — **O JOIN POR CÓDIGO DAS `rel_*`**.)* `rel_por_motivo_filiais` e `rel_resumo_filiais` (`0143`) juntam
+  `left join motivos mo on mo.codigo = m.motivo`: com a PK de `motivos` por empresa (`0168`), duas empresas com o mesmo
+  código duplicariam a linha do relatório. Quando a leitura recortar, o join ganha `and mo.empresa_id = m.empresa_id` —
+  a FK composta `movimentacoes_motivo_fkey` já garante que o par existe.
 
 **Não entra.** Remover o piso (F72). Storage e definer (F67). Escrita por tenant (F67).
 
@@ -994,6 +1030,19 @@ F65 roda ANTES do da F64** (`supabase/rollback/F64-desfaz.sql`), e o `f64_rollba
   `smoke/persona.ts:80`, `manutencao/gerar-errata-truncamento.ts`; e os roteiros que inserem nas onze (a tabela do fato 8
   da ordem F64: 38 INSERTs em ~15 roteiros, mais 22 em `filiais` em 10). As três tabelas de termo e prefixo do import não
   têm escritor fora de migration.
+- *(Nota F65, 23/09/2026 — **O QUE A INTEGRIDADE ESTRUTURAL DEIXOU PARA A ESCRITA**, medido em `PLAN-F65.md` §2.)* Com os
+  uniques por empresa, uma chave natural deixa de ser única no SISTEMA — tudo certo com uma empresa, errado com duas:
+  (a) **os leitores por chave natural sozinha** — `resolverFilialPorSlug` (`queries/relatorios/comum.ts:43`, já preparado
+  para o `PGRST116`), `actions/tipos-item.ts:67` (`slug`), `actions/itens.ts:656` e `actions/colaboradores.ts:116` /
+  `queries/colaboradores.ts:388` (`nome_chave`) — ganham a empresa de quem escreve; (b) **`actions/admin.ts:760-763`,
+  `update motivos … .eq('codigo')`** — com duas empresas, grava nas DUAS: o mais grave, escrita cruzada muda;
+  (c) **`lerVocabularioImport` e a RPC do import** leem termo/prefixo sozinhos, e as tabelas inteiras; (d) **o
+  `max(versao)+1` sem empresa** (`actions/relatorios.ts:139`, `lerUltimaVersao`) — o índice do snapshot já é por
+  empresa, a leitura da última versão não; (e) **`idsDeAdminsAtivos`** — a ata da F52 (`DECISOES.md`, "a divergência
+  fecha na F65") dizia que o TS ganharia o escopo aqui; ele é da mesma família das guardas no-op da F52, e vai com
+  elas; (f) **as travas advisory que esta fase reescreve** — `resetar_acervo`/`resetar_itens` (a sentinela `-1` do
+  "tudo") e `apagar_ativos_conflito_filiais` (`hashtext('conflito_apagar')`) — ganham a empresa na chave, e as 16 se
+  convertem na MESMA migration (`(bigint)` e `(int, int)` são espaços de lock diferentes). A F65 não tocou em nenhuma.
 
 **Entregas.** Migrations `0160`–`0165`, `src/lib/actions/{importar,conflitos,termos,dev-destrutivo}.ts`, `supabase/tests/{definer_escopo,storage_por_empresa,conflito_entre_empresas,realtime_escopo,termo_bloqueado}.sql`.
 
@@ -1252,6 +1301,12 @@ Vinte pontos em que as três arquiteturas discordaram, ou em que a leitura ingê
 Um plano que só acrescenta é covarde. Estes itens apareceram no dossiê, têm mérito, e **não entram** — cada um com o motivo e o destino.
 
 **Backlog PATCH (entregas avulsas, para as tardes entre fases — nenhuma destrava a virada nem fica mais cara por causa dela):**
+
+- *(Nota F65, 23/09/2026 — decisão 3 do Johnny.)* **O seed com duas empresas fictícias** (a nota F62 da ficha F65) e a
+  trava `scripts/seed.test.ts`, com o `onConflict: 'nome_chave'` de `scripts/seed.ts:886`, que passa a
+  `'empresa_id,nome_chave'` (o unique por empresa da `0172`/`0174`; o seed não roda em banco nenhum até lá).
+- *(Nota F65 — do `RELATORIO-F60.md`.)* **A paginação keyset e a troca `created_at desc, id desc` → `ordem desc`** nas
+  listas de movimentação: muda a ordem VISÍVEL no empate, e por isso é entrega própria, com o operador avisado.
 
 - **A decomposição de `PassoMovimentacao` (29 props, 10 callbacks).** Dívida real de manutenção e testabilidade. Se for feita, o contexto para o estático nasce em `nova/contexto.tsx`, **nunca** dentro de `nova/config.ts` — que é módulo puro testado e viraria dependente de React (a armadilha do `checklist-lote.ts`, registrada no `CLAUDE.md`). E `validarLote` extraída como função pura **antes** de mexer nas props.
 - **`nova-compra-form.tsx` (1.412 linhas, 32 `useState`) e `importar-wizard.tsx` (1.041, 13 `useState`).** O que vale sozinho é extrair `camposObrigatoriosFaltando()` e `ORDEM_CAMPOS_OBRIGATORIOS` para `src/lib/ativos/obrigatorios.ts` — hoje elas decidem o foco num formulário de 1.412 linhas **sem teste nenhum**. **Não** mexer no `agoraRascunho`: a divergência com o wizard é decisão documentada (congelar no instante da LEITURA vs. da MONTAGEM), e a guarda `&& agoraRascunho` já impede o "salvo há 56 anos".

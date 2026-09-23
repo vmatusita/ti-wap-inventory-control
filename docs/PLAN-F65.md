@@ -345,9 +345,9 @@ fase que é ESTADO DE BANCO (nenhum teste de mesa a derruba):
 
 | id | o que quebra | quem acusa |
 |---|---|---|
-| `f65-fk-simples` | `anotacoes_ativo_id_fkey` recriada simples | `forma_multiempresa.sql` |
+| `f65-fk-simples` | `lancamentos_item_item_id_fkey` recriada simples (na execução: `anotacoes` já é o alvo da `f63-lote1-sem-coluna` — ata (g)) | `forma_multiempresa.sql` (F1/F4) |
 | `f65-snapshot-sem-empresa` | o índice do snapshot recriado sem `empresa_id` | `unicidade_por_empresa.sql` |
-| `f65-guarda-com-janela` | `guarda_empresa()` com o ramo `if current_setting('estoque.dev_destrutivo', true) = 'on' then return new` | `imutabilidade_tenant.sql` |
+| `f65-guarda-com-janela` | `guarda_empresa()` que só recusa FORA da janela (`… and coalesce(current_setting('estoque.dev_destrutivo', true), '') <> 'on'`) — o mesmo efeito do `return new` | `imutabilidade_tenant.sql` (I2/I4) |
 | `f65-diagonal-global` | a diagonal sem o filtro de empresa | o roteiro da fase (H) |
 | `f65-termo-sem-empresa` | `termo_da_empresa()` sem a comparação de empresa | o roteiro da fase (I) |
 
@@ -419,7 +419,7 @@ A prova no CI: `f65_rollback.sql` compara uma impressão do catálogo das 20 tab
 | I — `termos_gerados` | `integridade_tenant.sql` (I1–I3) + `f65-termo-sem-empresa` | **vermelho** no CI (push 1) |
 | J — a janela do `ON CONFLICT` | `integridade_tenant.sql` (J1–J2) + a trava de mesa do `onConflict` | **vermelha** na mesa e no CI (push 1) |
 | K — o rollback | `f65_rollback.sql` + `f64/f63/f62_rollback.sql` rodando o da F65 antes + `rollback-f65.test.ts` | a impressão pré-`0165` medida no push 1 |
-| L — o instrumento | `integridade_tenant.sql` (L1–L3: `update` num savepoint muda o md5 e não o `relfilenode`; `alter column … type` muda o `relfilenode`; as migrations não mudam nenhum dos dois nas 20 — medido no próprio CI por um banco que aplicou a cadeia até a `0164`… ver nota) | com as migrations |
+| L — o instrumento | `integridade_tenant.sql` (L1: um `update` numa subtransação muda o md5 de `(chave, xmin)` e não o `relfilenode`; L2: um `alter column … type` com reescrita muda o `relfilenode`; L3: as operações da fase — `unique (empresa_id, id)`, FK composta de mesmo nome, PK trocada, provisório → `rename` — numa fixture com linhas não mudam nenhum dos dois; L4: o corpo das funções que a fase não toca é o de antes da `0165`, contra a constante do CI — ver nota) | com as migrations |
 
 **Nota sobre L3**: o CI aplica a cadeia inteira antes de rodar os roteiros; "as migrations da fase não mudam o
 `relfilenode`" é provado nos BANCOS VIVOS pela impressão antes × depois (a prova que importa), e no CI por um cenário que

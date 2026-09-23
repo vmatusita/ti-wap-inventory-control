@@ -13375,3 +13375,88 @@ contrato sem prova.
   MCP iguais nos dois bancos e ao `database.ts` fora do hand-fix e da exceção da F62. Smoke 109 OK · 0 falha e conferidor
   0 recusadas logo depois do apply; merge `e55c77f` às 19:32:31 UTC; `/api/saude` 1.69.0 às 19:33:33 UTC (janela
   apply × deploy de ~7 min 45 s, sem Parte B dentro); Parte B à mão verde com 13 chaves e a `0164` no topo do ledger.
+
+## 2026-09-23 · F65 (v1.70.0) · a integridade estrutural do tenant
+
+**Contexto.** Ordem [`prompts/F65-integridade-estrutural-do-tenant-ultracode.md`](prompts/F65-integridade-estrutural-do-tenant-ultracode.md),
+a quarta fase da virada. Plano medido em [`PLAN-F65.md`](PLAN-F65.md) (os 28 fatos remedidos, o censo dos consumidores
+de FK, unique e `ON CONFLICT`, as catorze decisões, a ordem de apply e de rollback). Migrations `0165`–`0174`.
+Relatório em [`RELATORIO-F65.md`](RELATORIO-F65.md). Regras novas: MATRIZ R-ACC-98 a R-ACC-107; ADR-003, emenda F65;
+RUNBOOK, Anexo F65.
+
+**As três decisões do Johnny (23/09/2026), que mudam a ficha:**
+1. **Os índices de lista liderados por `empresa_id` vão para a F66** — é lá que alguém passa a LER por empresa, e é lá
+   que a medição do ganho existe. **Desvio declarado** do item "índices de lista" da ficha F65.
+2. **`guarda_empresa` em TODA tabela de negócio**, derivada do catálogo, com trava para tabela nova, `42501`, **sem
+   exceção para a janela `estoque.dev_destrutivo`**. **Desvio declarado** da ficha, que a punha em quatro tabelas
+   (`movimentacoes`/`lancamentos_item` "cobertas por `guarda_acervo`" — que a janela abre ao UPDATE).
+3. **O seed com duas empresas vai para o backlog** (com `scripts/seed.test.ts` e o `onConflict` de `seed.ts:886`).
+
+**As catorze decisões da fase** (detalhe no `PLAN-F65.md` §3):
+1. **As migrations:** dez — os pais (`0165`), as FKs do acervo (`0166`) e dos cadastros (`0167`), `motivos` (`0168`),
+   o import (`0169`), os uniques (`0170`), o snapshot (`0171`), o colaborador ao lado (`0172`), os gatilhos (`0173`) e o
+   passo pós-deploy (`0174`). Todo estado entre duas é repouso válido.
+2. **O lock e a validação:** validada direto (sem `not valid` — no MCP a migration é uma transação, e a contagem de
+   violações deu 0 nos dois bancos); um `alter table` por filho com o `drop` e o `add` do mesmo nome no mesmo comando;
+   as famílias na ordem de lock do app. `lock_timeout` 2 s, três tentativas em 30 min.
+3. **As FKs:** o mesmo nome, as mesmas ações; `pendencias_item_movimentacao_id_fkey` segue diferida; ficam simples as
+   FKs para `empresas`/`profiles` e `operador_filiais_filial_id_fkey` (nominal).
+4. **Os uniques:** `empresa_id` primeiro; o nome contratual pelo provisório → `drop` → `rename`; constraint continua
+   constraint; os seis implícitos nominais; o `tipo` de `CONSTRAINTS_TRADUZIDAS` passa a ser conferido.
+5. **O `consolidarColaboradores` com janela zero:** o unique por empresa ao lado do global (`0172`), o TS no alvo novo, o
+   global só depois do deploy (`0174`).
+6. **O snapshot:** o índice com a empresa (mesmo nome); `chaveVersao` com a empresa no mesmo commit; `gerados.ts` a lê
+   pela consulta das versões (exceção nominal); o `_key` da `0010` fica (implícito).
+7. **`guarda_empresa()`:** INVOKER, `revoke` dos quatro papéis (o molde de `guarda_acervo`), o corpo não cita a janela;
+   o gatilho `BEFORE UPDATE OF empresa_id` nas 20; nenhuma função de gatilho BEFORE das 20 atribui `new.empresa_id`.
+8. **`termos_gerados`:** um gatilho de coerência (não checagem nova — o dado estava coerente, 0 nos dois bancos), na
+   forma POSITIVA, conferindo a ENTRADA; `23503` com frase própria.
+9. **A diagonal:** duas linhas a mais, o resto byte a byte; o lock advisory fica global.
+10. **Os ids e as travas advisory: nada converte.** O teto efetivo do `smallint` é 32.767 com identidade que queima
+    número em transação abortada; o ritmo medido em produção (`itens` na sequência 139, `filiais` 20, `tipos_item` 40,
+    em ~10 semanas) põe o teto a séculos; com ids GLOBAIS a colisão da ficha (`(3, 1)` de A e de B) não existe. **A
+    regra fica escrita:** quem um dia reescalar ids por empresa converte AS 16 chamadas na MESMA migration — `(bigint)`
+    e `(int, int)` são espaços de lock diferentes, e a conversão parcial desliga a exclusão mútua sem erro nenhum.
+11. **As três travas de catálogo:** arquivos novos pelo glob do runner; cada exceção nominal numa fonte só, com o motivo;
+    a cópia de `k_negocio` amarrada pelo describe 14; nascem vermelhas no PR em rascunho (sem o artifício `notice`).
+12. **"Ninguém lê":** `k_leitura_tenant` (função:tabelas) ao lado de `k_leitura_integridade`, pelo despachante
+    `pg_temp.leitura_de_empresa`; o furo do `new`/`old` em gatilho fechado no catálogo e no disco; duas cadeias TS
+    nominais.
+13. **O injetor:** cinco mutações, teto 138 → 143; as duas `*-sem-coluna` derrubam o gatilho da guarda antes.
+14. **O instrumento:** a chave estável = a PK do catálogo menos `empresa_id`; o critério da F63/F64.
+
+**Decisões tomadas na execução:**
+- **(a) A mesa ganhou um Postgres de verdade: PGlite.** A mesa do Johnny não tem Postgres nem Docker. O PGlite 0.3
+  (PostgreSQL 17.5 em WASM, só no scratchpad da sessão, **não é dependência do projeto**) aplicou a cadeia inteira e rodou
+  os roteiros e o injetor antes de cada push — o CI deixou de ser o primeiro a ver o SQL. Limites medidos: sem ICU (a
+  colação `und-x-icu` da `0139` vira uma libc `C` de mesmo nome SÓ na mesa), `pg_locks`/fuso diferentes (três asserções
+  de ambiente caem lá e passam no CI), e um md5 de funções que difere do CI para a MESMA cadeia (ver (e)). O CI continua
+  sendo a autoridade.
+- **(b) O gatilho do termo chama `termos_gerados_ids_da_empresa`**, não `termos_gerados_termo_da_empresa`: os gatilhos
+  disparam em ordem alfabética, e o nome antigo fazia a coerência do termo (`23503`) disparar ANTES da guarda da empresa
+  numa troca de `empresa_id` do termo — a troca levaria a frase errada. Com `…_ids_…`, a guarda (`…_guarda_…`) vem antes
+  e a troca de empresa leva `42501`, como nas outras 19.
+- **(c) O C5 do roteiro do kit muda de dono (declarado, fato 20):** trocar a empresa de um kit passou a ser recusado pela
+  guarda da empresa (`42501`), que dispara antes do gatilho do kit; a asserção aceita as duas recusas.
+  `restauracao.sql` planta a filial na empresa da fixture (a FK composta recusa o filho da empresa B no pai da WAP) e
+  `integridade_alarme.sql` gera o termo com os arrays vazios (o gatilho confere a empresa de cada id citado). Nenhuma
+  asserção mudou para passar.
+- **(d) O `database.ts` à mão (hand-fix datado):** as 23 `Relationships` compostas; e a relação que mora numa VIEW, ou
+  que aponta para uma, SAIU — conferido no código do gerador (`postgres-meta`, `views_key_dependencies.sql`: a relação de
+  view exige TODAS as colunas da FK expostas, e nenhuma view expõe `empresa_id`). Nenhuma leitura do app embute relação
+  por view (só selects planos em `v_conflitos_filiais`/`v_pendencias_item`). A geração do MCP depois do apply substitui.
+- **(e) A constante das funções intocadas (L4) é a do CI.** O push 1 (run `35925340234`, só as travas) mediu no Postgres
+  do CI o md5 das funções de `public` fora das três da fase: `b3c0d790…`; a mesa em PGlite mede `9fa5e466…` para a mesma
+  cadeia — sozinho e com a suíte inteira, logo nenhum roteiro deixa função em `public`: é ambiente. `k_pre_0165`
+  (`1c72ca42…`) e a diagonal da `0139` (`91e80d53…`) bateram nos dois.
+- **(f) O roteiro da fase imprime o catálogo depois da cadeia** (`\ir` do `impressao-catalogo.sql` depois do FIM): é a
+  régua do "catálogo depois igual ao do CI" (decisão 14), que o plano prometia e o código ainda não tinha.
+- **(g) A mutação `f65-fk-simples` quebra `lancamentos_item_item_id_fkey`**, não `anotacoes_ativo_id_fkey` (a tabela do
+  plano): `anotacoes` já é o alvo da `f63-lote1-sem-coluna`, e o lançamento de estoque apontando para o item de outra
+  empresa é o caso de maior efeito. A `f65-guarda-com-janela` afrouxa a condição (`and current_setting(…) <> 'on'`), o
+  mesmo efeito do `return new` do plano.
+- **(h) Os testes de mesa leem a migration DENTRO do caso**, não na coleta: sem a `0171`/`0173`, cada caso cai com o
+  próprio nome em vez de o arquivo inteiro abortar com "0 test" — a evidência vermelha nomeia o que falta.
+- **(i) Os comentários que prometiam à F65 o que é da F67** (`catalogo_secdef.sql:83/110`, `cargo_dev.sql:1073`: o
+  corpo real de `mesmo_escopo_de_gestao` e `exigir_ativos_da_empresa`) apontam a F67. E o cabeçalho de
+  `isolamento_tenant.sql` diz o que a F65 entregou e que a regra 3 (o par simétrico) agora tem FK composta para provar.
