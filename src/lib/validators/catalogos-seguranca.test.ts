@@ -785,3 +785,73 @@ describe('12. o lote 1 da chave de recorte (F63): a lista das oito mora numa fon
     }
   })
 })
+
+describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só', () => {
+  // DECISÕES 6 E 7 DO PLAN-F64. `k_lote2` (catalogo_policies.sql) é a ÚNICA lista das onze tabelas de
+  // negócio que ganharam `empresa_id` na F64, e `k_leitura_integridade` a ÚNICA lista das funções que
+  // podem ler a coluna antes da F66 (as duas leituras de integridade do kit). O bloco 5 (15d a 15j)
+  // as confere contra `k_negocio` e contra o catálogo; a trava de mesa `empresa-acervo-sem-leitura`
+  // as LÊ daqui; e os roteiros da F64 que repetem uma delas são conferidos contra ela, logo abaixo.
+  const cat = fonte('catalogo_policies')
+  const lista = (nome: string) => {
+    const m = new RegExp(String.raw`${nome} text\[\] := array\[([\s\S]*?)\];`).exec(cat)
+    if (!m) throw new Error(`catalogo_policies.sql: não achei ${nome}`)
+    return [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort()
+  }
+  const lote1 = lista('k_lote1')
+  const lote2 = lista('k_lote2')
+  const negocio = lista('k_negocio')
+  const leitura = lista('k_leitura_integridade')
+
+  it('k_lote2 são as onze tabelas da ficha F64 (as sete de negócio e as quatro do vocabulário do import)', () => {
+    expect(lote2).toEqual([
+      'eventos_admin', 'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria', 'import_termos_estado',
+      'kits_modelos', 'motivos', 'relatorios_gerados', 'senhas_acesso', 'tipos_item', 'unidades_apelidos',
+    ])
+  })
+
+  it('os dois lotes são disjuntos, e com filiais são k_negocio INTEIRO (nenhuma tabela de negócio sem a chave)', () => {
+    expect(lote1.filter((t) => lote2.includes(t))).toEqual([])
+    expect([...lote1, ...lote2, 'filiais'].sort()).toEqual(negocio)
+  })
+
+  it('as exceções de leitura são as DUAS leituras de integridade do kit, e só elas', () => {
+    expect(leitura).toEqual(['checagens_integridade_nucleo', 'kit_motivo_da_empresa'])
+  })
+
+  it('o bloco 5 confere o lote 2 contra k_negocio (15d) e contra o catálogo (15e), e a pendência REPROVA (15f)', () => {
+    const sql = semComentarios(cat)
+    expect(sql, '15d: k_lote2 não é conferida contra k_negocio').toMatch(/from unnest\(k_lote2\) as nome where not \(nome = any \(k_negocio\)\)/)
+    expect(sql, '15d: a união dos lotes com filiais não é conferida contra k_negocio').toMatch(/not \(nome = any \(k_lote1 \|\| k_lote2 \|\| array\['filiais'\]\)\)/)
+    expect(sql, '15e: a leitura de catálogo não cobre o lote 2').toMatch(/from unnest\(k_lote2\) as nome\s+\), col as/)
+    expect(sql, '15e: o default não é conferido pelo pg_depend').toMatch(/refobjid = 'public\.empresa_legada\(\)'::regprocedure/)
+    expect(sql, 'a pendência da F64 continua como aviso — ela tem de REPROVAR').not.toMatch(/pendência nomeada da F64, sem reprovar/)
+    for (const rotulo of ['15d', '15e', '15f', '15g', '15h', '15i', '15j']) {
+      expect(sql, `o rótulo ${rotulo} não está literal num assert_zero_de (o injetor lê por token)`).toMatch(new RegExp(String.raw`assert_zero_de\(\s*'${rotulo} `))
+    }
+  })
+
+  it('15h usa a lista de exceções pelo nome da coluna do catálogo, e 15j a confere de volta (os dois sentidos)', () => {
+    const sql = semComentarios(cat)
+    expect(sql).toMatch(/c\.proname = any \(k_leitura_integridade\)/)
+    expect(sql).toMatch(/from unnest\(k_leitura_integridade\) as nome/)
+    // o corpo é lido SEM comentário: `apagar_usuario` (0158) cita `eventos_admin` num comentário
+    expect(sql, '15h lê o prosrc com os comentários — falso positivo em apagar_usuario').toMatch(/regexp_replace\(regexp_replace\(p\.prosrc/)
+  })
+
+  it('os roteiros da F64 que listam as onze tabelas ou as exceções listam EXATAMENTE a fonte única', () => {
+    for (const nome of ['f64_rollback', 'empresa_no_vocabulario']) {
+      const caminho = join(PASTA, `${nome}.sql`)
+      if (!existsSync(caminho)) continue // nasce com as migrations (commits seguintes)
+      const m = /k_onze\s+(?:constant\s+)?text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(fonte(nome)) ?? /array\[([^\]]*'senhas_acesso'[^\]]*)\]/.exec(fonte(nome))
+      expect(m, `${nome}.sql não declara a lista das onze`).not.toBeNull()
+      expect([...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort(), `${nome}.sql lista outras tabelas que não as de k_lote2`).toEqual(lote2)
+    }
+    const caminho = join(PASTA, 'empresa_no_vocabulario.sql')
+    if (existsSync(caminho)) {
+      const m = /k_leitura_integridade\s+(?:constant\s+)?text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(fonte('empresa_no_vocabulario'))
+      expect(m, 'empresa_no_vocabulario.sql não declara a cópia das exceções da auto-sabotagem').not.toBeNull()
+      expect([...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).sort()).toEqual(leitura)
+    }
+  })
+})

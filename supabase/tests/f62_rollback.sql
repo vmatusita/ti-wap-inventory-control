@@ -27,7 +27,9 @@
 --
 -- DESDE A F63 (23/09/2026): os dois caminhos rodam ANTES `supabase/rollback/F63-desfaz.sql` —
 -- a fase de depois sai primeiro (ordem inversa do apply entre fases). Sem isso o `drop table
--- public.empresas` da F62 recusaria pelas FKs da F63.
+-- public.empresas` da F62 recusaria pelas FKs da F63. DESDE A F64 (23/09/2026): e, antes dele,
+-- `supabase/rollback/F64-desfaz.sql` — a F64 pendura em `empresas` e em `empresa_legada()` mais
+-- onze FKs e onze defaults (o lote 2).
 --
 -- Os resultados atravessam o `rollback to savepoint` como variáveis do psql (`\gset`) — é
 -- o único estado que o desfazer não leva junto. DADOS 100% FICTÍCIOS. Tudo dentro de
@@ -100,6 +102,7 @@ savepoint s_rollback;
 -- `empresa_legada()` oito FKs e oito defaults, e o `drop` da F62 (sem cascade) recusaria. É a
 -- ordem inversa do apply ENTRE fases (regra 10 da §4). Não muda o que este roteiro prova: o
 -- cargo, a cópia de volta e o esquema de antes da F62.
+\ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
 \ir ../rollback/F62-2-desfaz.sql
 select pg_temp.f62_impressao()               as sem_copia_hash,
@@ -112,6 +115,7 @@ rollback to savepoint s_rollback;
 -- ---------------------------------------------------------------------------
 -- O ROLLBACK NA ORDEM ESCRITA: a cópia de volta PRIMEIRO
 -- ---------------------------------------------------------------------------
+\ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
 \ir ../rollback/F62-1-copia-de-volta.sql
 \ir ../rollback/F62-2-desfaz.sql

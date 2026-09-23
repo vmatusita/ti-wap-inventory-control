@@ -33,14 +33,30 @@ import { semComentarios } from '@/lib/layout/texto-fonte'
 // (decisão 6); aqui ela é só lida.
 // =============================================================================
 
+// EMENDA F64 (23/09/2026 — decisão 7 do PLAN-F64). A F64 põe a coluna nas ONZE tabelas de negócio
+// restantes (`k_lote2`), e a mesma régua passa a valer para as DEZENOVE (lote 1 + lote 2): ninguém lê
+// `empresa_id` delas antes da F66. Com UMA exceção de propósito, nomeada: a ficha F64 manda conferir
+// que o motivo do kit existe NA EMPRESA DO KIT, e isso é ler `kits_modelos.empresa_id` e
+// `motivos.empresa_id` — leitura de INTEGRIDADE, não recorte. As duas funções que o fazem moram em
+// `k_leitura_integridade` (catalogo_policies.sql, a fonte única), e a exceção vale SÓ nos comandos
+// delas que tocam `kits_modelos`/`motivos` (a leitura do kit) — o mesmo corpo lendo a coluna de outra
+// tabela do lote continua reprovado.
 const RAIZ = process.cwd()
 const CATALOGO = readFileSync(join(RAIZ, 'supabase', 'tests', 'catalogo_policies.sql'), 'utf8')
 
-function lote1(): string[] {
-  const m = /k_lote1 text\[\] := array\[([\s\S]*?)\];/.exec(CATALOGO)
-  if (!m) throw new Error('catalogo_policies.sql: não achei k_lote1 — a fonte única das oito')
+function listaDoCatalogo(nome: string, oQue: string): string[] {
+  const m = new RegExp(String.raw`${nome} text\[\] := array\[([\s\S]*?)\];`).exec(CATALOGO)
+  if (!m) throw new Error(`catalogo_policies.sql: não achei ${nome} — a fonte única ${oQue}`)
   return [...m[1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1])
 }
+const lote1 = () => listaDoCatalogo('k_lote1', 'das oito')
+const lote2 = () => listaDoCatalogo('k_lote2', 'das onze')
+/** As dezenove tabelas de negócio que têm `empresa_id` pelos lotes 1 (F63) e 2 (F64). */
+const lotes = () => [...lote1(), ...lote2()]
+/** As exceções nominais de leitura (F64): as duas leituras de integridade do kit. */
+const leituraIntegridade = () => listaDoCatalogo('k_leitura_integridade', 'das exceções de leitura')
+/** As tabelas cuja coluna as exceções podem ler — e só nelas. */
+const TABELAS_DA_LEITURA_DO_KIT = ['kits_modelos', 'motivos'] as const
 
 /** A exceção nomeada da varredura TS: o espelho gerado do banco. */
 const EXCECOES_TS = ['src/lib/types/database.ts'] as const
@@ -142,7 +158,8 @@ function leiturasDoAcervo(fonte: string, arquivo: string, oito: readonly string[
 const citaEmpresaId = (l: Leitura) => /\bempresa_id\b/.test(l.texto)
 
 describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', () => {
-  const oito = lote1()
+  // Desde a F64: as dezenove (os dois lotes). O nome `oito` fica — é o universo da trava, que cresceu.
+  const oito = lotes()
   const arquivos = arquivosFonte(join(RAIZ, 'src'))
     .map((a) => relative(RAIZ, a).replaceAll('\\', '/'))
     .filter((a) => !(EXCECOES_TS as readonly string[]).includes(a))
@@ -151,13 +168,20 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
   const dinamicas = todas.flatMap((t) => t.dinamicas)
 
   it('a lista das oito vem de k_lote1 (catalogo_policies.sql) e tem as oito', () => {
-    expect([...oito].sort()).toEqual(
+    expect([...lote1()].sort()).toEqual(
       ['anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item', 'movimentacoes', 'pendencias_item', 'termos_gerados'],
     )
   })
 
-  it('o universo NÃO é vazio: há consultas às oito tabelas, e cada uma das oito é consultada', () => {
-    expect(leituras.length, 'a varredura não achou consulta nenhuma às oito — ela olhou alguma coisa?').toBeGreaterThan(100)
+  it('a lista das onze vem de k_lote2 (catalogo_policies.sql) e tem as onze (F64)', () => {
+    expect([...lote2()].sort()).toEqual([
+      'eventos_admin', 'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria', 'import_termos_estado',
+      'kits_modelos', 'motivos', 'relatorios_gerados', 'senhas_acesso', 'tipos_item', 'unidades_apelidos',
+    ])
+  })
+
+  it('o universo NÃO é vazio: há consultas às dezenove tabelas, e cada uma é consultada', () => {
+    expect(leituras.length, 'a varredura não achou consulta nenhuma às dezenove — ela olhou alguma coisa?').toBeGreaterThan(140)
     for (const t of oito) expect(leituras.some((l) => l.tabela === t), `nenhuma consulta a ${t}`).toBe(true)
   })
 
@@ -186,6 +210,11 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
     ['`?.` e argumento de tipo', "await c?.from('movimentacoes').select<string>('*')?.filter('empresa_id', 'eq', x)", true],
     ['descritor de forma com `select` citando a coluna', "export const L = leituraDeRelacao({ rotulo: 'x', origem: 'lancamentos_item', select: 'id, empresa_id', forma: F, ordem: ['id'] })", true],
     ['descritor de forma com `ordem` pela coluna', "leituraDeRelacao({ rotulo: 'x', origem: 'anotacoes', select: 'id', forma: F, ordem: ['empresa_id', 'id'] })", true],
+    // F64 — o lote 2 (sabotagem F da ordem)
+    ['`.eq(empresa_id)` em eventos_admin (F64)', "await admin.from('eventos_admin').select('id, acao').eq('empresa_id', e).order('quando')", true],
+    ['`.select(id, empresa_id)` em senhas_acesso (F64)', "const { data } = await admin.from('senhas_acesso').select('id, empresa_id').eq('ativa', true)", true],
+    ['descritor de forma de motivos citando a coluna (F64)', "leituraDeRelacao({ rotulo: 'x', origem: 'motivos', select: 'codigo, rotulo, empresa_id', forma: F, ordem: ['codigo'] })", true],
+    ['par legítimo: o lote 2 SEM a coluna', "await admin.from('eventos_admin').select('id, acao, alvo').order('quando', { ascending: false })", false],
     ['par legítimo: tabela da F62 (membros)', "await supabase.from('membros').select('id').eq('empresa_id', EMPRESA_LEGADA_ID)", false],
     ['par legítimo: a cadeia das oito SEM a coluna', "await supabase.from('ativos').select('id, patrimonio').eq('filial_id', f)", false],
     ['par legítimo: empresa_id num COMENTÁRIO', "await supabase.from('ativos').select('id') // empresa_id só na F66", false],
@@ -246,7 +275,7 @@ const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> =
 }
 
 describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/**', () => {
-  const oito = lote1()
+  const oito = lotes()
   const arquivos = arquivosFonte(join(RAIZ, 'src'))
     .map((a) => relative(RAIZ, a).replaceAll('\\', '/'))
     .filter((a) => !(EXCECOES_TS as readonly string[]).includes(a))
@@ -299,7 +328,8 @@ describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do litera
 })
 
 describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco)', () => {
-  const oito = lote1()
+  const oito = lotes()
+  const excecoes = leituraIntegridade()
   const DIR = join(RAIZ, 'supabase', 'migrations')
   // O corpo vigente: a ÚLTIMA definição de cada (nome, tipos) na ordem de aplicação.
   const vigentes = new Map<string, { arquivo: string; texto: string }>()
@@ -325,7 +355,12 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
    * escreve uma das oito.
    */
   function leEmpresaIdDoAcervo(corpo: string): string[] {
-    const achados: string[] = []
+    return comandosQueLeem(corpo).map((c) => c.trecho)
+  }
+
+  /** Os comandos que leem, com as tabelas dos lotes que cada um toca (a régua da exceção do kit). */
+  function comandosQueLeem(corpo: string): { trecho: string; tabelas: string[] }[] {
+    const achados: { trecho: string; tabelas: string[] }[] = []
     for (const cmd of comandosDoTexto(corpo)) {
       if (!/\bempresa_id\b/.test(cmd)) continue
       const alias = new Map<string, string>()
@@ -347,7 +382,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
         const real = q ? alias.get(q) : undefined
         const tabela = q ? (real && !ctes.has(real) ? real : oito.includes(q) ? q : null) : null
         if (tabela ? oito.includes(tabela) : tabelasDoAcervo(cmd).length > 0) {
-          achados.push(cmd.replace(/\s+/g, ' ').trim().slice(0, 120))
+          achados.push({ trecho: cmd.replace(/\s+/g, ' ').trim().slice(0, 120), tabelas: [...new Set(tabelasDoAcervo(cmd))] })
           break
         }
       }
@@ -360,10 +395,40 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     expect([...vigentes.values()].filter((v) => tabelasDoAcervo(v.texto).length > 0).length).toBeGreaterThan(40)
   })
 
-  it('nenhuma função vigente lê empresa_id de uma das oito', () => {
+  /** A exceção do kit: função nominal E o comando só toca `kits_modelos`/`motivos` dos lotes. */
+  const ehLeituraDoKit = (funcao: string, tabelas: string[]) =>
+    excecoes.includes(funcao) && tabelas.length > 0 && tabelas.every((t) => (TABELAS_DA_LEITURA_DO_KIT as readonly string[]).includes(t))
+  const nomeDaChave = (k: string) => /^[a-z_]+\.([a-z_0-9]+)\(/.exec(k)?.[1] ?? k
+
+  it('nenhuma função vigente lê empresa_id de uma das dezenove (fora da leitura do kit nas duas exceções nominais)', () => {
     expect(
-      [...vigentes.entries()].flatMap(([k, v]) => leEmpresaIdDoAcervo(v.texto).map((c) => `${k} (vigente em ${v.arquivo}): ${c}`)),
+      [...vigentes.entries()].flatMap(([k, v]) =>
+        comandosQueLeem(v.texto)
+          .filter((c) => !ehLeituraDoKit(nomeDaChave(k), c.tabelas))
+          .map((c) => `${k} (vigente em ${v.arquivo}): ${c.trecho}`),
+      ),
     ).toEqual([])
+  })
+
+  it('as exceções nominais (k_leitura_integridade) são as duas do kit, cada uma é função vigente, e cada uma LÊ (a lista não guarda fantasma)', () => {
+    expect([...excecoes].sort()).toEqual(['checagens_integridade_nucleo', 'kit_motivo_da_empresa'])
+    for (const nome of excecoes) {
+      const defs = [...vigentes.entries()].filter(([k]) => nomeDaChave(k) === nome)
+      expect(defs.length, `${nome}: não há função vigente com esse nome nas migrations`).toBe(1)
+      expect(
+        comandosQueLeem(defs[0][1].texto).some((c) => ehLeituraDoKit(nome, c.tabelas)),
+        `${nome}: a exceção não lê empresa_id de kits_modelos/motivos — exceção sem uso é fantasma`,
+      ).toBe(true)
+    }
+  })
+
+  it.each([
+    ['a exceção lendo kits_modelos e motivos (a leitura do kit)', 'kit_motivo_da_empresa', "if not exists (select 1 from public.motivos m where m.codigo = v_motivo and m.empresa_id = new.empresa_id) then raise exception 'x'; end if", false],
+    ['a exceção lendo a coluna de OUTRA tabela do lote', 'kit_motivo_da_empresa', 'select count(*) into v from public.eventos_admin e where e.empresa_id = new.empresa_id', true],
+    ['uma função que NÃO é exceção lendo motivos.empresa_id', 'rel_por_motivo', 'select m.codigo from public.motivos m where m.empresa_id = p_empresa', true],
+    ['uma função que não é exceção lendo tipos_item.empresa_id sem qualificador', 'qualquer', 'select count(*) from public.tipos_item where empresa_id = p_e', true],
+  ])('SABOTAGEM F (disco, F64) — %s', (_nome, funcao, corpo, acusa) => {
+    expect(comandosQueLeem(corpo).filter((c) => !ehLeituraDoKit(funcao, c.tabelas)).length > 0).toBe(acusa)
   })
 
   it.each([

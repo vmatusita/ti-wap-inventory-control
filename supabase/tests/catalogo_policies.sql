@@ -104,6 +104,33 @@ declare
     'pendencias_item', 'termos_gerados'
   ];
 
+  -- F64 (23/09/2026) — O LOTE 2 DA CHAVE DE RECORTE: as ONZE tabelas de negócio que ainda não
+  -- tinham `empresa_id` depois da F63, e que a F64 põe (0162 o vocabulário, 0163 os registros). É a
+  -- FONTE ÚNICA da lista das onze (decisão 6 do PLAN-F64): o bloco 5 a confere contra `k_negocio`
+  -- (15d) e contra o catálogo (15e), e a trava de mesa `empresa-acervo-sem-leitura.test.ts` a LÊ
+  -- daqui (describe 13 de `catalogos-seguranca.test.ts` amarra). Com ela, `k_lote1 ∪ k_lote2 ∪
+  -- {filiais}` é `k_negocio` inteiro — `filiais` a ganhou na F62 (0155). As que NÃO recebem a chave
+  -- são as de `k_infra`, cada uma com o motivo escrito lá (`senha_tentativas` e `ambiente` entre elas).
+  k_lote2 text[] := array[
+    'eventos_admin', 'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria',
+    'import_termos_estado', 'kits_modelos', 'motivos', 'relatorios_gerados', 'senhas_acesso',
+    'tipos_item', 'unidades_apelidos'
+  ];
+
+  -- F64 (23/09/2026) — AS EXCEÇÕES NOMINAIS DE "NINGUÉM LÊ `empresa_id` ANTES DA F66" (decisão 7 do
+  -- PLAN-F64). A ficha F64 manda conferir que o motivo do payload do kit existe NA EMPRESA DO KIT —
+  -- e isso é LER `kits_modelos.empresa_id` e `motivos.empresa_id` antes da F66. É leitura de
+  -- INTEGRIDADE, não recorte: nenhuma das duas decide o que alguém VÊ. As duas, e só elas:
+  --   · kit_motivo_da_empresa        (0164) — a função do gatilho `kits_modelos_motivo_da_empresa`:
+  --                                    recusa o kit cujo motivo não existe na empresa dele;
+  --   · checagens_integridade_nucleo (0164) — a 13ª peça, `kit_motivo_orfao`: conta o kit que já
+  --                                    está órfão. (O núcleo também lê `membros.empresa_id`
+  --                                    desde a F62 — `membros` não é de negócio.)
+  -- É a FONTE ÚNICA da lista: o 15h abaixo a usa, a trava de mesa `empresa-acervo-sem-leitura.test.ts`
+  -- a lê daqui (e lá a exceção vale só nos comandos que tocam `kits_modelos`/`motivos`), e o
+  -- describe 13 amarra a cópia da auto-sabotagem de `empresa_no_vocabulario.sql` a ela.
+  k_leitura_integridade text[] := array['checagens_integridade_nucleo', 'kit_motivo_da_empresa'];
+
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
   --   · profiles          (0001) — identidade da CONTA, não do acervo. Na virada o
   --                                cargo migra para `membros.papel` (plano §5 → F62,
@@ -391,6 +418,9 @@ declare
   v_l1_tab    text[];
   v_l1_def    text[];
   v_l1_lote   boolean[];
+  -- F64 — o lote 2 no mesmo bloco 5: a leitura de catálogo das onze, em arrays.
+  v_l2_tab    text[];
+  v_l2_def    text[];
 begin
   -- ===============================================================
   -- BLOCO 1 — AS POLICIES DE `public`
@@ -1210,7 +1240,7 @@ begin
   end if;
 
   -- ===============================================================
-  -- BLOCO 5 — A CHAVE DE RECORTE NO ACERVO, LOTE 1 (F63, 23/09/2026)
+  -- BLOCO 5 — A CHAVE DE RECORTE NO ACERVO, LOTE 1 (F63, 23/09/2026) — E NO LOTE 2 (F64, 15d a 15j)
   -- ===============================================================
   -- A F63 põe `empresa_id uuid not null default public.empresa_legada() references
   -- public.empresas (id)` nas oito tabelas de `k_lote1` (0160, 0161) — SEM update de backfill: o
@@ -1226,8 +1256,9 @@ begin
   --         que nasceu vermelha, `docs/f63-evidencias/B-travas/`.)
   --   15c — DERIVADA DO CATÁLOGO: toda tabela de `k_negocio` que TEM a coluna obedece à mesma
   --         forma, esteja ou não em `k_lote1` (hoje `filiais`, desde a F62).
-  -- As tabelas de `k_negocio` ainda SEM a coluna saem num aviso de pendência nomeada da F64 —
-  -- sem reprovar: são as sete da ficha F64 e as quatro do vocabulário do import (fato 18).
+  -- As tabelas de `k_negocio` ainda SEM a coluna saíam num aviso de pendência nomeada da F64 —
+  -- sem reprovar: eram as sete da ficha F64 e as quatro do vocabulário do import (fato 18). Desde a
+  -- F64 (23/09/2026) o aviso é a asserção 15f, que REPROVA — e o lote 2 tem as suas (15d a 15j).
   -- O DEFAULT FICA ATÉ A F67 (decisão do Johnny, 23/09/2026): por isso 15b EXIGE o default, e a
   -- F67 inverte esta asserção no commit em que o tira.
   -- ---------------------------------------------------------------
@@ -1311,13 +1342,187 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
-  select coalesce(string_agg(nome, ', ' order by nome), '')
-    into v_lista
+  -- ---------------------------------------------------------------
+  -- BLOCO 5 (cont.) — O LOTE 2 (F64, 23/09/2026)
+  -- ---------------------------------------------------------------
+  -- A F64 põe a MESMA coluna, na MESMA forma, nas onze de `k_lote2` (0162, 0163) — sem update de
+  -- backfill (e aqui nenhum gatilho barraria o update ingênuo: fato 7 da ordem; a prova de que não
+  -- houve é o `xmin`, docs/f64-evidencias/impressao-vocabulario.sql). As asserções 15a/15b/15c
+  -- acima ficam como a F63 as escreveu (o injetor as derruba pelo rótulo); o lote 2 ganha as suas:
+  --   15d — `k_lote2` ⊆ `k_negocio`, disjunto de `k_lote1`, e os dois lotes com `filiais` são
+  --         `k_negocio` INTEIRO (tabela de negócio nova sem lote reprova aqui);
+  --   15e — cada uma das onze na forma de 15b (a coluna visível, `uuid`, `not null`, FK VALIDADA
+  --         para `empresas (id)`, default que é SÓ `public.empresa_legada()` pelo `pg_depend`, sem
+  --         force). O ✗ nomeia a tabela e o defeito. (Antes da 0162/0163 reprova pelos onze nomes —
+  --         a trava que nasceu vermelha, docs/f64-evidencias/B-travas/.)
+  --   15f — A PENDÊNCIA QUE ERA AVISO AGORA REPROVA: nenhuma tabela de `k_negocio` sem `empresa_id`.
+  --         As que não levam a chave são as de `k_infra`, nomeadas e com o motivo escrito, e a
+  --         asserção 1a já reprova tabela não classificada.
+  --   15g/15h/15i — NINGUÉM LÊ `empresa_id` DO LOTE 2 ANTES DA F66 (decisão 7), pelo catálogo: a
+  --         policy das onze não cita a coluna; a função de `public` que toca uma das onze não a lê,
+  --         fora das exceções nominais de `k_leitura_integridade`; a view, idem. O corpo é lido SEM
+  --         comentário (o `prosrc` guarda os comentários: `apagar_usuario`, 0158, cita
+  --         `eventos_admin` num comentário e lê `membros.empresa_id` — não é leitura do lote 2);
+  --   15j — cada exceção nominal de `k_leitura_integridade` é uma função que EXISTE (a lista não
+  --         guarda fantasma; antes da 0164 reprova por `kit_motivo_da_empresa`).
+  -- O DEFAULT FICA ATÉ A F67 (decisão 1 do Johnny, 23/09/2026): 15e EXIGE o default, e a F67 a
+  -- inverte junto com a 15b.
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(x, '; ' order by x), '')
+    into v_cnt, v_lista
+    from (
+      select nome || ' (do lote 2, fora de k_negocio)' as x from unnest(k_lote2) as nome where not (nome = any (k_negocio))
+      union all
+      select nome || ' (nos dois lotes)' from unnest(k_lote2) as nome where nome = any (k_lote1)
+      union all
+      select nome || ' (de negócio, sem lote)' from unnest(k_negocio) as nome
+       where not (nome = any (k_lote1 || k_lote2 || array['filiais']))
+    ) s;
+  if pg_temp.assert_zero_de(
+       '15d o lote 2 (k_lote2) é de NEGÓCIO, disjunto do lote 1, e os dois lotes com filiais são k_negocio inteiro' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, (array_length(k_lote2, 1) + array_length(k_negocio, 1))::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  with alvo as (
+    select nome as tabela, to_regclass('public.' || nome) as rel
+      from unnest(k_lote2) as nome
+  ), col as (
+    select a.tabela, a.rel, att.attnum, att.atttypid, att.attnotnull,
+           (select d.oid from pg_attrdef d where d.adrelid = a.rel and d.adnum = att.attnum) as def_oid,
+           (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d where d.adrelid = a.rel and d.adnum = att.attnum) as def_txt
+      from alvo a
+      left join pg_attribute att on att.attrelid = a.rel and att.attname = 'empresa_id' and not att.attisdropped
+  )
+  select coalesce(array_agg(c.tabela order by c.tabela), '{}'),
+         coalesce(array_agg(concat_ws(', ',
+           case when c.rel is null then 'a tabela não existe' end,
+           case when c.rel is not null and c.attnum is null then 'sem a coluna empresa_id' end,
+           case when c.attnum is not null and c.atttypid <> 'uuid'::regtype then 'empresa_id não é uuid' end,
+           case when c.attnum is not null and not c.attnotnull then 'empresa_id aceita null' end,
+           case when c.attnum is not null and not exists (
+                  select 1 from pg_constraint k
+                   where k.conrelid = c.rel and k.contype = 'f' and k.convalidated
+                     and k.confrelid = 'public.empresas'::regclass and k.conkey = array[c.attnum])
+                then 'sem FK VALIDADA para public.empresas (id)' end,
+           case when c.attnum is not null and not (
+                  c.def_oid is not null
+                  and exists (select 1 from pg_depend dp
+                               where dp.classid = 'pg_attrdef'::regclass and dp.objid = c.def_oid
+                                 and dp.refclassid = 'pg_proc'::regclass
+                                 and dp.refobjid = 'public.empresa_legada()'::regprocedure)
+                  and c.def_txt ~ '^(public\.)?empresa_legada\(\)$')
+                then 'default não é public.empresa_legada() (' || coalesce(c.def_txt, 'nenhum') || ')' end,
+           case when c.rel is not null and (select k.relforcerowsecurity from pg_class k where k.oid = c.rel)
+                then 'force row level security' end
+         ) order by c.tabela), '{}')
+    into v_l2_tab, v_l2_def
+    from col c;
+
+  select count(*) filter (where d <> ''),
+         coalesce(string_agg(t || ' (' || d || ')', '; ' order by t) filter (where d <> ''), '')
+    into v_cnt, v_lista
+    from unnest(v_l2_tab, v_l2_def) as x(t, d);
+  if pg_temp.assert_zero_de(
+       '15e as onze do lote 2 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force)' ||
+       case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
+       v_cnt, array_length(k_lote2, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
+    into v_cnt, v_lista
     from unnest(k_negocio) as nome
-   where not (nome = any (k_lote1))
-     and not exists (select 1 from pg_attribute a
+   where not exists (select 1 from pg_attribute a
                       where a.attrelid = to_regclass('public.' || nome) and a.attname = 'empresa_id' and not a.attisdropped);
-  raise notice '(15 — pendência nomeada da F64, sem reprovar) tabelas de negócio ainda sem empresa_id: %', v_lista;
+  if pg_temp.assert_zero_de(
+       '15f toda tabela de NEGÓCIO tem empresa_id (a pendência da F64 reprova; a infra fica em k_infra, com o motivo)' ||
+       case when v_cnt > 0 then ' — sem a coluna: ' || v_lista else '' end,
+       v_cnt, array_length(k_negocio, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- 15g — as policies das onze (universo 22 no dia da F64) não citam empresa_id.
+  select count(*),
+         count(*) filter (where coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'),
+         coalesce(string_agg(p.tablename || '/' || p.policyname, ', ')
+                    filter (where coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'), '')
+    into v_univ, v_cnt, v_lista
+    from pg_policies p
+   where p.schemaname = 'public' and p.tablename = any (k_lote2);
+  if pg_temp.assert_zero_de(
+       '15g nenhuma policy das onze do lote 2 cita empresa_id (o recorte é da F66)' ||
+       case when v_cnt > 0 then ' — cita: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- 15h — as funções de `public` cujo corpo (sem comentário) toca uma das onze não leem empresa_id,
+  -- fora das exceções nominais.
+  with corpo as (
+    select p.proname,
+           regexp_replace(regexp_replace(p.prosrc, '/\*.*?\*/', '', 'g'), '--[^\n]*', '', 'g') as texto
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+  )
+  select count(*),
+         count(*) filter (where c.texto ~ '\mempresa_id\M' and not (c.proname = any (k_leitura_integridade))),
+         coalesce(string_agg(c.proname, ', ' order by c.proname)
+                    filter (where c.texto ~ '\mempresa_id\M' and not (c.proname = any (k_leitura_integridade))), '')
+    into v_univ, v_cnt, v_lista
+    from corpo c
+   where c.texto ~ ('\m(' || array_to_string(k_lote2, '|') || ')\M');
+  if pg_temp.assert_zero_de(
+       '15h nenhuma função de public lê empresa_id junto de uma das onze do lote 2 (fora das exceções nominais de k_leitura_integridade)' ||
+       case when v_cnt > 0 then ' — lê: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- 15i — nenhuma view de `public` lê empresa_id junto de uma das onze (universo: todas as views de
+  -- `public` — nenhuma é construída sobre as onze no dia da F64, e universo vazio seria tautologia).
+  select count(*),
+         count(*) filter (where v.definition ~ ('\m(' || array_to_string(k_lote2, '|') || ')\M')
+                            and v.definition ~ '\mempresa_id\M'),
+         coalesce(string_agg(v.viewname, ', ')
+                    filter (where v.definition ~ ('\m(' || array_to_string(k_lote2, '|') || ')\M')
+                              and v.definition ~ '\mempresa_id\M'), '')
+    into v_univ, v_cnt, v_lista
+    from pg_views v
+   where v.schemaname = 'public';
+  if pg_temp.assert_zero_de(
+       '15i nenhuma view de public lê empresa_id junto de uma das onze do lote 2' ||
+       case when v_cnt > 0 then ' — lê: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
+    into v_cnt, v_lista
+    from unnest(k_leitura_integridade) as nome
+   where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                      where n.nspname = 'public' and p.proname = nome);
+  if pg_temp.assert_zero_de(
+       '15j toda exceção nominal de leitura (k_leitura_integridade) é uma função que existe' ||
+       case when v_cnt > 0 then ' — não existe: ' || v_lista else '' end,
+       v_cnt, array_length(k_leitura_integridade, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
 
   raise notice 'FIM catalogo_policies: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

@@ -22,7 +22,8 @@
 -- ⚠ ESTE ENSAIO VALE ENQUANTO A F63 FOR A ÚLTIMA FASE A MEXER NESTAS OITO TABELAS. A fase que
 -- mexer nelas depois (a F65, com a FK composta e os uniques por empresa) roda o rollback DELA
 -- antes do `\ir` abaixo — a ordem inversa entre fases, a mesma que `f62_rollback.sql` passou a
--- seguir com o rollback da F63.
+-- seguir com o rollback da F63. Desde a F64 (23/09/2026) o rollback dela roda antes do da F63
+-- aqui, pela mesma regra.
 -- =============================================================
 
 begin;
@@ -80,6 +81,11 @@ select pg_temp.f63_impressao_esquema(true)  as antes_sem_f63,
        pg_temp.f63_colunas_visiveis()       as colunas_antes
 \gset
 
+-- F64 (23/09/2026): a fase de DEPOIS sai primeiro — o inverso do apply ENTRE fases (regra 10 da §4
+-- do PLANO-MULTIEMPRESA). A F64 não toca as oito (põe a coluna nas onze do lote 2 e o gatilho do
+-- kit), então o que este roteiro prova não muda; é a ordem que o RUNBOOK manda para desfazer a F63
+-- num banco que já tem a F64.
+\ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
 
 select pg_temp.f63_impressao_esquema(false) as depois,

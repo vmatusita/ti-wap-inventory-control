@@ -411,3 +411,38 @@ describe('linha-de-base.json', () => {
     )
   })
 })
+
+// F64 (23/09/2026) — SABOTAGEM G: POR QUE A ORDEM DA FRENTE G IMPORTA. A 0164 faz o núcleo devolver
+// uma chave NOVA, `kit_motivo_orfao`. Entre o apply de produção e o merge, o banco já a devolve e a
+// `main` ainda não a conhece: uma Parte B nessa janela avalia com a linha de base VELHA e abre o
+// alarme "checagem que a política não conhece". Com a linha de base do arquivo (que ganhou a chave
+// com 0 no mesmo commit da migration), a mesma medição fica verde.
+describe('avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge', () => {
+  const doArquivo = JSON.parse(readFileSync(join(process.cwd(), 'scripts', 'smoke', 'linha-de-base.json'), 'utf8'))
+
+  it.each(['producao', 'ensaio'])('com a linha de base do arquivo (alvo %s) e kit_motivo_orfao em 0: verde', (alvo) => {
+    const base = doArquivo.alvos[alvo] as Record<string, number>
+    const totais = { ...base, kit_motivo_orfao: 0 }
+    const r = avaliarIntegridade(totais, base)
+    expect(r.achados).toEqual([])
+    expect(r.ok).toBe(true)
+  })
+
+  it('com a linha de base de ANTES (sem a chave): a mesma medição abre o alarme "que a política não conhece"', () => {
+    const r = avaliarIntegridade({ ...noBase(), kit_motivo_orfao: 0 }, noBase())
+    expect(r.ok).toBe(false)
+    expect(r.achados).toHaveLength(1)
+    expect(r.achados[0]).toMatchObject({ chave: 'kit_motivo_orfao', total: 0, base: null })
+    expect(r.achados[0].motivo).toMatch(/política não conhece/)
+  })
+
+  it('a linha de base do arquivo NÃO sobe: as doze chaves antigas continuam com os números de 10/09/2026', () => {
+    for (const alvo of ['producao', 'ensaio']) {
+      const base = { ...(doArquivo.alvos[alvo] as Record<string, number>) }
+      delete base.kit_motivo_orfao
+      expect(base, `alvo ${alvo}`).toEqual(
+        alvo === 'producao' ? noBase() : { ...noBase(), operador_sem_filial: 1, arquivo_termo_orfao: 0, conflito_entre_filiais: 0, backup_orfao: 0 },
+      )
+    }
+  })
+})

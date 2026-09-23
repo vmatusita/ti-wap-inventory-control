@@ -181,3 +181,32 @@ describe('os TRÊS conjuntos concordam', () => {
     expect(daPorta, 'o SQL das doze voltou a existir em DOIS lugares').toEqual([])
   })
 })
+
+// F64 (23/09/2026) — A CHAVE NOVA NOS TRÊS LUGARES, NO MESMO COMMIT (fato 14 da ordem F64). A 0164
+// acrescenta a 13ª peça ao núcleo, `kit_motivo_orfao` (o kit cujo motivo não existe na empresa do
+// kit). Os testes acima comparam os três conjuntos ENTRE SI — uma chave que não estivesse em NENHUM
+// dos três passaria verde. Esta trava exige a chave nos três: no SQL vigente do núcleo, no catálogo
+// curado `CHECAGENS` (com nome e descrição próprios) e na linha de base dos DOIS alvos, com 0 — uma
+// chave NOVA entrando com zero, o que não é "subir a linha de base" (ata da F64). Nasceu VERMELHA
+// (push das travas da F64), antes de a chave existir em lugar nenhum.
+describe('a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares', () => {
+  const CHAVE_F64 = 'kit_motivo_orfao'
+  const fonteDev = readFileSync(join(RAIZ, 'src', 'lib', 'queries', 'dev.ts'), 'utf8')
+  const politica = JSON.parse(readFileSync(join(RAIZ, 'scripts', 'smoke', 'linha-de-base.json'), 'utf8'))
+
+  it('no SQL vigente de checagens_integridade_nucleo()', () => {
+    expect(chavesDoNucleo(corpoVigente('public.checagens_integridade_nucleo()', RAIZ).sql)).toContain(CHAVE_F64)
+  })
+
+  it('no catálogo curado CHECAGENS, com nome e descrição próprios (não a descrição de chave desconhecida)', () => {
+    expect(chavesDoCatalogo(fonteDev)).toContain(CHAVE_F64)
+    const entrada = new RegExp(String.raw`chave:\s*'${CHAVE_F64}'[\s\S]*?nome:\s*'([^']+)'[\s\S]*?descricao:\s*'([^']+)'`).exec(fonteDev)
+    expect(entrada, 'a entrada da chave nova não tem nome e descrição').not.toBeNull()
+    expect(entrada![1].length).toBeGreaterThan(10)
+    expect(entrada![2].length).toBeGreaterThan(40)
+  })
+
+  it.each(Object.keys(politica.alvos))('na linha de base do alvo `%s`, com 0 (chave NOVA, não subida)', (alvo) => {
+    expect(politica.alvos[alvo][CHAVE_F64]).toBe(0)
+  })
+})
