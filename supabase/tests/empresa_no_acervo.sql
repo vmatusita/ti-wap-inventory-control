@@ -176,8 +176,10 @@ begin
           insert into public.colaboradores (nome, criado_por, empresa_id)
           values ('Fulano ZZF63 Fantasma', k_autor, k_fantasma);
         when 'termos_gerados' then
+          -- movimentação e ativo PRÓPRIOS (os arrays não têm FK, fato 4): com os do termo do bloco 1, o
+          -- unique do termo recusava antes da FK (23505 — medido no CI, run 35867455348).
           insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por, empresa_id)
-          values (gen_random_uuid(), 'responsabilidade_notebook', array[v_mov], array[v_ativo], 'Fulano ZZF63', '{}'::jsonb,
+          values (gen_random_uuid(), 'responsabilidade_notebook', array[gen_random_uuid()], array[v_ativo2], 'Fulano ZZF63', '{}'::jsonb,
                   'f63-fantasma.docx', k_autor, k_fantasma);
       end case;
       v_ruins := v_ruins + 1; v_rot := v_rot || ' ' || v_txt || '(passou)';
