@@ -82,10 +82,11 @@ describe('o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contr
     (m) => ({ nome: m[1], tabela: m[2], funcao: m[3] }),
   )
 
-  it('a F65 criou 21 gatilhos: os 20 da guarda e o do termo (guarda do próprio teste)', () => {
-    expect(gatilhos.filter((g) => g.funcao === 'guarda_empresa')).toHaveLength(20)
+  it('a F65 criou 41 gatilhos: os 40 da guarda (o de coluna e o último, nas 20) e o do termo (guarda do próprio teste)', () => {
+    expect(gatilhos.filter((g) => g.funcao === 'guarda_empresa')).toHaveLength(40)
+    expect(gatilhos.filter((g) => g.nome === 'zz_guarda_empresa')).toHaveLength(20)
     expect(gatilhos.filter((g) => g.funcao === 'termo_da_empresa').map((g) => g.nome)).toEqual(['termos_gerados_ids_da_empresa'])
-    expect(gatilhos).toHaveLength(21)
+    expect(gatilhos).toHaveLength(41)
   })
 
   it.each(gatilhos.map((g) => [g.nome, g.tabela, g.funcao] as const))('o gatilho %s (em %s) sai ANTES da função %s', (nome, tabela, funcao) => {

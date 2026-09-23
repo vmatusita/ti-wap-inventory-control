@@ -5,7 +5,7 @@
 -- 0166 → 0165.
 --   1. (0174) se `colaboradores_nome_chave_uidx` é o POR EMPRESA (o passo pós-deploy foi aplicado): ele volta a ser o
 --      provisório `colaboradores_nome_chave_uidx_f65`, e o global `(nome_chave)` é recriado com o nome contratual;
---   2. (0173) saem o gatilho `termos_gerados_ids_da_empresa` e `termo_da_empresa()`, os 20 gatilhos `*_guarda_empresa` e
+--   2. (0173) saem o gatilho `termos_gerados_ids_da_empresa` e `termo_da_empresa()`, os 40 gatilhos da guarda (`*_guarda_empresa` e `zz_guarda_empresa`) e
 --      `guarda_empresa()`; `vocabulario_unidades_guarda()` VOLTA ao corpo da 0139 — copiado do arquivo da 0139 byte a
 --      byte (a prova é o md5 do `prosrc`, 91e80d533d72191325e614d24e15a881 nos dois bancos em 23/09/2026), com o
 --      `comment on function` dela. `create or replace` preserva dono e ACL;
@@ -76,6 +76,26 @@ drop trigger if exists relatorios_gerados_guarda_empresa on public.relatorios_ge
 drop trigger if exists import_logs_guarda_empresa on public.import_logs;
 drop trigger if exists senhas_acesso_guarda_empresa on public.senhas_acesso;
 drop trigger if exists eventos_admin_guarda_empresa on public.eventos_admin;
+drop trigger if exists zz_guarda_empresa on public.ativos;
+drop trigger if exists zz_guarda_empresa on public.movimentacoes;
+drop trigger if exists zz_guarda_empresa on public.pendencias_item;
+drop trigger if exists zz_guarda_empresa on public.lancamentos_item;
+drop trigger if exists zz_guarda_empresa on public.anotacoes;
+drop trigger if exists zz_guarda_empresa on public.termos_gerados;
+drop trigger if exists zz_guarda_empresa on public.colaboradores;
+drop trigger if exists zz_guarda_empresa on public.itens;
+drop trigger if exists zz_guarda_empresa on public.filiais;
+drop trigger if exists zz_guarda_empresa on public.tipos_item;
+drop trigger if exists zz_guarda_empresa on public.motivos;
+drop trigger if exists zz_guarda_empresa on public.kits_modelos;
+drop trigger if exists zz_guarda_empresa on public.unidades_apelidos;
+drop trigger if exists zz_guarda_empresa on public.import_prefixos_patrimonio;
+drop trigger if exists zz_guarda_empresa on public.import_termos_categoria;
+drop trigger if exists zz_guarda_empresa on public.import_termos_estado;
+drop trigger if exists zz_guarda_empresa on public.relatorios_gerados;
+drop trigger if exists zz_guarda_empresa on public.import_logs;
+drop trigger if exists zz_guarda_empresa on public.senhas_acesso;
+drop trigger if exists zz_guarda_empresa on public.eventos_admin;
 drop function if exists public.guarda_empresa();
 
 -- O corpo da 0139, BYTE A BYTE (copiado do arquivo; md5 do prosrc 91e80d533d72191325e614d24e15a881).

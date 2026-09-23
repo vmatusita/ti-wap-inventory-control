@@ -2,7 +2,7 @@
 -- 0173_guarda_empresa.sql — F65 (23/09/2026): a empresa de um registro não muda, o termo é da empresa dele, e a diagonal
 -- nome × apelido é por empresa
 -- =============================================================================
--- classe: ADITIVA (duas funções de gatilho e 21 gatilhos novos; a função da diagonal recriada com duas linhas a mais)
+-- classe: ADITIVA (duas funções de gatilho e 41 gatilhos novos; a função da diagonal recriada com duas linhas a mais)
 --
 -- A última migration da F65 antes do deploy (a 0174 é o passo pós-deploy): os três gatilhos que a integridade do tenant
 -- exige e que nenhuma FK alcança.
@@ -17,12 +17,19 @@
 --      `lancamentos_item`: `guarda_acervo` (0081) deixa o UPDATE passar com a janela aberta (fato 13), e só com a guarda
 --      nelas o "sem exceção" vale literalmente. Fora da janela, `*_guarda_acervo` dispara antes (ordem alfabética) e
 --      também dá 42501;
---    · `BEFORE UPDATE OF empresa_id … FOR EACH ROW`: custo zero no update normal (o gatilho só dispara com a coluna no
---      SET). A ressalva da doc do PG 17 (sql-createtrigger): "changes made to the row's contents by BEFORE UPDATE
---      triggers are not considered" — um gatilho BEFORE que mudasse `empresa_id` escaparia; a trava de imutabilidade
---      exige que nenhum das 20 atribua `new.empresa_id` ou `new` inteiro (hoje, nenhum). `INSERT … ON CONFLICT DO UPDATE
---      SET empresa_id = …` dispara os gatilhos de UPDATE ("will fire both kinds of triggers as needed") — coberto.
---      `UPDATE … SET empresa_id = <a mesma>` dispara e PASSA: não é troca de empresa;
+--    · DOIS gatilhos por tabela, a MESMA função:
+--      - `<tabela>_guarda_empresa`, `BEFORE UPDATE OF empresa_id … FOR EACH ROW` — dispara quando a coluna está no SET,
+--        ANTES dos gatilhos de integridade que também olham a empresa (o do kit, `kits_modelos_motivo_da_empresa`; o do
+--        termo, `termos_gerados_ids_da_empresa` — a ordem é a alfabética), e a troca direta leva a frase DA GUARDA;
+--      - `zz_guarda_empresa`, `BEFORE UPDATE … FOR EACH ROW`, SEM lista de coluna — o ÚLTIMO gatilho BEFORE da tabela
+--        (o nome é escolhido para isso, e a trava confere no catálogo que nenhum outro vem depois). A ressalva da doc do
+--        PG 17 (sql-createtrigger): "changes made to the row's contents by BEFORE UPDATE triggers are not considered" —
+--        o `UPDATE OF` não vê a empresa trocada por outro gatilho BEFORE. Este vê: ele recebe a linha FINAL, qualquer
+--        que seja a forma que o gatilho anterior usou (`:=`, `=`, `into`, `get diagnostics`, uma cópia de `new` alterada
+--        e devolvida). A revisão adversarial da F65 mostrou, em três rodadas, que procurar a atribuição no TEXTO dos
+--        corpos nunca fecha; a ordem dos gatilhos fecha. O custo: uma comparação por linha atualizada nas 20.
+--      `INSERT … ON CONFLICT DO UPDATE SET empresa_id = …` dispara os gatilhos de UPDATE ("will fire both kinds of
+--      triggers as needed") — coberto. `UPDATE … SET empresa_id = <a mesma>` dispara e PASSA: não é troca de empresa;
 --    · SECURITY INVOKER por extenso, `search_path = public`; ela não lê tabela nenhuma (só `new`/`old`). `revoke all` de
 --      `public`, `anon`, `authenticated` E `service_role` — o molde de `guarda_acervo` (0081), o mais forte: ela só é
 --      chamável como gatilho, e disparar gatilho não exige EXECUTE de quem escreve.
@@ -82,7 +89,7 @@ end;
 $$;
 
 comment on function public.guarda_empresa() is
-  'F65 (0173, 23/09/2026): a função dos gatilhos <tabela>_guarda_empresa (BEFORE UPDATE OF empresa_id, por linha) nas 20 tabelas de negócio. Recusa com 42501 TODA mudança de empresa_id — sem exceção para a janela estoque.dev_destrutivo. SECURITY INVOKER; não lê tabela nenhuma (só new/old). Lê empresa_id antes da F66: integridade, não recorte — exceção nominal de k_leitura_tenant.';
+  'F65 (0173, 23/09/2026): a função dos dois gatilhos da guarda nas 20 tabelas de negócio — <tabela>_guarda_empresa (BEFORE UPDATE OF empresa_id, por linha: a troca direta) e zz_guarda_empresa (BEFORE UPDATE, por linha, o ÚLTIMO BEFORE da tabela: a troca feita por outro gatilho BEFORE). Recusa com 42501 TODA mudança de empresa_id — sem exceção para a janela estoque.dev_destrutivo. SECURITY INVOKER; não lê tabela nenhuma (só new/old). Lê empresa_id antes da F66: integridade, não recorte — exceção nominal de k_leitura_tenant.';
 
 revoke all on function public.guarda_empresa() from public, anon, authenticated, service_role;
 
@@ -145,6 +152,50 @@ create trigger senhas_acesso_guarda_empresa
   for each row execute function public.guarda_empresa();
 create trigger eventos_admin_guarda_empresa
   before update of empresa_id on public.eventos_admin
+  for each row execute function public.guarda_empresa();
+
+-- O ÚLTIMO gatilho BEFORE de cada tabela: sem lista de coluna, ele vê a linha final (a troca que outro gatilho BEFORE
+-- fizesse). O nome é o mesmo nas 20 (nome de gatilho é por tabela) e ordena depois de todos os de hoje; a trava
+-- imutabilidade_tenant.sql (I3) confere no catálogo que ele continua sendo o último.
+create trigger zz_guarda_empresa before update on public.ativos
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.movimentacoes
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.pendencias_item
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.lancamentos_item
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.anotacoes
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.termos_gerados
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.colaboradores
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.itens
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.filiais
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.tipos_item
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.motivos
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.kits_modelos
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.unidades_apelidos
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.import_prefixos_patrimonio
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.import_termos_categoria
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.import_termos_estado
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.relatorios_gerados
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.import_logs
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.senhas_acesso
+  for each row execute function public.guarda_empresa();
+create trigger zz_guarda_empresa before update on public.eventos_admin
   for each row execute function public.guarda_empresa();
 
 -- ---------------------------------------------------------------------------
@@ -271,13 +322,14 @@ comment on function public.vocabulario_unidades_guarda() is
 reset lock_timeout;
 
 -- ---------- VERIFICAÇÃO PÓS-APPLY (só catálogo) ----------
---   docs/f65-evidencias/impressao-catalogo.sql: 20 gatilhos `*_guarda_empresa` (BEFORE UPDATE OF empresa_id, por linha) +
---   `termos_gerados_ids_da_empresa`; `funcoes.as_da_f65` com as três; `md5_sem_as_da_f65` IGUAL ao do "antes" (nenhuma outra
+--   docs/f65-evidencias/impressao-catalogo.sql: 20 gatilhos `*_guarda_empresa` (BEFORE UPDATE OF empresa_id, por linha), 20
+--   `zz_guarda_empresa` (BEFORE UPDATE, por linha, o último BEFORE de cada tabela) e `termos_gerados_ids_da_empresa`; `funcoes.as_da_f65` com as três; `md5_sem_as_da_f65` IGUAL ao do "antes" (nenhuma outra
 --   função mudou); `advisory` com as mesmas 12 e 16 chamadas (a da diagonal com o md5 novo).
 --
 -- ROLLBACK (supabase/rollback/F65-desfaz.sql, passo 2):
 --   drop trigger if exists termos_gerados_ids_da_empresa on public.termos_gerados;
 --   drop function if exists public.termo_da_empresa();
+--   drop trigger if exists zz_guarda_empresa on public.<tabela>;         -- as 20
 --   drop trigger if exists <tabela>_guarda_empresa on public.<tabela>;   -- as 20
 --   drop function if exists public.guarda_empresa();
 --   a diagonal volta ao corpo da 0139 BYTE A BYTE (o arquivo de rollback recria `vocabulario_unidades_guarda` com o

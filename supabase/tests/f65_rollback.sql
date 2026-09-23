@@ -7,7 +7,7 @@
 -- rollback é `supabase/rollback/F65-desfaz.sql`, na ORDEM INVERSA do apply, idempotente em qualquer estado
 -- intermediário. Este roteiro RODA o arquivo de verdade (`\ir`), dentro da transação dele, e prova que o esquema das
 -- tabelas tocadas VOLTA ao de antes da 0165:
---   rb0 — antes do rollback, o que a F65 pôs existe (as 23 FKs compostas, os sete pais, os 21 gatilhos da fase e as duas
+--   rb0 — antes do rollback, o que a F65 pôs existe (as 23 FKs compostas, os sete pais, os 41 gatilhos da fase e as duas
 --         funções novas) — sem isto, "sumiu" seria "nunca esteve";
 --   rb1 — depois do rollback, nada da F65 sobrou: nenhuma FK de negócio composta, nenhum `*_empresa_id_uidx` dos sete,
 --         nenhum gatilho `*_guarda_empresa` nem o do termo, nenhum `*_f65` provisório;
@@ -147,8 +147,9 @@ declare
   k_pre_0165      constant text := '1c72ca42784d716f9009cc68f504c8f3';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() na 0139 — o dos dois bancos antes da F65.
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
-  -- O que a F65 põe: 23 FKs compostas + 7 uniques dos pais + 21 gatilhos + 2 funções (e 0 provisórios).
-  k_objetos_f65   constant bigint := 53;
+  -- O que a F65 põe: 23 FKs compostas + 7 uniques dos pais + 41 gatilhos (40 da guarda, 1 do termo) + 2 funções (e 0
+  -- provisórios).
+  k_objetos_f65   constant bigint := 73;
   v_antes_sem  text := current_setting('f65rb.antes_sem_f65');
   v_depois     text := current_setting('f65rb.depois');
   v_depois_sem text := current_setting('f65rb.depois_sem_f65');
@@ -160,7 +161,7 @@ begin
   raise notice '(medição) impressão do esquema das 20 DEPOIS do rollback: % · antes, sem o que a F65 declarou: % · depois, sem: %',
     v_depois, v_antes_sem, v_depois_sem;
 
-  if pg_temp.assert_zero_de('rb0 antes do rollback, o que a F65 pôs existe (23 FKs compostas, 7 uniques dos pais, 21 gatilhos, 2 funções)' ||
+  if pg_temp.assert_zero_de('rb0 antes do rollback, o que a F65 pôs existe (23 FKs compostas, 7 uniques dos pais, 41 gatilhos, 2 funções)' ||
        case when v_obj_antes <> k_objetos_f65 then ' — ' || v_obj_antes || ' de ' || k_objetos_f65 else '' end,
        greatest(k_objetos_f65 - v_obj_antes, 0) + least(greatest(v_obj_antes - k_objetos_f65, 0), 1), k_objetos_f65) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;

@@ -13,8 +13,10 @@
 --        `dev_destrutivo` nem `current_setting`, e não toca tabela nenhuma (nenhum from/join/update/into/insert/delete —
 --        a exceção nominal da trava "ninguém lê" lhe dá só `new`/`old`);
 --   I3 — a RESSALVA DO `UPDATE OF` (doc do PG 17, sql-createtrigger: "changes made to the row's contents by BEFORE
---        UPDATE triggers are not considered"): nenhuma função de gatilho BEFORE de uma tabela de negócio atribui
---        `new.empresa_id` nem `new` inteiro — senão a guarda de coluna não veria a troca;
+--        UPDATE triggers are not considered"): o gatilho de coluna não vê a empresa trocada por OUTRO gatilho BEFORE.
+--        Por isso a 0173 põe um segundo, `zz_guarda_empresa`, sem lista de coluna, e a I3 confere no catálogo que em
+--        cada uma das 20 ele é o ÚLTIMO gatilho BEFORE de UPDATE (a ordem é a do nome) — ele recebe a linha final,
+--        qualquer que seja a forma que o gatilho anterior usou;
 --   I4 — COMPORTAMENTAL, nas 20: `update … set empresa_id = <B>` leva 42501 FORA da janela e DENTRO dela (`set local
 --        estoque.dev_destrutivo = 'on'`, numa subtransação) — e com a janela aberta a frase é a da guarda (em
 --        `movimentacoes`/`lancamentos_item`, fora dela, a `guarda_acervo` dispara antes e também dá 42501);
@@ -23,10 +25,8 @@
 --   I7 — o par legítimo: `update … set empresa_id = empresa_id` (a mesma) PASSA — a guarda recusa a TROCA, não a escrita;
 --   I8 — a auto-sabotagem: uma tabela SINTÉTICA de `public` com a coluna e sem o gatilho é acusada pela I1 (o gate sabe
 --        reprovar a tabela nova);
---   I9 — a auto-sabotagem da I3: o predicado de atribuição acusa as três formas do PL/pgSQL (`:=`, `=` como comando,
---        `into`), com aspas, em maiúsculas e dentro de `case` — inclusive a forma real da `0156` — e deixa passar a
---        comparação (também a do `then` de um `case` do SQL) e o `insert …
---        values (new.empresa_id)`.
+--   I9 — a auto-sabotagem da I3: um gatilho BEFORE que devolve uma CÓPIA da linha com outra empresa — a forma que
+--        nenhum leitor de texto acha — é barrado pela guarda quando vem antes dela, e acusado pela I3 quando vem depois.
 -- Antes da 0173 ela reprova nas 20 (a trava que nasceu vermelha, docs/f65-evidencias/B-travas/).
 --
 -- DADOS: uma linha fictícia em cada uma das 20 (pg_temp.f65_plantar, _asserts.sql), na empresa legada; uma empresa B
@@ -61,54 +61,38 @@ language sql as $f$
           and array_to_string(t.tgattr::int2[], ',') = a.attnum::text)
 $f$;
 
--- I3 como função: o corpo (lido pelo léxico, sem comentário nem texto) ATRIBUI `new.empresa_id` ou `new` inteiro?
--- As três formas de atribuição do PL/pgSQL (revisão adversarial da F65 — a primeira versão só via a `:=`):
---   (1) `new.empresa_id := …` / `new := …`;
---   (2) `new.empresa_id = …` / `new = …` como COMANDO (o PL/pgSQL aceita `=` na atribuição) — no começo de um
---       comando, depois de `;`, `begin`, `then`, `else` ou `loop`; a comparação (`if new.empresa_id = …`, `where … =
---       new.empresa_id`) não começa comando e não conta;
---   (3) `select|execute|fetch … into new.empresa_id` / `into new` — a lista de alvos do `into`, até `from`/`using`/`;`
---       (a forma que a `0156` usa de verdade em `operador_filiais_deriva_membership`). O `insert into … values
---       (new.empresa_id)` LÊ a coluna, não atribui: sai antes.
-create function pg_temp.f65_atribui_empresa(p_src text) returns boolean
-language plpgsql as $f$
-declare
-  -- sem caixa (o PL/pgSQL dobra NEW), sem as aspas de identificador simples (`"new"."empresa_id"` é o mesmo alvo) e com
-  -- `insert into`/`merge into` fora da regra do `into`
-  v_cod  text := regexp_replace(
-                   regexp_replace(lower(pg_temp.sql_so_codigo(coalesce(p_src, ''))), '"([a-z_][a-z0-9_$]*)"', '\1', 'g'),
-                   '\m(insert|merge)\s+into\M', '\1_em', 'g');
-  v_alvo text;
-  v_novo text;
-begin
-  -- O `case … end` do SQL (uma EXPRESSÃO) vira um termo neutro, do mais interno para fora: o `then`/`else` dele não
-  -- começa comando, e `case … then new.empresa_id = old.empresa_id … end` é comparação (2ª rodada da revisão
-  -- adversarial). A expressão nunca contém `;`; o `case` do PL/pgSQL (um COMANDO) sempre contém — e fica: o `then`
-  -- dele começa comando.
-  loop
-    v_novo := regexp_replace(v_cod, '\mcase\M((?!\mcase\M|\mend\M)[^;])*\mend\M(?!\s*(case|if|loop)\M)', ' expr_caso ', 'g');
-    exit when v_novo = v_cod;
-    v_cod := v_novo;
-  end loop;
-  if v_cod ~ '\mnew\s*(\.\s*empresa_id\s*)?:=' then
-    return true;
-  end if;
-  if v_cod ~ '(^|;|\mbegin\M|\mthen\M|\melse\M|\mloop\M)\s*new\s*(\.\s*empresa_id\s*)?=(?!=)' then
-    return true;
-  end if;
-  -- ⚠ Sem quantificador preguiçoso: no ARE do Postgres a gula do PRIMEIRO quantificador vale para o RE inteiro, e um
-  -- `(.*?)` depois de `\s+` vira guloso e engole os comandos seguintes. A lista de alvos é `[^;]*`, cortada no
-  -- primeiro `from`/`using` à parte.
-  for v_alvo in
-    select regexp_replace(m[1], '\m(from|using)\M.*$', '')
-      from regexp_matches(v_cod, '\minto\s+(?:strict\s+)?([^;]*)', 'g') as m
-  loop
-    if v_alvo ~ '\mnew\M\s*(\.\s*empresa_id\M|,|$)' then
-      return true;
-    end if;
-  end loop;
-  return false;
-end
+-- I3 como função: as tabelas de negócio em que o ÚLTIMO gatilho BEFORE de UPDATE por linha NÃO é a guarda sem lista de
+-- coluna (`zz_guarda_empresa`, 0173). A ressalva do `UPDATE OF` (doc do PG 17): "changes made to the row's contents by
+-- BEFORE UPDATE triggers are not considered" — o gatilho de coluna não vê a empresa trocada por outro gatilho BEFORE.
+-- A guarda sem coluna, disparando por último (os gatilhos do mesmo evento disparam na ordem do NOME), recebe a linha
+-- FINAL — qualquer que seja a forma que o gatilho anterior usou. A 1ª versão desta trava procurava a atribuição no TEXTO
+-- dos corpos; três rodadas da revisão adversarial acharam uma forma nova a cada vez (`=` como comando, `into`, aspas,
+-- `get diagnostics`, uma cópia de `new` alterada e devolvida). A ordem dos gatilhos, conferida no catálogo, fecha todas.
+create function pg_temp.f65_guarda_nao_ultima(p_tabelas text[]) returns table (tabela text, motivo text)
+language sql as $f$
+  select c.relname::text,
+         case
+           when g.oid is null then 'sem zz_guarda_empresa (BEFORE UPDATE, por linha, sem coluna, sem WHEN, habilitado)'
+           else 'depois dele: ' || (select string_agg(t.tgname::text, ', ' order by t.tgname)
+                                      from pg_trigger t
+                                     where t.tgrelid = c.oid and not t.tgisinternal
+                                       and (t.tgtype & 1) = 1 and (t.tgtype & 2) = 2 and (t.tgtype & 16) = 16
+                                       and t.tgname > 'zz_guarda_empresa'::name)
+         end
+    from pg_class c
+    left join pg_trigger g
+      on g.tgrelid = c.oid and g.tgname = 'zz_guarda_empresa' and not g.tgisinternal
+     and g.tgfoid = to_regprocedure('public.guarda_empresa()')
+     and g.tgenabled <> 'D'
+     and (g.tgtype & 1) = 1 and (g.tgtype & 2) = 2 and (g.tgtype & 16) = 16
+     and coalesce(array_length(g.tgattr::int2[], 1), 0) = 0
+     and g.tgqual is null
+   where c.relnamespace = 'public'::regnamespace and c.relname = any (p_tabelas)
+     and (g.oid is null
+          or exists (select 1 from pg_trigger t
+                      where t.tgrelid = c.oid and not t.tgisinternal
+                        and (t.tgtype & 1) = 1 and (t.tgtype & 2) = 2 and (t.tgtype & 16) = 16
+                        and t.tgname > 'zz_guarda_empresa'::name))
 $f$;
 
 do $$
@@ -188,21 +172,15 @@ begin
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
-  -- I3 — nenhum gatilho BEFORE das tabelas de negócio atribui new.empresa_id nem new inteiro
+  -- I3 — em cada tabela de negócio, a guarda sem coluna é o ÚLTIMO gatilho BEFORE de UPDATE
   -- ==========================================================================
-  select count(distinct p.oid),
-         count(distinct p.oid) filter (where pg_temp.f65_atribui_empresa(p.prosrc)),
-         coalesce(string_agg(distinct p.proname, ', ') filter (where pg_temp.f65_atribui_empresa(p.prosrc)), '')
-    into v_univ, v_cnt, v_lista
-    from pg_trigger t
-    join pg_class c on c.oid = t.tgrelid
-    join pg_proc p on p.oid = t.tgfoid
-   where c.relnamespace = 'public'::regnamespace and c.relname = any (k_negocio)
-     and not t.tgisinternal and (t.tgtype & 2) = 2;
+  select count(*), coalesce(string_agg(s.tabela || ' (' || s.motivo || ')', '; '), '')
+    into v_cnt, v_lista
+    from pg_temp.f65_guarda_nao_ultima(k_negocio) s;
   if pg_temp.assert_zero_de(
-       'I3 nenhuma função de gatilho BEFORE das tabelas de negócio atribui new.empresa_id nem new inteiro (a guarda de coluna não veria a troca)' ||
-       case when v_cnt > 0 then ' — atribui: ' || v_lista else '' end,
-       v_cnt, v_univ) then
+       'I3 em cada tabela de negócio, zz_guarda_empresa (BEFORE UPDATE por linha, sem coluna) é o ÚLTIMO gatilho BEFORE de UPDATE — vê a troca feita por qualquer outro gatilho BEFORE' ||
+       case when v_cnt > 0 then ' — fora da regra: ' || v_lista else '' end,
+       v_cnt, array_length(k_negocio, 1)) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
@@ -309,36 +287,43 @@ begin
        case when v_cnt = 1 then 0 else 1 end, 1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
-  -- I9 — a auto-sabotagem da I3: o predicado de atribuição acusa CADA forma do PL/pgSQL e deixa passar a leitura
-  -- (revisão adversarial da F65: a primeira versão só via a `:=`, e a `0156` usa `select … into new.empresa_id`).
-  select count(*) filter (where pg_temp.f65_atribui_empresa(c.corpo) <> c.atribui),
-         coalesce(string_agg(c.caso, ', ') filter (where pg_temp.f65_atribui_empresa(c.corpo) <> c.atribui), '')
-    into v_cnt, v_lista
-    from (values
-      ('a :=',                          'begin new.empresa_id := v_e; return new; end',                                   true),
-      ('o = como comando',              'begin if v then new.empresa_id = v_e; end if; return new; end',                  true),
-      ('o = depois de ;',               'begin v := 1; new.empresa_id = v_e; return new; end',                             true),
-      ('select … into new.empresa_id',  'begin select f.empresa_id into new.empresa_id from public.filiais f; return new; end', true),
-      ('select … into strict',          'begin select 1, f.empresa_id into strict v, new.empresa_id from public.filiais f; return new; end', true),
-      ('select * into new (a linha)',   'begin select * into new from public.ativos a limit 1; return new; end',           true),
-      ('new := a linha',                'begin new := jsonb_populate_record(new, v_j); return new; end',                   true),
-      ('execute … into new.empresa_id', 'begin execute ''select 1'' into new.empresa_id using v; return new; end',        true),
-      ('o identificador entre aspas',   'begin "new"."empresa_id" := v_e; return new; end',                               true),
-      ('maiúsculas e espaço antes do .', 'BEGIN NEW . EMPRESA_ID = v_e; RETURN NEW; END',                                true),
-      ('o case do PL/pgSQL que atribui', 'begin case tg_op when ''UPDATE'' then new.empresa_id = v_e; else null; end case; return new; end', true),
-      ('a atribuição de um case do SQL', 'begin new.empresa_id = case when v then v_e else old.empresa_id end; return new; end', true),
-      ('par: o then do case do SQL (leitura)', 'begin v_mudou := case tg_op when ''UPDATE'' then new.empresa_id = old.empresa_id else false end; return new; end', false),
-      ('par: a comparação no if',       'begin if new.empresa_id = old.empresa_id then return new; end if; return null; end', false),
-      ('par: a comparação no where',    'begin perform 1 from public.filiais f where f.empresa_id = new.empresa_id; return new; end', false),
-      ('par: o insert que LÊ a coluna', 'begin insert into public.t (empresa_id) values (new.empresa_id); return new; end', false),
-      ('par: outra coluna',             'begin new.status := ''x''; select 1 into new.filial_id from public.filiais f; return new; end', false),
-      ('par: into outra variável',      'begin select f.empresa_id into v_e from public.filiais f where f.id = new.filial_id; return new; end', false),
-      ('a forma real da 0156',          (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.operador_filiais_deriva_membership()')), true)
-    ) as c(caso, corpo, atribui);
+  -- I9 — a auto-sabotagem da I3, de comportamento e de estrutura (revisão adversarial da F65): um gatilho BEFORE que
+  -- COPIA a linha, troca a empresa na cópia e a devolve — a forma que nenhum leitor de texto acha. (a) com o nome
+  -- ANTES da guarda (`aa_…`), o UPDATE de outra coluna leva 42501 da guarda sem coluna; (b) com o nome DEPOIS dela
+  -- (`zzz_…`), a I3 acusa a tabela. Tudo numa subtransação desfeita.
+  v_estado := null; v_rot := null;
+  begin
+    execute $sab$
+      create function public.f65_i9_troca() returns trigger language plpgsql as $b$
+      declare
+        v_linha public.itens%rowtype;
+      begin
+        v_linha := new;
+        v_linha.empresa_id := (select id from public.empresas where slug = 'f65-imut-b');
+        return v_linha;
+      end $b$
+    $sab$;
+    create trigger aa_f65_i9 before update on public.itens for each row execute function public.f65_i9_troca();
+    begin
+      update public.itens set nome = nome where id = (v_fix->>'itens')::smallint;
+      v_estado := 'passou';
+    exception when others then
+      v_estado := case when sqlstate = '42501' and sqlerrm like 'A empresa de um registro não muda%' then 'guarda'
+                       else sqlstate || ': ' || left(sqlerrm, 60) end;
+    end;
+    drop trigger aa_f65_i9 on public.itens;
+    create trigger zzz_f65_i9 before update on public.itens for each row execute function public.f65_i9_troca();
+    select coalesce(string_agg(s.tabela || ' (' || s.motivo || ')', '; '), '') into v_rot
+      from pg_temp.f65_guarda_nao_ultima(array['itens']) s;
+    raise exception 'f65-i9-desfaz';
+  exception when others then
+    if sqlerrm <> 'f65-i9-desfaz' then v_estado := 'erro: ' || sqlstate || ': ' || left(sqlerrm, 60); end if;
+  end;
   if pg_temp.assert_zero_de(
-       'I9 auto-sabotagem da I3: o predicado acusa as três formas de atribuição do PL/pgSQL (:=, = como comando, into) e deixa passar a leitura' ||
-       case when v_cnt > 0 then ' — errou: ' || v_lista else '' end,
-       v_cnt, 19) then
+       'I9 auto-sabotagem da I3: o gatilho BEFORE que devolve uma cópia da linha com outra empresa é barrado pela guarda (antes dela) e acusado pela I3 (depois dela)' ||
+       ' — antes da guarda: ' || coalesce(v_estado, '∅') || ' · depois dela, a I3: ' || coalesce(nullif(v_rot, ''), 'não acusou'),
+       (case when v_estado = 'guarda' then 0 else 1 end) + (case when coalesce(v_rot, '') like 'itens (depois dele: zzz_f65_i9)%' then 0 else 1 end),
+       2) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM imutabilidade_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
