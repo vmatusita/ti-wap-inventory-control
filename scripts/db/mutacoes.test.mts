@@ -103,7 +103,17 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 138 mutações ATIVAS', () => {
+  it('tem entre 20 e 143 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 138 PARA 143 NA F65 (23/09/2026), no número EXATO. A decisão 8, a régua da
+    // F63/F64: mutação só onde ela derruba uma trava DESTA fase que nenhum teste de mesa derruba — as
+    // cinco são estado de banco. Uma FK composta volta a simples (`F1`/`F4` de
+    // `forma_multiempresa.sql`, a sabotagem A); o índice do snapshot perde a empresa (`U1` de
+    // `unicidade_por_empresa.sql`, a B); a guarda da empresa ganha a janela destrutiva que o Johnny
+    // recusou (`I2`/`I4` de `imutabilidade_tenant.sql`, a C); a diagonal volta a global (`H1`/`H3`, a H)
+    // e o termo esquece a empresa (`I1`, a I), as duas em `integridade_tenant.sql`. 138 + 5 = 143. O
+    // lote estava NO teto (138/138). As duas `*-sem-coluna` da F63/F64 passaram a derrubar o gatilho
+    // da guarda antes da coluna (a dependência que a 0173 criou) — mesmas travas, mesmo número.
+    //
     // ⚠ O TETO SUBIU DE 131 PARA 138 NA F64 (23/09/2026), no número EXATO. A decisão 8 do
     // PLAN-F64, a régua da F63: mutação só onde ela derruba uma trava DESTA fase que nenhum teste
     // de mesa derruba — as sete são estado de banco. Quatro quebram a FORMA de `empresa_id` no lote
@@ -301,7 +311,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(138)
+    expect(MUTACOES.length).toBeLessThanOrEqual(143)
   })
 
   it('os `id` são únicos', () => {
