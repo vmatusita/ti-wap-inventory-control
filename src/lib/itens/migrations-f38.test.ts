@@ -205,6 +205,11 @@ const DA_F38 = [
   '0156',
   '0157',
   '0158',
+  // F63 (23/09/2026) — `empresa_id` no acervo e a disciplina de backup de migração. A `0159` cria
+  // `backups_migration` (tabela nova, vazia, fechada no molde de `ambiente`). Não cria nem recria
+  // função, não mexe em enum, não escreve em tabela que já existia — e nasce sob o classificador
+  // (`migrations-backfill.test.ts`), a primeira com o cabeçalho de classe OBRIGATÓRIO.
+  '0159',
 ]
 
 /**

@@ -160,6 +160,7 @@
     "0155_filiais_empresa.sql": "353f311bcaa648dab79017e5aafe0272d52bf629077913f53d4b3188eea21b89",
     "0156_vinculo_por_membership.sql": "997d3913caafe776b54c7d2024d643774b6d8b9953daa117abf61ccb066be87e",
     "0157_funcoes_de_conjunto.sql": "e671a7a76244a824862073e8529b5efc1609a009d1c2f154b83ff70c9bf6350f",
-    "0158_cargo_em_membros.sql": "2b91ad119b59459e89c971416c1ec67752ea233e6346423903adb6df93017274"
+    "0158_cargo_em_membros.sql": "2b91ad119b59459e89c971416c1ec67752ea233e6346423903adb6df93017274",
+    "0159_backups_migration.sql": "522f48e16f1331fa331fd24318f669fff288f172fc4aeac78c6be6cee88a24c9"
   }
 }
