@@ -167,6 +167,8 @@
     "0162_empresa_no_vocabulario.sql": "39b729d7327f545a4da80f0afae5dac5adf6de33da180551531533dfbc631a6d",
     "0163_empresa_nos_registros.sql": "5c0b87095e0e90bcf0261f7c19db763dc108f76dd94646b8ff2558a4c6d6d654",
     "0164_kit_motivo_da_empresa.sql": "281cce27c9747d5f2770d4def0e9d1338a3df62fb660e3073803fcfbe878c448",
-    "0165_pais_do_tenant.sql": "f1c534299adbb1db71ea52b8d3e353861fb09c3bf4bd6fab65d4d154d8ddce68"
+    "0165_pais_do_tenant.sql": "f1c534299adbb1db71ea52b8d3e353861fb09c3bf4bd6fab65d4d154d8ddce68",
+    "0166_fk_composta_acervo.sql": "8124ccdf34a1c766eaff867edc56810ab023fbec1bd5d8cc06b3670c0944345f",
+    "0167_fk_composta_cadastros.sql": "5fd68f11c90d92a85e96e4fc9f8a5c1291366e2f6c7184a505af843daec3e5cd"
   }
 }
