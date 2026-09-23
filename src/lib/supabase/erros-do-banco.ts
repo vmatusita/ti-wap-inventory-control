@@ -191,6 +191,15 @@ export const MSG_SQL = {
     'o motivo deste kit não existe na empresa do kit',
     'o motivo deste kit nao existe na empresa do kit',
   ],
+  // a guarda do tenant (F65 · 0173, `guarda_empresa`) — 42501 com frase PRÓPRIA: a `empresa_id` de
+  // um registro não muda, em nenhuma das tabelas de negócio. Vem antes do genérico de 42501.
+  empresaDoRegistroNaoMuda: ['a empresa de um registro não muda', 'a empresa de um registro nao muda'],
+  // a integridade do termo (F65 · 0173, `termo_da_empresa`) — 23503 com frase PRÓPRIA, sem "foreign
+  // key": os ids citados pelo termo são da empresa do termo.
+  termoForaDaEmpresa: [
+    'o termo cita movimentação ou ativo que não é da empresa do termo',
+    'o termo cita movimentacao ou ativo que nao e da empresa do termo',
+  ],
   // raises P0001 da RPC do import
   estadoDaFilialMudou: ['estado da filial mudou'],
   planoVazio: ['plano de import vazio'],

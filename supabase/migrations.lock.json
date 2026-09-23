@@ -175,6 +175,7 @@
     "0170_unicidade_por_empresa.sql": "66632c8f2a9d52871a57c97de8eb821dac6a53ab2b634d214051c97308cef857",
     "0171_snapshot_por_empresa.sql": "61267871dd2961a5bb5e1374fe90c81207d47e96046f1a03fce51eb8ebf89450",
     "0172_colaboradores_nome_chave_por_empresa.sql": "982c27c9afa46fa164b8fa2cd502fab8564709e1c5aca484edff00f04291face",
+    "0173_guarda_empresa.sql": "0ecf63238c92f2b142d1f780e3df04483dd577fded8be5def706f6d15af85665",
     "0174_colaboradores_nome_chave_pos_deploy.sql": "8d28eb16dd28671b82933c7126bad78d165e89865badb7ed3e1bc0843e125876"
   }
 }
