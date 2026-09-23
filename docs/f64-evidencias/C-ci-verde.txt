@@ -1,0 +1,234 @@
+# F64 — a saída VERDE do CI no SHA de código congelado 65958b5 (run 35907393720, job banco-sem-docker)
+# Só as linhas dos roteiros da fase (e o FIM de cada um), o resumo, o gate de tipos e as sete mutações F64 do injetor.
+# Dados de CI: 100% fictícios (a cadeia de migrations num Postgres 17 limpo). Extraído por script, sem edição à mão.
+
+
+==== catalogo_policies.sql ====
+  ✓ 1a toda tabela de public está CLASSIFICADA negócio × infra (0 de 29 conferidos)
+  ✓ 1b todo nome classificado ainda existe no catálogo (0 de 29 conferidos)
+  ✓ 2 toda tabela de NEGÓCIO tem policy de SELECT (0 de 20 conferidos)
+  ✓ 3 nenhuma tabela de public fica sem SELECT por CATEGORIA (0 de 29 conferidos)
+  ✓ 4 toda exceção deny-all ainda descreve o banco (0 de 6 conferidos)
+  ✓ 4-bis `force row level security` desligado em toda tabela de public (R-ACC-29) (0 de 29 conferidos)
+  ✓ 5 nenhuma policy com predicado equivalente a `true` (0 de 62 conferidos)
+  ✓ 6a o piso `papel_atual()` continua nas 20 policies de SELECT congeladas (0 de 20 conferidos)
+  ✓ 6b as 3 que decidem por CARGO não afrouxaram para o piso (0 de 3 conferidos)
+  ✓ 6c toda policy de SELECT de public está numa das duas listas do piso (0 de 23 conferidos)
+  ✓ 7 nenhuma policy de storage.objects decide só por `bucket_id` (0 de 8 conferidos)
+  ✓ 8a nenhuma policy de Storage fora do conjunto congelado (0 de 8 conferidos)
+  ✓ 8b nenhuma policy de Storage congelada sumiu (0 de 8 conferidos)
+  ✓ 9a nenhuma tabela NOVA na publication do Realtime (0 de 3 conferidos)
+  ✓ 9b nenhuma das 3 congeladas saiu da publication (0 de 3 conferidos)
+  ✓ 10a toda policy de public está no universo congelado da doutrina (0 de 54 conferidos)
+  ✓ 10b toda policy do universo congelado ainda existe (0 de 54 conferidos)
+  ✓ 10c toda árvore de policy tem só nós que o analisador da doutrina lê (0 de 476 conferidos)
+  ✓ 10d o analisador de árvore sabe reprovar (12 árvores sintéticas) (0 de 80 conferidos)
+  ✓ 11a R1 nenhuma função recebe dado da linha fora da lista de exceções (0 de 87 conferidos)
+  ✓ 11b toda exceção da doutrina ainda descreve uma ocorrência viva (0 de 18 conferidos)
+  ✓ 12 R2 nenhuma função sem dado da linha fora de (select …) (0 de 87 conferidos)
+  ✓ 13a R3 nenhum sub-select de policy lê tabela ou view (0 de 75 conferidos)
+  ✓ 13b R3 nenhum sub-select de policy olha a linha fora de argumento de função (0 de 75 conferidos)
+  ✓ 14 alvo de array (select …) em policy é função que devolve conjunto (0 de 87 conferidos)
+  ✓ 15a todo nome do lote 1 (k_lote1) é tabela de NEGÓCIO (k_negocio) (0 de 8 conferidos)
+  ✓ 15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force) (0 de 8 conferidos)
+  ✓ 15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma (0 de 12 conferidos)
+  ✓ 15d o lote 2 (k_lote2) é de NEGÓCIO, disjunto do lote 1, e os dois lotes com filiais são k_negocio inteiro (0 de 31 conferidos)
+  ✓ 15e as onze do lote 2 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force) (0 de 11 conferidos)
+  ✓ 15f toda tabela de NEGÓCIO tem empresa_id (a pendência da F64 reprova; a infra fica em k_infra, com o motivo) (0 de 20 conferidos)
+  ✓ 15g nenhuma policy das onze do lote 2 cita empresa_id (o recorte é da F66) (0 de 22 conferidos)
+  ✓ 15h nenhuma função de public lê empresa_id junto de uma das dezenove dos lotes 1 e 2 (nas exceções nominais de k_leitura_integridade, só a leitura provada do kit, por comando) (0 de 57 conferidos)
+  ✓ 15i nenhuma view de public lê empresa_id junto de uma das onze do lote 2 (0 de 9 conferidos)
+  ✓ 15j toda exceção nominal de leitura (k_leitura_integridade) é uma função que existe (0 de 2 conferidos)
+  FIM catalogo_policies: 35 asserções, 0 falhas
+
+==== empresa_no_vocabulario.sql ====
+  ✓ 1a um INSERT sem empresa_id recebe public.empresa_legada() nas onze tabelas do lote 2 (0 de 11 conferidos)
+  ✓ 1b toda linha das onze tem empresa_id = public.empresa_legada() (count(*) = count(empresa_id) = da legada) (0 de 73 conferidos)
+  ✓ 2a empresa_id de empresa inexistente é recusado com 23503 nas onze (0 de 11 conferidos)
+  ✓ 2b de volta como postgres, nenhuma linha com a empresa inexistente ficou nas onze (0 de 11 conferidos)
+  3a (medição) update ingênuo em motivos: passou:14 · relfilenode 16555 → 16555 · md5(pk, xmin) f6425c9020981cc647363c5f2bf48251 → fd1dc7d228bfe37e2fad82092bec0b9d
+  3a (medição) update ingênuo em eventos_admin: passou:1 · relfilenode 17063 → 17063 · md5(pk, xmin) e25a227d294fecf2dc7223112910f7d0 → d959e6008a98c8d6ef8ce7e7066ed1e6
+  ✓ 3a o update de backfill ingênuo PASSA em motivos e eventos_admin e reescreve em silêncio (relfilenode igual, md5 de (pk, xmin) diferente) — nada o barra, e só o xmin o denuncia (fato 7) (0 de 4 conferidos)
+  4a (medição) relfilenode: 19192 → (default volátil) 19200 → (default da fase) 19200 · atthasmissing da coluna da fase: t
+  ✓ 4a numa tabela de PK text, o default VOLÁTIL reescreve (relfilenode muda) e o da fase NÃO (relfilenode igual, atthasmissing) (0 de 3 conferidos)
+  4b (medição) update de UMA linha numa subtransação, PK text: relfilenode 19200 → 19200 · md5(pk, xmin) 25d03ce1cc6db8875f9e846a04a8683b → 44ad15133681d76512bba099352e48c9 · pk lida: codigo
+  ✓ 4b numa tabela de PK text, um update de uma linha deixa o relfilenode igual e MUDA o md5 de (pk, xmin) lido pela PK do catálogo (0 de 4 conferidos)
+  4c (medição) a PK do catálogo nas quatro sem id [pk nulas:distintas:linhas]: motivos[codigo 0:14:14] import_prefixos_patrimonio[prefixo 0:8:8] import_termos_categoria[termo 0:6:6] import_termos_estado[termo 0:18:18]
+  ✓ 4c o instrumento lê a PK do CATÁLOGO nas quatro tabelas sem id (codigo, prefixo, termo, termo) — nenhuma chave nula, uma por linha (0 de 46 conferidos)
+  ✓ 5a o corpo das 9 funções que escrevem nas onze e de registrar_tentativa_senha é o das migrations de ANTES da F64 (md5 do prosrc, uma assinatura cada) (0 de 10 conferidos)
+  ✓ 5b nenhum dos dez cita empresa_id — quem preenche a coluna é o default (até a F67) (0 de 10 conferidos)
+  ✓ 6a as duas exceções nominais LEEM empresa_id de kits_modelos/motivos (a lista não guarda fantasma) e o predicado não as acusa (0 de 4 conferidos)
+  ✓ 6b auto-sabotagem: a policy de tipos_item e a função que leem empresa_id do lote 2 são ACUSADAS pelo predicado de 15g/15h (o gate sabe reprovar) (0 de 1 conferidos)
+  6c (medição) a exceção com um comando a mais: kit_motivo_da_empresa (num comando que lê outra tabela do lote: perform count(*) from public.eventos_admin e where e.empresa_id = new.empresa_id)
+  ✓ 6c a exceção nominal que lê empresa_id de OUTRA tabela do lote (eventos_admin) num comando é ACUSADA — a exceção vale por comando, não pela função (0 de 1 conferidos)
+  ✓ 6d o léxico do predicado: o -- dentro de texto não esconde a leitura; comentário, texto e dollar-quote não contam; a exceção vale por comando; $1 e identificador citado ficam (0 de 8 conferidos)
+  ✓ 6e nas exceções a origem de cada x.empresa_id é PROVADA no comando: a variável de registro, o apelido de subselect e o new/old sem gatilho no kit acusam; o apelido declarado no comando passa; maiúsculas não escondem; distinct from não declara tabela (0 de 8 conferidos)
+  FIM empresa_no_vocabulario: 15 asserções, 0 falhas
+
+==== f41_regularizacao.sql ====
+  ✓ 0 âncora: item B com total 4 e estoque 3 (1 em uso)
+  ✓ 1 o caso do print GRAVA: 1 linha de acerto, total 1, estoque 1
+  ✓ 1b as DUAS movimentações do equipamento existem
+  ✓ 1c o acerto está AMARRADO à movimentação e marcado
+  ✓ 2 os três números fecham: total +1 (=5), estoque +2 (=5), em uso 0
+  ✓ 2b gravou `retorno 1` + `ajuste +1` marcado
+  ✓ 3 a entrega sem saldo grava a saída e regulariza (total 3, estoque 0)
+  ✓ 4 "Item recuperado" funciona sem saldo prévio (total 6, estoque 6)
+  ✓ 5 o estorno desfez as DUAS linhas (total 4, estoque 3)
+  ✓ 5b estorno sem o inverso do acerto é recusado (23514)
+  ✓ 6 o avulso regulariza IGUAL ao checklist (total +2, estoque +2)
+  ✓ 6b avulso é tudo-ou-nada: ZERO linhas sobraram (23514)
+  ✓ 7 o trigger continua recusando retorno acima do aberto (23514)
+  ✓ 7b o trigger continua recusando saída acima do estoque (23514)
+  ✓ 8 toda linha marcada é `ajuste` POSITIVO — a marca não vazou
+  ✓ 8b todo acerto automático carrega justificativa
+  ✓ 9 sem justificativa a RPC recusa com a mensagem certa
+  ✓ 10 a leitura é INCREMENTAL: 1 retorno + 1 acerto no mesmo lote
+  ✓ 11 item_chave normaliza igual a colaborador_chave (a 0125 se declara espelho)
+  ✓ 11b nome repetido por caixa/espaço é recusado pela chave
+  ✓ 12 checagens_integridade_nucleo tem TREZE blocos
+  ✓ 12b a checagem `reserva_aberta` está no corpo
+  ✓ 12b-bis dev_checagens_integridade DELEGA (um return query só)
+  ✓ 12c nenhuma reserva em aberto
+  ✓ 13 as três RPCs da F41 são SECURITY INVOKER
+  ✓ 13b exatamente 4 funções, sem SOBRECARGA
+  FIM f41_regularizacao: 26 asserções, 0 falhas
+
+==== f62_rollback.sql ====
+  ✓ rb0 o estado depois da F62 foi montado (promovido=admin, desligado=sem cargo, dev=dev) — só na membership
+  ✓ rb1 rollback na ordem escrita (cópia primeiro): o corpo antigo devolve o estado MAIS NOVO — promovido=admin, desligado=sem cargo, dev=dev, e a impressão de todo perfil é a mesma de antes do rollback
+  ✓ rb2 SEM a cópia, o rollback devolve o estado VELHO — o desligado voltaria a ter cargo (operador/operador/operador) e a impressão muda: a cópia é o passo que impede isso
+  ✓ rb3 o esquema voltou ao de antes da F62: sem membros/empresas/plataforma_admins, sem empresa_id/membro_id, PK (usuario_id, filial_id), papel_atual() lendo profiles
+  FIM f62_rollback: 4 asserções, 0 falhas
+
+==== f63_rollback.sql ====
+  ✓ rb0 antes do rollback, as oito tabelas do acervo TÊM empresa_id visível (0 de 8 conferidos)
+  ✓ rb1 depois do rollback, nenhuma das oito tem empresa_id visível (0 de 8 conferidos)
+  ✓ rb2 depois do rollback, public.backups_migration não existe (0 de 1 conferidos)
+  ✓ rb3 o esquema das oito depois do rollback é o do CI antes da 0159 (0 de 1 conferidos)
+  ✓ rb4 o rollback tira exatamente o que a F63 declarou (antes sem empresa_id = depois) (0 de 1 conferidos)
+  FIM f63_rollback: 5 asserções, 0 falhas
+
+==== f64_rollback.sql ====
+  ✓ rb0 antes do rollback, as onze tabelas do lote 2 TÊM empresa_id visível, e o gatilho e a função do kit existem (0 de 13 conferidos)
+  ✓ rb1 depois do rollback, nenhuma das onze tem empresa_id visível (0 de 11 conferidos)
+  ✓ rb2 depois do rollback, o gatilho e a função do kit sumiram, e o núcleo voltou ao corpo da 0158 (0 de 3 conferidos)
+  ✓ rb3 o esquema das onze (e as duas funções) depois do rollback é o do CI antes da 0162 (0 de 1 conferidos)
+  ✓ rb4 o rollback tira exatamente o que a F64 declarou (antes sem a F64 = depois sem a F64) (0 de 1 conferidos)
+  FIM f64_rollback: 5 asserções, 0 falhas
+
+==== integridade_alarme.sql ====
+  ✓ 1a patrimonio_duplicado enxerga o par plantado na mesma filial (delta +1) (0 de 1 conferidos)
+  ✓ 1b desfeita a duplicidade e religado o índice, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 2a ativo_filial_inativa enxerga o ativo cuja filial foi desativada (delta +1) (0 de 1 conferidos)
+  ✓ 2b reativada a filial, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 3a termo_sem_arquivo enxerga o termo sem objeto correspondente no bucket `termos` (delta +1) (0 de 1 conferidos)
+  ✓ 3b apagado o termo órfão, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 4a perfil_sem_conta enxerga o perfil sem conta correspondente no Auth (delta +1) (0 de 1 conferidos)
+  ✓ 4b apagado o perfil órfão, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 5a conta_sem_perfil enxerga a conta do Auth sem perfil correspondente (delta +1) (0 de 1 conferidos)
+  ✓ 5b apagada a conta órfã, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 6a pendencia_de_estornada enxerga a pendência aberta apontando para movimentação já estornada (delta +1) (0 de 1 conferidos)
+  ✓ 6b resolvida a pendência, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 7a operador_sem_filial enxerga o operador ativo sem nenhum vínculo (delta +1) (0 de 1 conferidos)
+  ✓ 7b vinculada a filial, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 8a arquivo_termo_orfao enxerga o objeto do bucket `termos` sem linha correspondente em termos_gerados (delta +1) (0 de 1 conferidos)
+  ✓ 8b apagado o objeto órfão, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 9a conflito_entre_filiais enxerga o grupo com o mesmo par em duas filiais (delta +1 grupo) (0 de 1 conferidos)
+  ✓ 9b desfeito o par, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 10a detentor_em_estado_sem_dono enxerga o ativo com detentor plantado à mão (delta +1) (0 de 1 conferidos)
+  ✓ 10b zerado o detentor, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 11a reserva_aberta enxerga o chamado com saldo de reserva em aberto (delta +1) (0 de 1 conferidos)
+  ✓ 11b liberado o chamado, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 12a backup_orfao enxerga o objeto do bucket `backups-import` sem registro correspondente (delta +1) (0 de 1 conferidos)
+  ✓ 12b apagado o objeto órfão, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ 13a kit_motivo_orfao enxerga o kit com motivo que não existe na empresa dele (delta +1) (0 de 1 conferidos)
+  ✓ 13b sem o motivo, a checagem volta ao número de antes (0 de 1 conferidos)
+  ✓ estrutura: checagens_integridade_nucleo() tem TREZE blocos `return query` (0 de 1 conferidos)
+  ✓ b1a as TREZE chaves aparecem dos dois lados (dev_checagens_integridade / checagens_integridade_resumo) (0 de 1 conferidos)
+  ✓ b1b os treze pares (chave:total) de checagens_integridade_resumo() [consulta] batem, par a par, com dev_checagens_integridade() [dev] (0 de 1 conferidos)
+  ✓ b2a anon é recusado com 42501 (sem grant de EXECUTE) (0 de 1 conferidos)
+  ✓ b2b authenticated SEM sub no JWT é recusado com 42501 (guarda interna) (0 de 1 conferidos)
+  ✓ b2c anon NÃO tem EXECUTE sobre checagens_integridade_resumo (a superfície, não o comportamento) (0 de 1 conferidos)
+  ✓ b2d authenticated TEM EXECUTE sobre checagens_integridade_resumo (senão o alarme não lê nada) (0 de 1 conferidos)
+  ✓ b3 checagens_integridade_resumo() não declara a coluna `amostra` no seu tipo de retorno (pg_get_function_result) (0 de 1 conferidos)
+  ✓ b4 perfil DESATIVADO (ativo = false) também é recusado com 42501 (0 de 1 conferidos)
+  ✓ c1 ancora: rotulo_de_ambiente() é NULL quando public.ambiente não tem a linha (o estado de produção) (0 de 1 conferidos)
+  ✓ c2 rotulo_de_ambiente() = 'desenvolvimento' quando a linha existe (0 de 1 conferidos)
+  ✓ c3 apagada a linha, rotulo_de_ambiente() volta a NULL (0 de 1 conferidos)
+  ✓ c4 rotulo_de_ambiente é alcançável SÓ pela service_role (authenticated e anon não) (0 de 1 conferidos)
+  ✓ c5 service_role TEM EXECUTE sobre rotulo_de_ambiente (senão o env-guard não confirma nada) (0 de 1 conferidos)
+  FIM integridade_alarme: 40 asserções, 0 falhas
+
+==== isolamento_tenant.sql ====
+  ✓ 1 o papel do roteiro (postgres) ignora RLS — contar com ele conta o universo REAL
+  ✓ 2 `authenticated` NÃO ignora RLS — "viu zero linhas" é a policy trabalhando
+  ✓ 3 `anon` NÃO ignora RLS
+  ✓ 4 `service_role` ignora RLS (desenho — é a premissa do trigger guarda_acervo da 0081)
+  ✓ 5 o bloco de grants concedeu LEITURA — sem isso "viu zero" seria permission denied (0 de 5 conferidos)
+  ✓ 6 o bloco de grants concedeu ESCRITA — recusa por privilégio se disfarça de recusa por policy (0 de 2 conferidos)
+  ✓ 7 `profiles` recebe UPDATE de COLUNA e não de TABELA (espelho da 0063)
+  ✓ 8a o universo foi contado como postgres ANTES do ataque (2 linhas na filial não vinculada)
+  ✓ 8b a operação FALHOU: operador não reescreveu ativo de filial não vinculada (0 de 2 conferidos)
+  ✓ 8c de volta como postgres, o dado original continua INTACTO (a segunda prova da recusa) (0 de 2 conferidos)
+  ✓ 8d o MESMO operador ESCREVE na filial VINCULADA (1 linha) — o recorte recorta, não tranca tudo
+  ✓ 9l toda conta nova nasce com a membership operador ATIVA na empresa legada (handle_new_user) (0 de 6 conferidos)
+  ✓ 9-fixture o universo A↔B foi montado e contado como postgres: 2 empresas, 5 filiais em A e 1 em B, as memberships e o vínculo de B
+  ✓ 9a empresas_do_membro() devolve exatamente as empresas de cada pessoa, nas duas direções (0 de 4 conferidos)
+  ✓ 9b empresas_de_escrita()/empresas_de_admin(): consulta não escreve, operador não administra, nenhuma empresa de fora (0 de 6 conferidos)
+  ✓ 9d unidades_de_escrita() nunca devolve par de filial de outra empresa, nas duas direções (0 de 6 conferidos)
+  ✓ 9e o membro desativado some no statement seguinte, sem token novo (antes: A e operador; depois: nenhuma empresa, sem cargo, sem unidade)
+  ✓ 9f e_plataforma() responde só sobre o chamador (true só para a conta de plataforma, nunca NULL) (0 de 6 conferidos)
+  ✓ 9g a ponte responde pela empresa legada: consultor=admin (duas vezes), só-em-B=sem cargo
+  ✓ 9h o vínculo com membership ou filial de OUTRA empresa é recusado pelas FKs compostas, com o par simétrico aceito (0 de 5 conferidos)
+  ✓ 9i authenticated não escreve em empresas, membros, plataforma_admins nem operador_filiais (a operação falha) (0 de 8 conferidos)
+  ✓ 9i-bis de volta como postgres, empresas/membros/plataforma_admins/operador_filiais estão INTACTAS (a segunda prova da recusa)
+  ✓ 9j as tabelas da F62 (lidas do catálogo) estão SEM force row level security (0 de 5 conferidos)
+  ✓ 9k toda coluna empresa_id (lida do catálogo) é NOT NULL, amarrada por FK à raiz e sem linha nula (0 de 83 conferidos)
+  ✓ 9m o slug reservado ou fora do formato é recusado pelo CHECK (admin, todas, relatorios, maiúscula, espaço, hífen na ponta), e o legítimo passa (0 de 7 conferidos)
+  ✓ 9n empresas.config recusa jsonb que não seja objeto ("texto", [], 42, null) e aceita objeto (0 de 5 conferidos)
+  9o (medição) com force em membros, admin_a leu papel/linhas = admin/9 — dono das definer que leem membros ignora RLS por atributo em 17 de 17
+  ✓ 9o o dono das security definer que leem membros ignora RLS por atributo (rolsuper/rolbypassrls), e por isso nem o force produz a recursão prevista (0 de 17 conferidos)
+  FIM isolamento_tenant: 27 asserções, 0 falhas
+
+==== kit_motivo_da_empresa.sql ====
+  ✓ C1 kit com motivo INEXISTENTE é recusado pelo gatilho (23503, a frase do kit) e, como postgres, o kit não ficou (0 de 2 conferidos)
+  ✓ C2 kit da WAP com o motivo que só existe na empresa B é recusado (o motivo tem de ser da EMPRESA DO KIT) e o kit não ficou (0 de 2 conferidos)
+  ✓ C3 kit SEM motivo (chave ausente, null JSON, vazio, só espaços) é aceito — e o null JSON de ->> é SQL NULL (0 de 5 conferidos)
+  ✓ C4 kit com o motivo da PRÓPRIA empresa é aceito (o da WAP na WAP, o da B num kit da B) (0 de 2 conferidos)
+  ✓ C5 o UPDATE que troca o motivo por um inexistente, pelo da outra empresa, ou muda a empresa do kit para uma sem o motivo é recusado (0 de 3 conferidos)
+  ✓ C5-bis de volta como postgres, o kit recusado continua com o motivo e a empresa de antes (0 de 2 conferidos)
+  ✓ C6a a checagem nova conta cada kit órfão fabricado — o do motivo inexistente E o da WAP com o motivo da empresa B (0 de 1 conferidos)
+  ✓ C6b a amostra da checagem nova traz o id de cada kit órfão (nenhum código de motivo, nenhum nome) (0 de 1 conferidos)
+  ✓ C6c DESATIVAR um kit órfão continua possível — pelo update só do ativo e pelo da tela, que reenvia o payload (0 de 4 conferidos)
+  ✓ C6d o órfão desativado continua contado (a checagem conta todo kit: a reativação não passa pelo gatilho) (0 de 1 conferidos)
+  ✓ C7 tirar o motivo do kit órfão é aceito, e a checagem nova desce um (0 de 2 conferidos)
+  ✓ C8a as 12 peças antigas de checagens_integridade_nucleo estão byte a byte (o md5 de cada uma contra o da 0158) (0 de 12 conferidos)
+  ✓ C8b o núcleo tem 13 peças — as 12 e a kit_motivo_orfao (0 de 1 conferidos)
+  ✓ C9 pela sessão de um admin (RLS ligada) o gatilho aceita o motivo da empresa do kit e recusa o da outra — e, como postgres, só o aceito ficou (0 de 4 conferidos)
+  FIM kit_motivo_da_empresa: 14 asserções, 0 falhas
+
+==== resumo e gates ====
+  banco ....... 38 relações · 358 colunas · 94 funções
+  database.ts . 38 relações · 358 colunas · 94 funções
+  VERDE: o database.ts conhece tudo o que o banco tem.
+  46 roteiro(s), 1045 asserções no total
+  mutações ativas ..... 138
+  em quarentena ....... 2 (declaradas, NÃO executadas)
+  138/138 detectadas pelo cenário nomeado · 60064 ms no total
+
+==== as sete mutações F64 do injetor ====
+  [132/138] f64-lote2-default-literal  →  catalogo_policies.sql  (espera ✗ 15e)
+  ✓ detectada — também caíram (efeito colateral): 15c  (442 ms)
+  [133/138] f64-lote2-sem-not-null  →  catalogo_policies.sql  (espera ✗ 15e)
+  ✓ detectada — também caíram (efeito colateral): 15c  (443 ms)
+  [134/138] f64-lote2-fk-not-valid  →  catalogo_policies.sql  (espera ✗ 15e)
+  ✓ detectada — também caíram (efeito colateral): 15c  (445 ms)
+  [135/138] f64-lote2-sem-coluna  →  catalogo_policies.sql  (espera ✗ 15e, 15f)
+  ✓ detectada  (449 ms)
+  [136/138] f64-kit-sem-gatilho  →  kit_motivo_da_empresa.sql  (espera ✗ C1, C2)
+  ✓ detectada — também caíram (efeito colateral): C5, C5-bis, C9  (375 ms)
+  [137/138] f64-kit-gatilho-sem-empresa  →  kit_motivo_da_empresa.sql  (espera ✗ C2)
+  ✓ detectada — também caíram (efeito colateral): C5, C5-bis, C9  (376 ms)
+  [138/138] f64-checagem-sem-empresa  →  kit_motivo_da_empresa.sql  (espera ✗ C6a)
+  ✓ detectada — também caíram (efeito colateral): C6b, C6d, C7  (376 ms)

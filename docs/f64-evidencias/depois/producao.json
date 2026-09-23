@@ -1,0 +1,171 @@
+{
+  "_medido": "23/09/2026 19:23–19:30 UTC, PRODUÇÃO pbtjcalbmepmrqzprusb, pelo MCP (só leitura), depois do apply. Só catálogo, contagem e hash.",
+  "antes_refeito": "às 19:23 UTC, com o mesmo texto: corte 26063; as onze, as 9 escritoras, o rate-limit e as 12 peças IDÊNTICAS ao antes/impressao-vocabulario-producao.json (14:50, corte 26042)",
+  "apply": {
+    "canal": "apply_migration do MCP, uma chamada por migration, texto EXATO do arquivo no SHA 65958b5",
+    "ledger": [
+      "20260923162415 empresa_no_vocabulario",
+      "20260923162443 empresa_nos_registros",
+      "20260923162548 kit_motivo_da_empresa"
+    ],
+    "lock_timeout_disparou": false,
+    "tentativas": 1,
+    "notify_pgrst": true,
+    "dentro_de_24h_do_commit_das_migrations": true
+  },
+  "exatidao": "docs/f64-evidencias/exatidao-pos-apply.sql: as 11 colunas, o prosrc e o comentário das duas funções IGUAIS a depois/exatidao-esperada.json; kit_motivo_da_empresa sem EXECUTE para anon/authenticated (service_role sim); checagens_integridade_nucleo sem EXECUTE para anon/authenticated/service_role",
+  "verificacao_pos_apply": {
+    "lote2": "as 11: uuid, not_null, atthasmissing, default_e_empresa_legada, fk_para_empresas_validada, comentario_cita_f67 — TODOS true",
+    "contagens": {
+      "motivos": [
+        14,
+        14,
+        14
+      ],
+      "tipos_item": [
+        10,
+        10,
+        10
+      ],
+      "import_logs": [
+        12,
+        12,
+        12
+      ],
+      "kits_modelos": [
+        0,
+        0,
+        0
+      ],
+      "eventos_admin": [
+        102,
+        102,
+        102
+      ],
+      "senhas_acesso": [
+        5,
+        5,
+        5
+      ],
+      "unidades_apelidos": [
+        13,
+        13,
+        13
+      ],
+      "relatorios_gerados": [
+        13,
+        13,
+        13
+      ],
+      "import_termos_estado": [
+        17,
+        17,
+        17
+      ],
+      "import_termos_categoria": [
+        5,
+        5,
+        5
+      ],
+      "import_prefixos_patrimonio": [
+        7,
+        7,
+        7
+      ]
+    },
+    "negocio": {
+      "tabelas": 20,
+      "com_empresa_id": 20
+    },
+    "kit": {
+      "gatilhos": 1,
+      "habilitados": 1,
+      "before_linha_insert_update": 1,
+      "update_of": "empresa_id,payload",
+      "funcao_definer": false,
+      "search_path": "public"
+    },
+    "integridade": {
+      "chaves": 13,
+      "kit_motivo_orfao": 0
+    }
+  },
+  "impressao": "depois/impressao-vocabulario-producao.json — relfilenode IGUAL SEM EXCEÇÃO, md5_pk_xmin e md5_conteudo IGUAIS ao antes nas onze; janela 0 (o app não escreveu nelas durante o apply); escritoras 5bbe6d79…, rate-limit 0c2abf7d… iguais; as 12 peças antigas iguais",
+  "policies": {
+    "public": {
+      "n": 54,
+      "md5": "886118ad686f67c857cf0d370fd6828d"
+    },
+    "storage": {
+      "n": 8,
+      "md5": "f116b8d0da8bda75038564a44720c2e8"
+    },
+    "do_lote2": {
+      "policies": 22,
+      "citam_empresa_id": 0
+    },
+    "do_negocio": {
+      "policies": 49,
+      "citam_empresa_id": 0
+    },
+    "igual_ao_antes": true
+  },
+  "advisors": {
+    "INFO_rls_enabled_no_policy": 6,
+    "WARN_definer_executavel": 34,
+    "WARN_auth_leaked_password": 1,
+    "igual_ao_antes": true,
+    "observed_at": "2026-09-23T19:27:47Z"
+  },
+  "tipos": "generate_typescript_types: md5 81dbde8998e7c6b243c6973a672fac23 — IDÊNTICO ao do ensaio; contra o database.ts, a mesma exceção da F62 (Insert de operador_filiais)",
+  "paridade_ensaio_producao": {
+    "sonda": "supabase/ci/impressao-schema.sql, os dois bancos às 19:28 UTC",
+    "classes_iguais": 11,
+    "coluna": [
+      350,
+      "9646dcc70a5a6cb2eb14936123923f2b"
+    ],
+    "constraint": [
+      137,
+      "83a417f8cbf83c656fd57fc50e759062"
+    ],
+    "enum": [
+      7,
+      "34837fbf7cb50082e461fd8cdad47532"
+    ],
+    "func": [
+      103,
+      "9f621d0e0c80b11fab66e915eaf29712"
+    ],
+    "grant_func": [
+      103,
+      "b3504476e47308e26ad3b99cecff2c2c"
+    ],
+    "indice": [
+      98,
+      "2f0b047ac4aab1a66e246a10badd5e42"
+    ],
+    "policy": [
+      54,
+      "3f067eb28151e317ba384b7f68335a03"
+    ],
+    "policy_storage": [
+      8,
+      "cd68b8eccf9532909791b7cf67619b08"
+    ],
+    "rls_flag": [
+      28,
+      "0b95c89a31d36e88406a1617fa270523"
+    ],
+    "trigger": [
+      11,
+      "2debe72b48cd60c5f40839068100bc9e"
+    ],
+    "view": [
+      9,
+      "eccffb70b9021b329278eaf0cd2c6601"
+    ]
+  },
+  "smoke_pos_apply": "19:28:57 UTC, node scripts/smoke/smoke-prod.mjs a partir da branch (65958b5), app no ar 1.68.0: RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha (o aviso antigo de kits_modelos sem kit cadastrado) — depois/smoke-prod-pos-apply.txt",
+  "conferidor": "19:30 UTC, scripts/formas/conferir.mts --alvo=producao (credencial por --env-file): 271 pontos · 100.530 linhas · 0 recusadas · 0 reprovados; os mesmos 3 descritores sem linha da F63 — depois/conferidor-producao.json"
+}
