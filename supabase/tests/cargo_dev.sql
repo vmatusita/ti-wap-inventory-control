@@ -1070,7 +1070,7 @@ begin
     -- comportamento observável hoje — uma guarda que sempre aceita é indetectável por
     -- efeito, por definição. A única forma de provar que a fechadura está no CAMINHO — e não
     -- só documentada em comentário — é ler o corpo COMPILADO da função com
-    -- pg_get_functiondef e procurar a CHAMADA. Quando a F65 der corpo real à guarda, aí
+    -- pg_get_functiondef e procurar a CHAMADA. Quando a F67 der corpo real à guarda, aí
     -- haverá cenário de efeito (um alvo fora do escopo recusado); até lá, esta asserção é
     -- quem denuncia se a chamada sumir numa recriação futura de exigir_gestao_de.
     --

@@ -80,7 +80,7 @@ declare
     'existe_outro_admin_ativo',
     -- `mesmo_escopo_de_gestao` (0132/F52) — a guarda de PERTENCIMENTO chamada
     -- de dentro de `exigir_gestao_de`, entre a checagem P0002 do alvo e o ramo
-    -- de cargo. Devolve `true` hoje (uma empresa só) — a F65 lhe dá corpo
+    -- de cargo. Devolve `true` hoje (uma empresa só) — a F67 lhe dá corpo
     -- real trocando só esta função. `security definer` pelo mesmo motivo das
     -- irmãs acima: chamada de dentro de uma `security definer` que já roda
     -- como o dono, sem precisar de grant nenhum.
@@ -107,7 +107,7 @@ declare
     -- de conflitos entre filiais, chamada por `apagar_ativos_conflito_filiais`
     -- depois da etapa (3) do lock (nunca antes: leitura própria de `ativos`
     -- exige linha já travada) e fora da janela `estoque.dev_destrutivo`. Não
-    -- levanta hoje (uma empresa só) — a F65 lhe dá corpo real. Ver
+    -- levanta hoje (uma empresa só) — a F67 lhe dá corpo real. Ver
     -- `conflito_filiais.sql` §10 para a prova da posição.
     'exigir_ativos_da_empresa',
     -- Import de startup (0094): apaga a filial e recarrega, dentro de uma janela.

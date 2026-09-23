@@ -8,12 +8,21 @@
 -- de escrita por membership) e as QUATRO FUNÇÕES DE CONJUNTO da forma-alvo da MATRIZ
 -- (`empresas_do_membro`, `empresas_de_escrita`, `empresas_de_admin`,
 -- `unidades_de_escrita`). A empresa A é a WAP (a empresa legada, da migration); a B é
--- FICTÍCIA, criada aqui, com filial própria de slug diferente (o unique global de
--- `filiais.slug` é da F65). Os cenários provam, nas DUAS direções, o que as funções de
--- conjunto e as FKs compostas decidem. ⚠ O QUE AINDA NÃO SE PROVA AQUI: que o ACERVO de A é
--- invisível para B — as policies continuam com o piso (todo logado ativo lê tudo) até a
--- F66/F72. Desde a F63 o acervo TEM `empresa_id` (as oito de `k_lote1`, preenchidas pelo default
--- da WAP), mas NADA a lê: nem policy, nem app, nem este roteiro — ler o dado por empresa é da F66.
+-- FICTÍCIA, criada aqui, com filial própria de slug diferente (desde a F65 o slug é único POR
+-- EMPRESA, e o diferente fica: não é disso que este roteiro trata). Os cenários provam, nas DUAS
+-- direções, o que as funções de conjunto e as FKs compostas decidem. ⚠ O QUE AINDA NÃO SE PROVA AQUI:
+-- que o ACERVO de A é invisível para B — as policies continuam com o piso (todo logado ativo lê tudo)
+-- até a F66/F72. Desde a F63 o acervo TEM `empresa_id` (as oito de `k_lote1`, preenchidas pelo default
+-- da WAP), mas NADA a lê como recorte: nem policy, nem app, nem este roteiro — ler o dado por empresa é
+-- da F66.
+--
+-- F65 (23/09/2026) — A CAMADA ESTRUTURAL. O que a F65 entregou: as FKs entre tabelas de negócio são
+-- COMPOSTAS `(empresa_id, x) → (empresa_id, id)` (o filho da A não aponta para o pai da B), os uniques
+-- de negócio são POR EMPRESA, a empresa de um registro NÃO MUDA (a guarda nas 20, sem exceção para a
+-- janela destrutiva), a diagonal nome × apelido é por empresa e o termo só cita o que é da empresa
+-- dele. A prova mora em `integridade_tenant.sql` (com o par simétrico de cada FK composta, a regra 3
+-- abaixo) e nas três travas de catálogo (`forma_multiempresa`, `unicidade_por_empresa`,
+-- `imutabilidade_tenant`). O que falta continua sendo a LEITURA — o recorte do acervo, da F66.
 --
 -- (Texto da F48, mantido como registro:) Hoje existe UMA empresa, e escrever "a empresa A não
 -- vê o dado da empresa B" com uma empresa só produziria um ✓ sobre conjunto vazio:
@@ -53,8 +62,9 @@
 -- 3. FK COMPOSTA PROVADA COM O PAR SIMÉTRICO.
 --    "Recusou" sem o par pode estar recusando por outro motivo — tipo errado, valor
 --    nulo, constraint vizinha. O par legítimo, que TEM de passar, é o que prova que a
---    recusa foi da chave e não do acaso. (Sem FK composta hoje; a regra fica escrita
---    porque a F65 acrescenta `(empresa_id, id)` e os cenários dela a herdam.)
+--    recusa foi da chave e não do acaso. (Desde a F65 as FKs de negócio SÃO compostas, e os
+--    cenários D1/D2 de `integridade_tenant.sql` provam cada uma com o par: o filho da A no pai
+--    da B recusado, o filho da B no pai da B aceito, o dado da A intacto.)
 --
 -- ---------------------------------------------------------------------------
 -- A LINHA QUE ESTE ARQUIVO ESCREVE AOS POUCOS (F62 → F63 → F64)
