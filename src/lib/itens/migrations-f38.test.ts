@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 // da troca, sobre as 157 migrations: as leituras de `create function`, de `drop function` e de
 // enum devolvem EXATAMENTE o que devolviam; a guarda de topo passa a ver a `0133` (o `do` com a
 // janela destrutiva) — e só ela, na faixa de `DA_F38`.
-import { escritasExecutadas, semComentarios, textoExecutado } from '../../../scripts/db/classificar-migration.mjs'
+import { escritasExecutadas, semComentarios, textoExecutado, trocasDeTabela } from '../../../scripts/db/classificar-migration.mjs'
 
 // Guarda de ARQUIVO para a promessa central da F38 (critério 9 da ordem): as
 // migrations da fase recriam UMA função existente, e só uma.
@@ -284,13 +284,25 @@ const reApaga = (t: string) =>
   new RegExp(String.raw`\bdelete\s+from\s+(?:only\s+)?(?:"?public"?\s*\.\s*)?"?${t}"?\b`, 'i')
 const reReescreve = (t: string) =>
   new RegExp(String.raw`\bupdate\s+(?:only\s+)?(?:"?public"?\s*\.\s*)?"?${t}"?(?:\s+(?:as\s+)?(?!set\b)[a-z_][a-z0-9_]*)?\s+set\b`, 'i')
+// A TROCA da tabela inteira (2ª rodada da revisão adversarial da F63): `rename`/`set schema` da tabela guardada, outra
+// tabela renomeada PARA o nome dela (ou devolvida ao `public` com o nome dela), e o `drop table`. Uma cópia
+// transformada que assume o nome é o `update` que não aparece no texto.
+const reTroca = (t: string) =>
+  new RegExp(String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:"?public"?\s*\.\s*)?"?${t}"?\s+(rename\s+to|set\s+schema)\b`, 'i')
+const reOcupaONome = (t: string) => new RegExp(String.raw`\balter\s+table\b[^;]*?\brename\s+to\s+"?${t}"?\s*(?:;|$)`, 'im')
+const reVoltaAoPublic = (t: string) =>
+  new RegExp(String.raw`\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?"?[a-z_][a-z0-9_]*"?\s*\.\s*"?${t}"?\s+set\s+schema\s+"?public"?(?![\w$])`, 'i')
+const reDerruba = (t: string) =>
+  new RegExp(String.raw`\bdrop\s+table\s+(?:if\s+exists\s+)?(?:[^;]*,\s*)?(?:"?public"?\s*\.\s*)?"?${t}"?(?![\w$])`, 'i')
 
 /**
  * O que a migration APAGA ou REESCREVE no acervo ao ser aplicada — de topo OU dentro de `do`.
- * Duas leituras sobre o MESMO léxico, somadas (basta uma acusar): as escritas que o classificador
- * extrai comando a comando (alias, `only`, nome citado, `merge`, `truncate`, o `do update` do
- * upsert) e as duas regex sobre o texto executado. Devolve `'<verbo> public.<tabela>'`, sem
- * repetição, ordenado.
+ * Duas leituras sobre o MESMO léxico, somadas (basta uma acusar): as escritas e as TROCAS de
+ * tabela que o classificador extrai comando a comando (alias, `only`, nome citado, `merge`,
+ * `truncate`, o `do update` do upsert; `rename`/`set schema`/`drop table` da guardada ou para o
+ * nome dela) e as regex sobre o texto executado. Devolve `'<verbo> public.<tabela>'`, sem
+ * repetição, ordenado. O `rename column` e o `drop column` de uma guardada ficam com o
+ * classificador (DESTRUTIVA, declarada): a guarda é da LINHA, e da tabela trocada inteira.
  *
  * ⚠ NÃO LÊ A CLASSE DECLARADA. A ficha F63 pedia "reprovar `update` … salvo classe DESTRUTIVA com
  * justificativa"; isso AFROUXARIA esta guarda, que desde a F51 não tem válvula nenhuma (fato 13).
@@ -304,10 +316,19 @@ function escritasDeTopoNoAcervo(sql: string): string[] {
       achadas.add(`${e.verbo === 'upsert' ? 'update' : e.verbo} public.${tabela}`)
     }
   }
+  for (const e of trocasDeTabela(sql)) {
+    const [esquema, tabela] = e.tabela.split('.')
+    if (esquema === 'public' && (TABELAS_GUARDADAS as readonly string[]).includes(tabela)) achadas.add(`${e.verbo} public.${tabela}`)
+  }
   const texto = textoExecutado(sql)
   for (const t of TABELAS_GUARDADAS) {
     if (reApaga(t).test(texto)) achadas.add(`delete public.${t}`)
     if (reReescreve(t).test(texto)) achadas.add(`update public.${t}`)
+    const troca = reTroca(t).exec(texto)
+    if (troca) achadas.add(`${/^rename/i.test(troca[1]) ? 'rename' : 'set schema'} public.${t}`)
+    if (reOcupaONome(t).test(texto)) achadas.add(`rename public.${t}`)
+    if (reVoltaAoPublic(t).test(texto)) achadas.add(`set schema public.${t}`)
+    if (reDerruba(t).test(texto)) achadas.add(`drop table public.${t}`)
   }
   return [...achadas].sort()
 }
@@ -814,14 +835,28 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     ['num comentário de bloco aninhado — IGNORADO', '/* /* aninhado */ delete from public.ativos */ select 1;', []],
     ['`revoke truncate on public.ativos` — não é truncate', 'revoke truncate on public.ativos from anon;', []],
     // Revisão adversarial da F63: o NOME da tabela muda dentro do arquivo — e a escrita continua sendo nela.
+    // (Desde a 2ª rodada, o próprio `rename`/`set schema` da tabela guardada também é acusado.)
     [
       'por um nome renomeado de ida e volta',
       'alter table public.movimentacoes rename to movs_tmp;\nupdate movs_tmp set ordem = 1 where true;\nalter table movs_tmp rename to movimentacoes;',
-      ['update public.movimentacoes'],
+      ['rename public.movimentacoes', 'update public.movimentacoes'],
     ],
-    ['por um nome renomeado, com `delete`', 'alter table public.ativos rename to ativos_tmp;\ndelete from ativos_tmp where true;', ['delete public.ativos']],
-    ['depois de `set schema`', 'alter table public.ativos set schema arquivo;\nupdate arquivo.ativos set status = status where true;', ['update public.ativos']],
+    ['por um nome renomeado, com `delete`', 'alter table public.ativos rename to ativos_tmp;\ndelete from ativos_tmp where true;', ['delete public.ativos', 'rename public.ativos']],
+    ['depois de `set schema`', 'alter table public.ativos set schema arquivo;\nupdate arquivo.ativos set status = status where true;', ['set schema public.ativos', 'update public.ativos']],
     ['por uma view criada no arquivo', 'create view public.v_tmp as select * from public.lancamentos_item;\ndelete from public.v_tmp where true;', ['delete public.lancamentos_item']],
+    // 2ª rodada da revisão adversarial: a TROCA da tabela inteira, sem `update` nem `delete` no texto.
+    [
+      'a cópia transformada que assume o nome (rename duplo)',
+      'create table public.ativos_copia (like public.ativos including all);\ninsert into public.ativos_copia select id, upper(patrimonio) from public.ativos;\nalter table public.ativos rename to ativos_velha;\nalter table public.ativos_copia rename to ativos;',
+      ['rename public.ativos'],
+    ],
+    ['outra tabela que já existia renomeada para o nome (só DDL)', 'alter table public.movimentacoes rename to movs_v2;\nalter table public.movs_staging rename to movimentacoes;', ['rename public.movimentacoes']],
+    ['só o destino: outra tabela renomeada PARA o nome', 'alter table public.lanc_staging rename to lancamentos_item;', ['rename public.lancamentos_item']],
+    ['a volta ao `public` com o nome da guardada', 'alter table arquivo.ativos set schema public;', ['set schema public.ativos']],
+    ['dentro de `do`', 'do $$ begin alter table public.ativos rename to ativos_velha; end $$;', ['rename public.ativos']],
+    ['`drop table`, declarada DESTRUTIVA', '-- classe: DESTRUTIVA\ndrop table if exists public.lancamentos_item cascade;', ['drop table public.lancamentos_item']],
+    ['`drop table` numa lista', 'drop table public._f99_backup, public.movimentacoes;', ['drop table public.movimentacoes']],
+    ['o que NÃO é troca: `rename` de outra tabela, `drop table` de nome parecido, `rename constraint` — IGNORADO', 'alter table public.ativos_fixture rename to ativos_fixture2;\ndrop table public.ativos_velha;\nalter table public.ativos rename constraint a_fk to b_fk;', []],
   ])('a guarda de topo acusa (ou ignora) %s', (_nome, sql, esperado) => {
     expect(violacoesDaGuarda('0170_sabotagem_b.sql', sql)).toEqual(esperado)
   })

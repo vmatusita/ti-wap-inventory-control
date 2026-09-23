@@ -315,14 +315,18 @@ describe('2-bis. os furos da revisão adversarial da F63', () => {
         'insert into public.ativos select * from ativos_velha_f63;',
       ].join('\n'),
     )
-    expect(classificar(sql).calculada).toBe('BACKFILL')
-    reprova(sql, /declara ADITIVA e executa BACKFILL/)
+    // Desde a 2ª rodada o `rename` da tabela que já existia já é DESTRUTIVA (R6); o que este caso prova continua de
+    // pé: o `insert` na cópia conta como escrita na tabela viva, não como tabela "criada aqui".
+    expect(classificar(sql).calculada).toBe('DESTRUTIVA')
+    expect(classificar(sql).motivos.BACKFILL).toEqual(['insert em public.ativos'])
+    reprova(sql, /declara ADITIVA e executa DESTRUTIVA/)
   })
 
   it('R4 — escrever por um nome RENOMEADO, por outro ESQUEMA ou por uma VIEW criada aqui é escrever na tabela original', () => {
     const ida = 'alter table public.movimentacoes rename to movs_tmp_f63;\nupdate movs_tmp_f63 set ordem = 1 where true;\nalter table movs_tmp_f63 rename to movimentacoes;'
     expect(escritasExecutadas(ida).map((e: { verbo: string; tabela: string }) => `${e.verbo} ${e.tabela}`)).toEqual(['update public.movimentacoes'])
-    expect(classificar(ida).calculada).toBe('BACKFILL')
+    expect(classificar(ida).motivos.BACKFILL).toEqual(['update em public.movimentacoes (pelo nome public.movs_tmp_f63)'])
+    expect(classificar(ida).calculada).toBe('DESTRUTIVA') // o rename de ida e volta, por si (R6)
     const esquema = 'alter table public.ativos set schema arquivo;\ndelete from arquivo.ativos where true;'
     expect(escritasExecutadas(esquema).map((e: { verbo: string; tabela: string }) => `${e.verbo} ${e.tabela}`)).toEqual(['delete public.ativos'])
     expect(classificar(esquema).calculada).toBe('DESTRUTIVA')
@@ -345,6 +349,57 @@ describe('2-bis. os furos da revisão adversarial da F63', () => {
     expect(texto).not.toMatch(/force row level security/i)
     expect(texto).not.toMatch(/create policy/i)
     expect(texto).not.toMatch(/\bgrant\b/i)
+  })
+
+  // 2ª rodada da revisão adversarial (23/09/2026)
+  it('R6 — a TROCA de tabela (rename duplo, com ou sem cópia transformada) é DESTRUTIVA; a tabela criada aqui continua poupada', () => {
+    const copia = [
+      'create table public.ativos_copia (like public.ativos including all);',
+      'insert into public.ativos_copia select id, upper(patrimonio) from public.ativos;',
+      'alter table public.ativos rename to ativos_velha_f63;',
+      'alter table public.ativos_copia rename to ativos;',
+    ].join('\n')
+    expect(classificar(copia).calculada).toBe('DESTRUTIVA')
+    reprova(migracao('ADITIVA', copia), /declara ADITIVA e executa DESTRUTIVA \(alter table public\.ativos rename to/)
+    // só DDL: o nome passa a apontar para OUTRA tabela que já existia
+    const troca = 'alter table public.ativos rename to ativos_v2;\nalter table public.ativos_staging rename to ativos;'
+    expect(classificar(troca).calculada).toBe('DESTRUTIVA')
+    expect(classificar(troca).motivos.DESTRUTIVA).toHaveLength(2)
+    // as trocas saem nomeadas para a guarda de topo: a origem (a tabela original) e o destino (o nome reocupado)
+    expect(classificar(troca).trocas.map((t: { verbo: string; tabela: string }) => `${t.verbo} ${t.tabela}`)).toEqual([
+      'rename public.ativos',
+      'rename public.ativos_v2',
+      'rename public.ativos_staging',
+      'rename public.ativos',
+    ])
+    expect(classificar('alter table public.movimentacoes set schema arquivo;').calculada).toBe('DESTRUTIVA')
+    expect(classificar('alter table public.ativos rename column patrimonio to p_velho;').calculada).toBe('DESTRUTIVA')
+    expect(classificar('alter table public.ativos rename patrimonio to p_velho;').calculada).toBe('DESTRUTIVA')
+    // o que NÃO muda dado: renomear constraint; a tabela criada no próprio arquivo, renomeada
+    expect(classificar('alter table public.ativos rename constraint a_fk to b_fk;').calculada).toBe('ADITIVA')
+    expect(classificar('create table public.nova (a int);\nalter table public.nova rename to nova2;\nalter table public.nova2 rename column a to b;').calculada).toBe('ADITIVA')
+  })
+
+  it('R7 — o valor e a chave do backup vêm da TABELA DO FROM: pelo join, reprova', () => {
+    const W = "where o.id = t.id and t.status = 'a'"
+    const bloco = (chave: string, valor: string, de: string) =>
+      [
+        'insert into public.backups_migration (migration, tabela, coluna, chave, valor_anterior)',
+        `select '${NOME}', 'public.x', 'status', ${chave}, ${valor}`,
+        `  from public.x t${de}`,
+        ` ${W};`,
+        "update public.x t set status = 'b' from public.outra o",
+        ` ${W};`,
+      ].join('\n')
+    reprova(migracao('BACKFILL', bloco('t.id::text', 'to_jsonb(o.status)', ' join public.outra o on true'), RODAPE_BACKUP), /o valor_anterior do backup vem de o\.status, e a tabela do from é t/)
+    reprova(migracao('BACKFILL', bloco('o.id::text', 'to_jsonb(t.status)', ', public.outra o'), RODAPE_BACKUP), /a chave do backup vem de o\., e a tabela do from é t/)
+    // sem apelido no from, o apelido é o nome da tabela
+    reprova(
+      migracao('BACKFILL', bloco('x.id::text', 'to_jsonb(o.status)', ' join public.outra o on true').replace('from public.x t', 'from public.x').replaceAll('t.', 'x.'), RODAPE_BACKUP),
+      /a tabela do from é x/,
+    )
+    // o controle: o par lido da tabela do from, com a outra no from, passa
+    expect(conferirMigration(NOME, migracao('BACKFILL', bloco('t.id::text', 'to_jsonb(t.status)', ', public.outra o'), RODAPE_BACKUP))).toEqual([])
   })
 })
 
@@ -369,6 +424,16 @@ describe('3. a cadeia real', () => {
     for (const x of antigas) por[x.veredito] = (por[x.veredito] ?? 0) + 1
     expect(antigas.length).toBe(157)
     expect(por).toEqual({ ADITIVA: 139, BACKFILL: 11, DESTRUTIVA: 2, [ILEGIVEL]: 5 })
+  })
+
+  // A classe CALCULADA também se congela — o veredito ILEGÍVEL esconde a calculada de baixo, e foi assim que a
+  // 2ª rodada da revisão mudou a `0057` (o `rename column` de `profiles`, ADITIVA → DESTRUTIVA) sem mexer no
+  // placar de cima. As DESTRUTIVA são as duas limpezas de backup órfão (`0039`, `0058`) e a `0057`.
+  it('a classe calculada das 157: ADITIVA 141 · BACKFILL 13 · DESTRUTIVA 3 (0039, 0057, 0058)', () => {
+    const por: Record<string, number> = {}
+    for (const x of antigas) por[x.calculada] = (por[x.calculada] ?? 0) + 1
+    expect(por).toEqual({ ADITIVA: 141, BACKFILL: 13, DESTRUTIVA: 3 })
+    expect(antigas.filter((x: { calculada: string }) => x.calculada === 'DESTRUTIVA').map((x: { arquivo: string }) => x.arquivo.slice(0, 4))).toEqual(['0039', '0057', '0058'])
   })
 
   it('as ILEGÍVEL do censo são exatamente as cinco medidas (e a 0111 é uma delas)', () => {

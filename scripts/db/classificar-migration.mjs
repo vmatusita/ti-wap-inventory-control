@@ -338,6 +338,44 @@ export function textoExecutado(sql) {
 // 3. A LEITURA DE UM COMANDO — alvos de escrita, chamadas, válvulas
 // -----------------------------------------------------------------------------
 
+/**
+ * TODOS os comandos de um texto SQL — os executados E os guardados num corpo dollar-quoted (de
+ * função, de `do`) —, partidos no `;` que está em CÓDIGO, com o texto entre aspas trocado por `''`
+ * e sem comentário; o corpo dollar-quoted é código de novo, e fronteira de comando. Para as travas
+ * que procuram uma LEITURA onde quer que ela esteja escrita (a de "ninguém lê `empresa_id`", o
+ * describe 5 de `catalogos-seguranca`), e não o que o apply executa (2ª rodada da revisão adversarial
+ * da F63: o `split(';')` cru partia `'estado; transição'` ao meio, e o alias ficava no outro pedaço).
+ * @param {string} sql
+ * @returns {string[]}
+ */
+export function comandosDoTexto(sql) {
+  const comandos = []
+  let atual = ''
+  const fechar = () => {
+    if (atual.trim()) comandos.push(atual)
+    atual = ''
+  }
+  const andar = (s) => {
+    for (const t of lexar(s)) {
+      if (t.tipo === 'dolar') {
+        fechar()
+        andar(t.corpo ?? '')
+        fechar()
+      } else if (t.tipo === 'texto') atual += "''"
+      else if (t.tipo === 'comentario') atual += ' '
+      else if (t.tipo === 'ident') atual += t.texto
+      else
+        t.texto.split(';').forEach((parte, k) => {
+          if (k > 0) fechar()
+          atual += parte
+        })
+    }
+  }
+  andar(sql)
+  fechar()
+  return comandos
+}
+
 // `[esquema.]nome`, cada parte nua (minúsculas) ou citada (exata).
 const PARTE = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)`
 const NOME_QUALIFICADO = String.raw`${PARTE}(?:\s*\.\s*${PARTE})?`
@@ -617,6 +655,21 @@ function ddlDestrutiva(mascarado) {
     achados.push({ motivo: 'drop … cascade (derruba dependentes, inclusive coluna)', tabelas: [] })
   }
   const alter = new RegExp(String.raw`^\s*alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(${NOME_QUALIFICADO})\s+`, 'i').exec(mascarado)
+  // A TROCA DE NOME (2ª rodada da revisão adversarial da F63). Renomear — ou mudar de esquema — uma tabela que já
+  // existia, ou uma coluna dela, faz o nome que o app lê apontar para OUTRO dado: `create table x_copia (like
+  // ativos); insert into x_copia select <transformado> from ativos; alter table ativos rename to ativos_velha; alter
+  // table x_copia rename to ativos` reescreve a tabela inteira sem um `update` sequer, e o `insert` é em tabela criada
+  // aqui. DESTRUTIVA — a tabela criada no próprio arquivo fica poupada, como no `drop`. `rename constraint` não
+  // mexe em dado.
+  if (alter) {
+    const tabela = normalizarNome(alter[1])
+    const acao = mascarado.slice(alter[0].length)
+    if (/^rename\s+to\b/i.test(acao)) achados.push({ motivo: `alter table ${tabela} rename to (o nome passa a apontar para outro dado)`, tabelas: [tabela] })
+    else if (/^set\s+schema\b/i.test(acao)) achados.push({ motivo: `alter table ${tabela} set schema (o nome passa a apontar para outro dado)`, tabelas: [tabela] })
+    else if (new RegExp(String.raw`^rename\s+(?:column\s+)?(?!constraint\b)${PARTE}\s+to\b`, 'i').test(acao)) {
+      achados.push({ motivo: `alter table ${tabela} rename column (o nome da coluna passa a apontar para outro dado)`, tabelas: [tabela] })
+    }
+  }
   if (alter && !/^\s*alter\s+table\s+[^;]*?\s+rename\b/i.test(mascarado)) {
     const tabela = normalizarNome(alter[1])
     const acoes = mascarado.slice(alter[0].length)
@@ -735,6 +788,18 @@ export function escritasExecutadas(sql) {
   return classificar(sql).escritas
 }
 
+/**
+ * As TROCAS de tabela que o apply executa (topo e `do`): `{ verbo: 'rename'|'set schema'|'drop table', tabela,
+ * origem }` — no `rename`/`set schema`, as tabelas originais por trás do nome de origem E o nome de destino. A guarda
+ * de topo de `migrations-f38.test.ts` lê junto com as escritas: trocar uma tabela do acervo inteira é o `update` que
+ * não aparece no texto (2ª rodada da revisão adversarial da F63).
+ * @param {string} sql
+ * @returns {{ verbo: string, tabela: string, origem: 'topo'|'do' }[]}
+ */
+export function trocasDeTabela(sql) {
+  return classificar(sql).trocas
+}
+
 function parteNormalizada(p) {
   return p.startsWith('"') ? p.slice(1, -1).replaceAll('""', '"') : p.toLowerCase()
 }
@@ -760,6 +825,33 @@ function novaIdentidade() {
     apelidos.delete(de)
     renomeadasDe.add(de)
   }
+  /**
+   * As TROCAS de tabela deste comando (2ª rodada da revisão adversarial): o `rename`/`set schema` de uma tabela
+   * (as originais por trás do nome de origem, e o nome de destino, que passa a ter outro dono) e o `drop table`.
+   * É o que a guarda de topo lê junto com as escritas — uma tabela do acervo trocada inteira é o `update` que não
+   * aparece. Chamada ANTES de `registrar`, com a identidade de antes do comando.
+   */
+  function trocas(comando) {
+    let m
+    if ((m = RENOMEIA.exec(comando))) {
+      const de = normalizarNome(m[1])
+      return [...canon(de), `${de.split('.')[0]}.${parteNormalizada(m[2])}`].map((tabela) => ({ verbo: 'rename', tabela }))
+    }
+    if ((m = MUDA_ESQUEMA.exec(comando))) {
+      const de = normalizarNome(m[1])
+      return [...canon(de), `${parteNormalizada(m[2])}.${de.split('.')[1]}`].map((tabela) => ({ verbo: 'set schema', tabela }))
+    }
+    if ((m = /^drop\s+table\s+(?:if\s+exists\s+)?([^;]*)$/i.exec(comando))) {
+      return m[1]
+        .replace(/\b(?:cascade|restrict)\b/gi, ' ')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .flatMap((n) => canon(normalizarNome(n)))
+        .map((tabela) => ({ verbo: 'drop table', tabela }))
+    }
+    return []
+  }
   function registrar(comando) {
     let m
     if ((m = RENOMEIA.exec(comando))) {
@@ -776,7 +868,7 @@ function novaIdentidade() {
       if (bases.size) apelidos.set(normalizarNome(m[1]), [...bases])
     }
   }
-  return { canon, registrar, renomeadasDe }
+  return { canon, registrar, trocas, renomeadasDe }
 }
 
 // -----------------------------------------------------------------------------
@@ -798,7 +890,8 @@ const RISCO = { ADITIVA: 0, BACKFILL: 1, DESTRUTIVA: 2 }
  *   BACKFILL   — `update`, `insert … on conflict do update`, `merge`, ou `insert` (puro)
  *                em tabela que já existia.
  *   DESTRUTIVA — `delete`, `truncate`, `drop table|schema|sequence`, `drop column`,
- *                `alter column … type`, `drop … cascade`.
+ *                `alter column … type`, `drop … cascade`, e o `rename`/`set schema` de uma
+ *                tabela que já existia ou o `rename column` dela (a troca de tabela).
  *   ILEGÍVEL   — SQL dinâmico, chamada de função fora da lista fechada, `call`, `add column`
  *                com default fora da lista fechada, reescrita sem perda, comando de topo
  *                desconhecido. Nunca vira ADITIVA.
@@ -813,6 +906,7 @@ export function classificar(sql) {
   const valvulas = []
   const transacao = []
   const escritas = []
+  const trocas = []
   const identidade = novaIdentidade()
   const criadaAqui = (t) => t.startsWith('pg_temp.') || identidade.canon(t).every((x) => x.startsWith('pg_temp.') || criadasAqui.has(x))
   let risco = 0
@@ -838,6 +932,7 @@ export function classificar(sql) {
       motivos.DESTRUTIVA.push(d.motivo)
       risco = Math.max(risco, 2)
     }
+    for (const t of identidade.trocas(l.comando)) trocas.push({ ...t, origem: cmd.origem })
     identidade.registrar(l.comando)
     for (const a of l.addColumn) {
       const alvo = /\balter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?("(?:[^"]|"")+"(?:\s*\.\s*"(?:[^"]|"")+")?|[a-z_][a-z0-9_$.]*)/i.exec(cmd.mascarado)
@@ -858,6 +953,7 @@ export function classificar(sql) {
     valvulas,
     transacao,
     escritas,
+    trocas,
     criadas: [...criadasAqui],
   }
 }
@@ -934,6 +1030,9 @@ function colunasDoSet(cmd) {
   return colunas
 }
 
+// O que vem depois da tabela do `from` e NÃO é o apelido dela.
+const NAO_APELIDO_NO_FROM = new Set([...PALAVRAS_NAO_ALIAS, 'join', 'inner', 'left', 'right', 'full', 'cross', 'natural', 'lateral', 'tablesample'])
+
 /**
  * O bloco de backup canônico (RUNBOOK-BANCO.md, receita BACKFILL):
  *
@@ -967,9 +1066,22 @@ function lerBlocoDeBackup(cmd, nomeArquivo) {
   const valor = /^to_jsonb\s*\(\s*(?:([a-z_][a-z0-9_]*)\s*\.\s*)?("?)([a-z_][a-z0-9_]*)\2\s*\)$/i.exec(itens[4].masc)
   if (!valor) problemas.push('o 5º item do backup (valor_anterior) não é to_jsonb(<alias>.<coluna>)')
   else if (coluna !== null && valor[3].toLowerCase() !== coluna) problemas.push(`o backup guarda to_jsonb(…${valor[3]}) mas declara a coluna '${coluna}'`)
-  const alvoFrom = new RegExp(String.raw`^from\s+(?:only\s+)?(${NOME_QUALIFICADO})`, 'i').exec(cmd.mascarado.slice(froms[0]))
+  const alvoFrom = new RegExp(String.raw`^from\s+(?:only\s+)?(${NOME_QUALIFICADO})(?:\s+(?:as\s+)?(${PARTE}))?`, 'i').exec(cmd.mascarado.slice(froms[0]))
   if (!alvoFrom) problemas.push('o from do backup não nomeia uma tabela')
-  else if (tabela !== null && normalizarNome(alvoFrom[1]) !== tabela) problemas.push(`o backup lê de ${normalizarNome(alvoFrom[1])} mas declara a tabela '${tabela}'`)
+  else {
+    if (tabela !== null && normalizarNome(alvoFrom[1]) !== tabela) problemas.push(`o backup lê de ${normalizarNome(alvoFrom[1])} mas declara a tabela '${tabela}'`)
+    // O valor e a chave vêm da TABELA DO FROM (2ª rodada da revisão adversarial da F63). Com um `join`,
+    // `to_jsonb(o.preco)` guardaria a coluna homônima de OUTRA tabela — e o rollback devolveria um valor que a linha
+    // nunca teve; `o.id::text` apontaria o rollback para outras linhas. Sem qualificação, a coluna ambígua é erro do
+    // próprio Postgres no apply.
+    const apelido = alvoFrom[2] && !NAO_APELIDO_NO_FROM.has(alvoFrom[2].toLowerCase()) ? parteNormalizada(alvoFrom[2]) : normalizarNome(alvoFrom[1]).split('.')[1]
+    if (valor && valor[1] && valor[1].toLowerCase() !== apelido) {
+      problemas.push(`o valor_anterior do backup vem de ${valor[1]}.${valor[3]}, e a tabela do from é ${apelido} (a coluna de outra tabela do join?)`)
+    }
+    for (const q of itens[3].masc.matchAll(/(?<![\w$.])([a-z_][a-z0-9_$]*)\s*\.\s*(?=[a-z_"])/gi)) {
+      if (q[1].toLowerCase() !== apelido) problemas.push(`a chave do backup vem de ${q[1]}., e a tabela do from é ${apelido} (a chave de outra tabela do join?)`)
+    }
+  }
   const where = clausulaWhere(cmd)
   if (!where) problemas.push('o backup não tem where (para a tabela inteira, escreva «where true»)')
   return { problemas, migration, tabela, coluna, where }

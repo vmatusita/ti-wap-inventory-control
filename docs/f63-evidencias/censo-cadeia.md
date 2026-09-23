@@ -1,6 +1,6 @@
-# Censo da cadeia pelo classificador — 157 migrations
+# Censo da cadeia pelo classificador — 160 migrations
 
-Por veredito: ADITIVA 139 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5
+Por veredito: ADITIVA 142 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5
 
 | arquivo | declarada | calculada | veredito | por quê (escrita em tabela que já existia) | ilegível / válvula |
 |---|---|---|---|---|---|
@@ -10,7 +10,7 @@ Por veredito: ADITIVA 139 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5
 | `0031_import_logs.sql` | — | BACKFILL | BACKFILL | insert em storage.buckets | — |
 | `0039_drop_backups_orfaos.sql` | — | DESTRUTIVA | DESTRUTIVA | drop table; drop table | — |
 | `0053_pendencias_item_backfill.sql` | — | BACKFILL | BACKFILL | insert em public.pendencias_item; update em public.ativos | — |
-| `0057_perfil_nome_sobrenome.sql` | — | ADITIVA | ILEGÍVEL | — | add column nome: coluna gerada STORED reescreve a tabela |
+| `0057_perfil_nome_sobrenome.sql` | — | DESTRUTIVA | ILEGÍVEL | alter table public.profiles rename column (o nome da coluna passa a apontar para outro dado) | add column nome: coluna gerada STORED reescreve a tabela |
 | `0058_drop_backup_f18.sql` | — | DESTRUTIVA | DESTRUTIVA | drop table | — |
 | `0061_papeis_estrutura.sql` | — | BACKFILL | BACKFILL | update em public.profiles | — |
 | `0076_promover_dev.sql` | — | BACKFILL | BACKFILL | update em public.profiles (dentro de do) | — |
@@ -27,5 +27,8 @@ Por veredito: ADITIVA 139 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5
 | `0156_vinculo_por_membership.sql` | ADITIVA | BACKFILL | BACKFILL | update em public.operador_filiais | — |
 | `0157_funcoes_de_conjunto.sql` | ADITIVA | ADITIVA | ADITIVA | — | — |
 | `0158_cargo_em_membros.sql` | ADITIVA | BACKFILL | BACKFILL | upsert em public.membros (dentro de do) | — |
+| `0159_backups_migration.sql` | ADITIVA | ADITIVA | ADITIVA | — | — |
+| `0160_empresa_no_acervo_cadastros.sql` | ADITIVA | ADITIVA | ADITIVA | — | — |
+| `0161_empresa_no_acervo_movimento.sql` | ADITIVA | ADITIVA | ADITIVA | — | — |
 
 (134 arquivos ADITIVA sem cabeçalho omitidos da tabela.)
