@@ -421,8 +421,9 @@ update public.x t
 - O `where` do bloco é **byte a byte** o `where` do comando (um espaço de diferença reprova; um `… or true` também). Para a
   tabela inteira: `where true` nos dois.
 - `to_jsonb(<alias>.<coluna>)` é da MESMA coluna do literal `coluna`, o `from` é a MESMA tabela do comando, e o
-  `<alias>` do valor e o da chave são o APELIDO dessa tabela do `from` — com um `join`, `to_jsonb(o.status)` guardaria a
-  coluna homônima de outra tabela, e o classificador reprova.
+  `<alias>` do valor e o da chave são o APELIDO dessa tabela do `from`, SEMPRE escrito — com um `join`, `to_jsonb(o.status)`
+  guardaria a coluna homônima de outra tabela, e sem o apelido a coluna que só a do `join` tem seria dela, sem erro; o
+  classificador reprova as duas.
 - O rollback usa `jsonb_populate_record`: devolve o tipo certo (array, jsonb, enum) e o `null` (SQL NULL em
   `valor_anterior` quer dizer que o valor ERA null). Ensaiado por `supabase/tests/empresa_no_acervo.sql`, bloco 5.
 - **Fora da receita, e por isso reprovados:** `merge` (não tem `where` verificável — escreva `update`), o backfill dentro

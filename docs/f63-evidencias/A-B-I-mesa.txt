@@ -1,133 +1,173 @@
 # F63 · sabotagens A (o classificador), B (a guarda de topo não afrouxou) e I (ninguém lê — TS e disco), na MESA
-# 2026-09-23T13:37:47Z · HEAD 495e623 · npx vitest run --reporter=verbose <os três arquivos>
+# 2026-09-23T14:55:44Z · HEAD cdc6dee · npx vitest run --reporter=verbose <os três arquivos> — depois das três rodadas da revisão adversarial
 
 
  RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
 
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda migration listada como da fase existe no disco 18ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > NENHUMA função intocável é recriada pelas migrations da fase 106ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal é exaustiva — a migration liberada não recria nada além do declarado 58ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > NENHUMA função intocável é derrubada pelas migrations da fase, fora da exceção nominal (F60) 71ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção de remoção é exaustiva — a migration liberada não derruba nada além do declarado 14ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda intocável derrubada tem a sucessora criada ANTES, e a sucessora é intocável (F60) 32ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop function` acha o que o apply derruba, e só isso (guarda da guarda) 14ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga o nome citado (guarda da guarda) 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga o esquema e o nome citados (guarda da guarda) 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga `drop routine` (guarda da guarda) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga `DROP ROUTINE` em maiúsculas, nu, com `cascade` (guarda da guarda) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga sem a lista de argumentos (guarda da guarda) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga espaço em volta do ponto e dos parênteses, com `restrict` (guarda da guarda) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga vírgula e parêntese dentro de citado, tipo citado e tipo com precisão (guarda da guarda) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > um derrubado citado com OUTRA grafia não vira a intocável (o Postgres distingue, a guarda também) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: um `&` depois do nome (o `U&"…"`) 2ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: aspa sem fecho 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: parêntese sem fecho 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: nome que não é identificador 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `create function` enxerga o nome citado e LANÇA sem a lista de argumentos (guarda da guarda) 2ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118 20ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhum valor novo de enum entra na fase 22ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > lê a cadeia INTEIRA sem lançar, e acha comando executado em todo arquivo 89ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > enxerga o dollar-quote de RÓTULO onde ele é CÓDIGO (7 arquivos) e onde é só COMENTÁRIO (5) — fato 14 medido de novo 83ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration da fase apaga registro do acervo AO SER APLICADA 99ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal da guarda de topo é exaustiva — a migration liberada escreve exatamente o declarado 14ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > os dois arquivos com `$$` DENTRO de comentário (0133, 0150) são lidos como comentário, não como corpo 43ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > os 10 arquivos com `do` de topo têm o corpo lido como código EXECUTADO (fato 14) 75ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal da guarda de topo é FECHADA: nenhuma chave a partir da 0159, e toda uma com motivo 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > SEM a exceção, a 0133 real reprova — a guarda VÊ o `do` e o alias (sabotagem B) 15ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a varredura de DELETE ainda reprova um comando de TOPO (guarda da guarda) 4ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) declarada DESTRUTIVA, com justificativa — a classe não destrava 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do $$ … $$` 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do $rotulo$ … $rotulo$`, depois de um `$$` num comentário 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com alias (a forma da 0133) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com `only` e nome citado 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num CTE (`with … update`) 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `merge into` 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `truncate` 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `insert … on conflict do update` 1ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `create function … $function$` — IGNORADO 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num comentário de fim de linha — IGNORADO 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num comentário de bloco aninhado — IGNORADO 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `revoke truncate on public.ativos` — não é truncate 0ms
- ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda função NOVA da fase é declarada security invoker 13ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o corpo de função com rótulo sai 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o corpo de `do` entra 2ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o `do` com LANGUAGE depois do corpo 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o `do` com corpo em texto simples 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o `create function` DENTRO de `do` continua guardado 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > um `$$` em comentário não abre corpo 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > um `'$$'` em texto não abre corpo 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > um `--` em texto não é comentário 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > comentário de fim de linha é ignorado 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > comentário de bloco ANINHADO é ignorado inteiro 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > `E'…'` com aspa escapada 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > `$1` é parâmetro, não dollar-quote 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — dollar-quote sem fecho LANÇA com o trecho, em vez de devolver menos 2ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — dollar-quote com rótulo sem fecho LANÇA com o trecho, em vez de devolver menos 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — comentário de bloco sem fecho LANÇA com o trecho, em vez de devolver menos 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — comentário aninhado sem o segundo fecho LANÇA com o trecho, em vez de devolver menos 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — texto sem fecho LANÇA com o trecho, em vez de devolver menos 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — identificador citado sem fecho LANÇA com o trecho, em vez de devolver menos 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > semComentarios tira comentário de linha, de fim de linha e de bloco, e NÃO toca texto nem corpo 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > textoExecutado junta o que o apply roda: sem comentário, sem corpo de função, com o `do` 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > a forma CANÔNICA de um BACKFILL passa (o controle: a régua sabe dizer sim) 5ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > uma ADITIVA de verdade passa, com default da lista fechada 2ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A1 — `update` de topo SEM cabeçalho reprova 3ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A2 — declarada ADITIVA com `update` de topo reprova 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A3 — `update` DENTRO de `do $$ … $$` é visto como executado e reprova 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A4 — `update` dentro de `create function … $function$` é IGNORADO 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A5 — um `$$` num comentário ANTES de um `update` de topo: o `update` continua visto 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A6 — comentário de fim de linha com `update public.x set` é IGNORADO 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A7 — BACKFILL SEM o bloco de backup reprova 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A8 — o bloco com o literal `migration` de OUTRO arquivo reprova (o bloco copiado) 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9 — o `where` do backup diferente do `where` do `update` por UM espaço reprova 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9-bis — o `update` com `where` MAIS LARGO que o do backup (`… or true`) reprova 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9-ter — coluna alterada sem par, e par de outra coluna, reprovam 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9-quater — o rodapé tem de restaurar a partir de backups_migration, com o nome do arquivo 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A10 — `set_config(estoque.dev_destrutivo)` de topo reprova, e dentro de `do` também 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A10-bis — as outras válvulas: `disable trigger` e `session_replication_role` 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A11 — `execute format(…)` é ILEGÍVEL, nunca ADITIVA 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A12 — `select public.f()` e `call public.p()` de topo, com a rotina criada no MESMO arquivo e escrevendo, são ILEGÍVEL 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A13 — `merge into` e `with … update` de topo são vistos como escrita 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A14 — `add column … default gen_random_uuid()` NÃO é ADITIVA (default volátil reescreve a tabela) 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A15 — `/* /* aninhado */ update public.x set … */` é IGNORADO (o comentário de bloco do Postgres aninha) 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A16 — `'$$'` dentro de texto de topo NÃO abre corpo (o `update` depois dele é visto) 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A17 — a 0133 REAL é ILEGÍVEL com válvula no censo; uma 0159 sintética igual a ela reprova SEMPRE 7ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A18 — dollar-quote sem fecho: o leitor LANÇA (e a regra o reporta, em vez de passar) 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A19 — controle de transação de topo reprova (quem decide a transação é o apply — decisão 2) 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A20 — sem ROLLBACK no rodapé reprova 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A21 — `insert` puro em tabela que já existia é BACKFILL (não ADITIVA); em tabela criada no mesmo arquivo, ADITIVA 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > 0159_backups_migration.sql passa pela regra (cabeçalho, classe, par, válvulas, rodapé) 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > 0160_empresa_no_acervo_cadastros.sql passa pela regra (cabeçalho, classe, par, válvulas, rodapé) 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > 0161_empresa_no_acervo_movimento.sql passa pela regra (cabeçalho, classe, par, válvulas, rodapé) 1ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > o censo das 157 anteriores: ADITIVA 139 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > as ILEGÍVEL do censo são exatamente as cinco medidas (e a 0111 é uma delas) 0ms
- ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > as sete com cabeçalho (0152–0158): só a 0156 e a 0158 declaram ADITIVA e executam BACKFILL — divergência de ATA, não de migration 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a lista das oito vem de k_lote1 (catalogo_policies.sql) e tem as oito 3ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > o universo NÃO é vazio: há consultas às oito tabelas, e cada uma das oito é consultada 1ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta de tabela DINÂMICA (`.from(variavel)`) cita empresa_id 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a exceção nomeada ainda existe (a lista não guarda fantasma) 1ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.eq(empresa_id)` em ativos 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.select(id, empresa_id)` em ativos, em várias linhas 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.match({ empresa_id })` em itens 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `?.` e argumento de tipo 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma com `select` citando a coluna 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma com `ordem` pela coluna 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: tabela da F62 (membros) 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: a cadeia das oito SEM a coluna 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: empresa_id num COMENTÁRIO 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: empresa_id DEPOIS da cadeia, noutra instrução 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > o universo não é vazio: há funções vigentes que tocam as oito 3ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > nenhuma função vigente lê empresa_id de uma das oito 2ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo lendo movimentacoes.empresa_id pelo alias 1ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo filtrando ativos por empresa_id sem qualificador 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo gravando empresa_id em itens 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: membros.empresa_id 0ms
- ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda migration listada como da fase existe no disco
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > NENHUMA função intocável é recriada pelas migrations da fase
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal é exaustiva — a migration liberada não recria nada além do declarado
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > NENHUMA função intocável é derrubada pelas migrations da fase, fora da exceção nominal (F60)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção de remoção é exaustiva — a migration liberada não derruba nada além do declarado
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > lê a cadeia INTEIRA sem lançar, e acha comando executado em todo arquivo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > enxerga o dollar-quote de RÓTULO onde ele é CÓDIGO (7 arquivos) e onde é só COMENTÁRIO (5) — fato 14 medido de novo
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda intocável derrubada tem a sucessora criada ANTES, e a sucessora é intocável (F60)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop function` acha o que o apply derruba, e só isso (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga o nome citado (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga o esquema e o nome citados (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga `drop routine` (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga `DROP ROUTINE` em maiúsculas, nu, com `cascade` (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga sem a lista de argumentos (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga espaço em volta do ponto e dos parênteses, com `restrict` (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga vírgula e parêntese dentro de citado, tipo citado e tipo com precisão (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > um derrubado citado com OUTRA grafia não vira a intocável (o Postgres distingue, a guarda também)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: um `&` depois do nome (o `U&"…"`)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: aspa sem fecho
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: parêntese sem fecho
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: nome que não é identificador
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `create function` enxerga o nome citado e LANÇA sem a lista de argumentos (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhum valor novo de enum entra na fase
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration da fase apaga registro do acervo AO SER APLICADA
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > os dois arquivos com `$$` DENTRO de comentário (0133, 0150) são lidos como comentário, não como corpo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > os 10 arquivos com `do` de topo têm o corpo lido como código EXECUTADO (fato 14)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o corpo de função com rótulo sai
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o corpo de `do` entra
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o `do` com LANGUAGE depois do corpo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o `do` com corpo em texto simples
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > o `create function` DENTRO de `do` continua guardado
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > um `$$` em comentário não abre corpo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > um `'$$'` em texto não abre corpo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > um `--` em texto não é comentário
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > comentário de fim de linha é ignorado
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > comentário de bloco ANINHADO é ignorado inteiro
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > `E'…'` com aspa escapada
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > `$1` é parâmetro, não dollar-quote
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — dollar-quote sem fecho LANÇA com o trecho, em vez de devolver menos
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — dollar-quote com rótulo sem fecho LANÇA com o trecho, em vez de devolver menos
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal da guarda de topo é exaustiva — a migration liberada escreve exatamente o declarado
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal da guarda de topo é FECHADA: nenhuma chave a partir da 0159, e toda uma com motivo
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > SEM a exceção, a 0133 real reprova — a guarda VÊ o `do` e o alias (sabotagem B)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a varredura de DELETE ainda reprova um comando de TOPO (guarda da guarda)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) declarada DESTRUTIVA, com justificativa — a classe não destrava
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do $$ … $$`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do $rotulo$ … $rotulo$`, depois de um `$$` num comentário
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com alias (a forma da 0133)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com `only` e nome citado
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num CTE (`with … update`)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `merge into`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `truncate`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `insert … on conflict do update`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `create function … $function$` — IGNORADO
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num comentário de fim de linha — IGNORADO
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num comentário de bloco aninhado — IGNORADO
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `revoke truncate on public.ativos` — não é truncate
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) por um nome renomeado de ida e volta
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) por um nome renomeado, com `delete`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) depois de `set schema`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) por uma view criada no arquivo
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a cópia transformada que assume o nome (rename duplo)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) outra tabela que já existia renomeada para o nome (só DDL)
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) só o destino: outra tabela renomeada PARA o nome
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a volta ao `public` com o nome da guardada
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do`
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `drop table`, declarada DESTRUTIVA
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `drop table` numa lista
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) o que NÃO é troca: `rename` de outra tabela, `drop table` de nome parecido, `rename constraint` — IGNORADO
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a prosa num `comment on column … is` — IGNORADA
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a prosa num `raise notice` dentro de `do` — IGNORADA
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a prosa num CHECK — IGNORADA
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com o nome citado, mesmo lendo o texto mascarado
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda função NOVA da fase é declarada security invoker
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — comentário de bloco sem fecho LANÇA com o trecho, em vez de devolver menos
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — comentário aninhado sem o segundo fecho LANÇA com o trecho, em vez de devolver menos
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — texto sem fecho LANÇA com o trecho, em vez de devolver menos
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > FALHA FECHADA — identificador citado sem fecho LANÇA com o trecho, em vez de devolver menos
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > semComentarios tira comentário de linha, de fim de linha e de bloco, e NÃO toca texto nem corpo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 1. o leitor único > textoExecutado junta o que o apply roda: sem comentário, sem corpo de função, com o `do`
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > a forma CANÔNICA de um BACKFILL passa (o controle: a régua sabe dizer sim)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > uma ADITIVA de verdade passa, com default da lista fechada
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A1 — `update` de topo SEM cabeçalho reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A2 — declarada ADITIVA com `update` de topo reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A3 — `update` DENTRO de `do $$ … $$` é visto como executado e reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A4 — `update` dentro de `create function … $function$` é IGNORADO
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A5 — um `$$` num comentário ANTES de um `update` de topo: o `update` continua visto
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A6 — comentário de fim de linha com `update public.x set` é IGNORADO
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A7 — BACKFILL SEM o bloco de backup reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A8 — o bloco com o literal `migration` de OUTRO arquivo reprova (o bloco copiado)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9 — o `where` do backup diferente do `where` do `update` por UM espaço reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9-bis — o `update` com `where` MAIS LARGO que o do backup (`… or true`) reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9-ter — coluna alterada sem par, e par de outra coluna, reprovam
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A9-quater — o rodapé tem de restaurar a partir de backups_migration, com o nome do arquivo
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A10 — `set_config(estoque.dev_destrutivo)` de topo reprova, e dentro de `do` também
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A10-bis — as outras válvulas: `disable trigger` e `session_replication_role`
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A11 — `execute format(…)` é ILEGÍVEL, nunca ADITIVA
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A12 — `select public.f()` e `call public.p()` de topo, com a rotina criada no MESMO arquivo e escrevendo, são ILEGÍVEL
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A13 — `merge into` e `with … update` de topo são vistos como escrita
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A14 — `add column … default gen_random_uuid()` NÃO é ADITIVA (default volátil reescreve a tabela)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A15 — `/* /* aninhado */ update public.x set … */` é IGNORADO (o comentário de bloco do Postgres aninha)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A16 — `'$$'` dentro de texto de topo NÃO abre corpo (o `update` depois dele é visto)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A17 — a 0133 REAL é ILEGÍVEL com válvula no censo; uma 0159 sintética igual a ela reprova SEMPRE
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A18 — dollar-quote sem fecho: o leitor LANÇA (e a regra o reporta, em vez de passar)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A19 — controle de transação de topo reprova (quem decide a transação é o apply — decisão 2)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A20 — sem ROLLBACK no rodapé reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2. a regra a partir da 0159 — sabotagem A > A21 — `insert` puro em tabela que já existia é BACKFILL (não ADITIVA); em tabela criada no mesmo arquivo, ADITIVA
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R1 — `set_config(session_replication_role)` é a válvula, na forma de função também
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R2 — `set_config` com o NOME da GUC montado (concatenação) é ILEGÍVEL — a válvula não escapa pela concatenação
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R3 — `rename` + `create table <o nome antigo>` + `insert`: a cópia de uma tabela viva NÃO é "criada aqui"
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R4 — escrever por um nome RENOMEADO, por outro ESQUEMA ou por uma VIEW criada aqui é escrever na tabela original
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R5 — `backups_migration` continua FECHADA no texto da 0159 (a regressão que o CI, sem default privilege, não veria)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R6 — a TROCA de tabela (rename duplo, com ou sem cópia transformada) é DESTRUTIVA; a tabela criada aqui continua poupada
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R7 — o valor e a chave do backup vêm da TABELA DO FROM: pelo join, reprova
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 2-bis. os furos da revisão adversarial da F63 > R8 — sem o apelido, o valor e a chave reprovam: a coluna que só a tabela do join tem seria dela, sem erro
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > 0159_backups_migration.sql passa pela regra (cabeçalho, classe, par, válvulas, rodapé)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > 0160_empresa_no_acervo_cadastros.sql passa pela regra (cabeçalho, classe, par, válvulas, rodapé)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > 0161_empresa_no_acervo_movimento.sql passa pela regra (cabeçalho, classe, par, válvulas, rodapé)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > o censo das 157 anteriores: ADITIVA 139 · BACKFILL 11 · DESTRUTIVA 2 · ILEGÍVEL 5
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > a classe calculada das 157: ADITIVA 141 · BACKFILL 13 · DESTRUTIVA 3 (0039, 0057, 0058)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > as ILEGÍVEL do censo são exatamente as cinco medidas (e a 0111 é uma delas)
+ ✓ |puro| src/lib/validators/migrations-backfill.test.ts > 3. a cadeia real > as sete com cabeçalho (0152–0158): só a 0156 e a 0158 declaram ADITIVA e executam BACKFILL — divergência de ATA, não de migration
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a lista das oito vem de k_lote1 (catalogo_policies.sql) e tem as oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > o universo NÃO é vazio: há consultas às oito tabelas, e cada uma das oito é consultada
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta de tabela DINÂMICA (`.from(variavel)`) cita empresa_id
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a exceção nomeada ainda existe (a lista não guarda fantasma)
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > o universo de arquivos é todo fonte JS/TS de src/** — `.mts`, `.cts`, `.js` e `.jsx` também, teste fora
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.eq(empresa_id)` em ativos
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.select(id, empresa_id)` em ativos, em várias linhas
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.match({ empresa_id })` em itens
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `?.` e argumento de tipo
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma com `select` citando a coluna
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma com `ordem` pela coluna
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: tabela da F62 (membros)
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: a cadeia das oito SEM a coluna
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: empresa_id num COMENTÁRIO
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: empresa_id DEPOIS da cadeia, noutra instrução
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > nenhum trecho liberado parte de uma das oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > toda entrada da catraca tem motivo escrito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta a coluna numa constante
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta o texto partido
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta o template
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta o construtor reatribuído noutra instrução
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a troca 1-por-1 no mesmo arquivo muda o trecho — a contagem ficaria igual (2ª rodada)
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca não conta o comentário (o par legítimo)
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > o universo não é vazio: há funções vigentes que tocam as oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > nenhuma função vigente lê empresa_id de uma das oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo lendo movimentacoes.empresa_id pelo alias
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo filtrando ativos por empresa_id sem qualificador
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo gravando empresa_id em itens
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: membros.empresa_id
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo)
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — `select … into v_n from` a tabela das oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — pelo apelido de um SUBSELECT sobre uma das oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — pelo apelido de um CTE sobre uma das oito
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: o apelido de um subselect sobre membros
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um `;` num texto entre o alias e a leitura
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — a leitura dentro do corpo dollar-quoted de uma função
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: `empresa_id` só dentro de um texto
 
  Test Files  3 passed (3)
-      Tests  121 passed (121)
-   Start at  10:37:50
-   Duration  1.29s (transform 522ms, setup 0ms, import 1.48s, tests 876ms, environment 1ms)
+      Tests  163 passed (163)
 

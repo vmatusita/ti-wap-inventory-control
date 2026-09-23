@@ -1,5 +1,5 @@
-# F63 · o CI VERDE sobre as migrations 0159–0161 — PR #72, run 35868159433 (commit 495e623)
-# job banco-sem-docker: gate de tipos, roteiros (43, 1001 asserções), injetor 131/131. Trechos do log, sem o prefixo de horário.
+# F63 · o CI VERDE sobre as migrations 0159–0161 — PR #72, run 35877703900 (commit cdc6dee)
+# job banco-sem-docker: gate de tipos, roteiros (43 roteiro(s), 1002 asserções no total), injetor (131/131 detectadas pelo cenário nomeado · 56896 ms no total). Trechos do log, sem o prefixo de horário.
 
 ---- gate de deriva de tipos ----
 banco ....... 38 relações · 347 colunas · 94 funções
@@ -15,32 +15,34 @@ psql:supabase/tests/catalogo_policies.sql:1323: NOTICE:  FIM catalogo_policies: 
 
 # empresa_no_acervo.sql — as sabotagens D, E, F, G e a metade SQL da I:
 ==== supabase/tests/empresa_no_acervo.sql ====
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 1a um INSERT sem empresa_id recebe public.empresa_legada() nas oito tabelas do acervo (0 de 8 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 1b toda linha das oito tem empresa_id = public.empresa_legada() (count(*) = count(empresa_id) = da legada) (0 de 9 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 2a empresa_id de empresa inexistente é recusado com 23503 nas oito (0 de 8 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 2b de volta como postgres, nenhuma linha com a empresa inexistente ficou nas oito (0 de 8 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 3a o update de backfill ingênuo leva 42501 da guarda_acervo em movimentacoes e lancamentos_item, e o dado fica intacto (0 de 4 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  3b (medição) update em ativos: passou:2 · relfilenode 16563 → 16563 · md5(id, xmin) 7235b79f9a913b21a8cb3ff1abbb8921 → 3371fdfeb2d4746dad212585d3281b49
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 3b em ativos o update de backfill PASSA e reescreve em silêncio: relfilenode igual, md5 de (id, xmin) diferente (fato 5) (0 de 3 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 3c o update em ativos foi desfeito com a subtransação (o md5 de (id, xmin) voltou) (0 de 1 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  4a/4b (medição) relfilenode: 18971 → (default volátil) 18979 → (default da fase) 18979 · atthasmissing da coluna da fase: t
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 4a o default VOLÁTIL (gen_random_uuid) reescreve a tabela: o relfilenode MUDA (0 de 1 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 4b o default da fase (public.empresa_legada(), não-volátil) NÃO reescreve: relfilenode igual e atthasmissing (0 de 2 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  4c (medição) update de UMA linha numa subtransação: relfilenode 18979 → 18979 · md5(id, xmin) d326337cb4a2ca96f23b4aabf8db4de9 → b69b4fbd8db0e662f40af99a7ea7966a
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 4c um update de uma linha deixa o relfilenode igual e MUDA o md5 de (id, xmin) — o relfilenode sozinho não o vê (0 de 3 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 5a o bloco BACKFILL grava o par (chave, valor_anterior) de cada linha alterada — inclusive o NULL (0 de 3 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 5b o rollback a partir de backups_migration devolve cada valor, linha a linha, inclusive o NULL (0 de 4 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 5b-bis depois do rollback, o conteúdo da tabela é o de antes do backfill (md5) (0 de 1 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 5c sem o bloco de backup, o rollback não devolve nada — o valor alterado fica (o controle negativo) (0 de 2 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 5d backups_migration recusa nome sem o formato NNNN_x.sql, tabela sem esquema e a mesma célula duas vezes (0 de 3 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 6a nenhum privilégio de anon, authenticated ou service_role em backups_migration (0 de 15 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 6c backups_migration: RLS ligada, sem force, ZERO policy (0 de 3 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 6b anon, authenticated e service_role são RECUSADOS ao ler, gravar, alterar e apagar backups_migration — e o conteúdo fica intacto (0 de 13 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 7a nenhuma policy das oito tabelas do acervo cita empresa_id (o recorte é da F66) (0 de 23 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 7b nenhuma função de public lê empresa_id junto de uma das oito (fora da exceção nominal checagens_integridade_nucleo) (0 de 53 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 7c nenhuma view de public lê empresa_id junto de uma das oito (0 de 8 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  ✓ 7d auto-sabotagem: a policy e a função fictícias que leem empresa_id do acervo são ACUSADAS (o gate sabe reprovar) (0 de 1 conferidos)
-psql:supabase/tests/empresa_no_acervo.sql:503: NOTICE:  FIM empresa_no_acervo: 22 asserções, 0 falhas
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 1a um INSERT sem empresa_id recebe public.empresa_legada() nas oito tabelas do acervo (0 de 8 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 1b toda linha das oito tem empresa_id = public.empresa_legada() (count(*) = count(empresa_id) = da legada) (0 de 9 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 2a empresa_id de empresa inexistente é recusado com 23503 nas oito (0 de 8 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 2b de volta como postgres, nenhuma linha com a empresa inexistente ficou nas oito (0 de 8 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 3a o update de backfill ingênuo leva 42501 da guarda_acervo em movimentacoes e lancamentos_item, e o dado fica intacto (0 de 4 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  3b (medição) update em ativos: passou:2 · relfilenode 16563 → 16563 · md5(id, xmin) 2e4bd10c1d98bbf9f5e94c9c16f6c8ec → 34cf6482f08b0291b4094e68a5f44d93
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 3b em ativos o update de backfill PASSA e reescreve em silêncio: relfilenode igual, md5 de (id, xmin) diferente (fato 5) (0 de 3 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 3c o update em ativos foi desfeito com a subtransação (o md5 de (id, xmin) voltou) (0 de 1 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  4a/4b (medição) relfilenode: 18971 → (default volátil) 18979 → (default da fase) 18979 · atthasmissing da coluna da fase: t
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 4a o default VOLÁTIL (gen_random_uuid) reescreve a tabela: o relfilenode MUDA (0 de 1 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 4b o default da fase (public.empresa_legada(), não-volátil) NÃO reescreve: relfilenode igual e atthasmissing (0 de 2 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  4c (medição) update de UMA linha numa subtransação: relfilenode 18979 → 18979 · md5(id, xmin) 53f755e3d6e2d132540128622a636b93 → 38b544c1d0444872f95b3bf4b7d6ef9f
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 4c um update de uma linha deixa o relfilenode igual e MUDA o md5 de (id, xmin) — o relfilenode sozinho não o vê (0 de 3 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 5a o bloco BACKFILL grava o par (chave, valor_anterior) de cada linha alterada — inclusive o NULL (0 de 3 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 5b o rollback a partir de backups_migration devolve cada valor, linha a linha, inclusive o NULL (0 de 4 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 5b-bis depois do rollback, o conteúdo da tabela é o de antes do backfill (md5) (0 de 1 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 5c sem o bloco de backup, o rollback não devolve nada — o valor alterado fica (o controle negativo) (0 de 2 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 5d backups_migration recusa nome sem o formato NNNN_x.sql, tabela sem esquema e a mesma célula duas vezes (0 de 3 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  5e (medição) a linha inteira antes do backfill 5e7abf41951dcd0389026385857e0337 · depois do rollback 5e7abf41951dcd0389026385857e0337
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 5e o rollback devolve array, jsonb, enum, numeric e timestamptz (e o null de cada um), com identity, coluna gerada e not null na tabela (0 de 1 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 6a nenhum privilégio de anon, authenticated ou service_role em backups_migration (0 de 15 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 6c backups_migration: RLS ligada, sem force, ZERO policy (0 de 3 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 6b anon, authenticated e service_role são RECUSADOS ao ler, gravar, alterar e apagar backups_migration — e o conteúdo fica intacto (0 de 13 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 7a nenhuma policy das oito tabelas do acervo cita empresa_id (o recorte é da F66) (0 de 23 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 7b nenhuma função de public lê empresa_id junto de uma das oito (fora da exceção nominal checagens_integridade_nucleo) (0 de 53 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 7c nenhuma view de public lê empresa_id junto de uma das oito (0 de 8 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  ✓ 7d auto-sabotagem: a policy e a função fictícias que leem empresa_id do acervo são ACUSADAS (o gate sabe reprovar) (0 de 1 conferidos)
+psql:supabase/tests/empresa_no_acervo.sql:574: NOTICE:  FIM empresa_no_acervo: 23 asserções, 0 falhas
 
 # f62_rollback.sql e f63_rollback.sql — o rollback ensaiado (critério 20):
 ==== supabase/tests/f62_rollback.sql ====
@@ -75,7 +77,7 @@ psql:supabase/tests/restauracao.sql:557: NOTICE:  FIM restauracao: 19 asserçõe
   ✓ definer_sem_tenant — 6 asserções
   ✓ dev_destrutivo — 108 asserções
   ✓ dominios_login — 16 asserções
-  ✓ empresa_no_acervo — 22 asserções
+  ✓ empresa_no_acervo — 23 asserções
   ✓ escrita_atomica_ativos_anotacao — 16 asserções
   ✓ f34_triagem_reserva — 21 asserções
   ✓ f36_detentor — 18 asserções
@@ -107,23 +109,23 @@ psql:supabase/tests/restauracao.sql:557: NOTICE:  FIM restauracao: 19 asserçõe
   ✓ transicoes_extra — 13 asserções
   ✓ troca — 13 asserções
   ✓ vocabulario_import — 56 asserções
-  43 roteiro(s), 1001 asserções no total
+  43 roteiro(s), 1002 asserções no total
 
 # o injetor — as seis mutações da F63 (e o placar do lote):
 [126/131] f63-lote1-default-literal  →  catalogo_policies.sql  (espera ✗ 15b)
-      ✓ detectada  (403 ms)
+      ✓ detectada  (418 ms)
 [127/131] f63-lote1-sem-not-null  →  catalogo_policies.sql  (espera ✗ 15b)
-      ✓ detectada  (403 ms)
+      ✓ detectada  (417 ms)
 [128/131] f63-lote1-fk-not-valid  →  catalogo_policies.sql  (espera ✗ 15b)
-      ✓ detectada  (404 ms)
+      ✓ detectada  (420 ms)
 [129/131] f63-lote1-sem-coluna  →  catalogo_policies.sql  (espera ✗ 15b)
-      ✓ detectada  (409 ms)
+      ✓ detectada  (418 ms)
 [130/131] f63-backups-ganha-policy  →  catalogo_policies.sql  (espera ✗ 4)
-      ✓ detectada — também caíram (efeito colateral): 5, 6c, 10a  (407 ms)
+      ✓ detectada — também caíram (efeito colateral): 5, 6c, 10a  (419 ms)
 [131/131] f63-backups-legivel  →  empresa_no_acervo.sql  (espera ✗ 6a)
-      ✓ detectada — também caíram (efeito colateral): 6b  (429 ms)
+      ✓ detectada — também caíram (efeito colateral): 6b  (451 ms)
 em quarentena ....... 2 (declaradas, NÃO executadas)
-131/131 detectadas pelo cenário nomeado · 54800 ms no total
+131/131 detectadas pelo cenário nomeado · 56896 ms no total
 
 # a MENSAGEM de cada ✗ que as mutações da F63 derrubaram (log do servidor do Postgres do CI) — a sabotagem C, cada defeito pelo nome:
 WARNING:  ✗ 15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force) — fora da forma: ativos (default não é public.empresa_legada() ('00000000-0000-4000-a000-000000000001'::uuid)): 1 de 8 fora da regra

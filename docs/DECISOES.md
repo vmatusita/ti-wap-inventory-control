@@ -13188,7 +13188,7 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
 - **(e) O conector da Supabase amanheceu desligado** ("disabled in your connector settings", em todas as ferramentas).
   Sem ele, o "antes" dos bancos não foi tirado e nada foi aplicado; o PR segue sem merge até ele voltar (o caminho B e
   o estado no topo do `RELATORIO-F63.md`).
-- **(f) A revisão adversarial, em duas rodadas** (contexto fresco, lentes separadas, céticos instruídos a refutar cada
+- **(f) A revisão adversarial, em três rodadas** (contexto fresco, lentes separadas, céticos instruídos a refutar cada
   achado; detalhe no §9 do `RELATORIO-F63.md`). **1ª rodada** (5 lentes, 13 achados, 3 confirmados pela maioria dos
   céticos): a ordem de lock da `0161` estava ERRADA — `criar_movimentacao_com_itens` trava `ativos` com `for update`
   ANTES do primeiro INSERT, e a `0161` começava por `movimentacoes`; reordenada (`ativos`, `movimentacoes`,
@@ -13212,5 +13212,12 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
   `src/**`; (v) o RECORTE passou a ler cast na coluna, `not in`, `between` e comparação de ordem. O descartado (o
   `split(';')` cru no corpo das funções) foi corrigido mesmo assim — os comandos passaram a sair do léxico único
   (`comandosDoTexto`), também no describe 5 —, e o caso novo expôs um furo que já existia: o apelido de `into v_n`
-  engolia o `from` seguinte e a tabela sumia da leitura (lookahead). **Motivo:** cada achado confirmado é uma
-  trava que passava verde diante do que ela existe para barrar.
+  engolia o `from` seguinte e a tabela sumia da leitura (lookahead). **3ª rodada** (2 lentes sobre os consertos da
+  2ª; 4 achados, NENHUM confirmado — 0/2 nos dois do classificador, porque os céticos já leram o código corrigido, e
+  1/2 nos dois de leitura): corrigidos os quatro, porque os quatro eram reais no código de `70922cc` — a guarda de topo
+  passou a ler o texto executado MASCARADO (a prosa de um `comment on column` com "update public.movimentacoes set"
+  reprovava uma migration ADITIVA), o valor e a chave do backup passaram a exigir o apelido do `from` (sem ele, a coluna
+  que só a tabela do `join` tem era dela, sem erro), o apelido de subselect/CTE deixou de livrar a leitura no corpo das
+  funções, e o RECORTE passou a ler `join … using (empresa_id)` e o parêntese em volta da coluna. A 3ª rodada sem
+  confirmado encerrou a revisão; o SHA de código congelado é `cdc6dee` (`PLAN-F63.md` §8). **Motivo:** cada achado
+  confirmado é uma trava que passava verde diante do que ela existe para barrar.

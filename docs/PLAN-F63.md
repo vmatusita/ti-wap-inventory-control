@@ -444,7 +444,10 @@ consertar o que o CI mostrar. PR como rascunho desde o push 1.
 
 ## 8. SHA de código congelado
 
-A preencher na Frente G, passo 3.
+**`cdc6dee`** (23/09/2026) — o último commit que toca `src/**`, `scripts/**` ou `supabase/**`, depois das três rodadas
+da revisão adversarial (a 3ª sem achado confirmado). Daqui em diante, só `docs/**` e `CHANGELOG.md`. O CI dele é o do §10
+do `RELATORIO-F63.md`; o apply nos bancos (Frente G, passos 5 em diante) ficou PENDENTE do conector — se a `main` andar
+antes do apply, rebase, CI novo e um SHA novo aqui.
 
 ---
 
