@@ -3,11 +3,15 @@
 -- =============================================================================
 -- classe: ADITIVA (quatro colunas novas com default NÃO-VOLÁTIL; nenhuma tupla reescrita)
 --
--- A segunda metade do lote 1: as quatro tabelas QUENTES do acervo — `movimentacoes`,
--- `lancamentos_item`, `ativos`, `pendencias_item` —, na ORDEM EM QUE O APP TOMA OS LOCKS (a
--- movimentação grava em `movimentacoes` e o gatilho `trg_aplicar_movimentacao` chega a `ativos` e
--- a `pendencias_item`; o lançamento de item grava em `lancamentos_item`). Tomar os locks na mesma
--- ordem que uma escrita em curso evita o ciclo de espera entre o ALTER e ela.
+-- A segunda metade do lote 1: as quatro tabelas QUENTES do acervo — `ativos`, `movimentacoes`,
+-- `pendencias_item`, `lancamentos_item` —, na ORDEM EM QUE O CAMINHO DE ESCRITA DO APP TOMA OS LOCKS:
+-- `criar_movimentacao_com_itens` (0126, a RPC de "Registrar movimentação") trava os ATIVOS primeiro
+-- (`for update`, passo 2, "ANTES de qualquer INSERT"), depois insere em `movimentacoes` — cujo gatilho
+-- `trg_aplicar_movimentacao` volta a `ativos` e abre `pendencias_item` — e só no passo 5 grava em
+-- `lancamentos_item`; `estornar_movimentacao_com_itens` (0122) faz o mesmo. Tomar os locks na mesma
+-- ordem que uma escrita em curso evita o ciclo de espera entre o ALTER e ela. (A primeira versão
+-- desta migration, nunca aplicada em banco real, punha `movimentacoes` primeiro — achado da revisão
+-- adversarial da F63, corrigido antes de qualquer apply.)
 --
 -- ██████████████████████████████████████████████████████████████████████████████████████████
 -- ██  NÃO HÁ `UPDATE` DE BACKFILL AQUI, E NÃO PODE HAVER.                                   ██
@@ -29,29 +33,29 @@
 
 set lock_timeout = '2s';
 
-alter table public.movimentacoes
-  add column empresa_id uuid not null default public.empresa_legada()
-    references public.empresas (id);
-comment on column public.movimentacoes.empresa_id is
-  'F63 (0161, 23/09/2026): a EMPRESA dona desta movimentação — a chave de recorte do acervo. Default public.empresa_legada() (a WAP) ATÉ A F67 (decisão do Johnny): o default cai na F67, quando a escrita passar a informar a empresa; até lá todo INSERT sem empresa_id recebe a WAP. Preenchida sem update (default não-volátil do PG 11+, valor no catálogo) — a guarda_acervo recusaria o update. Ninguém lê esta coluna antes da F66.';
-
-alter table public.lancamentos_item
-  add column empresa_id uuid not null default public.empresa_legada()
-    references public.empresas (id);
-comment on column public.lancamentos_item.empresa_id is
-  'F63 (0161, 23/09/2026): a EMPRESA dona deste lançamento de item — a chave de recorte do acervo. Default public.empresa_legada() (a WAP) ATÉ A F67 (decisão do Johnny): o default cai na F67, quando a escrita passar a informar a empresa; até lá todo INSERT sem empresa_id recebe a WAP. Preenchida sem update (default não-volátil do PG 11+, valor no catálogo) — a guarda_acervo recusaria o update. Ninguém lê esta coluna antes da F66.';
-
 alter table public.ativos
   add column empresa_id uuid not null default public.empresa_legada()
     references public.empresas (id);
 comment on column public.ativos.empresa_id is
   'F63 (0161, 23/09/2026): a EMPRESA dona deste ativo — a chave de recorte do acervo. Default public.empresa_legada() (a WAP) ATÉ A F67 (decisão do Johnny): o default cai na F67, quando a escrita passar a informar a empresa; até lá todo INSERT sem empresa_id recebe a WAP. Preenchida sem update (default não-volátil do PG 11+, valor no catálogo) — um update aqui reescreveria as tuplas em silêncio. Ninguém lê esta coluna antes da F66.';
 
+alter table public.movimentacoes
+  add column empresa_id uuid not null default public.empresa_legada()
+    references public.empresas (id);
+comment on column public.movimentacoes.empresa_id is
+  'F63 (0161, 23/09/2026): a EMPRESA dona desta movimentação — a chave de recorte do acervo. Default public.empresa_legada() (a WAP) ATÉ A F67 (decisão do Johnny): o default cai na F67, quando a escrita passar a informar a empresa; até lá todo INSERT sem empresa_id recebe a WAP. Preenchida sem update (default não-volátil do PG 11+, valor no catálogo) — a guarda_acervo recusaria o update. Ninguém lê esta coluna antes da F66.';
+
 alter table public.pendencias_item
   add column empresa_id uuid not null default public.empresa_legada()
     references public.empresas (id);
 comment on column public.pendencias_item.empresa_id is
   'F63 (0161, 23/09/2026): a EMPRESA dona desta pendência de item — a chave de recorte do acervo. Default public.empresa_legada() (a WAP) ATÉ A F67 (decisão do Johnny): o default cai na F67, quando a escrita passar a informar a empresa; até lá todo INSERT sem empresa_id recebe a WAP. Preenchida sem update (default não-volátil do PG 11+, valor no catálogo). Ninguém lê esta coluna antes da F66.';
+
+alter table public.lancamentos_item
+  add column empresa_id uuid not null default public.empresa_legada()
+    references public.empresas (id);
+comment on column public.lancamentos_item.empresa_id is
+  'F63 (0161, 23/09/2026): a EMPRESA dona deste lançamento de item — a chave de recorte do acervo. Default public.empresa_legada() (a WAP) ATÉ A F67 (decisão do Johnny): o default cai na F67, quando a escrita passar a informar a empresa; até lá todo INSERT sem empresa_id recebe a WAP. Preenchida sem update (default não-volátil do PG 11+, valor no catálogo) — a guarda_acervo recusaria o update. Ninguém lê esta coluna antes da F66.';
 
 reset lock_timeout;
 
@@ -61,8 +65,9 @@ reset lock_timeout;
 --   count(*) = count(empresa_id) = count(*) filter (where empresa_id = public.empresa_legada()).
 --
 -- ROLLBACK (supabase/rollback/F63-desfaz.sql, passo 1 — o PRIMEIRO da fase):
---   alter table public.movimentacoes    drop column if exists empresa_id;
---   alter table public.lancamentos_item drop column if exists empresa_id;
 --   alter table public.ativos           drop column if exists empresa_id;
+--   alter table public.movimentacoes    drop column if exists empresa_id;
 --   alter table public.pendencias_item  drop column if exists empresa_id;
+--   alter table public.lancamentos_item drop column if exists empresa_id;
+-- (na mesma ordem de lock do app, pelo mesmo motivo)
 -- (sem reescrita: a coluna fica attisdropped; a FK e o comentário caem junto)

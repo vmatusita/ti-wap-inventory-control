@@ -184,7 +184,7 @@ Três, nesta ordem (nome-sem-prefixo inédito no repositório, conferido contra 
 |---|---|---|---|
 | 1 | `0159_backups_migration.sql` | ADITIVA | a tabela do par de backup, fechada no molde de `ambiente` |
 | 2 | `0160_empresa_no_acervo_cadastros.sql` | ADITIVA | `empresa_id` em `colaboradores`, `itens`, `termos_gerados`, `anotacoes` — as frias primeiro, como canário |
-| 3 | `0161_empresa_no_acervo_movimento.sql` | ADITIVA | `empresa_id` em `movimentacoes`, `lancamentos_item`, `ativos`, `pendencias_item` — as quentes, na ordem em que o app toma os locks (a movimentação trava `movimentacoes` e o gatilho chega a `ativos` e `pendencias_item`): tomar na mesma ordem evita o ciclo de espera |
+| 3 | `0161_empresa_no_acervo_movimento.sql` | ADITIVA | `empresa_id` em `ativos`, `movimentacoes`, `pendencias_item`, `lancamentos_item` — as quentes, na ordem em que o caminho de escrita do app toma os locks (`criar_movimentacao_com_itens` trava `ativos` com `for update` ANTES do primeiro INSERT, depois grava em `movimentacoes`, cujo gatilho abre `pendencias_item`, e por último em `lancamentos_item`): tomar na mesma ordem evita o ciclo de espera. *(A primeira versão punha `movimentacoes` primeiro — achado da revisão adversarial, corrigido antes de qualquer apply.)* |
 
 Cada tabela: `add column empresa_id uuid not null default public.empresa_legada() references
 public.empresas (id)` (a forma exata da `0155`) + `comment on column` com a data, o motivo e "o default
@@ -393,8 +393,9 @@ primeiro**, dentro de 24 h do commit (sonda de deriva).
 **Rollback — o inverso, num arquivo só, `supabase/rollback/F63-desfaz.sql`** (ensaiado no CI pelo
 roteiro `supabase/tests/f63_rollback.sql`):
 
-1. (`0161`) `drop column if exists empresa_id` em `pendencias_item`, `ativos`, `lancamentos_item`,
-   `movimentacoes` — a FK e o comentário caem junto; sem reescrita (a coluna fica `attisdropped`);
+1. (`0161`) `drop column if exists empresa_id` em `ativos`, `movimentacoes`, `pendencias_item`,
+   `lancamentos_item` (a mesma ordem de lock do app) — a FK e o comentário caem junto; sem reescrita (a coluna fica
+   `attisdropped`);
 2. (`0160`) o mesmo em `anotacoes`, `termos_gerados`, `itens`, `colaboradores`;
 3. (`0159`) `drop table if exists public.backups_migration` — **só se nenhuma migration posterior
    gravou nela** (hoje, nenhuma).

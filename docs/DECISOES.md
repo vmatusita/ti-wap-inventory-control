@@ -13124,9 +13124,10 @@ declarado** do "→ `drop default`" da ficha e do "o `drop default` vem logo dep
 
 **As dez decisões da fase** (detalhe no `PLAN-F63.md` §4):
 1. **As migrations:** três — `0159` (`backups_migration`), `0160` (as quatro frias: `colaboradores`, `itens`,
-   `termos_gerados`, `anotacoes`, como canário) e `0161` (as quatro quentes, na ordem em que o app toma os locks:
-   `movimentacoes`, `lancamentos_item`, `ativos`, `pendencias_item`). **Motivo:** três a quatro tabelas por migration
-   (a ficha); a ordem de lock igual à do app evita o ciclo de espera com uma escrita em curso.
+   `termos_gerados`, `anotacoes`, como canário) e `0161` (as quatro quentes, na ordem em que o caminho de escrita do
+   app toma os locks: `ativos` — `criar_movimentacao_com_itens` o trava com `for update` antes do primeiro INSERT —,
+   `movimentacoes`, `pendencias_item`, `lancamentos_item`). **Motivo:** três a quatro tabelas por migration (a ficha); a
+   ordem de lock igual à do app evita o ciclo de espera com uma escrita em curso.
 2. **O lock:** `set lock_timeout = '2s'` no topo e `reset` no fim, sem `begin`/`commit` no arquivo. **Motivo:** o CI
    aplica cada comando solto (`psql -f`, sem `-1`), onde `set local` não vale (doc do PG 17: "emits a warning and
    otherwise has no effect"); `set` + `reset` vale no CI e no `apply_migration` (se o apply for transação e abortar, o

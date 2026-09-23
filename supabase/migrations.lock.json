@@ -163,6 +163,6 @@
     "0158_cargo_em_membros.sql": "2b91ad119b59459e89c971416c1ec67752ea233e6346423903adb6df93017274",
     "0159_backups_migration.sql": "522f48e16f1331fa331fd24318f669fff288f172fc4aeac78c6be6cee88a24c9",
     "0160_empresa_no_acervo_cadastros.sql": "3ddf400ce1781c7af60e2bc86ad20404c4fe89c1940b4d5f8f4bc2f2ae79e85c",
-    "0161_empresa_no_acervo_movimento.sql": "f36a9ce92bbdb8ddcf276ff7bae1b53dccb17709141a53747801c21e5593f8d1"
+    "0161_empresa_no_acervo_movimento.sql": "593df05c3f2a0b4a225a07a6908c84113aa59737f3dab9bf672ab7e386860e56"
   }
 }
