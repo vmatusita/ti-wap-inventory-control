@@ -13348,3 +13348,19 @@ contrato sem prova.
   predicado divergiriam. **Limite, registrado no RELATORIO-F64:** texto dentro de aspas não conta como leitura — o mesmo
   corte do leitor único de disco —, logo SQL dinâmico (`execute 'select … empresa_id …'`) não é visto por nenhuma das
   duas travas.
+- **(i) A 2ª rodada da revisão adversarial, sobre o conserto (`8f93106`, SHA dado aos céticos).** Três lentes (PL/pgSQL,
+  semântica, travas); a de PL/pgSQL sem achado; dois achados, **os dois confirmados** (2 de 2 votos cada): (1) a trava
+  negativa do describe 13 reconhecia só o alias `c.` que o próprio conserto aposentou — a isenção pela função inteira
+  voltaria com outro alias; (2) nas exceções, o idioma do próprio repositório `select * into v from public.eventos_admin
+  …; if v.empresa_id …` parte a leitura em DOIS comandos, e nenhum dos dois casava "`empresa_id` E tabela de fora do kit"
+  — no SQL e na trava de disco. **Escolha:** (1) a trava lê o TRECHO de 15h (do assert do 15g ao do 15h): a lista de
+  exceções só aparece dentro da chamada do predicado e nenhum `proname` é comparado — com a própria sabotagem na mesa;
+  (2) nas exceções a leitura tem de ser **provadamente** do kit: cada `x.empresa_id` resolve `x` no próprio comando
+  (`from|join|update|into T [as] x`) para uma tabela do kit ou de fora dos lotes, `new`/`old` só com todo gatilho da
+  função numa tabela do kit (`pg_trigger`; no disco, o `create trigger`), e o que não se prova ACUSA — a variável de
+  registro, o apelido de subselect (fecha no erro: a exceção se escreve com apelido no comando). A sonda de regex no ensaio
+  (só literais fictícios, só leitura) achou mais um furo antes do commit — `p is distinct from v.empresa_id` fazia `v`
+  parecer tabela —, fechado lendo a declaração sem o `distinct from` e sem nome seguido de `.`. E, de carona na mesma
+  régua: o 15h passa a cobrir as **dezenove** (os dois lotes — a decisão 7 já dizia dezenove, e o bloco 6 da F63 isenta o
+  núcleo pelo nome), e a caixa deixa de esconder (`lower` no SQL, `/i` no disco). 6e no roteiro (oito casos), sete casos
+  novos na mesa. **Motivo:** a exceção nominal é estreita por construção — o que ela não prova, ela não lê.

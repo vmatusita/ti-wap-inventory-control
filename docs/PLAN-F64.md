@@ -300,8 +300,9 @@ escrita do app a qualquer hora, mas a escrita é um INSERT curto: o ALTER espera
   lendo `motivos.empresa_id` que não seja uma das duas → acusa; as duas exceções passam.
 - **Catálogo** (15g–15i de `catalogo_policies.sql` e o bloco 6 de `empresa_no_vocabulario.sql`): nenhuma
   policy das onze cita `empresa_id` (universo 22); nenhuma função de `public` lê `empresa_id` junto de
-  uma das onze — fora das exceções, a função inteira; NELAS, por COMANDO, como no disco (revisão
-  adversarial, ata F64 (h)) —; nenhuma view; e a auto-sabotagem (uma policy de `tipos_item` citando a
+  uma das DEZENOVE — fora das exceções, a função inteira; NELAS, por COMANDO e com a origem de cada
+  `x.empresa_id` provada no próprio comando, como no disco (revisão adversarial, ata F64 (h) e (i)) —;
+  nenhuma view; e a auto-sabotagem (uma policy de `tipos_item` citando a
   coluna, uma função lendo `motivos.empresa_id`, e a função do gatilho com um comando a mais lendo
   `eventos_admin.empresa_id`, na transação desfeita) é acusada. O predicado é ÚNICO, em `_asserts.sql`
   (`pg_temp.leitura_de_empresa_do_lote`, sobre o léxico `pg_temp.sql_so_codigo`).

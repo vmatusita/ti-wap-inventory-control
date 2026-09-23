@@ -1364,9 +1364,11 @@ begin
   --         As que não levam a chave são as de `k_infra`, nomeadas e com o motivo escrito, e a
   --         asserção 1a já reprova tabela não classificada.
   --   15g/15h/15i — NINGUÉM LÊ `empresa_id` DO LOTE 2 ANTES DA F66 (decisão 7), pelo catálogo: a
-  --         policy das onze não cita a coluna; a função de `public` que toca uma das onze não a lê,
-  --         fora das exceções nominais de `k_leitura_integridade` — e NELAS, só no COMANDO que toca
-  --         `k_tabelas_leitura_kit`; a view, idem. O corpo é lido pelo LÉXICO (`pg_temp.sql_so_codigo`:
+  --         policy das onze não cita a coluna; a função de `public` que toca uma das DEZENOVE (os
+  --         dois lotes — a régua da decisão 7 vale para as dezenove, como na trava de disco) não a
+  --         lê, fora das exceções nominais de `k_leitura_integridade` — e NELAS, só no COMANDO que
+  --         toca `k_tabelas_leitura_kit`, com a origem de cada `x.empresa_id` PROVADA no próprio
+  --         comando (`_asserts.sql`); a view, idem. O corpo é lido pelo LÉXICO (`pg_temp.sql_so_codigo`:
   --         sem comentário, sem texto, sem dollar-quote — o `prosrc` guarda os comentários, e
   --         `apagar_usuario`, 0158, cita `eventos_admin` num comentário e lê `membros.empresa_id`,
   --         o que não é leitura do lote 2);
@@ -1473,16 +1475,18 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
-  -- 15h — as funções de `public` que tocam uma das onze não leem empresa_id — pelo predicado ÚNICO
-  -- `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`): o CÓDIGO do corpo pelo léxico do Postgres
-  -- (sem comentário, sem texto, sem dollar-quote); fora das exceções nominais a função inteira
-  -- reprova, e NAS exceções reprova o COMANDO que lê a coluna junto de uma tabela do lote que não
-  -- seja de `k_tabelas_leitura_kit` (revisão adversarial da F64). Universo: as funções cujo corpo
-  -- cita uma das onze.
+  -- 15h — as funções de `public` que tocam uma das DEZENOVE (os dois lotes) não leem empresa_id —
+  -- pelo predicado ÚNICO `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`): o CÓDIGO do corpo
+  -- pelo léxico do Postgres (sem comentário, sem texto, sem dollar-quote); fora das exceções
+  -- nominais a função inteira reprova; NAS exceções, a leitura tem de ser PROVADAMENTE do kit, por
+  -- comando (revisão adversarial da F64, duas rodadas). Os dois lotes, e não só o 2: a régua da
+  -- decisão 7 vale para as dezenove, e o bloco 6 de `empresa_no_acervo.sql` (F63) isenta o núcleo
+  -- pelo NOME inteiro — aqui ele responde por comando também nas oito. Universo: as funções cujo
+  -- corpo cita uma das dezenove.
   with f as (
     select p.proname,
-           p.prosrc ~ ('\m(' || array_to_string(k_lote2, '|') || ')\M') as toca,
-           pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote2, k_leitura_integridade, k_tabelas_leitura_kit) as le
+           p.prosrc ~* ('\m(' || array_to_string(k_lote1 || k_lote2, '|') || ')\M') as toca,
+           pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit) as le
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
   )
@@ -1492,7 +1496,7 @@ begin
     into v_univ, v_cnt, v_lista
     from f;
   if pg_temp.assert_zero_de(
-       '15h nenhuma função de public lê empresa_id junto de uma das onze do lote 2 (fora das exceções nominais de k_leitura_integridade)' ||
+       '15h nenhuma função de public lê empresa_id junto de uma das dezenove dos lotes 1 e 2 (nas exceções nominais de k_leitura_integridade, só a leitura provada do kit, por comando)' ||
        case when v_cnt > 0 then ' — lê: ' || v_lista else '' end,
        v_cnt, v_univ) then
     v_ok := v_ok + 1;

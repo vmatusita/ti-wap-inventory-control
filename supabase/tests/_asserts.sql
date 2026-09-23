@@ -200,9 +200,15 @@ $fn$;
 --   pg_temp.leitura_de_empresa_do_lote(função, corpo, lote, exceções, tabelas do kit)
 --       NULL se o corpo não lê `empresa_id` de uma tabela do lote; senão, o que acusa. FORA das
 --       exceções nominais, a FUNÇÃO inteira reprova se o código cita uma tabela do lote e
---       `empresa_id` (a régua de antes, só que sem texto nem comentário); NAS exceções, reprova o
---       COMANDO (o código partido por `;`) que cita `empresa_id` junto de uma tabela do lote que
---       não seja uma das tabelas do kit.
+--       `empresa_id` (a régua de antes, só que sem texto nem comentário); NAS exceções, a leitura
+--       tem de ser PROVADAMENTE do kit, por COMANDO (o código partido por `;`): (a) reprova o comando
+--       que cita `empresa_id` junto de uma tabela do lote que não seja do kit; (b) cada `x.empresa_id`
+--       resolve `x` no próprio comando (`from|join|update|into T [as] x`) para uma tabela do kit ou
+--       de fora do lote, e `new`/`old` só valem se todo gatilho que executa a função está numa
+--       tabela do kit. O que não se prova ACUSA — a variável de registro de `select * into v from
+--       public.eventos_admin …; if v.empresa_id …` (2ª rodada da revisão adversarial: dois comandos,
+--       e nenhum dos dois casava as duas regras de (a)) e o apelido de subselect. A exceção se
+--       escreve com apelido no próprio comando.
 -- =============================================================
 
 create or replace function pg_temp.sql_so_codigo(p_texto text)
@@ -335,25 +341,76 @@ declare
   v_re_fora text;
   v_codigo  text;
   v_cmd     text;
+  v_trecho  text;
+  v_q       text;
+  v_origens text[];
+  v_gatilho boolean;
+  v_decl    text;
 begin
   -- o texto cru já descarta quase tudo (e poupa o léxico das funções que não interessam)
-  if p_corpo is null or p_corpo !~ v_re_lote or p_corpo !~ '\mempresa_id\M' then
+  if p_corpo is null or p_corpo !~* v_re_lote or p_corpo !~* '\mempresa_id\M' then
     return null;
   end if;
-  v_codigo := pg_temp.sql_so_codigo(p_corpo);
+  -- o código em minúsculas: o Postgres dobra o identificador sem aspas (`FROM Public.Motivos`)
+  v_codigo := lower(pg_temp.sql_so_codigo(p_corpo));
   if v_codigo !~ v_re_lote or v_codigo !~ '\mempresa_id\M' then
     return null;
   end if;
   if not (p_funcao = any (p_excecoes)) then
     return p_funcao;
   end if;
+  -- NAS EXCEÇÕES, a leitura tem de ser PROVADAMENTE do kit.
   v_fora := array(select t from unnest(p_lote) as t where not (t = any (p_tabelas_kit)));
   v_re_fora := '\m(' || array_to_string(v_fora, '|') || ')\M';
+  -- `new`/`old` são a linha do gatilho: valem só se TODO gatilho que executa a função está numa
+  -- tabela do kit (e há ao menos um)
+  select coalesce(bool_and(c.relname::text = any (p_tabelas_kit)), false)
+    into v_gatilho
+    from pg_trigger t
+    join pg_proc p on p.oid = t.tgfoid
+    join pg_namespace pn on pn.oid = p.pronamespace
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace cn on cn.oid = c.relnamespace
+   where pn.nspname = 'public' and cn.nspname = 'public'
+     and p.proname::text = p_funcao and not t.tgisinternal;
   for v_cmd in select s from regexp_split_to_table(v_codigo, ';') as s loop
-    if v_cmd ~ '\mempresa_id\M' and v_cmd ~ v_re_fora then
-      return p_funcao || ' (num comando que lê outra tabela do lote: '
-             || left(btrim(regexp_replace(v_cmd, '\s+', ' ', 'g')), 100) || ')';
+    continue when v_cmd !~ '\mempresa_id\M';
+    v_trecho := left(btrim(regexp_replace(v_cmd, '\s+', ' ', 'g')), 100);
+    -- (a) o comando cita uma tabela do lote que não é do kit
+    if v_cmd ~ v_re_fora then
+      return p_funcao || ' (num comando que lê outra tabela do lote: ' || v_trecho || ')';
     end if;
+    -- (b) cada `x.empresa_id` resolve `x` NO PRÓPRIO COMANDO: a tabela declarada com esse nome ou
+    --     apelido (`from|join|update|into T [as] x`) tem de ser do kit ou de fora do lote. O que não
+    --     se resolve — a variável de registro de `select * into v from …`, o apelido de subselect —
+    --     ACUSA. Sem qualificador passa: com (a), a coluna só pode ser de tabela permitida.
+    --     A declaração é lida sem o `distinct from` (não declara nada) e o nome declarado não pode vir
+    --     seguido de `.`: em `p is distinct from v.empresa_id`, `v` não vira tabela.
+    v_decl := regexp_replace(v_cmd, '\mdistinct\s+from\M', 'distinct de', 'g');
+    for v_q in
+      select m[1] from regexp_matches(v_cmd, '(?:\m([a-z_][a-z0-9_]*)\s*\.\s*)?\mempresa_id\M', 'g') as m
+    loop
+      continue when v_q is null;
+      if v_q in ('new', 'old') then
+        continue when v_gatilho;
+        return p_funcao || ' (' || v_q || '.empresa_id sem que todo gatilho da função esteja numa tabela do kit: '
+               || v_trecho || ')';
+      end if;
+      v_origens := array(
+        select distinct x[1]
+          from regexp_matches(v_decl,
+                 '\m(?:from|join|update|into)\s+(?:only\s+)?(?:public\s*\.\s*)?([a-z_][a-z0-9_]*)\s+(?:as\s+)?'
+                 || v_q || '\M(?!\s*\.)', 'g') as x);
+      if v_decl ~ ('\m(?:from|join|update|into)\s+(?:only\s+)?(?:public\s*\.\s*)?' || v_q || '\M(?!\s*\.)') then
+        v_origens := v_origens || v_q;
+      end if;
+      if cardinality(v_origens) = 0 then
+        return p_funcao || ' (' || v_q || '.empresa_id de origem que o comando não prova: ' || v_trecho || ')';
+      end if;
+      if exists (select 1 from unnest(v_origens) as o where o = any (v_fora)) then
+        return p_funcao || ' (' || v_q || '.empresa_id de outra tabela do lote: ' || v_trecho || ')';
+      end if;
+    end loop;
   end loop;
   return null;
 end;

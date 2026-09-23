@@ -846,14 +846,39 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     // a exceção vale por COMANDO, não pela função inteira: o predicado de `_asserts.sql` recebe as
     // exceções E as tabelas do kit; o corpo é lido pelo léxico (`apagar_usuario`, 0158, cita
     // `eventos_admin` num comentário)
-    expect(sql, '15h não usa o predicado único de _asserts.sql').toMatch(
-      /pg_temp\.leitura_de_empresa_do_lote\(p\.proname, p\.prosrc, k_lote2, k_leitura_integridade, k_tabelas_leitura_kit\)/,
+    // os DOIS lotes: a régua da decisão 7 vale para as dezenove (2ª rodada da revisão adversarial)
+    const CHAMADA = 'pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit)'
+    expect(sql, '15h não usa o predicado único de _asserts.sql sobre os dois lotes').toContain(CHAMADA)
+    // A isenção pela função inteira não volta por NENHUM caminho (2ª rodada: a trava antiga só
+    // reconhecia o alias `c.` que o próprio conserto aposentou): no trecho de 15h — do fim do 15g ao
+    // assert do 15h —, a lista de exceções só aparece DENTRO da chamada do predicado, e nenhum
+    // `proname` é comparado com nada.
+    const i15g = sql.search(/assert_zero_de\(\s*'15g /)
+    const i15h = sql.search(/assert_zero_de\(\s*'15h /)
+    expect(i15g, 'não achei o assert de 15g antes do de 15h').toBeGreaterThan(0)
+    expect(i15h).toBeGreaterThan(i15g)
+    const trecho = sql.slice(i15g, i15h)
+    expect(trecho.split(CHAMADA).length, '15h chama o predicado uma vez só').toBe(2)
+    expect(trecho.split(CHAMADA).join(''), '15h usa a lista de exceções fora do predicado (isenção pela função inteira)').not.toMatch(
+      /k_leitura_integridade|k_tabelas_leitura_kit/,
     )
-    expect(sql, '15h voltou a isentar a função inteira pelo nome').not.toMatch(/c\.proname = any \(k_leitura_integridade\)/)
+    expect(trecho, '15h filtra por proname fora do predicado').not.toMatch(/proname\s*(?:=|<>|!=|~|\bin\b|\bis\b|\blike\b)/i)
     expect(sql).toMatch(/from unnest\(k_leitura_integridade\) as nome/)
     const asserts = fonte('_asserts')
     expect(asserts, '_asserts.sql perdeu o léxico do corpo').toMatch(/create or replace function pg_temp\.sql_so_codigo\(p_texto text\)/)
     expect(asserts, '_asserts.sql perdeu o predicado da leitura do lote').toMatch(/create or replace function pg_temp\.leitura_de_empresa_do_lote\(/)
+    // e o predicado exige a ORIGEM provada nas exceções: `new`/`old` pelo gatilho, e o apelido no comando
+    expect(asserts, 'o predicado não confere o gatilho de new/old').toMatch(/from pg_trigger t/)
+    expect(asserts, 'o predicado não acusa a origem que o comando não prova').toMatch(/de origem que o comando não prova/)
+  })
+
+  it('15h sabe reprovar a isenção reintroduzida com outro alias (a trava acima, sabotada)', () => {
+    const sql = semComentarios(cat)
+    const CHAMADA = 'pg_temp.leitura_de_empresa_do_lote(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit)'
+    const sabotado = sql.replace(CHAMADA, `${CHAMADA} as le, not (x.proname = any (k_leitura_integridade)) as isenta`)
+    const trecho = sabotado.slice(sabotado.search(/assert_zero_de\(\s*'15g /), sabotado.search(/assert_zero_de\(\s*'15h /))
+    expect(trecho.split(CHAMADA).join('')).toMatch(/k_leitura_integridade/)
+    expect(trecho).toMatch(/proname\s*(?:=|<>|!=|~|\bin\b|\bis\b|\blike\b)/i)
   })
 
   it('os roteiros da F64 que listam as onze tabelas ou as exceções listam EXATAMENTE a fonte única', () => {

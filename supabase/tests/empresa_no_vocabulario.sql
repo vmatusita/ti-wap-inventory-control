@@ -33,7 +33,10 @@
 --       E (revisão adversarial da F64) a exceção vale por COMANDO, não pela função: a do kit
 --       recriada com um comando a mais que lê `eventos_admin.empresa_id` é ACUSADA (6c); e o léxico
 --       do predicado (`pg_temp.sql_so_codigo`, em `_asserts.sql`) não deixa um `--` dentro de texto
---       esconder a leitura, nem conta a que está em comentário, texto ou dollar-quote (6d).
+--       esconder a leitura, nem conta a que está em comentário, texto ou dollar-quote (6d). E (2ª
+--       rodada) nas exceções a ORIGEM de cada `x.empresa_id` tem de ser provada no próprio comando:
+--       a variável de registro de `select * into v from public.eventos_admin …; if v.empresa_id …`,
+--       o apelido de subselect e o `new`/`old` fora de gatilho do kit ACUSAM (6e).
 --
 -- Tudo por `pg_temp.assert_zero_de`, que recusa universo vazio; rótulo literal (o injetor lê por
 -- token). ESCREVE — `begin; … rollback;`: nada sobra no banco. A tabela de fixture
@@ -500,6 +503,39 @@ begin
     v_ruins := v_ruins + 1; v_rot := v_rot || ' (o léxico: ' || coalesce(pg_temp.sql_so_codigo('select $1, "a--b", ''x;y'' from t; -- fim'), '∅') || ')';
   end if;
   if pg_temp.assert_zero_de('6d o léxico do predicado: o -- dentro de texto não esconde a leitura; comentário, texto e dollar-quote não contam; a exceção vale por comando; $1 e identificador citado ficam' ||
+       case when v_ruins > 0 then ' — fora da regra:' || v_rot else '' end, v_ruins, 8) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  -- 6e — NAS EXCEÇÕES, A ORIGEM TEM DE SER PROVADA NO COMANDO (2ª rodada da revisão adversarial da
+  --      F64): o idioma `select * into v from public.eventos_admin …; if v.empresa_id …` parte a
+  --      leitura em dois comandos, e nenhum dos dois casava "empresa_id E tabela de fora do kit". Agora
+  --      cada `x.empresa_id` de uma exceção resolve `x` no próprio comando para uma tabela do kit ou de
+  --      fora do lote; `new`/`old` só com todo gatilho da função numa tabela do kit; o resto ACUSA.
+  v_ruins := 0; v_rot := '';
+  if pg_temp.leitura_de_empresa_do_lote('kit_motivo_da_empresa', 'select * into v_e from public.eventos_admin where id = p_id; if v_e.empresa_id <> public.empresa_legada() then raise exception ''x''; end if;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (a variável de registro de eventos_admin passou)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('kit_motivo_da_empresa', 'select * into v_k from public.kits_modelos where id = p_id; if v_k.empresa_id is null then return new; end if;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (a variável de registro passou — nem do kit ela se prova)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('checagens_integridade_nucleo', 'perform 1 from public.motivos m where m.empresa_id = new.empresa_id;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (new.empresa_id numa função sem gatilho no kit passou)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('checagens_integridade_nucleo', 'select count(*) from public.membros m join public.motivos o on o.codigo = m.papel where m.empresa_id = o.empresa_id;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is not null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (acusou o apelido de membros e o de motivos, provados no comando)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('checagens_integridade_nucleo', 'select x.empresa_id from (select * from public.motivos) x;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (o apelido de subselect passou)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('kit_motivo_da_empresa', 'PERFORM 1 FROM PUBLIC.EVENTOS_ADMIN E WHERE E.EMPRESA_ID = NEW.EMPRESA_ID;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (a leitura em MAIÚSCULAS numa exceção passou)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('f64_qualquer', 'SELECT M.EMPRESA_ID FROM PUBLIC.MOTIVOS M;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (a leitura em MAIÚSCULAS fora das exceções passou)';
+  end if;
+  if pg_temp.leitura_de_empresa_do_lote('kit_motivo_da_empresa', 'select * into v_e from public.eventos_admin where id = p_id; if new.empresa_id is distinct from v_e.empresa_id then raise exception ''x''; end if;', k_onze, k_leitura_integridade, k_tabelas_leitura_kit) is null then
+    v_ruins := v_ruins + 1; v_rot := v_rot || ' (o is distinct from fez da variável de registro uma tabela)';
+  end if;
+  if pg_temp.assert_zero_de('6e nas exceções a origem de cada x.empresa_id é PROVADA no comando: a variável de registro, o apelido de subselect e o new/old sem gatilho no kit acusam; o apelido declarado no comando passa; maiúsculas não escondem; distinct from não declara tabela' ||
        case when v_ruins > 0 then ' — fora da regra:' || v_rot else '' end, v_ruins, 8) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
