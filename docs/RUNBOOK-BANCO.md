@@ -432,6 +432,10 @@ update public.x t
   na linha — e isso exige mexer, de propósito, na asserção que impede a lista de crescer a partir da `0159`. Em
   `movimentacoes`/`lancamentos_item` o backfill nem roda: a `guarda_acervo` recusa UPDATE até do service role, e abrir a
   janela `estoque.dev_destrutivo` para isso é proibido.
+- **Um valor anterior por célula, por migration** (`unique (migration, tabela, coluna, chave)`): o rollback devolve O
+  valor de antes, sem ambiguidade. Duas passadas na MESMA coluna da MESMA tabela numa migration só funcionam com `where`s
+  mutuamente exclusivos; se a segunda precisar tocar linha que a primeira já tocou, ela vai numa migration NOVA (com o
+  par dela). No CI cada comando confirma sozinho: a segunda passada que colidir (`23505`) deixaria a primeira aplicada.
 - **Retenção:** os pares ficam até uma migration DESTRUTIVA nomeada apagá-los — no mínimo 90 dias depois do apply em
   produção.
 
@@ -1565,8 +1569,8 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
 
 - **`0159`→`0161` — `empresa_id` no acervo (lote 1) e a tabela do par de backup** (F63, 23/09/2026, v1.68.0).
   `0159_backups_migration` (ADITIVA: a tabela fechada no molde de `ambiente`), `0160_empresa_no_acervo_cadastros`
-  (`colaboradores`, `itens`, `termos_gerados`, `anotacoes`) e `0161_empresa_no_acervo_movimento` (`movimentacoes`,
-  `lancamentos_item`, `ativos`, `pendencias_item`): `add column empresa_id uuid not null default public.empresa_legada()
+  (`colaboradores`, `itens`, `termos_gerados`, `anotacoes`) e `0161_empresa_no_acervo_movimento` (`ativos`,
+  `movimentacoes`, `pendencias_item`, `lancamentos_item`, na ordem de lock do app): `add column empresa_id uuid not null default public.empresa_legada()
   references public.empresas (id)`, SEM update, com `lock_timeout` de 2 s. Ledger: `backups_migration`,
   `empresa_no_acervo_cadastros`, `empresa_no_acervo_movimento`. **O portão** é a impressão do acervo
   (`docs/f63-evidencias/impressao-acervo.sql`) antes × depois: `relfilenode` e md5 de `(id, xmin)` iguais nas oito.
