@@ -532,3 +532,10 @@ begin
 end $$;
 
 rollback;
+
+-- A IMPRESSÃO DO CATÁLOGO DEPOIS DA CADEIA (PLAN-F65, decisão 14). O MESMO texto que o apply roda nos bancos vivos
+-- (docs/f65-evidencias/impressao-catalogo.sql), impresso no log do CI: "o catálogo depois igual ao do CI" compara os md5
+-- de cada seção (fks, uniques, pais, gatilhos, advisory). Só leitura de catálogo, fora da transação e DEPOIS do FIM — não
+-- conta asserção. As funções são comparadas pelo `md5_sem_as_da_f65` só entre os dois bancos vivos: o corpo vivo de duas
+-- funções antigas difere do arquivo (registrado desde a F64), então o CI não é a régua dessa seção.
+\ir ../../docs/f65-evidencias/impressao-catalogo.sql
