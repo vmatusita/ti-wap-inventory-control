@@ -13364,3 +13364,14 @@ contrato sem prova.
   régua: o 15h passa a cobrir as **dezenove** (os dois lotes — a decisão 7 já dizia dezenove, e o bloco 6 da F63 isenta o
   núcleo pelo nome), e a caixa deixa de esconder (`lower` no SQL, `/i` no disco). 6e no roteiro (oito casos), sete casos
   novos na mesa. **Motivo:** a exceção nominal é estreita por construção — o que ela não prova, ela não lê.
+- **(j) O apply e o fecho (23/09/2026, tarde).** SHA de código congelado `65958b5` (CI `35907393720`: 46 roteiros · 1045
+  asserções · injetor 138/138 · tipos 38·358·94). O "antes" refeito logo antes de cada apply saiu IDÊNTICO ao das 14:40/14:50
+  nos dois bancos. Apply pelo `apply_migration` do MCP, texto exato do arquivo, uma chamada por migration: ensaio
+  19:16:22–19:17:53 UTC, produção 19:24:15–19:25:48 UTC, **nenhum `lock_timeout` disparou** (primeira tentativa em todas).
+  **Escolha nova:** uma sonda de EXATIDÃO (`docs/f64-evidencias/exatidao-pos-apply.sql`) — o md5 dos 11 comentários de
+  coluna e do corpo e do comentário das duas funções contra o calculado dos arquivos —, porque o texto do apply vai colado
+  na chamada e o ledger não é autoridade (ADR-003); ela fechou byte a byte nos dois bancos. Nas onze, `relfilenode` e os
+  dois md5 iguais antes × depois nos dois bancos, janela 0; policies, advisor e paridade (11 classes) iguais; tipos do
+  MCP iguais nos dois bancos e ao `database.ts` fora do hand-fix e da exceção da F62. Smoke 109 OK · 0 falha e conferidor
+  0 recusadas logo depois do apply; merge `e55c77f` às 19:32:31 UTC; `/api/saude` 1.69.0 às 19:33:33 UTC (janela
+  apply × deploy de ~7 min 45 s, sem Parte B dentro); Parte B à mão verde com 13 chaves e a `0164` no topo do ledger.

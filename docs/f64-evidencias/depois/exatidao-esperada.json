@@ -1,0 +1,26 @@
+{
+  "colunas": {
+    "import_prefixos_patrimonio": "0a35dbe0cb6d619dedd65614ae043c18",
+    "import_termos_categoria": "1daadf914e7f6520fa39a8b0924ca7e3",
+    "import_termos_estado": "59626171b1460210098a893aefae2184",
+    "unidades_apelidos": "580d36c8bed354ed3bba65644a2949ab",
+    "tipos_item": "458849ec41a9d298e72eca757af5d3d1",
+    "motivos": "df7e2d76d4cc444ad0031e49d9162fd1",
+    "kits_modelos": "61f8b3f25a84a598884b013580a8fd58",
+    "senhas_acesso": "0b486b11da569dd8c3e6b1f66ac0db3b",
+    "relatorios_gerados": "0c08f47011d1382c9eb3c9406fc44488",
+    "import_logs": "c4e1a861ee18788e5dadc5207ddc72eb",
+    "eventos_admin": "116dbfbef11f01b195f6b148372f3bba"
+  },
+  "funcoes": {
+    "kit_motivo_da_empresa": {
+      "prosrc": "6f079b4c53fc090baf5cc1a4b0f7ce10",
+      "comentario": "63d3a2c62bff9492acf35cd50f7be36c"
+    },
+    "checagens_integridade_nucleo": {
+      "prosrc": "e26dec806914814bafc7c4250107691a",
+      "comentario": "c22554d0aab51fb0a70d37476f6c45c8"
+    }
+  },
+  "n_colunas": 11
+}

@@ -1,0 +1,873 @@
+# F64 — a saída VERDE da mesa (vitest) das travas TS da fase, no SHA de código congelado 65958b5
+# Sabotagens A (describe 13), D (rate-limit), F (ninguém lê, TS e disco), G (a chave nova e o alarme), H (rollback-f64), I (os escritores); gerado por script, sem edição à mão.
+
+
+ RUN  v4.1.11 C:/Users/victor.matusita/ti-wap-inventory-control
+
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda migration listada como da fase existe no disco 12ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > NENHUMA função intocável é recriada pelas migrations da fase 109ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — hoje-zero e catraca > tudo igual à linha de base: verde 5ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — hoje-zero e catraca > chave HOJE-ZERO com um achado: vermelho 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — hoje-zero e catraca > chave com CATRACA no número exato da base: verde (não alarma o que já existia) 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — hoje-zero e catraca > chave com CATRACA que PASSA da base: vermelho 2ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — hoje-zero e catraca > chave ABAIXO da base não alarma, mas avisa que a base pode descer 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — FECHA EM FALHA > chave que o resumo devolveu e a política não conhece: vermelho 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — FECHA EM FALHA > chave que a política espera e o resumo NÃO devolveu: vermelho 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — FECHA EM FALHA > total ilegível é achado, não é zero 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — FECHA EM FALHA > resumo VAZIO alarma nas doze — nunca fica verde por não ter o que olhar 2ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > filtrarPorReleitura — a falha passageira NÃO abre issue > CASO 3 DA ORDEM: achado que some na releitura é descartado 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > filtrarPorReleitura — a falha passageira NÃO abre issue > achado que SOBREVIVE à releitura alarma 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > filtrarPorReleitura — a falha passageira NÃO abre issue > chave SEM releitura declarada alarma na primeira leitura 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > CASO 1 DA ORDEM: A verde NÃO fecha o alarme que B abriu 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > CASO 2 DA ORDEM: verde no ENSAIO não fecha alarme de PRODUÇÃO 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > vermelho sem issue: abre 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > vermelho com o MESMO estado: atualiza o corpo, SEM comentar (nada de spam) 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > vermelho com estado DIFERENTE: comenta 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > verde sem issue: nada — o dia normal 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > vermelho com a impressão null (a marca sumiu do corpo): ATUALIZA em silêncio, não comenta 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > vermelho com a impressão undefined (a marca sumiu do corpo): ATUALIZA em silêncio, não comenta 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > decidirIssue — o estado é POR PAR (alvo, parte) > mas a impressão VAZIA continua sendo uma medição, e não uma dúvida 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > vai e volta inteira 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > a medição vazia volta como STRING vazia, não como dúvida 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > sem marca legível ( → corpo vazio): devolve null, que é "não sei" 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > sem marca legível (## O que falhou
+
+alguém reescreveu o corpo à mão → a marca foi apagada): devolve null, que é "não sei" 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > sem marca legível (<!-- f55-impressao: sem o fechamento → a marca ficou pela metade): devolve null, que é "não sei" 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > sem marca legível (<!-- outra-marca: x --> → a marca é de outra coisa): devolve null, que é "não sei" 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > corpo ausente não derruba a leitura 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > a marca da impressão no corpo da issue > PONTA A PONTA: o corpo que o alarme escreve devolve a MESMA decisão no run seguinte 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > impressaoDoEstado > não muda quando só a ordem dos achados muda 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > impressaoDoEstado > MUDA quando um total muda 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > impressaoDoEstado > MUDA quando entra uma chave nova 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > corpoDoAlarme — nunca amostra, nunca nome, nunca patrimônio > leva a chave, o total, a base e o link 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > corpoDoAlarme — nunca amostra, nunca nome, nunca patrimônio > não tem por onde receber amostra — um campo extra no achado é ignorado 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > corpoDoAlarme — nunca amostra, nunca nome, nunca patrimônio > diz que fecha sozinha 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > tabelaDoResumo — a série temporal de custo zero > marca ✗ acima, ↓ abaixo, ✓ igual e ⚠ ausente 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > linha-de-base.json > tem os dois alvos, com as MESMAS treze chaves 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > linha-de-base.json > todo total é inteiro não-negativo — e NUNCA uma amostra 4ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > linha-de-base.json > escreve, no próprio arquivo, que SUBIR a base é decisão do Johnny 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > linha-de-base.json > declara a releitura de confirmação da 12ª, com o motivo 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > linha-de-base.json > os dois alvos DIVERGEM — é por isso que a base é por alvo 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge > com a linha de base do arquivo (alvo producao) e kit_motivo_orfao em 0: verde 0ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge > com a linha de base do arquivo (alvo ensaio) e kit_motivo_orfao em 0: verde 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge > com a linha de base de ANTES (sem a chave): a mesma medição abre o alarme "que a política não conhece" 1ms
+ ✓ |puro| scripts/smoke/alarme.test.mts > avaliarIntegridade — a chave nova da F64 e a ordem do apply × merge > a linha de base do arquivo NÃO sobe: as doze chaves antigas continuam com os números de 10/09/2026 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal é exaustiva — a migration liberada não recria nada além do declarado 48ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > NENHUMA função intocável é derrubada pelas migrations da fase, fora da exceção nominal (F60) 67ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção de remoção é exaustiva — a migration liberada não derruba nada além do declarado 12ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda intocável derrubada tem a sucessora criada ANTES, e a sucessora é intocável (F60) 51ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop function` acha o que o apply derruba, e só isso (guarda da guarda) 13ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga o nome citado (guarda da guarda) 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga o esquema e o nome citados (guarda da guarda) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga `drop routine` (guarda da guarda) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga `DROP ROUTINE` em maiúsculas, nu, com `cascade` (guarda da guarda) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga sem a lista de argumentos (guarda da guarda) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga espaço em volta do ponto e dos parênteses, com `restrict` (guarda da guarda) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` enxerga vírgula e parêntese dentro de citado, tipo citado e tipo com precisão (guarda da guarda) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > um derrubado citado com OUTRA grafia não vira a intocável (o Postgres distingue, a guarda também) 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: um `&` depois do nome (o `U&"…"`) 2ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: aspa sem fecho 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: parêntese sem fecho 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `drop` LANÇA no que não sabe ler, em vez de devolver menos: nome que não é identificador 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a leitura de `create function` enxerga o nome citado e LANÇA sem a lista de argumentos (guarda da guarda) 8ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118 25ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > catalogo_policies.sql existe 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > catalogo_secdef.sql existe 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > isolamento_tenant.sql existe 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > catalogo_policies emite UMA linha `FIM` no molde da F45, fechando o bloco 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > catalogo_secdef emite UMA linha `FIM` no molde da F45, fechando o bloco 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > isolamento_tenant emite UMA linha `FIM` no molde da F45, fechando o bloco 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > catalogo_policies conta asserções de verdade (v_ok/v_falhas declarados) 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > catalogo_secdef conta asserções de verdade (v_ok/v_falhas declarados) 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 1. os três roteiros novos existem e seguem o molde do runner > isolamento_tenant conta asserções de verdade (v_ok/v_falhas declarados) 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_policies não usa a forma `left(<coluna>, 1) <> '_'` 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_policies não usa a forma `like '\_%' / not like '\_%'` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_policies não usa a forma `substring(<coluna>, 1, 1)` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_policies não usa a forma `starts_with(<coluna>, '_')` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_policies não usa a forma `relname ~ '^_'` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_secdef não usa a forma `left(<coluna>, 1) <> '_'` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_secdef não usa a forma `like '\_%' / not like '\_%'` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_secdef não usa a forma `substring(<coluna>, 1, 1)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_secdef não usa a forma `starts_with(<coluna>, '_')` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > catalogo_secdef não usa a forma `relname ~ '^_'` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > isolamento_tenant não usa a forma `left(<coluna>, 1) <> '_'` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > isolamento_tenant não usa a forma `like '\_%' / not like '\_%'` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > isolamento_tenant não usa a forma `substring(<coluna>, 1, 1)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > isolamento_tenant não usa a forma `starts_with(<coluna>, '_')` 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > isolamento_tenant não usa a forma `relname ~ '^_'` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 2. nenhuma isenção por PREFIXO — a regressão exata que a F47 arrancou > o casador sabe reprovar (guarda do próprio teste) 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > há exceções para conferir (guarda do próprio teste) 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies / k_sem_select: a exceção `senhas_acesso` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies / k_sem_select: a exceção `senha_tentativas` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies / k_sem_select: a exceção `ambiente` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies / k_sem_select: a exceção `empresas` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies / k_sem_select: a exceção `plataforma_admins` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies / k_sem_select: a exceção `backups_migration` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_secdef / k_invoker_revogadas: a exceção `chave_identidade_ativo` tem motivo escrito E a migration na mesma linha 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_secdef / k_invoker_revogadas: a exceção `hoje_brt` tem motivo escrito E a migration na mesma linha 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_secdef / k_invoker_revogadas: a exceção `mov_da_carga_import` tem motivo escrito E a migration na mesma linha 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_secdef / k_invoker_revogadas: a exceção `status_apos_movimentacao` tem motivo escrito E a migration na mesma linha 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_secdef / k_invoker_revogadas: a exceção `valida_lancamento_item` tem motivo escrito E a migration na mesma linha 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies: a exceção `senhas_acesso` cita nominalmente a migration 0012 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies: a exceção `senha_tentativas` cita nominalmente a migration 0025 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_policies: a exceção `ambiente` cita nominalmente a migration 0090 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > catalogo_secdef: a exceção `valida_lancamento_item` cita nominalmente a migration 0038 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 3. toda exceção NOMINAL vem com motivo escrito e a migration que a criou > a régua sabe reprovar os três casos que ela cobre (guarda do próprio teste) 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `pg_policies` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `pg_publication_tables` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `pg_publication` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `'storage'` 6ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `supabase_realtime` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `relforcerowsecurity` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `papel_atual` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_policies cita `bucket_id` 5ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `prosecdef` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `proconfig` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `has_function_privilege` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `'anon'` 1ms
+ ✓ |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > a RPC do contador é chamada com o IP do cliente (o primeiro do x-forwarded-for) 62ms
+ ✓ |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `error` na RPC: RECUSA — nenhuma senha lida nem conferida, nenhum cookie, nenhum redirect 2ms
+ ✓ |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `error`: registra a falha UMA vez, com escopo próprio e SEM o IP em lugar nenhum do argumento 1ms
+ ✓ |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `error`: a mensagem é genérica — a MESMA para qualquer senha, e não é a de senha errada 2ms
+ ✓ |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `data: true`: "Muitas tentativas…", sem ler nem conferir senha 1ms
+ ✓ |puro| src/lib/actions/senhas-rate-limit.test.ts > entrarComSenha — o contador de tentativas falha FECHADO (F64, sabotagem D) > com `data: false`: segue — lê as senhas ativas, confere, cria o cookie e redireciona 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhum valor novo de enum entra na fase 27ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration da fase apaga registro do acervo AO SER APLICADA 226ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `valida_lancamento_item` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `p_filiais` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `proargnames` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `prosrc` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > catalogo_secdef cita `proargtypes` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > isolamento_tenant cita `grant select on` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > isolamento_tenant cita `grant insert, update, delete on` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > isolamento_tenant cita `grant update (primeiro_nome, sobrenome)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > isolamento_tenant cita `rolbypassrls` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > isolamento_tenant cita `has_table_privilege` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 4. cada catálogo lê a superfície que promete ler > isolamento_tenant cita `set local role authenticated` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 5. `isolamento_tenant` é honesto sobre o que ainda não sabe > vê a coluna do ACERVO só pelo CATÁLOGO — nenhum comando compara empresa_id de tabela de negócio com um valor (até a F66) 11ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 5. `isolamento_tenant` é honesto sobre o que ainda não sabe > a régua do recorte sabe reprovar, e distingue a completude (guarda do próprio teste) 8ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 5. `isolamento_tenant` é honesto sobre o que ainda não sabe > os comandos do roteiro vêm do léxico único: o `;` de dentro de um texto não esconde o recorte 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 5. `isolamento_tenant` é honesto sobre o que ainda não sabe > o cabeçalho DIZ o que a F63 e a F64 preencheram e o que falta (F66 para a leitura) 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 5. `isolamento_tenant` é honesto sobre o que ainda não sabe > traz a convenção de honestidade escrita no cabeçalho 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 5. `isolamento_tenant` é honesto sobre o que ainda não sabe > protege o bloco de grants com a trava do UPDATE de tabela em `profiles` 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > catalogo_policies não reimplementa `relrowsecurity (RLS ligada)` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > catalogo_policies não reimplementa `security_invoker (views)` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > catalogo_secdef não reimplementa `relrowsecurity (RLS ligada)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > catalogo_secdef não reimplementa `security_invoker (views)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > isolamento_tenant não reimplementa `relrowsecurity (RLS ligada)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > isolamento_tenant não reimplementa `security_invoker (views)` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > catalogo_policies aponta para `seguranca_catalogo.sql` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > catalogo_secdef aponta para `seguranca_catalogo.sql` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > isolamento_tenant aponta para `seguranca_catalogo.sql` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > `seguranca_catalogo.sql` aponta de volta para os catálogos novos 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 6. a Decisão 2 continua valendo: UMA fonte por fato > o casador distingue `relrowsecurity` de `relforcerowsecurity` (guarda do próprio teste) 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_negocio` é conferido nos dois sentidos 4ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_infra` é conferido nos dois sentidos 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_sem_select` é conferido nos dois sentidos 7ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_storage` é conferido nos dois sentidos 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_realtime` é conferido nos dois sentidos 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_policies_public` é conferido nos dois sentidos 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies: `k_excecoes_predicado` é conferido nos dois sentidos 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_secdef: `k_secdef` é conferido nos dois sentidos 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_secdef: `k_invoker_anon` é conferido nos dois sentidos 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_secdef: `k_excecoes_recorte` é conferido nos dois sentidos 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > o casador dos dois sentidos sabe reprovar (guarda do próprio teste) 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies usa `assert_zero_de` — o universo é PROVADO, não presumido 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_secdef usa `assert_zero_de` — o universo é PROVADO, não presumido 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > isolamento_tenant usa `assert_zero_de` — o universo é PROVADO, não presumido 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_policies não contém a forma tautológica `if v_x = 0 then v_ok+1` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > catalogo_secdef não contém a forma tautológica `if v_x = 0 then v_ok+1` 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > isolamento_tenant não contém a forma tautológica `if v_x = 0 then v_ok+1` 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 7. os catálogos são DERIVADOS, não listas que afirmam > o casador da tautologia sabe reprovar, e distingue a forma composta (guarda do próprio teste) 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 8. os roteiros novos não escrevem onde não devem > catalogo_policies é SÓ LEITURA (sem begin/rollback, porque não grava) 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 8. os roteiros novos não escrevem onde não devem > catalogo_secdef é SÓ LEITURA (sem begin/rollback, porque não grava) 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 8. os roteiros novos não escrevem onde não devem > `isolamento_tenant` planta fixture e por isso VAI dentro de begin/rollback 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 8. os roteiros novos não escrevem onde não devem > catalogo_policies não aponta para produção nem para dado real 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 8. os roteiros novos não escrevem onde não devem > catalogo_secdef não aponta para produção nem para dado real 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 8. os roteiros novos não escrevem onde não devem > isolamento_tenant não aponta para produção nem para dado real 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 9. o bloco de grants e os arrays que o espelham não se separam > a leitura do fonte funciona (guarda do próprio teste) 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 9. o bloco de grants e os arrays que o espelham não se separam > LEITURA: o bloco de grants e `k_leitura` são o MESMO conjunto 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 9. o bloco de grants e os arrays que o espelham não se separam > ESCRITA: o bloco de grants e `k_escrita` são o MESMO conjunto 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 10. a lista única de exceções da doutrina do predicado (F59) > há exceções para conferir, e nenhuma fora do formato (guarda do próprio teste) 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 10. a lista única de exceções da doutrina do predicado (F59) > toda entrada é por OCORRÊNCIA e aponta uma migration que existe 14ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 10. a lista única de exceções da doutrina do predicado (F59) > a régua do formato sabe reprovar (guarda do próprio teste) 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 11. a lista única de exceções do recorte das rel_* (F60, bloco 7) > há exceções para conferir, e nenhuma fora do formato (guarda do próprio teste) 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 11. a lista única de exceções do recorte das rel_* (F60, bloco 7) > toda entrada é um nome rel_* e aponta uma migration que existe 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 11. a lista única de exceções do recorte das rel_* (F60, bloco 7) > a régua do formato sabe reprovar (guarda do próprio teste) 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 12. o lote 1 da chave de recorte (F63): a lista das oito mora numa fonte só, e a trava a lê do catálogo > k_lote1 são as oito tabelas do acervo da ficha F63 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 12. o lote 1 da chave de recorte (F63): a lista das oito mora numa fonte só, e a trava a lê do catálogo > o bloco 5 confere a lista contra k_negocio (15a) e contra o catálogo (15b/15c), com o default pelo pg_depend 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 12. o lote 1 da chave de recorte (F63): a lista das oito mora numa fonte só, e a trava a lê do catálogo > os roteiros da F63 que listam as oito tabelas listam EXATAMENTE k_lote1 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > k_lote2 são as onze tabelas da ficha F64 (as sete de negócio e as quatro do vocabulário do import) 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > os dois lotes são disjuntos, e com filiais são k_negocio INTEIRO (nenhuma tabela de negócio sem a chave) 0ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > as exceções de leitura são as DUAS leituras de integridade do kit, e só elas 1ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > o bloco 5 confere o lote 2 contra k_negocio (15d) e contra o catálogo (15e), e a pendência REPROVA (15f) 3ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > as tabelas que as exceções podem ler são as duas do kit, e só elas 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > 15h usa o predicado ÚNICO por comando (revisão adversarial da F64), e 15j confere as exceções de volta (os dois sentidos) 5ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > 15h sabe reprovar a isenção reintroduzida com outro alias (a trava acima, sabotada) 2ms
+ ✓ |puro| src/lib/validators/catalogos-seguranca.test.ts > 13. o lote 2 da chave de recorte (F64): a lista das onze e as exceções de leitura moram numa fonte só > os roteiros da F64 que listam as onze tabelas ou as exceções listam EXATAMENTE a fonte única 5ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal da guarda de topo é exaustiva — a migration liberada escreve exatamente o declarado 20ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a exceção nominal da guarda de topo é FECHADA: nenhuma chave a partir da 0159, e toda uma com motivo 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > SEM a exceção, a 0133 real reprova — a guarda VÊ o `do` e o alias (sabotagem B) 21ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a varredura de DELETE ainda reprova um comando de TOPO (guarda da guarda) 10ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) declarada DESTRUTIVA, com justificativa — a classe não destrava 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do $$ … $$` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do $rotulo$ … $rotulo$`, depois de um `$$` num comentário 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com alias (a forma da 0133) 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com `only` e nome citado 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num CTE (`with … update`) 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `merge into` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `truncate` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `insert … on conflict do update` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `create function … $function$` — IGNORADO 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num comentário de fim de linha — IGNORADO 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) num comentário de bloco aninhado — IGNORADO 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `revoke truncate on public.ativos` — não é truncate 0ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) por um nome renomeado de ida e volta 2ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) por um nome renomeado, com `delete` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) depois de `set schema` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) por uma view criada no arquivo 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a cópia transformada que assume o nome (rename duplo) 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) outra tabela que já existia renomeada para o nome (só DDL) 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) só o destino: outra tabela renomeada PARA o nome 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a volta ao `public` com o nome da guardada 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) dentro de `do` 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `drop table`, declarada DESTRUTIVA 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) `drop table` numa lista 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) o que NÃO é troca: `rename` de outra tabela, `drop table` de nome parecido, `rename constraint` — IGNORADO 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a prosa num `comment on column … is` — IGNORADA 3ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a prosa num `raise notice` dentro de `do` — IGNORADA 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) a prosa num CHECK — IGNORADA 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a guarda de topo acusa (ou ignora) com o nome citado, mesmo lendo o texto mascarado 1ms
+ ✓ |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda função NOVA da fase é declarada security invoker 17ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > divergencias — a comparação > conjuntos iguais não acusam 4ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > divergencias — a comparação > acusa nos DOIS sentidos, nomeando de que lado sobra 2ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > divergencias — a comparação > SABOTAGEM: chave de `CHECAGENS` sem política de alarme é acusada 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > chavesDoNucleo / chavesDoCatalogo — os leitores > lê a chave de um bloco de `return query` 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > chavesDoNucleo / chavesDoCatalogo — os leitores > lê a chave de uma entrada do catálogo 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > chavesDoNucleo / chavesDoCatalogo — os leitores > reclama alto quando o catálogo muda de forma 2ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > os TRÊS conjuntos concordam > os três encontram TREZE chaves (guarda do próprio teste) 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > os TRÊS conjuntos concordam > o SQL do núcleo e o catálogo da tela têm as MESMAS chaves 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > os TRÊS conjuntos concordam > a política do alarme do alvo `producao` cobre exatamente as chaves do SQL 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > os TRÊS conjuntos concordam > a política do alarme do alvo `ensaio` cobre exatamente as chaves do SQL 0ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > os TRÊS conjuntos concordam > a função-núcleo é a fonte VIGENTE do SQL das treze (e ninguém mais o tem) 11ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > no SQL vigente de checagens_integridade_nucleo() 2ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > no catálogo curado CHECAGENS, com nome e descrição próprios (não a descrição de chave desconhecida) 1ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > na linha de base do alvo `producao`, com 0 (chave NOVA, não subida) 0ms
+ ✓ |puro| scripts/smoke/cobertura.test.mts > a chave da F64 (kit_motivo_orfao) está nos TRÊS lugares > na linha de base do alvo `ensaio`, com 0 (chave NOVA, não subida) 0ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte > o módulo tem actions exportadas (a varredura não está passando a seco) 3ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte > toda action de GESTÃO de senha chama exigirAdmin 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte > testarSenhaAcesso devolve só o veredito — nunca o hash nem o texto digitado 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte > nenhuma senha em claro vai para o banco 0ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte > a trilha de auditoria não recebe hash nem senha 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > entrarComSenha lê o error do contador e recusa com ele antes de ler e conferir senha 2ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > a forma que falhava ABERTO não está no módulo 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > a trava reconhece a forma de antes da F64 (o error descartado) 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > a trava reconhece o error lido e só registrado, sem recusar 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > a trava reconhece o error recusado DEPOIS de ler as senhas 1ms
+ ✓ |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — o rate-limit falha FECHADO (F64) > a trava reconhece a forma certa 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a lista das oito vem de k_lote1 (catalogo_policies.sql) e tem as oito 4ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a lista das onze vem de k_lote2 (catalogo_policies.sql) e tem as onze (F64) 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > o universo NÃO é vazio: há consultas às dezenove tabelas, e cada uma é consultada 2ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta de tabela DINÂMICA (`.from(variavel)`) cita empresa_id 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a exceção nomeada ainda existe (a lista não guarda fantasma) 2ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > o universo de arquivos é todo fonte JS/TS de src/** — `.mts`, `.cts`, `.js` e `.jsx` também, teste fora 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.eq(empresa_id)` em ativos 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.select(id, empresa_id)` em ativos, em várias linhas 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.match({ empresa_id })` em itens 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `?.` e argumento de tipo 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma com `select` citando a coluna 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma com `ordem` pela coluna 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.eq(empresa_id)` em eventos_admin (F64) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura `.select(id, empresa_id)` em senhas_acesso (F64) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura descritor de forma de motivos citando a coluna (F64) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: o lote 2 SEM a coluna 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: tabela da F62 (membros) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: a cadeia das oito SEM a coluna 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: empresa_id num COMENTÁRIO 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > a varredura par legítimo: empresa_id DEPOIS da cadeia, noutra instrução 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar 328ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > nenhum trecho liberado parte de uma das oito 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > toda entrada da catraca tem motivo escrito 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta a coluna numa constante 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta o texto partido 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta o template 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca conta o construtor reatribuído noutra instrução 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a troca 1-por-1 no mesmo arquivo muda o trecho — a contagem ficaria igual (2ª rodada) 2ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > a catraca não conta o comentário (o par legítimo) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > o universo não é vazio: há funções vigentes que tocam as oito 3ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > nenhuma função vigente lê empresa_id de uma das dezenove (fora da leitura do kit nas duas exceções nominais) 10ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > as exceções nominais (k_leitura_integridade) são as duas do kit, cada uma é função vigente, e cada uma LÊ (a lista não guarda fantasma) 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64) — a exceção lendo kits_modelos e motivos (a leitura do kit) 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64) — a exceção lendo a coluna de OUTRA tabela do lote 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64) — uma função que NÃO é exceção lendo motivos.empresa_id 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64) — uma função que não é exceção lendo tipos_item.empresa_id sem qualificador 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > nas duas exceções, a origem de cada x.empresa_id do corpo vigente é PROVADA no próprio comando 4ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > o gatilho do kit está só em kits_modelos (o new/old dele vale); o núcleo não é gatilho (o dele não vale) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — a variável de registro de eventos_admin (dois comandos) 2ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — a variável de registro de kits_modelos — nem do kit ela se prova 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — new.empresa_id numa função sem gatilho no kit 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — o apelido de subselect 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — o `is distinct from` não faz da variável de registro uma tabela 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — em MAIÚSCULAS, de outra tabela do lote 1ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — par legítimo: o apelido de membros e o de motivos, declarados no comando 2ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F64, 2ª rodada) — par legítimo: a leitura do kit pelo gatilho do kit 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo lendo movimentacoes.empresa_id pelo alias 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo filtrando ativos por empresa_id sem qualificador 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um corpo gravando empresa_id em itens 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: membros.empresa_id 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo) 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — `select … into v_n from` a tabela das oito 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — pelo apelido de um SUBSELECT sobre uma das oito 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — pelo apelido de um CTE sobre uma das oito 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: o apelido de um subselect sobre membros 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — um `;` num texto entre o alias e a leitura 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — a leitura dentro do corpo dollar-quoted de uma função 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — par legítimo: `empresa_id` só dentro de um texto 0ms
+ ✓ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM I (disco) — em MAIÚSCULAS 0ms
+ ✓ |puro| src/lib/validators/rollback-f64.test.ts > o rollback da F64 (supabase/rollback/F64-desfaz.sql) é COMPLETO contra as migrations > a F64 criou a função do gatilho do kit e recriou o núcleo da integridade (guarda do próprio teste) 4ms
+ ✓ |puro| src/lib/validators/rollback-f64.test.ts > o rollback da F64 (supabase/rollback/F64-desfaz.sql) é COMPLETO contra as migrations > kit_motivo_da_empresa/0 é derrubada 0ms
+ ✓ |puro| src/lib/validators/rollback-f64.test.ts > o rollback da F64 (supabase/rollback/F64-desfaz.sql) é COMPLETO contra as migrations > checagens_integridade_nucleo/0 volta com o corpo vigente ANTES da 0162, byte a byte 1ms
+ ✓ |puro| src/lib/validators/rollback-f64.test.ts > o rollback da F64 (supabase/rollback/F64-desfaz.sql) é COMPLETO contra as migrations > o gatilho do kit sai ANTES da função dele (a ordem inversa do apply) 1ms
+ ✓ |puro| src/lib/validators/rollback-f64.test.ts > o rollback da F64 (supabase/rollback/F64-desfaz.sql) é COMPLETO contra as migrations > tira empresa_id das onze de k_lote2 — e o passo 1 (a 0164) vem antes dos das colunas 10ms
+ ✓ |puro| src/lib/validators/rollback-f64.test.ts > o rollback da F64 (supabase/rollback/F64-desfaz.sql) é COMPLETO contra as migrations > sem begin/commit próprios (quem roda decide a transação) e com lock_timeout por set/reset 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > tem entre 20 e 138 mutações ATIVAS 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > os `id` são únicos 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > os `id` da quarentena não colidem com os do lote ativo 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-movimentacao-confia-na-filial-declarada` tem todos os campos obrigatórios 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-lancamento-de-item-confere-papel-e-esquece-filial` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-edicao-de-ativo-confere-papel-e-esquece-filial` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-piso-de-leitura-aberto-em-ativos` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-desligada-em-senhas-de-acesso` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-auditoria-visivel-a-quem-escreve` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-trilha-do-import-visivel-a-quem-escreve` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-bucket-de-backup-visivel-a-quem-escreve` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rls-termo-perde-as-invariantes-da-ancora` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ancora-do-termo-sempre-coerente` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `leitura-de-colaboradores-sem-piso` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-rls-desligada-numa-tabela` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-tabela-de-backup-sem-rls` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-view-sem-security-invoker` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-funcao-gatilho-executavel-por-authenticated` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-gatilho-de-lancamento-vira-definer` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-rpc-de-escrita-executavel-por-anon` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `dev-guarda-de-gestao-aceita-nivel-admin` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `dev-apagar-conta-aceita-nivel-admin` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `dev-encerrar-sessoes-aceita-nivel-admin` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `dev-trigger-deixa-conceder-cargo-por-update-direto` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `dev-auxiliar-de-gestao-executavel-por-authenticated` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `gestao-encerrar-sessoes-mira-o-alvo-errado` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `destrutivo-justificativa-sem-tamanho-minimo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `destrutivo-guarda-do-acervo-aceita-update` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `destrutivo-guarda-do-acervo-aceita-delete` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-sem-revalidacao-de-contagens` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-revalidacao-nao-compara-o-vivo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-revalidacao-ignora-pendencia-nova-do-acervo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-sem-exigencia-de-backup` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-trilha-do-apagado-mente-nas-anotacoes` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-ativo-nasce-sem-origem-importacao` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-compra-de-abertura-sem-marcador` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-conferencia-de-estado-cega` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-contagem-de-conflitos-mentida` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-auxiliar-destrutiva-vira-api` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-trilha-com-id-perdido` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-nao-desvincula-lancamento-da-pendencia` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-nao-desvincula-lancamento-da-movimentacao` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-nao-apaga-pendencias-do-acervo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `import-nao-anula-ponteiro-de-substituto` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `conflito-justificativa-sem-tamanho-minimo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `conflito-confirmacao-com-numero-errado-aceita` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `conflito-backup-em-arquivo-sem-prefixo-do-digest` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-tabela-nova-nao-classificada` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-policy-volta-a-ser-sempre-verdadeira` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-force-row-level-security-ligado` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-tabela-nova-na-publication-do-realtime` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-storage-decide-so-por-bucket` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-security-definer-nova-nao-classificada` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-security-definer-com-search-path-solto` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `catalogo-security-definer-executavel-por-anon` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-escopo-de-gestao-some-do-corpo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-escopo-de-gestao-passa-a-recusar` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-admin-ativo-volta-a-igualdade-crua` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-import-perde-a-guarda-de-filial` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-backup-do-import-aceita-qualquer-prefixo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-import-volta-a-nao-conferir-confirmacao` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-import-perde-a-janela-de-idempotencia` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f52-mesa-perde-a-guarda-de-pertencimento` tem todos os campos obrigatórios 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f53-asof-volta-ao-desempate-por-id` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f53-trava-do-estorno-volta-ao-uuid` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f53-asof-passa-a-ordenar-so-por-ordem` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ordem-deixa-de-ser-generated-always` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `indice-unico-da-ordem-sumiu` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `guarda-acervo-aceita-forcado-fora-da-janela` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `trigger-para-de-abrir-pendencia-de-item` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `nucleo-perde-uma-checagem` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `resumo-de-integridade-alcancavel-por-anon` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `resumo-de-integridade-devolve-amostra` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `rotulo-de-ambiente-alcancavel-por-authenticated` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `vocabulario-perde-a-guarda-de-ambiguidade` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `vocabulario-perde-o-indice-de-nome-unico` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-policy-renomeada-escapa-do-universo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-arvore-com-no-que-o-analisador-nao-le` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-leitura-passa-a-linha-para-funcao` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-excecao-sobrevive-ao-conserto` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-funcao-sem-argumento-solta` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-subselect-le-tabela` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-subselect-olha-a-linha` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `doutrina-array-sobre-funcao-que-nao-devolve-conjunto` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-recorte-volta-a-is-null-or` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-rel-nova-sem-recorte` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-rel-vira-strict` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-rel-perde-execute-do-service-role` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-excecao-apodrece` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-excecao-ganha-overload` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-asof-pre-filtra-pela-filial-de-hoje` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f60-saldo-consolidado-so-das-ativas` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `reaud-u-escrita-atomica-sem-guarda-de-zero-linhas` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `u151-service-tag-sobrescreve-a-que-ja-existe` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `u151-confirmacao-em-dobro` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `u151-desfazer-o-que-nao-esta-confirmado` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `reaud-ae-ledger-sem-guarda-de-papel` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-estorno-sem-guarda-de-identidade` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-estorno-sem-recusa-de-origem-ausente` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-estorno-aceita-origem-de-outro-ativo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-pendencia-de-termo-ressuscita-itens-faltantes` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-estorno-deixa-pendencias-de-item` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-destino-volta-a-cobrir-so-transferencia` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-ajuste-sem-justificativa` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-detentor-fantasma-sobrevive` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-pendencia-de-item-sem-colaborador-da-epoca` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `ag-auxiliar-executavel-por-authenticated` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-empresas-do-membro-esquece-ativo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-empresas-de-escrita-aceita-consulta` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-empresas-de-admin-aceita-operador` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-unidades-de-escrita-cruza-empresa` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-e-plataforma-responde-por-qualquer-um` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-ponte-esquece-arquivado` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-ponte-esquece-inativo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-ponte-responde-pela-empresa-errada` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-vinculo-de-qualquer-membership` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-outro-admin-conta-inativo` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-guarda-de-gestao-le-o-cargo-congelado` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-guarda-do-dev-em-membros-neutralizada` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-handle-new-user-sem-membership` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-definir-papel-grava-a-coluna-congelada` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-definir-status-grava-a-coluna-congelada` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-apagar-nao-desativa-memberships` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-guarda-de-profiles-esquece-a-membership` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-guarda-de-profiles-aceita-a-escrita-antiga` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-membros-com-force-rls` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f62-vinculo-sem-fk-composta-de-membro` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f63-lote1-default-literal` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f63-lote1-sem-not-null` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f63-lote1-fk-not-valid` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f63-lote1-sem-coluna` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f63-backups-ganha-policy` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f63-backups-legivel` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-lote2-default-literal` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-lote2-sem-not-null` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-lote2-fk-not-valid` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-lote2-sem-coluna` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-kit-sem-gatilho` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-kit-gatilho-sem-empresa` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > `f64-checagem-sem-empresa` tem todos os campos obrigatórios 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > as seis famílias de roteiro da ficha estão cobertas 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 1. o lote tem a forma e o tamanho que a ficha pede > há ao menos UMA do tipo "confere o papel e esquece o escopo" 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > há pares para conferir (guarda do próprio teste) 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-movimentacao-confia-na-filial-declarada → papeis_rls.sql tem o cenário `2c-bis` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-movimentacao-confia-na-filial-declarada → papeis_rls.sql tem o cenário `2c-ter` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-lancamento-de-item-confere-papel-e-esquece-filial → papeis_rls.sql tem o cenário `2e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-edicao-de-ativo-confere-papel-e-esquece-filial → papeis_rls.sql tem o cenário `2g` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-piso-de-leitura-aberto-em-ativos → papeis_rls.sql tem o cenário `4d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-desligada-em-senhas-de-acesso → papeis_rls.sql tem o cenário `3d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-desligada-em-senhas-de-acesso → papeis_rls.sql tem o cenário `5f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-auditoria-visivel-a-quem-escreve → papeis_rls.sql tem o cenário `3f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-trilha-do-import-visivel-a-quem-escreve → papeis_rls.sql tem o cenário `3e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-bucket-de-backup-visivel-a-quem-escreve → papeis_rls.sql tem o cenário `6e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rls-termo-perde-as-invariantes-da-ancora → papeis_rls.sql tem o cenário `2i-bis-3` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ancora-do-termo-sempre-coerente → papeis_rls.sql tem o cenário `2i-bis-3` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > leitura-de-colaboradores-sem-piso → papeis_rls.sql tem o cenário `4i` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-rls-desligada-numa-tabela → seguranca_catalogo.sql tem o cenário `2` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-tabela-de-backup-sem-rls → seguranca_catalogo.sql tem o cenário `2` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-view-sem-security-invoker → seguranca_catalogo.sql tem o cenário `3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-funcao-gatilho-executavel-por-authenticated → seguranca_catalogo.sql tem o cenário `4` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-gatilho-de-lancamento-vira-definer → seguranca_catalogo.sql tem o cenário `4c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-rpc-de-escrita-executavel-por-anon → seguranca_catalogo.sql tem o cenário `1` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-guarda-de-gestao-aceita-nivel-admin → cargo_dev.sql tem o cenário `2a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-guarda-de-gestao-aceita-nivel-admin → cargo_dev.sql tem o cenário `2b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-guarda-de-gestao-aceita-nivel-admin → cargo_dev.sql tem o cenário `2c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-guarda-de-gestao-aceita-nivel-admin → cargo_dev.sql tem o cenário `2e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-apagar-conta-aceita-nivel-admin → cargo_dev.sql tem o cenário `2f-bis` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-encerrar-sessoes-aceita-nivel-admin → cargo_dev.sql tem o cenário `2f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-trigger-deixa-conceder-cargo-por-update-direto → cargo_dev.sql tem o cenário `2h` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > dev-auxiliar-de-gestao-executavel-por-authenticated → cargo_dev.sql tem o cenário `5e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > gestao-encerrar-sessoes-mira-o-alvo-errado → cargo_dev.sql tem o cenário `3d` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-justificativa-sem-tamanho-minimo → dev_destrutivo.sql tem o cenário `12b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-justificativa-sem-tamanho-minimo → dev_destrutivo.sql tem o cenário `12e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-guarda-do-acervo-aceita-update → dev_destrutivo.sql tem o cenário `2i` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-guarda-do-acervo-aceita-update → dev_destrutivo.sql tem o cenário `2k` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-guarda-do-acervo-aceita-delete → dev_destrutivo.sql tem o cenário `2j` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-guarda-do-acervo-aceita-delete → dev_destrutivo.sql tem o cenário `2l` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-guarda-do-acervo-aceita-delete → dev_destrutivo.sql tem o cenário `2m` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-guarda-do-acervo-aceita-delete → dev_destrutivo.sql tem o cenário `13c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho → dev_destrutivo.sql tem o cenário `2f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho → dev_destrutivo.sql tem o cenário `2n` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-sem-revalidacao-de-contagens → import_substituir.sql tem o cenário `2` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-revalidacao-nao-compara-o-vivo → import_substituir.sql tem o cenário `0b` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-revalidacao-nao-compara-o-vivo → import_substituir.sql tem o cenário `5a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-revalidacao-ignora-pendencia-nova-do-acervo → import_substituir.sql tem o cenário `5a-bis` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-sem-exigencia-de-backup → import_substituir.sql tem o cenário `3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-trilha-do-apagado-mente-nas-anotacoes → import_substituir.sql tem o cenário `0g` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-ativo-nasce-sem-origem-importacao → import_substituir.sql tem o cenário `4b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-compra-de-abertura-sem-marcador → import_substituir.sql tem o cenário `1e` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-compra-de-abertura-sem-marcador → import_substituir.sql tem o cenário `0h` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-conferencia-de-estado-cega → import_substituir.sql tem o cenário `0f` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-contagem-de-conflitos-mentida → import_substituir.sql tem o cenário `0c` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-auxiliar-destrutiva-vira-api → import_substituir.sql tem o cenário `0e` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-trilha-com-id-perdido → import_substituir.sql tem o cenário `0d` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-nao-desvincula-lancamento-da-pendencia → import_substituir.sql tem o cenário `5c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-nao-desvincula-lancamento-da-movimentacao → import_substituir.sql tem o cenário `5c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-nao-apaga-pendencias-do-acervo → import_substituir.sql tem o cenário `5c` 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > import-nao-anula-ponteiro-de-substituto → import_substituir.sql tem o cenário `5c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-justificativa-sem-tamanho-minimo → conflito_filiais.sql tem o cenário `5f` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-confirmacao-com-numero-errado-aceita → conflito_filiais.sql tem o cenário `5d` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-confirmacao-com-numero-errado-aceita → conflito_filiais.sql tem o cenário `5e` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-backup-em-arquivo-sem-prefixo-do-digest → conflito_filiais.sql tem o cenário `11e` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-backup-em-arquivo-sem-prefixo-do-digest → conflito_filiais.sql tem o cenário `11f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-backup-em-arquivo-sem-prefixo-do-digest → conflito_filiais.sql tem o cenário `11g` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > conflito-backup-em-arquivo-sem-prefixo-do-digest → conflito_filiais.sql tem o cenário `11h` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-tabela-nova-nao-classificada → catalogo_policies.sql tem o cenário `1a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-tabela-nova-nao-classificada → catalogo_policies.sql tem o cenário `3` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-policy-volta-a-ser-sempre-verdadeira → catalogo_policies.sql tem o cenário `5` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-policy-volta-a-ser-sempre-verdadeira → catalogo_policies.sql tem o cenário `6a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-force-row-level-security-ligado → catalogo_policies.sql tem o cenário `4-bis` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-tabela-nova-na-publication-do-realtime → catalogo_policies.sql tem o cenário `9a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-storage-decide-so-por-bucket → catalogo_policies.sql tem o cenário `7` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-security-definer-nova-nao-classificada → catalogo_secdef.sql tem o cenário `1a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-security-definer-com-search-path-solto → catalogo_secdef.sql tem o cenário `3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > catalogo-security-definer-executavel-por-anon → catalogo_secdef.sql tem o cenário `4` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-escopo-de-gestao-some-do-corpo → cargo_dev.sql tem o cenário `7c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-escopo-de-gestao-passa-a-recusar → cargo_dev.sql tem o cenário `7a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-escopo-de-gestao-passa-a-recusar → cargo_dev.sql tem o cenário `7j` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-admin-ativo-volta-a-igualdade-crua → cargo_dev.sql tem o cenário `7f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-admin-ativo-volta-a-igualdade-crua → cargo_dev.sql tem o cenário `7i` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-import-perde-a-guarda-de-filial → import_fora_da_unidade.sql tem o cenário `5a-ter` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-backup-do-import-aceita-qualquer-prefixo → import_fora_da_unidade.sql tem o cenário `2a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-import-volta-a-nao-conferir-confirmacao → import_fora_da_unidade.sql tem o cenário `3a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-import-perde-a-janela-de-idempotencia → import_fora_da_unidade.sql tem o cenário `4a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f52-mesa-perde-a-guarda-de-pertencimento → conflito_filiais.sql tem o cenário `10b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f53-asof-volta-ao-desempate-por-id → asof_desempate.sql tem o cenário `3a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f53-trava-do-estorno-volta-ao-uuid → asof_desempate.sql tem o cenário `4c` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f53-asof-passa-a-ordenar-so-por-ordem → asof_desempate.sql tem o cenário `6a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ordem-deixa-de-ser-generated-always → restauracao.sql tem o cenário `2a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > indice-unico-da-ordem-sumiu → restauracao.sql tem o cenário `2c` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > guarda-acervo-aceita-forcado-fora-da-janela → restauracao.sql tem o cenário `5a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > trigger-para-de-abrir-pendencia-de-item → restauracao.sql tem o cenário `1b` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > trigger-para-de-abrir-pendencia-de-item → restauracao.sql tem o cenário `3c` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > nucleo-perde-uma-checagem → integridade_alarme.sql tem o cenário `11a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > resumo-de-integridade-alcancavel-por-anon → integridade_alarme.sql tem o cenário `b2c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > resumo-de-integridade-devolve-amostra → integridade_alarme.sql tem o cenário `b3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > rotulo-de-ambiente-alcancavel-por-authenticated → integridade_alarme.sql tem o cenário `c4` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > vocabulario-perde-a-guarda-de-ambiguidade → vocabulario_import.sql tem o cenário `6a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > vocabulario-perde-o-indice-de-nome-unico → vocabulario_import.sql tem o cenário `6e` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-policy-renomeada-escapa-do-universo → catalogo_policies.sql tem o cenário `10a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-policy-renomeada-escapa-do-universo → catalogo_policies.sql tem o cenário `10b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-arvore-com-no-que-o-analisador-nao-le → catalogo_policies.sql tem o cenário `10c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-leitura-passa-a-linha-para-funcao → catalogo_policies.sql tem o cenário `11a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-excecao-sobrevive-ao-conserto → catalogo_policies.sql tem o cenário `11b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-funcao-sem-argumento-solta → catalogo_policies.sql tem o cenário `12` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-subselect-le-tabela → catalogo_policies.sql tem o cenário `13a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-subselect-olha-a-linha → catalogo_policies.sql tem o cenário `13b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > doutrina-array-sobre-funcao-que-nao-devolve-conjunto → catalogo_policies.sql tem o cenário `14` 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-recorte-volta-a-is-null-or → catalogo_secdef.sql tem o cenário `7c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-rel-nova-sem-recorte → catalogo_secdef.sql tem o cenário `7a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-rel-nova-sem-recorte → catalogo_secdef.sql tem o cenário `7b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-rel-vira-strict → catalogo_secdef.sql tem o cenário `7d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-rel-perde-execute-do-service-role → catalogo_secdef.sql tem o cenário `7e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-excecao-apodrece → catalogo_secdef.sql tem o cenário `7f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-excecao-ganha-overload → catalogo_secdef.sql tem o cenário `7g` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-asof-pre-filtra-pela-filial-de-hoje → asof_desempate.sql tem o cenário `11a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f60-saldo-consolidado-so-das-ativas → f60_recorte.sql tem o cenário `2a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > reaud-u-escrita-atomica-sem-guarda-de-zero-linhas → escrita_atomica_ativos_anotacao.sql tem o cenário `3` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > reaud-u-escrita-atomica-sem-guarda-de-zero-linhas → escrita_atomica_ativos_anotacao.sql tem o cenário `4` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > reaud-u-escrita-atomica-sem-guarda-de-zero-linhas → escrita_atomica_ativos_anotacao.sql tem o cenário `5` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > u151-service-tag-sobrescreve-a-que-ja-existe → escrita_atomica_ativos_anotacao.sql tem o cenário `13` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > u151-confirmacao-em-dobro → escrita_atomica_ativos_anotacao.sql tem o cenário `14` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > u151-desfazer-o-que-nao-esta-confirmado → escrita_atomica_ativos_anotacao.sql tem o cenário `15` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > reaud-ae-ledger-sem-guarda-de-papel → ledger_de_migracoes.sql tem o cenário `2a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-estorno-sem-guarda-de-identidade → movimentacao_grade.sql tem o cenário `2k` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-estorno-sem-recusa-de-origem-ausente → movimentacao_grade.sql tem o cenário `2b` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-estorno-aceita-origem-de-outro-ativo → movimentacao_grade.sql tem o cenário `2c` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-pendencia-de-termo-ressuscita-itens-faltantes → movimentacao_grade.sql tem o cenário `1f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-pendencia-de-termo-ressuscita-itens-faltantes → movimentacao_grade.sql tem o cenário `2l` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-estorno-deixa-pendencias-de-item → movimentacao_grade.sql tem o cenário `1f` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-estorno-deixa-pendencias-de-item → movimentacao_grade.sql tem o cenário `2j` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-destino-volta-a-cobrir-so-transferencia → movimentacao_grade.sql tem o cenário `2y` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-destino-volta-a-cobrir-so-transferencia → movimentacao_grade.sql tem o cenário `2z` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-ajuste-sem-justificativa → movimentacao_grade.sql tem o cenário `2v` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-detentor-fantasma-sobrevive → movimentacao_grade.sql tem o cenário `1d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-detentor-fantasma-sobrevive → movimentacao_grade.sql tem o cenário `2q` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-pendencia-de-item-sem-colaborador-da-epoca → movimentacao_grade.sql tem o cenário `3d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-pendencia-de-item-sem-colaborador-da-epoca → movimentacao_grade.sql tem o cenário `3e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > ag-auxiliar-executavel-por-authenticated → movimentacao_grade.sql tem o cenário `4a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-empresas-do-membro-esquece-ativo → isolamento_tenant.sql tem o cenário `9e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-empresas-de-escrita-aceita-consulta → isolamento_tenant.sql tem o cenário `9b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-empresas-de-admin-aceita-operador → isolamento_tenant.sql tem o cenário `9b` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-unidades-de-escrita-cruza-empresa → isolamento_tenant.sql tem o cenário `9d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-e-plataforma-responde-por-qualquer-um → isolamento_tenant.sql tem o cenário `9f` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-esquece-arquivado → cargo_equivalencia.sql tem o cenário `1` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-esquece-arquivado → cargo_equivalencia.sql tem o cenário `2` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-esquece-arquivado → cargo_equivalencia.sql tem o cenário `3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-esquece-inativo → cargo_equivalencia.sql tem o cenário `1` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-esquece-inativo → cargo_equivalencia.sql tem o cenário `2` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-esquece-inativo → cargo_equivalencia.sql tem o cenário `3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-responde-pela-empresa-errada → cargo_equivalencia.sql tem o cenário `1` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-ponte-responde-pela-empresa-errada → cargo_equivalencia.sql tem o cenário `5` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-vinculo-de-qualquer-membership → cargo_equivalencia.sql tem o cenário `3` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-outro-admin-conta-inativo → cargo_equivalencia.sql tem o cenário `4b` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-de-gestao-le-o-cargo-congelado → cargo_dev.sql tem o cenário `2c` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-de-gestao-le-o-cargo-congelado → cargo_dev.sql tem o cenário `8b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-do-dev-em-membros-neutralizada → cargo_dev.sql tem o cenário `2h-membros` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-do-dev-em-membros-neutralizada → cargo_dev.sql tem o cenário `2i-membros` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-do-dev-em-membros-neutralizada → cargo_dev.sql tem o cenário `2j-membros` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-handle-new-user-sem-membership → isolamento_tenant.sql tem o cenário `9l` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-definir-papel-grava-a-coluna-congelada → cargo_dev.sql tem o cenário `2g-bis` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-definir-papel-grava-a-coluna-congelada → cargo_dev.sql tem o cenário `3a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-definir-status-grava-a-coluna-congelada → cargo_dev.sql tem o cenário `3c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-apagar-nao-desativa-memberships → cargo_dev.sql tem o cenário `6b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-de-profiles-esquece-a-membership → cargo_dev.sql tem o cenário `2i` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-de-profiles-esquece-a-membership → cargo_dev.sql tem o cenário `8c` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-guarda-de-profiles-aceita-a-escrita-antiga → cargo_dev.sql tem o cenário `8d` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-membros-com-force-rls → catalogo_policies.sql tem o cenário `4-bis` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f62-vinculo-sem-fk-composta-de-membro → isolamento_tenant.sql tem o cenário `9h` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f63-lote1-default-literal → catalogo_policies.sql tem o cenário `15b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f63-lote1-sem-not-null → catalogo_policies.sql tem o cenário `15b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f63-lote1-fk-not-valid → catalogo_policies.sql tem o cenário `15b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f63-lote1-sem-coluna → catalogo_policies.sql tem o cenário `15b` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f63-backups-ganha-policy → catalogo_policies.sql tem o cenário `4` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f63-backups-legivel → empresa_no_acervo.sql tem o cenário `6a` 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-lote2-default-literal → catalogo_policies.sql tem o cenário `15e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-lote2-sem-not-null → catalogo_policies.sql tem o cenário `15e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-lote2-fk-not-valid → catalogo_policies.sql tem o cenário `15e` 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-lote2-sem-coluna → catalogo_policies.sql tem o cenário `15e` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-lote2-sem-coluna → catalogo_policies.sql tem o cenário `15f` 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-kit-sem-gatilho → kit_motivo_da_empresa.sql tem o cenário `C1` 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-kit-sem-gatilho → kit_motivo_da_empresa.sql tem o cenário `C2` 4ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-kit-gatilho-sem-empresa → kit_motivo_da_empresa.sql tem o cenário `C2` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > f64-checagem-sem-empresa → kit_motivo_da_empresa.sql tem o cenário `C6a` 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > o casador de rótulo NÃO aceita prefixo (guarda do próprio teste) 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 2. todo rótulo em `derruba` existe DE VERDADE no roteiro > o casador reconhece a forma `assert_zero_de`, e ali também não aceita prefixo (F48) 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > a maioria das mutações tem sonda de prova 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-movimentacao-confia-na-filial-declarada`: a sonda tem forma válida 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-lancamento-de-item-confere-papel-e-esquece-filial`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-edicao-de-ativo-confere-papel-e-esquece-filial`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-piso-de-leitura-aberto-em-ativos`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-desligada-em-senhas-de-acesso`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-auditoria-visivel-a-quem-escreve`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-trilha-do-import-visivel-a-quem-escreve`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-bucket-de-backup-visivel-a-quem-escreve`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rls-termo-perde-as-invariantes-da-ancora`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ancora-do-termo-sempre-coerente`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `leitura-de-colaboradores-sem-piso`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-rls-desligada-numa-tabela`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-tabela-de-backup-sem-rls`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-view-sem-security-invoker`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-funcao-gatilho-executavel-por-authenticated`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-gatilho-de-lancamento-vira-definer`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-rpc-de-escrita-executavel-por-anon`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `dev-guarda-de-gestao-aceita-nivel-admin`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `dev-apagar-conta-aceita-nivel-admin`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `dev-encerrar-sessoes-aceita-nivel-admin`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `dev-trigger-deixa-conceder-cargo-por-update-direto`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `dev-auxiliar-de-gestao-executavel-por-authenticated`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `gestao-encerrar-sessoes-mira-o-alvo-errado`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `destrutivo-justificativa-sem-tamanho-minimo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `destrutivo-guarda-do-acervo-aceita-update`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `destrutivo-guarda-do-acervo-aceita-delete`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `destrutivo-marca-de-forcado-gravavel-por-qualquer-caminho`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-sem-revalidacao-de-contagens`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-revalidacao-nao-compara-o-vivo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-revalidacao-ignora-pendencia-nova-do-acervo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-sem-exigencia-de-backup`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-trilha-do-apagado-mente-nas-anotacoes`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-ativo-nasce-sem-origem-importacao`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-compra-de-abertura-sem-marcador`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-conferencia-de-estado-cega`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-contagem-de-conflitos-mentida`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-auxiliar-destrutiva-vira-api`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-trilha-com-id-perdido`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-nao-desvincula-lancamento-da-pendencia`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-nao-desvincula-lancamento-da-movimentacao`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-nao-apaga-pendencias-do-acervo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `import-nao-anula-ponteiro-de-substituto`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `conflito-justificativa-sem-tamanho-minimo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `conflito-confirmacao-com-numero-errado-aceita`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `conflito-backup-em-arquivo-sem-prefixo-do-digest`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-tabela-nova-nao-classificada`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-policy-volta-a-ser-sempre-verdadeira`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-force-row-level-security-ligado`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-tabela-nova-na-publication-do-realtime`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-storage-decide-so-por-bucket`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-security-definer-nova-nao-classificada`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-security-definer-com-search-path-solto`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `catalogo-security-definer-executavel-por-anon`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-escopo-de-gestao-some-do-corpo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-escopo-de-gestao-passa-a-recusar`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-admin-ativo-volta-a-igualdade-crua`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-import-perde-a-guarda-de-filial`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-backup-do-import-aceita-qualquer-prefixo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-import-volta-a-nao-conferir-confirmacao`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-import-perde-a-janela-de-idempotencia`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f52-mesa-perde-a-guarda-de-pertencimento`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f53-asof-volta-ao-desempate-por-id`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f53-trava-do-estorno-volta-ao-uuid`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f53-asof-passa-a-ordenar-so-por-ordem`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ordem-deixa-de-ser-generated-always`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `indice-unico-da-ordem-sumiu`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `guarda-acervo-aceita-forcado-fora-da-janela`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `trigger-para-de-abrir-pendencia-de-item`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `nucleo-perde-uma-checagem`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `resumo-de-integridade-alcancavel-por-anon`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `resumo-de-integridade-devolve-amostra`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `rotulo-de-ambiente-alcancavel-por-authenticated`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `vocabulario-perde-a-guarda-de-ambiguidade`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `vocabulario-perde-o-indice-de-nome-unico`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-policy-renomeada-escapa-do-universo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-arvore-com-no-que-o-analisador-nao-le`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-leitura-passa-a-linha-para-funcao`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-excecao-sobrevive-ao-conserto`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-funcao-sem-argumento-solta`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-subselect-le-tabela`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-subselect-olha-a-linha`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `doutrina-array-sobre-funcao-que-nao-devolve-conjunto`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-recorte-volta-a-is-null-or`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-rel-nova-sem-recorte`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-rel-vira-strict`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-rel-perde-execute-do-service-role`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-excecao-apodrece`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-excecao-ganha-overload`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-asof-pre-filtra-pela-filial-de-hoje`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f60-saldo-consolidado-so-das-ativas`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `reaud-u-escrita-atomica-sem-guarda-de-zero-linhas`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `u151-service-tag-sobrescreve-a-que-ja-existe`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `u151-confirmacao-em-dobro`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `u151-desfazer-o-que-nao-esta-confirmado`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `reaud-ae-ledger-sem-guarda-de-papel`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-estorno-sem-guarda-de-identidade`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-estorno-sem-recusa-de-origem-ausente`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-estorno-aceita-origem-de-outro-ativo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-pendencia-de-termo-ressuscita-itens-faltantes`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-estorno-deixa-pendencias-de-item`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-destino-volta-a-cobrir-so-transferencia`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-ajuste-sem-justificativa`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-detentor-fantasma-sobrevive`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-pendencia-de-item-sem-colaborador-da-epoca`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `ag-auxiliar-executavel-por-authenticated`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-empresas-do-membro-esquece-ativo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-empresas-de-escrita-aceita-consulta`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-empresas-de-admin-aceita-operador`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-unidades-de-escrita-cruza-empresa`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-e-plataforma-responde-por-qualquer-um`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-ponte-esquece-arquivado`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-ponte-esquece-inativo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-ponte-responde-pela-empresa-errada`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-vinculo-de-qualquer-membership`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-outro-admin-conta-inativo`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-guarda-de-gestao-le-o-cargo-congelado`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-guarda-do-dev-em-membros-neutralizada`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-handle-new-user-sem-membership`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-definir-papel-grava-a-coluna-congelada`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-definir-status-grava-a-coluna-congelada`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-apagar-nao-desativa-memberships`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-guarda-de-profiles-esquece-a-membership`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-guarda-de-profiles-aceita-a-escrita-antiga`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-membros-com-force-rls`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f62-vinculo-sem-fk-composta-de-membro`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f63-lote1-default-literal`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f63-lote1-sem-not-null`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f63-lote1-fk-not-valid`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f63-lote1-sem-coluna`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f63-backups-ganha-policy`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f63-backups-legivel`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-lote2-default-literal`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-lote2-sem-not-null`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-lote2-fk-not-valid`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-lote2-sem-coluna`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-kit-sem-gatilho`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-kit-gatilho-sem-empresa`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 3. as provas de que a mutação PEGOU > `f64-checagem-sem-empresa`: a sonda tem forma válida 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > há policies citadas (guarda do próprio teste) 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-movimentacao-confia-na-filial-declarada: a policy "operador insere" em public.movimentacoes existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-lancamento-de-item-confere-papel-e-esquece-filial: a policy "operador lanca" em public.lancamentos_item existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-edicao-de-ativo-confere-papel-e-esquece-filial: a policy "operador atualiza" em public.ativos existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-piso-de-leitura-aberto-em-ativos: a policy "leitura operador" em public.ativos existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-auditoria-visivel-a-quem-escreve: a policy "admin le auditoria" em public.eventos_admin existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-trilha-do-import-visivel-a-quem-escreve: a policy "leitura operador" em public.import_logs existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-bucket-de-backup-visivel-a-quem-escreve: a policy "backups-import leitura operador" em storage.objects existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > rls-termo-perde-as-invariantes-da-ancora: a policy "operador insere" em public.termos_gerados existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > catalogo-policy-volta-a-ser-sempre-verdadeira: a policy "leitura operador" em public.motivos existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > catalogo-storage-decide-so-por-bucket: a policy "termos leitura operador" em storage.objects existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-policy-renomeada-escapa-do-universo: a policy "admin apaga" em public.filiais existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-arvore-com-no-que-o-analisador-nao-le: a policy "leitura operador" em public.motivos existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-leitura-passa-a-linha-para-funcao: a policy "leitura operador" em public.ativos existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-excecao-sobrevive-ao-conserto: a policy "operador insere" em public.ativos existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-funcao-sem-argumento-solta: a policy "admin apaga" em public.filiais existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-subselect-le-tabela: a policy "leitura operador" em public.kits_modelos existe 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-subselect-olha-a-linha: a policy "leitura operador" em public.itens existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 4. as policies citadas existem nas migrations > doutrina-array-sobre-funcao-que-nao-devolve-conjunto: a policy "leitura operador" em public.profiles existe 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 5. dados 100% sintéticos (regra 2 do CLAUDE.md) > nenhuma mutação cita patrimônio fora da faixa fictícia 1ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 5. dados 100% sintéticos (regra 2 do CLAUDE.md) > nenhuma mutação executa perda de dado como comando de topo 2ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 5. dados 100% sintéticos (regra 2 do CLAUDE.md) > as mutações que reescrevem função NÃO acrescentam perda de dado nenhuma 3ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 6. a quarentena é declarada, não é escape hatch > nada da quarentena é executado pelo injetor 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 6. a quarentena é declarada, não é escape hatch > `conflito-serializacao-por-advisory-lock` nomeia a fase que a adota e por que é indetectável hoje 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 6. a quarentena é declarada, não é escape hatch > `f53-view-de-conflitos-perde-o-desempate` nomeia a fase que a adota e por que é indetectável hoje 0ms
+ ✓ |puro| scripts/db/mutacoes.test.mts > 6. a quarentena é declarada, não é escape hatch > a quarentena não passa de um TERÇO do lote 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > timeout de statement (SQLSTATE 57014) > mapeia por CODE mesmo com mensagem irreconhecível 5ms
+ ✓ |puro| src/lib/actions/erros.test.ts > timeout de statement (SQLSTATE 57014) > mapeia por SUBSTRING (canceling statement due to statement timeout) sem code 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > timeout de statement (SQLSTATE 57014) > não vaza a mensagem crua do Postgres e não cai no fallback (sem console.error) 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > índice parcial do import (23505 — service tag sem patrimônio) > mapeia pela constraint específica (ativos_service_tag_sem_patrimonio_uidx) 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > índice parcial do import (23505 — service tag sem patrimônio) > não colide com o índice composto de patrimônio 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: O estado da filial mudou desde o preview/backup (ativos 16/0, movs 23/0, anotações 0/0, termos 0/0). Gere o preview novamente antes de aplicar. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Plano de import vazio: ao menos 1 ativo é obrigatório. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Há termo(s) gerado(s) que misturam esta filial com outra — substituição bloqueada. Resolva os termos antes. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Patrimônio inválido no plano: "12345" (esperado ^[A-Z]{2,4}\d{7}$ ou nulo). 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Categoria inválida "impressora" no ativo WAP0001234 (fora do enum categoria_ativo). 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Estado-alvo inválido "sumido" no ativo (sem patrimônio) (fora do enum status_ativo). 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Plano tem par (patrimônio, service tag) duplicado — cada ativo com patrimônio deve ser único. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Plano tem service tag repetida entre ativos sem patrimônio — a tag é a identidade quando não há patrimônio. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Divergência: 15 ativos criados para 16 no plano. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > mapeia o raise para texto limpo e estável: Divergência (agregada) nas linhas sem patrimônio e sem service tag: a contagem por estado × colaborador não bate entre plano e banco. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > raises P0001 da RPC importar_ativos_substituir > nenhum P0001 conhecido cai no fallback (não loga) 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > fallback — código desconhecido nunca vaza o texto cru do Postgres em produção > em produção devolve a mensagem GENÉRICA (nunca o texto cru) e LOGA 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > fallback — código desconhecido nunca vaza o texto cru do Postgres em produção > fora de produção devolve a mensagem crua (debug) — e ainda LOGA o par {code, mensagem} 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > fallback — código desconhecido nunca vaza o texto cru do Postgres em produção > mensagem null/undefined não quebra e loga com mensagem null 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > índice único do NOME da filial (filiais_nome_chave_uidx) 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > índice único do APELIDO (unidades_apelidos_apelido_chave_uidx) 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > nenhum dos dois cai no genérico de "duplicate key" (ramo específico ganha) 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > o P0001 do gatilho vira a frase GENÉRICA, sem repassar o texto do banco: Este termo já é o próprio nome da filial Serra. 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > o P0001 do gatilho vira a frase GENÉRICA, sem repassar o texto do banco: Este nome não pode repetir o nome de outra filial (Matriz). 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > o P0001 do gatilho vira a frase GENÉRICA, sem repassar o texto do banco: Este apelido já é apelido desta própria filial (Serra). 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > o P0001 do gatilho vira a frase GENÉRICA, sem repassar o texto do banco: Este apelido já é apelido de outra filial (Matriz). 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > vocabulário de unidades (F56 · migration 0139) > nenhum dos ramos de vocabulário cai no fallback (não loga) 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > escritas atômicas "ativos + anotação" (reauditoria 18/09/2026, item U · 0149) > as quatro recusas singulares (P0002) viram a MESMA frase de operador, nunca o genérico 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > escritas atômicas "ativos + anotação" (reauditoria 18/09/2026, item U · 0149) > a grafia sem acento (o caminho RPC → PostgREST pode perdê-lo) casa igual 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > escritas atômicas "ativos + anotação" (reauditoria 18/09/2026, item U · 0149) > as três recusas de pré-condição da 0151 (P0001) viram frase de operador 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > escritas atômicas "ativos + anotação" (reauditoria 18/09/2026, item U · 0149) > a recusa do LOTE (42501) tem frase própria, e não o genérico de permissão 1ms
+ ✓ |puro| src/lib/actions/erros.test.ts > retrocompat — chamada com 1 argumento (sem code) segue funcionando > mapeia por substring sem passar o SQLSTATE 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > retrocompat — chamada com 1 argumento (sem code) segue funcionando > permissão por cargo e filial (F21) > reconhece a guarda de admin da RPC de import pela mensagem 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > retrocompat — chamada com 1 argumento (sem code) segue funcionando > permissão por cargo e filial (F21) > reconhece a guarda de vínculo de criar_compra_lote (com e sem acento) 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > retrocompat — chamada com 1 argumento (sem code) segue funcionando > permissão por cargo e filial (F21) > traduz o SQLSTATE 42501 mesmo sem texto reconhecível na mensagem 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > retrocompat — chamada com 1 argumento (sem code) segue funcionando > permissão por cargo e filial (F21) > a guarda mais específica ganha da genérica de 42501 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > o gatilho do kit (F64 · 0164): o motivo tem de existir na empresa do kit > a recusa do gatilho (23503, frase própria) vira a frase do kit — não a da FK genérica 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > o gatilho do kit (F64 · 0164): o motivo tem de existir na empresa do kit > a grafia sem acento também (as mensagens viajam por caminhos diferentes) 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > o gatilho do kit (F64 · 0164): o motivo tem de existir na empresa do kit > a FK de VERDADE continua no ramo genérico (o do kit não a engole) 0ms
+ ✓ |puro| src/lib/actions/erros.test.ts > o gatilho do kit (F64 · 0164): o motivo tem de existir na empresa do kit > a recusa do kit não cai no fallback (não loga) 0ms
+
+ Test Files  10 passed (10)
+      Tests  859 passed (859)
+   Start at  16:36:04
+   Duration  4.52s (transform 1.82s, setup 0ms, import 8.72s, tests 1.74s, environment 2ms)
+

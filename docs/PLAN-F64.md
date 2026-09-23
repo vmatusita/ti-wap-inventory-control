@@ -12,7 +12,12 @@
 
 ---
 
-## 0. O "antes" — ⚠ AINDA NÃO TIRADO: as ferramentas do conector da Supabase foram desligadas no meio da run
+## 0. O "antes" — tirado depois que o conector voltou (o conector desligado no meio da run)
+
+> **Desfecho (fechamento da fase):** as ferramentas voltaram por volta das 14:30 (-03); o "antes" foi tirado nos dois
+> bancos às 14:40 (ensaio) e 14:50 (produção) — `docs/f64-evidencias/antes/` — e REFEITO logo antes de cada apply
+> (19:15 e 19:23 UTC), idêntico nas onze. O caminho B não foi preciso. O texto abaixo é o registro de quando o plano
+> foi escrito, com o conector caído.
 
 Às 13:3x (-03) de 23/09/2026 o conector respondeu normalmente: `list_projects` (os dois projetos
 `ACTIVE_HEALTHY`, PostgreSQL 17.6) e a frente (e) da exploração mediu os fatos 1, 2, 3, 14 e 16
@@ -444,7 +449,13 @@ push 1.
 
 ## 7. SHA de código congelado
 
-*(preenchido na Frente G, passo 3)*
+**`65958b5e6168cca643200ce8d14e211c3ef7e0b5`** (`65958b5`, "fix(f64): nas exceções a leitura é PROVADAMENTE do kit — a
+origem no comando, e 15h nas dezenove") — o último commit que toca `src/**`, `scripts/**` ou `supabase/**`, depois das
+duas rodadas da revisão adversarial (ata F64 (h) e (i)). CI verde sobre ele: run `35907393720` (`verificar` e
+`banco-sem-docker`: 46 roteiros · 1045 asserções · 0 ✗; injetor 138/138; `db:types:diff` 38 relações · 358 colunas · 94
+funções). As migrations `0162`–`0164` foram aplicadas no ensaio e em produção com o texto EXATO deste SHA (a sonda
+`docs/f64-evidencias/exatidao-pos-apply.sql` o prova byte a byte). Depois dele, na branch da fase, nenhum commit; no PR
+de documentação, só `docs/**`.
 
 ---
 
