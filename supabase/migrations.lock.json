@@ -178,6 +178,7 @@
     "0173_guarda_empresa.sql": "ae38b111e5104f37afbf131020a5b17d411e8786800e667980e2e72d070fb15e",
     "0174_colaboradores_nome_chave_pos_deploy.sql": "8d28eb16dd28671b82933c7126bad78d165e89865badb7ed3e1bc0843e125876",
     "0175_recorte_policies_cadastros_do_acervo.sql": "a630dda102eb23bcc129032a65e958b482231c1346ffdadc64cd0279eda8bd74",
-    "0176_recorte_policies_movimento_do_acervo.sql": "a63908c8587e557068168baf13ca29b2302e163771b68e0cec54936f9742a7b1"
+    "0176_recorte_policies_movimento_do_acervo.sql": "a63908c8587e557068168baf13ca29b2302e163771b68e0cec54936f9742a7b1",
+    "0177_recorte_policies_vocabulario.sql": "4e4bff3f4949196da38505c64670ac2d8eb30338fa5f10f689340dfb26318f1b"
   }
 }

@@ -247,6 +247,7 @@ const DA_F38 = [
   // no lugar de `pode_escrever_filial`): nenhuma função criada ou recriada.
   '0175',
   '0176',
+  '0177',
 ]
 
 /**
