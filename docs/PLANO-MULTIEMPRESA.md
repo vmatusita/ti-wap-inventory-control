@@ -971,8 +971,8 @@ função da CLASSE (não `empresas_do_membro()` em todas): leitura pelo piso →
 escrita por unidade viraram a forma de PARES (decisão 2 do Johnny, provada conta a conta nos dois bancos). Quatro lotes
 por família (não três), por causa do ACCESS EXCLUSIVE do `alter policy` numa transação só. A trava lê a ÁRVORE da policy
 (o bloco 6 de `catalogo_policies.sql`), não o texto; `isolamento_tenant.sql` ganhou a bateria de leitura nas duas
-direções (seções 10 e 11). `rel_por_motivo_filiais`/`rel_resumo_filiais` juntam pelo par (`0179`). Sete mutações novas
-(teto 150). **O que NÃO entrou, e para onde foi:** **os índices de lista** — medidos (PLAN-F66 §3): sob o `= any` de um
+direções (seções 10 e 11). `rel_por_motivo_filiais`/`rel_resumo_filiais` juntam pelo par (`0179`). Oito mutações novas
+(teto 151). **O que NÃO entrou, e para onde foi:** **os índices de lista** — medidos (PLAN-F66 §3): sob o `= any` de um
 `InitPlan` o planner ignora o candidato liderado por `empresa_id` ou o usa sem ganho, e derrubar o antigo põe Sort
 completo em 4 das 5 listas; vão para a **F70**, que põe a empresa como IGUALDADE. **O CHECK de comprimento** — decisão 1
 do Johnny: virou a **F66B** (a ficha abaixo, com o censo). **`eventos_admin`** não mudou de forma (decisão 3 do Johnny):
@@ -1134,7 +1134,10 @@ do máximo de hoje; onde não há Zod, folga escrita e ata.
   escrita as usam no piso — com uma segunda empresa real, o cargo da pessoa na B viria da WAP até esta fase. A releitura das
   102 leituras "confia na RLS" (PLAN-F66 §4) deixou duas aqui: `paresEmOutrasFiliais` (`queries/import-logs.ts`) ganha
   `where` pela empresa da filial do import, e `cadastrosComMesmaIdentidade` (`ativos/identidade.ts`) recusa só pela
-  empresa do cadastro. As policies de `storage.objects` e `pode_ler_arquivo_termo` não mudaram na F66.
+  empresa do cadastro. As policies de `storage.objects` e `pode_ler_arquivo_termo` não mudaram na F66. **A direção B da
+  bateria** (`isolamento_tenant.sql` 10c/10d) hoje neutraliza o piso dentro da transação para provar o recorte sozinho;
+  com a ponte por empresa, ela ganha a ESCRITA da direção B (que depende da ponte) e passa a rodar com as policies reais
+  — e o `where` explícito de `v_conflitos_filiais`/`_grupos` (acima) continua desta fase.
 
 **Entregas.** Migrations `0160`–`0165`, `src/lib/actions/{importar,conflitos,termos,dev-destrutivo}.ts`, `supabase/tests/{definer_escopo,storage_por_empresa,conflito_entre_empresas,realtime_escopo,termo_bloqueado}.sql`.
 
@@ -1294,9 +1297,9 @@ fase.)*
 
 > **Cuidado com o número herdado.** A `0070` aplicou o piso a 13 policies de `public` + 1 de Storage, mas **duas migrations posteriores nasceram já com ele** (`0112_colaboradores.sql:147-149` e `0114_tipos_item.sql:94-96`). Quem partir de "13" deixa duas policies com o piso aberto depois de a fase fechar. A lista sai do catálogo, nunca de memória — e a forma na `pg_policies` é `(select public.papel_atual()) is not null`, não `papel_atual() is not null`: um grep pela segunda string dá **zero** resultados.
 
-> *(Nota F66, 24/09/2026 — o número, de novo.)* Depois da F66, o piso aparece em **19 policies de SELECT de `public`** com o
-> termo de empresa ao lado (a tabela-verdade do PLAN-F66 §2), mais `profiles / leitura operador` (sem `empresa_id` — F69)
-> e a de Storage. Derivar do catálogo, como a F66 fez; e a direção B de `isolamento_tenant.sql` (o piso neutralizado dentro
+> *(Nota F66, 24/09/2026 — o número, de novo: não são 16.)* Depois da F66, o piso aparece em **20 policies de SELECT de
+> `public`** — as 20 tabelas de `k_piso_papel` (`catalogo_policies.sql`): **19 com o termo de empresa ao lado** (a
+> tabela-verdade do PLAN-F66 §2) e `profiles / leitura operador` (sem `empresa_id` — F69) — mais a de Storage. Derivar do catálogo, como a F66 fez; e a direção B de `isolamento_tenant.sql` (o piso neutralizado dentro
 > da transação) já prova, no CI, que o recorte sozinho corta — é a asserção que esta fase transforma no estado real.
 
 **Por que ela é pequena.** O predicado novo está no ar, medido e provado desde a F66. Esta fase **apaga o termo redundante** da conjunção — não introduz nada. É a diferença entre "escrever o recorte" e "apagar o piso", e é a razão pela qual este plano não tem ponto de não retorno com prazo de minutos.

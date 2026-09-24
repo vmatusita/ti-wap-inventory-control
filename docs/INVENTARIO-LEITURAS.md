@@ -47,18 +47,20 @@ Por fase de destino: **F63** 4 · **F66** 102 · **F67** 10 · **F68** 12.
 
 > **Depois da F66 (24/09/2026 — a releitura das 102, decisão 15 do [`PLAN-F66.md`](PLAN-F66.md) §4).** As 102 linhas
 > "confia na RLS · F66" estão ENTREGUES: a policy de leitura de cada tabela que elas tocam ganhou o termo de empresa em
-> conjunção com o piso (MATRIZ R-ACC-108). **Com uma empresa, nenhuma muda** — provado conta a conta nos dois bancos.
+> conjunção com o piso (MATRIZ R-ACC-108). **Com uma empresa, nenhuma muda** — provado conta a conta nos dois bancos:
+> emulado antes do apply (`f66-evidencias/conta-a-conta/`), real depois de cada lote (`RELATORIO-F66.md`).
 > Com duas, a leitura pela sessão passa a ver só as empresas de que a pessoa é membro, o certo na imensa maioria. As
 > linhas deste documento não se editam (é histórico da F57); as que levantam a mão com duas empresas, relidas contra o
-> disco de 24/09:
+> disco de 24/09 (as linhas abaixo são as de HOJE, conferidas de novo na revisão adversarial da fase — o código andou desde
+> a F57):
 >
 > | call-site | com duas empresas | fica com |
 > |---|---|---|
-> | `getDiagnostico` (`queries/dev.ts:94`, `/dev`) | as contagens passam a ser das empresas de que o dev é membro (a soma, se for de duas) | **F70**: contar pela empresa escolhida ou pela plataforma (definer) |
-> | `excluirItem` (`actions/itens.ts:720`) | **fica certo por construção**: a FK composta `(empresa_id, item_id)` (F65) prende todo lançamento do item à empresa do item | nada a fazer |
-> | `paresEmOutrasFiliais` (`queries/import-logs.ts:225/245`) | para o membro de duas, o par da OUTRA empresa entraria como "conflito" | **F67**: `where` pela empresa da filial do import |
+> | `getDiagnostico` (`queries/dev.ts:96`, `/dev`) | as contagens passam a ser das empresas de que o dev é membro (a soma, se for de duas) | **F70**: contar pela empresa escolhida ou pela plataforma (definer) |
+> | `excluirItem` (`actions/itens.ts:779`) | **fica certo por construção**: a FK composta `(empresa_id, item_id)` (F65) prende todo lançamento do item à empresa do item | nada a fazer |
+> | `paresEmOutrasFiliais` (`queries/import-logs.ts:261/284`) | para o membro de duas, o par da OUTRA empresa entraria como "conflito" | **F67**: `where` pela empresa da filial do import |
 > | `cadastrosComMesmaIdentidade` (`ativos/identidade.ts:150`) | o membro de duas seria recusado pela duplicata da outra empresa | **F67**: a recusa é da empresa do cadastro |
-> | `contarPonteirosSubstituto` · `exportarDesvinculosFk` (`queries/import-logs.ts:179/503`) | **ficam certos**: a FK composta de `substitui_ativo_id` (F65) impede o ponteiro entre empresas | nada a fazer |
+> | `contarPonteirosSubstituto` · `exportarDesvinculosFk` (`queries/import-logs.ts:215/636`) | **ficam certos**: a FK composta de `substitui_ativo_id` (F65) impede o ponteiro entre empresas | nada a fazer |
 >
 > Nenhuma virou código na F66 (a fase não muda o TS que o app executa).
 

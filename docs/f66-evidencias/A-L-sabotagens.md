@@ -201,7 +201,7 @@ alter policy "admin apaga" on public.motivos using ((select public.e_admin()));
 
 -- a saída
 ✗ 10g a escrita cruzada é recusada: inserir com a empresa B leva 42501 pelo WITH CHECK, e atualizar ou apagar linha da B afeta 0 linhas — para o admin da A e para o membro das duas — passou: consultor-delete-motivo: 1 de 12 fora da regra
-✗ 10g-bis a escrita cruzada deixou marca na B (antes f4b517bdee307fb24c3582eacd44da1b · depois 6d0261e7134527e287a883eab1b4866b)
+✗ 10g-bis a escrita cruzada deixou marca na B (antes a3275754424644fccfc7087822bd6fba · depois 00621e2749f168537260bf31398932f1)
 FIM isolamento_tenant: 44 asserções, 2 falhas
 ```
 
@@ -245,6 +245,48 @@ alter policy "operador insere" on public.ativos with check (empresa_id = any (ar
 ✗ 16c as policies de escrita por unidade (k_recorte_unidade) têm os pares sobre unidades_de_escrita() em toda árvore, na conjunção de cima, e só elas — public.ativos / operador insere (with check): 0 par(es) na conjunção e 0 fora dela, a lista declara 1: 1 de 65 fora da regra
 FIM catalogo_policies: 42 asserções, 1 falhas
 ```
+
+**Achado da revisão adversarial, e consertado na fase:** o 16c contava os pares sem conferir o SEGUNDO membro — um par
+`(empresa_id, 1::smallint) in (…)` passava. Agora o segundo membro tem de ser a coluna `filial_id` da própria linha ou,
+só onde a tabela tem `snapshot_anterior`, a forma exata do snapshot (a chave conferida pelo deparse). As três formas
+erradas caem pelo 16c:
+
+**F3 — o segundo membro do par trocado por um literal (ativos / operador atualiza: (empresa_id, 1::smallint))** (roteiro `catalogo_policies.sql`)
+
+```
+-- a sabotagem
+alter policy "operador atualiza" on public.ativos using (empresa_id = any (array (select public.empresas_de_escrita())) and (empresa_id, 1::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u)) with check (empresa_id = any (array (select public.empresas_de_escrita())) and (empresa_id, 1::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u));
+
+-- a saída
+✗ 16c as policies de escrita por unidade (k_recorte_unidade) têm os pares sobre unidades_de_escrita() em toda árvore, na conjunção de cima, e só elas — public.ativos / operador atualiza (using): 1 par(es) com o segundo membro fora da forma (nem filial_id da linha, nem o snapshot); public.ativos / operador atualiza (using): o segundo membro — 0 par(es) sobre filial_id e 0 sobre o snapshot (tem de ser 1 sobre filial_id
+FIM catalogo_policies: 42 asserções, 1 falhas
+```
+
+**F4 — o segundo membro do par trocado por outra coluna da linha (lancamentos_item / operador lanca: quantidade no lugar de filial_id)** (roteiro `catalogo_policies.sql`)
+
+```
+-- a sabotagem
+alter policy "operador lanca" on public.lancamentos_item with check (empresa_id = any (array (select public.empresas_de_escrita())) and (empresa_id, quantidade::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u) and public.estorno_item_coerente(estorna_id, filial_id, item_id));
+
+-- a saída
+✗ 16c as policies de escrita por unidade (k_recorte_unidade) têm os pares sobre unidades_de_escrita() em toda árvore, na conjunção de cima, e só elas — public.lancamentos_item / operador lanca (with check): 1 par(es) com o segundo membro fora da forma (nem filial_id da linha, nem o snapshot); public.lancamentos_item / operador lanca (with check): o segundo membro — 0 par(es) sobre filial_id e 0 sobre o snapshot (tem 
+FIM catalogo_policies: 42 asserções, 1 falhas
+```
+
+**F5 — o par do snapshot lendo outra chave do texto (movimentacoes / operador insere: ->> filial_destino_id)** (roteiro `catalogo_policies.sql`)
+
+```
+-- a sabotagem
+alter policy "operador insere" on public.movimentacoes with check (empresa_id = any (array (select public.empresas_de_escrita())) and (empresa_id, filial_id) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u) and (empresa_id, (snapshot_anterior ->> 'filial_destino_id')::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u));
+
+-- a saída
+✗ 16c as policies de escrita por unidade (k_recorte_unidade) têm os pares sobre unidades_de_escrita() em toda árvore, na conjunção de cima, e só elas — public.movimentacoes / operador insere (with check): o par do snapshot não lê a chave filial_id: 1 de 65 fora da regra
+FIM catalogo_policies: 42 asserções, 1 falhas
+```
+
+No injetor, a mutação nova da revisão (`f66-par-com-segundo-membro-literal`, a forma nova mantida e só o segundo membro
+trocado — só o 16c a vê) roda no CI do SHA congelado; na mesa: `✓ f66-par-com-segundo-membro-literal → catalogo_policies.sql
+[16c]: detectada`.
 
 No injetor (`pode_escrever_filial` de volta; e uma das 6 exceções de volta à lista é a mutação
 `doutrina-excecao-sobrevive-ao-conserto`, que prova a catraca `11b` com a exceção permanente de `lancamentos_item`):

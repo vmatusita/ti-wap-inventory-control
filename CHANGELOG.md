@@ -27,7 +27,7 @@ três exceções sem a coluna; `to authenticated` em public e Storage; a guarda 
 empresas em `isolamento_tenant.sql` (direção A com as policies reais, direção B com o piso neutralizado, o membro das
 duas, a escrita cruzada com o ator que lê a outra empresa, os pares, as `rel_*` sem duplicar), `f66_rollback.sql`
 (contra o "antes" dos dois bancos vivos, com os rollbacks das fases anteriores rodando o da F66 antes), as de mesa (a
-fonte única do recorte, a completude do rollback, os instrumentos) e sete mutações novas no injetor (teto 150). Regras:
+fonte única do recorte, a completude do rollback, os instrumentos) e oito mutações novas no injetor (teto 151). Regras:
 MATRIZ R-ACC-108 a R-ACC-116; ADR-001, ADR-002 e RUNBOOK, emendas F66. Relatório em
 [`docs/RELATORIO-F66.md`](docs/RELATORIO-F66.md); plano em [`docs/PLAN-F66.md`](docs/PLAN-F66.md); ata em
 [`docs/DECISOES.md`](docs/DECISOES.md).

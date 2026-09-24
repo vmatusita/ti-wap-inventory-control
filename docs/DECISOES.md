@@ -13568,7 +13568,7 @@ a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66; PLANO, a
     a sabotada no ensaio deu 2.
 11. **O custo:** a linha de base do MESMO dia, imediatamente antes do apply de produção; > 15% no p95 é medido de novo, e
     só é bloqueio se o `medir-rls` atribuir ao predicado.
-12. **O injetor:** sete mutações novas, teto 143 → 150 (cada uma num roteiro só — as da forma em `catalogo_policies.sql`,
+12. **O injetor:** sete mutações novas, teto 143 → 150 — e uma oitava na revisão adversarial (151, abaixo) — (cada uma num roteiro só — as da forma em `catalogo_policies.sql`,
     as de leitura e escrita cruzadas e a das `rel_*` em `isolamento_tenant.sql`); as duas `*-sem-coluna` devolvem as
     policies da tabela ao texto sem a coluna antes do `drop`.
 13. **O rollback** `F66-desfaz.sql`, antes dos da F65–F62.
@@ -13604,3 +13604,18 @@ a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66; PLANO, a
   da B só com o admin da A, que NÃO lê a B — e o `where` de um UPDATE/DELETE aplica também a policy de SELECT: a recusa
   vinha da leitura, e uma policy de DELETE sem o termo passava a bateria (medido na mesa). O membro das duas (lê a B pelo
   piso, é admin pela ponte) passou a tentar cada classe de escrita; o universo do 10g foi de 9 para 12, com trava de mesa.
+- **(j) A revisão adversarial** (cinco leitores por dimensão lendo o SHA `0e51a0a`, um cético por achado): 7 achados, 6
+  sobreviveram, todos consertados na fase antes do congelamento. (1) ALTO: o 16c contava os pares sem conferir o SEGUNDO
+  membro — `(empresa_id, 1::smallint) in (…)` passava; agora o segundo membro tem de ser a coluna `filial_id` da linha ou,
+  só onde há `snapshot_anterior`, a forma exata do snapshot (a chave conferida pelo deparse), com três árvores sintéticas
+  novas na guarda 16g e a mutação `f66-par-com-segundo-membro-literal` (teto 151); na mesa, o literal, outra coluna e a
+  chave do snapshot trocada caem pelo 16c. (2) BLOQUEANTE: a guarda do `equivalencia-rel.mjs` só tinha lista NEGRA de verbos
+  — um corpo colado com `pg_advisory_lock(…)` (lock de SESSÃO, que o `raise` final não desfaz) passava; agora a lista é
+  FECHADA (funções, pelo léxico da trava de mesa, dentro dos literais e dos `$tag$`; configurações, com o valor), e os 64
+  blocos de todos os modos saem idênticos (a linha do PLAN-F60 §0 regravada). (3) e (4) BAIXOS: `deallocate` em dobro de
+  CADA `prepare`; `--ref` conferido contra o `env-guard` em todo `gerar-*`. (5) BLOQUEANTE (documental): textos em tempo
+  consumado sobre provas de banco vivo antes do apply — o CHANGELOG e as regras descrevem o estado do MERGE (que só acontece
+  depois do apply e das provas), o `RELATORIO-F66.md` nasce antes do merge com os números reais, e o inventário passou a dizer
+  qual prova é emulada e qual é real. (6) MÉDIO: quatro das seis linhas de código da releitura do inventário estavam
+  deslocadas (o código andou desde a F57) — conferidas de novo no disco e corrigidas. O refutado: a identidade da prova conta
+  a conta sem filtro de empresa legada — com uma empresa só e o `rotulo_de_ambiente()` conferindo o alvo, inalcançável.

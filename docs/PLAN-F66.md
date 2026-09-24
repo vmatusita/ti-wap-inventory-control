@@ -240,13 +240,14 @@ empresas de que a pessoa é membro — o certo, na imensa maioria. As que levant
 
 | call-site | o que lê | com duas empresas | o que fica com quem |
 |---|---|---|---|
-| `getDiagnostico` (`queries/dev.ts:94`, `/dev`) | contagens de 4 tabelas | passam a ser das empresas do dev (a soma, se ele for membro de duas) | **F70**: decidir se o `/dev` conta pela empresa escolhida ou pela plataforma (definer) |
-| `excluirItem` (`actions/itens.ts:720`) | a contagem de lançamentos do item antes de excluir | **fica certa por construção**: o item é de uma empresa e a FK composta `(empresa_id, item_id)` (F65) prende todo lançamento dele à mesma empresa — quem vê o item vê todos | nada a fazer (anotado) |
-| `paresEmOutrasFiliais` (`queries/import-logs.ts:225/245`) | o mesmo par patrimônio + service tag em OUTRA filial | para quem é membro de uma empresa, vira "outra filial da minha empresa" — o certo; para o membro de DUAS, o par da outra empresa entraria como "conflito" | **F67**: `where` explícito pela empresa da filial do import (o import é por filial, a filial é de uma empresa) |
+| `getDiagnostico` (`queries/dev.ts:96`, `/dev`) | contagens de 4 tabelas | passam a ser das empresas do dev (a soma, se ele for membro de duas) | **F70**: decidir se o `/dev` conta pela empresa escolhida ou pela plataforma (definer) |
+| `excluirItem` (`actions/itens.ts:779`) | a contagem de lançamentos do item antes de excluir | **fica certa por construção**: o item é de uma empresa e a FK composta `(empresa_id, item_id)` (F65) prende todo lançamento dele à mesma empresa — quem vê o item vê todos | nada a fazer (anotado) |
+| `paresEmOutrasFiliais` (`queries/import-logs.ts:261/284`) | o mesmo par patrimônio + service tag em OUTRA filial | para quem é membro de uma empresa, vira "outra filial da minha empresa" — o certo; para o membro de DUAS, o par da outra empresa entraria como "conflito" | **F67**: `where` explícito pela empresa da filial do import (o import é por filial, a filial é de uma empresa) |
 | `cadastrosComMesmaIdentidade` (`ativos/identidade.ts:150`) | a recusa de identidade duplicada em todas as unidades | idem: por empresa para quem é de uma; o membro de duas veria a duplicata da outra e seria recusado | **F67** (a escrita por tenant: a recusa tem de ser da empresa do cadastro) |
-| `contarPonteirosSubstituto` · `exportarDesvinculosFk` (`queries/import-logs.ts:179/503`) | ponteiros `substitui_ativo_id` vindos de outra filial | **ficam certos**: a FK composta de `substitui_ativo_id` (F65) impede o ponteiro entre empresas | nada a fazer |
+| `contarPonteirosSubstituto` · `exportarDesvinculosFk` (`queries/import-logs.ts:215/636`) | ponteiros `substitui_ativo_id` vindos de outra filial | **ficam certos**: a FK composta de `substitui_ativo_id` (F65) impede o ponteiro entre empresas | nada a fazer |
 
-Nenhuma vira código nesta fase (a F66 não muda o TS que o app executa). O `INVENTARIO-LEITURAS.md` ganha o estado
+(As linhas acima foram corrigidas pela revisão adversarial da fase — quatro das seis estavam deslocadas pelo código que
+andou desde a F57; conferidas de novo no disco.) Nenhuma vira código nesta fase (a F66 não muda o TS que o app executa). O `INVENTARIO-LEITURAS.md` ganha o estado
 depois da fase nas 102 linhas.
 
 ---
@@ -395,7 +396,7 @@ antes da F66, `16a`/`16c`/`16d` vermelhas pelas 51/6/6 e `16b`/`16e`/`16f`/`16g`
    6. `feat(f66)`: `0178`. 7. `feat(f66)`: `0179`, as `rel_*` em `k_leitura_tenant` (e cópias), o `L4`,
    `RECRIACOES_AUTORIZADAS`.
 8. `test(f66)`: os rollbacks (`F66-desfaz.sql`, `f66_rollback.sql`, o encadeamento, `rollback-f66.test.ts`).
-9. `test(f66)`: o injetor (7 mutações, teto 150, as duas `*-sem-coluna`).
+9. `test(f66)`: o injetor (7 mutações, teto 150, as duas `*-sem-coluna`; e a 8ª, teto 151, da revisão adversarial).
 10. `docs(f66)`: MATRIZ, ADR, RUNBOOK, PLANO (F66B, F67, F70, F72), inventário, índices, ata. 11. `chore(f66)`: 1.71.0.
 **Push 2** depois do 9 (o CI verde); o apply (ensaio → produção) sobre o SHA congelado; o merge; o PR de documentação
 com a tag.
