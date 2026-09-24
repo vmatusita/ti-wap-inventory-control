@@ -148,10 +148,18 @@ declare
   --   · vocabulario_unidades_guarda (0173, recriada) — a diagonal nome × apelido, procurada só na empresa da linha.
   -- É a FONTE ÚNICA: o 15h e o 15k usam, `empresa-acervo-sem-leitura.test.ts` LÊ daqui, e o describe 14 de
   -- `catalogos-seguranca.test.ts` amarra as cópias dos roteiros (`empresa_no_acervo.sql`, `empresa_no_vocabulario.sql`).
+  -- F66 (24/09/2026) — as DUAS funções de relatório que a 0179 recria com o join pelo PAR da FK composta (decisão 9 do
+  -- PLAN-F66): `mo.empresa_id = m.empresa_id` é INTEGRIDADE DE JUNÇÃO — o motivo da movimentação é o da empresa DELA —,
+  -- não recorte (quem recorta a leitura é a RLS, e as duas são `security invoker`). Cada uma lê a coluna SÓ de
+  -- `movimentacoes` e `motivos`, no comando do relatório; `rel_resumo_filiais` cita `ativos` no MESMO comando (o join por
+  -- id que dá a categoria), e por isso a tabela entra na lista dela — o predicado único exige toda tabela do lote citada
+  -- no comando que lê a coluna (o `a.empresa_id` não é lido: a origem de cada `x.empresa_id` é provada por comando).
   k_leitura_tenant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
-    'vocabulario_unidades_guarda:filiais,unidades_apelidos'
+    'vocabulario_unidades_guarda:filiais,unidades_apelidos',
+    'rel_por_motivo_filiais:movimentacoes,motivos',
+    'rel_resumo_filiais:movimentacoes,motivos,ativos'
   ];
 
   -- =======================================================================

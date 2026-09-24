@@ -180,6 +180,7 @@
     "0175_recorte_policies_cadastros_do_acervo.sql": "a630dda102eb23bcc129032a65e958b482231c1346ffdadc64cd0279eda8bd74",
     "0176_recorte_policies_movimento_do_acervo.sql": "a63908c8587e557068168baf13ca29b2302e163771b68e0cec54936f9742a7b1",
     "0177_recorte_policies_vocabulario.sql": "4e4bff3f4949196da38505c64670ac2d8eb30338fa5f10f689340dfb26318f1b",
-    "0178_recorte_policies_registros_e_vinculos.sql": "318ba60e30daad7c2734719fd5b02ec1b30c3f88e419d087b7a6325d95ebad38"
+    "0178_recorte_policies_registros_e_vinculos.sql": "318ba60e30daad7c2734719fd5b02ec1b30c3f88e419d087b7a6325d95ebad38",
+    "0179_rel_motivo_por_empresa.sql": "c9f5734a91c9f36c8b9eb9f60754767989a0b1b7151c0439db41d36716cab4e3"
   }
 }

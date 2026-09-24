@@ -108,7 +108,11 @@ declare
   -- cria `guarda_empresa`/`termo_da_empresa` e recria `vocabulario_unidades_guarda`; todas as outras ficam byte a byte.
   -- ⚠ O CI é a régua: a mesa em PGlite (Postgres em WASM) mede outro valor para a MESMA cadeia (9fa5e466…), igual com o
   -- roteiro sozinho e com a suíte inteira — diferença de ambiente, não de ordem de roteiro (nenhum deixa função em public).
-  k_funcoes_pre_0165 constant text := 'b3c0d79079c66f2b66f7903a54ede79f';
+  -- F66 (24/09/2026): o conjunto encolhe nas duas `rel_*` que a 0179 recria (o join pelo par da FK composta) — a
+  -- constante de antes, `b3c0d790…` (a F65: fora das três), dá lugar à do conjunto fora das CINCO, medida no CI na
+  -- cadeia até a 0174 (run 36010011561, push 1 da F66, 100 funções; docs/f66-evidencias/B-travas/). É o mesmo fato: a
+  -- L4 estava verde na 0174 contra `b3c0d790…`, e um subconjunto de um conjunto igual é igual. (A mesa PGlite: 54002b61….)
+  k_funcoes_pre_0165 constant text := '3a2a800078ad78118817492277d3e6d8';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() da 0139 (o dos dois bancos antes da F65).
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
 begin

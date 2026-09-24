@@ -70,6 +70,13 @@ const LEITURA_TENANT: ReadonlyMap<string, readonly string[]> = (() => {
   return new Map([...m[1].matchAll(/'([a-z_0-9]+):([a-z_0-9,]+)'/g)].map((x) => [x[1], x[2].split(',')] as const))
 })()
 
+// EMENDA F66 (24/09/2026 — PLAN-F66). Quem lê `empresa_id` para RECORTAR, desde a F66, são as POLICIES — no catálogo,
+// fora do universo daqui (a trava delas é o bloco 6 de catalogo_policies.sql). O TS continua sem recortar (o recorte
+// explícito nas consultas é da F67/F70), e esta varredura segue valendo para ele. No disco, duas funções entram em
+// `k_leitura_tenant`: `rel_por_motivo_filiais` e `rel_resumo_filiais`, que a 0179 recria com
+// `mo.empresa_id = m.empresa_id` no join de `motivos` — integridade de JUNÇÃO (o motivo da movimentação é o da empresa
+// dela), não recorte; a origem de cada `x.empresa_id` é provada no comando, como nas três da F65.
+
 /** A exceção nomeada da varredura TS: o espelho gerado do banco. */
 const EXCECOES_TS = ['src/lib/types/database.ts'] as const
 
@@ -543,8 +550,14 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     ).toEqual([])
   })
 
-  it('as exceções da F65 (k_leitura_tenant) são as três, cada uma é função vigente, LÊ, e prova a origem no comando', () => {
-    expect([...LEITURA_TENANT.keys()].sort()).toEqual(['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'])
+  it('as exceções de k_leitura_tenant (as três da F65, as duas rel_* da F66) são função vigente, LEEM, e provam a origem no comando', () => {
+    expect([...LEITURA_TENANT.keys()].sort()).toEqual([
+      'guarda_empresa',
+      'rel_por_motivo_filiais',
+      'rel_resumo_filiais',
+      'termo_da_empresa',
+      'vocabulario_unidades_guarda',
+    ])
     for (const [nome, tabelas] of LEITURA_TENANT) {
       const defs = [...vigentes.entries()].filter(([k]) => nomeDaChave(k) === nome)
       expect(defs.length, `${nome}: não há função vigente com esse nome nas migrations`).toBe(1)

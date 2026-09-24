@@ -119,7 +119,9 @@ declare
   k_leitura_tenant constant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
-    'vocabulario_unidades_guarda:filiais,unidades_apelidos'
+    'vocabulario_unidades_guarda:filiais,unidades_apelidos',
+    'rel_por_motivo_filiais:movimentacoes,motivos',
+    'rel_resumo_filiais:movimentacoes,motivos,ativos'
   ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162) — o texto que o CI aplica.

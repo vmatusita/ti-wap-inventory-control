@@ -55,7 +55,9 @@ declare
   -- F65 (23/09/2026): as exceções nominais de leitura da F65 — CÓPIA dos nomes de `k_leitura_tenant`
   -- (catalogo_policies.sql, a fonte única; o describe 14 de catalogos-seguranca.test.ts amarra). O 7b as isenta pelo
   -- NOME, como já isentava o núcleo; quem as confere POR COMANDO, com as tabelas de cada uma, é o 15h.
-  k_leitura_tenant_nomes constant text[] := array['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'];
+  -- F66 (24/09/2026): mais as duas `rel_*` que a 0179 recria com o join pelo par da FK composta (integridade de junção).
+  k_leitura_tenant_nomes constant text[] := array['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
+                                                  'rel_por_motivo_filiais', 'rel_resumo_filiais'];
   k_autor   constant uuid := '63000000-0000-4000-8000-000000000001';
   -- uma empresa que NÃO existe (o v4 fictício) — o alvo da FK
   k_fantasma constant uuid := '63000000-0000-4000-8000-0000000000f0';

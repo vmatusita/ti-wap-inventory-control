@@ -990,14 +990,23 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     }
   })
 
-  it('k_leitura_tenant: as três exceções da F65, e as cópias em empresa_no_acervo e empresa_no_vocabulario batem', () => {
+  it('k_leitura_tenant: as três exceções da F65 e as duas rel_* da F66, e as cópias em empresa_no_acervo e empresa_no_vocabulario batem', () => {
     const tenant = lista(cat, 'k_leitura_tenant')
-    expect(tenant.map((e) => e.split(':')[0])).toEqual(['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'])
+    // F66 (24/09/2026): + as duas `rel_*` que a 0179 recria com o join pelo par da FK composta (integridade de junção)
+    expect(tenant.map((e) => e.split(':')[0])).toEqual([
+      'guarda_empresa',
+      'rel_por_motivo_filiais',
+      'rel_resumo_filiais',
+      'termo_da_empresa',
+      'vocabulario_unidades_guarda',
+    ])
     // a guarda cobre as 20 de negócio; as outras duas, só as tabelas delas
     const tabelas = Object.fromEntries(tenant.map((e) => [e.split(':')[0], e.split(':')[1].split(',').sort()]))
     expect(tabelas.guarda_empresa).toEqual(negocio)
     expect(tabelas.termo_da_empresa).toEqual(['ativos', 'movimentacoes', 'termos_gerados'])
     expect(tabelas.vocabulario_unidades_guarda).toEqual(['filiais', 'unidades_apelidos'])
+    expect(tabelas.rel_por_motivo_filiais).toEqual(['motivos', 'movimentacoes'])
+    expect(tabelas.rel_resumo_filiais).toEqual(['ativos', 'motivos', 'movimentacoes'])
     expect(lista(fonte('empresa_no_vocabulario'), 'k_leitura_tenant'), 'empresa_no_vocabulario.sql: a cópia divergiu').toEqual(tenant)
     expect(lista(fonte('empresa_no_acervo'), 'k_leitura_tenant_nomes'), 'empresa_no_acervo.sql: a cópia dos nomes divergiu').toEqual(
       tenant.map((e) => e.split(':')[0]),
