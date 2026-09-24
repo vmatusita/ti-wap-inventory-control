@@ -83,6 +83,7 @@ declare
   v_ativo8b  constant uuid := '63000000-0000-4000-8000-0000000008b1';
   v_anot8b   constant uuid := '63000000-0000-4000-8000-0000000008b2';
   v_emp8     uuid;
+  v_f8       smallint;
   v_e8a      uuid;
   v_e8b      uuid;
   v_e8c      uuid;
@@ -532,8 +533,14 @@ begin
 
   insert into public.empresas (slug, nome) values ('f63-restauracao-b', 'Empresa B da restauração (F63)')
   returning id into v_emp8;
+  -- F65 (23/09/2026): o ativo da empresa B vai para uma filial DA B. Até a F65 a fixture o punha na filial da WAP
+  -- (`v_f1`) — uma incoerência que o banco não via; a FK composta `ativos_filial_id_fkey` (0166) a recusa (23503), e é
+  -- para isso que ela existe. O que o cenário prova (o backup com a chave `empresa_id` restaura a empresa que traz) não
+  -- muda.
+  insert into public.filiais (nome, slug, empresa_id) values ('F63 Restauração B', 'f63-restauracao-b', v_emp8)
+  returning id into v_f8;
   insert into public.ativos (id, patrimonio, service_tag, categoria, filial_id, origem, status, empresa_id)
-  values (v_ativo8b, 'WAP0063802', 'F63REST2', 'notebook', v_f1, 'cadastro', 'em_estoque', v_emp8);
+  values (v_ativo8b, 'WAP0063802', 'F63REST2', 'notebook', v_f8, 'cadastro', 'em_estoque', v_emp8);
   insert into public.anotacoes (id, ativo_id, texto, criado_por, empresa_id)
   values (v_anot8b, v_ativo8b, 'anotação fictícia restaurada (F63)', k_autor, v_emp8);
 

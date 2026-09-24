@@ -227,11 +227,16 @@ begin
         v_ruins := v_ruins + 1; v_rot := v_rot || ' motivo-da-B(' || sqlstate || ')';
       end if;
     end;
+    -- F65 (23/09/2026): a troca de EMPRESA de um kit passou a ser recusada ANTES do gatilho do kit — pela
+    -- `guarda_empresa` (0173, 42501: "A empresa de um registro não muda"), cujo gatilho `kits_modelos_guarda_empresa`
+    -- dispara primeiro (ordem alfabética). A recusa continua; muda quem recusa. Aceita-se a do kit (antes da 0173) ou a
+    -- da guarda — e nenhuma outra.
     begin
       execute 'update public.kits_modelos set empresa_id = $1 where id = $2' using k_emp_b, v_kit;
       v_ruins := v_ruins + 1; v_rot := v_rot || ' empresa-para-B(passou)';
     exception when others then
-      if not pg_temp.f64_recusa_do_kit(sqlstate || ': ' || sqlerrm) then
+      if not (pg_temp.f64_recusa_do_kit(sqlstate || ': ' || sqlerrm)
+              or (sqlstate = '42501' and sqlerrm like 'A empresa de um registro não muda%')) then
         v_ruins := v_ruins + 1; v_rot := v_rot || ' empresa-para-B(' || sqlstate || ')';
       end if;
     end;

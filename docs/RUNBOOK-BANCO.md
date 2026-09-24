@@ -498,8 +498,8 @@ Por isso, ao acrescentar uma peça:
   CI ensaia (`supabase/tests/f63_rollback.sql`, que prova o esquema das oito voltando à impressão de antes da `0159`) —
   a única escrita fora do `apply_migration`, e só num desfecho ruim. O ledger fica (a linha das três continua lá).
 - **Entre fases:** o rollback de uma fase pressupõe o das fases DEPOIS dela. O da F62 exige o da F64 e o da F63 antes;
-  o da F63 exige o da F64 antes (desde a F64); o da F64 exigirá o da F65 antes (quando a F65 trocar a PK de `motivos` e
-  pendurar os uniques por empresa nas onze).
+  o da F63 exige o da F64 antes (desde a F64); e desde a F65 os três exigem o da F65 antes de tudo (o gatilho `UPDATE OF
+  empresa_id` e as FKs compostas dependem da coluna que eles derrubam) — ver o Anexo F65.
 
 ### O rollback da F64
 
@@ -1657,3 +1657,102 @@ on conflict (version) do nothing;
 > **Confira o `name` real dos arquivos** em `supabase/migrations/` antes de rodar (o `version` é que importa para o `on conflict`; o `name` é só rótulo).
 Conferir antes: `select version, name from supabase_migrations.schema_migrations order by version;`. Reversível (`delete` das mesmas `version`). Como o apply de produção é manual (gate), esta reconciliação é para **fidelidade do histórico**, não muda o funcionamento.
 
+
+## Anexo F65 — trocar a FORMA sem trocar o NOME (23/09/2026)
+
+A F65 (`0165`–`0174`) mudou 23 FKs, catorze uniques, uma PK com FK dependente e três PKs sem tocar em uma linha. O nome
+de constraint e de índice é CONTRATO: a dica de embed do PostgREST (`filial:filiais!<fk>(…)`) e a tradução do erro
+(`casaConstraint` em `src/lib/supabase/erros-do-banco.ts`) casam por ele. As receitas abaixo são as que a fase usou e o
+CI provou; a regra é a R-ACC-98 a R-ACC-107 da MATRIZ.
+
+### Trocar FK simples por composta sem quebrar o PostgREST
+
+1. **O pai primeiro** — `alter table public.<pai> add constraint <pai>_empresa_id_uidx unique (empresa_id, id);` (uma
+   migration própria, antes das FKs). Sem ele, a composta não tem alvo.
+2. **Um `alter table` por FILHO, com o `drop` e o `add` do MESMO nome como subcomandos do mesmo comando:**
+
+   ```sql
+   alter table public.movimentacoes
+     drop constraint movimentacoes_ativo_id_fkey,
+     add constraint movimentacoes_ativo_id_fkey
+       foreign key (empresa_id, ativo_id) references public.ativos (empresa_id, id);
+   ```
+
+   O PG executa os `drop` numa passada anterior aos `add` do mesmo `alter table`, então o nome se reaproveita; e o
+   comando é atômico também no `psql -f` do CI (que não é uma transação só) — nenhum instante sem a FK.
+3. **As MESMAS ações** — confira no catálogo antes (`pg_get_constraintdef`): `ON DELETE`/`ON UPDATE`, `MATCH`,
+   `DEFERRABLE` (`pendencias_item_movimentacao_id_fkey` é `deferrable initially deferred` — o gatilho de `movimentacoes`
+   abre a pendência antes de a movimentação existir; a composta TEM de preservar).
+4. **Validada direto** (sem `not valid`): no `apply_migration` a migration é uma transação só, e separar
+   `not valid`/`validate` não encurta lock nenhum; separar ENTRE migrations deixaria repouso com FK não validada.
+5. **A ordem das famílias é a ordem em que o app toma os locks** (`ativos` → `movimentacoes` → `pendencias_item` →
+   `lancamentos_item`, a de `criar_movimentacao_com_itens`) — a ordem inversa é a forma que dá ciclo de espera.
+6. **Nunca** acrescentar a composta AO LADO da simples (o PostgREST passa a ver duas relações no par: `PGRST201` em todo
+   embed sem dica) nem com OUTRO nome (a dica pelo nome some: `PGRST200`).
+7. **O portão é o conferidor de formas** contra o ENSAIO logo depois do apply lá, e contra PRODUÇÃO — 0 recusadas.
+
+Os tipos: `database.ts` ganha as `Relationships` compostas; a relação que mora numa VIEW, ou que aponta para uma, SOME se
+a view não expõe `empresa_id` (o gerador só emite relação de view com TODAS as colunas da FK expostas). A F65 escreveu
+isso à mão antes do apply (hand-fix datado) e a geração do MCP depois do apply o substitui.
+
+### Trocar unique preservando o nome
+
+- **Índice** (`create unique index`): provisório → `drop` → `rename`, na MESMA migration:
+
+  ```sql
+  create unique index filiais_nome_chave_uidx_f65 on public.filiais (empresa_id, public.vocabulario_chave(nome));
+  drop index public.filiais_nome_chave_uidx;
+  alter index public.filiais_nome_chave_uidx_f65 rename to filiais_nome_chave_uidx;
+  ```
+
+- **Constraint** (`unique` escrito na tabela, inclusive o de nome implícito `<tabela>_<coluna>_key`): `add constraint
+  <nome>_f65 unique (…)` → `drop constraint <nome>` → `rename constraint <nome>_f65 to <nome>`. Constraint continua
+  constraint; o nome, antes implícito, passa a ser escrito — e o `tipo` em `CONSTRAINTS_TRADUZIDAS` acompanha
+  (`unique-nomeada`, conferido por `erros-do-banco-sql.test.ts`).
+- **PK sem FK dependente**: `drop constraint <pkey>, add constraint <pkey> primary key (…)` no mesmo `alter table`.
+- **PK COM FK dependente** (`motivos`): na MESMA migration, a FK sai, a PK troca, a FK volta composta com o mesmo nome.
+- O provisório CONTÉM o nome contratual (`<nome>_f65`), então `casaConstraint` casaria até uma mensagem que o citasse.
+- `empresa_id` PRIMEIRO na chave (a forma de `filiais_empresa_id_uidx`, e o prefixo que o recorte da F66 usa).
+
+### `concurrently` é PROIBIDO pelo MCP
+
+`create index concurrently` não roda dentro de um bloco de transação, e o `apply_migration` é UMA transação (medido na
+F63). As tabelas de negócio são pequenas (produção, 23/09: `movimentacoes` 3.631 linhas / 4,9 MB, `ativos` 1.649 /
+2,2 MB): o `create unique index` comum (lock SHARE) e o `add constraint` (ACCESS EXCLUSIVE, uma varredura) duram
+milissegundos. `set lock_timeout = '2s'` por `set`/`reset`; se o lock não vier: registrar e repetir no máximo três vezes em
+30 minutos — sem subir o timeout, sem matar sessão.
+
+### O passo PÓS-DEPLOY (`0174`)
+
+Quando o estado final quebraria o app VELHO na janela apply → deploy — aqui, o `ON CONFLICT (nome_chave)` de
+`consolidarColaboradores` perderia o árbitro (`42P10`) se o unique global caísse no apply —, o passo final é uma
+migration própria:
+
+1. antes do merge (`0172`): o unique novo nasce AO LADO do antigo (os dois alvos inferem; o antigo, mais estrito, decide);
+   o app passa ao alvo novo no mesmo PR;
+2. a migration final (`0174`: `drop index` do antigo + `rename` do provisório para o nome contratual) vai no MESMO PR e
+   roda no CI com as outras — mas nos bancos vivos só DEPOIS de `/api/saude` mostrar o commit do merge, ensaio primeiro,
+   com as mesmas provas (a impressão, a sonda de exatidão);
+3. se o passo for barrado, o estado intermediário é repouso válido; a sonda de deriva cobra o arquivo não aplicado em
+   24 h — registre.
+
+### A prova de "nenhuma tupla reescrita" com a PK trocada
+
+A chave do instrumento (`docs/f65-evidencias/impressao-tenant.sql`) é a PK LIDA DO CATÁLOGO **menos `empresa_id`**: a
+PK de `motivos` passa de `(codigo)` a `(empresa_id, codigo)`, e a chave estável é `(codigo)` nos dois momentos. O
+critério é o da F63/F64: `relfilenode` igual sem exceção; ensaio com os md5 idênticos; produção idênticos ou a diferença
+explicada só pela janela. `add constraint` de FK/unique/PK só VARRE (doc do PG 17, `sql-altertable`).
+
+### O rollback da F65
+
+- **Quando:** os mesmos gatilhos das fases anteriores — `relfilenode` mudou, md5 divergiu além da janela, advisor de
+  segurança não declarado que cita objeto da fase, o conferidor de formas recusou. Em produção, **imediato**.
+- **O arquivo:** `supabase/rollback/F65-desfaz.sql` — `0174` → `0165`, cada passo conferindo a forma no catálogo antes
+  de agir (IDEMPOTENTE em qualquer estado intermediário: serve ao apply parado no meio e ao arquivo rodado duas vezes).
+  As FKs voltam simples e os uniques globais com os MESMOS nomes e ações; `guarda_empresa`/`termo_da_empresa` e os 21
+  gatilhos saem; a diagonal volta ao corpo da `0139` (copiado byte a byte). Ensaiado no CI por
+  `supabase/tests/f65_rollback.sql` até a impressão de antes da `0165` (`1c72ca42…`). Num banco vivo: o `execute_sql`
+  com o conteúdo EXATO do arquivo. O ledger fica.
+- **Depois da F73** (duas empresas com dado), este rollback exige que o dado da segunda empresa já tenha saído: os
+  uniques e as PKs globais não voltam com duas empresas repetindo uma chave.
+- **Entre fases:** os rollbacks da F64, F63 e F62 rodam este antes dos deles.

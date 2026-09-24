@@ -1,0 +1,135 @@
+# CI do push 1 — run 35925340234, commit 3486836 (só as travas; nenhuma migration da F65)
+# job banco-sem-docker (107398966862): asserções que caíram, medições e o RESUMO do runner
+
+catalogo_policies.sql:1602: WARNING:  ✗ 15k toda exceção de leitura da F65 (k_leitura_tenant) é uma função que existe e LÊ empresa_id, fora das do kit; a guarda cobre as 20 de negócio — guarda_empresa (não existe); termo_da_empresa (não existe); vocabulario_unidades_guarda (não lê empresa_id — exceção fantasma): 3 de 4 fora da regra
+catalogo_policies.sql:1602: NOTICE:  FIM catalogo_policies: 36 asserções, 1 falhas
+empresa_no_acervo.sql:578: NOTICE:  3b (medição) update em ativos: passou:2 · relfilenode 16563 → 16563 · md5(id, xmin) a2d225fcb79592e905311e4b441460ec → 1ffcd83a6fff2bacc1507c03a22f591b
+empresa_no_acervo.sql:578: NOTICE:  4a/4b (medição) relfilenode: 19182 → (default volátil) 19190 → (default da fase) 19190 · atthasmissing da coluna da fase: t
+empresa_no_acervo.sql:578: NOTICE:  4c (medição) update de UMA linha numa subtransação: relfilenode 19190 → 19190 · md5(id, xmin) 72b8b5cc4c84498f69386ef9d4c3a562 → ddb83658bdec7c96c920eae5db21a5e7
+empresa_no_acervo.sql:578: NOTICE:  5e (medição) a linha inteira antes do backfill 5e7abf41951dcd0389026385857e0337 · depois do rollback 5e7abf41951dcd0389026385857e0337
+empresa_no_vocabulario.sql:554: NOTICE:  3a (medição) update ingênuo em motivos: passou:14 · relfilenode 16555 → 16555 · md5(pk, xmin) 6acd3fb2f37eac612e3dea5a6fecf96d → 485c04f0a230c8e6b64aaf7082f3fec1
+empresa_no_vocabulario.sql:554: NOTICE:  3a (medição) update ingênuo em eventos_admin: passou:1 · relfilenode 17063 → 17063 · md5(pk, xmin) c83b591dc82cc064f18879b34c5e9324 → cc2d94ba1314a81de7c61d50d494ff85
+empresa_no_vocabulario.sql:554: NOTICE:  4a (medição) relfilenode: 19231 → (default volátil) 19239 → (default da fase) 19239 · atthasmissing da coluna da fase: t
+empresa_no_vocabulario.sql:554: NOTICE:  4b (medição) update de UMA linha numa subtransação, PK text: relfilenode 19239 → 19239 · md5(pk, xmin) 6d36250d13fb75c403131b3017d68e7c → da89279aae2d376a5a1c85ab81f38bb2 · pk lida: codigo
+empresa_no_vocabulario.sql:554: NOTICE:  4c (medição) a PK do catálogo nas quatro sem id [pk nulas:distintas:linhas]: motivos[codigo 0:14:14] import_prefixos_patrimonio[prefixo 0:8:8] import_termos_categoria[termo 0:6:6] import_termos_estado[termo 0:18:18]
+empresa_no_vocabulario.sql:554: WARNING:  ✗ 4c o instrumento lê a PK do CATÁLOGO nas quatro tabelas sem id (codigo, prefixo, termo, termo) — nenhuma chave nula, uma por linha — motivos[codigo 0:14:14] import_prefixos_patrimonio[prefixo 0:8:8] import_termos_categoria[termo 0:6:6] import_termos_estado[termo 0:18:18]: 4 de 46 fora da regra
+empresa_no_vocabulario.sql:554: NOTICE:  6c (medição) a exceção com um comando a mais: kit_motivo_da_empresa (num comando que lê outra tabela do lote: perform count(*) from public.eventos_admin e where e.empresa_id = new.empresa_id)
+empresa_no_vocabulario.sql:554: NOTICE:  FIM empresa_no_vocabulario: 15 asserções, 1 falhas
+f62_rollback.sql:200: NOTICE:  ✓ rb0 o estado depois da F62 foi montado (promovido=admin, desligado=sem cargo, dev=dev) — só na membership
+f62_rollback.sql:200: NOTICE:  ✓ rb1 rollback na ordem escrita (cópia primeiro): o corpo antigo devolve o estado MAIS NOVO — promovido=admin, desligado=sem cargo, dev=dev, e a impressão de todo perfil é a mesma de antes do rollback
+f62_rollback.sql:200: NOTICE:  ✓ rb2 SEM a cópia, o rollback devolve o estado VELHO — o desligado voltaria a ter cargo (operador/operador/operador) e a impressão muda: a cópia é o passo que impede isso
+f62_rollback.sql:200: NOTICE:  ✓ rb3 o esquema voltou ao de antes da F62: sem membros/empresas/plataforma_admins, sem empresa_id/membro_id, PK (usuario_id, filial_id), papel_atual() lendo profiles
+f63_rollback.sql:144: NOTICE:  (medição) impressão do esquema das oito DEPOIS do rollback: c533eeff15f4196c2f8a5ec4721ff570 · antes, sem o que a F63 declarou: c533eeff15f4196c2f8a5ec4721ff570
+f63_rollback.sql:144: NOTICE:  ✓ rb0 antes do rollback, as oito tabelas do acervo TÊM empresa_id visível (0 de 8 conferidos)
+f63_rollback.sql:144: NOTICE:  ✓ rb1 depois do rollback, nenhuma das oito tem empresa_id visível (0 de 8 conferidos)
+f63_rollback.sql:144: NOTICE:  ✓ rb2 depois do rollback, public.backups_migration não existe (0 de 1 conferidos)
+f63_rollback.sql:144: NOTICE:  ✓ rb3 o esquema das oito depois do rollback é o do CI antes da 0159 (0 de 1 conferidos)
+f63_rollback.sql:144: NOTICE:  ✓ rb4 o rollback tira exatamente o que a F63 declarou (antes sem empresa_id = depois) (0 de 1 conferidos)
+f64_rollback.sql:170: NOTICE:  (medição) impressão do esquema das onze DEPOIS do rollback: 9ab2b820d7cdaa5d46cd6e9f17424054 · antes, sem o que a F64 declarou: edd4bcf933df4d3b5a4dfbb5bb839b60 · depois, sem: edd4bcf933df4d3b5a4dfbb5bb839b60
+f64_rollback.sql:170: NOTICE:  ✓ rb0 antes do rollback, as onze tabelas do lote 2 TÊM empresa_id visível, e o gatilho e a função do kit existem (0 de 13 conferidos)
+f64_rollback.sql:170: NOTICE:  ✓ rb1 depois do rollback, nenhuma das onze tem empresa_id visível (0 de 11 conferidos)
+f64_rollback.sql:170: NOTICE:  ✓ rb2 depois do rollback, o gatilho e a função do kit sumiram, e o núcleo voltou ao corpo da 0158 (0 de 3 conferidos)
+f64_rollback.sql:170: NOTICE:  ✓ rb3 o esquema das onze (e as duas funções) depois do rollback é o do CI antes da 0162 (0 de 1 conferidos)
+f64_rollback.sql:170: NOTICE:  ✓ rb4 o rollback tira exatamente o que a F64 declarou (antes sem a F64 = depois sem a F64) (0 de 1 conferidos)
+f65_rollback.sql:190: NOTICE:  (medição) impressão do esquema das 20 DEPOIS do rollback: 1c72ca42784d716f9009cc68f504c8f3 · antes, sem o que a F65 declarou: 548711b04d4af05ad1f110447260186c · depois, sem: 548711b04d4af05ad1f110447260186c
+f65_rollback.sql:190: WARNING:  ✗ rb0 antes do rollback, o que a F65 pôs existe (23 FKs compostas, 7 uniques dos pais, 21 gatilhos, 2 funções) — 0 de 53: 53 de 53 fora da regra
+f65_rollback.sql:190: NOTICE:  ✓ rb1 depois do rollback, nada da F65 sobrou (FK composta de negócio, unique dos pais, gatilho da fase, função nova, provisório *_f65) (0 de 53 conferidos)
+f65_rollback.sql:190: NOTICE:  ✓ rb2 depois do rollback, guarda_empresa e termo_da_empresa sumiram, e a diagonal voltou ao corpo da 0139 (0 de 3 conferidos)
+f65_rollback.sql:190: NOTICE:  ✓ rb3 o esquema das 20 (e as três funções) depois do rollback é o do CI antes da 0165 (0 de 1 conferidos)
+f65_rollback.sql:190: NOTICE:  ✓ rb4 o rollback tira exatamente o que a F65 declarou (antes sem a F65 = depois sem a F65) (0 de 1 conferidos)
+f65_rollback.sql:190: NOTICE:  FIM f65_rollback: 5 asserções, 1 falhas
+forma_multiempresa.sql:250: WARNING:  ✗ F1 toda FK entre duas tabelas de negócio é COMPOSTA e começa por empresa_id nos dois lados — fora da forma: anotacoes_ativo_id_fkey, ativos_filial_id_fkey, ativos_substitui_ativo_id_fkey, colaboradores_filial_id_fkey, import_logs_filial_id_fkey, itens_tipo_id_fkey, lancamentos_item_colaborador_id_fkey, lancamentos_item_estorna_id_fkey, lancamentos_item_filial_id_fkey, lancamentos_item_item_id_fkey, lancamentos_item_movimentacao_id_fkey, lancamentos_item_pendencia_item_id_fkey, movimentacoes_ativo_id_fkey, movimentacoes_colaborador_id_fkey, movimentacoes_estorno_de_fkey, movimentacoes_filial_destino_id_fkey, movimentacoes_filial_id_fkey, movimentacoes_motivo_fkey, pendencias_item_ativo_id_fkey, pendencias_item_filial_id_fkey, pendencias_item_movimentacao_id_fkey, relatorios_gerados_filial_id_fkey, unidades_apelidos_filial_id_fkey: 23 de 23 fora da regra
+forma_multiempresa.sql:250: WARNING:  ✗ F3 todo pai de FK de negócio tem unique ou PK EXATAMENTE sobre (empresa_id, a coluna referenciada) — sem ele: ativos(empresa_id, id), colaboradores(empresa_id, id), itens(empresa_id, id), lancamentos_item(empresa_id, id), motivos(empresa_id, codigo), movimentacoes(empresa_id, id), pendencias_item(empresa_id, id), tipos_item(empresa_id, id): 8 de 9 fora da regra
+forma_multiempresa.sql:250: WARNING:  ✗ F4 não sobra FK SIMPLES entre tabelas de negócio — simples: anotacoes_ativo_id_fkey, ativos_filial_id_fkey, ativos_substitui_ativo_id_fkey, colaboradores_filial_id_fkey, import_logs_filial_id_fkey, itens_tipo_id_fkey, lancamentos_item_colaborador_id_fkey, lancamentos_item_estorna_id_fkey, lancamentos_item_filial_id_fkey, lancamentos_item_item_id_fkey, lancamentos_item_movimentacao_id_fkey, lancamentos_item_pendencia_item_id_fkey, movimentacoes_ativo_id_fkey, movimentacoes_colaborador_id_fkey, movimentacoes_estorno_de_fkey, movimentacoes_filial_destino_id_fkey, movimentacoes_filial_id_fkey, movimentacoes_motivo_fkey, pendencias_item_ativo_id_fkey, pendencias_item_filial_id_fkey, pendencias_item_movimentacao_id_fkey, relatorios_gerados_filial_id_fkey, unidades_apelidos_filial_id_fkey: 23 de 23 fora da regra
+forma_multiempresa.sql:250: WARNING:  ✗ F6 toda FK de public que referencia uma tabela de negócio é composta com empresa_id (fora da lista nominal) — fora da forma: anotacoes.anotacoes_ativo_id_fkey, ativos.ativos_filial_id_fkey, ativos.ativos_substitui_ativo_id_fkey, colaboradores.colaboradores_filial_id_fkey, import_logs.import_logs_filial_id_fkey, itens.itens_tipo_id_fkey, lancamentos_item.lancamentos_item_colaborador_id_fkey, lancamentos_item.lancamentos_item_estorna_id_fkey, lancamentos_item.lancamentos_item_filial_id_fkey, lancamentos_item.lancamentos_item_item_id_fkey, lancamentos_item.lancamentos_item_movimentacao_id_fkey, lancamentos_item.lancamentos_item_pendencia_item_id_fkey, movimentacoes.movimentacoes_ativo_id_fkey, movimentacoes.movimentacoes_colaborador_id_fkey, movimentacoes.movimentacoes_estorno_de_fkey, movimentacoes.movimentacoes_filial_destino_id_fkey, movimentacoes.movimentacoes_filial_id_fkey, movimentacoes.movimentacoes_motivo_fkey, pendencias_item.pendencias_item_ativo_id_fkey, pendencias_item.pendencias_item_filial_id_fkey, pendencias_item.pendencias_item_movimentacao_id_fkey, relatorios_gerados.relatorios_gerados_filial_id_fkey, unidades_apelidos.unidades_apelidos_filial_id_fkey: 23 de 25 fora da regra
+forma_multiempresa.sql:250: WARNING:  ✗ F7 termos_gerados tem o gatilho de coerência de empresa (termos_gerados_ids_da_empresa → termo_da_empresa, INVOKER, BEFORE INSERT OR UPDATE OF movimentacao_ids, ativo_ids, empresa_id, por linha, habilitado): 1 de 1 fora da regra
+forma_multiempresa.sql:250: NOTICE:  FIM forma_multiempresa: 8 asserções, 5 falhas
+imutabilidade_tenant.sql:259: WARNING:  ✗ I1 toda tabela de public com empresa_id (fora da infra nominal) tem a guarda_empresa BEFORE UPDATE OF empresa_id, por linha, habilitada — sem a guarda: anotacoes, ativos, colaboradores, eventos_admin, filiais, import_logs, import_prefixos_patrimonio, import_termos_categoria, import_termos_estado, itens, kits_modelos, lancamentos_item, motivos, movimentacoes, pendencias_item, relatorios_gerados, senhas_acesso, termos_gerados, tipos_item, unidades_apelidos: 20 de 20 fora da regra
+imutabilidade_tenant.sql:259: WARNING:  ✗ I2 guarda_empresa() é INVOKER, não cita a janela dev_destrutivo nem current_setting, e não toca tabela — a função public.guarda_empresa() não existe: 1 de 1 fora da regra
+imutabilidade_tenant.sql:259: WARNING:  ✗ I4 nas 20 tabelas de negócio, trocar a empresa de uma linha leva 42501 — fora da janela e DENTRO dela (com a frase da guarda) — fora da regra: anotacoes(fora da janela: passou) anotacoes(com a janela: passou) ativos(fora da janela: passou) ativos(com a janela: passou) colaboradores(fora da janela: passou) colaboradores(com a janela: passou) eventos_admin(fora da janela: passou) eventos_admin(com a janela: passou) filiais(fora da janela: passou) filiais(com a janela: passou) import_logs(fora da janela: passou) import_logs(com a janela: passou) import_prefixos_patrimonio(fora da janela: passou) import_prefixos_patrimonio(com a janela: passou) import_termos_categoria(fora da janela: passou) import_termos_categoria(com a janela: passou) import_termos_estado(fora da janela: passou) import_termos_estado(com a janela: passou) itens(fora da janela: passou) itens(com a janela: passou) kits_modelos(fora da janela: 23503) kits_modelos(com a janela: 23503) lancamentos_item(com a janela: passou) motivos(fora da janela: passou) motivos(com a janela: passou) movimentacoes(com a janela: passou) pendencias_item(fora da janela: passou) pendencias_item(com a janela: passou) relatorios_gerados(fora da janela: passou) relatorios_gerados(com a janela: passou) senhas_acesso(fora da janela: passou) senhas_acesso(com a janela: passou) termos_gerados(fora da janela: passou) termos_gerados(com a janela: passou) tipos_item(fora da janela: passou) tipos_item(com a janela: passou) unidades_apelidos(fora da janela: passou) unidades_apelidos(com a janela: passou): 38 de 40 fora da regra
+imutabilidade_tenant.sql:259: WARNING:  ✗ I6 INSERT … ON CONFLICT (id) DO UPDATE SET empresa_id = excluded.empresa_id leva 42501 (os gatilhos de UPDATE disparam) — passou: 1 de 1 fora da regra
+imutabilidade_tenant.sql:259: NOTICE:  FIM imutabilidade_tenant: 8 asserções, 4 falhas
+integridade_tenant.sql:532: NOTICE:  (medição) D: 23 FKs entre tabelas de negócio no catálogo
+integridade_tenant.sql:532: WARNING:  ✗ D1 para cada FK entre tabelas de negócio (do catálogo), o filho da empresa A apontado para o pai da B leva 23503 — fora da regra: anotacoes_ativo_id_fkey(passou) ativos_filial_id_fkey(passou) ativos_substitui_ativo_id_fkey(passou) colaboradores_filial_id_fkey(passou) import_logs_filial_id_fkey(passou) itens_tipo_id_fkey(passou) lancamentos_item_colaborador_id_fkey(passou) lancamentos_item_estorna_id_fkey(passou) lancamentos_item_filial_id_fkey(passou) lancamentos_item_item_id_fkey(passou) lancamentos_item_movimentacao_id_fkey(passou) lancamentos_item_pendencia_item_id_fkey(passou) movimentacoes_ativo_id_fkey(passou) movimentacoes_colaborador_id_fkey(passou) movimentacoes_estorno_de_fkey(passou) movimentacoes_filial_destino_id_fkey(passou) movimentacoes_filial_id_fkey(passou) movimentacoes_motivo_fkey(passou) pendencias_item_ativo_id_fkey(passou) pendencias_item_filial_id_fkey(passou) pendencias_item_movimentacao_id_fkey(passou) relatorios_gerados_filial_id_fkey(passou) unidades_apelidos_filial_id_fkey(passou): 23 de 23 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ D4 a transferência de um ativo da A para uma filial da B é recusada (23503) e o ativo segue na filial de origem; dentro da A, passa — para B: passou · dentro da A: passou · na origem: 1: 1 de 3 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ E1 o mesmo código de motivo coexiste em A e em B; repetido na mesma empresa, é recusado (23505, motivos_pkey) — fora da regra: mesmo-codigo-em-A(23505: duplicate key value violates unique constra): 1 de 2 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ E2 a movimentação da A com o motivo que só existe na B leva 23503 (movimentacoes_motivo_fkey), e o motivo dela continua o de antes — passou · intacta: 1: 1 de 2 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ E4 o mesmo prefixo e o mesmo termo (com rótulo) coexistem em B e em C; na mesma empresa, o prefixo, o termo e o rótulo da categoria/estado repetidos são recusados (23505, pelo nome) — fora da regra: coexistir(23505: duplicate key value violates unique constraint "import_prefixos) coexistir(23505: duplicate key value violates unique constraint "import_termos_c) coexistir(23505: duplicate key value violates unique constraint "import_termos_c) coexistir(23505: duplicate key value violates unique constraint "import_termos_e) coexistir(23505: duplicate key value violates unique constraint "import_termos_e) termo-repetido(passou): 6 de 10 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ J1 contra o esquema-alvo, ON CONFLICT (nome_chave) falha com 42P10 e ON CONFLICT (empresa_id, nome_chave) infere o unique por empresa (e não duplica) — fora da regra: on-conflict-nome_chave(passou) on-conflict-empresa-nome_chave(42P10: there is no unique or exclusion constraint matching the ON CONF): 2 de 3 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ J2 no estado intermediário da decisão 5 (o unique global ao lado do por empresa), ON CONFLICT (nome_chave) e ON CONFLICT (empresa_id, nome_chave) inferem os dois — fora da regra: 42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification: 1 de 1 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ F1 duas empresas têm, cada uma, a filial `matriz` com o mesmo nome; na mesma empresa, o slug e o nome repetidos são recusados (23505, pelo nome contratual) — fora da regra: matriz-em-B(23505: duplicate key value violates unique constraint "filia) matriz-em-C(23505: duplicate key value violates unique constraint "filia) nome-repetido(passou): 3 de 3 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ F2 o mesmo tipo, colaborador, item, kit e apelido coexistem em B e em C; repetidos na mesma empresa, são recusados (23505, pelo nome contratual) — fora da regra: coexistir(23505: duplicate key value violates unique constraint "tipos_item_slug) coexistir(23505: duplicate key value violates unique constraint "colaboradores_n) coexistir(23505: duplicate key value violates unique constraint "itens_nome_chav) coexistir(23505: duplicate key value violates unique constraint "kits_modelos_no) coexistir(23505: duplicate key value violates unique constraint "unidades_apelid): 5 de 15 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ G1 duas empresas geram o Consolidado do MESMO período e da MESMA versão, e as duas passam — fora da regra: as-duas-empresas(23505: duplicate key value violates unique constraint "relatorios_gerados_period): 1 de 1 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ G2 na mesma empresa, o segundo Consolidado do período e versão leva 23505 citando relatorios_gerados_periodo_filial_versao_uidx (a segunda pista de ehViolacaoDeVersao), e só um ficou — passou · ficaram 0: 2 de 2 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ H1 a diagonal é por empresa: B nomeia uma filial com o apelido da A, e A usa como apelido o nome de uma filial da B — os dois passam — fora da regra: B-nomeia-com-o-apelido-da-A(P0001: O nome "Centro F65" já é apelido de outra filial — escolha outr) A-apelida-com-o-nome-da-B(P0001: O termo "F65 Secreta da B" já é o nome da filial "F65 Secreta d): 2 de 2 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ H3 o corpo de vocabulario_unidades_guarda() é o da 0139 byte a byte, mais as DUAS linhas da diagonal por empresa (e só elas) — md5 sem as duas: 91e80d533d72191325e614d24e15a881 · linhas da empresa: 0: 1 de 2 fora da regra
+integridade_tenant.sql:532: WARNING:  ✗ I1 o termo da A que cita movimentação da B, ou ativo da B (no INSERT e no UPDATE dos arrays), é recusado (23503, a frase do termo), e o termo da A ficou como estava — fora da regra: movimentacao-da-B(passou) ativo-da-B(passou) update-para-ativo-da-B(passou): 3 de 4 fora da regra
+integridade_tenant.sql:532: NOTICE:  (medição) L4: md5 das funções de public fora das três da F65: b3c0d79079c66f2b66f7903a54ede79f
+integridade_tenant.sql:532: WARNING:  ✗ L4 o corpo das funções de public que a F65 não cria nem recria é o de antes da 0165 (md5 contra a constante do CI) — b3c0d79079c66f2b66f7903a54ede79f, esperado 9fa5e4669eb15ea8f199fd392613d30e: 1 de 1 fora da regra
+integridade_tenant.sql:532: NOTICE:  FIM integridade_tenant: 24 asserções, 15 falhas
+isolamento_tenant.sql:977: NOTICE:  9o (medição) com force em membros, admin_a leu papel/linhas = admin/9 — dono das definer que leem membros ignora RLS por atributo em 17 de 17
+kit_motivo_da_empresa.sql:384: NOTICE:  (medição) motivos.empresa_id existe: t · o gatilho do kit existe: t · kit_motivo_orfao antes: 0
+kit_motivo_da_empresa.sql:384: NOTICE:  (medição) C6 kit_motivo_orfao: 0 → 2 · amostra com os dois ids: t
+unicidade_por_empresa.sql:143: NOTICE:  (medição) U1: 37 índices únicos nas 20 tabelas de negócio · 5 com expressão · 4 parciais
+unicidade_por_empresa.sql:143: WARNING:  ✗ U1 todo índice único de tabela de negócio tem empresa_id na chave (ou é a PK (id), ou está na lista nominal dos implícitos) — global: colaboradores_nome_chave_uidx [nome_chave]; filiais_nome_chave_uidx [expr:vocabulario_chave(nome)]; filiais_slug_key [slug]; import_prefixos_patrimonio_pkey [prefixo]; import_termos_categoria_categoria_rotulo_uidx [categoria, parcial]; import_termos_categoria_pkey [termo]; import_termos_estado_estado_rotulo_uidx [estado, parcial]; import_termos_estado_pkey [termo]; itens_nome_chave_uidx [nome_chave]; kits_modelos_nome_uidx [expr:lower(nome)]; motivos_pkey [codigo]; relatorios_gerados_periodo_filial_versao_uidx [periodo_de, periodo_ate, expr:COALESCE(filial_id::integer, '-1'::integer), versao]; tipos_item_slug_key [slug]; unidades_apelidos_apelido_chave_uidx [apelido_chave]: 14 de 37 fora da regra
+unicidade_por_empresa.sql:143: NOTICE:  FIM unicidade_por_empresa: 3 asserções, 1 falhas
+
+==== RESUMO ====
+  ✓ asof_desempate — 21 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 71 asserções
+  ✓ cargo_em_membros — 5 asserções
+  ✓ cargo_equivalencia — 7 asserções
+  ✗ catalogo_policies — o contador declara 1 falha(s)
+  ✗ catalogo_policies — marcou 1 ✗ (cenário falhou)
+  ✓ catalogo_secdef — 16 asserções
+  ✓ conflito_filiais — 51 asserções
+  ✓ definer_sem_tenant — 6 asserções
+  ✓ dev_destrutivo — 108 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ empresa_no_acervo — 23 asserções
+  ✗ empresa_no_vocabulario — o contador declara 1 falha(s)
+  ✗ empresa_no_vocabulario — marcou 1 ✗ (cenário falhou)
+  ✓ escrita_atomica_ativos_anotacao — 16 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 26 asserções
+  ✓ f60_recorte — 17 asserções
+  ✓ f62_rollback — 4 asserções
+  ✓ f63_rollback — 5 asserções
+  ✓ f64_rollback — 5 asserções
+  ✗ f65_rollback — o contador declara 1 falha(s)
+  ✗ f65_rollback — marcou 1 ✗ (cenário falhou)
+  ✗ forma_multiempresa — o contador declara 5 falha(s)
+  ✗ forma_multiempresa — marcou 5 ✗ (cenário falhou)
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_fora_da_unidade — 14 asserções
+  ✓ import_substituir — 32 asserções
+  ✗ imutabilidade_tenant — o contador declara 4 falha(s)
+  ✗ imutabilidade_tenant — marcou 4 ✗ (cenário falhou)
+  ✓ integridade_alarme — 40 asserções
+  ✗ integridade_tenant — o contador declara 15 falha(s)
+  ✗ integridade_tenant — marcou 15 ✗ (cenário falhou)
+  ✓ isolamento_tenant — 27 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ kit_motivo_da_empresa — 14 asserções
+  ✓ ledger_de_migracoes — 6 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ movimentacao_grade — 45 asserções
+  ✓ papeis_rls — 77 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 15 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ restauracao — 19 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ storage_termo — 13 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  ✗ unicidade_por_empresa — o contador declara 1 falha(s)
+  ✗ unicidade_por_empresa — marcou 1 ✗ (cenário falhou)
+  ✓ vocabulario_import — 56 asserções

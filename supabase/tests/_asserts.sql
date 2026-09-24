@@ -346,14 +346,28 @@ declare
   v_origens text[];
   v_gatilho boolean;
   v_decl    text;
+  v_gatilho_no_lote boolean;
 begin
+  -- F65 (23/09/2026, o fato 21 da ordem): uma função de GATILHO numa tabela do lote lê a linha dela por `new`/`old` SEM
+  -- citar a tabela no corpo — e isso também é ler `empresa_id` do lote (a forma de `guarda_empresa`). Até a F65 o texto
+  -- cru a descartava por não citar tabela nenhuma; agora ela conta, e só passa como exceção nominal.
+  select exists (select 1 from pg_trigger t
+                   join pg_proc p on p.oid = t.tgfoid
+                   join pg_namespace pn on pn.oid = p.pronamespace
+                   join pg_class c on c.oid = t.tgrelid
+                   join pg_namespace cn on cn.oid = c.relnamespace
+                  where pn.nspname = 'public' and cn.nspname = 'public'
+                    and p.proname::text = p_funcao and not t.tgisinternal
+                    and c.relname::text = any (p_lote))
+    into v_gatilho_no_lote;
   -- o texto cru já descarta quase tudo (e poupa o léxico das funções que não interessam)
-  if p_corpo is null or p_corpo !~* v_re_lote or p_corpo !~* '\mempresa_id\M' then
+  if p_corpo is null or p_corpo !~* '\mempresa_id\M' or (p_corpo !~* v_re_lote and not v_gatilho_no_lote) then
     return null;
   end if;
   -- o código em minúsculas: o Postgres dobra o identificador sem aspas (`FROM Public.Motivos`)
   v_codigo := lower(pg_temp.sql_so_codigo(p_corpo));
-  if v_codigo !~ v_re_lote or v_codigo !~ '\mempresa_id\M' then
+  if v_codigo !~ '\mempresa_id\M'
+     or (v_codigo !~ v_re_lote and not (v_gatilho_no_lote and v_codigo ~ '\m(new|old)\s*\.\s*empresa_id\M')) then
     return null;
   end if;
   if not (p_funcao = any (p_excecoes)) then
@@ -413,5 +427,126 @@ begin
     end loop;
   end loop;
   return null;
+end;
+$fn$;
+
+-- =============================================================
+-- AS EXCEÇÕES DE LEITURA DA F65, FUNÇÃO A FUNÇÃO (23/09/2026)
+-- =============================================================
+-- A F65 cria três leituras legítimas de `empresa_id` antes da F66 — integridade e identidade, não recorte: a guarda
+-- (`guarda_empresa`, só `new`/`old`), a coerência do termo (`termo_da_empresa`: `termos_gerados`, `movimentacoes`,
+-- `ativos`) e a diagonal por empresa (`vocabulario_unidades_guarda`: `filiais`, `unidades_apelidos`). Cada uma pode ler
+-- a coluna SÓ das tabelas DELA — a fonte única é `k_leitura_tenant` em catalogo_policies.sql, cada entrada
+-- `função:tabela,tabela`. Este despachante aplica o predicado único acima com as tabelas da função (a exceção vale por
+-- COMANDO, com a origem provada); as funções fora de `k_leitura_tenant` seguem com as exceções do kit da F64.
+create or replace function pg_temp.leitura_de_empresa(
+  p_funcao          text,
+  p_corpo           text,
+  p_lote            text[],
+  p_excecoes_kit    text[],
+  p_tabelas_kit     text[],
+  p_leitura_tenant  text[]
+) returns text
+language plpgsql
+as $fn$
+declare
+  v_tabelas text;
+begin
+  select split_part(e, ':', 2) into v_tabelas
+    from unnest(p_leitura_tenant) as e
+   where split_part(e, ':', 1) = p_funcao;
+  if v_tabelas is not null then
+    return pg_temp.leitura_de_empresa_do_lote(p_funcao, p_corpo, p_lote, array[p_funcao], string_to_array(v_tabelas, ','));
+  end if;
+  return pg_temp.leitura_de_empresa_do_lote(p_funcao, p_corpo, p_lote, p_excecoes_kit, p_tabelas_kit);
+end;
+$fn$;
+
+-- =============================================================
+-- O AJUDANTE DE FIXTURE DO TENANT (F65, 23/09/2026)
+-- =============================================================
+-- `pg_temp.f65_plantar(empresa, marca, autor)` planta UMA linha em cada uma das 20 tabelas de negócio,
+-- TODAS com `empresa_id` = a empresa dada, POR EXTENSO (nunca pelo default — o default é a WAP até a F67, e
+-- uma fixture da empresa B que o deixasse agir pendurava filho da WAP em pai da B: a FK composta da F65 a
+-- recusa, e é isso que ela existe para recusar). Devolve os ids num jsonb, pela chave da tabela.
+-- `marca` distingue as duas empresas de um roteiro (nomes, slugs e códigos fictícios: 'f65-<marca>'); o
+-- prefixo de patrimônio do import precisa de 2 a 4 maiúsculas e vem de `prefixo`.
+-- Quem usa: supabase/tests/imutabilidade_tenant.sql e integridade_tenant.sql (F65). Dados 100% fictícios.
+create or replace function pg_temp.f65_plantar(
+  p_empresa uuid,
+  p_marca   text,
+  p_autor   uuid,
+  p_prefixo text default 'ZZF'
+) returns jsonb
+language plpgsql
+as $fn$
+declare
+  v_f     smallint;
+  v_tipo  smallint;
+  v_item  smallint;
+  v_colab uuid;
+  v_mot   text := 'f65-' || p_marca;
+  v_ativo uuid;
+  v_mov   uuid;
+  v_pend  uuid;
+  v_lanc  uuid;
+  v_anot  uuid;
+  v_ua    bigint;
+  v_log   uuid;
+  v_rel   uuid;
+  v_termo uuid := gen_random_uuid();
+  v_kit   uuid;
+  v_senha uuid;
+  v_ev    uuid;
+begin
+  insert into public.filiais (nome, slug, empresa_id)
+  values ('F65 Filial ' || p_marca, 'f65-' || p_marca, p_empresa) returning id into v_f;
+  insert into public.tipos_item (slug, rotulo, empresa_id)
+  values ('f65_' || replace(p_marca, '-', '_'), 'F65 Tipo ' || p_marca, p_empresa) returning id into v_tipo;
+  insert into public.itens (nome, grupo, tipo_id, empresa_id)
+  values ('F65 Item ' || p_marca, 'acessorio', v_tipo, p_empresa) returning id into v_item;
+  insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
+  values ('Fulano F65 ' || p_marca, v_f, p_autor, p_empresa) returning id into v_colab;
+  insert into public.motivos (codigo, rotulo, aplica_a, empresa_id)
+  values (v_mot, 'F65 motivo ' || p_marca, array['saida']::public.tipo_movimentacao[], p_empresa);
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+  values (null, 'F65ST' || upper(p_marca), 'notebook', v_f, 'cadastro', p_empresa) returning id into v_ativo;
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at, empresa_id)
+  values (v_ativo, 'compra', current_date - 3, v_f, p_autor, now() - interval '3 days', p_empresa) returning id into v_mov;
+  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador, empresa_id)
+  values (v_ativo, v_mov, 'F65 pendência ' || p_marca, v_f, 'Fulano F65 ' || p_marca, p_empresa) returning id into v_pend;
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por, empresa_id)
+  values (v_item, v_f, 'entrada', 3, current_date, p_autor, p_empresa) returning id into v_lanc;
+  insert into public.anotacoes (ativo_id, texto, criado_por, empresa_id)
+  values (v_ativo, 'anotação fictícia F65 ' || p_marca, p_autor, p_empresa) returning id into v_anot;
+  insert into public.unidades_apelidos (filial_id, apelido, empresa_id)
+  values (v_f, 'f65 apelido ' || p_marca, p_empresa) returning id into v_ua;
+  insert into public.import_logs (filial_id, modo, arquivo_hash, total_linhas, ativos_criados, movs_apagadas,
+                                  anotacoes_apagadas, termos_apagados, backup_path, criado_por, empresa_id)
+  values (v_f, 'substituir', 'f65-' || p_marca, 0, 0, 0, 0, 0, 'f65/' || p_marca, p_autor, p_empresa) returning id into v_log;
+  insert into public.relatorios_gerados (periodo_de, periodo_ate, filial_id, dados, gerado_por, empresa_id)
+  -- o período varia com a marca: duas empresas de um roteiro não colidem no unique implícito (por filial) do snapshot
+  -- quando um cenário move o relatório de uma para a filial da outra
+  values (current_date - 7 - length(p_marca) - ascii(right(p_marca, 1)), current_date - 1 - length(p_marca) - ascii(right(p_marca, 1)),
+          v_f, '{}'::jsonb, p_autor, p_empresa) returning id into v_rel;
+  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por, empresa_id)
+  values (v_termo, 'responsabilidade_notebook', array[v_mov], array[v_ativo], 'Fulano F65 ' || p_marca, '{}'::jsonb,
+          v_termo::text || '.docx', p_autor, p_empresa);
+  insert into public.kits_modelos (nome, payload, criado_por, empresa_id)
+  values ('F65 kit ' || p_marca, jsonb_build_object('tipo', 'saida', 'motivo', v_mot), p_autor, p_empresa) returning id into v_kit;
+  insert into public.senhas_acesso (rotulo, hash, criado_por, empresa_id)
+  values ('F65 senha ' || p_marca, 'f65-hash-ficticio', p_autor, p_empresa) returning id into v_senha;
+  insert into public.eventos_admin (acao, empresa_id)
+  values ('f65-fixture-' || p_marca, p_empresa) returning id into v_ev;
+  insert into public.import_prefixos_patrimonio (prefixo, empresa_id) values (p_prefixo, p_empresa);
+  insert into public.import_termos_categoria (termo, categoria, empresa_id) values ('f65 termo ' || p_marca, 'notebook', p_empresa);
+  insert into public.import_termos_estado (termo, estado, empresa_id) values ('f65 termo ' || p_marca, 'em_estoque', p_empresa);
+  return jsonb_build_object(
+    'filiais', v_f, 'tipos_item', v_tipo, 'itens', v_item, 'colaboradores', v_colab, 'motivos', v_mot,
+    'ativos', v_ativo, 'movimentacoes', v_mov, 'pendencias_item', v_pend, 'lancamentos_item', v_lanc,
+    'anotacoes', v_anot, 'unidades_apelidos', v_ua, 'import_logs', v_log, 'relatorios_gerados', v_rel,
+    'termos_gerados', v_termo, 'kits_modelos', v_kit, 'senhas_acesso', v_senha, 'eventos_admin', v_ev,
+    'import_prefixos_patrimonio', p_prefixo, 'import_termos_categoria', 'f65 termo ' || p_marca,
+    'import_termos_estado', 'f65 termo ' || p_marca);
 end;
 $fn$;

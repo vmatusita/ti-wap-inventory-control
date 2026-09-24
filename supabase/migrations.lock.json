@@ -166,6 +166,16 @@
     "0161_empresa_no_acervo_movimento.sql": "593df05c3f2a0b4a225a07a6908c84113aa59737f3dab9bf672ab7e386860e56",
     "0162_empresa_no_vocabulario.sql": "39b729d7327f545a4da80f0afae5dac5adf6de33da180551531533dfbc631a6d",
     "0163_empresa_nos_registros.sql": "5c0b87095e0e90bcf0261f7c19db763dc108f76dd94646b8ff2558a4c6d6d654",
-    "0164_kit_motivo_da_empresa.sql": "281cce27c9747d5f2770d4def0e9d1338a3df62fb660e3073803fcfbe878c448"
+    "0164_kit_motivo_da_empresa.sql": "281cce27c9747d5f2770d4def0e9d1338a3df62fb660e3073803fcfbe878c448",
+    "0165_pais_do_tenant.sql": "f1c534299adbb1db71ea52b8d3e353861fb09c3bf4bd6fab65d4d154d8ddce68",
+    "0166_fk_composta_acervo.sql": "8124ccdf34a1c766eaff867edc56810ab023fbec1bd5d8cc06b3670c0944345f",
+    "0167_fk_composta_cadastros.sql": "5fd68f11c90d92a85e96e4fc9f8a5c1291366e2f6c7184a505af843daec3e5cd",
+    "0168_motivos_por_empresa.sql": "79a906aa95c82900ec7054b90ce1efc873f030bf91486e15f683b710951744cb",
+    "0169_vocabulario_import_por_empresa.sql": "1571698e4c25556fad343c13cae353d4f1c16bde89ecf439686aadfe54e94b33",
+    "0170_unicidade_por_empresa.sql": "66632c8f2a9d52871a57c97de8eb821dac6a53ab2b634d214051c97308cef857",
+    "0171_snapshot_por_empresa.sql": "61267871dd2961a5bb5e1374fe90c81207d47e96046f1a03fce51eb8ebf89450",
+    "0172_colaboradores_nome_chave_por_empresa.sql": "982c27c9afa46fa164b8fa2cd502fab8564709e1c5aca484edff00f04291face",
+    "0173_guarda_empresa.sql": "ae38b111e5104f37afbf131020a5b17d411e8786800e667980e2e72d070fb15e",
+    "0174_colaboradores_nome_chave_pos_deploy.sql": "8d28eb16dd28671b82933c7126bad78d165e89865badb7ed3e1bc0843e125876"
   }
 }

@@ -296,6 +296,11 @@ export async function consolidarColaboradores(input: {
   // mesmo tempo não viram erro na cara de ninguém — a segunda simplesmente não cria
   // o que a primeira já criou. `nome_chave` é coluna GERADA, então o conflito é
   // declarado sobre ela e o valor nunca é enviado.
+  //
+  // F65 (decisão 5): o árbitro é o unique POR EMPRESA `(empresa_id, nome_chave)` — o `ON CONFLICT`
+  // só infere um índice com EXATAMENTE essas colunas (senão 42P10). A `empresa_id` também não é
+  // enviada: nasce do default. Entre o apply e o deploy os dois uniques coexistem (0172) e os dois
+  // alvos inferem; a 0174 derruba o global depois do deploy. Trava: colaboradores-onconflict.test.ts.
   const { data: criados, error } = await supabase
     .from('colaboradores')
     .upsert(
@@ -304,7 +309,7 @@ export async function consolidarColaboradores(input: {
         filial_id: g.filial_id,
         criado_por: aut.uid,
       })),
-      { onConflict: 'nome_chave', ignoreDuplicates: true },
+      { onConflict: 'empresa_id,nome_chave', ignoreDuplicates: true },
     )
     .select('id')
   if (error) return { ok: false, erro: erroDeColaborador(error.message, error.code) }

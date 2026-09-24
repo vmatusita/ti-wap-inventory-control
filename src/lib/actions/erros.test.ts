@@ -337,3 +337,30 @@ describe('o gatilho do kit (F64 · 0164): o motivo tem de existir na empresa do 
     expect(spyErro).not.toHaveBeenCalled()
   })
 })
+
+describe('as guardas do tenant (F65 · 0173): frases próprias, antes dos ramos genéricos', () => {
+  const EMPRESA = 'A empresa de um registro não muda (tabela ativos).'
+  const EMPRESA_ESPERADO = 'A empresa de um registro não pode ser trocada. Nada foi gravado.'
+  const TERMO = 'O termo cita movimentação ou ativo que não é da empresa do termo.'
+  const TERMO_ESPERADO = 'Este termo cita uma movimentação ou um ativo de outra empresa. Nada foi gravado — atualize a página e gere o termo de novo.'
+
+  it('a guarda_empresa (42501) vira a frase dela — não a do cargo/filial', () => {
+    expect(traduzErroBanco(EMPRESA, '42501')).toBe(EMPRESA_ESPERADO)
+    expect(traduzErroBanco('A empresa de um registro nao muda (tabela itens).', '42501')).toBe(EMPRESA_ESPERADO)
+  })
+
+  it('a integridade do termo (23503, sem "foreign key") vira a frase dela — não a da FK genérica', () => {
+    expect(traduzErroBanco(TERMO, '23503')).toBe(TERMO_ESPERADO)
+    expect(traduzErroBanco('O termo cita movimentacao ou ativo que nao e da empresa do termo.', '23503')).toBe(TERMO_ESPERADO)
+  })
+
+  it('o 42501 de RLS continua no ramo genérico (a guarda não o engole)', () => {
+    expect(traduzErroBanco('new row violates row-level security policy for table "ativos"', '42501')).not.toBe(EMPRESA_ESPERADO)
+  })
+
+  it('nenhuma das duas cai no fallback (não loga)', () => {
+    traduzErroBanco(EMPRESA, '42501')
+    traduzErroBanco(TERMO, '23503')
+    expect(spyErro).not.toHaveBeenCalled()
+  })
+})

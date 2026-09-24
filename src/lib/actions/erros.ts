@@ -193,6 +193,17 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.kitMotivoForaDaEmpresa)) {
     return 'O motivo escolhido não está cadastrado para a empresa deste kit. Escolha outro motivo ou deixe o kit sem motivo.'
   }
+  // ---- F65: as guardas do tenant (migration 0173) ----
+  // `termo_da_empresa` recusa com 23503 e frase PRÓPRIA (sem "foreign key") o termo que cita
+  // movimentação ou ativo de outra empresa; `guarda_empresa` recusa com 42501 e frase PRÓPRIA a troca
+  // da empresa de um registro — sem este ramo, o genérico de 42501 lá embaixo diria "seu cargo ou
+  // suas filiais não permitem", falso para quem tem o cargo certo. Nenhum valor sai da mensagem.
+  if (casa(m, MSG_SQL.termoForaDaEmpresa)) {
+    return 'Este termo cita uma movimentação ou um ativo de outra empresa. Nada foi gravado — atualize a página e gere o termo de novo.'
+  }
+  if (casa(m, MSG_SQL.empresaDoRegistroNaoMuda)) {
+    return 'A empresa de um registro não pode ser trocada. Nada foi gravado.'
+  }
   // Violacao de FK (motivo/filial inexistente).
   if (casa(m, FRASES_DO_MOTOR.chaveEstrangeira)) {
     return 'Um dos valores informados (motivo ou filial) não existe mais.'

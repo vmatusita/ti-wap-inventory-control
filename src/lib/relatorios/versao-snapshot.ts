@@ -47,20 +47,25 @@ export function ehViolacaoDeVersao(
   )
 }
 
-// A CHAVE DA UNICIDADE DE VERSÃO — espelho, em TypeScript, da `unique (periodo_de, periodo_ate,
-// filial_id, versao)` da 0010 e do índice `relatorios_gerados_periodo_filial_versao_uidx` da 0013,
-// MENOS a versão: é por ela que a lista de `/relatorios/gerados` sabe qual snapshot superou qual (a
-// badge "superada", F29/REL-05b). O consolidado (`filial_id is null`) vira o slug do Consolidado
-// — o mesmo papel do `coalesce(filial_id, -1)` do índice: dar ao NULL uma chave concreta.
+// A CHAVE DA UNICIDADE DE VERSÃO — espelho, em TypeScript, do índice
+// `relatorios_gerados_periodo_filial_versao_uidx` (0171: `(empresa_id, periodo_de, periodo_ate,
+// coalesce(filial_id, -1), versao)`), MENOS a versão: é por ela que a lista de `/relatorios/gerados` sabe
+// qual snapshot superou qual (a badge "superada", F29/REL-05b). O consolidado (`filial_id is null`)
+// vira o slug do Consolidado — o mesmo papel do `coalesce(filial_id, -1)` do índice: dar ao NULL uma
+// chave concreta.
 //
-// Até a F57 ela vivia privada em `queries/gerados.ts`, sem trava nenhuma. Agora mora aqui, ao lado
-// de `ehViolacaoDeVersao`, e `chave-versao-sql.test.ts` a confere contra o SQL LIDO DO DISCO.
+// Até a F57 ela vivia privada em `queries/gerados.ts`, sem trava nenhuma. Mora aqui, ao lado de
+// `ehViolacaoDeVersao`, e `chave-versao-sql.test.ts` a confere contra o SQL LIDO DO DISCO.
 //
-// ⚠ O LAÇO QUE A F65 HERDA: quando a unique do snapshot ganhar `empresa_id` (e o índice for
-// recriado), duas coisas quebram JUNTAS e têm de mudar no mesmo commit — esta chave (senão o
-// consolidado da empresa A e o da B produzem a mesma chave e uma versão "supera" a outra) e o
-// casamento pelo NOME do índice em `ehViolacaoDeVersao`, logo acima (senão a renumeração da F29
-// perde a segunda pista). A F57 só registra; o conserto é da F65.
-export function chaveVersao(periodoDe: string, periodoAte: string, filialId: number | null): string {
-  return `${periodoDe}|${periodoAte}|${filialId ?? SLUG_CONSOLIDADO}`
+// O LAÇO DA F57, FECHADO NA F65 (0171): a unique do snapshot ganhou `empresa_id`, e esta chave a
+// ganhou no MESMO commit — senão o consolidado da empresa A e o da B produziriam a mesma chave e uma
+// versão "superaria" a outra. A empresa é o uuid (não é dado pessoal, e é determinístico). O índice
+// foi recriado com o MESMO NOME, então o casamento de `ehViolacaoDeVersao`, logo acima, continua de pé.
+export function chaveVersao(
+  empresaId: string,
+  periodoDe: string,
+  periodoAte: string,
+  filialId: number | null,
+): string {
+  return `${empresaId}|${periodoDe}|${periodoAte}|${filialId ?? SLUG_CONSOLIDADO}`
 }

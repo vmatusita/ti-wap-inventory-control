@@ -2894,7 +2894,10 @@ const F63_ACERVO = [
     derruba: ['15b'],
     porque:
       'anotacoes perde empresa_id: uma das oito tabelas do acervo sai do lote 1 calada, e o recorte da F66 teria uma tabela de negócio sem a chave — a anotação de um ativo da empresa A legível por todas.',
-    sql: `alter table public.anotacoes drop column empresa_id;  ${MARCA}`,
+    // F65: o gatilho `anotacoes_guarda_empresa` (BEFORE UPDATE OF empresa_id, 0173) depende da COLUNA — sem
+    // derrubá-lo antes, o `drop column` é recusado e a mutação sairia "NÃO aplicou". A FK composta
+    // `anotacoes_ativo_id_fkey` (0166) é constraint da própria tabela e cai junto com a coluna.
+    sql: `drop trigger anotacoes_guarda_empresa on public.anotacoes; alter table public.anotacoes drop column empresa_id;  ${MARCA}`,
     prova: {
       sql: `select not exists (select 1 from pg_attribute where attrelid = 'public.anotacoes'::regclass and attname = 'empresa_id' and not attisdropped)`,
       espera: 't',
@@ -2986,7 +2989,9 @@ const F64_LOTE2_E_KIT = [
     derruba: ['15e', '15f'],
     porque:
       'import_termos_estado perde empresa_id: uma das onze sai do lote 2 calada — o De→Para de estado de uma empresa volta a ser global, e a pendência que o bloco 5 transformou em reprovação (15f) tem de acusar.',
-    sql: `alter table public.import_termos_estado drop column empresa_id;  ${MARCA}`,
+    // F65: idem — o gatilho `import_termos_estado_guarda_empresa` (0173) depende da coluna; a PK
+    // `(empresa_id, termo)` (0169) é da própria tabela e cai junto.
+    sql: `drop trigger import_termos_estado_guarda_empresa on public.import_termos_estado; alter table public.import_termos_estado drop column empresa_id;  ${MARCA}`,
     prova: {
       sql: `select not exists (select 1 from pg_attribute where attrelid = 'public.import_termos_estado'::regclass and attname = 'empresa_id' and not attisdropped)`,
       espera: 't',
@@ -3047,6 +3052,107 @@ const F64_LOTE2_E_KIT = [
   },
 ]
 
+// =============================================================================
+// F65 (23/09/2026) — A INTEGRIDADE ESTRUTURAL DO TENANT
+// =============================================================================
+// A régua da F63/F64 (decisão 8): mutação SÓ onde ela derruba uma trava desta fase que nenhum teste
+// de MESA derruba — as cinco são estado de banco. Uma volta uma FK composta à forma simples (a
+// sabotagem A, `F1` de `forma_multiempresa.sql`); uma recria o índice do snapshot sem a empresa (a
+// sabotagem B, `U1` de `unicidade_por_empresa.sql`); uma abre na guarda a exceção da janela
+// destrutiva que o Johnny recusou (a sabotagem C, `I2`/`I4` de `imutabilidade_tenant.sql`); uma volta
+// a diagonal a global (a sabotagem H) e uma tira a empresa da conferência do termo (a sabotagem I),
+// as duas em `integridade_tenant.sql`.
+/** @type {Mutacao[]} */
+const F65_TENANT = [
+  {
+    id: 'f65-fk-simples',
+    roteiro: 'forma_multiempresa.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['F1', 'F4'],
+    porque:
+      'lancamentos_item_item_id_fkey volta a SIMPLES (item_id → itens.id): o lançamento de estoque da empresa A passa a aceitar o item da empresa B — o id global basta para a FK, e o recorte da F66 veria um saldo da A movido por item que a A nunca cadastrou.',
+    sql: `alter table public.lancamentos_item drop constraint lancamentos_item_item_id_fkey, add constraint lancamentos_item_item_id_fkey foreign key (item_id) references public.itens (id);  ${MARCA}`,
+    prova: {
+      sql: `select cardinality(conkey) = 1 from pg_constraint where conname = 'lancamentos_item_item_id_fkey'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f65-snapshot-sem-empresa',
+    roteiro: 'unicidade_por_empresa.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['U1'],
+    porque:
+      'O índice do snapshot volta a (periodo_de, periodo_ate, coalesce(filial_id, -1), versao), sem a empresa: o Consolidado da empresa B do mesmo período e versão colide com o da A (23505), e a renumeração da F29 dá à B a "v2" de um relatório que ela nunca gerou.',
+    sql: `drop index public.relatorios_gerados_periodo_filial_versao_uidx; create unique index relatorios_gerados_periodo_filial_versao_uidx on public.relatorios_gerados (periodo_de, periodo_ate, coalesce(filial_id, -1), versao);  ${MARCA}`,
+    prova: {
+      sql: `select pg_get_indexdef('public.relatorios_gerados_periodo_filial_versao_uidx'::regclass) not like '%empresa_id%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f65-guarda-com-janela',
+    roteiro: 'imutabilidade_tenant.sql',
+    classe: 'guarda-afrouxada',
+    derruba: ['I2', 'I4'],
+    porque:
+      'A guarda da empresa ganha a exceção da janela estoque.dev_destrutivo (a que o Johnny recusou na decisão 2): toda RPC que abre a janela — o reset, a mesa de conflitos, o import — passa a poder mover um registro de empresa, e um defeito nela vira vazamento entre tenants sem que nenhuma guarda recuse.',
+    sql: mutarFuncaoSemReplace(
+      'public.guarda_empresa()',
+      `  if new.empresa_id is distinct from old.empresa_id then
+`,
+      `  if new.empresa_id is distinct from old.empresa_id and coalesce(current_setting('estoque.dev_destrutivo', true), '') <> 'on' then  ${MARCA}
+`,
+      'f65-guarda-com-janela',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.guarda_empresa()'::regprocedure) like '%dev_destrutivo%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f65-diagonal-global',
+    roteiro: 'integridade_tenant.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['H1', 'H3'],
+    porque:
+      'A diagonal nome × apelido volta a procurar em TODAS as empresas: a empresa B não consegue nomear uma filial com o apelido de uma filial da A, e a mensagem de recusa cita o nome da filial da A para quem é da B — o vazamento pela frase de erro.',
+    sql: mutarFuncao(
+      'public.vocabulario_unidades_guarda()',
+      `     where public.vocabulario_chave(f.nome) = v_chave and f.id <> new.filial_id
+       and f.empresa_id = new.empresa_id
+`,
+      `     where public.vocabulario_chave(f.nome) = v_chave and f.id <> new.filial_id  ${MARCA}
+`,
+      'f65-diagonal-global',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.vocabulario_unidades_guarda()'::regprocedure) not like '%f.empresa_id = new.empresa_id%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f65-termo-sem-empresa',
+    roteiro: 'integridade_tenant.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['I1'],
+    porque:
+      'O gatilho do termo confere que a movimentação EXISTE, mas esquece a empresa: o termo da empresa A passa a citar a movimentação da B — o documento que a pessoa assina reúne equipamento de outro tenant, e o "Termos: N" da mesa de conflitos conta o que não é dela.',
+    sql: mutarFuncaoSemReplace(
+      'public.termo_da_empresa()',
+      `       where m.id = any (new.movimentacao_ids) and m.empresa_id = new.empresa_id)
+`,
+      `       where m.id = any (new.movimentacao_ids))  ${MARCA}
+`,
+      'f65-termo-sem-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.termo_da_empresa()'::regprocedure) not like '%m.empresa_id = new.empresa_id%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -3068,6 +3174,7 @@ export const MUTACOES = [
   ...F62_CARGO,
   ...F63_ACERVO,
   ...F64_LOTE2_E_KIT,
+  ...F65_TENANT,
 ]
 
 /**

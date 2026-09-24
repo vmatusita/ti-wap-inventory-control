@@ -102,6 +102,9 @@ savepoint s_rollback;
 -- `empresa_legada()` oito FKs e oito defaults, e o `drop` da F62 (sem cascade) recusaria. É a
 -- ordem inversa do apply ENTRE fases (regra 10 da §4). Não muda o que este roteiro prova: o
 -- cargo, a cópia de volta e o esquema de antes da F62.
+-- F65 (23/09/2026): e a F65 sai antes da F64 — as FKs compostas, os uniques por empresa e o gatilho
+-- `UPDATE OF empresa_id` dependem das colunas que os rollbacks de depois derrubam.
+\ir ../rollback/F65-desfaz.sql
 \ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
 \ir ../rollback/F62-2-desfaz.sql
@@ -115,6 +118,7 @@ rollback to savepoint s_rollback;
 -- ---------------------------------------------------------------------------
 -- O ROLLBACK NA ORDEM ESCRITA: a cópia de volta PRIMEIRO
 -- ---------------------------------------------------------------------------
+\ir ../rollback/F65-desfaz.sql
 \ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
 \ir ../rollback/F62-1-copia-de-volta.sql

@@ -91,27 +91,14 @@ export type Database = {
           id?: string
           texto?: string
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "anotacoes_ativo_id_fkey"
-            columns: ["ativo_id"]
+            columns: ["empresa_id", "ativo_id"]
             isOneToOne: false
             referencedRelation: "ativos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "anotacoes_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_conflitos_filiais"
-            referencedColumns: ["ativo_id"]
-          },
-          {
-            foreignKeyName: "anotacoes_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_pendencias"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "anotacoes_criado_por_fkey"
@@ -221,6 +208,7 @@ export type Database = {
           termo_data?: string | null
           updated_at?: string
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "ativos_empresa_id_fkey"
@@ -231,31 +219,17 @@ export type Database = {
           },
           {
             foreignKeyName: "ativos_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "ativos_substitui_ativo_id_fkey"
-            columns: ["substitui_ativo_id"]
+            columns: ["empresa_id", "substitui_ativo_id"]
             isOneToOne: false
             referencedRelation: "ativos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ativos_substitui_ativo_id_fkey"
-            columns: ["substitui_ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_conflitos_filiais"
-            referencedColumns: ["ativo_id"]
-          },
-          {
-            foreignKeyName: "ativos_substitui_ativo_id_fkey"
-            columns: ["substitui_ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_pendencias"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -328,6 +302,7 @@ export type Database = {
           nome_chave?: string | null
           setor?: string | null
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "colaboradores_criado_por_fkey"
@@ -345,10 +320,10 @@ export type Database = {
           },
           {
             foreignKeyName: "colaboradores_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -527,6 +502,7 @@ export type Database = {
           termos_apagados?: number
           total_linhas?: number
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "import_logs_criado_por_fkey"
@@ -544,10 +520,10 @@ export type Database = {
           },
           {
             foreignKeyName: "import_logs_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -676,6 +652,7 @@ export type Database = {
           ordem?: number
           tipo_id?: number | null
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "itens_criado_por_fkey"
@@ -693,10 +670,10 @@ export type Database = {
           },
           {
             foreignKeyName: "itens_tipo_id_fkey"
-            columns: ["tipo_id"]
+            columns: ["empresa_id", "tipo_id"]
             isOneToOne: false
             referencedRelation: "tipos_item"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -808,20 +785,14 @@ export type Database = {
           regularizacao?: boolean
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "lancamentos_item_colaborador_id_fkey"
-            columns: ["colaborador_id"]
+            columns: ["empresa_id", "colaborador_id"]
             isOneToOne: false
             referencedRelation: "colaboradores"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_item_colaborador_id_fkey"
-            columns: ["colaborador_id"]
-            isOneToOne: false
-            referencedRelation: "v_colaboradores_textos"
-            referencedColumns: ["colaborador_id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "lancamentos_item_criado_por_fkey"
@@ -839,45 +810,38 @@ export type Database = {
           },
           {
             foreignKeyName: "lancamentos_item_estorna_id_fkey"
-            columns: ["estorna_id"]
+            columns: ["empresa_id", "estorna_id"]
             isOneToOne: false
             referencedRelation: "lancamentos_item"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "lancamentos_item_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "lancamentos_item_item_id_fkey"
-            columns: ["item_id"]
+            columns: ["empresa_id", "item_id"]
             isOneToOne: false
             referencedRelation: "itens"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "lancamentos_item_movimentacao_id_fkey"
-            columns: ["movimentacao_id"]
+            columns: ["empresa_id", "movimentacao_id"]
             isOneToOne: false
             referencedRelation: "movimentacoes"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "lancamentos_item_pendencia_item_id_fkey"
-            columns: ["pendencia_item_id"]
+            columns: ["empresa_id", "pendencia_item_id"]
             isOneToOne: false
             referencedRelation: "pendencias_item"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_item_pendencia_item_id_fkey"
-            columns: ["pendencia_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_pendencias_item"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -1040,41 +1004,21 @@ export type Database = {
           termo_data?: string | null
           tipo?: Database["public"]["Enums"]["tipo_movimentacao"]
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "movimentacoes_ativo_id_fkey"
-            columns: ["ativo_id"]
+            columns: ["empresa_id", "ativo_id"]
             isOneToOne: false
             referencedRelation: "ativos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimentacoes_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_conflitos_filiais"
-            referencedColumns: ["ativo_id"]
-          },
-          {
-            foreignKeyName: "movimentacoes_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_pendencias"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "movimentacoes_colaborador_id_fkey"
-            columns: ["colaborador_id"]
+            columns: ["empresa_id", "colaborador_id"]
             isOneToOne: false
             referencedRelation: "colaboradores"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimentacoes_colaborador_id_fkey"
-            columns: ["colaborador_id"]
-            isOneToOne: false
-            referencedRelation: "v_colaboradores_textos"
-            referencedColumns: ["colaborador_id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "movimentacoes_criado_por_fkey"
@@ -1092,31 +1036,31 @@ export type Database = {
           },
           {
             foreignKeyName: "movimentacoes_estorno_de_fkey"
-            columns: ["estorno_de"]
+            columns: ["empresa_id", "estorno_de"]
             isOneToOne: false
             referencedRelation: "movimentacoes"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "movimentacoes_filial_destino_id_fkey"
-            columns: ["filial_destino_id"]
+            columns: ["empresa_id", "filial_destino_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "movimentacoes_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "movimentacoes_motivo_fkey"
-            columns: ["motivo"]
+            columns: ["empresa_id", "motivo"]
             isOneToOne: false
             referencedRelation: "motivos"
-            referencedColumns: ["codigo"]
+            referencedColumns: ["empresa_id", "codigo"]
           },
         ]
       }
@@ -1221,27 +1165,14 @@ export type Database = {
           resolvida_por?: string | null
           status?: string
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "pendencias_item_ativo_id_fkey"
-            columns: ["ativo_id"]
+            columns: ["empresa_id", "ativo_id"]
             isOneToOne: false
             referencedRelation: "ativos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pendencias_item_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_conflitos_filiais"
-            referencedColumns: ["ativo_id"]
-          },
-          {
-            foreignKeyName: "pendencias_item_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_pendencias"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "pendencias_item_empresa_id_fkey"
@@ -1252,17 +1183,17 @@ export type Database = {
           },
           {
             foreignKeyName: "pendencias_item_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "pendencias_item_movimentacao_id_fkey"
-            columns: ["movimentacao_id"]
+            columns: ["empresa_id", "movimentacao_id"]
             isOneToOne: false
             referencedRelation: "movimentacoes"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "pendencias_item_resolvida_por_fkey"
@@ -1368,6 +1299,7 @@ export type Database = {
           periodo_de?: string
           versao?: number
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "relatorios_gerados_empresa_id_fkey"
@@ -1378,10 +1310,10 @@ export type Database = {
           },
           {
             foreignKeyName: "relatorios_gerados_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
           {
             foreignKeyName: "relatorios_gerados_gerado_por_fkey"
@@ -1592,6 +1524,7 @@ export type Database = {
           filial_id?: number
           id?: never
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
           {
             foreignKeyName: "unidades_apelidos_empresa_id_fkey"
@@ -1602,10 +1535,10 @@ export type Database = {
           },
           {
             foreignKeyName: "unidades_apelidos_filial_id_fkey"
-            columns: ["filial_id"]
+            columns: ["empresa_id", "filial_id"]
             isOneToOne: false
             referencedRelation: "filiais"
-            referencedColumns: ["id"]
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -1660,15 +1593,9 @@ export type Database = {
           ultima_mov_tipo: string | null
           updated_at: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "ativos_filial_id_fkey"
-            columns: ["filial_id"]
-            isOneToOne: false
-            referencedRelation: "filiais"
-            referencedColumns: ["id"]
-          },
-        ]
+        // F65 hand-fix (23/09/2026): a view não expõe empresa_id, e o gerador só emite relação de view com TODAS as
+        // colunas da FK — a composta (0166) tirou `ativos_filial_id_fkey` daqui; a geração do MCP o substitui.
+        Relationships: []
       }
       v_conflitos_filiais_grupos: {
         Row: {
@@ -1764,42 +1691,8 @@ export type Database = {
           resolvida_por_nome: string | null
           status: string | null
         }
+        // F65 hand-fix (23/09/2026): as FKs compostas (0166–0168) escritas à mão antes do apply — (empresa_id, x) → (empresa_id, id), e a relação com view some (nenhuma expõe empresa_id); a geração do MCP o substitui.
         Relationships: [
-          {
-            foreignKeyName: "pendencias_item_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "ativos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pendencias_item_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_conflitos_filiais"
-            referencedColumns: ["ativo_id"]
-          },
-          {
-            foreignKeyName: "pendencias_item_ativo_id_fkey"
-            columns: ["ativo_id"]
-            isOneToOne: false
-            referencedRelation: "v_pendencias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pendencias_item_filial_id_fkey"
-            columns: ["filial_id"]
-            isOneToOne: false
-            referencedRelation: "filiais"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pendencias_item_movimentacao_id_fkey"
-            columns: ["movimentacao_id"]
-            isOneToOne: false
-            referencedRelation: "movimentacoes"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "pendencias_item_resolvida_por_fkey"
             columns: ["resolvida_por"]

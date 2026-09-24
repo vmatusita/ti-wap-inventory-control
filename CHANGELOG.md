@@ -6,6 +6,33 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 23/09/2026 — F65 · A integridade estrutural do tenant ✅
+
+**v1.70.0** · **com migrations `0165`–`0174`**, aplicadas no ensaio e em produção antes do merge (a `0174`, o passo final
+do unique do colaborador, logo depois do deploy) · A quarta fase da virada multiempresa. Com as 20 tabelas de negócio já
+com a chave de recorte, o banco passa a **recusar sozinho** o que misturaria empresas — **sem nenhum `update` e sem
+nenhuma tupla reescrita** (a prova é o `relfilenode` e o md5 de `(chave, xmin)` antes × depois nos dois bancos, com a
+chave lida do catálogo menos `empresa_id`). **Os sete pais** ganham `unique (empresa_id, id)`; **as 23 FKs entre tabelas
+de negócio** viram compostas `(empresa_id, x) → (empresa_id, id)` com o **mesmo nome** e as **mesmas ações** (a dica de
+embed do PostgREST continua casando, e a única diferida continua diferida); `motivos` e o vocabulário do import ganham a
+PK por empresa; **os catorze uniques de negócio** (filial, tipo de item, item, colaborador, kit, apelido, motivo, os
+termos do import e o snapshot de relatório) passam a valer **dentro de cada empresa**, com os **nomes contratuais**
+preservados pelo provisório → `drop` → `rename` (a tradução do erro para o operador continua casando); o do colaborador
+em **dois passos** (o por empresa ao lado do global antes do merge, o global só depois do deploy), para o `ON CONFLICT`
+do app velho não perder o árbitro. **A empresa de um registro não muda** — a guarda nas 20 tabelas, derivada do
+catálogo, **sem exceção para a janela destrutiva** (decisão do Johnny), com a recusa traduzida; **o termo só cita
+movimentação e ativo da empresa dele**; e **a diagonal nome × apelido é por empresa** (a mensagem nunca cita filial de
+outra empresa), com o resto do corpo byte a byte. A chave da versão do snapshot ganhou a empresa no mesmo commit do
+índice. **Nada lê a coluna para recortar** (fora de duas leituras de identidade e três de integridade, nominais) e os ids
+continuam globais. Os índices de lista por empresa ficam para a fase das policies, e o seed de duas empresas para o
+backlog (decisões do Johnny). Travas: `forma_multiempresa.sql`, `unicidade_por_empresa.sql` e `imutabilidade_tenant.sql`
+(derivadas do catálogo, nascidas vermelhas), o roteiro da fase `integridade_tenant.sql` (cada FK composta com o par
+simétrico), `f65_rollback.sql` (com os das fases anteriores rodando o da F65 antes), as de mesa (a chave do snapshot, o
+alvo do `onConflict`, o tipo das constraints traduzidas, a diagonal byte a byte, a completude do rollback), a trava
+"ninguém lê" com o furo do gatilho fechado, e cinco mutações novas no injetor (teto 143). Regras: MATRIZ R-ACC-98 a
+R-ACC-107; ADR-003 e RUNBOOK, emenda F65. Relatório em [`docs/RELATORIO-F65.md`](docs/RELATORIO-F65.md); plano em
+[`docs/PLAN-F65.md`](docs/PLAN-F65.md); ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
 ## 23/09/2026 — F64 · `empresa_id` no vocabulário e na infra (lote 2), o kit na empresa do kit e o rate-limit fechado ✅
 
 **v1.69.0** · **com migrations `0162`–`0164`**, aplicadas no ensaio e em produção antes do merge · A terceira fase da virada multiempresa. As onze

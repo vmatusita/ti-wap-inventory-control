@@ -1,0 +1,202 @@
+{
+    "fks": {
+        "md5": "ed015fdd37795fcb62dbf9f51f83c584",
+        "total": 58,
+        "de_negocio": 23,
+        "lista_de_negocio": {
+            "itens_tipo_id_fkey": "FOREIGN KEY (empresa_id, tipo_id) REFERENCES tipos_item(empresa_id, id)",
+            "ativos_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "anotacoes_ativo_id_fkey": "FOREIGN KEY (empresa_id, ativo_id) REFERENCES ativos(empresa_id, id)",
+            "movimentacoes_motivo_fkey": "FOREIGN KEY (empresa_id, motivo) REFERENCES motivos(empresa_id, codigo)",
+            "import_logs_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "movimentacoes_ativo_id_fkey": "FOREIGN KEY (empresa_id, ativo_id) REFERENCES ativos(empresa_id, id)",
+            "colaboradores_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "movimentacoes_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "lancamentos_item_item_id_fkey": "FOREIGN KEY (empresa_id, item_id) REFERENCES itens(empresa_id, id)",
+            "movimentacoes_estorno_de_fkey": "FOREIGN KEY (empresa_id, estorno_de) REFERENCES movimentacoes(empresa_id, id)",
+            "pendencias_item_ativo_id_fkey": "FOREIGN KEY (empresa_id, ativo_id) REFERENCES ativos(empresa_id, id)",
+            "ativos_substitui_ativo_id_fkey": "FOREIGN KEY (empresa_id, substitui_ativo_id) REFERENCES ativos(empresa_id, id)",
+            "pendencias_item_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "lancamentos_item_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "lancamentos_item_estorna_id_fkey": "FOREIGN KEY (empresa_id, estorna_id) REFERENCES lancamentos_item(empresa_id, id)",
+            "unidades_apelidos_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "movimentacoes_colaborador_id_fkey": "FOREIGN KEY (empresa_id, colaborador_id) REFERENCES colaboradores(empresa_id, id)",
+            "relatorios_gerados_filial_id_fkey": "FOREIGN KEY (empresa_id, filial_id) REFERENCES filiais(empresa_id, id)",
+            "lancamentos_item_colaborador_id_fkey": "FOREIGN KEY (empresa_id, colaborador_id) REFERENCES colaboradores(empresa_id, id)",
+            "movimentacoes_filial_destino_id_fkey": "FOREIGN KEY (empresa_id, filial_destino_id) REFERENCES filiais(empresa_id, id)",
+            "pendencias_item_movimentacao_id_fkey": "FOREIGN KEY (empresa_id, movimentacao_id) REFERENCES movimentacoes(empresa_id, id) DEFERRABLE INITIALLY DEFERRED",
+            "lancamentos_item_movimentacao_id_fkey": "FOREIGN KEY (empresa_id, movimentacao_id) REFERENCES movimentacoes(empresa_id, id)",
+            "lancamentos_item_pendencia_item_id_fkey": "FOREIGN KEY (empresa_id, pendencia_item_id) REFERENCES pendencias_item(empresa_id, id)"
+        },
+        "de_negocio_simples": 0,
+        "de_negocio_compostas": 23,
+        "de_negocio_nao_validadas": 0,
+        "pares_de_negocio_com_duas_relacoes": [
+            "movimentacoes→filiais"
+        ]
+    },
+    "pais": {
+        "lista": [
+            "ativos",
+            "colaboradores",
+            "filiais",
+            "itens",
+            "lancamentos_item",
+            "movimentacoes",
+            "pendencias_item",
+            "tipos_item"
+        ],
+        "tabelas_com_empresa_id_id": 8
+    },
+    "funcoes": {
+        "total": 105,
+        "as_da_f65": {
+            "guarda_empresa()": "67f660c84fdf890712fb40d9b7ae1d7e",
+            "termo_da_empresa()": "e16755921b6ed42dd85ec60cf50d8ef4",
+            "vocabulario_unidades_guarda()": "cbe9b7a31fc1ab0af56e9eee59542164"
+        },
+        "md5_todas": "98a7ed4241be2b217a79dfd4787d581e",
+        "sem_as_da_f65": 102,
+        "md5_sem_as_da_f65": "b3c0d79079c66f2b66f7903a54ede79f"
+    },
+    "uniques": {
+        "md5": "da7a90567b09320248ce5811a5c28049",
+        "lista": {
+            "itens_pkey": "p itens USING btree (id)",
+            "ativos_pkey": "p ativos USING btree (id)",
+            "filiais_pkey": "p filiais USING btree (id)",
+            "motivos_pkey": "p motivos USING btree (empresa_id, codigo)",
+            "anotacoes_pkey": "p anotacoes USING btree (id)",
+            "tipos_item_pkey": "p tipos_item USING btree (id)",
+            "filiais_slug_key": "u filiais USING btree (empresa_id, slug)",
+            "import_logs_pkey": "p import_logs USING btree (id)",
+            "kits_modelos_pkey": "p kits_modelos USING btree (id)",
+            "colaboradores_pkey": "p colaboradores USING btree (id)",
+            "eventos_admin_pkey": "p eventos_admin USING btree (id)",
+            "movimentacoes_pkey": "p movimentacoes USING btree (id)",
+            "senhas_acesso_pkey": "p senhas_acesso USING btree (id)",
+            "termos_gerados_pkey": "p termos_gerados USING btree (id)",
+            "tipos_item_slug_key": "u tipos_item USING btree (empresa_id, slug)",
+            "pendencias_item_pkey": "p pendencias_item USING btree (id)",
+            "itens_empresa_id_uidx": "u itens USING btree (empresa_id, id)",
+            "itens_nome_chave_uidx": "indice itens USING btree (empresa_id, nome_chave)",
+            "lancamentos_item_pkey": "p lancamentos_item USING btree (id)",
+            "ativos_empresa_id_uidx": "u ativos USING btree (empresa_id, id)",
+            "kits_modelos_nome_uidx": "indice kits_modelos USING btree (empresa_id, lower(nome))",
+            "lanc_item_estorna_uidx": "indice lancamentos_item USING btree (estorna_id) WHERE (estorna_id IS NOT NULL)",
+            "unidades_apelidos_pkey": "p unidades_apelidos USING btree (id)",
+            "filiais_empresa_id_uidx": "u filiais USING btree (empresa_id, id)",
+            "filiais_nome_chave_uidx": "indice filiais USING btree (empresa_id, vocabulario_chave(nome))",
+            "relatorios_gerados_pkey": "p relatorios_gerados USING btree (id)",
+            "movimentacoes_ordem_uidx": "indice movimentacoes USING btree (ordem)",
+            "import_termos_estado_pkey": "p import_termos_estado USING btree (empresa_id, termo)",
+            "tipos_item_empresa_id_uidx": "u tipos_item USING btree (empresa_id, id)",
+            "import_termos_categoria_pkey": "p import_termos_categoria USING btree (empresa_id, termo)",
+            "colaboradores_empresa_id_uidx": "u colaboradores USING btree (empresa_id, id)",
+            "colaboradores_nome_chave_uidx": "indice colaboradores USING btree (empresa_id, nome_chave)",
+            "movimentacoes_empresa_id_uidx": "u movimentacoes USING btree (empresa_id, id)",
+            "import_prefixos_patrimonio_pkey": "p import_prefixos_patrimonio USING btree (empresa_id, prefixo)",
+            "pendencias_item_empresa_id_uidx": "u pendencias_item USING btree (empresa_id, id)",
+            "lancamentos_item_empresa_id_uidx": "u lancamentos_item USING btree (empresa_id, id)",
+            "ativos_patrimonio_service_tag_uidx": "indice ativos USING btree (filial_id, patrimonio, COALESCE(service_tag, ''::text))",
+            "unidades_apelidos_apelido_chave_uidx": "indice unidades_apelidos USING btree (empresa_id, apelido_chave)",
+            "ativos_service_tag_sem_patrimonio_uidx": "indice ativos USING btree (filial_id, COALESCE(service_tag, ''::text)) WHERE ((patrimonio IS NULL) AND (COALESCE(service_tag, ''::text) <> ''::text))",
+            "import_termos_estado_estado_rotulo_uidx": "indice import_termos_estado USING btree (empresa_id, estado) WHERE (rotulo IS NOT NULL)",
+            "termos_gerados_tipo_movimentacao_ids_key": "u termos_gerados USING btree (tipo, movimentacao_ids)",
+            "import_termos_categoria_categoria_rotulo_uidx": "indice import_termos_categoria USING btree (empresa_id, categoria) WHERE (rotulo IS NOT NULL)",
+            "relatorios_gerados_periodo_filial_versao_uidx": "indice relatorios_gerados USING btree (empresa_id, periodo_de, periodo_ate, COALESCE((filial_id)::integer, '-1'::integer), versao)",
+            "relatorios_gerados_periodo_de_periodo_ate_filial_id_versao_key": "u relatorios_gerados USING btree (periodo_de, periodo_ate, filial_id, versao)"
+        },
+        "total": 44,
+        "com_empresa_id": 22
+    },
+    "advisory": {
+        "lista": {
+            "valida_lancamento_item()": {
+                "md5": "be4be02fe97acfe7aff9a752cd73b58d",
+                "chamadas": 1
+            },
+            "lancar_itens_lote(jsonb,uuid)": {
+                "md5": "3df9cc3a5a9988692e955bd561cf8b89",
+                "chamadas": 1
+            },
+            "vocabulario_unidades_guarda()": {
+                "md5": "cbe9b7a31fc1ab0af56e9eee59542164",
+                "chamadas": 1
+            },
+            "resetar_itens(smallint,text,text,text,jsonb)": {
+                "md5": "e024d6f11030552fecdaee4a1da062fe",
+                "chamadas": 3
+            },
+            "resetar_acervo(smallint,text,text,text,jsonb)": {
+                "md5": "bdf3e76da07436f6b947beab6c6158a9",
+                "chamadas": 3
+            },
+            "criar_movimentacao_com_itens(jsonb,jsonb,uuid)": {
+                "md5": "046ecfc854b221c88a3abf2f388d66c0",
+                "chamadas": 1
+            },
+            "importar_ativos_substituir(jsonb,text,jsonb,jsonb)": {
+                "md5": "07927879fdda470e8211da3c346b1745",
+                "chamadas": 1
+            },
+            "apagar_ativos_conflito_filiais(uuid[],text,text,text)": {
+                "md5": "717a8e39790d849194cde9262914b422",
+                "chamadas": 1
+            },
+            "estornar_movimentacao_com_itens(uuid,text,jsonb,uuid)": {
+                "md5": "bada9395dbc34f6e7e79802291c06176",
+                "chamadas": 1
+            },
+            "reabrir_pendencias_item_com_estornos(uuid[],text,jsonb,uuid)": {
+                "md5": "127a7ac9bae0eae10d87f545084f4b7c",
+                "chamadas": 1
+            },
+            "transferir_item(smallint,smallint,jsonb,date,text,text,text,uuid)": {
+                "md5": "3f79af0b6362f394fa2f6a72f0ce70a1",
+                "chamadas": 1
+            },
+            "resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid)": {
+                "md5": "a1b8a8bd767373d738c5135801fb152e",
+                "chamadas": 1
+            }
+        },
+        "funcoes": 12,
+        "chamadas_reais": 16
+    },
+    "gatilhos": {
+        "md5": "c1eb7a7c25b609ecd4c3ff8cce8d12ca",
+        "lista": {
+            "itens.itens_guarda_empresa": "CREATE TRIGGER itens_guarda_empresa BEFORE UPDATE OF empresa_id ON public.itens FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "ativos.ativos_guarda_acervo": "CREATE TRIGGER ativos_guarda_acervo BEFORE DELETE ON public.ativos FOR EACH ROW EXECUTE FUNCTION guarda_acervo() [O]",
+            "ativos.ativos_guarda_empresa": "CREATE TRIGGER ativos_guarda_empresa BEFORE UPDATE OF empresa_id ON public.ativos FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "filiais.filiais_guarda_empresa": "CREATE TRIGGER filiais_guarda_empresa BEFORE UPDATE OF empresa_id ON public.filiais FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "motivos.motivos_guarda_empresa": "CREATE TRIGGER motivos_guarda_empresa BEFORE UPDATE OF empresa_id ON public.motivos FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "anotacoes.anotacoes_guarda_empresa": "CREATE TRIGGER anotacoes_guarda_empresa BEFORE UPDATE OF empresa_id ON public.anotacoes FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "filiais.filiais_vocabulario_guarda": "CREATE TRIGGER filiais_vocabulario_guarda BEFORE INSERT OR UPDATE OF nome ON public.filiais FOR EACH ROW EXECUTE FUNCTION vocabulario_unidades_guarda() [O]",
+            "tipos_item.tipos_item_guarda_empresa": "CREATE TRIGGER tipos_item_guarda_empresa BEFORE UPDATE OF empresa_id ON public.tipos_item FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "import_logs.import_logs_guarda_empresa": "CREATE TRIGGER import_logs_guarda_empresa BEFORE UPDATE OF empresa_id ON public.import_logs FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "movimentacoes.trg_aplicar_movimentacao": "CREATE TRIGGER trg_aplicar_movimentacao BEFORE INSERT ON public.movimentacoes FOR EACH ROW EXECUTE FUNCTION aplicar_movimentacao() [O]",
+            "kits_modelos.kits_modelos_guarda_empresa": "CREATE TRIGGER kits_modelos_guarda_empresa BEFORE UPDATE OF empresa_id ON public.kits_modelos FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "movimentacoes.movimentacoes_guarda_acervo": "CREATE TRIGGER movimentacoes_guarda_acervo BEFORE INSERT OR DELETE OR UPDATE ON public.movimentacoes FOR EACH ROW EXECUTE FUNCTION guarda_acervo() [O]",
+            "colaboradores.colaboradores_guarda_empresa": "CREATE TRIGGER colaboradores_guarda_empresa BEFORE UPDATE OF empresa_id ON public.colaboradores FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "eventos_admin.eventos_admin_guarda_empresa": "CREATE TRIGGER eventos_admin_guarda_empresa BEFORE UPDATE OF empresa_id ON public.eventos_admin FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "movimentacoes.movimentacoes_guarda_empresa": "CREATE TRIGGER movimentacoes_guarda_empresa BEFORE UPDATE OF empresa_id ON public.movimentacoes FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "senhas_acesso.senhas_acesso_guarda_empresa": "CREATE TRIGGER senhas_acesso_guarda_empresa BEFORE UPDATE OF empresa_id ON public.senhas_acesso FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "kits_modelos.kits_modelos_motivo_da_empresa": "CREATE TRIGGER kits_modelos_motivo_da_empresa BEFORE INSERT OR UPDATE OF payload, empresa_id ON public.kits_modelos FOR EACH ROW EXECUTE FUNCTION kit_motivo_da_empresa() [O]",
+            "lancamentos_item.trg_valida_lancamento_item": "CREATE TRIGGER trg_valida_lancamento_item BEFORE INSERT ON public.lancamentos_item FOR EACH ROW EXECUTE FUNCTION valida_lancamento_item() [O]",
+            "termos_gerados.termos_gerados_guarda_empresa": "CREATE TRIGGER termos_gerados_guarda_empresa BEFORE UPDATE OF empresa_id ON public.termos_gerados FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "termos_gerados.termos_gerados_ids_da_empresa": "CREATE TRIGGER termos_gerados_ids_da_empresa BEFORE INSERT OR UPDATE OF movimentacao_ids, ativo_ids, empresa_id ON public.termos_gerados FOR EACH ROW EXECUTE FUNCTION termo_da_empresa() [O]",
+            "pendencias_item.pendencias_item_guarda_empresa": "CREATE TRIGGER pendencias_item_guarda_empresa BEFORE UPDATE OF empresa_id ON public.pendencias_item FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "lancamentos_item.lancamentos_item_guarda_acervo": "CREATE TRIGGER lancamentos_item_guarda_acervo BEFORE INSERT OR DELETE OR UPDATE ON public.lancamentos_item FOR EACH ROW EXECUTE FUNCTION guarda_acervo() [O]",
+            "lancamentos_item.lancamentos_item_guarda_empresa": "CREATE TRIGGER lancamentos_item_guarda_empresa BEFORE UPDATE OF empresa_id ON public.lancamentos_item FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "unidades_apelidos.unidades_apelidos_guarda_empresa": "CREATE TRIGGER unidades_apelidos_guarda_empresa BEFORE UPDATE OF empresa_id ON public.unidades_apelidos FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "relatorios_gerados.relatorios_gerados_guarda_empresa": "CREATE TRIGGER relatorios_gerados_guarda_empresa BEFORE UPDATE OF empresa_id ON public.relatorios_gerados FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "unidades_apelidos.unidades_apelidos_vocabulario_guarda": "CREATE TRIGGER unidades_apelidos_vocabulario_guarda BEFORE INSERT OR UPDATE ON public.unidades_apelidos FOR EACH ROW EXECUTE FUNCTION vocabulario_unidades_guarda() [O]",
+            "import_termos_estado.import_termos_estado_guarda_empresa": "CREATE TRIGGER import_termos_estado_guarda_empresa BEFORE UPDATE OF empresa_id ON public.import_termos_estado FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "import_termos_categoria.import_termos_categoria_guarda_empresa": "CREATE TRIGGER import_termos_categoria_guarda_empresa BEFORE UPDATE OF empresa_id ON public.import_termos_categoria FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]",
+            "import_prefixos_patrimonio.import_prefixos_patrimonio_guarda_empresa": "CREATE TRIGGER import_prefixos_patrimonio_guarda_empresa BEFORE UPDATE OF empresa_id ON public.import_prefixos_patrimonio FOR EACH ROW EXECUTE FUNCTION guarda_empresa() [O]"
+        },
+        "total": 29
+    }
+}

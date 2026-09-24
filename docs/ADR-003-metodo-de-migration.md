@@ -128,3 +128,26 @@ o gatilho do kit e a 13ª checagem de integridade) acrescenta três pontos ao qu
    reemite) é conferida contra o estado que a SUA fase deixou.
 
 A regra é a R-ACC-91 a R-ACC-97 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F64.
+
+## Emenda F65 (23/09/2026) — trocar constraint sem trocar o nome, o passo pós-deploy e a chave estável
+
+O método continua o mesmo. A F65 (dez migrations, `0165`–`0174`: as FKs entre tabelas de negócio compostas, os uniques
+por empresa, a guarda da empresa, a coerência do termo e a diagonal por empresa) acrescenta quatro pontos:
+
+1. **O nome de uma constraint ou de um índice é CONTRATO** — a dica de embed do PostgREST (`filial:filiais!<fk>(…)`) e a
+   tradução do erro (`casaConstraint`) casam por ele. Trocar a FORMA preserva o nome: a FK é derrubada e recriada com o
+   mesmo nome como subcomandos do MESMO `alter table` (atômico também no `psql -f` do CI — nenhum instante sem a FK); o
+   unique e o índice passam por um provisório (`<nome>_f65`) → `drop` → `rename`, na mesma migration. Receitas no Anexo
+   F65 do [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md).
+2. **Uma migration pode ter um passo PÓS-DEPLOY** quando o estado final quebraria o app velho na janela entre o apply e o
+   deploy (aqui: o `ON CONFLICT (nome_chave)` do `consolidarColaboradores` perderia o árbitro). O passo final vira uma
+   migration própria (`0174`), no MESMO PR, rodada no CI com as outras, e aplicada nos bancos vivos só depois de
+   `/api/saude` mostrar o commit do merge. Até lá, o estado intermediário (os dois uniques) é repouso válido, declarado.
+3. **A prova de "nenhuma tupla reescrita" usa uma chave ESTÁVEL**: a PK lida do catálogo MENOS `empresa_id` — quando a
+   fase troca a própria PK (`motivos (codigo)` → `(empresa_id, codigo)`), a PK de antes e a de depois diferem, e a chave
+   estável é a mesma. O instrumento imprime as duas.
+4. **O rollback da F65 é idempotente em qualquer estado intermediário** (cada passo confere a forma no catálogo antes de
+   agir), porque o apply pode parar entre duas migrations e porque o ensaio o mede em vazio. E ele roda ANTES dos das
+   fases anteriores: o `drop column empresa_id` delas falha com o gatilho `UPDATE OF empresa_id` e as FKs compostas.
+
+A regra é a R-ACC-98 a R-ACC-107 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F65.

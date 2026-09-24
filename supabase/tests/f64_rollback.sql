@@ -94,6 +94,12 @@ language sql as $f$
            where n.nspname = 'public' and p.proname = 'kit_motivo_da_empresa')
 $f$;
 
+-- F65 (23/09/2026): a fase de DEPOIS sai primeiro — a F65 pendura FKs compostas, uniques e PKs por empresa e o
+-- gatilho `UPDATE OF empresa_id` nas onze (o `drop column` deste rollback recusaria pela dependência). E sai ANTES da
+-- medição "antes": a F65 TROCA objetos das onze mantendo o nome, e o "antes sem a F64" tem de ser o estado que a F64
+-- deixou. O que este roteiro prova não muda.
+\ir ../rollback/F65-desfaz.sql
+
 select pg_temp.f64_impressao_esquema(true)  as antes_sem_f64,
        pg_temp.f64_colunas_visiveis()       as colunas_antes,
        pg_temp.f64_kit_existe()             as kit_antes

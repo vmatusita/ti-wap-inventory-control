@@ -1,0 +1,493 @@
+
+ RUN  v4.1.11 <worktree no commit 1 (3486836)>
+
+ ❯ |puro| src/lib/actions/colaboradores-onconflict.test.ts (4 tests | 2 failed) 308ms
+     × o árbitro é o unique POR EMPRESA com o nome contratual — o global morreu na 0174 12ms
+     × no intermediário (0172 aplicada, 0174 não) os DOIS alvos inferem — o app velho e o novo 288ms
+ ❯ |puro| src/lib/validators/rollback-f65.test.ts (7 tests | 5 failed) 30ms
+     × a F65 criou a guarda e a do termo, e recriou a diagonal (guarda do próprio teste) 16ms
+     × a F65 criou 21 gatilhos: os 20 da guarda e o do termo (guarda do próprio teste) 3ms
+     × a F65 tornou 23 FKs compostas, todas começando por empresa_id (guarda do próprio teste) 2ms
+     × cada unique (empresa_id, id) dos pais sai, e cada índice provisório (_f65) é tratado pelo nome 2ms
+     × cada comment on da F65 sobre objeto que já existia tem o seu de volta no rollback (o da função criada sai com ela) 1ms
+ ❯ |puro| src/lib/itens/migrations-f38.test.ts (61 tests | 6 failed) 1260ms
+     × toda migration listada como da fase existe no disco 90ms
+     × nenhuma migration a partir da 0116 fica de fora da lista 4ms
+     × a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118 53ms
+     × o corpo da 0173 tem exatamente duas linhas a mais que o da 0139 2ms
+     × tirando as duas linhas da diagonal, o corpo é o da 0139 BYTE A BYTE 1ms
+     × cada linha nova vem LOGO DEPOIS da sua âncora, uma vez só 1ms
+ ❯ |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts (69 tests | 4 failed) 647ms
+     × cada exceção nominal da F65 é usada por EXATAMENTE uma cadeia (a lista não guarda fantasma nem cobre duas) 8ms
+     × o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar 604ms
+     × as exceções da F65 (k_leitura_tenant) são as três, cada uma é função vigente, LÊ, e prova a origem no comando 1ms
+     × SABOTAGEM F (disco, F65, o despachante) — par legítimo: termo_da_empresa lendo movimentacoes e ativos, declarados no comando 1ms
+ ❯ |puro| src/lib/relatorios/chave-versao-sql.test.ts (8 tests | 7 failed) 19ms
+     × as definições vigentes são a 0010 (unique da tabela) e a 0171 (o índice por empresa, com o nome contratual) 6ms
+     × o índice é a unique da tabela COM a empresa na frente, e dá ao Consolidado (NULL) uma chave concreta 3ms
+     × os parâmetros são as colunas da chave, na ordem do índice (a empresa primeiro) 2ms
+     × a chave tem uma parte por coluna, na mesma ordem 4ms
+     × mudar QUALQUER coluna da chave muda a chave (nenhuma é ignorada) 1ms
+     × o consolidado (filial null) tem chave própria, que não colide com filial nenhuma 0ms
+     × ehViolacaoDeVersao reconhece a violação pelo nome do índice LIDO DO SQL 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 24 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/actions/colaboradores-onconflict.test.ts > o onConflict dos colaboradores casa com um unique do esquema-alvo (F65, decisão 5) > o árbitro é o unique POR EMPRESA com o nome contratual — o global morreu na 0174
+AssertionError: expected [ 'nome_chave' ] to deeply equal [ 'empresa_id', 'nome_chave' ]
+
+- Expected
++ Received
+
+  [
+-   "empresa_id",
+    "nome_chave",
+  ]
+
+ ❯ src/lib/actions/colaboradores-onconflict.test.ts:74:55
+     72|
+     73|   it('o árbitro é o unique POR EMPRESA com o nome contratual — o globa…
+     74|     expect(alvo.get('colaboradores_nome_chave_uidx')).toEqual(['empres…
+       |                                                       ^
+     75|     expect([...alvo.values()].some((c) => mesmoConjunto(c, ['nome_chav…
+     76|     for (const cols of ALVOS) expect(cols).toContain('empresa_id')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/24]⎯
+
+ FAIL  |puro| src/lib/actions/colaboradores-onconflict.test.ts > o onConflict dos colaboradores casa com um unique do esquema-alvo (F65, decisão 5) > no intermediário (0172 aplicada, 0174 não) os DOIS alvos inferem — o app velho e o novo
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/actions/colaboradores-onconflict.test.ts:82:92
+     80|     const meio = unicosDeColaboradores('0173_guarda_empresa.sql')
+     81|     expect([...meio.values()].some((c) => mesmoConjunto(c, ['nome_chav…
+     82|     expect([...meio.values()].some((c) => mesmoConjunto(c, ['empresa_i…
+       |                                                                                            ^
+     83|   })
+     84| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/24]⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > toda migration listada como da fase existe no disco
+AssertionError: expected [ '0116', '0117', '0118', …(46) ] to deeply equal [ '0116', '0117', '0118', …(56) ]
+
+- Expected
++ Received
+
+@@ -46,16 +46,6 @@
+    "0160",
+    "0161",
+    "0162",
+    "0163",
+    "0164",
+-   "0165",
+-   "0166",
+-   "0167",
+-   "0168",
+-   "0169",
+-   "0170",
+-   "0171",
+-   "0172",
+-   "0173",
+-   "0174",
+  ]
+
+ ❯ src/lib/itens/migrations-f38.test.ts:551:21
+    549|   it('toda migration listada como da fase existe no disco', () => {
+    550|     const achadas = arquivosDaFase().map((a) => a.nome.slice(0, 4))
+    551|     expect(achadas).toEqual(DA_F38)
+       |                     ^
+    552|   })
+    553|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/24]⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > nenhuma migration a partir da 0116 fica de fora da lista
+AssertionError: migration nova sem cobertura em DA_F38: expected [ '0116', '0117', '0118', …(46) ] to deeply equal [ '0116', '0117', '0118', …(56) ]
+
+- Expected
++ Received
+
+@@ -46,16 +46,6 @@
+    "0160",
+    "0161",
+    "0162",
+    "0163",
+    "0164",
+-   "0165",
+-   "0166",
+-   "0167",
+-   "0168",
+-   "0169",
+-   "0170",
+-   "0171",
+-   "0172",
+-   "0173",
+-   "0174",
+  ]
+
+ ❯ src/lib/itens/migrations-f38.test.ts:562:67
+    560|       .map((f) => f.slice(0, 4))
+    561|       .sort()
+    562|     expect(posteriores, 'migration nova sem cobertura em DA_F38').toEq…
+       |                                                                   ^
+    563|   })
+    564|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/24]⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > migrations da F38 — o critério 9, provado no disco > a ÚNICA função existente recriada é valida_lancamento_item, e só na 0118
+AssertionError: 0165 recria valida_lancamento_item: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ src/lib/itens/migrations-f38.test.ts:758:79
+    756|     expect(porArquivo.get('0118')).toContain('valida_lancamento_item')
+    757|     for (const num of DA_F38.filter((n) => n !== '0118')) {
+    758|       expect(porArquivo.get(num), `${num} recria valida_lancamento_ite…
+       |                                                                               ^
+    759|         'valida_lancamento_item',
+    760|       )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/24]⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > F65 — a diagonal por empresa é a da 0139 com duas linhas a mais > o corpo da 0173 tem exatamente duas linhas a mais que o da 0139
+Error: ENOENT: no such file or directory, open '<scratchpad>\wt1\supabase\migrations\0173_guarda_empresa.sql'
+ ❯ corpo src/lib/itens/migrations-f38.test.ts:952:37
+    950| describe('F65 — a diagonal por empresa é a da 0139 com duas linhas a m…
+    951|   const corpo = (arquivo: string) => {
+    952|     const defs = definicoesDeFuncao(readFileSync(join(DIR, arquivo), '…
+       |                                     ^
+    953|       (d: { nome: string }) => d.nome === 'vocabulario_unidades_guarda…
+    954|     )
+ ❯ depois src/lib/itens/migrations-f38.test.ts:960:24
+ ❯ src/lib/itens/migrations-f38.test.ts:967:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/24]⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > F65 — a diagonal por empresa é a da 0139 com duas linhas a mais > tirando as duas linhas da diagonal, o corpo é o da 0139 BYTE A BYTE
+Error: ENOENT: no such file or directory, open '<scratchpad>\wt1\supabase\migrations\0173_guarda_empresa.sql'
+ ❯ corpo src/lib/itens/migrations-f38.test.ts:952:37
+    950| describe('F65 — a diagonal por empresa é a da 0139 com duas linhas a m…
+    951|   const corpo = (arquivo: string) => {
+    952|     const defs = definicoesDeFuncao(readFileSync(join(DIR, arquivo), '…
+       |                                     ^
+    953|       (d: { nome: string }) => d.nome === 'vocabulario_unidades_guarda…
+    954|     )
+ ❯ depois src/lib/itens/migrations-f38.test.ts:960:24
+ ❯ src/lib/itens/migrations-f38.test.ts:971:25
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/24]⎯
+
+ FAIL  |puro| src/lib/itens/migrations-f38.test.ts > F65 — a diagonal por empresa é a da 0139 com duas linhas a mais > cada linha nova vem LOGO DEPOIS da sua âncora, uma vez só
+Error: ENOENT: no such file or directory, open '<scratchpad>\wt1\supabase\migrations\0173_guarda_empresa.sql'
+ ❯ corpo src/lib/itens/migrations-f38.test.ts:952:37
+    950| describe('F65 — a diagonal por empresa é a da 0139 com duas linhas a m…
+    951|   const corpo = (arquivo: string) => {
+    952|     const defs = definicoesDeFuncao(readFileSync(join(DIR, arquivo), '…
+       |                                     ^
+    953|       (d: { nome: string }) => d.nome === 'vocabulario_unidades_guarda…
+    954|     )
+ ❯ depois src/lib/itens/migrations-f38.test.ts:960:24
+ ❯ src/lib/itens/migrations-f38.test.ts:976:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > a chave única do snapshot, no banco (lida do disco) > as definições vigentes são a 0010 (unique da tabela) e a 0171 (o índice por empresa, com o nome contratual)
+Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+ ❯ vigenteCom src/lib/relatorios/chave-versao-sql.test.ts:34:23
+     32| function vigenteCom(ancora: string): { arquivo: string; sql: string } {
+     33|   const vigente = MIGRATIONS.filter((m) => m.sql.includes(ancora)).at(…
+     34|   if (!vigente) throw new Error(`nenhuma migration contém "${ancora}"`)
+       |                       ^
+     35|   return vigente
+     36| }
+ ❯ indiceVigente src/lib/relatorios/chave-versao-sql.test.ts:72:29
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:79:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > a chave única do snapshot, no banco (lida do disco) > o índice é a unique da tabela COM a empresa na frente, e dá ao Consolidado (NULL) uma chave concreta
+Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+ ❯ vigenteCom src/lib/relatorios/chave-versao-sql.test.ts:34:23
+     32| function vigenteCom(ancora: string): { arquivo: string; sql: string } {
+     33|   const vigente = MIGRATIONS.filter((m) => m.sql.includes(ancora)).at(…
+     34|   if (!vigente) throw new Error(`nenhuma migration contém "${ancora}"`)
+       |                       ^
+     35|   return vigente
+     36| }
+ ❯ indiceVigente src/lib/relatorios/chave-versao-sql.test.ts:72:29
+ ❯ colunasDoIndice src/lib/relatorios/chave-versao-sql.test.ts:73:52
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:90:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > os parâmetros são as colunas da chave, na ordem do índice (a empresa primeiro)
+Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+ ❯ vigenteCom src/lib/relatorios/chave-versao-sql.test.ts:34:23
+     32| function vigenteCom(ancora: string): { arquivo: string; sql: string } {
+     33|   const vigente = MIGRATIONS.filter((m) => m.sql.includes(ancora)).at(…
+     34|   if (!vigente) throw new Error(`nenhuma migration contém "${ancora}"`)
+       |                       ^
+     35|   return vigente
+     36| }
+ ❯ indiceVigente src/lib/relatorios/chave-versao-sql.test.ts:72:29
+ ❯ colunasDoIndice src/lib/relatorios/chave-versao-sql.test.ts:73:52
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:99:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > a chave tem uma parte por coluna, na mesma ordem
+AssertionError: expected [ …(3) ] to deeply equal [ …(4) ]
+
+- Expected
++ Received
+
+  [
+    "00000000-0000-4000-8000-00000000000a",
+    "2026-09-06",
+    "2026-09-12",
+-   "2",
+  ]
+
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:118:70
+    116|
+    117|   it('a chave tem uma parte por coluna, na mesma ordem', () => {
+    118|     expect(chaveVersao(A, '2026-09-06', '2026-09-12', 2).split('|')).t…
+       |                                                                      ^
+    119|   })
+    120|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > mudar QUALQUER coluna da chave muda a chave (nenhuma é ignorada)
+AssertionError: expected '00000000-0000-4000-8000-00000000000a|…' not to be '00000000-0000-4000-8000-00000000000a|…' // Object.is equality
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:127:63
+    125|     // o caso que uma chave `periodo|filial` erraria: mesmo começo, fi…
+    126|     expect(chaveVersao(A, '2026-09-06', '2026-09-13', 2)).not.toBe(bas…
+    127|     expect(chaveVersao(A, '2026-09-06', '2026-09-12', 3)).not.toBe(bas…
+       |                                                               ^
+    128|   })
+    129|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > chaveVersao espelha o índice por empresa, MENOS a versão > o consolidado (filial null) tem chave própria, que não colide com filial nenhuma
+AssertionError: expected '00000000-0000-4000-8000-00000000000a|…' not to be '00000000-0000-4000-8000-00000000000a|…' // Object.is equality
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:137:66
+    135|     const consolidado = chaveVersao(A, '2026-09-06', '2026-09-12', nul…
+    136|     for (const id of [1, 2, 3, 32767]) {
+    137|       expect(chaveVersao(A, '2026-09-06', '2026-09-12', id)).not.toBe(…
+       |                                                                  ^
+    138|     }
+    139|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/24]⎯
+
+ FAIL  |puro| src/lib/relatorios/chave-versao-sql.test.ts > a segunda pista da renumeração casa pelo NOME do índice (o laço da F57, fechado na F65) > ehViolacaoDeVersao reconhece a violação pelo nome do índice LIDO DO SQL
+Error: nenhuma migration contém "alter index public.relatorios_gerados_periodo_filial_versao_uidx_f65 rename to relatorios_gerados_periodo_filial_versao_uidx"
+ ❯ vigenteCom src/lib/relatorios/chave-versao-sql.test.ts:34:23
+     32| function vigenteCom(ancora: string): { arquivo: string; sql: string } {
+     33|   const vigente = MIGRATIONS.filter((m) => m.sql.includes(ancora)).at(…
+     34|   if (!vigente) throw new Error(`nenhuma migration contém "${ancora}"`)
+       |                       ^
+     35|   return vigente
+     36| }
+ ❯ indiceVigente src/lib/relatorios/chave-versao-sql.test.ts:72:29
+ ❯ src/lib/relatorios/chave-versao-sql.test.ts:144:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/24]⎯
+
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > cada exceção nominal da F65 é usada por EXATAMENTE uma cadeia (a lista não guarda fantasma nem cobre duas)
+AssertionError: src/lib/queries/gerados.ts (relatorios_gerados): expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/lib/validators/empresa-acervo-sem-leitura.test.ts:229:69
+    227|     for (const e of EXCECOES_TS_F65) {
+    228|       const usos = leituras.filter((l) => citaEmpresaId(l) && l.onde.s…
+    229|       expect(usos.map((l) => l.onde), `${e.arquivo} (${e.tabela})`).to…
+       |                                                                     ^
+    230|       expect(e.motivo.length, `${e.arquivo} sem motivo`).toBeGreaterTh…
+    231|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/24]⎯
+
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar
+AssertionError: empresa_id apareceu, sumiu ou mudou de consulta num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66: expected { …(2) } to deeply equal { …(4) }
+
+- Expected
++ Received
+
+  {
+-   "src/lib/actions/colaboradores.ts": [
+-     ".from('colaboradores') .upsert( aCriar.map((g) => ({ nome: g.grafia_exemplo.trim(), filial_id: g.filial_id, criado_por: aut.uid, })), { onConflict: 'empresa_id",
+-   ],
+    "src/lib/auth/acesso.ts": [
+      ".from('membros') .select(LEITURA_MEMBRO_OPERADOR.select) .eq('profile_id', user.id) .eq('empresa_id",
+    ],
+    "src/lib/queries/admin.ts": [
+      ".from('membros').select('profile_id, papel, ativo').eq('empresa_id",
+      ".from('operador_filiais').select('usuario_id, filial_id').eq('empresa_id",
+      ".from('membros') .select('profile_id') .eq('empresa_id",
+      ".from('membros') .select('papel, ativo') .eq('profile_id', id) .eq('empresa_id",
+      ".from('membros') .select('papel, ativo') .eq('profile_id', id) .eq('empresa_id",
+      ".from('operador_filiais') .select('filial_id') .eq('usuario_id', id) .eq('empresa_id",
+-   ],
+-   "src/lib/queries/gerados.ts": [
+-     ".from('relatorios_gerados') .select('id, empresa_id",
+-     ".from('relatorios_gerados') .select('id, empresa_id, periodo_de, periodo_ate, filial_id, versao') .in('periodo_de', datas) if (eVersoes) { registrarFalha({ escopo: 'gerados.versoes-superadas', erro: eVersoes }) } else { for (const v of versoes ?? []) { const empresa = v.empresa_id",
+    ],
+  }
+
+ ❯ src/lib/validators/empresa-acervo-sem-leitura.test.ts:346:150
+    344|     }
+    345|     const esperado = Object.fromEntries(Object.entries(EMPRESA_ID_NO_A…
+    346|     expect(achado, 'empresa_id apareceu, sumiu ou mudou de consulta nu…
+       |                                                                                                                                                      ^
+    347|   })
+    348|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/24]⎯
+
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > as exceções da F65 (k_leitura_tenant) são as três, cada uma é função vigente, LÊ, e prova a origem no comando
+AssertionError: guarda_empresa: não há função vigente com esse nome nas migrations: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/lib/validators/empresa-acervo-sem-leitura.test.ts:550:90
+    548|     for (const [nome, tabelas] of LEITURA_TENANT) {
+    549|       const defs = [...vigentes.entries()].filter(([k]) => nomeDaChave…
+    550|       expect(defs.length, `${nome}: não há função vigente com esse nom…
+       |                                                                                          ^
+    551|       const leituras = comandosQueLeem(defs[0][1].texto, gatilhosNoLot…
+    552|       expect(leituras.length, `${nome}: a exceção não lê empresa_id de…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/24]⎯
+
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das funções (disco) > SABOTAGEM F (disco, F65, o despachante) — par legítimo: termo_da_empresa lendo movimentacoes e ativos, declarados no comando
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lib/validators/empresa-acervo-sem-leitura.test.ts:580:20
+    578|       comandosQueLeem(corpo, tabelasGatilho).filter((c) => !ehExcecao(…
+    579|       (LEITURA_TENANT.has(funcao) && origensNaoProvadas(funcao, corpo)…
+    580|     expect(acusou).toBe(acusa)
+       |                    ^
+    581|   })
+    582|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/24]⎯
+
+ FAIL  |puro| src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > a F65 criou a guarda e a do termo, e recriou a diagonal (guarda do próprio teste)
+AssertionError: expected [] to deeply equal [ 'guarda_empresa/0', …(1) ]
+
+- Expected
++ Received
+
+- [
+-   "guarda_empresa/0",
+-   "termo_da_empresa/0",
+- ]
++ []
+
+ ❯ src/lib/validators/rollback-f65.test.ts:65:21
+     63| describe('o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPL…
+     64|   it('a F65 criou a guarda e a do termo, e recriou a diagonal (guarda …
+     65|     expect(criadas).toEqual(['guarda_empresa/0', 'termo_da_empresa/0'])
+       |                     ^
+     66|     expect(recriadas).toEqual(['vocabulario_unidades_guarda/0'])
+     67|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/24]⎯
+
+ FAIL  |puro| src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > a F65 criou 21 gatilhos: os 20 da guarda e o do termo (guarda do próprio teste)
+AssertionError: expected [] to have a length of 20 but got +0
+
+- Expected
++ Received
+
+- 20
++ 0
+
+ ❯ src/lib/validators/rollback-f65.test.ts:86:67
+     84|
+     85|   it('a F65 criou 21 gatilhos: os 20 da guarda e o do termo (guarda do…
+     86|     expect(gatilhos.filter((g) => g.funcao === 'guarda_empresa')).toHa…
+       |                                                                   ^
+     87|     expect(gatilhos.filter((g) => g.funcao === 'termo_da_empresa').map…
+     88|     expect(gatilhos).toHaveLength(21)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/24]⎯
+
+ FAIL  |puro| src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > a F65 tornou 23 FKs compostas, todas começando por empresa_id (guarda do próprio teste)
+AssertionError: expected +0 to be 23 // Object.is equality
+
+- Expected
++ Received
+
+- 23
++ 0
+
+ ❯ src/lib/validators/rollback-f65.test.ts:102:28
+    100|
+    101|   it('a F65 tornou 23 FKs compostas, todas começando por empresa_id (g…
+    102|     expect(compostas.size).toBe(23)
+       |                            ^
+    103|     for (const f of compostas.values()) expect(f.colunas[0], f.nome).t…
+    104|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/24]⎯
+
+ FAIL  |puro| src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > cada unique (empresa_id, id) dos pais sai, e cada índice provisório (_f65) é tratado pelo nome
+AssertionError: expected [] to have a length of 7 but got +0
+
+- Expected
++ Received
+
+- 7
++ 0
+
+ ❯ src/lib/validators/rollback-f65.test.ts:117:18
+    115|   it('cada unique (empresa_id, id) dos pais sai, e cada índice provisó…
+    116|     const pais = [...SQL_F65.matchAll(/add constraint (\w+_empresa_id_…
+    117|     expect(pais).toHaveLength(7)
+       |                  ^
+    118|     for (const p of pais) expect(DESFAZ, p).toMatch(new RegExp(String.…
+    119|     const provisorios = new Set([...SQL_F65.matchAll(/\b(\w+_f65)\b/g)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/24]⎯
+
+ FAIL  |puro| src/lib/validators/rollback-f65.test.ts > o rollback da F65 (supabase/rollback/F65-desfaz.sql) é COMPLETO contra as migrations > cada comment on da F65 sobre objeto que já existia tem o seu de volta no rollback (o da função criada sai com ela)
+AssertionError: expected 0 to be greater than 0
+ ❯ src/lib/validators/rollback-f65.test.ts:132:26
+    130|       .filter((m) => !criadasNomes.includes(m[2]))
+    131|       .map((m) => `${m[1]} ${m[2]}`)
+    132|     expect(alvos.length).toBeGreaterThan(0)
+       |                          ^
+    133|     for (const a of new Set(alvos)) expect(CODIGO_DESFAZ.includes(`com…
+    134|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/24]⎯
+
+
+ Test Files  5 failed | 2 passed (7)
+      Tests  24 failed | 569 passed (593)
+   Start at  18:51:42
+   Duration  3.95s (transform 1.15s, setup 0ms, import 7.76s, tests 2.86s, environment 1ms)
+

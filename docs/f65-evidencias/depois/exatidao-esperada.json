@@ -1,0 +1,20 @@
+{
+  "indices": {
+    "filiais_nome_chave_uidx": "30478cdf73b944890696629aae68ff46",
+    "itens_nome_chave_uidx": "bcc390fb6bc1b95ba0276e871ae1cbc9"
+  },
+  "funcoes": {
+    "guarda_empresa": {
+      "prosrc": "67f660c84fdf890712fb40d9b7ae1d7e",
+      "comentario": "ffc24456327c93601ae80773eef90558"
+    },
+    "termo_da_empresa": {
+      "prosrc": "e16755921b6ed42dd85ec60cf50d8ef4",
+      "comentario": "20ab59a497c935d6e0167a24d32c2743"
+    },
+    "vocabulario_unidades_guarda": {
+      "prosrc": "cbe9b7a31fc1ab0af56e9eee59542164",
+      "comentario": "32ea5ef2565c82f13f26a41719165d94"
+    }
+  }
+}
