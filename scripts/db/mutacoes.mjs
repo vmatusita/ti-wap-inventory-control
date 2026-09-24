@@ -3257,7 +3257,7 @@ const F66_RECORTE = [
   with check (empresa_id = any (array (select public.empresas_de_escrita()))
               and (empresa_id, 1::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u));  ${MARCA}`,
     prova: {
-      sql: `select coalesce(qual, '') not like '%filial_id)%' from pg_policies
+      sql: `select coalesce(qual, '') like '%(empresa_id, (1)::smallint) IN%' from pg_policies
              where schemaname = 'public' and tablename = 'ativos' and policyname = 'operador atualiza'`,
       espera: 't',
     },
