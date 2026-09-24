@@ -1,10 +1,10 @@
 # Relatório F66 — as policies ganham o recorte, em conjunção
 
-**v1.71.0** · migrations `0175`–`0179` **aplicadas no ensaio e em produção** em 24/09/2026 (ensaio 13:27–13:36, produção
+**v1.71.0 no ar** (`/api/saude`: `1.71.0` · `fbcd14b`, 24/09/2026 17:37 UTC) · migrations `0175`–`0179` **aplicadas no ensaio e em produção** em 24/09/2026 (ensaio 13:27–13:36, produção
 13:47–14:01, horas de Brasília), com as provas (§6) · SHA de código congelado **`31b9a16`** · código no
-[PR #79](https://github.com/vmatusita/ti-wap-inventory-control/pull/79) · CI do SHA congelado: run `36026526435` (52
-roteiros, 1.123 asserções, 0 ✗; injetor 151/151; `db:types:diff` verde) · o merge, o deploy, a conferência pós-deploy e a
-tag `v1.71.0` no §14 (o fecho vai no PR de documentação).
+[PR #79](https://github.com/vmatusita/ti-wap-inventory-control/pull/79), merge `fbcd14b` · CI do SHA congelado: run `36026526435` (52
+roteiros, 1.123 asserções, 0 ✗; injetor 151/151; `db:types:diff` verde) · a conferência pós-deploy verde (§14) · este
+fecho no PR de documentação, com a tag `v1.71.0` no merge dele.
 
 > A quinta fase da virada multiempresa. Com a chave de recorte já estrutural (F62–F65), as **51 policies de `public`
 > cuja tabela tem `empresa_id`** ganham, por `alter policy` LITERAL e em **conjunção** com o piso de hoje (intacto), o
@@ -26,9 +26,8 @@ tag `v1.71.0` no §14 (o fecho vai no PR de documentação).
 
 ## 1.1 O que ficou com você — nada bloqueante
 
-O apply está feito e provado nos dois bancos (§6). O que falta à fase — o merge do PR #79, a conferência pós-deploy e o PR
-de documentação com a tag — é meu, na sequência deste commit (§14). Para você: a conferência à mão do §1.3, depois do
-deploy, só leitura. Nenhuma decisão sua pendente; nenhum rollback foi necessário; o classificador de segurança não barrou
+A fase está no ar e conferida: o apply provado nos dois bancos (§6), o merge, o deploy e a conferência pós-deploy (§14).
+Para você: a conferência à mão do §1.3, só leitura. Nenhuma decisão sua pendente; nenhum rollback foi necessário; o classificador de segurança não barrou
 nada.
 
 ## 1.2 O apply (o registro)
@@ -390,8 +389,8 @@ forma — a sonda foi corrigida (`31b9a16`), o SHA recongelado, e o run `3602652
 | 21 | os roteiros adaptados listados, nenhuma asserção mudou para passar | ✅ (§2) |
 | 22 | nenhuma dependência; workflows, `CLAUDE.md` da raiz, seed, embeds e o código do app intocados; linha de base intacta | ✅ |
 | 23 | as emendas (MATRIZ, ADR-001, ADR-002, RUNBOOK, PLANO com a F66B, INVENTARIO, índices, ata) | ✅ |
-| 24 | `1.71.0`, CHANGELOG, registry; a tag | ✅ versão; a tag `v1.71.0` no merge do PR de documentação (§14) |
-| 25 | os dois PRs mergeados, a conferência pós-deploy | §14 |
+| 24 | `1.71.0`, CHANGELOG, registry; a tag | ✅ versão; a tag `v1.71.0`, anotada, no merge do PR de documentação, publicada (§14) |
+| 25 | os dois PRs mergeados, a conferência pós-deploy | ✅ PR #79 (`fbcd14b`); a conferência (§14); o PR de documentação é este |
 | 26 | as sabotagens A–L com saída real | ✅ (`A-L-sabotagens.md`, `B-travas/`) |
 | 27 | nenhum dado real; da produção só contagem/nome/hash; ninguém abriu o `.env.local` | ✅ |
 | 28 | este relatório no padrão, com o roteiro no topo, o repouso e o "não prova" | ✅ |
@@ -401,8 +400,9 @@ forma — a sonda foi corrigida (`31b9a16`), o SHA recongelado, e o run `3602652
 # 13. O estado de repouso
 
 - **Produção e ensaio:** com a `0175`–`0179` (a mais nova no ledger: `rel_motivo_por_empresa`); o catálogo idêntico entre
-  os dois nas 11 classes. A única escrita da fase nos bancos foram as cinco migrations e os dois `notify pgrst` — nenhuma
-  linha de dado tocada.
+  os dois nas 11 classes.
+- **`main` e o deploy:** `fbcd14b` no ar, `1.71.0`; a sonda de deriva com 0 pendente (Parte B de 24/09, 17:48 UTC).
+- **Escrita da fase nos bancos:** só as cinco migrations e os dois `notify pgrst` — nenhuma linha de dado tocada.
 - **Rollback, se um dia for preciso:** o `supabase/rollback/F66-desfaz.sql` (RUNBOOK, Anexo F66) seguido do `git revert`
   do merge. Depois da F73 (uma segunda empresa de verdade), esse rollback ABRE a leitura entre empresas: só roda com o
   dado da segunda empresa fora.
@@ -411,7 +411,21 @@ forma — a sonda foi corrigida (`31b9a16`), o SHA recongelado, e o run `3602652
 
 # 14. O merge, o deploy e a conferência pós-deploy
 
-*(Preenchido no PR de documentação, depois do merge do PR #79.)*
+O detalhe: `f66-evidencias/depois/pos-deploy.md`.
+
+- **O merge**: PR #79 saiu do rascunho depois das provas de produção (a descrição trocou o aviso das travas vermelhas
+  pelo registro do apply), com `verificar`, `banco-sem-docker` (run `36035029512`, HEAD `60b9d66`) e Vercel verdes,
+  estado `CLEAN`; merge normal, **`fbcd14b`** (17:36:14 UTC).
+- **O deploy**: `/api/saude` → `{"ok":true,"versao":"1.71.0","commit":"fbcd14b","banco":"ok"}` (17:37:11 UTC). Entre o fim do
+  apply em produção (17:01 UTC) e o deploy, o app velho rodou sobre as policies novas — a F66 não muda o código que o app
+  executa, e o conferidor e o smoke leram pelo PostgREST nessa janela sem recusa.
+- **A conferência**: o smoke com `SMOKE_VERSAO_ESPERADA=1.71.0` — **109 OK · 1 aviso · 0 falha** (o aviso antigo de kits);
+  a Parte B (`saude.yml`, run `36036851741`) — **success**: o resumo de integridade com 13 chaves dentro da linha de base
+  (e o aviso de que a de `conflito_entre_filiais` PODE descer, 66 contra 69 — nenhum número mexido), a deriva com **0
+  pendente** (a mais nova no ledger é a `0179`), o alarme verde.
+- **Os tipos**: a geração do MCP em produção tem o MESMO md5 da geração da F65 (`1acd5546…`) — a fase não mudou tipo
+  nenhum; o `database.ts` não foi tocado.
+- **A tag** `v1.71.0`, anotada, no merge do PR de documentação (o molde da `v1.70.0`).
 
 ---
 
@@ -439,8 +453,7 @@ forma — a sonda foi corrigida (`31b9a16`), o SHA recongelado, e o run `3602652
 
 # 16. Pendências e backlog nomeado
 
-- **Pendente desta fase:** o merge, a conferência pós-deploy e o PR de documentação com a tag (§14); a sua conferência à
-  mão (§1.3).
+- **Pendente desta fase:** nada além da sua conferência à mão (§1.3).
 - **F66B**: o comprimento como regra do banco (a ficha escrita nesta fase, com o censo).
 - **F67**: a ponte de `papel_atual()`, a escrita por empresa, as `security definer`, Storage, Realtime, o default, os
   escritores por chave natural, e o que a releitura do inventário apontou (`paresEmOutrasFiliais`,
