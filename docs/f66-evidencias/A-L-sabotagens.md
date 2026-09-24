@@ -300,8 +300,12 @@ f66-unidade-volta-a-pode-escrever-filial                   catalogo_policies.sql
 `scripts/perf/conta-a-conta.mjs`, fase `emulada`, antes de qualquer apply (Frente A, commit `06357ac`), em
 `conta-a-conta/`: ensaio **0 divergência** (3 memberships · 21 tabelas · 18 pares · 63 leituras); produção **0
 divergência** (14 memberships · 21 tabelas · 84 pares · 294 leituras); a **sabotada** no ensaio (uma comparação de escrita e
-uma de leitura invertidas) deu **2** (`escrita_filial` 1, `leitura` 1) — o instrumento sabe acusar. A fase `real`,
-depois de cada lote, nos dois bancos: no `RELATORIO-F66.md`.
+uma de leitura invertidas) deu **2** (`escrita_filial` 1, `leitura` 1) — o instrumento sabe acusar.
+
+Nos bancos vivos, em 24/09/2026 (`conta-a-conta/*-emulada-refeita.json` e `*-real-depois-017{5,6,7,8}.json`): a emulada
+REFEITA logo antes do primeiro apply, **0** nos dois; a fase `real` depois de cada um dos quatro lotes de policy, **0** em
+cada um — ensaio 3 memberships · 21 tabelas · 18 pares · 63 leituras; produção 14 memberships · 21 tabelas · 84 pares ·
+294 leituras; corrida 0 em todas as rodadas. Nenhum lote precisou de rollback.
 
 ## H — as `rel_*` (10i, 10j; R-ACC-113)
 
@@ -340,18 +344,33 @@ f66-rel-join-sem-empresa                                   isolamento_tenant.sql
 ```
 
 O 10j (sem o par, o relatório por motivo DUPLICA: 4 em vez de 2 — o 10i sabe acusar) está verde no push 2. A equivalência
-antes × depois nos dois bancos (`equivalencia-rel.mjs`, modo `mesmo-nome`): no `RELATORIO-F66.md`.
+antes × depois nos dois bancos (`equivalencia-rel.mjs`, modo `mesmo-nome`, `rel/`): **0 célula divergente** em cada
+rodada — 168 células por função (12 datas × consolidado e cada filial × 7d/365d), antes da `0179` (a viva de antes × o
+corpo novo colado) e depois (o corpo de antes colado × a viva nova); linhas por lado: ensaio 404 e 1.082, produção 524 e
+1.182 (`rel_por_motivo_filiais` e `rel_resumo_filiais`).
 
 ## I — os índices (R-ACC-116)
 
 A medição estrutural que decidiu "nenhum índice" está no `PLAN-F66.md` §3.2 (quatro cenários por lista, na mesa, com o
-volume fictício de produção). O EXPLAIN "depois" das cinco listas nos dois bancos (`medir-rls.mjs gerar-listas`): no
-`RELATORIO-F66.md` e em `indices/`.
+volume fictício de produção). O EXPLAIN "depois" das cinco listas nos dois bancos (`medir-rls.mjs gerar-listas`, em
+`indices/`), como `authenticated` com a policy REAL: nas cinco, as duas funções da policy como `InitPlan 1`/`InitPlan 2`
+de **1 loop** cada; o nó de cada lista o de antes (movimentações pelo `movimentacoes_data_ordem_idx`; ativos por Bitmap e
+Sort, como hoje); em produção, execução de 0,69 ms (import) a 2,80 ms (ativos), 0 bloco lido do disco.
 
 ## J — o custo
 
-O `medir-rls.mjs` antes (F0 × F4, `docs/perf/f66-rls-*-antes.json`) e o TTFB antes (`docs/perf/f66-producao-ttfb-antes.json`);
-o depois e a régua de 15%: no `RELATORIO-F66.md`.
+O `medir-rls.mjs` antes (F0 × F4, `docs/perf/f66-rls-*-antes.json`) e o TTFB antes (`docs/perf/f66-producao-ttfb-antes.json`,
+e a linha de base do MESMO dia, imediatamente antes do apply de produção, `f66-producao-ttfb-antes-do-apply.json`).
+Depois, em produção: a policy nova (F0-depois) × a forma emulada (F4-antes) — `ativos` 2,12 × 2,06 ms, 124 = 124 buffers;
+`movimentacoes` 3,16 × 3,63 ms, 271 = 271 buffers (`f66-rls-producao-depois.json`). O TTFB depois × antes do mesmo dia,
+19 rotas, N = 11: na MEDIANA a pior rota +6,6% (`/movimentacoes/nova`, total). No **p95** (a régua da decisão 11), três
+rotas passaram de 15% na primeira rodada — `/login` com sessão +51,9%, `/ajuda` +36,7%, `/movimentacoes/nova` +18,6% — e
+foram medidas mais duas vezes, intercalando (`f66-producao-ttfb-depois-2.json`, `-3.json`): `/ajuda` (−16,8%, −25,2%) e
+`/movimentacoes/nova` (−12,2%, −25,4%) voltaram para baixo; `/login` com sessão ficou acima em duas das três (+10,3%,
++33,5%) — e essa rota **não chega ao PostgREST** (o proxy só chama `auth.getUser()`, a API de Auth; nenhuma policy é
+avaliada), o `medir-rls` não tem o que atribuir, e a MESMA rota mediu p95 117,2 ms de manhã, antes de qualquer apply (o
+"depois" deu 117). Ruído declarado, com os números; nenhum bloqueio. Na segunda rodada, rotas públicas que nem tocam o
+banco (`/login` +154,8%, `/relatorios/acesso` +287%) mostram o tamanho do ruído de rede do dia.
 
 ## K — o rollback (R-ACC-115)
 
@@ -389,4 +408,7 @@ NOTICE:  L-md5: ativos/leitura operador cd757cb1 -> cb680040 (mudou=t) · itens/
 
 `relfilenode_mudou` 0 das 29 (22 com `empresa_id`): nenhuma migration da fase reescreve tabela. O md5 muda SÓ na policy
 alterada. E no CI, a `L2` de `integridade_tenant.sql` (um `alter column … type` com reescrita MUDA o `relfilenode`) está
-verde nos dois pushes — o instrumento vê a reescrita quando ela existe. Nos bancos vivos: no `RELATORIO-F66.md`.
+verde nos dois pushes — o instrumento vê a reescrita quando ela existe. Nos bancos vivos (`depois/sondas-*.json`, a
+sonda antes do primeiro lote e depois de cada um dos cinco): o md5 do `relfilenode` das 22 tabelas **igual em todas as
+rodadas** — ensaio `293d2945…`, produção `ba909922…` — e o md5 das policies de `public` igual ao do ORÁCULO depois de cada
+lote (o texto aplicado é o do arquivo).

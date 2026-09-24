@@ -13619,3 +13619,31 @@ a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66; PLANO, a
   qual prova é emulada e qual é real. (6) MÉDIO: quatro das seis linhas de código da releitura do inventário estavam
   deslocadas (o código andou desde a F57) — conferidas de novo no disco e corrigidas. O refutado: a identidade da prova conta
   a conta sem filtro de empresa legada — com uma empresa só e o `rotulo_de_ambiente()` conferindo o alvo, inalcançável.
+- **(k) O apply, nos dois bancos, em 24/09/2026** (as horas do ledger, de Brasília), sobre o SHA congelado `31b9a16` (CI
+  `36026526435` verde): no **ensaio** 13:27–13:36, em **produção** 13:47–14:01 — cerca de 2 h 40 min depois do commit das
+  migrations (`2e3b17b`, 11:09), dentro das 24 h. As cinco, uma por chamada, com o texto EXATO do arquivo, todas na
+  PRIMEIRA tentativa (nenhum `lock_timeout` estourou). Em cada banco: a sonda (`f66-evidencias/sonda-lote.sql`) antes do
+  primeiro lote e depois de cada um, com o md5 das policies de `public` IGUAL ao do oráculo da mesa em cada lote
+  (`e55c75d0…`, `e7d55e81…`, `60f90a0f…`, `aa0db1b3…`) e o `prosrc` das `rel_*` igual ao dele depois da `0179`; o
+  `relfilenode` das 22, os índices, as funções de fora da fase, Storage e as 11 iguais em TODAS as rodadas; a prova conta a
+  conta emulada refeita logo antes (0) e a real depois de cada lote de policy (0 em cada — produção: 14 memberships, 21
+  tabelas, 84 pares); a equivalência das `rel_*` antes e depois, 0 célula; ACL, dono, `security invoker`, `stable` e
+  `search_path` das duas preservados. Nenhum gatilho de rollback disparou.
+- **(l) As provas depois do último apply**, antes do merge: advisors idênticos ao "antes" nos dois bancos, nome a nome
+  (nenhum de segurança novo; performance sem delta — nenhum índice); o EXPLAIN das cinco listas com o termo em `InitPlan`
+  de 1 loop; `medir-rls` "depois" em produção só com a identidade de nível administrador, como o "antes" (F0-depois ≈
+  F4-antes, os mesmos buffers); o TTFB do mesmo dia com a pior rota em +6,6% na mediana (o p95: item (n)); o conferidor de formas 0 recusadas nos dois
+  (produção: 271 pontos, 100.829 linhas, 0 reprovados); o smoke 109 OK · 1 aviso (o antigo de kits) · 0 falha; a paridade
+  das 11 classes idêntica entre os bancos; a geração de tipos do MCP igual ao `database.ts` fora dos comentários e das duas
+  linhas do hand-fix da F62.
+- **(m) O `notify pgrst` veio no fim, não logo depois do apply do ensaio.** A ordem o lista na prova pós-apply; no ensaio
+  ele ficou para trás e foi disparado nos DOIS bancos depois de todas as provas de produção (é o único comando da fase nos
+  bancos além das cinco migrations, e não toca dado). Sem efeito medível: a fase não muda assinatura, coluna nem tipo
+  exposto, e o smoke e o conferidor já tinham lido pelo PostgREST com o esquema novo sem erro.
+- **(n) A régua de 15% no p95 disparou em três rotas e a decisão 11 correu como escrita.** Na primeira rodada "depois",
+  `/login` com sessão (+51,9%), `/ajuda` (+36,7%) e `/movimentacoes/nova` (+18,6%) passaram de 15% no p95 contra a linha
+  de base do mesmo dia; as três foram medidas mais duas vezes (as duas rodadas completas intercalam as rotas). `/ajuda` e
+  `/movimentacoes/nova` voltaram para baixo nas duas. `/login` com sessão ficou acima em duas de três — mas o que ela
+  mede é o proxy chamando `auth.getUser()` (a API de Auth), sem PostgREST e sem policy; o `medir-rls` não tem o que
+  atribuir, e de manhã, antes de qualquer apply, a mesma rota já tinha medido p95 117,2 ms. **Ruído declarado**, com os
+  números no relatório; nenhum bloqueio, nenhum rollback.
