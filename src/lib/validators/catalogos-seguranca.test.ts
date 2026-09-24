@@ -364,6 +364,20 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(dentro, 'a bateria não confere a coluna pelo catálogo (pg_attribute)').toMatch(/pg_attribute a/)
   })
 
+  it('F66: a escrita cruzada (10g) é tentada pelo ator que LÊ a B — uma tentativa por classe de escrita', () => {
+    // Sabotagem E da F66, medida na mesa: o admin só da A NÃO lê a B, e o `where` de um UPDATE/DELETE aplica também a
+    // policy de SELECT — a recusa dele pode vir da leitura, e uma policy de DELETE sem o termo passava a bateria. O membro
+    // das duas lê a B e é admin pela ponte: ele tenta cada classe (a escrita, o DELETE de cargo, a unidade), e a
+    // contagem do universo acompanha (12 tentativas).
+    const sql = fonte('isolamento_tenant')
+    const i10g = sql.indexOf("assert_zero_de('10g a escrita cruzada")
+    const trecho = sql.slice(sql.lastIndexOf('o membro das duas (admin na A, consulta na B)', i10g), i10g)
+    for (const r of ['consultor-insert-tipo', 'consultor-update-colaborador', 'consultor-insert-colaborador', 'consultor-delete-motivo', 'consultor-update-ativo']) {
+      expect(trecho, `o membro das duas não tenta ${r}`).toContain(`' ${r}'`)
+    }
+    expect(sql.slice(i10g, i10g + 400), 'o universo do 10g não acompanha as tentativas').toMatch(/v_ruins, 12\) then/)
+  })
+
 
   it('a régua do recorte sabe reprovar, e distingue a completude (guarda do próprio teste)', () => {
     expect(RECORTE.test('select count(*) from public.ativos where empresa_id = v_emp_a')).toBe(true)

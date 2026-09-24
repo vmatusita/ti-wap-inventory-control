@@ -1282,9 +1282,26 @@ begin
   update public.colaboradores set nome = 'Invadido F66 C' where id = (v_pb->>'colaboradores')::uuid;
   get diagnostics v_cnt = row_count;
   if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-update-colaborador'; end if;
+  -- ⚠ O ATOR CERTO PARA CADA CLASSE (sabotagem E da F66, medida na mesa): o admin só da A NÃO lê a B, e o `where` de um
+  -- UPDATE/DELETE aplica também a policy de SELECT — a recusa dele pode vir da LEITURA, não da policy de escrita. O
+  -- membro das duas LÊ a B (o piso e o termo de leitura deixam) e é admin pela ponte: é ele quem revela uma policy de
+  -- escrita que confere o cargo e esquece o termo. Uma tentativa por classe: a escrita (`pode_escrever`), o DELETE de
+  -- cargo (`e_admin`) e a unidade (os pares). O motivo da B não é citado por movimentação nenhuma (a fixture o planta
+  -- solto), então apagá-lo não esbarra em FK: 0 linhas é a policy.
+  begin insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
+        values ('Fulano F66 cruzado C', (v_pb->>'filiais')::smallint, k_consultor, v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-insert-colaborador';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-insert-colaborador(' || sqlstate || ')'; end;
+  delete from public.motivos where empresa_id = v_emp_b and codigo = v_pb->>'motivos';
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-delete-motivo'; end if;
+  update public.ativos set modelo = 'invadido-f66-c' where id = (v_pb->>'ativos')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-update-ativo'; end if;
   reset role;
   if pg_temp.assert_zero_de('10g a escrita cruzada é recusada: inserir com a empresa B leva 42501 pelo WITH CHECK, e atualizar ou apagar linha da B afeta 0 linhas — para o admin da A e para o membro das duas' ||
-       case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 9) then
+       case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 12) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   -- a SEGUNDA prova, de volta como postgres: a B está intacta
   select md5(string_agg(x, ',' order by x)) into v_md5_b1
