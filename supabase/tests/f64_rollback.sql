@@ -98,6 +98,10 @@ $f$;
 -- gatilho `UPDATE OF empresa_id` nas onze (o `drop column` deste rollback recusaria pela dependência). E sai ANTES da
 -- medição "antes": a F65 TROCA objetos das onze mantendo o nome, e o "antes sem a F64" tem de ser o estado que a F64
 -- deixou. O que este roteiro prova não muda.
+-- F66 (24/09/2026): a F66 sai antes de todas — as policies dela citam `empresa_id` (que os rollbacks da F64 e da F63
+-- derrubam) e as funções de conjunto (que o da F62 derruba), e a impressão de antes tem de ser o estado que as fases
+-- anteriores deixaram. O que este roteiro prova não muda.
+\ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql
 
 select pg_temp.f64_impressao_esquema(true)  as antes_sem_f64,
