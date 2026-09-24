@@ -1,0 +1,57 @@
+{
+  "rotulo": "f66-conta-a-conta-producao-conta-real",
+  "canal": "MCP da Supabase (execute_sql), bloco do … raise exception",
+  "sha_codigo": "4ded1ed1e85ae0a978fe3a3e0183090aff246da7",
+  "gerado_em": "2026-09-24T16:49:49.943Z",
+  "metodo": "para cada membership ativa (identidade escolhida DENTRO do banco; nenhum id sai): escrita — pode_escrever_filial(f) × (legada, f) ∈ unidades_de_escrita() em cada filial, pode_escrever() × empresas_de_escrita(), e_admin() × empresas_de_admin(); leitura — como authenticated, em cada tabela de public com empresa_id e policy de SELECT (do catálogo): emulada = a policy de hoje × a policy de hoje ∧ o termo, no mesmo statement; real = a policy real × o total do piso de hoje. transaction_read_only = on; o bloco termina em raise exception.",
+  "alvo": "producao",
+  "fase": "real",
+  "pares": 84,
+  "classes": {
+    "empresas_de_admin": 2,
+    "empresas_do_membro": 19
+  },
+  "corrida": 0,
+  "sabotar": false,
+  "tabelas": 21,
+  "leituras": 294,
+  "postgres": "17.6",
+  "memberships": 14,
+  "divergencias": {
+    "leitura": 0,
+    "administracao": 0,
+    "escrita_filial": 0,
+    "leitura_x_piso": 0,
+    "escrita_empresa": 0
+  },
+  "tabelas_lidas": [
+    "anotacoes",
+    "ativos",
+    "colaboradores",
+    "eventos_admin",
+    "filiais",
+    "import_logs",
+    "import_prefixos_patrimonio",
+    "import_termos_categoria",
+    "import_termos_estado",
+    "itens",
+    "kits_modelos",
+    "lancamentos_item",
+    "membros",
+    "motivos",
+    "movimentacoes",
+    "operador_filiais",
+    "pendencias_item",
+    "relatorios_gerados",
+    "termos_gerados",
+    "tipos_item",
+    "unidades_apelidos"
+  ],
+  "tabelas_em_corrida": [],
+  "divergencias_de_leitura_por_tabela": {},
+  "veredito": {
+    "total": 0,
+    "zero": true,
+    "corrida": 0
+  }
+}

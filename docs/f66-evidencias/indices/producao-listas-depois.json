@@ -1,0 +1,139 @@
+{
+  "rotulo": "f66-listas-producao",
+  "alvo": "producao",
+  "canal": "mcp",
+  "sha_codigo": "4ded1ed1e85ae0a978fe3a3e0183090aff246da7",
+  "gerado_em": "2026-09-24T17:07:38.521Z",
+  "metodo": "explain (analyze, buffers, verbose, format json) das cinco listas (LISTAS), como authenticated com a identidade de nível administrador escolhida no banco; 2 aquecimentos, o plano da 3ª; transaction_read_only = on; raise exception no fim.",
+  "listas": {
+    "ativos": {
+      "hit": 124,
+      "exec": 2.796,
+      "read": 0,
+      "sort": true,
+      "tipos": [
+        "Limit",
+        "Result",
+        "ProjectSet",
+        "Result",
+        "Sort",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "linhas": 50,
+      "indices": [
+        "ativos_empresa_id_uidx"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "loops_subplanos": [
+        1,
+        1
+      ]
+    },
+    "import_logs": {
+      "hit": 8,
+      "exec": 0.686,
+      "read": 0,
+      "sort": true,
+      "tipos": [
+        "Limit",
+        "Result",
+        "ProjectSet",
+        "Result",
+        "Sort",
+        "Seq Scan"
+      ],
+      "linhas": 12,
+      "indices": [],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "loops_subplanos": [
+        1,
+        1
+      ]
+    },
+    "eventos_admin": {
+      "hit": 23,
+      "exec": 0.814,
+      "read": 0,
+      "sort": true,
+      "tipos": [
+        "Limit",
+        "Result",
+        "ProjectSet",
+        "Result",
+        "Sort",
+        "Seq Scan"
+      ],
+      "linhas": 50,
+      "indices": [],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "loops_subplanos": [
+        1,
+        1
+      ]
+    },
+    "movimentacoes": {
+      "hit": 38,
+      "exec": 1.232,
+      "read": 0,
+      "sort": false,
+      "tipos": [
+        "Limit",
+        "Result",
+        "ProjectSet",
+        "Result",
+        "Index Scan"
+      ],
+      "linhas": 50,
+      "indices": [
+        "movimentacoes_data_ordem_idx"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "loops_subplanos": [
+        1,
+        1
+      ]
+    },
+    "lancamentos_item": {
+      "hit": 14,
+      "exec": 0.924,
+      "read": 0,
+      "sort": true,
+      "tipos": [
+        "Limit",
+        "Result",
+        "ProjectSet",
+        "Result",
+        "Sort",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "linhas": 50,
+      "indices": [
+        "lancamentos_item_empresa_id_uidx"
+      ],
+      "subplanos": [
+        "InitPlan 1",
+        "InitPlan 2"
+      ],
+      "loops_subplanos": [
+        1,
+        1
+      ]
+    }
+  },
+  "postgres": "17.6",
+  "papel_na_medicao": "authenticated"
+}
