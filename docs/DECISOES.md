@@ -13497,3 +13497,33 @@ RUNBOOK, Anexo F65.
   SEM merge (o código novo exige a `0172` no banco); o comando e a sequência para retomar estão no topo do
   `RELATORIO-F65.md`. **Desvio declarado** da memória do projeto (*"bloqueio do classificador costuma ser transitório"*):
   a ordem manda não repetir, e ela prevalece.
+
+**24/09/2026 — a retomada.** O Johnny pediu *"Retome a F65 pela Frente G, passo 5, a partir do docs/RELATORIO-F65.md
+§1.2"*. A sequência correu inteira, sem desvio: ensaio (08:18–08:25 -03), produção (08:34–08:40 -03, ~12,6 h depois do
+SHA congelado), merge `769b84d`, deploy `1.70.0`, a `0174` nos dois (08:49 -03), a conferência. Nenhum gatilho de
+rollback disparou. Evidências em `f65-evidencias/depois/`; os números no §6 e no §14 do relatório.
+
+- **(m) O conferidor do ENSAIO com 1 ponto "não provado", e não é recusa.** `itens.saldo-colaborador` tem a grade de
+  argumentos por colaborador, e o ensaio tem **0 colaboradores** (antes e depois do apply — a impressão do tenant); o
+  conferidor marca "a grade de argumentos não gerou célula no alvo" e o conta como reprovado. **Escolha:** não tratar
+  como o "conferidor recusou" da ordem (o gatilho de rollback): 0 linhas recusadas, 0 erros, e o motivo é fato do alvo,
+  não da fase. **Motivo:** a mesma forma foi exercitada em produção logo depois (271 pontos, 0 reprovados, com
+  `itens.saldo-colaborador` lendo linhas) — é lá que ela se prova. Registrado no "não prova" do relatório.
+- **(n) Em produção, `colaboradores` com a janela = 1.** Entre o "antes" (corte `26092`) e o "depois", o app no ar (ainda a
+  1.69.0) cadastrou um colaborador: 41 → 42 linhas, janela 1, o `relfilenode` igual. **Prova de que é só a janela:** o
+  mesmo molde do instrumento, restrito às linhas FORA da janela, deu 41 linhas com `md5_chave_xmin` `9f4b287a…` e
+  `md5_conteudo` `eb57e7f6…` — os do "antes". Uma primeira tentativa com a chave como escalar (em vez do `jsonb_agg` do
+  instrumento) deu outro `md5_chave_xmin` com o mesmo conteúdo: a fórmula, não o dado; refeita na forma exata. É o "md5
+  iguais ou explicados só pela janela" da ordem.
+- **(o) Os tipos: a geração do MCP contra o hand-fix, e o `database.ts` fica.** A geração em produção (depois da `0173`)
+  bate com o hand-fix da F65 linha a linha (as 23 `Relationships` compostas, as relações de view removidas). A única
+  diferença não-comentário são duas linhas de `operador_filiais.Insert` (`empresa_id?`/`membro_id?`): o hand-fix
+  deliberado da F62 (`4dd7a8c`). **Escolha:** NÃO trocar o arquivo pela geração. **Motivo:** trocaria uma decisão da F62
+  (fora do escopo desta ordem, regra 1); a pergunta vai para o backlog como PATCH (§13 do relatório).
+- **(p) O advisory não se compara com o CI.** O `prosrc` vivo de `resetar_acervo` e `transferir_item` difere do arquivo
+  (e do CI) desde ANTES da F65, nos dois bancos (o fato conhecido do corpo vivo × arquivo das F63/F64). **Escolha:** a
+  seção `advisory` do catálogo é comparada com o "antes" do MESMO banco (as 11 de fora da fase iguais; a diagonal com o
+  md5 do arquivo); `fks`, `pais`, `gatilhos` e `uniques` (depois da `0174`) com o CI — e fecham.
+- **(q) A hora do ledger é a de Brasília.** A versão que o `apply_migration` grava (`20260924083446`…) é a hora local
+  (-03), não UTC: a `0174` em produção é `…084939` e o deploy foi às 11:48:34 UTC — 08:49 -03 vem depois dele. As
+  evidências passam a dizer o fuso por extenso.

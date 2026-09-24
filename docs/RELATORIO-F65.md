@@ -1,10 +1,10 @@
 # Relatório F65 — a integridade estrutural do tenant
 
-**v1.70.0 na branch, NÃO aplicada e NÃO mergeada** · migrations `0165`–`0174` prontas, CI verde, **nenhuma aplicada em banco
-vivo** (o ledger dos dois bancos termina na `0164`) · SHA de código congelado **`a525a9a`** · código no
-[PR #77](https://github.com/vmatusita/ti-wap-inventory-control/pull/77), **em rascunho, sem merge** · CI do HEAD: run
-`35931622477` (51 roteiros, 1.095 asserções, 0 ✗; injetor 143/143; `db:types:diff` verde) · a tag `v1.70.0` **não** foi
-publicada.
+**v1.70.0 no ar** (`/api/saude`: `1.70.0` · `769b84d`, 24/09/2026 11:48 UTC) · migrations `0165`–`0174` **aplicadas no
+ensaio e em produção** (a `0165`–`0173` antes do merge, a `0174` depois do deploy), com as provas (§6) · SHA de código
+congelado **`a525a9a`** · código no [PR #77](https://github.com/vmatusita/ti-wap-inventory-control/pull/77), merge
+`769b84d` · CI do HEAD do código: run `35931622477` (51 roteiros, 1.095 asserções, 0 ✗; injetor 143/143;
+`db:types:diff` verde) · evidências do apply e este fecho no PR de documentação, com a tag `v1.70.0` no merge dele.
 
 > A quarta fase da virada multiempresa. Com as 20 tabelas de negócio já com `empresa_id` (F62–F64), a chave de recorte
 > passa a ser **estrutural**: as **23 FKs** entre tabelas de negócio viram compostas `(empresa_id, x) → (empresa_id, id)`
@@ -15,96 +15,38 @@ publicada.
 > — com um segundo gatilho, o ÚLTIMO de cada tabela, que vê a troca feita por qualquer outro gatilho; o **termo** só cita
 > o que é da empresa dele; a **diagonal** nome × apelido é por empresa. Tudo sem reescrever uma tupla.
 >
-> **O apply parou no classificador de segurança** (§1.1): às 23:21 UTC o `apply_migration` da `0165` no ENSAIO foi
-> recusado, e — pela ordem — não houve nova tentativa nem reformulação. Tudo o que não dependia do banco está entregue e
-> verde; o que depende, com o comando exato, está no §1.2.
+> **O apply parou no classificador de segurança em 23/09** (às 23:21 UTC o `apply_migration` da `0165` no ENSAIO foi
+> recusado; pela ordem, sem nova tentativa) e **foi retomado pelo Johnny em 24/09** ("Retome a F65 pela Frente G, passo 5,
+> a partir do docs/RELATORIO-F65.md §1.2"). Daí em diante, sem desvio: as nove migrations no ensaio e em produção, cada
+> uma na primeira tentativa, com `relfilenode` igual nas 20 tabelas dos dois bancos e o md5 igual ou explicado só pela
+> janela (um colaborador que o app cadastrou durante o apply); o catálogo idêntico entre os bancos e ao CI; o conferidor
+> de formas em produção sem recusa; o merge, o deploy, a `0174` e a conferência pós-deploy verdes.
 
 ---
 
 # 1. O ROTEIRO DO JOHNNY — o que ficou com você, e por quê
 
-## 1.1 O que parou, e o que NÃO fazer
+## 1.1 O que ficou com você — nada bloqueante
 
-- **Às 23:21 UTC (20:21 -03) de 23/09/2026**, o `apply_migration` do conector da Supabase para a `0165` no **ensaio**
-  (`sgmvldiizsrjbxzzpmhh`) foi recusado pelo classificador de segurança do Claude Code (*"Permission for this action was
-  denied by the Claude Code auto mode classifier"*). A ordem manda: *"registre, não repita, não reformule, siga no que não
-  depende dela, e ponha o comando no topo do relatório"*. Foi o que se fez.
-- **Nada foi aplicado em banco nenhum.** Os dois ledgers terminam na `0164` (conferido pelo MCP, só leitura, antes da
-  tentativa); a contagem de violações e as impressões "antes" foram refeitas no ensaio logo antes, idênticas às das 14h
-  (`f65-evidencias/antes/refeito-ensaio-2321utc.md`).
-- ⚠ **NÃO mergeie o PR #77 antes do apply em produção.** O código novo depende do banco novo: o
-  `consolidarColaboradores` passa a pedir `ON CONFLICT (empresa_id, nome_chave)`, e sem a `0172` aplicada esse alvo não
-  existe (`42P10`, a consolidação cai na cara do operador). A ordem certa é a da Frente G: ensaio → produção → merge →
-  deploy → `0174`.
-- **Enquanto o PR não é mergeado, o sistema está exatamente como na v1.69.0** — produção, `main` e deploy intocados, e a
-  sonda de deriva não vê as migrations novas (elas não estão na `main`). É repouso seguro por tempo indeterminado.
+A fase está no ar e conferida (§6 e §14). O que resta é a sua conferência à mão (§1.3), 5 minutos, só leitura. Nenhuma
+decisão sua está pendente; nenhum rollback foi necessário.
 
-## 1.2 Para retomar — o comando, e a ordem
+## 1.2 A parada e a retomada (o registro)
 
-**O comando barrado** (o primeiro da sequência):
+- **23/09/2026, 23:21 UTC**: o `apply_migration` do conector da Supabase para a `0165` no ensaio foi recusado pelo
+  classificador de segurança do Claude Code. Pela ordem (*"registre, não repita, não reformule, siga no que não depende
+  dela, e ponha o comando no topo do relatório"*), não houve nova tentativa: o comando e a sequência ficaram aqui, o PR
+  #77 em rascunho com o aviso de não mergear, e nada foi aplicado — repouso na v1.69.0.
+- **24/09/2026**: você pediu *"Retome a F65 pela Frente G, passo 5, a partir do docs/RELATORIO-F65.md §1.2"*. A sequência
+  preparada correu inteira, sem desvio e sem repetição: o "antes" refeito logo antes em cada banco; as nove migrations
+  (`0165`–`0173`), uma por chamada e com o texto exato do arquivo, no **ensaio** (08:18–08:25 -03) e em **produção**
+  (08:34–08:40 -03 — ~12,6 h depois do SHA congelado, `a525a9a` de 23/09 20:02 -03, dentro das 24 h); as provas nos
+  dois; o merge (08:47 -03); o deploy (08:48 -03); a `0174` nos dois (08:49 -03); a conferência. O detalhe, com os números, está no §6 e no §14; as
+  evidências, em `f65-evidencias/depois/`.
+- **Nenhum gatilho de rollback disparou**: o `relfilenode` igual sem exceção; o md5 igual ou explicado só pela janela;
+  nenhum advisor de segurança novo; o conferidor e o smoke sem recusa nem falha.
 
-```
-apply_migration(project_id: "sgmvldiizsrjbxzzpmhh", name: "pais_do_tenant",
-                query: <o conteúdo EXATO de supabase/migrations/0165_pais_do_tenant.sql>)
-```
-
-**Como retomar:** numa sessão do Claude Code neste repositório (na branch `f65-integridade-do-tenant`), com a permissão
-para o `apply_migration` do conector da Supabase liberada por você (é uma decisão sua: aprovar na hora, ou uma regra de
-permissão nas configurações), peça: *"Retome a F65 pela Frente G, passo 5, a partir do docs/RELATORIO-F65.md §1.2"*. A
-sequência, toda já preparada:
-
-1. **Ensaio** (`sgmvldiizsrjbxzzpmhh`): refazer, logo antes, `docs/f65-evidencias/contagem-violacoes.sql` (0 em tudo) e a
-   impressão "antes" (`impressao-tenant.sql` com o corte vazio, `impressao-catalogo.sql`,
-   `docs/f64-evidencias/impressao-policies.sql`, os dois advisors); aplicar, UMA migration por chamada e com o texto
-   EXATO do arquivo:
-
-   | ordem | arquivo | `name` no ledger |
-   |---|---|---|
-   | 1 | `0165_pais_do_tenant.sql` | `pais_do_tenant` |
-   | 2 | `0166_fk_composta_acervo.sql` | `fk_composta_acervo` |
-   | 3 | `0167_fk_composta_cadastros.sql` | `fk_composta_cadastros` |
-   | 4 | `0168_motivos_por_empresa.sql` | `motivos_por_empresa` |
-   | 5 | `0169_vocabulario_import_por_empresa.sql` | `vocabulario_import_por_empresa` |
-   | 6 | `0170_unicidade_por_empresa.sql` | `unicidade_por_empresa` |
-   | 7 | `0171_snapshot_por_empresa.sql` | `snapshot_por_empresa` |
-   | 8 | `0172_colaboradores_nome_chave_por_empresa.sql` | `colaboradores_nome_chave_por_empresa` |
-   | 9 | `0173_guarda_empresa.sql` | `guarda_empresa` |
-
-   Depois: `notify pgrst, 'reload schema'`; os advisors (segurança: nada novo; performance: o delta de
-   `unindexed_foreign_keys` declarado por nome — as 23 compostas sem índice que as cubra pela frente, e as
-   `*_empresa_id_fkey` que os uniques novos passam a cobrir); `impressao-tenant.sql` com o corte = o
-   `corte_para_o_depois` do "antes" (`relfilenode` e os dois md5 IGUAIS nas 20); `impressao-catalogo.sql` (os md5 de
-   `fks`, `pais`, `gatilhos` e `advisory` iguais aos do CI em `f65-evidencias/C-ci/catalogo-depois-ci-push2.json`, com os
-   40 gatilhos da guarda do SHA congelado; `uniques` só fecha depois da `0174`; `funcoes.md5_sem_as_da_f65` igual ao
-   "antes" do MESMO banco); as policies iguais; a sonda de exatidão (`exatidao-pos-apply.sql` contra
-   `depois/exatidao-esperada.json`); e o **conferidor de formas** — o portão do embed:
-   ```bash
-   NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env.local scripts/formas/conferir.mts --alvo=ensaio --saida=docs/f65-evidencias/depois/conferidor-ensaio.json
-   ```
-2. **Produção** (`pbtjcalbmepmrqzprusb`): o mesmo, na mesma ordem, **dentro de 24 h do commit das migrations** (o último,
-   `a525a9a`, de 23/09 às 20:02 -03), com o `relfilenode` igual SEM exceção e os md5 iguais ou explicados só pela janela;
-   logo depois, `node scripts/smoke/smoke-prod.mjs` (0 falha) e o conferidor com `--alvo=producao` (0 recusadas).
-3. **Merge** do PR #77 (sai do rascunho) com `verificar` e `banco-sem-docker` verdes; esperar `/api/saude` com `1.70.0`
-   e o commit do merge.
-4. **A `0174`** (`colaboradores_nome_chave_pos_deploy`) no ensaio e depois em produção, com as mesmas provas.
-5. **A conferência pós-deploy**, só leitura: `/api/saude`; o smoke; a Parte B à mão:
-   ```bash
-   gh workflow run saude.yml -f partes=b
-   ```
-6. **O PR de documentação** (as evidências do apply e o fecho deste relatório) e a tag:
-   ```bash
-   git tag -a v1.70.0 -m "v1.70.0 — F65, a integridade estrutural do tenant"
-   ```
-   ```bash
-   git push origin v1.70.0
-   ```
-
-**Se algo divergir** (o `relfilenode` mudou, o md5 além da janela, advisor de segurança novo citando objeto da fase, o
-conferidor ou o smoke recusou): o rollback IMEDIATO no banco afetado é o `execute_sql` com o conteúdo EXATO de
-`supabase/rollback/F65-desfaz.sql` (idempotente em qualquer estado intermediário — RUNBOOK, Anexo F65), e o PR fica sem
-merge.
-
-## 1.3 Depois do deploy (quando houver — 5 minutos, só leitura)
+## 1.3 Depois do deploy (5 minutos, só leitura)
 
 1. **Entre com a sua conta** e confira que tudo está como sempre: cadastrar e editar filial, tipo de item, colaborador,
    item, kit, apelido e motivo; **"Consolidar colaboradores"**; registrar uma movimentação e uma transferência entre
@@ -184,7 +126,8 @@ medidas, e a medição ganhou:
 # 4. As decisões
 
 As três do Johnny e as catorze da fase estão na ata ([`DECISOES.md`](DECISOES.md), 2026-09-23 · F65) e no
-[`PLAN-F65.md`](PLAN-F65.md) §3; as tomadas na execução, na ata, letras (a) a (i). Em uma linha cada: os índices de lista
+[`PLAN-F65.md`](PLAN-F65.md) §3; as tomadas na execução, na ata, letras (a) a (q) — as de (m) em diante na retomada do
+apply, em 24/09. Em uma linha cada: os índices de lista
 foram para a F66; a guarda vale nas 20, sem exceção; o seed de duas empresas foi para o backlog; nada converteu nos ids nem
 nas travas advisory (a regra de converter as 16 juntas ficou escrita); a validação é direta (sem `not valid`); o nome de
 toda constraint e índice é preservado; o unique do colaborador sai em dois passos; o termo tem gatilho de coerência (não
@@ -208,18 +151,38 @@ O detalhe está no `PLAN-F65.md` §2; o destino, nas fichas da F66 e da F67 do `
 
 # 6. O apply e as provas, nos dois bancos
 
-**Não aconteceu** (§1.1). O que foi feito, só leitura:
+Em 24/09/2026, pelo `apply_migration` do MCP (uma migration por chamada, o texto EXATO do arquivo, cada uma UMA transação
+com a linha do ledger), ensaio primeiro. As horas do ledger são as de Brasília. O detalhe e os números completos:
+`f65-evidencias/depois/ensaio-provas.md`, `producao-provas.md` e `pos-deploy.md`.
 
-- **Os dois ledgers** terminam na `0164` (`kit_motivo_da_empresa`): ensaio 161 linhas, produção 148 — o fato 1.
-- **O "antes" da Frente A** (14h, nos dois bancos): a contagem de violações com **0 em tudo**, as impressões do tenant,
-  do catálogo e das policies, e os advisors (`f65-evidencias/antes/`).
-- **O "antes" refeito no ensaio logo antes do apply** (~23:15 UTC): **idêntico** ao das 14h — mesmo corte (`13298`, nenhuma
-  transação desde então), `relfilenode` e md5 iguais nas 20, catálogo, policies e advisors iguais
-  (`f65-evidencias/antes/refeito-ensaio-2321utc.md`).
-- **A sonda de exatidão** está pronta, com os md5 esperados calculados dos arquivos (`exatidao-pos-apply.sql`,
-  `depois/exatidao-esperada.json`); os `prosrc` das três funções batem com os que o CI imprimiu.
-- **O que o CI já provou** (e o apply vai conferir contra): o catálogo "depois" da cadeia inteira
-  (`C-ci/catalogo-depois-ci-push2.json`, do push 2; o do SHA congelado tem os 20 gatilhos `zz_guarda_empresa` a mais).
+**Logo antes, em cada banco** (o mesmo texto dos instrumentos do "antes"): o ledger na `0164`; a contagem de violações
+com **0 em tudo** (em produção, 123 termos coerentes); a impressão do tenant **idêntica** à de 23/09 nas 20 (ensaio:
+corte `13300`; produção: `26092`); o catálogo, as policies e o advisor de segurança iguais aos de 23/09.
+
+| prova | ensaio (`sgmvldiizsrjbxzzpmhh`) | produção (`pbtjcalbmepmrqzprusb`) |
+|---|---|---|
+| as nove (`0165`–`0173`) | 08:18–08:25, todas na 1ª tentativa | 08:34–08:40, todas na 1ª tentativa |
+| `relfilenode` das 20 | **igual nas 20** | **igual nas 20** |
+| md5 de `(chave, xmin)` e do conteúdo | **iguais nas 20**, janela 0 | **iguais em 19**; `colaboradores` 41 → 42, janela **1** — as 41 de fora da janela com os dois md5 do "antes" (`9f4b287a…`/`eb57e7f6…`): o app cadastrou um colaborador durante o apply |
+| a `pk` | mudou só nas quatro esperadas, `chave` igual | idem |
+| `fks` / `pais` / `gatilhos` | `ed015fdd…` · 8 · `8f183cdf…` (49) | **idênticos ao ensaio** |
+| `uniques` | `06c37cc8…` (45) → **`da7a9056…` (44) depois da `0174`** | idem |
+| contra o CI do SHA congelado | `fks`, `pais`, `gatilhos`, e (depois da `0174`) `uniques` **iguais** | idem |
+| `funcoes.md5_sem_as_da_f65` | `689fbd32…` = o "antes" | `689fbd32…` = o "antes" |
+| advisory | 12 funções · 16 chamadas; as 11 de fora da fase com o md5 de antes | idem |
+| policies (62) | `886118ad…` · `f116b8d0…` — iguais | iguais |
+| exatidão (5 textos de função + 2 comentários de índice) | **iguais ao calculado dos arquivos** | **iguais** |
+| ACL | as duas funções novas fechadas a `anon`/`authenticated`/`service_role`; a diagonal com a ACL de antes | idem (a de antes medida ANTES do apply) |
+| advisor de segurança | 6 · 34 · 1 — nada novo | 6 · 34 · 1 — nada novo |
+| `unindexed_foreign_keys` | 31 → 39, por nome: saem 14 `*_empresa_id_fkey` (cobertas pelos uniques novos), entram 22 das 23 compostas | o MESMO delta |
+| conferidor de formas | 247 pontos · 0 recusadas · 0 erro · 1 **não provado** (`itens.saldo-colaborador`: o ensaio tem 0 colaboradores — ata (m)) | **271 pontos · 100.549 linhas · 0 recusadas · 0 reprovados** |
+| smoke | — | **109 OK · 1 aviso · 0 falha** (o aviso antigo de kits) |
+
+**O advisory e o CI**: `advisory` não se compara com o CI — o `prosrc` vivo de `resetar_acervo` e
+`transferir_item` difere do arquivo desde ANTES da F65, nos dois bancos (o fato conhecido do corpo vivo × arquivo); a
+comparação que vale é com o "antes" do MESMO banco, e ela fecha. O `corte_para_o_depois` avançou (ensaio 13300 → 13322;
+produção 26092 → 26120) com as transações do próprio apply e, em produção, com as do app no ar — nenhuma delas
+reescreveu tupla das 20, como a janela mostra.
 
 ---
 
@@ -302,9 +265,11 @@ inteiro — o `(.*?)` depois de um `\s+` vira guloso. A primeira versão do cons
 | injetor | 138/138 (+2 em quarentena) | **143/143** detectadas pelo cenário nomeado (+2) |
 | `db:types:diff` | 38 · 358 · 94 | 38 · 358 · 94 (a fase não cria coluna nem função fora de gatilho) |
 | `lint`, `typecheck`, `build`, `contraste`, `verificar:actions` | limpos | limpos |
-| FKs entre tabelas de negócio | 23 simples | 23 compostas, mesmos nomes e ações (no CI) |
-| uniques de negócio por empresa | 1 (`filiais_empresa_id_uidx`) | os sete pais + os catorze (no CI) |
-| gatilhos nas 20 | 8 | 49 (+20 de coluna, +20 últimos, +1 do termo) |
+| FKs entre tabelas de negócio | 23 simples | 23 compostas, mesmos nomes e ações — no CI e nos dois bancos |
+| uniques das 20 | 37, 1 com `empresa_id` (`filiais_empresa_id_uidx`) | 44, 22 com `empresa_id` (os sete pais + os catorze) — no CI e nos dois bancos |
+| gatilhos nas 20 | 8 | 49 (+20 de coluna, +20 últimos, +1 do termo) — no CI e nos dois bancos |
+| conferidor de formas (produção) | 271 pontos · 0 recusadas (F64) | 271 pontos · 100.549 linhas · 0 recusadas |
+| smoke (produção) | 109 OK · 1 aviso · 0 falha | 109 OK · 1 aviso · 0 falha (antes e depois do deploy) |
 
 ---
 
@@ -314,29 +279,29 @@ inteiro — o `(.*?)` depois de um `\s+` vira guloso. A primeira versão do cons
 |---|---|---|
 | 1 | lint, test, typecheck, build, contraste, verificar:actions; CI com roteiros, injetor e tipos | ✅ (run `35931622477`) |
 | 2 | PLAN-F65 antes do primeiro commit de código, com os 28 fatos, o censo, as 14 decisões e a ordem de rollback | ✅ (`2153b10`) |
-| 3 | contagem de violações 0 e "antes" nos dois bancos, só contagem/nome/hash | ✅ (`antes/`, e o refeito do ensaio) |
+| 3 | contagem de violações 0 e "antes" nos dois bancos, só contagem/nome/hash | ✅ (`antes/`, e refeitos logo antes do apply em cada banco, 24/09) |
 | 4 | migrations desde a `0165`, classe, rollback no rodapé, `db:lock`, `DA_F38`; sem `update`/`cascade`/`concurrently`/janela | ✅ |
-| 5 | 23 FKs compostas, validadas, nomes e ações; sete pais; forma vermelha → verde | ✅ no CI · ⏳ nos bancos |
-| 6 | `motivos_pkey` e a FK na mesma migration; import por empresa | ✅ no CI · ⏳ nos bancos |
-| 7 | toda unicidade por empresa com o nome; a trava derivada com expressão e parcial; os implícitos nominais | ✅ no CI · ⏳ nos bancos |
+| 5 | 23 FKs compostas, validadas, nomes e ações; sete pais; forma vermelha → verde | ✅ no CI e nos dois bancos (§6) |
+| 6 | `motivos_pkey` e a FK na mesma migration; import por empresa | ✅ no CI e nos dois bancos |
+| 7 | toda unicidade por empresa com o nome; a trava derivada com expressão e parcial; os implícitos nominais | ✅ no CI e nos dois bancos (`uniques` = CI depois da `0174`) |
 | 8 | o snapshot por empresa; `chaveVersao` e `gerados.ts`; o teste lê a fonte nova | ✅ |
-| 9 | `guarda_empresa` 42501 nas 20, com a janela aberta; dado intacto; a trava vermelha → verde; a frase em pt-BR | ✅ no CI · ⏳ nos bancos |
+| 9 | `guarda_empresa` 42501 nas 20, com a janela aberta; dado intacto; a trava vermelha → verde; a frase em pt-BR | ✅ no CI; nos dois bancos, os 41 gatilhos no catálogo e o texto exato (a exatidão) |
 | 10 | a diagonal por empresa; o resto byte a byte | ✅ |
 | 11 | o termo: recusa A→B, aceita o coerente, o `persistirTermo` passa | ✅ |
-| 12 | nenhuma janela quebrada: embeds intactos; conferidor 0 nos dois; smoke 0; `consolidarColaboradores` nos três estados | ✅ embeds e J1/J2 · ⏳ conferidor e smoke |
-| 13 | nenhuma tupla reescrita nos dois bancos | ⏳ (L1–L3 no CI) |
-| 14 | as funções intocadas byte a byte; as 62 policies | ✅ no CI (L4) · ⏳ nos bancos |
+| 12 | nenhuma janela quebrada: embeds intactos; conferidor 0 nos dois; smoke 0; `consolidarColaboradores` nos três estados | ✅ conferidor 0 recusadas nos dois (o ensaio com 1 ponto não provado por falta de dado — ata (m); produção 0 reprovados); smoke 0 falha antes e depois do deploy; J1/J2; o app velho gravou no esquema novo sem erro |
+| 13 | nenhuma tupla reescrita nos dois bancos | ✅ `relfilenode` igual nas 20 dos dois; md5 igual, ou explicado só pela janela (1 linha nova em `colaboradores`, produção) |
+| 14 | as funções intocadas byte a byte; as 62 policies | ✅ no CI (L4) e nos dois bancos (`md5_sem_as_da_f65` = antes; policies iguais) |
 | 15 | o "pronto quando" com o fato 19 | ✅ (F1–F3, E1, E4) |
 | 16 | "ninguém lê" com as exceções nominais numa fonte só, acusando o sintético | ✅ |
-| 17 | `database.ts` com hand-fix declarado; conferido com a geração do MCP depois do apply; `db:types:diff` verde | ✅ hand-fix e gate · ⏳ a geração do MCP |
+| 17 | `database.ts` com hand-fix declarado; conferido com a geração do MCP depois do apply; `db:types:diff` verde | ✅ a geração do MCP em produção bate com o hand-fix da F65 linha a linha (a única diferença não-comentário é o hand-fix da F62 em `operador_filiais` — `pos-deploy.md`) |
 | 18 | o injetor na ata; mutações detectadas; teto exato; quarentena < ⅓ | ✅ |
 | 19 | o rollback escrito e ensaiado no CI até o "antes"; os das F62/F63/F64 rodam o da F65 antes | ✅ |
-| 20 | advisors e paridade | ⏳ |
+| 20 | advisors e paridade | ✅ segurança sem novidade nos dois; performance com o delta declarado por nome, igual nos dois; o catálogo idêntico entre ensaio e produção |
 | 21 | os roteiros adaptados listados, nenhuma asserção mudou para passar | ✅ (§2, ata (c)) |
 | 22 | nenhuma dependência; workflows, `CLAUDE.md` da raiz, seed e embeds intocados; linha de base intacta | ✅ |
 | 23 | as emendas (MATRIZ, ADR-003, RUNBOOK, PLANO, comentários F67, índices, ata) | ✅ |
-| 24 | `1.70.0`, CHANGELOG, registry; a tag | ✅ versão · ⏳ a tag |
-| 25 | os dois PRs mergeados, o pós-deploy, a conferência | ⏳ (§1) |
+| 24 | `1.70.0`, CHANGELOG, registry; a tag | ✅ versão; a tag `v1.70.0` no merge do PR de documentação (§14) |
+| 25 | os dois PRs mergeados, o pós-deploy, a conferência | ✅ PR #77 (`769b84d`), a `0174` nos dois, a conferência (§14); o PR de documentação é este |
 | 26 | as sabotagens A–L com saída real | ✅ (`A-L-sabotagens.md`, `B-travas/`) |
 | 27 | nenhum dado real; da produção só contagem/nome/hash; ninguém abriu o `.env.local` | ✅ |
 | 28 | este relatório no padrão, com o roteiro no topo, o repouso e o "não prova" | ✅ |
@@ -345,22 +310,23 @@ inteiro — o `(.*?)` depois de um `\s+` vira guloso. A primeira versão do cons
 
 # 11. O estado de repouso
 
-- **Produção e ensaio:** exatamente como na v1.69.0 — nenhuma migration da F65 aplicada, nenhuma escrita (só leituras de
-  catálogo, contagem e hash pelo MCP).
-- **`main`:** intocada (`469632b`); o deploy segue na v1.69.0; a sonda de deriva não vê a F65 (os arquivos não estão na
-  `main`).
-- **A branch `f65-integridade-do-tenant`:** tudo pronto e verde, PR #77 em rascunho. Repouso seguro indefinidamente; o que
-  NÃO se pode fazer é o merge antes do apply (§1.1).
+- **Produção e ensaio:** com a `0165`–`0174` (ledger de produção na `colaboradores_nome_chave_pos_deploy`; ensaio com
+  171 linhas); o catálogo das 20 idêntico entre os dois e ao CI do SHA congelado. A única escrita da fase nos bancos foram
+  as dez migrations e os dois `notify pgrst` — nenhuma linha de dado tocada.
+- **`main` e o deploy:** `769b84d` no ar, `1.70.0`; a sonda de deriva com 0 pendente (Parte B de 24/09, 11:50 UTC).
+- **Repouso:** estável. O rollback, se um dia for preciso, é o `supabase/rollback/F65-desfaz.sql` (idempotente em
+  qualquer estado; RUNBOOK, Anexo F65) seguido do `git revert` do merge — e, depois da F73 (uma segunda empresa de
+  verdade), exige antes que o dado dela saia (os uniques globais não voltam com dois nomes iguais).
 
 ---
 
 # 12. O que este relatório NÃO prova
 
-1. **Nada nos bancos vivos**: nem o `relfilenode` e o md5 antes × depois, nem o conferidor de formas, nem o smoke, nem os
-   advisors e a paridade depois da fase — o apply não aconteceu. O que existe é o CI (o Postgres de verdade, com a cadeia
-   inteira e os roteiros) e o "antes" dos dois bancos.
-2. **Que o `database.ts` bate com a geração do MCP** — o hand-fix das `Relationships` segue a regra do gerador, lida no
-   código dele (`views_key_dependencies.sql`), mas a comparação com a geração real só existe depois do apply.
+1. **Que as recusas (23503, 42501) disparam nos bancos VIVOS**: os roteiros que as provocam (D, E, H, I, a guarda)
+   rodaram no CI, contra a cadeia inteira; nos bancos vivos a prova é o CATÁLOGO idêntico ao do CI e o texto exato das
+   funções (a exatidão) — nenhuma escrita de teste foi feita em produção nem no ensaio, de propósito.
+2. **Que a forma `itens.saldo-colaborador` foi exercitada no ENSAIO** (0 colaboradores lá — ata (m)); ela foi, em
+   produção.
 3. **Que a empresa A não VÊ o dado da B**: a leitura continua com o piso até a F66/F72 — a F65 impede a LIGAÇÃO e a
    MUDANÇA, não a leitura.
 4. **Que a guarda segure quem tem acesso de dono ou superusuário**: `alter table … disable trigger` e
@@ -379,9 +345,11 @@ inteiro — o `(.*?)` depois de um `\s+` vira guloso. A primeira versão do cons
 
 # 13. Pendências e backlog nomeado
 
-- **Pendente desta fase** (§1.2): o apply no ensaio e em produção com as provas, o conferidor nos dois bancos, o smoke, o
-  merge, a `0174` depois do deploy, a conferência pós-deploy, a geração dos tipos pelo MCP contra o hand-fix, o PR de
-  documentação e a tag `v1.70.0`.
+- **Pendente desta fase:** nada além da sua conferência à mão (§1.3).
+- **PATCH (novo, de baixa prioridade)**: `src/lib/types/database.ts` difere da geração do MCP em DUAS linhas não
+  comentadas — `operador_filiais.Insert` com `empresa_id?`/`membro_id?`, o hand-fix deliberado da F62 (`4dd7a8c`; o
+  gatilho `operador_filiais_deriva_membership` as preenche). Decidir se fica declarado como exceção permanente no gate
+  de tipos ou se o app passa a mandar as duas; a F65 não tocou (fora do escopo).
 - **F66** (a ficha ganhou a nota F65): os índices de lista liderados por `empresa_id`, medidos (decisão 1 do Johnny); o
   join por código de `rel_por_motivo_filiais`/`rel_resumo_filiais`; e o delta de `unindexed_foreign_keys` que as 23
   compostas vão abrir no advisor (índice que as cubra pela frente, se a medição pedir).
@@ -398,4 +366,21 @@ inteiro — o `(.*?)` depois de um `\s+` vira guloso. A primeira versão do cons
 
 # 14. O merge, o deploy e a conferência pós-deploy
 
-**Pendentes** — dependem do apply (§1.2).
+O detalhe: `f65-evidencias/depois/pos-deploy.md`.
+
+- **O merge**: PR #77 saiu do rascunho depois das provas de produção (a descrição trocou o aviso de não mergear pelo
+  registro do apply), com `verificar`, `banco-sem-docker` e Vercel verdes, estado `CLEAN`; merge normal, **`769b84d`**.
+- **O deploy**: `/api/saude` → `{"ok":true,"versao":"1.70.0","commit":"769b84d","banco":"ok"}` (11:48:34 UTC). Entre o
+  fim do apply em produção e o deploy (~8 min), o app velho gravou no esquema novo — um colaborador e uma movimentação,
+  com as FKs compostas e os dois uniques do colaborador de pé — sem erro (qual caminho do app gravou o colaborador não é
+  medido: só contagem e hash saem do banco).
+- **A `0174`**, depois do deploy, no ensaio e em produção (08:49 -03, na 1ª tentativa): `colaboradores_nome_chave_uidx`
+  = `(empresa_id, nome_chave)`, nenhum `*_f65` sobrando, o `relfilenode` de `colaboradores` igual; `uniques` =
+  `da7a9056…` (44) nos dois bancos, **igual ao CI do SHA congelado**.
+- **A conferência**: o smoke com `SMOKE_VERSAO_ESPERADA=1.70.0` — **109 OK · 1 aviso · 0 falha**; a Parte B
+  (`saude.yml`, run `35995406517`) — **success**: o resumo de integridade com 13 chaves dentro da linha de base, a
+  deriva com **0 pendente** (a mais nova no ledger é a `0174`), o alarme verde.
+- **Os tipos**: a geração do MCP em produção contra `database.ts` — as 23 `Relationships` e as relações de view
+  removidas batem linha a linha com o hand-fix da F65; o arquivo não foi trocado pela geração (derrubaria o hand-fix da
+  F62 — §13).
+- **A tag** `v1.70.0`, anotada, no merge do PR de documentação (o molde da `v1.69.0`).

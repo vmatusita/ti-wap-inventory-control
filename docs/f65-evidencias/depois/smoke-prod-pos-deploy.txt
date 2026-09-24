@@ -1,0 +1,127 @@
+
+Smoke do Estoque TI WAP — OS-F12 §W5 + OS-F13 §1.4.4 (parte C)
+  app.......: https://ti-wap-inventory-control.vercel.app
+  supabase..: https://pbtjcalbmepmrqzprusb.supabase.co
+  credenciais: presentes (mascaradas)
+  .env.local: 15 variável(is) carregada(s)
+
+PARTE A — sem sessão · https://ti-wap-inventory-control.vercel.app
+  [OK   ] /login — HTTP 200 (pública)
+  [OK   ] /relatorios/acesso — HTTP 200 (pública)
+  [OK   ] / — HTTP 307 → /login
+  [OK   ] /ativos — HTTP 307 → /login
+  [OK   ] /ativos/novo — HTTP 307 → /login
+  [OK   ] /itens — HTTP 307 → /login
+  [OK   ] /itens/historico — HTTP 307 → /login
+  [OK   ] /itens/conferencia — HTTP 307 → /login
+  [OK   ] /movimentacoes — HTTP 307 → /login
+  [OK   ] /movimentacoes/nova — HTTP 307 → /login
+  [OK   ] /pendencias — HTTP 307 → /login
+  [OK   ] /ajuda — HTTP 307 → /login
+  [OK   ] /admin/itens — HTTP 307 → /login
+  [OK   ] /admin/motivos — HTTP 307 → /login
+  [OK   ] /admin/usuarios — HTTP 307 → /login
+  [OK   ] /admin/importar — HTTP 307 → /login
+  [OK   ] /relatorios/geral — HTTP 307 → /relatorios/acesso
+  [OK   ] /relatorios/gerados — HTTP 307 → /relatorios/acesso
+  [OK   ] /api/saude — banco ok · versao 1.70.0 · commit 769b84d
+
+PARTE B — logado · https://pbtjcalbmepmrqzprusb.supabase.co
+  [OK   ] sessão · login — sessão de operador aberta (conta mascarada)
+  [OK   ] ativos · campos do celular (F25) — telefone, imei e pulsus presentes
+  [OK   ] filiais · cidade do termo (F25) — 6 filiais com cidade; nenhuma ativa sem
+  [OK   ] ativos · contagem — 1649 ativos
+  [OK   ] ativos · shape da lista — 11 colunas conferidas (join de filiais ok)
+  [OK   ] movimentacoes · 1 página (30) — 3632 no total · 30 linhas na página · shape ok
+  [OK   ] v_fila_pendencias · contagem (dashboard, selo e /pendencias) — 99 linhas na fila (não-item + itens abertos)
+  [OK   ] v_fila_pendencias · shape — 14 colunas conferidas
+  [OK   ] v_pendencias · contagem (base não-item da fila) — 87 pendências abertas
+  [OK   ] v_pendencias · shape — 11 colunas conferidas
+  [OK   ] filiais · ativas — 6 filiais ativas
+  [OK   ] itens · catálogo ativo — 23 itens ativos
+  [OK   ] rpc rel_saldo_itens_filiais · consolidado — 23 itens no saldo consolidado (nível do total, 6 filiais) · shape ok
+  [OK   ] rpc rel_saldo_itens_filiais · por filial — 23 linhas para 1 filial (+ 23 do nível do total)
+  [OK   ] rpc rel_resumo_filiais · últimos 30 dias — respondeu (39 linha(s))
+  [OK   ] rpc rel_mov_por_mes_filiais · 12 meses — 8 linhas (mês × tipo)
+  [OK   ] v_estoque_atual · por filial — 62 linhas
+  [OK   ] lancamentos_item · contagem — 184 lançamentos
+  [OK   ] termos_gerados · contagem — 123 termos gerados
+  [OK   ] relatorios_gerados · contagem — 13 snapshots
+  [OK   ] profiles · operadores — 16 operadores
+  [OK   ] itens.estoque_minimo (I5) — coluna estoque_minimo legível
+  [OK   ] kits_modelos (M12) · leitura autenticada — 0 kits (leitura de operador ok)
+  [AVISO] kits_modelos · anon NÃO lê (RLS) — anon leu 0 linhas, mas não há kit cadastrado — RLS não comprovada
+  [OK   ] busca do combobox (B2) · devolve resultado — 12 resultado(s) (teto 12) · shape ok
+  [OK   ] lancamentos_item · vínculo com movimentação e pendência (F38) — shape ok · 102 lançamento(s) com vínculo de movimentação
+  [OK   ] rel_saldo_colaborador · a conta por pessoa (F38) — respondeu · 0 linha(s) para a primeira pessoa
+
+PARTE C — rotas do app COM sessão · https://ti-wap-inventory-control.vercel.app
+  [OK   ] / — HTTP 200 (114497 bytes)
+  [OK   ] /ativos — HTTP 200 (408368 bytes)
+  [OK   ] /ativos?filial=1,2 — HTTP 200 (410092 bytes)
+  [OK   ] /ativos?filial=todas — HTTP 200 (409660 bytes)
+  [OK   ] /ativos?filial=abc,99999 — HTTP 200 (409676 bytes)
+  [OK   ] /ativos/novo — HTTP 200 (120076 bytes)
+  [OK   ] /itens — HTTP 200 (298631 bytes)
+  [OK   ] /itens?visao=consolidado — HTTP 200 (298201 bytes)
+  [OK   ] /itens?visao=filiais — HTTP 200 (298189 bytes)
+  [OK   ] /itens/historico — HTTP 200 (240618 bytes)
+  [OK   ] /itens?tipo=saida&de=2026-08-01 — HTTP 307 → /itens/historico?tipo=saida&de=2026-08-01
+  [OK   ] /itens/conferencia — HTTP 200 (141445 bytes)
+  [OK   ] /movimentacoes — HTTP 200 (329091 bytes)
+  [OK   ] /movimentacoes/nova — HTTP 200 (110248 bytes)
+  [OK   ] /pendencias — HTTP 200 (250512 bytes)
+  [OK   ] /pendencias?tipo=conflito — HTTP 200 (379544 bytes)
+  [OK   ] /ajuda — HTTP 200 (147809 bytes)
+  [OK   ] /admin/usuarios — HTTP 200 (189206 bytes)
+  [OK   ] /admin/itens — HTTP 200 (235009 bytes)
+  [OK   ] /admin/colaboradores — HTTP 200 (1440947 bytes)
+  [OK   ] /admin/tipos-item — HTTP 200 (129066 bytes)
+  [OK   ] /admin/kits — HTTP 200 (94068 bytes)
+  [OK   ] /admin/importar — HTTP 200 (156086 bytes)
+  [OK   ] /relatorios/geral — HTTP 200 (537173 bytes)
+  [OK   ] /relatorios/gerados — HTTP 200 (191399 bytes)
+  [OK   ] /ajuda/manual — HTTP 200 (1485100 bytes)
+  [OK   ] /dev — HTTP 200 (75394 bytes)
+  [OK   ] /dev/destrutivo — HTTP 200 (76470 bytes)
+  [OK   ] /versoes — HTTP 200 (623677 bytes)
+  [OK   ] /ajuda/comece-aqui — HTTP 200 (116324 bytes)
+  [OK   ] /ajuda/conceito-movimentacao — HTTP 200 (110055 bytes)
+  [OK   ] /ajuda/identidade-do-equipamento — HTTP 200 (108164 bytes)
+  [OK   ] /ajuda/acesso-e-sessoes — HTTP 200 (137292 bytes)
+  [OK   ] /ajuda/mapa-das-telas — HTTP 200 (144437 bytes)
+  [OK   ] /ajuda/registrar-movimentacao — HTTP 200 (137044 bytes)
+  [OK   ] /ajuda/colar-e-bipar-lote — HTTP 200 (112248 bytes)
+  [OK   ] /ajuda/kits-de-movimentacao — HTTP 200 (115991 bytes)
+  [OK   ] /ajuda/entregar-emprestar-reservar — HTTP 200 (122695 bytes)
+  [OK   ] /ajuda/devolucao-e-triagem — HTTP 200 (129870 bytes)
+  [OK   ] /ajuda/manutencao — HTTP 200 (137527 bytes)
+  [OK   ] /ajuda/transferir-defasar-descartar — HTTP 200 (124433 bytes)
+  [OK   ] /ajuda/corrigir-estorno-ajuste — HTTP 200 (122219 bytes)
+  [OK   ] /ajuda/cadastrar-compra — HTTP 200 (121418 bytes)
+  [OK   ] /ajuda/termos-de-responsabilidade — HTTP 200 (130850 bytes)
+  [OK   ] /ajuda/ficha-do-ativo — HTTP 200 (126096 bytes)
+  [OK   ] /ajuda/lista-de-ativos — HTTP 200 (119114 bytes)
+  [OK   ] /ajuda/lista-de-movimentacoes — HTTP 200 (109479 bytes)
+  [OK   ] /ajuda/lancar-itens — HTTP 200 (133158 bytes)
+  [OK   ] /ajuda/saldos-e-estoque-minimo — HTTP 200 (116697 bytes)
+  [OK   ] /ajuda/conferencia-de-estoque — HTTP 200 (109933 bytes)
+  [OK   ] /ajuda/resolver-pendencias — HTTP 200 (141159 bytes)
+  [OK   ] /ajuda/administracao — HTTP 200 (128305 bytes)
+  [OK   ] /ajuda/usuarios-e-senhas — HTTP 200 (178296 bytes)
+  [OK   ] /ajuda/import-de-startup — HTTP 200 (159589 bytes)
+  [OK   ] /ajuda/relatorio-ao-vivo — HTTP 200 (137664 bytes)
+  [OK   ] /ajuda/relatorios-gerados — HTTP 200 (116194 bytes)
+  [OK   ] /ajuda/status-do-ativo — HTTP 200 (129332 bytes)
+  [OK   ] /ajuda/tipos-de-movimentacao — HTTP 200 (120310 bytes)
+  [OK   ] /ajuda/itens-por-quantidade — HTTP 200 (116158 bytes)
+  [OK   ] /ajuda/limites-e-atalhos — HTTP 200 (121319 bytes)
+  [OK   ] /ajuda/versoes-do-sistema — HTTP 200 (97859 bytes)
+  [OK   ] /ajuda/mensagens-de-erro — HTTP 200 (198708 bytes)
+  [OK   ] /ajuda/problemas-comuns — HTTP 200 (120262 bytes)
+  [OK   ] /ajuda/problemas-import-e-acesso — HTTP 200 (130977 bytes)
+  sessão encerrada (signOut).
+
+========================================================================
+RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha
+========================================================================
