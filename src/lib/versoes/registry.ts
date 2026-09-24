@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.71.0',
+    data: '2026-09-24',
+    fase: 'F66',
+    titulo: 'Cada pessoa passou a ler e gravar só os dados das empresas em que trabalha — e, com a WAP como única empresa, nada muda para ninguém',
+    mudancas: [
+      'Nada muda nas telas: Ativos, Movimentações, Itens, Pendências, Colaboradores, Relatórios, Auditoria e Importar mostram o mesmo de antes, para as mesmas pessoas. Isso foi conferido pessoa a pessoa, na cópia de testes e na do dia a dia, antes e depois da mudança.',
+      'Por dentro, toda consulta e toda gravação passaram a conferir também a empresa: quem trabalha só numa empresa não vê nem altera nada de outra. Hoje só existe a WAP, então a conferência a mais sempre concorda com a de antes.',
+      'Quem administra uma empresa e só consulta outra continua lendo as duas, mas só administra a sua — a Auditoria e o histórico da Importação de uma empresa ficam com quem a administra.',
+      'Gravar numa filial passou a conferir a filial junto com a empresa dela: a filial de uma empresa nunca é confundida com a filial de mesmo número de outra.',
+      'Em Relatórios, "Saídas por motivo", "Devoluções por motivo" e o resumo por filial contam cada saída uma vez só, mesmo que duas empresas usem o mesmo motivo. Hoje os números são os mesmos de antes.',
+    ],
+  },
+  {
     versao: '1.70.0',
     data: '2026-09-23',
     fase: 'F65',

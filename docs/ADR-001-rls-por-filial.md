@@ -44,3 +44,13 @@ O advisor `rls_policy_always_true` (WARN) aponta as policies `USING(true)`; a au
 
 - **RLS por filial completa** (todas as tabelas, por operação): rejeitada — sem requisito de isolamento por operador; custo/risco altos.
 - **RLS só para o visualizador**: é a direção recomendada, movida para backlog (não é regressão do estado atual; é melhoria aditiva).
+
+## Emenda F66 (24/09/2026) — o recorte de leitura é por EMPRESA, não por filial
+
+A virada multiempresa ([`PLANO-MULTIEMPRESA.md`](PLANO-MULTIEMPRESA.md)) trouxe o requisito de isolamento que esta ADR
+não tinha — mas entre **empresas**, não entre filiais. A F66 escreveu o termo de empresa nas 51 policies de `public` cuja
+tabela tem `empresa_id`, em AND com o piso de hoje (MATRIZ R-ACC-108). **O que esta ADR decide continua valendo DENTRO de
+uma empresa:** todo logado lê todas as filiais da empresa dele — o relatório consolidado e a transferência seguem
+dependendo disso, e nenhuma policy de leitura ganhou recorte por filial. A escrita por unidade (a exceção desta ADR que a
+ADR-002 abriu) passou a conferir o PAR `(empresa_id, filial_id)` contra `unidades_de_escrita()` (R-ACC-109), no lugar de
+`pode_escrever_filial(filial_id)`. Ata em [`DECISOES.md`](DECISOES.md) (2026-09-24 · F66).

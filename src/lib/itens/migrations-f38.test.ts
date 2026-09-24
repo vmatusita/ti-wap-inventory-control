@@ -243,6 +243,16 @@ const DA_F38 = [
   // por empresa) — o resto byte a byte da 0139, e a prova é o teste logo abaixo. Nenhuma é intocável.
   '0173',
   '0174',
+  // F66 — a `0175`…`0178` só fazem `alter policy` (o termo de empresa em conjunção com o piso, e os pares de unidade
+  // no lugar de `pode_escrever_filial`): nenhuma função criada ou recriada.
+  '0175',
+  '0176',
+  '0177',
+  '0178',
+  // F66 — a `0179` RECRIA `rel_por_motivo_filiais` e `rel_resumo_filiais` (nenhuma intocável) com UMA condição a
+  // mais no join de `motivos` (`and mo.empresa_id = m.empresa_id`, o par da FK composta); o resto byte a byte da 0143.
+  // Entra pela exceção nominal `RECRIACOES_AUTORIZADAS`, para que a lista seja EXAUSTIVA, como a da 0143.
+  '0179',
 ]
 
 /**
@@ -615,6 +625,10 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'movimentacao_transicionar',
       'movimentacao_detentor_sincronizado',
     ],
+    // 24/09/2026 — F66: a `0179` recria as duas `rel_*` que juntam `motivos`, com o par `(empresa_id, codigo)` no join
+    // (PLAN-F66, decisão 9). O diff do `prosrc` contra a 0143 é UMA condição por função; a equivalência antes × depois
+    // (0 célula) e o md5 do corpo nos dois bancos estão em docs/f66-evidencias/.
+    '0179': ['rel_por_motivo_filiais', 'rel_resumo_filiais'],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`

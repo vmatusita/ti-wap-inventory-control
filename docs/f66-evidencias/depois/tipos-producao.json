@@ -1,0 +1,12 @@
+{
+  "rotulo": "f66-tipos-depois",
+  "canal": "MCP da Supabase, generate_typescript_types (produção, depois da 0179)",
+  "md5_geracao_mcp": "1acd55462cb56d3000e4e9184f2d7d99",
+  "contra_src_lib_types_database_ts": {
+    "linhas_nao_comentario": 2401,
+    "linhas_diferentes": 2,
+    "quais": "operador_filiais.Insert — empresa_id?/membro_id? (o hand-fix deliberado da F62, a mesma exceção registrada nos relatórios da F64 e da F65)",
+    "comentarios_de_hand_fix_no_local": 42
+  },
+  "leitura": "A F66 não mexeu em coluna, tipo nem assinatura (a paridade de 11 classes confere `coluna` e `func` idênticas nos dois bancos): nenhum commit de tipos."
+}

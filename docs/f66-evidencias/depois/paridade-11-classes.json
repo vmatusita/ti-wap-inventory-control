@@ -1,0 +1,20 @@
+{
+  "rotulo": "f66-paridade-depois",
+  "instrumento": "supabase/ci/impressao-schema.sql (a sonda de paridade do RUNBOOK-BANCO, 11 classes)",
+  "medido_em": "2026-09-24 (depois da 0179 nos dois bancos)",
+  "identicos": true,
+  "classes": {
+    "coluna":         { "objetos": 350, "fp": "9646dcc70a5a6cb2eb14936123923f2b" },
+    "constraint":     { "objetos": 144, "fp": "b54be76817f1aa5b1aa657fd65bed74f" },
+    "enum":           { "objetos": 7,   "fp": "34837fbf7cb50082e461fd8cdad47532" },
+    "func":           { "objetos": 105, "fp": "4b4b13d4b56b29d453f0d2678a7e2820" },
+    "grant_func":     { "objetos": 105, "fp": "2dfa4973a1e8f9073a86023ad4075885" },
+    "indice":         { "objetos": 105, "fp": "e810d3b29e6b6ca41b6ff5f2136ad7e0" },
+    "policy":         { "objetos": 54,  "fp": "1497c486d1b386cfd4779ebe136d915d" },
+    "policy_storage": { "objetos": 8,   "fp": "cd68b8eccf9532909791b7cf67619b08" },
+    "rls_flag":       { "objetos": 28,  "fp": "0b95c89a31d36e88406a1617fa270523" },
+    "trigger":        { "objetos": 52,  "fp": "1e0bba952eea8589a9a979f949a8f7c9" },
+    "view":           { "objetos": 9,   "fp": "eccffb70b9021b329278eaf0cd2c6601" }
+  },
+  "leitura": "ensaio (sgmvldiizsrjbxzzpmhh) e produção (pbtjcalbmepmrqzprusb) devolveram as MESMAS 11 linhas, classe a classe, contagem e impressão."
+}

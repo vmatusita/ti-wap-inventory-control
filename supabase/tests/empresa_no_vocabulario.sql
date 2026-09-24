@@ -28,8 +28,9 @@
 --       calculado do arquivo vigente — o texto que o CI aplica), e nenhuma delas cita `empresa_id`;
 --   6 — ninguém lê `empresa_id` do lote 2 (sabotagem F, a metade SQL): as duas exceções nominais
 --       (`k_leitura_integridade`, a cópia amarrada pelo describe 13) LEEM — não são fantasma —, e
---       uma policy de `tipos_item` e uma função que leem a coluna, fictícias, são ACUSADAS pelo
---       predicado das asserções 15g/15h de `catalogo_policies.sql` (o gate sabe reprovar).
+--       uma função que lê a coluna, fictícia, é ACUSADA pelo predicado da asserção 15h de
+--       `catalogo_policies.sql` (o gate sabe reprovar). (F66: a metade da POLICY saiu — a policy do
+--       lote 2 TEM de citar a coluna agora; a regra é a 16a de lá, e o 15g se aposentou.)
 --       E (revisão adversarial da F64) a exceção vale por COMANDO, não pela função: a do kit
 --       recriada com um comando a mais que lê `eventos_admin.empresa_id` é ACUSADA (6c); e o léxico
 --       do predicado (`pg_temp.sql_so_codigo`, em `_asserts.sql`) não deixa um `--` dentro de texto
@@ -118,7 +119,9 @@ declare
   k_leitura_tenant constant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
-    'vocabulario_unidades_guarda:filiais,unidades_apelidos'
+    'vocabulario_unidades_guarda:filiais,unidades_apelidos',
+    'rel_por_motivo_filiais:movimentacoes,motivos',
+    'rel_resumo_filiais:movimentacoes,motivos,ativos'
   ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162) — o texto que o CI aplica.
@@ -434,19 +437,15 @@ begin
        (2 - least(v_n, 2)) + v_ruins, 4) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
-  -- 6b — a AUTO-SABOTAGEM: uma policy de tipos_item e uma função que leem a coluna são acusadas.
+  -- 6b — a AUTO-SABOTAGEM: uma função que lê a coluna é acusada. (F66, 24/09/2026: a metade da POLICY saiu —
+  -- a policy de tabela do lote 2 que cita `empresa_id` é hoje a REGRA (a 16a de catalogo_policies.sql, que
+  -- substituiu o 15g), e a auto-sabotagem da forma do recorte é a 16g de lá.)
   v_estado := null;
   begin
-    create policy f64_sabotagem_le_empresa on public.tipos_item for select to authenticated
-      using (empresa_id = (select public.empresa_legada()));
     create function public.f64_sabotagem_le_motivo() returns bigint language sql stable as $s$
       select count(*) from public.motivos m where m.empresa_id = public.empresa_legada()
     $s$;
-    select (select count(*) from pg_policies p
-             where p.schemaname = 'public' and p.tablename = any (k_onze)
-               and (coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'))::text
-           || '/' ||
-           (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    select (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public'
                and pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_onze, k_leitura_integridade, k_tabelas_leitura_kit, k_leitura_tenant) is not null)::text
       into v_estado;
@@ -454,9 +453,9 @@ begin
   exception when others then
     if sqlerrm <> 'f64-6b-desfaz' then v_estado := 'erro ' || sqlstate || ': ' || sqlerrm; end if;
   end;
-  if pg_temp.assert_zero_de('6b auto-sabotagem: a policy de tipos_item e a função que leem empresa_id do lote 2 são ACUSADAS pelo predicado de 15g/15h (o gate sabe reprovar)' ||
-       case when v_estado is distinct from '1/1' then ' — acusou ' || coalesce(v_estado, '∅') || ' (esperado 1/1)' else '' end,
-       case when v_estado = '1/1' then 0 else 1 end, 1) then
+  if pg_temp.assert_zero_de('6b auto-sabotagem: a função que lê empresa_id do lote 2 é ACUSADA pelo predicado do 15h (o gate sabe reprovar)' ||
+       case when v_estado is distinct from '1' then ' — acusou ' || coalesce(v_estado, '∅') || ' (esperado 1)' else '' end,
+       case when v_estado = '1' then 0 else 1 end, 1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 6c — A EXCEÇÃO VALE POR COMANDO (revisão adversarial da F64): a função do gatilho do kit,

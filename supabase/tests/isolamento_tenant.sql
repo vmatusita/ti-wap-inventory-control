@@ -1,5 +1,5 @@
 -- =============================================================
--- Roteiro de teste: O ISOLAMENTO ENTRE EMPRESAS (F48 → F62)
+-- Roteiro de teste: O ISOLAMENTO ENTRE EMPRESAS (F48 → F66)
 -- =============================================================
 -- O QUE ESTE ARQUIVO É, E O QUE ELE AINDA NÃO É
 --
@@ -10,11 +10,9 @@
 -- `unidades_de_escrita`). A empresa A é a WAP (a empresa legada, da migration); a B é
 -- FICTÍCIA, criada aqui, com filial própria de slug diferente (desde a F65 o slug é único POR
 -- EMPRESA, e o diferente fica: não é disso que este roteiro trata). Os cenários provam, nas DUAS
--- direções, o que as funções de conjunto e as FKs compostas decidem. ⚠ O QUE AINDA NÃO SE PROVA AQUI:
--- que o ACERVO de A é invisível para B — as policies continuam com o piso (todo logado ativo lê tudo)
--- até a F66/F72. Desde a F63 o acervo TEM `empresa_id` (as oito de `k_lote1`, preenchidas pelo default
--- da WAP), mas NADA a lê como recorte: nem policy, nem app, nem este roteiro — ler o dado por empresa é
--- da F66.
+-- direções, o que as funções de conjunto e as FKs compostas decidem. (Até a F65 este parágrafo dizia que
+-- NADA lia o acervo por empresa — nem policy, nem app, nem este roteiro. A F66 mudou a primeira e a
+-- terceira; o app segue sem recortar, e isso é da F67/F70.)
 --
 -- F65 (23/09/2026) — A CAMADA ESTRUTURAL. O que a F65 entregou: as FKs entre tabelas de negócio são
 -- COMPOSTAS `(empresa_id, x) → (empresa_id, id)` (o filho da A não aponta para o pai da B), os uniques
@@ -22,7 +20,23 @@
 -- janela destrutiva), a diagonal nome × apelido é por empresa e o termo só cita o que é da empresa
 -- dele. A prova mora em `integridade_tenant.sql` (com o par simétrico de cada FK composta, a regra 3
 -- abaixo) e nas três travas de catálogo (`forma_multiempresa`, `unicidade_por_empresa`,
--- `imutabilidade_tenant`). O que falta continua sendo a LEITURA — o recorte do acervo, da F66.
+-- `imutabilidade_tenant`).
+--
+-- F66 (24/09/2026) — A LEITURA RECORTADA, EM CONJUNÇÃO COM O PISO. As 51 policies de `public` cuja tabela
+-- tem `empresa_id` citam o termo de empresa com a função de conjunto da classe (`empresas_do_membro`,
+-- `empresas_de_escrita`, `empresas_de_admin`), em AND com o piso de hoje, e as seis de escrita por unidade
+-- conferem o PAR `(empresa_id, filial_id)` contra `unidades_de_escrita()`. As seções 10 e 11, abaixo, provam
+-- a LEITURA entre empresas pela primeira vez, sobre o CATÁLOGO (toda tabela com a coluna e policy de SELECT):
+--   · direção A, com as policies REAIS — o membro só da B não vê a linha da A (o termo de empresa corta,
+--     mesmo com o piso deixando passar);
+--   · direção B, com o piso NEUTRALIZADO dentro da transação — o termo SOZINHO corta o membro só da A, que é
+--     a emulação do que a F72 vai deixar no ar; e o membro das duas vê as duas;
+--   · a escrita cruzada recusada (e o dado intacto como `postgres`), e o par de unidade nas duas direções.
+-- A conjunção quer dizer que NADA ficou mais aberto: quem via antes vê o mesmo ou menos, e na WAP (uma
+-- empresa só) exatamente o mesmo — a prova conta a conta nos dois bancos fica na evidência da fase.
+-- O que falta, na ordem: a ponte `papel_atual()` e a escrita por empresa (`e_admin`/`pode_escrever` por
+-- empresa, Storage, Realtime, as guardas F52) é da F67; tirar o piso das policies de leitura é da F72;
+-- `profiles` (a tabela sem `empresa_id`, com as suas duas policies de exceção) é da F69.
 --
 -- (Texto da F48, mantido como registro:) Hoje existe UMA empresa, e escrever "a empresa A não
 -- vê o dado da empresa B" com uma empresa só produziria um ✓ sobre conjunto vazio:
@@ -139,12 +153,31 @@ begin;
 -- grants já existem, então o bloco é no-op lá.
 
 -- LEITURA — o que alguma asserção seleciona como `authenticated`.
+-- F66: a bateria de leitura (seção 10) lê como `authenticated` TODA tabela de public com `empresa_id` e policy de
+-- SELECT — as 21 (as 19 de negócio com policy, `membros` e `operador_filiais`); `senhas_acesso` (deny-all) não entra.
 grant select on
-  public.ativos,            -- 8: o operador de outra filial LÊ o ativo (o piso), mas não escreve
-  public.filiais,           -- resolução de filial nas fixtures
+  public.ativos,            -- 8: o operador de outra filial LÊ o ativo (o piso), mas não escreve; 10, 11
+  public.filiais,           -- resolução de filial nas fixtures; 10
   public.profiles,          -- 7: o grant de COLUNA, e a asserção que o mede
-  public.membros,           -- 9i: o espelho do projeto hospedado (SELECT sim, escrita não — 0153)
-  public.operador_filiais   -- 9i: o UPDATE/DELETE com WHERE precisa de SELECT (espelho do hospedado)
+  public.membros,           -- 9i: o espelho do projeto hospedado (SELECT sim, escrita não — 0153); 10
+  public.operador_filiais,  -- 9i: o UPDATE/DELETE com WHERE precisa de SELECT (espelho do hospedado); 10
+  public.anotacoes,         -- 10 (a leitura A↔B), 10f (a escrita cruzada)
+  public.colaboradores,     -- 10, 10f
+  public.eventos_admin,     -- 10
+  public.import_logs,       -- 10
+  public.import_prefixos_patrimonio, -- 10
+  public.import_termos_categoria,    -- 10
+  public.import_termos_estado,       -- 10
+  public.itens,             -- 10
+  public.kits_modelos,      -- 10
+  public.lancamentos_item,  -- 10
+  public.motivos,           -- 10, 10f, 10h (o join das rel_*)
+  public.movimentacoes,     -- 10, 10h, 11c
+  public.pendencias_item,   -- 10
+  public.relatorios_gerados, -- 10
+  public.termos_gerados,    -- 10
+  public.tipos_item,        -- 10, 10f
+  public.unidades_apelidos  -- 10
   to authenticated;
 
 -- ESCRITA — só a tabela que alguma asserção tenta escrever.
@@ -153,8 +186,13 @@ grant select on
 -- um banco que não existe. `operador_filiais` entra porque lá o privilégio padrão CONTINUA
 -- (quem recusa é a RLS, sem policy de escrita) — e é essa recusa que 9i prova.
 grant insert, update, delete on
-  public.ativos,            -- 8: a recusa de UPDATE em filial não vinculada, provada duas vezes
-  public.operador_filiais   -- 9i: a recusa pela RLS (nenhuma policy de escrita), provada duas vezes
+  public.ativos,            -- 8: a recusa de UPDATE em filial não vinculada, provada duas vezes; 10f, 11
+  public.operador_filiais,  -- 9i: a recusa pela RLS (nenhuma policy de escrita), provada duas vezes
+  public.colaboradores,     -- 10f: a escrita cruzada (nível de empresa e de admin)
+  public.tipos_item,        -- 10f
+  public.anotacoes,         -- 10f
+  public.motivos,           -- 10f
+  public.movimentacoes      -- 11c: o snapshot — a filial real do ativo, pelos pares
   to authenticated;
 
 -- `profiles`: espelho EXATO do grant da 0063 — nunca `update` de TABELA.
@@ -201,8 +239,11 @@ declare
   -- porque é conferência do fonte contra si mesmo, e SQL não enxerga o próprio arquivo.
   -- (A primeira versão deste comentário prometia a simetria como se ela existisse aqui;
   -- a revisão adversarial da fase pegou a promessa falsa, e a trava de mesa nasceu dela.)
-  k_leitura text[] := array['ativos', 'filiais', 'profiles', 'membros', 'operador_filiais'];
-  k_escrita text[] := array['ativos', 'operador_filiais'];
+  k_leitura text[] := array['ativos', 'filiais', 'profiles', 'membros', 'operador_filiais', 'anotacoes', 'colaboradores',
+                            'eventos_admin', 'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria',
+                            'import_termos_estado', 'itens', 'kits_modelos', 'lancamentos_item', 'motivos', 'movimentacoes',
+                            'pendencias_item', 'relatorios_gerados', 'termos_gerados', 'tipos_item', 'unidades_apelidos'];
+  k_escrita text[] := array['ativos', 'operador_filiais', 'colaboradores', 'tipos_item', 'anotacoes', 'motivos', 'movimentacoes'];
 
   -- =======================================================================
   -- F62 — AS PERSONAS DOS CENÁRIOS A↔B (uuid fixo, prefixo f62a; e-mails de fantasia)
@@ -229,6 +270,40 @@ declare
   v_antes      text;
   v_depois     text;
   v_refs       bigint;
+
+  -- =======================================================================
+  -- F66 — A BATERIA DE LEITURA E DE ESCRITA ENTRE EMPRESAS (seções 10 e 11; prefixo f66a nos uuids)
+  -- =======================================================================
+  k_admin_b    uuid := '00000000-f66a-4000-8000-0000000000b7';  -- admin SÓ em B (a direção B, com o piso neutralizado)
+  v_pa         jsonb;       -- a fixture da A (uma linha em cada uma das 20 de negócio — pg_temp.f65_plantar)
+  v_pb         jsonb;       -- a fixture da B
+  v_tab        record;
+  v_n_tab      int;
+  v_ua         bigint;      -- linhas da A (contadas como postgres)
+  v_ub         bigint;      -- linhas da B (contadas como postgres)
+  v_sa         bigint;      -- linhas da A que a pessoa VIU
+  v_sb         bigint;      -- linhas da B que a pessoa VIU
+  v_tot_ua     bigint;
+  v_tot_ub     bigint;
+  v_viu_b      bigint;
+  v_viu_a      bigint;
+  v_tabs_erro  text;
+  v_pol        record;
+  v_expr       text;
+  v_neutras    int;
+  v_estado2    text;
+  v_fdes       smallint;    -- uma filial DESATIVADA da A
+  v_mot_par    text := 'f66-iso-par';
+  v_md5_b0     text;
+  v_md5_b1     text;
+  v_sqlstate   text;
+  v_soma       bigint;
+  v_t_tabs     text[] := '{}';   -- as tabelas da bateria (do catálogo)
+  v_t_adm      boolean[] := '{}'; -- a leitura dela é de CARGO (o piso `e_admin()`)
+  v_t_ua       bigint[] := '{}';
+  v_t_ub       bigint[] := '{}';
+  v_k          int;
+  v_uid_p      uuid;
 begin
   -- =========================================================================
   -- FIXTURES (como postgres — antes de qualquer troca de papel).
@@ -982,6 +1057,482 @@ begin
             then ' — sem o atributo: ' || v_txt || ' · leitura com force: ' || coalesce(v_estado, '∅') else '' end,
        v_cnt + case when v_estado like 'erro%' or v_estado is null then 1 else 0 end, v_refs) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- [bateria-f66:início]
+  -- =========================================================================
+  -- 10 — F66 (24/09/2026): A LEITURA ENTRE EMPRESAS, sobre o CATÁLOGO.
+  --
+  -- O universo é toda tabela de `public` com `empresa_id` e policy de SELECT — lida do catálogo, nunca de lista (as 21
+  -- de hoje: as 19 de negócio com policy, `membros` e `operador_filiais`; `senhas_acesso` é deny-all). A fixture planta
+  -- UMA linha em cada uma das 20 de negócio na A (a WAP) e na B (fictícia), com `empresa_id` por extenso
+  -- (`pg_temp.f65_plantar`, _asserts.sql), e é CONTADA como postgres antes de qualquer "viu zero" (regra 1).
+  --
+  -- O QUE CADA CENÁRIO PROVA, E O QUE NÃO PROVA:
+  --   10a/10b — DIREÇÃO A, com as policies REAIS: o admin só da A vê TODA linha da A e NENHUMA da B. Prova o recorte da
+  --             conjunção (o piso passa para ele; é o termo de empresa que tira a B).
+  --   10c/10d — DIREÇÃO B, com o PISO NEUTRALIZADO dentro de uma subtransação desfeita: cada policy de SELECT das tabelas
+  --             da bateria perde o piso (`papel_atual()`/`e_admin()` vira `true` no texto que o próprio catálogo devolve)
+  --             e fica SÓ com o termo de empresa que a migration escreveu — o estado que a F72 vai deixar. O admin só da
+  --             B vê toda linha da B e nenhuma da A. Prova que o recorte SOZINHO isola nas duas direções (decisão 7 do
+  --             PLAN-F66: emular a F72, e não a F67 — neutralizar o piso testa o termo REAL de cada policy; emular a
+  --             ponte inventaria um `papel_atual()` que nenhuma fase vai ter). O `alter policy` é DDL dinâmico DENTRO
+  --             desta transação de roteiro — fora de supabase/migrations/, invisível ao replay da mesa e ao universo
+  --             congelado (10a/10b de catalogo_policies.sql rodam em outra sessão), e desfeito pelo `raise` da
+  --             subtransação antes da asserção seguinte.
+  --   10e     — A PONTE (declarada, NÃO é prova do recorte): com as policies reais, quem é só da B não vê NADA — o piso
+  --             de hoje (`papel_atual()` responde só pela empresa legada) fecha tudo. A F67 tira a ponte e inverte isto.
+  --   10f     — O MEMBRO DAS DUAS (admin na A, consulta na B), com as policies reais: vê as duas nas tabelas de leitura
+  --             pelo piso; nas de leitura por CARGO (auditoria, trilha do import), só a A — ele não administra a B.
+  --   10g/10h — A ESCRITA CRUZADA: o admin da A (e o membro das duas) inserindo com `empresa_id` da B — com pais da B,
+  --             para a FK composta não ser quem recusa — leva 42501 pelo WITH CHECK; atualizando ou apagando linha da
+  --             B, afeta 0 linhas; de volta como postgres, a B está intacta (regra 2); e o par legítimo (a mesma escrita
+  --             na A) passa. 10h: sem o termo no WITH CHECK, a mesma escrita cruzada PASSA — quem recusou foi o recorte.
+  --             A escrita da direção B (a pessoa da B escrevendo) depende da ponte e é da F67.
+  --   10i/10j — O JOIN DAS rel_*: duas empresas com o MESMO código de motivo; para o membro das duas, o relatório por
+  --             motivo e o resumo não duplicam (0179). Sem o par no join, duplicam (10j, a prova de que o cenário acusa).
+  -- ⚠ Nenhum cenário aqui prova o Storage, o Realtime nem as `security definer` (F67) — nem `profiles` (F69).
+  -- =========================================================================
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
+  values (k_admin_b, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f66.admin.b@wap.ind.br',
+          '', now(), now(), now());
+  delete from public.membros where profile_id = k_admin_b and empresa_id = v_emp_a;
+  perform pg_temp.plantar_cargo(k_admin_b, 'admin', true, v_emp_b);                -- admin SÓ em B
+  v_pa := pg_temp.f65_plantar(v_emp_a, 'f66-iso-a', k_admin_a, 'ZZA');
+  v_pb := pg_temp.f65_plantar(v_emp_b, 'f66-iso-b', k_admin_a, 'ZZB');
+
+  -- as tabelas da bateria, do catálogo, e o universo de cada uma (como postgres)
+  for v_tab in
+    select c.relname::text as tabela, bool_or(coalesce(p.qual, '') ~ '\me_admin\M') as de_cargo
+      from pg_policies p
+      join pg_class c on c.relname = p.tablename and c.relnamespace = 'public'::regnamespace
+     where p.schemaname = 'public' and p.cmd in ('SELECT', 'ALL')
+       and exists (select 1 from pg_attribute a
+                    where a.attrelid = c.oid and a.attname = 'empresa_id' and not a.attisdropped)
+     group by c.relname
+     order by 1
+  loop
+    execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
+                   v_tab.tabela) into v_ua, v_ub using v_emp_a, v_emp_b;
+    v_t_tabs := v_t_tabs || v_tab.tabela;
+    v_t_adm := v_t_adm || v_tab.de_cargo;
+    v_t_ua := v_t_ua || v_ua;
+    v_t_ub := v_t_ub || v_ub;
+  end loop;
+  v_n_tab := coalesce(array_length(v_t_tabs, 1), 0);
+  select coalesce(sum(x), 0) into v_tot_ua from unnest(v_t_ua) as x;
+  select coalesce(sum(x), 0) into v_tot_ub from unnest(v_t_ub) as x;
+  select count(*), coalesce(string_agg(t, ', '), '')
+    into v_cnt, v_lista
+    from unnest(v_t_tabs, v_t_ua, v_t_ub) as u(t, a, b) where a = 0 or b = 0;
+  if pg_temp.assert_zero_de('10-fixture o universo da bateria foi montado e contado como postgres: toda tabela de public com empresa_id e policy de SELECT tem linha na A e na B' ||
+       case when v_cnt > 0 then ' — sem linha numa das empresas: ' || v_lista else '' end, v_cnt, v_n_tab) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  raise notice '(medição) 10 a bateria: % tabelas do catálogo, % linhas da A e % da B', v_n_tab, v_tot_ua, v_tot_ub;
+
+  -- 10a/10b — DIREÇÃO A, as policies reais: o admin só da A
+  v_viu_a := 0; v_viu_b := 0; v_tabs_erro := ''; v_estado := null;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+  for v_k in 1 .. v_n_tab loop
+    set local role authenticated;
+    execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
+                   v_t_tabs[v_k]) into v_sa, v_sb using v_emp_a, v_emp_b;
+    reset role;
+    v_viu_b := v_viu_b + v_sb;
+    if v_sb > 0 then
+      v_tabs_erro := v_tabs_erro || ' ' || v_t_tabs[v_k] || '(' || v_sb || ' da B)';
+    end if;
+    if v_sa <> v_t_ua[v_k] then
+      v_viu_a := v_viu_a + 1;
+      v_estado := coalesce(v_estado, '') || ' ' || v_t_tabs[v_k] || '(' || v_sa || ' de ' || v_t_ua[v_k] || ' da A)';
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('10a direção A: o admin só da A não vê NENHUMA linha da B, em nenhuma tabela com empresa_id (as policies reais)' ||
+       case when v_viu_b > 0 then ' — viu:' || v_tabs_erro else '' end, v_viu_b, v_tot_ub) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  if pg_temp.assert_zero_de('10b direção A: o admin só da A vê TODA linha da A (o recorte não tranca a própria empresa)' ||
+       case when v_viu_a > 0 then ' — faltou:' || v_estado else '' end, v_viu_a, v_n_tab) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  v_estado := null;
+
+  -- 10c/10d — DIREÇÃO B, com o piso NEUTRALIZADO numa subtransação desfeita (o estado que a F72 vai deixar)
+  v_estado2 := null; v_neutras := 0; v_viu_a := 0; v_viu_b := 0; v_tabs_erro := ''; v_antes := '';
+  begin
+    for v_pol in
+      select p.polname, c.relname::text as tabela, pg_get_expr(p.polqual, p.polrelid) as qual
+        from pg_policy p join pg_class c on c.oid = p.polrelid
+       where c.relnamespace = 'public'::regnamespace and p.polcmd in ('r', '*') and c.relname::text = any (v_t_tabs)
+    loop
+      v_expr := replace(replace(v_pol.qual, '(( SELECT papel_atual() AS papel_atual) IS NOT NULL)', 'true'),
+                        '( SELECT e_admin() AS e_admin)', 'true');
+      if v_expr = v_pol.qual or v_expr ~ '\m(papel_atual|e_admin)\(' then
+        raise exception 'f66-10c-piso-nao-neutralizado % / %', v_pol.tabela, v_pol.polname;
+      end if;
+      execute format('alter policy %I on public.%I using (%s)', v_pol.polname, v_pol.tabela, v_expr);
+      v_neutras := v_neutras + 1;
+    end loop;
+    perform set_config('request.jwt.claims', json_build_object('sub', k_admin_b, 'role', 'authenticated')::text, true);
+    for v_k in 1 .. v_n_tab loop
+      set local role authenticated;
+      execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
+                     v_t_tabs[v_k]) into v_sa, v_sb using v_emp_a, v_emp_b;
+      reset role;
+      v_viu_a := v_viu_a + v_sa;
+      if v_sa > 0 then v_tabs_erro := v_tabs_erro || ' ' || v_t_tabs[v_k] || '(' || v_sa || ' da A)'; end if;
+      if v_sb <> v_t_ub[v_k] then
+        v_viu_b := v_viu_b + 1;
+        v_antes := v_antes || ' ' || v_t_tabs[v_k] || '(' || v_sb || ' de ' || v_t_ub[v_k] || ' da B)';
+      end if;
+    end loop;
+    raise exception 'f66-10c-desfaz';
+  exception when others then
+    if sqlerrm <> 'f66-10c-desfaz' then v_estado2 := 'erro ' || sqlstate || ': ' || sqlerrm; end if;
+  end;
+  reset role;
+  raise notice '(medição) 10c o piso neutralizado em % policies de SELECT, na subtransação desfeita (%)', v_neutras,
+    coalesce(v_estado2, 'sem erro');
+  if pg_temp.assert_zero_de('10c direção B, com o piso neutralizado (o recorte SOZINHO): o admin só da B não vê NENHUMA linha da A' ||
+       case when v_viu_a > 0 or v_estado2 is not null then ' — viu:' || v_tabs_erro || ' ' || coalesce(v_estado2, '') else '' end,
+       v_viu_a + case when v_estado2 is not null then 1 else 0 end, v_tot_ua) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  if pg_temp.assert_zero_de('10d direção B, com o piso neutralizado: o admin só da B vê TODA linha da B, e o piso saiu de toda policy de SELECT da bateria' ||
+       case when v_viu_b > 0 or v_estado2 is not null or v_neutras < v_n_tab then ' — faltou:' || v_antes || ' (' || v_neutras || ' policies neutralizadas de ' || v_n_tab || ' tabelas) ' || coalesce(v_estado2, '') else '' end,
+       v_viu_b + case when v_estado2 is not null or v_neutras < v_n_tab then 1 else 0 end, v_n_tab) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  v_antes := null;
+
+  -- 10e — A PONTE (declarada, não é prova do recorte): com as policies reais, quem é só da B não vê nada
+  v_soma := 0;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_b, 'role', 'authenticated')::text, true);
+  for v_k in 1 .. v_n_tab loop
+    set local role authenticated;
+    execute format('select count(*) from public.%I where empresa_id in ($1, $2)', v_t_tabs[v_k]) into v_cnt using v_emp_a, v_emp_b;
+    reset role;
+    v_soma := v_soma + v_cnt;
+  end loop;
+  if pg_temp.assert_zero_de('10e a ponte: com as policies reais, quem é só da B não vê nada — o piso de hoje responde só pela empresa legada (a F67 tira a ponte; isto NÃO prova o recorte)',
+       v_soma, v_tot_ua + v_tot_ub) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10f — O MEMBRO DAS DUAS, com as policies reais (admin na A, consulta na B)
+  v_viu_b := 0; v_tabs_erro := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
+  for v_k in 1 .. v_n_tab loop
+    set local role authenticated;
+    execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
+                   v_t_tabs[v_k]) into v_sa, v_sb using v_emp_a, v_emp_b;
+    reset role;
+    if v_sa <> v_t_ua[v_k] or v_sb <> (case when v_t_adm[v_k] then 0 else v_t_ub[v_k] end) then
+      v_viu_b := v_viu_b + 1;
+      v_tabs_erro := v_tabs_erro || ' ' || v_t_tabs[v_k] || '(A ' || v_sa || '/' || v_t_ua[v_k] || ', B ' || v_sb || '/'
+                     || (case when v_t_adm[v_k] then 0 else v_t_ub[v_k] end) || ')';
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('10f o membro das duas vê as duas nas tabelas de leitura pelo piso, e só a A nas de leitura por cargo (ele consulta a B, não a administra)' ||
+       case when v_viu_b > 0 then ' — diferente:' || v_tabs_erro else '' end, v_viu_b, v_n_tab) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10g — A ESCRITA CRUZADA, provada duas vezes (regra 2), com o par legítimo
+  insert into public.motivos (codigo, rotulo, aplica_a, empresa_id)
+  values (v_mot_par, 'F66 motivo do par', array['saida']::public.tipo_movimentacao[], v_emp_a);
+  select md5(string_agg(x, ',' order by x)) into v_md5_b0
+    from (select to_jsonb(c)::text as x from public.colaboradores c where c.empresa_id = v_emp_b
+          union all select to_jsonb(a)::text from public.ativos a where a.empresa_id = v_emp_b
+          union all select to_jsonb(m)::text from public.motivos m where m.empresa_id = v_emp_b
+          union all select to_jsonb(t)::text from public.tipos_item t where t.empresa_id = v_emp_b
+          union all select to_jsonb(n)::text from public.anotacoes n where n.empresa_id = v_emp_b) as s;
+  v_ruins := 0; v_rotulos := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
+        values ('Fulano F66 cruzado', (v_pb->>'filiais')::smallint, k_admin_a, v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-colaborador';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-colaborador(' || sqlstate || ')'; end;
+  begin insert into public.tipos_item (slug, rotulo, empresa_id) values ('f66_cruzado', 'F66 Tipo cruzado', v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-tipo';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-tipo(' || sqlstate || ')'; end;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+        values ('WAP0009661', 'F66CRUZ1', 'notebook', (v_pb->>'filiais')::smallint, 'cadastro', v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-ativo';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-ativo(' || sqlstate || ')'; end;
+  begin insert into public.anotacoes (ativo_id, texto, criado_por, empresa_id)
+        values ((v_pb->>'ativos')::uuid, 'anotação cruzada F66', k_admin_a, v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-anotacao';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-anotacao(' || sqlstate || ')'; end;
+  update public.colaboradores set nome = 'Invadido F66' where id = (v_pb->>'colaboradores')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-colaborador'; end if;
+  update public.ativos set modelo = 'invadido-f66' where id = (v_pb->>'ativos')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-ativo'; end if;
+  delete from public.motivos where empresa_id = v_emp_b and codigo = v_pb->>'motivos';
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' delete-motivo'; end if;
+  reset role;
+  -- o membro das duas (admin na A, consulta na B): a quebra clássica "confere o papel e esquece o tenant"
+  perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.tipos_item (slug, rotulo, empresa_id) values ('f66_cruzado_c', 'F66 Tipo cruzado C', v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-insert-tipo';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-insert-tipo(' || sqlstate || ')'; end;
+  update public.colaboradores set nome = 'Invadido F66 C' where id = (v_pb->>'colaboradores')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-update-colaborador'; end if;
+  -- ⚠ O ATOR CERTO PARA CADA CLASSE (sabotagem E da F66, medida na mesa): o admin só da A NÃO lê a B, e o `where` de um
+  -- UPDATE/DELETE aplica também a policy de SELECT — a recusa dele pode vir da LEITURA, não da policy de escrita. O
+  -- membro das duas LÊ a B (o piso e o termo de leitura deixam) e é admin pela ponte: é ele quem revela uma policy de
+  -- escrita que confere o cargo e esquece o termo. Uma tentativa por classe: a escrita (`pode_escrever`), o DELETE de
+  -- cargo (`e_admin`) e a unidade (os pares). O motivo da B não é citado por movimentação nenhuma (a fixture o planta
+  -- solto), então apagá-lo não esbarra em FK: 0 linhas é a policy.
+  begin insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
+        values ('Fulano F66 cruzado C', (v_pb->>'filiais')::smallint, k_consultor, v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-insert-colaborador';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-insert-colaborador(' || sqlstate || ')'; end;
+  delete from public.motivos where empresa_id = v_emp_b and codigo = v_pb->>'motivos';
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-delete-motivo'; end if;
+  update public.ativos set modelo = 'invadido-f66-c' where id = (v_pb->>'ativos')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' consultor-update-ativo'; end if;
+  reset role;
+  if pg_temp.assert_zero_de('10g a escrita cruzada é recusada: inserir com a empresa B leva 42501 pelo WITH CHECK, e atualizar ou apagar linha da B afeta 0 linhas — para o admin da A e para o membro das duas' ||
+       case when v_ruins > 0 then ' — passou:' || v_rotulos else '' end, v_ruins, 12) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  -- a SEGUNDA prova, de volta como postgres: a B está intacta
+  select md5(string_agg(x, ',' order by x)) into v_md5_b1
+    from (select to_jsonb(c)::text as x from public.colaboradores c where c.empresa_id = v_emp_b
+          union all select to_jsonb(a)::text from public.ativos a where a.empresa_id = v_emp_b
+          union all select to_jsonb(m)::text from public.motivos m where m.empresa_id = v_emp_b
+          union all select to_jsonb(t)::text from public.tipos_item t where t.empresa_id = v_emp_b
+          union all select to_jsonb(n)::text from public.anotacoes n where n.empresa_id = v_emp_b) as s;
+  if v_md5_b0 = v_md5_b1 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 10g-bis de volta como postgres, colaboradores, ativos, motivos, tipos e anotações da B estão INTACTOS (a segunda prova da recusa)';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 10g-bis a escrita cruzada deixou marca na B (antes % · depois %)', v_md5_b0, v_md5_b1;
+  end if;
+  -- o PAR LEGÍTIMO: a mesma escrita, na A, pelo mesmo admin, passa
+  v_ruins := 0; v_rotulos := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
+        values ('Fulano F66 legítimo', (v_pa->>'filiais')::smallint, k_admin_a, v_emp_a);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-colaborador(' || sqlstate || ')'; end;
+  begin insert into public.tipos_item (slug, rotulo, empresa_id) values ('f66_legitimo', 'F66 Tipo legítimo', v_emp_a);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-tipo(' || sqlstate || ')'; end;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+        values ('WAP0009662', 'F66LEG1', 'notebook', v_f1, 'cadastro', v_emp_a);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-ativo(' || sqlstate || ')'; end;
+  begin insert into public.anotacoes (ativo_id, texto, criado_por, empresa_id)
+        values ((v_pa->>'ativos')::uuid, 'anotação legítima F66', k_admin_a, v_emp_a);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-anotacao(' || sqlstate || ')'; end;
+  update public.colaboradores set nome = 'Editado F66' where id = (v_pa->>'colaboradores')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-colaborador(' || v_cnt || ')'; end if;
+  update public.ativos set modelo = 'editado-f66' where id = (v_pa->>'ativos')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-ativo(' || v_cnt || ')'; end if;
+  delete from public.motivos where empresa_id = v_emp_a and codigo = v_mot_par;
+  get diagnostics v_cnt = row_count;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' delete-motivo(' || v_cnt || ')'; end if;
+  reset role;
+  if pg_temp.assert_zero_de('10g-par o par legítimo passa: a mesma escrita, na A, pelo admin da A (inserir, atualizar, apagar)' ||
+       case when v_ruins > 0 then ' — recusado:' || v_rotulos else '' end, v_ruins, 7) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10h — SEM O TERMO no WITH CHECK (numa subtransação desfeita), a MESMA escrita cruzada PASSA: quem recusou foi o recorte
+  v_estado2 := null;
+  begin
+    alter policy "escrita cria colaborador" on public.colaboradores with check ((select public.pode_escrever()));
+    perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
+    values ('Fulano F66 sem o termo', (v_pb->>'filiais')::smallint, k_admin_a, v_emp_b);
+    reset role;
+    v_estado2 := 'passou';
+    raise exception 'f66-10h-desfaz';
+  exception when others then
+    if sqlerrm <> 'f66-10h-desfaz' then v_estado2 := 'recusou ' || sqlstate; end if;
+  end;
+  reset role;
+  if pg_temp.assert_zero_de('10h sem o termo de empresa no WITH CHECK, a mesma escrita cruzada PASSA — a recusa de 10g é do recorte, não do acaso' ||
+       case when v_estado2 is distinct from 'passou' then ' — ' || coalesce(v_estado2, '∅') else '' end,
+       case when v_estado2 = 'passou' then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10i/10j — O JOIN DAS rel_*: o mesmo código de motivo nas duas empresas; o membro das duas lê o relatório
+  insert into public.motivos (codigo, rotulo, aplica_a, empresa_id)
+  values ('f66-iso-mot', 'F66 motivo da A', array['saida']::public.tipo_movimentacao[], v_emp_a),
+         ('f66-iso-mot', 'F66 motivo da B', array['saida']::public.tipo_movimentacao[], v_emp_b);
+  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, motivo, criado_por, created_at, empresa_id)
+  values ((v_pa->>'ativos')::uuid, 'saida', current_date - 1, (v_pa->>'filiais')::smallint, 'Fulano F66', 'TI',
+          'f66-iso-mot', k_admin_a, now() - interval '1 day', v_emp_a),
+         ((v_pb->>'ativos')::uuid, 'saida', current_date - 1, (v_pb->>'filiais')::smallint, 'Fulano F66', 'TI',
+          'f66-iso-mot', k_admin_a, now() - interval '1 day', v_emp_b);
+  perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select coalesce(sum(r.total), 0) into v_soma
+    from public.rel_por_motivo_filiais(array[(v_pa->>'filiais')::smallint, (v_pb->>'filiais')::smallint],
+                                       current_date - 10, current_date) as r
+   where r.motivo in ('F66 motivo da A', 'F66 motivo da B');
+  select coalesce(sum(r.total), 0) into v_cnt
+    from public.rel_resumo_filiais(array[(v_pa->>'filiais')::smallint, (v_pb->>'filiais')::smallint],
+                                   current_date - 10, current_date) as r
+   where r.motivo in ('F66 motivo da A', 'F66 motivo da B');
+  reset role;
+  if pg_temp.assert_zero_de('10i o relatório por motivo e o resumo NÃO duplicam para o membro das duas: o mesmo código de motivo em duas empresas junta pelo par (empresa_id, codigo) — 2 saídas, 2 contadas em cada' ||
+       case when v_soma <> 2 or v_cnt <> 2 then ' — por motivo ' || v_soma || ', resumo ' || v_cnt || ' (esperado 2 e 2)' else '' end,
+       abs(v_soma - 2) + abs(v_cnt - 2), 4) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  -- 10j: SEM o par no join (o corpo da 0143, numa subtransação desfeita), o mesmo relatório DUPLICA — o cenário acusa
+  v_estado2 := null;
+  begin
+    create or replace function public.rel_por_motivo_filiais(p_filiais smallint[], p_de date, p_ate date)
+    returns table (tipo public.tipo_movimentacao, motivo text, total bigint)
+    language sql stable security invoker set search_path = public as $sab$
+      select m.tipo, coalesce(mo.rotulo, m.motivo, 'Outro') as motivo, count(*)::bigint
+        from public.movimentacoes m
+        left join public.motivos mo on mo.codigo = m.motivo
+       where m.tipo in ('saida', 'devolucao') and m.data between p_de and p_ate and m.filial_id = any (p_filiais)
+       group by m.tipo, coalesce(mo.rotulo, m.motivo, 'Outro')
+       order by 3 desc;
+    $sab$;
+    perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    select coalesce(sum(r.total), 0)::text into v_estado2
+      from public.rel_por_motivo_filiais(array[(v_pa->>'filiais')::smallint, (v_pb->>'filiais')::smallint],
+                                         current_date - 10, current_date) as r
+     where r.motivo in ('F66 motivo da A', 'F66 motivo da B');
+    reset role;
+    raise exception 'f66-10j-desfaz';
+  exception when others then
+    if sqlerrm <> 'f66-10j-desfaz' then v_estado2 := 'erro ' || sqlstate || ': ' || sqlerrm; end if;
+  end;
+  reset role;
+  if pg_temp.assert_zero_de('10j sem o par (empresa_id, codigo) no join, o relatório por motivo DUPLICA para o membro das duas (4 em vez de 2) — o cenário 10i sabe acusar' ||
+       case when v_estado2 is distinct from '4' then ' — contou ' || coalesce(v_estado2, '∅') || ' (esperado 4)' else '' end,
+       case when v_estado2 = '4' then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- =========================================================================
+  -- 11 — F66: A FORMA DE PARES (decisão 3 do PLAN-F66). A escrita por unidade deixou de ser
+  -- `pode_escrever_filial(filial_id)` por linha e passou a ser `(empresa_id, filial_id) in (select u.empresa_id,
+  -- u.filial_id from public.unidades_de_escrita() u)`, em conjunção com o termo de empresa. O operador vinculado à
+  -- filial X da A (o do cenário 8) escreve em X e é recusado em Y e em filial da B; o admin da A escreve em toda filial
+  -- da A, inclusive DESATIVADA, e é recusado na da B; `filial_id` nulo é recusado; o snapshot de `movimentacoes` (a
+  -- filial REAL do ativo, lida da própria linha) continua recusando a filial mentida. E a EQUIVALÊNCIA, sobre as
+  -- fixtures: para cada pessoa e cada filial da A (e o nulo), `pode_escrever_filial(f)` = `(A, f) ∈ unidades_de_escrita()`.
+  -- =========================================================================
+  insert into public.filiais (nome, slug, empresa_id, ativo)
+  values ('F66 Isolamento A Desativada', 'f66-iso-a-desativada', v_emp_a, false) returning id into v_fdes;
+  v_ruins := 0; v_rotulos := '';
+  -- 11a — o operador vinculado a X (v_f1)
+  perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
+        values ('WAP0009663', 'F66PAR1', 'notebook', v_f1, 'cadastro');
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-em-X-recusado(' || sqlstate || ')'; end;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
+        values ('WAP0009664', 'F66PAR2', 'notebook', v_f2, 'cadastro');
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-em-Y-aceito';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-em-Y(' || sqlstate || ')'; end;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+        values ('WAP0009665', 'F66PAR3', 'notebook', v_fb, 'cadastro', v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-na-B-aceito';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-na-B(' || sqlstate || ')'; end;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
+        values ('WAP0009666', 'F66PAR4', 'notebook', null, 'cadastro');
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' filial-nula-aceita';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' filial-nula(' || sqlstate || ')'; end;
+  reset role;
+  -- 11b — o admin da A: toda filial da A, inclusive a desativada; nunca a da B
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
+        values ('WAP0009667', 'F66PAR5', 'notebook', v_fdes, 'cadastro');
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' admin-na-desativada-recusado(' || sqlstate || ')'; end;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+        values ('WAP0009668', 'F66PAR6', 'notebook', v_fb, 'cadastro', v_emp_b);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' admin-na-B-aceito';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' admin-na-B(' || sqlstate || ')'; end;
+  reset role;
+  if pg_temp.assert_zero_de('11a/11b os pares: o operador escreve na filial dele e é recusado (42501) na outra, na da B e com filial nula; o admin escreve em toda filial da A, inclusive a desativada, e é recusado na da B' ||
+       case when v_ruins > 0 then ' —' || v_rotulos else '' end, v_ruins, 6) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  -- a segunda prova: gravou só o que tinha de gravar (as duas legítimas)
+  select count(*) into v_cnt from public.ativos
+   where patrimonio in ('WAP0009663', 'WAP0009664', 'WAP0009665', 'WAP0009666', 'WAP0009667', 'WAP0009668');
+  if v_cnt = 2 and exists (select 1 from public.ativos where patrimonio = 'WAP0009663' and filial_id = v_f1)
+     and exists (select 1 from public.ativos where patrimonio = 'WAP0009667' and filial_id = v_fdes) then
+    v_ok := v_ok + 1;
+    raise notice '✓ 11a-bis de volta como postgres, só as duas escritas legítimas gravaram (operador em X, admin na desativada)';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 11a-bis a recusa dos pares deixou marca: % ativos gravados das seis tentativas (esperado 2)', v_cnt;
+  end if;
+
+  -- 11c — o SNAPSHOT: o operador declara a filial dele (X) numa transferência de ativo que está em Y. O gatilho
+  --       BEFORE preenche `snapshot_anterior` com a filial REAL do ativo, e o segundo par a confere (o 2c-bis de
+  --       papeis_rls.sql, agora pela forma de pares).
+  v_estado2 := null;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por)
+    select a.id, 'transferencia', current_date, v_f1, v_f1, k_operador
+      from public.ativos a where a.patrimonio = 'WAP0009481';
+    v_estado2 := 'aceito';
+  exception when insufficient_privilege then v_estado2 := 'recusado';
+            when others then v_estado2 := 'outro ' || sqlstate;
+  end;
+  reset role;
+  if v_estado2 = 'recusado'
+     and (select filial_id from public.ativos where patrimonio = 'WAP0009481') = v_f2 then
+    v_ok := v_ok + 1;
+    raise notice '✓ 11c o snapshot pelos pares: a filial mentida numa transferência de ativo de outra filial é recusada (42501), e o ativo não migrou';
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ 11c o snapshot pelos pares não recusou a filial mentida (%), ou o ativo migrou', coalesce(v_estado2, '∅');
+  end if;
+
+  -- 11d — A EQUIVALÊNCIA, sobre as fixtures: para cada pessoa e cada filial da A (e o nulo),
+  --       pode_escrever_filial(f) = (A, f) ∈ unidades_de_escrita(). As filiais da B entram só na MEDIÇÃO: ali a
+  --       divergência é o defeito que a troca conserta (`pode_escrever_filial` diz sim a admin em QUALQUER filial).
+  v_ruins := 0; v_rotulos := ''; v_cnt := 0; v_soma := 0;
+  foreach v_uid_p in array array[k_admin_a, k_operador, k_consultor, k_plataforma, k_admin_b, k_oper_b, k_inativo] loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid_p, 'role', 'authenticated')::text, true);
+    for v_tab in select f.id::smallint as fid, f.empresa_id from public.filiais f
+                 union all select null::smallint, v_emp_a loop
+      if v_tab.empresa_id = v_emp_a then
+        v_cnt := v_cnt + 1;
+        if coalesce(public.pode_escrever_filial(v_tab.fid), false)
+           is distinct from exists (select 1 from public.unidades_de_escrita() u
+                                     where u.empresa_id = v_emp_a and u.filial_id = v_tab.fid) then
+          v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_uid_p || '/' || coalesce(v_tab.fid::text, 'nula');
+        end if;
+      elsif coalesce(public.pode_escrever_filial(v_tab.fid), false)
+            is distinct from exists (select 1 from public.unidades_de_escrita() u
+                                      where u.empresa_id = v_tab.empresa_id and u.filial_id = v_tab.fid) then
+        v_soma := v_soma + 1;
+      end if;
+    end loop;
+  end loop;
+  perform set_config('request.jwt.claims', '', true);
+  raise notice '(medição) 11d nas filiais da B, pode_escrever_filial e os pares divergem em % pares pessoa × filial (o defeito que a troca conserta: admin da A "escreveria" na B pela regra antiga)', v_soma;
+  if pg_temp.assert_zero_de('11d a forma de pares é EQUIVALENTE a pode_escrever_filial em toda pessoa × filial da A (inclusive desativada) e no nulo' ||
+       case when v_ruins > 0 then ' — divergem:' || v_rotulos else '' end, v_ruins, v_cnt) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  -- [bateria-f66:fim]
 
   raise notice 'FIM isolamento_tenant: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

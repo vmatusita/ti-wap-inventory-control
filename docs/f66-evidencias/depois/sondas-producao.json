@@ -1,0 +1,119 @@
+{
+  "instrumento": "docs/f66-evidencias/sonda-lote.sql",
+  "alvo": "producao",
+  "sha_codigo": "31b9a16",
+  "rodadas": [
+    {
+      "momento": "00-antes (refeita logo antes do primeiro apply, depois da linha de base de TTFB)",
+      "sonda": {
+        "rel": "rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9",
+        "as_11": "eb294504b0b6cec30936d10de6f9d001",
+        "public": "886118ad686f67c857cf0d370fd6828d",
+        "indices": "42537da2721d8e73fad75aac7e75d0ad",
+        "storage": "f116b8d0da8bda75038564a44720c2e8",
+        "relfilenode": "ba90992244a8a6ffc13901ceb34f86ee",
+        "citam_empresa_id": 0,
+        "to_authenticated": 62,
+        "funcoes_sem_as_da_f66": "75d18f2377d15a7f66ff41685bacc926",
+        "citam_unidades_de_escrita": 0,
+        "citam_pode_escrever_filial": 6
+      },
+      "esperado_public": "886118ad686f67c857cf0d370fd6828d",
+      "public_confere": true
+    },
+    {
+      "momento": "01-depois da 0175 (recorte_policies_cadastros_do_acervo)",
+      "sonda": {
+        "rel": "rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9",
+        "as_11": "eb294504b0b6cec30936d10de6f9d001",
+        "public": "e55c75d07d245f7ed81d6203e801e538",
+        "indices": "42537da2721d8e73fad75aac7e75d0ad",
+        "storage": "f116b8d0da8bda75038564a44720c2e8",
+        "relfilenode": "ba90992244a8a6ffc13901ceb34f86ee",
+        "citam_empresa_id": 13,
+        "to_authenticated": 62,
+        "funcoes_sem_as_da_f66": "75d18f2377d15a7f66ff41685bacc926",
+        "citam_unidades_de_escrita": 0,
+        "citam_pode_escrever_filial": 6
+      },
+      "esperado_public": "e55c75d07d245f7ed81d6203e801e538",
+      "public_confere": true,
+      "conta_a_conta": "conta-a-conta/producao-real-depois-0175.json"
+    },
+    {
+      "momento": "02-depois da 0176 (recorte_policies_movimento_do_acervo)",
+      "sonda": {
+        "rel": "rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9",
+        "as_11": "eb294504b0b6cec30936d10de6f9d001",
+        "public": "e7d55e81ed85d175ba8ffcba707b9ebc",
+        "indices": "42537da2721d8e73fad75aac7e75d0ad",
+        "storage": "f116b8d0da8bda75038564a44720c2e8",
+        "relfilenode": "ba90992244a8a6ffc13901ceb34f86ee",
+        "citam_empresa_id": 23,
+        "to_authenticated": 62,
+        "funcoes_sem_as_da_f66": "75d18f2377d15a7f66ff41685bacc926",
+        "citam_unidades_de_escrita": 6,
+        "citam_pode_escrever_filial": 0
+      },
+      "esperado_public": "e7d55e81ed85d175ba8ffcba707b9ebc",
+      "public_confere": true,
+      "conta_a_conta": "conta-a-conta/producao-real-depois-0176.json"
+    },
+    {
+      "momento": "03-depois da 0177 (recorte_policies_vocabulario)",
+      "sonda": {
+        "rel": "rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9",
+        "as_11": "eb294504b0b6cec30936d10de6f9d001",
+        "public": "60f90a0f81861934451707a9a49d3b9c",
+        "indices": "42537da2721d8e73fad75aac7e75d0ad",
+        "storage": "f116b8d0da8bda75038564a44720c2e8",
+        "relfilenode": "ba90992244a8a6ffc13901ceb34f86ee",
+        "citam_empresa_id": 44,
+        "to_authenticated": 62,
+        "funcoes_sem_as_da_f66": "75d18f2377d15a7f66ff41685bacc926",
+        "citam_unidades_de_escrita": 6,
+        "citam_pode_escrever_filial": 0
+      },
+      "esperado_public": "60f90a0f81861934451707a9a49d3b9c",
+      "public_confere": true,
+      "conta_a_conta": "conta-a-conta/producao-real-depois-0177.json"
+    },
+    {
+      "momento": "04-depois da 0178 (recorte_policies_registros_e_vinculos)",
+      "sonda": {
+        "rel": "rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9",
+        "as_11": "eb294504b0b6cec30936d10de6f9d001",
+        "public": "aa0db1b370af139c1799fb58803ed377",
+        "indices": "42537da2721d8e73fad75aac7e75d0ad",
+        "storage": "f116b8d0da8bda75038564a44720c2e8",
+        "relfilenode": "ba90992244a8a6ffc13901ceb34f86ee",
+        "citam_empresa_id": 51,
+        "to_authenticated": 62,
+        "funcoes_sem_as_da_f66": "75d18f2377d15a7f66ff41685bacc926",
+        "citam_unidades_de_escrita": 6,
+        "citam_pode_escrever_filial": 0
+      },
+      "esperado_public": "aa0db1b370af139c1799fb58803ed377",
+      "public_confere": true,
+      "conta_a_conta": "conta-a-conta/producao-real-depois-0178.json"
+    },
+    {
+      "momento": "05-depois da 0179 (rel_motivo_por_empresa) — o estado final: rel com o md5 do oráculo (c8ecce6f/ae0911e4); ACL, dono, invoker, stable e search_path preservados",
+      "sonda": {
+        "rel": "rel_por_motivo_filiais:c8ecce6f3ba9b8b5611612fa45b2ab68,rel_resumo_filiais:ae0911e4075ea007960b6de87d80ce57",
+        "as_11": "eb294504b0b6cec30936d10de6f9d001",
+        "public": "aa0db1b370af139c1799fb58803ed377",
+        "indices": "42537da2721d8e73fad75aac7e75d0ad",
+        "storage": "f116b8d0da8bda75038564a44720c2e8",
+        "relfilenode": "ba90992244a8a6ffc13901ceb34f86ee",
+        "citam_empresa_id": 51,
+        "to_authenticated": 62,
+        "funcoes_sem_as_da_f66": "75d18f2377d15a7f66ff41685bacc926",
+        "citam_unidades_de_escrita": 6,
+        "citam_pode_escrever_filial": 0
+      },
+      "esperado_public": "aa0db1b370af139c1799fb58803ed377",
+      "public_confere": true
+    }
+  ]
+}

@@ -108,7 +108,11 @@ declare
   -- cria `guarda_empresa`/`termo_da_empresa` e recria `vocabulario_unidades_guarda`; todas as outras ficam byte a byte.
   -- ⚠ O CI é a régua: a mesa em PGlite (Postgres em WASM) mede outro valor para a MESMA cadeia (9fa5e466…), igual com o
   -- roteiro sozinho e com a suíte inteira — diferença de ambiente, não de ordem de roteiro (nenhum deixa função em public).
-  k_funcoes_pre_0165 constant text := 'b3c0d79079c66f2b66f7903a54ede79f';
+  -- F66 (24/09/2026): o conjunto encolhe nas duas `rel_*` que a 0179 recria (o join pelo par da FK composta) — a
+  -- constante de antes, `b3c0d790…` (a F65: fora das três), dá lugar à do conjunto fora das CINCO, medida no CI na
+  -- cadeia até a 0174 (run 36010011561, push 1 da F66, 100 funções; docs/f66-evidencias/B-travas/). É o mesmo fato: a
+  -- L4 estava verde na 0174 contra `b3c0d790…`, e um subconjunto de um conjunto igual é igual. (A mesa PGlite: 54002b61….)
+  k_funcoes_pre_0165 constant text := '3a2a800078ad78118817492277d3e6d8';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() da 0139 (o dos dois bancos antes da F65).
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
 begin
@@ -517,17 +521,23 @@ begin
        'L2 um alter column … type com reescrita MUDA o relfilenode (o instrumento vê a reescrita)',
        case when pg_relation_filenode('public.f65_instrumento_pai'::regclass) <> v_r0 then 0 else 1 end, 1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
-  -- L4: o corpo das funções que a F65 não cria nem recria é o de antes da 0165
+  -- L4: o corpo das funções que a F65 não cria nem recria é o de antes da 0165.
+  -- F66 (24/09/2026): e que as fases SEGUINTES não recriam nominalmente — a 0179 recria `rel_por_motivo_filiais` e
+  -- `rel_resumo_filiais` (o join pelo par da FK composta, uma condição a mais; RECRIACOES_AUTORIZADAS de
+  -- migrations-f38.test.ts). O conjunto encolhe em duas e a constante é a dele, medida no CI (push das travas da F66,
+  -- a cadeia até a 0174 — docs/f66-evidencias/B-travas/): o fato provado é o mesmo, "o resto ficou byte a byte".
   select md5(string_agg(p.oid::regprocedure::text || ':' || md5(p.prosrc), E'\n' order by p.oid::regprocedure::text))
     into v_m0
     from pg_proc p
    where p.pronamespace = 'public'::regnamespace
-     and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda');
-  raise notice '(medição) L4: md5 das funções de public fora das três da F65: % (% funções)', v_m0,
+     and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
+                           'rel_por_motivo_filiais', 'rel_resumo_filiais');
+  raise notice '(medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: % (% funções)', v_m0,
     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
-        and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda'));
+        and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
+                              'rel_por_motivo_filiais', 'rel_resumo_filiais'));
   if pg_temp.assert_zero_de(
-       'L4 o corpo das funções de public que a F65 não cria nem recria é o de antes da 0165 (md5 contra a constante do CI)' ||
+       'L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,
        case when v_m0 = k_funcoes_pre_0165 then 0 else 1 end, 1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;

@@ -181,16 +181,20 @@ describe('4. a guarda do próprio teste — reprova o que tem de reprovar (SQL s
   })
 
   it('consertar a policy sem tirar a exceção → reprova pela catraca', () => {
+    // F66: a exceção de exemplo era a de `ativos / operador atualiza`, que SAI da lista na 0176 (o par de unidade); a
+    // catraca se prova agora com uma exceção permanente, que não depende de fase.
     const j = comSintetica(
-      'alter policy "operador atualiza" on public.ativos using ((select public.pode_escrever())) with check ((select public.pode_escrever()));',
+      'alter policy "operador apaga" on public.termos_gerados using ((select public.pode_escrever()));',
     )
-    expect(j.excecoesSemOcorrencia.map((e) => e.chave)).toEqual(['public.ativos / operador atualiza / pode_escrever_filial'])
+    expect(j.excecoesSemOcorrencia.map((e) => e.chave)).toEqual(['public.termos_gerados / operador apaga / pode_escrever_termo'])
     expect(j.violacoes).toEqual([])
   })
 
   it.each([
     ['a forma-alvo içada', 'using (empresa_id = any (array (select public.empresas_do_membro())))'],
     ['a forma de pares', 'using ((empresa_id, filial_id) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u))'],
+    ['o par do snapshot (F66)', "using ((empresa_id, (snapshot_anterior ->> 'filial_id')::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u))"],
+    ['a conjunção da F66', 'using ((select public.papel_atual()) is not null and empresa_id = any (array (select public.empresas_do_membro())))'],
     ['o piso', 'using ((select public.papel_atual()) is not null)'],
     ['a identidade içada', 'using (id = (select auth.uid()))'],
     ['o literal', "using (bucket_id = 'termos')"],

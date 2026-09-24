@@ -1,0 +1,496 @@
+{
+  "rotulo": "f66-rls-producao-antes",
+  "alvo": "producao",
+  "canal": "MCP da Supabase (execute_sql), bloco do … raise exception",
+  "sha_codigo": "06357acacdae36b2745b5caeaa0f832bb099c6c9",
+  "gerado_em": "2026-09-24T13:16:30.982Z",
+  "metodo": "explain (analyze, buffers, verbose, format json), 1 aquecimento por forma, N=9 repetições intercaladas F0→F4; como authenticated com request.jwt.claims da identidade escolhida no banco; transaction_read_only = on; o bloco termina em raise exception; mediana e p95 por posto mais próximo (com N=9 o p95 é a maior amostra); buffers do nó raiz.",
+  "postgres": "17.6",
+  "celulas": [
+    {
+      "tabela": "ativos",
+      "identidade": "admin",
+      "forma": "F0",
+      "descricao": "a leitura com a RLS de hoje (piso papel_atual)",
+      "execucao_ms": {
+        "mediana": 1.38,
+        "p95": 1.623,
+        "min": 1.224,
+        "max": 1.623,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.064,
+        "p95": 0.116,
+        "min": 0.053,
+        "max": 0.116,
+        "n": 9
+      },
+      "custo_total_estimado": 123.75,
+      "buffers_raiz": {
+        "hit_mediana": 110,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 1649,
+      "linhas_esperadas": 1649,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 1"
+        ],
+        "loops_subplanos": [
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": []
+      }
+    },
+    {
+      "tabela": "ativos",
+      "identidade": "admin",
+      "forma": "F1",
+      "descricao": "por linha: fn(coluna)",
+      "execucao_ms": {
+        "mediana": 129.525,
+        "p95": 138.091,
+        "min": 122.728,
+        "max": 138.091,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.069,
+        "p95": 0.114,
+        "min": 0.055,
+        "max": 0.114,
+        "n": 9
+      },
+      "custo_total_estimado": 536,
+      "buffers_raiz": {
+        "hit_mediana": 5057,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 1649,
+      "linhas_esperadas": 1649,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 1"
+        ],
+        "loops_subplanos": [
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": [
+          "ativos"
+        ]
+      }
+    },
+    {
+      "tabela": "ativos",
+      "identidade": "admin",
+      "forma": "F2",
+      "descricao": "falso içamento: (select fn(coluna))",
+      "execucao_ms": {
+        "mediana": 131.105,
+        "p95": 137.266,
+        "min": 125.847,
+        "max": 137.266,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.095,
+        "p95": 0.136,
+        "min": 0.089,
+        "max": 0.136,
+        "n": 9
+      },
+      "custo_total_estimado": 552.49,
+      "buffers_raiz": {
+        "hit_mediana": 5057,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 1649,
+      "linhas_esperadas": 1649,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Result",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 2",
+          "SubPlan 1"
+        ],
+        "loops_subplanos": [
+          1,
+          1649
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": true,
+        "relacoes_com_a_funcao_no_filtro": []
+      }
+    },
+    {
+      "tabela": "ativos",
+      "identidade": "admin",
+      "forma": "F3",
+      "descricao": "içada: col = any (array (select … conjunto …))",
+      "execucao_ms": {
+        "mediana": 2.629,
+        "p95": 2.76,
+        "min": 2.587,
+        "max": 2.76,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.147,
+        "p95": 0.177,
+        "min": 0.141,
+        "max": 0.177,
+        "n": 9
+      },
+      "custo_total_estimado": 147.18,
+      "buffers_raiz": {
+        "hit_mediana": 132,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 1649,
+      "linhas_esperadas": 1649,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Seq Scan",
+          "Result",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 2",
+          "InitPlan 1",
+          "InitPlan 3"
+        ],
+        "loops_subplanos": [
+          1,
+          1,
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": [
+          "filiais"
+        ]
+      }
+    },
+    {
+      "tabela": "ativos",
+      "identidade": "admin",
+      "forma": "F4",
+      "descricao": "a conjunção da F66: RLS de hoje ∧ empresa_id = any (array (select public.empresas_do_membro()))",
+      "execucao_ms": {
+        "mediana": 2.055,
+        "p95": 2.483,
+        "min": 1.869,
+        "max": 2.483,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.112,
+        "p95": 0.15,
+        "min": 0.079,
+        "max": 0.15,
+        "n": 9
+      },
+      "custo_total_estimado": 74,
+      "buffers_raiz": {
+        "hit_mediana": 124,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 1649,
+      "linhas_esperadas": 1649,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Bitmap Heap Scan",
+          "ProjectSet",
+          "Result",
+          "Result",
+          "Bitmap Index Scan"
+        ],
+        "subplanos": [
+          "InitPlan 1",
+          "InitPlan 2"
+        ],
+        "loops_subplanos": [
+          1,
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": []
+      }
+    },
+    {
+      "tabela": "movimentacoes",
+      "identidade": "admin",
+      "forma": "F0",
+      "descricao": "a leitura com a RLS de hoje (piso papel_atual)",
+      "execucao_ms": {
+        "mediana": 2.425,
+        "p95": 2.856,
+        "min": 2.152,
+        "max": 2.856,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.094,
+        "p95": 0.302,
+        "min": 0.082,
+        "max": 0.302,
+        "n": 9
+      },
+      "custo_total_estimado": 319.57,
+      "buffers_raiz": {
+        "hit_mediana": 286,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 3638,
+      "linhas_esperadas": 3638,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 1"
+        ],
+        "loops_subplanos": [
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": []
+      }
+    },
+    {
+      "tabela": "movimentacoes",
+      "identidade": "admin",
+      "forma": "F1",
+      "descricao": "por linha: fn(coluna)",
+      "execucao_ms": {
+        "mediana": 305.054,
+        "p95": 337.724,
+        "min": 267.685,
+        "max": 337.724,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.096,
+        "p95": 0.134,
+        "min": 0.078,
+        "max": 0.134,
+        "n": 9
+      },
+      "custo_total_estimado": 1227.32,
+      "buffers_raiz": {
+        "hit_mediana": 11200,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 3638,
+      "linhas_esperadas": 3638,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 1"
+        ],
+        "loops_subplanos": [
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": [
+          "movimentacoes"
+        ]
+      }
+    },
+    {
+      "tabela": "movimentacoes",
+      "identidade": "admin",
+      "forma": "F2",
+      "descricao": "falso içamento: (select fn(coluna))",
+      "execucao_ms": {
+        "mediana": 316.088,
+        "p95": 360.936,
+        "min": 272.772,
+        "max": 360.936,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.1,
+        "p95": 0.153,
+        "min": 0.096,
+        "max": 0.153,
+        "n": 9
+      },
+      "custo_total_estimado": 1263.63,
+      "buffers_raiz": {
+        "hit_mediana": 11200,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 3638,
+      "linhas_esperadas": 3638,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Result",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 2",
+          "SubPlan 1"
+        ],
+        "loops_subplanos": [
+          1,
+          3638
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": true,
+        "relacoes_com_a_funcao_no_filtro": []
+      }
+    },
+    {
+      "tabela": "movimentacoes",
+      "identidade": "admin",
+      "forma": "F3",
+      "descricao": "içada: col = any (array (select … conjunto …))",
+      "execucao_ms": {
+        "mediana": 3.547,
+        "p95": 4.443,
+        "min": 3.443,
+        "max": 4.443,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.159,
+        "p95": 0.176,
+        "min": 0.145,
+        "max": 0.176,
+        "n": 9
+      },
+      "custo_total_estimado": 367.78,
+      "buffers_raiz": {
+        "hit_mediana": 308,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 3638,
+      "linhas_esperadas": 3638,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Seq Scan",
+          "Seq Scan",
+          "Result",
+          "Result"
+        ],
+        "subplanos": [
+          "InitPlan 2",
+          "InitPlan 1",
+          "InitPlan 3"
+        ],
+        "loops_subplanos": [
+          1,
+          1,
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": [
+          "filiais"
+        ]
+      }
+    },
+    {
+      "tabela": "movimentacoes",
+      "identidade": "admin",
+      "forma": "F4",
+      "descricao": "a conjunção da F66: RLS de hoje ∧ empresa_id = any (array (select public.empresas_do_membro()))",
+      "execucao_ms": {
+        "mediana": 3.627,
+        "p95": 4.656,
+        "min": 3.237,
+        "max": 4.656,
+        "n": 9
+      },
+      "planejamento_ms": {
+        "mediana": 0.13,
+        "p95": 0.304,
+        "min": 0.115,
+        "max": 0.304,
+        "n": 9
+      },
+      "custo_total_estimado": 161.01,
+      "buffers_raiz": {
+        "hit_mediana": 271,
+        "read_mediana": 0
+      },
+      "linhas_devolvidas": 3638,
+      "linhas_esperadas": 3638,
+      "linhas_conferem": true,
+      "nos": {
+        "tipos": [
+          "Bitmap Heap Scan",
+          "ProjectSet",
+          "Result",
+          "Result",
+          "Bitmap Index Scan"
+        ],
+        "subplanos": [
+          "InitPlan 1",
+          "InitPlan 2"
+        ],
+        "loops_subplanos": [
+          1,
+          1
+        ],
+        "piso_rls_no_plano": true,
+        "filtro_por_subplano": false,
+        "relacoes_com_a_funcao_no_filtro": []
+      }
+    }
+  ],
+  "rls": [
+    {
+      "tabela": "ativos",
+      "identidade": "admin",
+      "papel_na_medicao": "authenticated",
+      "controle_negativo_linhas": 0,
+      "piso_no_plano_em_todas_as_formas": true,
+      "vale": true
+    },
+    {
+      "tabela": "movimentacoes",
+      "identidade": "admin",
+      "papel_na_medicao": "authenticated",
+      "controle_negativo_linhas": 0,
+      "piso_no_plano_em_todas_as_formas": true,
+      "vale": true
+    }
+  ],
+  "pendencias": []
+}

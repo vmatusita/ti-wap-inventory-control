@@ -104,6 +104,8 @@ savepoint s_rollback;
 -- cargo, a cópia de volta e o esquema de antes da F62.
 -- F65 (23/09/2026): e a F65 sai antes da F64 — as FKs compostas, os uniques por empresa e o gatilho
 -- `UPDATE OF empresa_id` dependem das colunas que os rollbacks de depois derrubam.
+-- F66 (24/09/2026): e a F66 antes de todas — as policies dela citam `empresa_id` e as funções de conjunto da F62.
+\ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql
 \ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql
@@ -118,6 +120,7 @@ rollback to savepoint s_rollback;
 -- ---------------------------------------------------------------------------
 -- O ROLLBACK NA ORDEM ESCRITA: a cópia de volta PRIMEIRO
 -- ---------------------------------------------------------------------------
+\ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql
 \ir ../rollback/F64-desfaz.sql
 \ir ../rollback/F63-desfaz.sql

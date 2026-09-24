@@ -6,6 +6,32 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 24/09/2026 — F66 · As policies ganham o recorte, em conjunção ✅
+
+**v1.71.0** · **com migrations `0175`–`0179`**, aplicadas no ensaio e em produção antes do merge · A quinta fase da virada
+multiempresa. As **51 policies de `public`** cuja tabela tem `empresa_id` passam a citar o termo de empresa
+`empresa_id = any (array (select public.<função de conjunto>()))`, **em AND com o piso de hoje, que fica por extenso** —
+com a função da CLASSE de cada policy: `empresas_do_membro()` na leitura pelo piso, `empresas_de_escrita()` na escrita,
+`empresas_de_admin()` no cargo (quem administra uma empresa e só consulta outra lê as duas e administra só a sua). As
+**seis de escrita por unidade** trocam `pode_escrever_filial(filial_id)` pelo PAR `(empresa_id, filial_id)` sobre
+`unidades_de_escrita()` (decisão do Johnny), provado **conta a conta** — cada membership, cada filial, cada tabela, nos
+dois bancos, antes (emulado) e depois de cada lote (real), 0 divergência; a doutrina do predicado perdeu seis exceções
+(18 → 12). Quatro lotes de `alter policy` por família (o ACCESS EXCLUSIVE numa transação só), `lock_timeout` de 2 s.
+`rel_por_motivo_filiais` e `rel_resumo_filiais` juntam `motivos` pelo par `(empresa_id, codigo)` (o membro de duas
+empresas não vê mais a linha em dobro). **Nenhuma tupla reescrita e nenhum índice** — medido: sob o `= any` de um
+`InitPlan`, o índice liderado por `empresa_id` não serve a lista ordenada; ele vai para a fase da tela por empresa, com
+a igualdade. O CHECK de comprimento virou uma fase própria (decisão do Johnny: só a ficha, com o censo medido) e a
+auditoria não mudou de forma (decisão do Johnny: só a leitura dela ganhou o recorte). Travas: o bloco 6 de
+`catalogo_policies.sql` (16a–16g: o termo da classe lido da ÁRVORE de cada policy, na conjunção de cima; os pares; as
+três exceções sem a coluna; `to authenticated` em public e Storage; a guarda do analisador), a bateria de LEITURA entre
+empresas em `isolamento_tenant.sql` (direção A com as policies reais, direção B com o piso neutralizado, o membro das
+duas, a escrita cruzada com o ator que lê a outra empresa, os pares, as `rel_*` sem duplicar), `f66_rollback.sql`
+(contra o "antes" dos dois bancos vivos, com os rollbacks das fases anteriores rodando o da F66 antes), as de mesa (a
+fonte única do recorte, a completude do rollback, os instrumentos) e oito mutações novas no injetor (teto 151). Regras:
+MATRIZ R-ACC-108 a R-ACC-116; ADR-001, ADR-002 e RUNBOOK, emendas F66. Relatório em
+[`docs/RELATORIO-F66.md`](docs/RELATORIO-F66.md); plano em [`docs/PLAN-F66.md`](docs/PLAN-F66.md); ata em
+[`docs/DECISOES.md`](docs/DECISOES.md).
+
 ## 23/09/2026 — F65 · A integridade estrutural do tenant ✅
 
 **v1.70.0** · **com migrations `0165`–`0174`**, aplicadas no ensaio e em produção antes do merge (a `0174`, o passo final

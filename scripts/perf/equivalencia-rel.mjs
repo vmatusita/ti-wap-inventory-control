@@ -95,6 +95,26 @@
 //   · este bloco. O `--corpos` continua apontando um arquivo FORA do repositório (o rascunho medido).
 // Os modos `*-real` (revisão final da F60) são ACRÉSCIMO: sem `real`, os geradores emitem, byte a byte,
 // o mesmo SQL de antes (conferido por diff na revisão).
+//
+// F66 (24/09/2026) — O MODO `mesmo-nome` (PLAN-F66, decisão 9). A `0179` recria `rel_por_motivo_filiais` e
+// `rel_resumo_filiais` com o MESMO nome (o join de `motivos` pelo par `(empresa_id, codigo)`), e o `MODELO` acima
+// mapeia cada nova para a VELHA de outro nome, que a `0145` derrubou — não serve. O modo novo compara o corpo de
+// ANTES (0143) com o de DEPOIS (0179), célula a célula (data × recorte × janela), nas duas fases do apply:
+//   · `--fase antes` (antes do apply da 0179): a função VIVA é a de antes (a guarda confere o `prosrc` contra a
+//     0143) × o corpo da 0179 COLADO como subconsulta;
+//   · `--fase depois` (depois do apply): o corpo da 0143 colado × a função VIVA, que a guarda confere contra a 0179.
+// A identidade é escolhida pela MEMBERSHIP da empresa legada (o `profiles.papel` congelou na F62). Os blocos são os
+// `do $f60$` desta mesma guarda (`validarBloco`), e os modos da F60 continuam emitindo o SQL de antes, byte a byte.
+//   node equivalencia-rel.mjs gerar-mesmo-nome --alvo=ensaio|producao --ref=<ref do projeto> --fase=antes|depois \
+//        --datas=docs/perf/f60-datas-amostra.json --dir=<fora-do-repo>
+//   node equivalencia-rel.mjs analisar-mesmo-nome --alvo=… --fase=… --dir=<…> --saida=<docs/f66-evidencias/rel/…json>
+//
+// F66 — A REVISÃO ADVERSARIAL (24/09/2026) endureceu a GUARDA, e só ela (o SQL emitido por todo modo é o mesmo, byte a
+// byte): (1) a lista FECHADA de funções — o bloco é lido pelo léxico da trava de mesa (`lexar`, inclusive o SQL de
+// dentro dos literais e dos `$tag$` que o `execute` roda), e toda chamada fora de `FUNCOES_PERMITIDAS` recusa (sem ela,
+// um `--corpos` com `pg_advisory_lock(…)` — um lock de SESSÃO, que o `raise` final não desfaz — passava); (2) a lista
+// fechada de configurações, com o valor de cada uma; (3) `deallocate` em dobro de CADA `prepare`; (4) todo modo
+// `gerar-*` exige `--ref`, conferido contra `scripts/env-guard.ts` pelo `validarAlvo` do medir-rls.mjs.
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
@@ -102,6 +122,8 @@ import { join, resolve, relative, isAbsolute, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { lexar } from '../db/predicado-policies.mjs'
+import { validarAlvo } from './medir-rls.mjs'
 
 export class Recusa extends Error {}
 function recusar(msg) {
@@ -233,6 +255,58 @@ const PROIBIDAS = [
   'discard', 'load', 'import', 'security', 'reassign', 'checkpoint', 'analyse',
 ]
 
+/**
+ * As ÚNICAS funções que um bloco do modelo chama (o nome, sem schema) — medidas nos blocos de TODOS os modos (F60 e o
+ * `mesmo-nome` da F66), com os corpos das migrations. `i` é o `%I(` do `prepare` dentro de `format`; `sets`, o
+ * `grouping sets (` de um corpo; `explain`, o `explain (…)`. Função fora da lista recusa pelo NOME.
+ */
+export const FUNCOES_PERMITIDAS = new Set([
+  'array_agg', 'array_append', 'array_length', 'clock_timestamp', 'coalesce', 'count', 'current_setting', 'date_trunc',
+  'empresa_legada', 'explain', 'format', 'greatest', 'i', 'json_build_object', 'jsonb_agg', 'jsonb_build_array',
+  'jsonb_build_object', 'jsonb_object_agg', 'jsonb_object_keys', 'jsonb_path_query', 'jsonb_set', 'jsonb_strip_nulls',
+  'max', 'md5', 'min', 'nullif', 'percentile_cont', 'random', 'regexp_replace', 'repeat', 'rotulo_de_ambiente', 'round',
+  'row_number', 'set_config', 'sets', 'status_tem_detentor', 'string_agg', 'substr', 'sum', 'to_jsonb', 'to_regprocedure',
+  'unnest',
+  'rel_contagem_status_filiais', 'rel_estoque_asof', 'rel_estoque_asof_filiais', 'rel_frescor_itens',
+  'rel_frescor_itens_filiais', 'rel_mov_itens', 'rel_mov_itens_filiais', 'rel_mov_por_mes', 'rel_mov_por_mes_filiais',
+  'rel_por_motivo', 'rel_por_motivo_filiais', 'rel_resumo', 'rel_resumo_filiais', 'rel_saldo_itens',
+  'rel_saldo_itens_filiais',
+])
+/** As ÚNICAS configurações que um bloco liga, e o valor aceito (`null`: o valor é montado, como as claims). */
+const GUCS_PERMITIDOS = {
+  transaction_read_only: "'on'",
+  role: "'authenticated'",
+  plan_cache_mode: "'force_generic_plan'",
+  'request.jwt.claims': null,
+}
+/** Palavras que abrem parêntese sem serem chamada de função. */
+const ABREM_PARENTESE = new Set(
+  ('in any all some exists array values over filter and or not select from where when then else case as loop if elsif ' +
+    'return raise perform execute declare begin end exception by with lateral into on using table returns distinct cast ' +
+    'row interval partition window join left right inner outer group order limit offset having union is null like ilike ' +
+    'between do of for to set within').split(' '),
+)
+
+/** As chamadas de função de um trecho SQL, pelo léxico — inclusive o SQL de dentro dos literais e dos `$tag$`. */
+function chamadasDoBloco(sql, profundidade = 0) {
+  let lx
+  try {
+    lx = lexar(sql)
+  } catch (err) {
+    recusar(`o bloco não é SQL legível: ${err.message}`)
+  }
+  const saida = []
+  lx.tokens.forEach((tk, i, todos) => {
+    const abre = todos[i + 1]?.tipo === 'punct' && todos[i + 1].v === '('
+    const depoisDeAs = todos[i - 1]?.tipo === 'ident' && todos[i - 1].v === 'as'
+    if ((tk.tipo === 'ident' || tk.tipo === 'qident') && abre && !depoisDeAs && !(tk.tipo === 'ident' && ABREM_PARENTESE.has(tk.v))) {
+      saida.push(tk.v)
+    }
+    if ((tk.tipo === 'str' || tk.tipo === 'dollar') && profundidade < 3) saida.push(...chamadasDoBloco(tk.v, profundidade + 1))
+  })
+  return saida
+}
+
 export function validarBloco(sql) {
   const t = sql.trim()
   if (!t.startsWith('do $f60$') || !t.endsWith('end $f60$;')) recusar('bloco fora do modelo (do $f60$ … end $f60$;).')
@@ -246,11 +320,25 @@ export function validarBloco(sql) {
   }
   if (!/rotulo_de_ambiente\(\)/.test(t)) recusar('o bloco não confere rotulo_de_ambiente().')
   if (!/raise exception 'F60_(EQUIVALENCIA|KPIS|CUSTO)(_REAL)? %'/.test(t)) recusar('o bloco não termina em raise exception F60_*.')
-  // prepare/deallocate vivem DENTRO de literais de `execute format(...)`: conta no texto cru
+  // prepare/deallocate vivem DENTRO de literais de `execute format(...)`: conta no texto cru — e DOIS deallocate para
+  // CADA prepare (o caminho normal e o de erro; revisão adversarial da F66: a conta antes era "ao menos dois no total")
   const cru = t.toLowerCase()
-  const prepara = /\bprepare\b/.test(cru)
+  const prepara = (cru.match(/\bprepare\b/g) ?? []).length
   const desaloca = (cru.match(/\bdeallocate\b/g) ?? []).length
-  if (prepara && desaloca < 2) recusar('prepare sem deallocate no caminho normal E no de erro.')
+  if (prepara > 0 && desaloca < 2 * prepara) recusar('prepare sem deallocate no caminho normal E no de erro.')
+  // F66: a lista FECHADA de funções — pelo léxico, dentro dos literais e dos $tag$ também
+  for (const fn of chamadasDoBloco(t)) {
+    if (!FUNCOES_PERMITIDAS.has(fn)) recusar(`chamada a função fora do modelo: "${fn}(…)".`)
+  }
+  // F66: a lista FECHADA de configurações, com o valor
+  let comNome = 0
+  for (const m of t.matchAll(/set_config\(\s*'([^']+)'\s*,\s*([^,]+),/g)) {
+    comNome++
+    if (!(m[1] in GUCS_PERMITIDOS)) recusar(`set_config de "${m[1]}" fora da lista permitida.`)
+    const aceito = GUCS_PERMITIDOS[m[1]]
+    if (aceito !== null && m[2].trim() !== aceito) recusar(`set_config de "${m[1]}" com valor fora do modelo.`)
+  }
+  if ((t.match(/\bset_config\b/g) ?? []).length !== comNome) recusar('set_config com nome de parâmetro que não é literal.')
   return sql
 }
 
@@ -972,6 +1060,130 @@ end $f60$;`
 }
 
 // ---------------------------------------------------------------------------
+// 5b. O modo `mesmo-nome` (F66): antes × depois de uma função recriada com o MESMO nome
+// ---------------------------------------------------------------------------
+
+/** As duas funções que a F66 recria, e as migrations dos corpos de antes e de depois. */
+export const MESMO_NOME = ['rel_por_motivo_filiais', 'rel_resumo_filiais']
+export const MIGRATION_ANTES_MESMO_NOME = '0143_rel_filiais.sql'
+export const MIGRATION_DEPOIS_MESMO_NOME = '0179_rel_motivo_por_empresa.sql'
+
+/** Os corpos de antes e de depois das duas, lidos das migrations do repositório (nunca copiados). */
+export function lerCorposMesmoNome(raiz = RAIZ_REPO) {
+  const ler = (arquivo) => {
+    const texto = readFileSync(join(raiz, 'supabase', 'migrations', arquivo), 'utf8').replace(/\r\n/g, '\n')
+    const re = /create (?:or replace )?function public\.(\w+)\(\s*([^)]*?)\s*\)\s*returns table\s*\(([^)]*)\)[\s\S]*?\bas \$\$([\s\S]*?)\$\$;/g
+    const out = {}
+    for (const m of texto.matchAll(re)) {
+      if (MESMO_NOME.includes(m[1])) out[m[1]] = { parametros: separarDeclaracoes(m[2]), colunas: separarDeclaracoes(m[3]), corpo: m[4] }
+    }
+    for (const nome of MESMO_NOME) if (!out[nome]) recusar(`corpo de ${nome} ausente em ${arquivo}`)
+    return out
+  }
+  return { antes: ler(MIGRATION_ANTES_MESMO_NOME), depois: ler(MIGRATION_DEPOIS_MESMO_NOME) }
+}
+
+/** O preâmbulo do modo novo: o de `preambulo`, com a identidade escolhida pela membership (F62). */
+function preambuloPorMembership(alvo) {
+  const velho = `select p.id into v_uid
+    from public.profiles p
+   where p.ativo and p.excluido_em is null and p.papel in ('admin', 'dev')
+   order by p.id
+   limit 1;`
+  const novo = `select p.id into v_uid
+    from public.profiles p
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null and m.papel in ('admin', 'dev')
+   order by p.id
+   limit 1;`
+  const base = preambulo(alvo)
+  if (base.split(velho).length !== 2) recusar('o preâmbulo mudou — a troca da identidade não achou o trecho.')
+  return base.split(velho).join(novo)
+}
+
+/** O bloco do modo `mesmo-nome` de UMA função, numa fase (`antes`|`depois` do apply). */
+export function blocoMesmoNome(nome, corpos, alvo, datas, fase) {
+  if (!MESMO_NOME.includes(nome)) recusar(`função fora do modo mesmo-nome: ${nome}`)
+  if (!['antes', 'depois'].includes(fase)) recusar('--fase: antes | depois.')
+  const defA = corpos.antes[nome]
+  const defD = corpos.depois[nome]
+  if (JSON.stringify(defA.parametros) !== JSON.stringify(defD.parametros) || JSON.stringify(defA.colunas) !== JSON.stringify(defD.colunas)) {
+    recusar(`${nome}: a assinatura ou as colunas mudaram entre antes e depois — create or replace não permitiria.`)
+  }
+  const ordem = defA.parametros.map((p) => p.nome)
+  if (ordem.join(',') !== 'p_filiais,p_de,p_ate') recusar(`${nome}: os parâmetros não são (p_filiais, p_de, p_ate).`)
+  const tipos = Object.fromEntries(defA.parametros.map((p) => [p.nome, p.tipo]))
+  const args = ordem.map((n, i) => `%${i + 1}$L::${tipos[n]}`)
+  const mapa = Object.fromEntries(ordem.map((n, i) => [n, args[i]]))
+  const cols = defA.colunas.map((c) => c.nome).join(', ')
+  const colado = (def) => `(${substituir(escaparFormat(corpoComoConsulta(def.corpo)), mapa)}) as s(${cols})`
+  const viva = `public.${nome}(${args.join(', ')}) as s`
+  const ladoAntes = fase === 'antes' ? viva : colado(defA)
+  const ladoDepois = fase === 'antes' ? colado(defD) : viva
+  const vivo = fase === 'antes' ? defA : defD
+  const hoje = datas.reduce((a, b) => (a > b ? a : b))
+  return `do $f60$
+declare${DECLARA_COMUM}
+  v_datas date[] := array[${datas.map((d) => `date '${d}'`).join(', ')}];
+  v_hoje date := date '${hoje}';
+  v_jan_dias int[] := array[${JANELAS.map((j) => j.dias).join(', ')}];
+  v_jan_rot text[] := array[${JANELAS.map((j) => `'${j.rotulo}'`).join(', ')}];
+  v_tpl_antes text := $ta$${AGREGA(`select ${projecao(defA.colunas)} from ${ladoAntes}`)}$ta$;
+  v_tpl_depois text := $td$${AGREGA(`select ${projecao(defA.colunas)} from ${ladoDepois}`)}$td$;
+  v_di int; v_ri int; v_ji int;
+  v_d date; v_de date;
+  v_rec smallint[]; v_rot text;
+  v_cv bigint; v_hv text; v_cn bigint; v_hn text;
+  v_celulas int := 0; v_iguais int := 0; v_diverg int := 0; v_vazias int := 0;
+  v_lv bigint := 0; v_ln bigint := 0;
+  v_lista jsonb := '[]'::jsonb;
+  v_md5_vivo text;
+begin
+  ${preambuloPorMembership(alvo)}
+
+  -- 4a. a função VIVA é a da fase: a de antes (0143) antes do apply, a de depois (0179) depois
+  select md5(regexp_replace(pr.prosrc, '\\s+', ' ', 'g')) into v_md5_vivo
+    from pg_proc pr where pr.oid = to_regprocedure('public.${nome}(${defA.parametros.map((p) => p.tipo).join(', ')})');
+  if v_md5_vivo is null then
+    raise exception 'F60_FUNCAO_NOVA_AUSENTE ${nome}';
+  end if;
+  if v_md5_vivo <> '${md5Normalizado(vivo.corpo)}' then
+    raise exception 'F60_CORPO_VIVO_DIFERENTE ${nome} fase=${fase}';
+  end if;
+
+  -- 4. as células: data × recorte × janela — o corpo de ANTES × o de DEPOIS, com os mesmos literais tipados
+  for v_di in 1 .. array_length(v_datas, 1) loop
+    v_d := v_datas[v_di];
+    for v_ri in 0 .. array_length(v_todas, 1) loop
+      if v_ri = 0 then
+        v_rec := v_todas; v_rot := 'consolidado';
+      else
+        v_rec := array[v_todas[v_ri]]; v_rot := 'f' || v_ri;
+      end if;
+        for v_ji in 1 .. ${JANELAS.length} loop
+          v_de := v_d - v_jan_dias[v_ji];
+          execute format(v_tpl_antes, v_rec, v_de, v_d) into v_cv, v_hv;
+          execute format(v_tpl_depois, v_rec, v_de, v_d) into v_cn, v_hn;${acumula('v_jan_rot[v_ji]', 'null::text')}
+        end loop;
+    end loop;
+  end loop;
+
+  raise exception 'F60_EQUIVALENCIA %', jsonb_build_object(
+    '_canal', repeat('.', 120000),
+    'modo', 'mesmo-nome', 'fase', '${fase}', 'alvo', '${alvo}', 'funcao', '${nome}',
+    'md5_corpo_antes_normalizado', '${md5Normalizado(defA.corpo)}',
+    'md5_corpo_depois_normalizado', '${md5Normalizado(defD.corpo)}',
+    'postgres', current_setting('server_version'), 'papel', current_user,
+    'n_filiais', array_length(v_todas, 1), 'ordinais_inativos', to_jsonb(v_inativos),
+    'n_datas', array_length(v_datas, 1),
+    'celulas', v_celulas, 'iguais', v_iguais, 'divergentes', v_diverg,
+    'celulas_vazias_nos_dois', v_vazias,
+    'linhas_antes_total', v_lv, 'linhas_depois_total', v_ln,
+    'lista', v_lista);
+end $f60$;`
+}
+
+// ---------------------------------------------------------------------------
 // 6. Leitura das respostas gravadas do canal MCP
 // ---------------------------------------------------------------------------
 
@@ -1079,8 +1291,63 @@ async function main() {
     'gerar-custo-real',
     'analisar-equivalencia',
     'analisar-custo',
+    'gerar-mesmo-nome',
+    'analisar-mesmo-nome',
   ]
   if (!modos.includes(o.modo)) recusar(`modo: ${modos.join(' | ')}.`)
+
+  // F66 (revisão adversarial): todo modo que GERA comando exige --ref, conferido contra scripts/env-guard.ts ANTES de
+  // gravar qualquer arquivo — o rotulo_de_ambiente() dentro do bloco continua sendo a segunda trava.
+  if (o.modo.startsWith('gerar-')) {
+    if (!ALVOS[o.alvo]) recusar(`--alvo: ${Object.keys(ALVOS).join(' | ')}.`)
+    try {
+      validarAlvo(o.alvo, o.ref)
+    } catch (err) {
+      recusar(err.message.replace(/^medir-rls: RECUSADO — /, ''))
+    }
+    if (ALVOS[o.alvo].projeto !== o.ref) recusar(`--ref não é o projeto do alvo ${o.alvo}.`)
+  }
+
+  if (o.modo === 'gerar-mesmo-nome' || o.modo === 'analisar-mesmo-nome') {
+    if (!ALVOS[o.alvo]) recusar(`--alvo: ${Object.keys(ALVOS).join(' | ')}.`)
+    if (!['antes', 'depois'].includes(o.fase)) recusar('--fase: antes | depois.')
+    validarDirFora(o.dir)
+    if (o.modo === 'gerar-mesmo-nome') {
+      if (!o.datas) recusar('--datas é obrigatório (o f60-datas-amostra.json).')
+      const datas = JSON.parse(readFileSync(o.datas, 'utf8')).datas.map((d) => d.data)
+      for (const d of datas) if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) recusar(`data fora do formato: ${d}`)
+      const corpos = lerCorposMesmoNome()
+      const gravados = MESMO_NOME.map((nome) => gravar(o.dir, `mesmo-nome-${o.fase}-${o.alvo}-${nome}`, blocoMesmoNome(nome, corpos, o.alvo, datas, o.fase)))
+      console.log(JSON.stringify({ gravados, projeto: ALVOS[o.alvo].projeto }, null, 2))
+      return
+    }
+    if (!o.saida) recusar('--saida é obrigatório.')
+    const funcoes = {}
+    for (const nome of MESMO_NOME) {
+      const arq = join(o.dir, 'respostas', `mesmo-nome-${o.fase}-${o.alvo}-${nome}.resposta.txt`)
+      if (!existsSync(arq)) recusar(`sem resposta gravada: ${arq}`)
+      const p = lerPayload(readFileSync(arq, 'utf8'), 'F60_EQUIVALENCIA')
+      if (p.recusa) recusar(`o banco recusou: ${p.recusa}`)
+      delete p._canal
+      if (p.modo !== 'mesmo-nome' || p.fase !== o.fase || p.alvo !== o.alvo || p.funcao !== nome) recusar(`resposta de ${nome} não corresponde ao comando.`)
+      funcoes[nome] = p
+    }
+    const total = Object.values(funcoes).reduce((a, p) => a + p.divergentes, 0)
+    const saida = {
+      rotulo: `f66-rel-mesmo-nome-${o.fase}-${o.alvo}`,
+      sha_codigo: shaDoCodigo(),
+      gerado_em: new Date().toISOString(),
+      metodo:
+        'o corpo da 0143 × o da 0179, célula a célula (as datas de f60-datas-amostra.json × consolidado e cada filial por ordinal × ' +
+        'janelas 7d/365d): count(*) e md5 das linhas ordenadas nos dois lados; antes do apply a função viva é a de antes e o corpo ' +
+        'novo vai colado, depois o inverso; a guarda confere o prosrc vivo; identidade admin pela membership; raise exception no fim.',
+      divergentes_total: total,
+      funcoes,
+    }
+    writeFileSync(join(raizRepo(), o.saida), JSON.stringify(saida, null, 2) + '\n')
+    console.log(`gravado ${o.saida}: ${total} célula(s) divergente(s)`)
+    return
+  }
 
   if (o.modo === 'gerar-ab-asof') {
     if (!o.corpos) recusar('--corpos é obrigatório.')

@@ -116,6 +116,11 @@ language sql as $f$
        + (select count(*) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relname like '%\_f65')
 $f$;
 
+-- F66 (24/09/2026): a F66 sai antes de todas — as policies dela citam `empresa_id` (que os rollbacks da F64 e da F63
+-- derrubam) e as funções de conjunto (que o da F62 derruba), e a impressão de antes tem de ser o estado que as fases
+-- anteriores deixaram. O que este roteiro prova não muda.
+\ir ../rollback/F66-desfaz.sql
+
 select pg_temp.f65_impressao_esquema(true) as antes_sem_f65,
        pg_temp.f65_objetos()               as objetos_antes
 \gset

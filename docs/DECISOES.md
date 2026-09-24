@@ -13527,3 +13527,123 @@ rollback disparou. Evidências em `f65-evidencias/depois/`; os números no §6 e
 - **(q) A hora do ledger é a de Brasília.** A versão que o `apply_migration` grava (`20260924083446`…) é a hora local
   (-03), não UTC: a `0174` em produção é `…084939` e o deploy foi às 11:48:34 UTC — 08:49 -03 vem depois dele. As
   evidências passam a dizer o fuso por extenso.
+
+## 2026-09-24 · F66 (v1.71.0) · as policies ganham o recorte, em conjunção
+
+**Contexto.** Ordem [`prompts/F66-policies-ganham-o-recorte-ultracode.md`](prompts/F66-policies-ganham-o-recorte-ultracode.md),
+a quinta fase da virada. Plano medido em [`PLAN-F66.md`](PLAN-F66.md) (os 28 fatos remedidos, a tabela-verdade das 54
+policies, o censo e a medição dos índices, a releitura das 102 leituras, as quinze decisões, a ordem de apply e de
+rollback). Migrations `0175`–`0179`. Relatório em [`RELATORIO-F66.md`](RELATORIO-F66.md). Regras novas: MATRIZ R-ACC-108
+a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66; PLANO, a ficha F66B e as notas F66 em F67/F70/F72.
+
+**As três decisões do Johnny (24/09/2026), que mudam a ficha:**
+1. **O CHECK de comprimento vira a fase F66B.** A F66 só escreve a ficha dela, com o censo medido (36 CHECK, 7 de
+   comprimento, só 2 com máximo nas 20 de negócio; 65 colunas de texto; 79 `.max()` do Zod; 0 violação contra os tetos
+   de hoje; o import aborta inteiro se um CHECK disparar numa linha). **Desvio declarado** do item da ficha F66.
+2. **A troca de `pode_escrever_filial` pela forma de pares ENTRA**, provada conta a conta em produção — só contagens de
+   divergência saem do banco.
+3. **`eventos_admin` não muda de forma**: só a leitura ganha o recorte (o jsonb fica — 102 linhas, 4.946 bytes a maior,
+   110.769 a soma, nenhuma acima de 8 kB). **Desvio declarado** da sugestão da ficha (mandar o jsonb para o bucket).
+
+**As quinze decisões da fase** (detalhe no `PLAN-F66.md` §5):
+1. **Cinco migrations, quatro lotes de policy por família** (`0175` os cadastros do acervo, `0176` o movimento com os
+   pares, `0177` o vocabulário, `0178` os registros e vínculos) e a `0179` das `rel_*`: o `alter policy` toma ACCESS
+   EXCLUSIVE até o commit, e o `apply_migration` é uma transação. Entre os lotes, nos bancos vivos, a prova conta a conta
+   real (a ficha pedia `isolamento_tenant.sql` verde entre eles — no CI a cadeia roda inteira; **desvio declarado**).
+2. **A tabela-verdade** em `k_recorte_classe`: a classe sai do piso; `import_logs` "leitura operador" é por `e_admin()`
+   (o nome engana).
+3. **A forma de pares**, com o snapshot de `movimentacoes` no segundo par; `k_excecoes_predicado` 18 → 12.
+4. **`alter policy` literal, nunca `drop`/`create`**, o piso por extenso.
+5. **O bloco 6 de `catalogo_policies.sql`** (16a–16g) lê a ÁRVORE com assinatura por nó; o 15g e o 7a saem; 7d/6b ficam
+   com a metade da função. As inversões entram no MESMO commit das travas vermelhas (a 16a vermelha e o 15g verde diriam
+   coisas opostas); as que dependem de uma migration (as 6 exceções, as `rel_*`, a `L4`) vão no commit dela.
+6. **Quem lê `empresa_id`:** a policy TEM de ler; a função só por exceção nominal (as duas `rel_*`, integridade de
+   junção); o TS continua sem recortar (F67/F70).
+7. **A direção B emula a F72** (o piso vira `true` no texto que o catálogo devolve, numa subtransação desfeita) — testa o
+   termo REAL de cada policy. A escrita da direção B depende da ponte e é da F67.
+8. **Nenhum índice** (a medição de §3: o `= any` de um `InitPlan` não serve `ORDER BY … LIMIT` sem Sort; os candidatos vão
+   para a F70, com a igualdade).
+9. **As `rel_*`:** o join ganha o par, o resto byte a byte; a equivalência pelo modo `mesmo-nome`.
+10. **A prova conta a conta** (`conta-a-conta.mjs`, modelo fechado): 0 divergência emulada nos dois bancos antes do apply;
+    a sabotada no ensaio deu 2.
+11. **O custo:** a linha de base do MESMO dia, imediatamente antes do apply de produção; > 15% no p95 é medido de novo, e
+    só é bloqueio se o `medir-rls` atribuir ao predicado.
+12. **O injetor:** sete mutações novas, teto 143 → 150 — e uma oitava na revisão adversarial (151, abaixo) — (cada uma num roteiro só — as da forma em `catalogo_policies.sql`,
+    as de leitura e escrita cruzadas e a das `rel_*` em `isolamento_tenant.sql`); as duas `*-sem-coluna` devolvem as
+    policies da tabela ao texto sem a coluna antes do `drop`.
+13. **O rollback** `F66-desfaz.sql`, antes dos da F65–F62.
+14. **O instrumento antes/depois:** `impressao-policies.sql` e `impressao-catalogo.sql`, com o enchimento e o invólucro do
+    canal; "mudou como planejado" = só as 51, cada uma para o texto-alvo.
+15. **A releitura dos 102** (§4 do plano; a nota no `INVENTARIO-LEITURAS.md`).
+
+**Decisões tomadas na execução:**
+- **(a) O invólucro do canal MCP.** O `execute_sql` devolve o ERRO inline e o trunca; os blocos de medição falam pelo
+  `raise exception`. O invólucro roda o bloco validado, byte a byte, numa subtransação, guarda a mensagem numa configuração
+  local e a devolve por `select` — que o harness grava em arquivo (com o enchimento `_canal`). Nada é gravado no banco.
+  Serve aos três instrumentos (`conta-a-conta.mjs embrulhar --instrumento medir-rls|conta|equivalencia`).
+- **(b) O rollback é conferido contra uma régua INDEPENDENTE:** o md5 `vivas` das policies (54 de `public`, 8 de Storage),
+  o das 11 que não mudam e o `prosrc` das duas `rel_*`, medidos nos dois bancos vivos ANTES de qualquer apply. O
+  `f66_rollback.sql` bateu os seis na mesa (PGlite) e no CI (run `36017896078`) — o Postgres do CI e os dois bancos vivos
+  dão o mesmo texto de policy para a mesma cadeia.
+- **(c) O texto do rollback é GERADO pelo replay da trava de mesa** (`replayPolicies` de `predicado-policies.mjs`), não
+  transcrito: para cada `alter policy` da `0175`–`0178`, as mesmas cláusulas, com o texto da última migration antes da
+  `0175`. A mesa (`rollback-f66.test.ts`) confere as 62 policies cláusula a cláusula e acusou a exceção de estorno
+  retirada numa sabotagem de conferência.
+- **(d) A constante da `L4`** (o corpo das funções que as fases não recriam) passou a excluir as duas `rel_*` que a `0179`
+  recria; o valor novo foi MEDIDO no CI do push 1 (cadeia até a `0174`: `3a2a8000…`, 100 funções) — o mesmo fato (um
+  subconjunto de um conjunto igual é igual).
+- **(e) O modo `mesmo-nome` do `equivalencia-rel.mjs`** é um bloco próprio; os 56 blocos dos modos da F60 saíram idênticos
+  (diff vazio) e a linha do instrumento no PLAN-F60 §0 foi regravada com a diferença declarada (a trava da F60 exige).
+- **(f) A mutação da catraca (`doutrina-excecao-sobrevive-ao-conserto`)** e o teste de mesa da catraca provam agora com a
+  exceção PERMANENTE de `lancamentos_item` — a de `ativos` que eles usavam saiu da lista na `0176`.
+- **(g) O `medir-rls.mjs` ganhou o modo `listas`** (o EXPLAIN das cinco listas das telas, como `authenticated`): a
+  confirmação nos bancos vivos de que a policy nova não pôs Sort em lista nenhuma.
+- **(h) Um erro de tipo** num teste de instrumento passou por um encadeamento de comandos que não parava no `tsc`; o commit
+  local foi corrigido (amend do próprio commit, antes do push) — o push 2 saiu com `tsc` limpo.
+- **(i) A sabotagem E achou um furo na própria bateria, e ele foi fechado na fase.** O 10g tentava o DELETE e o UPDATE
+  da B só com o admin da A, que NÃO lê a B — e o `where` de um UPDATE/DELETE aplica também a policy de SELECT: a recusa
+  vinha da leitura, e uma policy de DELETE sem o termo passava a bateria (medido na mesa). O membro das duas (lê a B pelo
+  piso, é admin pela ponte) passou a tentar cada classe de escrita; o universo do 10g foi de 9 para 12, com trava de mesa.
+- **(j) A revisão adversarial** (cinco leitores por dimensão lendo o SHA `0e51a0a`, um cético por achado): 7 achados, 6
+  sobreviveram, todos consertados na fase antes do congelamento. (1) ALTO: o 16c contava os pares sem conferir o SEGUNDO
+  membro — `(empresa_id, 1::smallint) in (…)` passava; agora o segundo membro tem de ser a coluna `filial_id` da linha ou,
+  só onde há `snapshot_anterior`, a forma exata do snapshot (a chave conferida pelo deparse), com três árvores sintéticas
+  novas na guarda 16g e a mutação `f66-par-com-segundo-membro-literal` (teto 151); na mesa, o literal, outra coluna e a
+  chave do snapshot trocada caem pelo 16c. (2) BLOQUEANTE: a guarda do `equivalencia-rel.mjs` só tinha lista NEGRA de verbos
+  — um corpo colado com `pg_advisory_lock(…)` (lock de SESSÃO, que o `raise` final não desfaz) passava; agora a lista é
+  FECHADA (funções, pelo léxico da trava de mesa, dentro dos literais e dos `$tag$`; configurações, com o valor), e os 64
+  blocos de todos os modos saem idênticos (a linha do PLAN-F60 §0 regravada). (3) e (4) BAIXOS: `deallocate` em dobro de
+  CADA `prepare`; `--ref` conferido contra o `env-guard` em todo `gerar-*`. (5) BLOQUEANTE (documental): textos em tempo
+  consumado sobre provas de banco vivo antes do apply — o CHANGELOG e as regras descrevem o estado do MERGE (que só acontece
+  depois do apply e das provas), o `RELATORIO-F66.md` nasce antes do merge com os números reais, e o inventário passou a dizer
+  qual prova é emulada e qual é real. (6) MÉDIO: quatro das seis linhas de código da releitura do inventário estavam
+  deslocadas (o código andou desde a F57) — conferidas de novo no disco e corrigidas. O refutado: a identidade da prova conta
+  a conta sem filtro de empresa legada — com uma empresa só e o `rotulo_de_ambiente()` conferindo o alvo, inalcançável.
+- **(k) O apply, nos dois bancos, em 24/09/2026** (as horas do ledger, de Brasília), sobre o SHA congelado `31b9a16` (CI
+  `36026526435` verde): no **ensaio** 13:27–13:36, em **produção** 13:47–14:01 — cerca de 2 h 40 min depois do commit das
+  migrations (`2e3b17b`, 11:09), dentro das 24 h. As cinco, uma por chamada, com o texto EXATO do arquivo, todas na
+  PRIMEIRA tentativa (nenhum `lock_timeout` estourou). Em cada banco: a sonda (`f66-evidencias/sonda-lote.sql`) antes do
+  primeiro lote e depois de cada um, com o md5 das policies de `public` IGUAL ao do oráculo da mesa em cada lote
+  (`e55c75d0…`, `e7d55e81…`, `60f90a0f…`, `aa0db1b3…`) e o `prosrc` das `rel_*` igual ao dele depois da `0179`; o
+  `relfilenode` das 22, os índices, as funções de fora da fase, Storage e as 11 iguais em TODAS as rodadas; a prova conta a
+  conta emulada refeita logo antes (0) e a real depois de cada lote de policy (0 em cada — produção: 14 memberships, 21
+  tabelas, 84 pares); a equivalência das `rel_*` antes e depois, 0 célula; ACL, dono, `security invoker`, `stable` e
+  `search_path` das duas preservados. Nenhum gatilho de rollback disparou.
+- **(l) As provas depois do último apply**, antes do merge: advisors idênticos ao "antes" nos dois bancos, nome a nome
+  (nenhum de segurança novo; performance sem delta — nenhum índice); o EXPLAIN das cinco listas com o termo em `InitPlan`
+  de 1 loop; `medir-rls` "depois" em produção só com a identidade de nível administrador, como o "antes" (F0-depois ≈
+  F4-antes, os mesmos buffers); o TTFB do mesmo dia com a pior rota em +6,6% na mediana (o p95: item (n)); o conferidor de formas 0 recusadas nos dois
+  (produção: 271 pontos, 100.829 linhas, 0 reprovados); o smoke 109 OK · 1 aviso (o antigo de kits) · 0 falha; a paridade
+  das 11 classes idêntica entre os bancos; a geração de tipos do MCP igual ao `database.ts` fora dos comentários e das duas
+  linhas do hand-fix da F62.
+- **(m) O `notify pgrst` veio no fim, não logo depois do apply do ensaio.** A ordem o lista na prova pós-apply; no ensaio
+  ele ficou para trás e foi disparado nos DOIS bancos depois de todas as provas de produção (é o único comando da fase nos
+  bancos além das cinco migrations, e não toca dado). Sem efeito medível: a fase não muda assinatura, coluna nem tipo
+  exposto, e o smoke e o conferidor já tinham lido pelo PostgREST com o esquema novo sem erro.
+- **(n) A régua de 15% no p95 disparou em três rotas e a decisão 11 correu como escrita.** Na primeira rodada "depois",
+  `/login` com sessão (+51,9%), `/ajuda` (+36,7%) e `/movimentacoes/nova` (+18,6%) passaram de 15% no p95 contra a linha
+  de base do mesmo dia; as três foram medidas mais duas vezes (as duas rodadas completas intercalam as rotas). `/ajuda` e
+  `/movimentacoes/nova` voltaram para baixo nas duas. `/login` com sessão ficou acima em duas de três — mas o que ela
+  mede é o proxy chamando `auth.getUser()` (a API de Auth), sem PostgREST e sem policy; o `medir-rls` não tem o que
+  atribuir, e de manhã, antes de qualquer apply, a mesma rota já tinha medido p95 117,2 ms. **Ruído declarado**, com os
+  números no relatório; nenhum bloqueio, nenhum rollback.
