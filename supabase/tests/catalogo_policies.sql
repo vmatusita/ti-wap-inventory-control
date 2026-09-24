@@ -410,6 +410,8 @@ declare
   --
   -- ⚠ CATRACA QUE SÓ ENCOLHE. Quem conserta a policy TIRA a linha — a 11b reprova
   -- exceção sem ocorrência viva. Acrescentar linha é decisão de fase, com ata.
+  -- F66 (24/09/2026): as seis de `pode_escrever_filial` saíram — a 0176 trocou cada uma pela forma de PARES sobre
+  -- `unidades_de_escrita()` (`k_recorte_unidade`, a 16c/16d do bloco 6). A lista foi de 18 para 12.
   --
   -- ⚠ NÃO É A LISTA DA R-ACC-57. `definer_sem_tenant.sql` pergunta se a `security
   -- definer` confere escopo NO CORPO; esta pergunta se a POLICY passa a linha para uma
@@ -419,13 +421,7 @@ declare
   -- última linha — o leitor da mesa casa este trecho como texto.
   -- =======================================================================
   k_excecoes_predicado text[] := array[
-    'public.ativos / operador atualiza / pode_escrever_filial', -- 0063 · motivo: o operador só atualiza ativo das filiais dele, e a filial é a da própria linha · destino: F66 (unidades_de_escrita)
-    'public.ativos / operador insere / pode_escrever_filial', -- 0063 · motivo: o operador só cadastra ativo nas filiais dele, e a filial é a da própria linha · destino: F66 (unidades_de_escrita)
     'public.lancamentos_item / operador lanca / estorno_item_coerente', -- 0068 · motivo: coerência do próprio registro, o estorno aponta lançamento da mesma filial e do mesmo item · destino: permanente
-    'public.lancamentos_item / operador lanca / pode_escrever_filial', -- 0068 · motivo: o lançamento de item só é aceito na filial em que o operador escreve · destino: F66 (unidades_de_escrita)
-    'public.movimentacoes / operador insere / pode_escrever_filial', -- 0067 · motivo: confere a filial declarada e a filial real do ativo, lida do snapshot da própria linha · destino: F66 (unidades_de_escrita)
-    'public.pendencias_item / pendencias_item admin reabre / pode_escrever_filial', -- 0107 · motivo: reabrir pendência exige nível administrador na filial da própria pendência · destino: F66 (unidades_de_escrita)
-    'public.pendencias_item / pendencias_item operador resolve / pode_escrever_filial', -- 0103 · motivo: resolver pendência só vale na filial em que quem resolve escreve · destino: F66 (unidades_de_escrita)
     'public.termos_gerados / operador apaga / pode_escrever_termo', -- 0069 · motivo: o termo decide pelos próprios ativo_ids, e apagar exige escrever na filial de todos eles · destino: permanente
     'public.termos_gerados / operador atualiza / array_length', -- 0069 · motivo: built-in imutável sobre o próprio array, que recusa termo sem ativo, de custo desprezível · destino: permanente
     'public.termos_gerados / operador atualiza / pode_escrever_termo', -- 0069 · motivo: o termo decide pelos próprios ativo_ids, e atualizar exige escrever na filial de todos eles · destino: permanente

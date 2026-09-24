@@ -246,6 +246,7 @@ const DA_F38 = [
   // F66 — a `0175`…`0178` só fazem `alter policy` (o termo de empresa em conjunção com o piso, e os pares de unidade
   // no lugar de `pode_escrever_filial`): nenhuma função criada ou recriada.
   '0175',
+  '0176',
 ]
 
 /**
