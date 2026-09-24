@@ -1,0 +1,34 @@
+{
+  "rotulo": "f66-advisors-antes",
+  "medido_em": "2026-09-24T13:07Z (observed_at dos lints)",
+  "canal": "MCP da Supabase, get_advisors (security e performance), nos dois projetos",
+  "producao": {
+    "seguranca": {
+      "rls_enabled_no_policy": { "nivel": "INFO", "n": 6, "objetos": ["ambiente", "backups_migration", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"] },
+      "authenticated_security_definer_function_executable": { "nivel": "WARN", "n": 34 },
+      "auth_leaked_password_protection": { "nivel": "WARN", "n": 1 }
+    },
+    "performance": {
+      "unindexed_foreign_keys": { "nivel": "INFO", "n": 39 },
+      "no_primary_key": { "nivel": "INFO", "n": 1, "objetos": ["_bkp_relatorios_gerados_f6a"] },
+      "unused_index": { "nivel": "INFO", "n": 8, "objetos": ["colaboradores_ativo_nome_idx", "colaboradores_filial_idx", "import_logs_filial_hash_idx", "itens_tipo_idx", "lancamentos_item_forcado_idx", "lancamentos_item_regularizacao_idx", "operador_filiais_filial_idx", "profiles_vivos_idx"] },
+      "multiple_permissive_policies": { "nivel": "WARN", "n": 1, "objetos": ["pendencias_item (UPDATE): pendencias_item admin reabre × pendencias_item operador resolve"] },
+      "auth_rls_initplan": { "nivel": "WARN", "n": 0 }
+    }
+  },
+  "ensaio": {
+    "seguranca": {
+      "rls_enabled_no_policy": { "nivel": "INFO", "n": 6, "objetos": ["ambiente", "backups_migration", "empresas", "plataforma_admins", "senha_tentativas", "senhas_acesso"] },
+      "authenticated_security_definer_function_executable": { "nivel": "WARN", "n": 34 },
+      "auth_leaked_password_protection": { "nivel": "WARN", "n": 1 }
+    },
+    "performance": {
+      "unindexed_foreign_keys": { "nivel": "INFO", "n": 39 },
+      "no_primary_key": { "nivel": "INFO", "n": 1, "objetos": ["_bkp_relatorios_gerados_f6a"] },
+      "unused_index": { "nivel": "INFO", "n": 11, "objetos": ["ativos_categoria_idx", "colaboradores_ativo_nome_idx", "colaboradores_filial_idx", "itens_tipo_idx", "lanc_item_item_filial_idx", "lanc_item_pendencia_idx", "lancamentos_item_forcado_idx", "movimentacoes_forcado_idx", "operador_filiais_filial_idx", "termos_gerados_ativos_gin", "termos_gerados_movs_gin"] },
+      "multiple_permissive_policies": { "nivel": "WARN", "n": 1, "objetos": ["pendencias_item (UPDATE): pendencias_item admin reabre × pendencias_item operador resolve"] },
+      "auth_rls_initplan": { "nivel": "WARN", "n": 0 }
+    }
+  },
+  "leitura": "Iguais ao fato 3 da ordem nos dois bancos (segurança 6/34/1; performance 39/1/8 em produção e 39/1/11 no ensaio, 1 WARN multiple_permissive_policies). Nenhum auth_rls_initplan: a F59 deixou toda função de policy içada — e a F66 tem de manter assim (o termo novo é içado)."
+}

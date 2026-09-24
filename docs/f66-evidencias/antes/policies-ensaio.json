@@ -1,0 +1,670 @@
+{
+  "vivas": {
+    "public": {
+      "n": 54,
+      "md5": "886118ad686f67c857cf0d370fd6828d"
+    },
+    "storage": {
+      "n": 8,
+      "md5": "f116b8d0da8bda75038564a44720c2e8"
+    }
+  },
+  "contagens": {
+    "public": 54,
+    "storage": 8,
+    "permissivas": 62,
+    "citam_empresa_id": 0,
+    "to_authenticated": 62,
+    "citam_unidades_de_escrita": 0,
+    "citam_pode_escrever_filial": 6,
+    "policies_de_public_com_a_coluna": 51,
+    "policies_de_public_sem_a_coluna": 3,
+    "tabelas_de_public_com_a_coluna_e_policy": 21
+  },
+  "por_policy": {
+    "public.itens / admin apaga": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.filiais / admin apaga": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.motivos / admin apaga": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.filiais / admin insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.itens / admin atualiza": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.motivos / admin insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.ativos / operador insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ad5d146921af9fe5280e2290b9a2b3ed"
+    },
+    "public.filiais / admin atualiza": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.itens / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.motivos / admin atualiza": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.ativos / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.itens / escrita cria item": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "f1663ba69e21818c2f62ebec2e07ae56"
+    },
+    "public.anotacoes / operador anota": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "f1663ba69e21818c2f62ebec2e07ae56"
+    },
+    "public.ativos / operador atualiza": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ad5d146921af9fe5280e2290b9a2b3ed",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ad5d146921af9fe5280e2290b9a2b3ed"
+    },
+    "public.filiais / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.kits_modelos / admin apaga": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.membros / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.motivos / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.kits_modelos / admin insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.profiles / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.anotacoes / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.import_logs / operador insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.kits_modelos / admin atualiza": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.tipos_item / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.import_logs / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.tipos_item / admin insere tipo": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.kits_modelos / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.movimentacoes / operador insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "416b9def720b06ab2434127214678b50"
+    },
+    "public.termos_gerados / operador apaga": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "44da94aa09b7190cb9bfa7dbd0527949",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.colaboradores / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.movimentacoes / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.termos_gerados / operador insere": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "90ae771c456f1ddb96bf046e113016ff"
+    },
+    "public.tipos_item / admin atualiza tipo": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "storage.objects / termos apaga operador": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "511754c19118533dd2df25490dda4262",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.lancamentos_item / operador lanca": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "230a0e3cae0e4a2084db7f76f6de1106"
+    },
+    "public.termos_gerados / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "storage.objects / termos insere operador": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "511754c19118533dd2df25490dda4262"
+    },
+    "public.eventos_admin / admin le auditoria": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.profiles / atualiza proprio perfil": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "15c587ac9e0e9db4618a46c0502f35aa",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "15c587ac9e0e9db4618a46c0502f35aa"
+    },
+    "public.relatorios_gerados / operador gera": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "f1663ba69e21818c2f62ebec2e07ae56"
+    },
+    "public.termos_gerados / operador atualiza": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "44da94aa09b7190cb9bfa7dbd0527949",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "90ae771c456f1ddb96bf046e113016ff"
+    },
+    "storage.objects / termos leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "fef6d2b3e6e25246f9bc4f3c4d132ae2",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.lancamentos_item / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.operador_filiais / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "storage.objects / termos atualiza operador": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "511754c19118533dd2df25490dda4262",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "511754c19118533dd2df25490dda4262"
+    },
+    "public.unidades_apelidos / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.relatorios_gerados / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.import_termos_estado / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.unidades_apelidos / admin apaga apelido": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.colaboradores / escrita cria colaborador": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "f1663ba69e21818c2f62ebec2e07ae56"
+    },
+    "public.unidades_apelidos / admin insere apelido": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "storage.objects / backups-import apaga operador": {
+      "cmd": "DELETE",
+      "roles": "{authenticated}",
+      "md5_qual": "646657dcb291d0df522dab2e171e1dbc",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "storage.objects / backups-import insere operador": {
+      "cmd": "INSERT",
+      "roles": "{authenticated}",
+      "md5_qual": "336d5ebc5436534e61d16e63ddfca327",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "646657dcb291d0df522dab2e171e1dbc"
+    },
+    "public.colaboradores / admin atualiza colaborador": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ff497eaf20b36b33ea4f4309594a6ca7",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ff497eaf20b36b33ea4f4309594a6ca7"
+    },
+    "public.import_termos_categoria / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "storage.objects / backups-import leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "646657dcb291d0df522dab2e171e1dbc",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "storage.objects / backups-import atualiza operador": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "646657dcb291d0df522dab2e171e1dbc",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "646657dcb291d0df522dab2e171e1dbc"
+    },
+    "public.import_prefixos_patrimonio / leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.pendencias_item / pendencias_item admin reabre": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "c0ec0eef3312b7f71d2f5cfb33b0e1a6",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "0bc649bc57ce8c1bb61a003f7582fc31"
+    },
+    "public._bkp_relatorios_gerados_f6a / dev le backup f6a": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "a1f171a35d091f76978bb8744e84ebce",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.pendencias_item / pendencias_item leitura operador": {
+      "cmd": "SELECT",
+      "roles": "{authenticated}",
+      "md5_qual": "cb680040e4a393312b29603d9694073f",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "336d5ebc5436534e61d16e63ddfca327"
+    },
+    "public.pendencias_item / pendencias_item operador resolve": {
+      "cmd": "UPDATE",
+      "roles": "{authenticated}",
+      "md5_qual": "ed02acc45334f222801466f0acbbfab3",
+      "permissive": "PERMISSIVE",
+      "md5_with_check": "ad5d146921af9fe5280e2290b9a2b3ed"
+    }
+  },
+  "as_11_que_nao_mudam": {
+    "n": 11,
+    "md5": "eb294504b0b6cec30936d10de6f9d001"
+  },
+  "texto_das_publicas_com_a_coluna": {
+    "itens / admin apaga": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "filiais / admin apaga": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "motivos / admin apaga": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "filiais / admin insere": {
+      "qual": "-",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "itens / admin atualiza": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "motivos / admin insere": {
+      "qual": "-",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "ativos / operador insere": {
+      "qual": "-",
+      "with_check": "pode_escrever_filial(filial_id)"
+    },
+    "filiais / admin atualiza": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "itens / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "motivos / admin atualiza": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "ativos / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "itens / escrita cria item": {
+      "qual": "-",
+      "with_check": "( SELECT pode_escrever() AS pode_escrever)"
+    },
+    "anotacoes / operador anota": {
+      "qual": "-",
+      "with_check": "( SELECT pode_escrever() AS pode_escrever)"
+    },
+    "ativos / operador atualiza": {
+      "qual": "pode_escrever_filial(filial_id)",
+      "with_check": "pode_escrever_filial(filial_id)"
+    },
+    "filiais / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "kits_modelos / admin apaga": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "membros / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "motivos / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "kits_modelos / admin insere": {
+      "qual": "-",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "anotacoes / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "import_logs / operador insere": {
+      "qual": "-",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "kits_modelos / admin atualiza": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "tipos_item / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "import_logs / leitura operador": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "tipos_item / admin insere tipo": {
+      "qual": "-",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "kits_modelos / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "movimentacoes / operador insere": {
+      "qual": "-",
+      "with_check": "(pode_escrever_filial(filial_id) AND pode_escrever_filial(((snapshot_anterior ->> 'filial_id'::text))::smallint))"
+    },
+    "termos_gerados / operador apaga": {
+      "qual": "pode_escrever_termo(ativo_ids)",
+      "with_check": "-"
+    },
+    "colaboradores / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "movimentacoes / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "termos_gerados / operador insere": {
+      "qual": "-",
+      "with_check": "((COALESCE(array_length(ativo_ids, 1), 0) > 0) AND pode_escrever_termo(ativo_ids) AND termo_ancora_coerente(movimentacao_ids, ativo_ids) AND (arquivo_path = ((id)::text || '.docx'::text)))"
+    },
+    "tipos_item / admin atualiza tipo": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "lancamentos_item / operador lanca": {
+      "qual": "-",
+      "with_check": "(pode_escrever_filial(filial_id) AND estorno_item_coerente(estorna_id, filial_id, item_id))"
+    },
+    "termos_gerados / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "eventos_admin / admin le auditoria": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "relatorios_gerados / operador gera": {
+      "qual": "-",
+      "with_check": "( SELECT pode_escrever() AS pode_escrever)"
+    },
+    "termos_gerados / operador atualiza": {
+      "qual": "pode_escrever_termo(ativo_ids)",
+      "with_check": "((COALESCE(array_length(ativo_ids, 1), 0) > 0) AND pode_escrever_termo(ativo_ids) AND termo_ancora_coerente(movimentacao_ids, ativo_ids) AND (arquivo_path = ((id)::text || '.docx'::text)))"
+    },
+    "lancamentos_item / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "operador_filiais / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "unidades_apelidos / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "relatorios_gerados / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "import_termos_estado / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "unidades_apelidos / admin apaga apelido": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "-"
+    },
+    "colaboradores / escrita cria colaborador": {
+      "qual": "-",
+      "with_check": "( SELECT pode_escrever() AS pode_escrever)"
+    },
+    "unidades_apelidos / admin insere apelido": {
+      "qual": "-",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "colaboradores / admin atualiza colaborador": {
+      "qual": "( SELECT e_admin() AS e_admin)",
+      "with_check": "( SELECT e_admin() AS e_admin)"
+    },
+    "import_termos_categoria / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "import_prefixos_patrimonio / leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "pendencias_item / pendencias_item admin reabre": {
+      "qual": "(( SELECT e_admin() AS e_admin) AND pode_escrever_filial(filial_id) AND (status = 'resolvida'::text))",
+      "with_check": "(( SELECT e_admin() AS e_admin) AND pode_escrever_filial(filial_id) AND (status = 'aberta'::text))"
+    },
+    "pendencias_item / pendencias_item leitura operador": {
+      "qual": "(( SELECT papel_atual() AS papel_atual) IS NOT NULL)",
+      "with_check": "-"
+    },
+    "pendencias_item / pendencias_item operador resolve": {
+      "qual": "(pode_escrever_filial(filial_id) AND (status = 'aberta'::text))",
+      "with_check": "pode_escrever_filial(filial_id)"
+    }
+  }
+}
