@@ -405,8 +405,8 @@ com a tag.
 
 ## 9. O SHA de código congelado
 
-**`70ec7c0`** (24/09/2026) — *test(f66): revisão adversarial — o segundo membro do par conferido (16c) e a guarda fechada
-do equivalencia-rel*, o último commit que toca `src/**`, `scripts/**` ou `supabase/**`. Depois dele, só `docs/**` e
+**`31b9a16`** (24/09/2026) — *fix(f66): a sonda da mutação do segundo membro do par lê a forma que o deparse devolve* (o
+`70ec7c0` foi o primeiro congelamento; o CI dele acusou a sonda, e o conserto é este), o último commit que toca `src/**`, `scripts/**` ou `supabase/**`. Depois dele, só `docs/**` e
 `CHANGELOG.md`. As migrations aplicadas nos bancos vivos são as de `supabase/migrations/0175`–`0179` neste SHA, pelo texto
 exato do arquivo (a sonda de exatidão confere o texto aplicado contra o oráculo da mesa).
 
