@@ -1890,14 +1890,19 @@ const F59_DOUTRINA = [
     classe: 'lista-que-apodrece',
     derruba: ['11b'],
     porque:
-      'A policy de INSERT de ativos deixa de passar a filial para a função, e a exceção dela continua na lista. É assim que uma lista de exceções apodrece: a catraca que devia só encolher passaria a guardar uma licença sem dono, pronta para cobrir a próxima policy que alguém escrever com o mesmo nome.',
-    sql: `alter policy "operador insere" on public.ativos with check ((select public.pode_escrever()));`,
+      'A policy de lançamento de item deixa de passar a linha para a coerência do estorno, e a exceção dela continua na lista. É assim que uma lista de exceções apodrece: a catraca que devia só encolher passaria a guardar uma licença sem dono, pronta para cobrir a próxima policy que alguém escrever com o mesmo nome.',
+    // F66 (24/09/2026): a exceção de exemplo era a de `ativos / operador insere` (pode_escrever_filial), que SAIU da
+    // lista na 0176 (a forma de pares). A catraca se prova agora com uma exceção PERMANENTE — a coerência do estorno —,
+    // mantendo o termo de empresa e os pares da F66 no lugar (só a exceção some).
+    sql: `alter policy "operador lanca" on public.lancamentos_item
+  with check (empresa_id = any (array (select public.empresas_de_escrita()))
+              and (empresa_id, filial_id) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u));`,
     prova: {
-      sql: `select coalesce(with_check, '') not like '%pode_escrever_filial%' from pg_policies
-             where schemaname = 'public' and tablename = 'ativos' and policyname = 'operador insere'`,
+      sql: `select coalesce(with_check, '') not like '%estorno_item_coerente%' from pg_policies
+             where schemaname = 'public' and tablename = 'lancamentos_item' and policyname = 'operador lanca'`,
       espera: 't',
     },
-    policies: [{ nome: 'operador insere', tabela: 'public.ativos' }],
+    policies: [{ nome: 'operador lanca', tabela: 'public.lancamentos_item' }],
   },
   {
     id: 'doutrina-funcao-sem-argumento-solta',
@@ -2897,7 +2902,10 @@ const F63_ACERVO = [
     // F65: o gatilho `anotacoes_guarda_empresa` (BEFORE UPDATE OF empresa_id, 0173) depende da COLUNA — sem
     // derrubá-lo antes, o `drop column` é recusado e a mutação sairia "NÃO aplicou". A FK composta
     // `anotacoes_ativo_id_fkey` (0166) é constraint da própria tabela e cai junto com a coluna.
-    sql: `drop trigger anotacoes_guarda_empresa on public.anotacoes; alter table public.anotacoes drop column empresa_id;  ${MARCA}`,
+    // F66: idem para as duas policies da tabela, que citam a coluna desde a 0175 — voltam ao texto de antes dela.
+    sql: `alter policy "leitura operador" on public.anotacoes using ((select public.papel_atual()) is not null);
+alter policy "operador anota" on public.anotacoes with check ((select public.pode_escrever()));
+drop trigger anotacoes_guarda_empresa on public.anotacoes; alter table public.anotacoes drop column empresa_id;  ${MARCA}`,
     prova: {
       sql: `select not exists (select 1 from pg_attribute where attrelid = 'public.anotacoes'::regclass and attname = 'empresa_id' and not attisdropped)`,
       espera: 't',
@@ -2991,7 +2999,9 @@ const F64_LOTE2_E_KIT = [
       'import_termos_estado perde empresa_id: uma das onze sai do lote 2 calada — o De→Para de estado de uma empresa volta a ser global, e a pendência que o bloco 5 transformou em reprovação (15f) tem de acusar.',
     // F65: idem — o gatilho `import_termos_estado_guarda_empresa` (0173) depende da coluna; a PK
     // `(empresa_id, termo)` (0169) é da própria tabela e cai junto.
-    sql: `drop trigger import_termos_estado_guarda_empresa on public.import_termos_estado; alter table public.import_termos_estado drop column empresa_id;  ${MARCA}`,
+    // F66: e a policy de leitura, que cita a coluna desde a 0177 — volta ao texto de antes dela.
+    sql: `alter policy "leitura operador" on public.import_termos_estado using ((select public.papel_atual()) is not null);
+drop trigger import_termos_estado_guarda_empresa on public.import_termos_estado; alter table public.import_termos_estado drop column empresa_id;  ${MARCA}`,
     prova: {
       sql: `select not exists (select 1 from pg_attribute where attrelid = 'public.import_termos_estado'::regclass and attname = 'empresa_id' and not attisdropped)`,
       espera: 't',
@@ -3153,6 +3163,138 @@ const F65_TENANT = [
   },
 ]
 
+// =============================================================================
+// F66 (24/09/2026) — AS POLICIES GANHAM O RECORTE, EM CONJUNÇÃO
+// =============================================================================
+// A régua da F63–F65 (decisão 8): mutação SÓ onde ela derruba uma trava desta fase por ESTADO DE BANCO. As sete
+// imitam o jeito real de o recorte se perder: o termo sai da leitura (a bateria, direção A — `10a`); o termo entra
+// em OR com o piso (a forma, `16a` — fora da conjunção); a policy de cargo usa a função de conjunto do membro (`16a`
+// — função errada: o admin de A que só consulta B passaria a administrar B); a escrita por unidade volta a
+// `pode_escrever_filial` (os pares, `16c`/`16d`, e a doutrina, `11a`); uma policy volta a `to public` (`16f`); a
+// escrita confere o cargo e esquece a empresa (a escrita cruzada, `10g`/`10g-bis`); e a `rel_*` volta a juntar
+// `motivos` só pelo código (a duplicata do membro das duas, `10i`).
+/** @type {Mutacao[]} */
+const F66_RECORTE = [
+  {
+    id: 'f66-termo-sai-da-leitura',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['10a'],
+    porque:
+      'A leitura de ativos volta ao piso sozinho: quem é membro só da empresa B passa a ver o parque inteiro da A — o vazamento que a F66 existe para fechar, e que com uma empresa só ninguém notaria até a segunda chegar.',
+    sql: `alter policy "leitura operador" on public.ativos
+  using ((select public.papel_atual()) is not null);  ${MARCA}`,
+    prova: {
+      sql: `select coalesce(qual, '') not like '%empresas_do_membro%' from pg_policies
+             where schemaname = 'public' and tablename = 'ativos' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.ativos' }],
+  },
+  {
+    id: 'f66-termo-em-or',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-sempre-verdadeiro',
+    derruba: ['16a'],
+    porque:
+      'O termo de empresa entra em OR com o piso em vez de AND: a policy CITA empresa_id (a trava de "cita o termo" passaria), mas quem passa pelo piso lê tudo — o recorte vira enfeite, na forma que um grep pelo nome da função não distingue da certa.',
+    sql: `alter policy "leitura operador" on public.motivos
+  using ((select public.papel_atual()) is not null
+         or empresa_id = any (array (select public.empresas_do_membro())));  ${MARCA}`,
+    prova: {
+      sql: `select coalesce(qual, '') ilike '% OR %' from pg_policies
+             where schemaname = 'public' and tablename = 'motivos' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.motivos' }],
+  },
+  {
+    id: 'f66-admin-com-empresas-do-membro',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'nivel-admin-afrouxado',
+    derruba: ['16a'],
+    porque:
+      'A policy de administrador recorta pela função do MEMBRO em vez da de admin: quem administra a empresa A e só consulta a B passa a apagar motivo da B — o cargo vale para uma empresa, o recorte deixa agir nas duas.',
+    sql: `alter policy "admin apaga" on public.motivos
+  using ((select public.e_admin())
+         and empresa_id = any (array (select public.empresas_do_membro())));  ${MARCA}`,
+    prova: {
+      sql: `select coalesce(qual, '') like '%empresas_do_membro%' from pg_policies
+             where schemaname = 'public' and tablename = 'motivos' and policyname = 'admin apaga'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'admin apaga', tabela: 'public.motivos' }],
+  },
+  {
+    id: 'f66-unidade-volta-a-pode-escrever-filial',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'predicado-por-linha',
+    derruba: ['16c', '16d', '11a'],
+    porque:
+      'A escrita por unidade volta a pode_escrever_filial(filial_id): a função recebe a linha (roda uma vez por linha) e confere a filial sem a empresa — com duas empresas de filial de mesmo id, o operador da unidade 3 da A escreveria na unidade 3 da B.',
+    sql: `alter policy "operador atualiza" on public.ativos
+  using (empresa_id = any (array (select public.empresas_de_escrita())) and public.pode_escrever_filial(filial_id))
+  with check (empresa_id = any (array (select public.empresas_de_escrita())) and public.pode_escrever_filial(filial_id));  ${MARCA}`,
+    prova: {
+      sql: `select coalesce(qual, '') like '%pode_escrever_filial(filial_id)%' from pg_policies
+             where schemaname = 'public' and tablename = 'ativos' and policyname = 'operador atualiza'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'operador atualiza', tabela: 'public.ativos' }],
+  },
+  {
+    id: 'f66-policy-to-public',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'superficie-publica',
+    derruba: ['16f'],
+    porque:
+      'Uma policy volta a valer para PUBLIC (anon incluído): hoje o piso a salva, mas é exatamente a policy que a F72 deixa só com o termo de empresa — e anon sem sessão não tem empresa, então o dia em que o termo falhar aberto a leitura vira pública.',
+    sql: `alter policy "leitura operador" on public.tipos_item to public;  ${MARCA}`,
+    prova: {
+      sql: `select roles::text = '{public}' from pg_policies
+             where schemaname = 'public' and tablename = 'tipos_item' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.tipos_item' }],
+  },
+  {
+    id: 'f66-escrita-confere-papel-e-esquece-tenant',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['10g', '10g-bis'],
+    porque:
+      'A criação de colaborador confere o cargo e esquece a empresa: quem escreve na A cadastra colaborador com a empresa B (o WITH CHECK aceita o que a linha declara) — a escrita cruzada que a leitura recortada não pega, porque quem escreve não precisa ler.',
+    sql: `alter policy "escrita cria colaborador" on public.colaboradores
+  with check ((select public.pode_escrever()));  ${MARCA}`,
+    prova: {
+      sql: `select coalesce(with_check, '') not like '%empresas_de_escrita%' from pg_policies
+             where schemaname = 'public' and tablename = 'colaboradores' and policyname = 'escrita cria colaborador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'escrita cria colaborador', tabela: 'public.colaboradores' }],
+  },
+  {
+    id: 'f66-rel-join-sem-empresa',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['10i'],
+    porque:
+      'O relatório por motivo volta a juntar motivos só pelo código: para quem lê as duas empresas, cada saída com um código que as duas usam conta duas vezes — o número do relatório dobra sem que nenhuma linha a mais tenha acontecido.',
+    sql: mutarFuncao(
+      'public.rel_por_motivo_filiais(smallint[], date, date)',
+      `  left join public.motivos mo on mo.codigo = m.motivo and mo.empresa_id = m.empresa_id
+`,
+      `  left join public.motivos mo on mo.codigo = m.motivo  ${MARCA}
+`,
+      'f66-rel-join-sem-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.rel_por_motivo_filiais(smallint[], date, date)'::regprocedure) not like '%mo.empresa_id = m.empresa_id%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -3175,6 +3317,7 @@ export const MUTACOES = [
   ...F63_ACERVO,
   ...F64_LOTE2_E_KIT,
   ...F65_TENANT,
+  ...F66_RECORTE,
 ]
 
 /**

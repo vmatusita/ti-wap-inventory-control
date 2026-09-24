@@ -103,7 +103,17 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 143 mutações ATIVAS', () => {
+  it('tem entre 20 e 150 mutações ATIVAS', () => {
+    // ⚠ O TETO SUBIU DE 143 PARA 150 NA F66 (24/09/2026), no número EXATO. A régua da F63–F65: mutação só onde
+    // ela derruba uma trava DESTA fase por estado de banco. O termo sai da leitura (`10a` de
+    // `isolamento_tenant.sql`, a bateria); o termo entra em OR com o piso e a policy de cargo usa a função do
+    // membro (`16a` de `catalogo_policies.sql` — fora da conjunção, função errada); a escrita por unidade volta
+    // a pode_escrever_filial (`16c`/`16d`/`11a`); uma policy volta a `to public` (`16f`); a escrita confere o
+    // cargo e esquece a empresa (`10g`/`10g-bis`); a rel_* volta a juntar motivos só pelo código (`10i`).
+    // 143 + 7 = 150. O lote estava NO teto (143/143). Três mutações antigas mudaram de TEXTO, não de trava: a
+    // da catraca (`11b`) prova agora com a exceção permanente de `lancamentos_item` (a de `ativos` saiu da lista
+    // na 0176), e as duas `*-sem-coluna` devolvem as policies da tabela ao texto sem a coluna antes do drop.
+    //
     // ⚠ O TETO SUBIU DE 138 PARA 143 NA F65 (23/09/2026), no número EXATO. A decisão 8, a régua da
     // F63/F64: mutação só onde ela derruba uma trava DESTA fase que nenhum teste de mesa derruba — as
     // cinco são estado de banco. Uma FK composta volta a simples (`F1`/`F4` de
@@ -311,7 +321,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(143)
+    expect(MUTACOES.length).toBeLessThanOrEqual(150)
   })
 
   it('os `id` são únicos', () => {
