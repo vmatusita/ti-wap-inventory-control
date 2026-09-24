@@ -1236,3 +1236,62 @@ ficam até a F65"*) deixou de valer: é R-ACC-99. Ata em [`docs/DECISOES.md`](DE
 > UPDATE por chave natural sozinha, o `max(versao)+1`, o import): F67. (4) **Que os ids sejam por empresa**: continuam
 > globais, e as 16 travas advisory continuam certas por isso. (5) **Que o gatilho segure quem o desliga** (`disable
 > trigger` é do dono).
+
+
+## Emenda F66 (24/09/2026) — as policies ganham o recorte, em conjunção com o piso
+
+A quinta fase da virada. Quatro migrations de `alter policy` (`0175`→`0178`) escrevem o predicado de tenant nas **51
+policies de `public` cuja tabela tem `empresa_id`**, na forma içada da doutrina (`empresa_id = any (array (select
+public.<função de conjunto>()))`), com a função da CLASSE da policy e **em AND com o piso de hoje, que fica por
+extenso**; as seis de escrita por unidade trocam `pode_escrever_filial(filial_id)` pelo PAR `(empresa_id, filial_id)`
+sobre `unidades_de_escrita()`. A `0179` recria as duas `rel_*` que juntam `motivos`, com o par da FK composta. **Nenhuma
+tupla reescrita, nenhum índice criado ou derrubado** (a medição de §3 do PLAN-F66: sob a policy nova, o candidato
+liderado por `empresa_id` é ignorado ou usado sem ganho; os índices por empresa vão para a F70, com a igualdade).
+
+**As três decisões do Johnny (24/09/2026):** (1) o CHECK de comprimento vira a fase **F66B** — aqui, só a ficha com o
+censo medido; (2) a troca de `pode_escrever_filial` pelos pares ENTRA, provada conta a conta nos dois bancos, e só
+contagens de divergência saem do banco; (3) `eventos_admin` não muda de forma — só a leitura ganha o recorte.
+
+**Nove regras novas** (R-ACC-108 a R-ACC-116), abaixo. A frase de R-ACC-105 *"ninguém lê `empresa_id` antes da F66"*
+chegou ao prazo: as POLICIES leem, desde esta fase (R-ACC-108); o TS continua sem recortar (F67/F70), e a varredura dele
+segue valendo. Ata em [`docs/DECISOES.md`](DECISOES.md) (2026-09-24 · F66); plano [`PLAN-F66.md`](PLAN-F66.md);
+relatório [`RELATORIO-F66.md`](RELATORIO-F66.md).
+
+| ID | Regra | Fonte | Onde vive (conferido) | Prova | Veredito |
+|---|---|---|---|---|---|
+| R-ACC-108 | **Toda policy de `public` em tabela com `empresa_id` cita, em CADA árvore (USING e WITH CHECK), o termo `empresa_id = any (array (select public.<fn>()))` com a função da CLASSE dela, na conjunção de cima.** A classe sai do piso de hoje, na precedência de `k_recorte_classe`: `e_admin` → `empresas_de_admin`; `pode_escrever_termo`, `pode_escrever` e a escrita por unidade → `empresas_de_escrita`; `papel_atual` → `empresas_do_membro`. O termo em `or`, sem o `array (select …)`, em outra coluna, com filtro no sub-select ou com a função de outra classe reprova — a trava lê a ÁRVORE (`pg_policy.polqual`/`polwithcheck`), nó a nó, não o texto. O piso fica por extenso (tirá-lo é a F72). | ficha F66 · decisão 2 do PLAN-F66 · R-ACC-63 | `0175`–`0178`; `catalogo_policies.sql` bloco 6 (16a, 16b, 16g; `k_recorte_classe`); describe 15 de `catalogos-seguranca.test.ts` | 16a vermelha pelas 51 no push 1 (run `36010011561`), verde com as `0175`–`0178`; 16g (a guarda do analisador sobre oito árvores sintéticas); mutações `f66-termo-em-or` e `f66-admin-com-empresas-do-membro` | CONFORME |
+| R-ACC-109 | **A escrita por unidade é o PAR — nenhuma policy de `public` ou Storage chama `pode_escrever_filial`.** As seis de `k_recorte_unidade` conferem `(empresa_id, filial_id) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u)` — dois pares em `movimentacoes / operador insere` (a filial declarada e a do snapshot) —, nas duas direções (a lista declara quantos, a árvore tem exatamente esses). As seis saem de `k_excecoes_predicado`, que foi de 18 para 12. | decisão 2 do Johnny · decisão 5 do PLAN-F66 | `0176`; `catalogo_policies.sql` (16c, 16d, 11a/11b); `isolamento_tenant.sql` (11a–11d) | 16c/16d vermelhas no push 1; 11a/11b dos pares (o operador na filial dele e recusado na outra, na da B e com filial nula; o admin em toda filial da A, recusado na da B); 11c (o snapshot); a prova conta a conta, membership × filial, nos dois bancos (0 divergência emulada — `docs/f66-evidencias/conta-a-conta/`); mutação `f66-unidade-volta-a-pode-escrever-filial` | CONFORME |
+| R-ACC-110 | **A LEITURA entre empresas é provada, iterada pelo CATÁLOGO** (toda tabela de `public` com `empresa_id` e policy de SELECT): direção A com as policies REAIS (o membro só da B não vê linha da A); direção B com o piso NEUTRALIZADO dentro da transação (o recorte SOZINHO corta — a emulação do que a F72 deixa no ar); o membro das duas vê as duas pelo piso e só a que administra pelo cargo; a escrita cruzada recusada (`42501` pelo WITH CHECK, 0 linhas no UPDATE/DELETE) e o dado da B intacto como `postgres`. | ficha F66 · convenção de honestidade (F48) | `isolamento_tenant.sql` seções 10 e 11 (`[bateria-f66:início]…[fim]`) | 10a–11a-bis vermelhos no push 1, verdes com a cadeia; mutações `f66-termo-sai-da-leitura` (10a) e `f66-escrita-confere-papel-e-esquece-tenant` (10g/10g-bis) | CONFORME |
+| R-ACC-111 | **Toda policy de `public` e de Storage é `to authenticated`.** Uma policy `to public` alcança `anon`; hoje o piso a salva, mas é justamente o piso que a F72 tira. | ficha F66 | `catalogo_policies.sql` (16f) | 16f; mutação `f66-policy-to-public` | CONFORME |
+| R-ACC-112 | **As policies em tabela SEM `empresa_id` são lista nominal, com motivo e destino na linha.** `profiles` ×2 (destino F69: a tabela da pessoa, que não é de uma empresa só) e `_bkp_relatorios_gerados_f6a` (permanente: backup da F6a, só do dev). Nas duas direções: policy nova em tabela sem a coluna reprova; entrada sem policy viva reprova. | decisão 5 do PLAN-F66 | `k_recorte_excecoes` (`catalogo_policies.sql`, 16e); describe 15 | 16e; as duas `*-sem-coluna` do injetor também a derrubam (a tabela perde a coluna, a policy fica fora da lista) | CONFORME |
+| R-ACC-113 | **As `rel_*` que juntam `motivos` usam o par da FK composta `(empresa_id, codigo)`.** `rel_por_motivo_filiais` e `rel_resumo_filiais` recriadas com `and mo.empresa_id = m.empresa_id` no join, o resto byte a byte da `0143` (`security invoker`, `search_path`, privilégios preservados). Ler a coluna aqui é integridade de JUNÇÃO — as duas entram em `k_leitura_tenant`, por comando, com a origem provada. Sem o par, o membro de duas empresas com o mesmo código veria a linha em dobro. | decisão 9 do PLAN-F66 · fato 16 | `0179`; `isolamento_tenant.sql` (10i, 10j); `k_leitura_tenant`; `RECRIACOES_AUTORIZADAS['0179']` | 10i vermelho no push 1; 10j (sem o par, duplica — o 10i sabe acusar); mutação `f66-rel-join-sem-empresa`; a equivalência antes × depois nos dois bancos (`equivalencia-rel.mjs`, modo `mesmo-nome`) no relatório | CONFORME no CI; bancos vivos no relatório |
+| R-ACC-114 | **Nada muda para a WAP — provado conta a conta, antes e depois de cada lote, nos dois bancos.** Para cada membership ativa (a identidade escolhida DENTRO do banco; nenhum id sai): `pode_escrever_filial(f)` × `(legada, f) ∈ unidades_de_escrita()` em toda filial, `pode_escrever()` × `empresas_de_escrita()`, `e_admin()` × `empresas_de_admin()`; e, como `authenticated`, cada tabela com policy de SELECT: emulada (a policy de hoje × a policy de hoje ∧ o termo, no mesmo statement) antes do apply, real (a policy nova × o universo do piso) depois. Só contagens saem. | decisão 2 do Johnny | `scripts/perf/conta-a-conta.mjs` (modelo fechado, byte a byte; `conta-a-conta.test.mts`) | 0 divergência emulada nos dois bancos (Frente A); a sabotada no ensaio acusa; a real depois de cada lote no relatório | CONFORME antes; depois no relatório |
+| R-ACC-115 | **O rollback da F66 roda ANTES dos da F65, F64, F63 e F62, é idempotente, e devolve o "antes" dos bancos vivos.** `supabase/rollback/F66-desfaz.sql` (`0179` → `0175`) volta as duas `rel_*` ao corpo da `0143` e as 51 policies ao texto de antes da `0175`, só nas cláusulas que a fase trocou — texto gerado pelo replay da trava de mesa, nunca transcrito. O `drop column empresa_id` da F64/F63 e o `drop function` da F62 falham sem ele. | regra 10 da §4 do PLANO · R-ACC-106 | `f66_rollback.sql` (rb0–rb5), `f65`–`f62_rollback.sql`; `rollback-f66.test.ts` | rb3/rb4 contra o md5 `vivas` e o das 11 que não mudam, medidos nos dois bancos antes de qualquer apply (`886118ad…`, `f116b8d0…`, `eb294504…`), e rb2 contra o `prosrc` vivo das `rel_*`; a completude na mesa (62 policies, cláusula a cláusula) | CONFORME |
+| R-ACC-116 | **Nenhuma migration da F66 reescreve tupla nem cria índice sem prova de uso.** O `relfilenode` das tabelas de negócio igual antes × depois; o índice liderado por `empresa_id` só entra quando o plano sob a policy nova o usa e não piora — e não usou (§3 do PLAN-F66; confirmado depois do apply pelo `medir-rls.mjs listas` nas cinco listas). | ficha F66 · decisão 8 do PLAN-F66 | `docs/f66-evidencias/impressao-catalogo.sql`; `scripts/perf/medir-rls.mjs` (modo `listas`) | a impressão antes × depois nos dois bancos e o EXPLAIN das cinco listas no relatório | bancos vivos no relatório |
+
+### As exceções (todas nomeadas, todas com motivo)
+
+| exceção | onde | motivo |
+|---|---|---|
+| três policies sem o termo | `k_recorte_excecoes` (`catalogo_policies.sql`) | a tabela não tem `empresa_id`: `profiles` ×2 (F69) e o backup da F6a (permanente) |
+| a precedência da classe | `k_recorte_classe` (`catalogo_policies.sql`) | a policy de admin que também confere unidade (`pendencias_item admin reabre`) recorta pela de admin — o cargo decide antes da unidade |
+| duas funções de relatório leem `empresa_id` | `k_leitura_tenant` (`catalogo_policies.sql`) | integridade de junção (o motivo da movimentação é o da empresa dela), não recorte |
+| `eventos_admin` não muda de forma | decisão 3 do Johnny | a trilha continua sendo uma tabela só; a leitura dela ganha o recorte pela classe de cargo |
+
+### As afirmações erradas conhecidas (registro — não se editam)
+
+- **O fato 12 da ordem F66** contava cinco lugares com "nenhuma policy cita `empresa_id` antes da F66"; são **sete** —
+  mais as duas auto-sabotagens que contavam policy citando a coluna (`7d` de `empresa_no_acervo.sql`, `6b` de
+  `empresa_no_vocabulario.sql`). As sete se inverteram ou se aposentaram (o `15g` saiu; a regra é a 16a).
+- **O fato 16** dava `equivalencia-rel.mjs` como pronto para a prova das `rel_*`; o `MODELO` dele mapeia cada nova para a
+  velha de OUTRO nome, que a `0145` derrubou. O instrumento ganhou o modo `mesmo-nome` (a diferença declarada no PLAN-F60 §0).
+- **O fato 20** media `eventos_admin` pelo texto (a maior 5.070 bytes, 120 kB); o que o disco guarda é 4.946 bytes a
+  maior e 110.769 bytes a soma (`pg_column_size`). Nenhuma passa de 8 kB pelas duas réguas.
+
+> **Nota de escopo — o que a emenda F66 NÃO afirma.** (1) **Que o recorte funcione SOZINHO em produção**: o piso continua
+> em AND até a F72 — a direção B da bateria prova o recorte sozinho só dentro da transação, com o piso neutralizado. (2)
+> **Que a escrita seja por empresa**: `e_admin()`, `pode_escrever()` e a ponte `papel_atual()` continuam globais (o
+> `empresa_legada()` dentro delas), e o default de `empresa_id` é a WAP — F67. (3) **Storage e Realtime**: as policies
+> de `storage.objects` e `pode_ler_arquivo_termo` não mudam — F67. (4) **`profiles`**: F69. (5) **Que o app recorte**: as
+> consultas do TS continuam sem filtro de empresa (F67/F70) — a RLS é quem corta. (6) **Os índices por empresa**: F70,
+> com a igualdade na consulta. (7) **O comprimento do texto**: F66B.

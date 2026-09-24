@@ -499,7 +499,8 @@ Por isso, ao acrescentar uma peça:
   a única escrita fora do `apply_migration`, e só num desfecho ruim. O ledger fica (a linha das três continua lá).
 - **Entre fases:** o rollback de uma fase pressupõe o das fases DEPOIS dela. O da F62 exige o da F64 e o da F63 antes;
   o da F63 exige o da F64 antes (desde a F64); e desde a F65 os três exigem o da F65 antes de tudo (o gatilho `UPDATE OF
-  empresa_id` e as FKs compostas dependem da coluna que eles derrubam) — ver o Anexo F65.
+  empresa_id` e as FKs compostas dependem da coluna que eles derrubam) — ver o Anexo F65. Desde a F66, o da F66 vem antes
+  de todos (as policies citam `empresa_id` e as funções de conjunto) — ver o Anexo F66.
 
 ### O rollback da F64
 
@@ -1756,3 +1757,81 @@ explicada só pela janela. `add constraint` de FK/unique/PK só VARRE (doc do PG
 - **Depois da F73** (duas empresas com dado), este rollback exige que o dado da segunda empresa já tenha saído: os
   uniques e as PKs globais não voltam com duas empresas repetindo uma chave.
 - **Entre fases:** os rollbacks da F64, F63 e F62 rodam este antes dos deles.
+
+## Anexo F66 — reescrever policy viva sem abrir nem fechar ninguém (24/09/2026)
+
+A F66 (`0175`–`0179`) reescreveu 51 policies de `public` e duas funções de relatório com o banco no ar. A regra é a R-ACC-108
+a R-ACC-116 da MATRIZ; as receitas abaixo são as que a fase usou e o CI provou.
+
+### `alter policy` troca a expressão INTEIRA — escreva o piso por extenso
+
+`alter policy "<nome>" on public.<tabela> using (…)` substitui o USING todo (PG 17, `policy.c`, `AlterPolicy`); o mesmo
+para o `with check`. Então o texto-alvo carrega o piso de hoje COPIADO da migration que o escreveu por último, e o termo
+novo em AND:
+
+```sql
+alter policy "leitura operador" on public.ativos
+  using ((select public.papel_atual()) is not null
+         and empresa_id = any (array (select public.empresas_do_membro())));
+```
+
+- Um `alter policy` por policy, com o NOME de hoje — nada de `drop`/`create` (um instante sem policy é um instante com a
+  tabela fechada, ou aberta, conforme as outras), nada de DDL de policy montado em laço (a trava de mesa recusa).
+- Troque SÓ as cláusulas que mudam: numa policy de INSERT, só o `with check`; o `using` que você não escrever fica.
+- A função é a da CLASSE (a tabela-verdade do PLAN-F66 §2, `k_recorte_classe`); o termo em `or`, ou com a função de outra
+  classe, a 16a acusa pelo nome.
+
+### O lock: um lote por família, `lock_timeout` de 2 s
+
+Cada `alter policy` toma ACCESS EXCLUSIVE na tabela até o FIM da transação, e o `apply_migration` do MCP é uma transação
+só: quanto mais tabelas por migration, mais tempo uma leitura do app espera atrás do lote inteiro. A F66 dividiu por
+família (os cadastros e o movimento do acervo, o vocabulário, os registros e vínculos), cada migration com
+`set lock_timeout = '2s'` … `reset lock_timeout;`, sem `begin`/`commit`. Sem o lock: registrar, repetir no máximo três
+vezes em 30 minutos — sem subir o timeout, sem matar sessão. Entre dois lotes, o banco está num repouso válido (umas
+policies com o recorte, outras sem: inerte com uma empresa).
+
+### A prova conta a conta — antes (emulada) e depois de cada lote (real)
+
+`scripts/perf/conta-a-conta.mjs` (modelo fechado: o comando é validado byte a byte antes de sair do processo; a sabotagem
+só no ensaio). O bloco roda `transaction_read_only`, termina em `raise exception`, escolhe as identidades DENTRO do banco e
+devolve só contagens. Pelo MCP, o erro volta inline e truncado — por isso o INVÓLUCRO do canal:
+
+```bash
+node scripts/perf/conta-a-conta.mjs gerar --alvo producao --ref <ref> --fase emulada --dir <fora-do-repo>
+```
+
+grava `<nome>.sql` e `<nome>.canal.sql`; o `.canal.sql` roda o bloco numa subtransação e devolve a mensagem por `select`,
+que o harness grava em arquivo (o enchimento `_canal` garante). A resposta vai para `<nome>.resposta.txt` (extraída do
+arquivo, nunca transcrita) e `analisar` grava o JSON. **Critério: 0 divergência** — emulada antes do primeiro apply,
+real depois de CADA lote, nos dois bancos. A `corrida` (o total de uma tabela mudou no meio do bloco) é contada à parte:
+repita a medição daquela tabela.
+
+### As `rel_*` de mesmo nome: a equivalência antes × depois
+
+`equivalencia-rel.mjs gerar-mesmo-nome --fase antes` (antes do apply da `0179`: a função viva é a de antes, o corpo novo
+vai colado) e `--fase depois` (o inverso). O bloco recusa se o `prosrc` vivo não é o da fase. Critério: 0 célula
+divergente. Embrulhe com `conta-a-conta.mjs embrulhar --instrumento equivalencia`.
+
+### A ordem do apply, e o que se prova a cada passo
+
+`0175` → prova conta a conta real → `0176` → prova → `0177` → prova → `0178` → prova → `0179` → a equivalência `depois`.
+Depois do último, uma vez: `notify pgrst, 'reload schema'`; advisors de segurança e de desempenho (nada novo que cite objeto
+da fase); a impressão das policies e do catálogo (`docs/f66-evidencias/impressao-policies.sql`, `impressao-catalogo.sql`)
+— as 51 com o termo, as 11 de fora byte a byte, o `relfilenode` das tabelas de negócio igual, o `prosrc` das outras
+funções intacto; o conferidor de formas (0 recusadas); `medir-rls.mjs gerar-listas` (nenhum Sort novo nas cinco listas).
+Ensaio primeiro; produção em até 24 h, com o TTFB retomado no mesmo dia.
+
+### O rollback da F66
+
+- **Quando:** divergência conta a conta > 0 depois de um lote (o rollback DAQUELE banco); `relfilenode` mudou; conferidor
+  recusou; advisor de segurança novo que cita objeto da fase; smoke recusou em produção; TTFB > 15% sem conserto.
+- **O arquivo:** `supabase/rollback/F66-desfaz.sql` — `0179` → `0175`: as duas `rel_*` ao corpo da `0143`; as 51 policies ao
+  texto de antes da `0175`, SÓ nas cláusulas que a fase trocou (gerado pelo replay da trava de mesa). IDEMPOTENTE: serve ao
+  apply parado entre dois lotes e ao arquivo rodado duas vezes. Ensaiado no CI por `supabase/tests/f66_rollback.sql`
+  contra o "antes" dos dois bancos vivos (o md5 `vivas` das policies, o das 11 que não mudam, o `prosrc` das `rel_*`). Num
+  banco vivo: o `execute_sql` com o conteúdo EXATO do arquivo. O ledger fica. As seis linhas de `k_excecoes_predicado`
+  voltam no `git revert` do commit da `0176`.
+- **Depois da F73** (uma segunda empresa com dado), este rollback ABRE a leitura entre empresas: só com o dado da segunda
+  empresa fora.
+- **Entre fases:** os rollbacks da F65, F64, F63 e F62 rodam este antes dos deles (as policies citam `empresa_id` e as
+  funções de conjunto).

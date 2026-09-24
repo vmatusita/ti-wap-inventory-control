@@ -13527,3 +13527,80 @@ rollback disparou. Evidências em `f65-evidencias/depois/`; os números no §6 e
 - **(q) A hora do ledger é a de Brasília.** A versão que o `apply_migration` grava (`20260924083446`…) é a hora local
   (-03), não UTC: a `0174` em produção é `…084939` e o deploy foi às 11:48:34 UTC — 08:49 -03 vem depois dele. As
   evidências passam a dizer o fuso por extenso.
+
+## 2026-09-24 · F66 (v1.71.0) · as policies ganham o recorte, em conjunção
+
+**Contexto.** Ordem [`prompts/F66-policies-ganham-o-recorte-ultracode.md`](prompts/F66-policies-ganham-o-recorte-ultracode.md),
+a quinta fase da virada. Plano medido em [`PLAN-F66.md`](PLAN-F66.md) (os 28 fatos remedidos, a tabela-verdade das 54
+policies, o censo e a medição dos índices, a releitura das 102 leituras, as quinze decisões, a ordem de apply e de
+rollback). Migrations `0175`–`0179`. Relatório em [`RELATORIO-F66.md`](RELATORIO-F66.md). Regras novas: MATRIZ R-ACC-108
+a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66; PLANO, a ficha F66B e as notas F66 em F67/F70/F72.
+
+**As três decisões do Johnny (24/09/2026), que mudam a ficha:**
+1. **O CHECK de comprimento vira a fase F66B.** A F66 só escreve a ficha dela, com o censo medido (36 CHECK, 7 de
+   comprimento, só 2 com máximo nas 20 de negócio; 65 colunas de texto; 79 `.max()` do Zod; 0 violação contra os tetos
+   de hoje; o import aborta inteiro se um CHECK disparar numa linha). **Desvio declarado** do item da ficha F66.
+2. **A troca de `pode_escrever_filial` pela forma de pares ENTRA**, provada conta a conta em produção — só contagens de
+   divergência saem do banco.
+3. **`eventos_admin` não muda de forma**: só a leitura ganha o recorte (o jsonb fica — 102 linhas, 4.946 bytes a maior,
+   110.769 a soma, nenhuma acima de 8 kB). **Desvio declarado** da sugestão da ficha (mandar o jsonb para o bucket).
+
+**As quinze decisões da fase** (detalhe no `PLAN-F66.md` §5):
+1. **Cinco migrations, quatro lotes de policy por família** (`0175` os cadastros do acervo, `0176` o movimento com os
+   pares, `0177` o vocabulário, `0178` os registros e vínculos) e a `0179` das `rel_*`: o `alter policy` toma ACCESS
+   EXCLUSIVE até o commit, e o `apply_migration` é uma transação. Entre os lotes, nos bancos vivos, a prova conta a conta
+   real (a ficha pedia `isolamento_tenant.sql` verde entre eles — no CI a cadeia roda inteira; **desvio declarado**).
+2. **A tabela-verdade** em `k_recorte_classe`: a classe sai do piso; `import_logs` "leitura operador" é por `e_admin()`
+   (o nome engana).
+3. **A forma de pares**, com o snapshot de `movimentacoes` no segundo par; `k_excecoes_predicado` 18 → 12.
+4. **`alter policy` literal, nunca `drop`/`create`**, o piso por extenso.
+5. **O bloco 6 de `catalogo_policies.sql`** (16a–16g) lê a ÁRVORE com assinatura por nó; o 15g e o 7a saem; 7d/6b ficam
+   com a metade da função. As inversões entram no MESMO commit das travas vermelhas (a 16a vermelha e o 15g verde diriam
+   coisas opostas); as que dependem de uma migration (as 6 exceções, as `rel_*`, a `L4`) vão no commit dela.
+6. **Quem lê `empresa_id`:** a policy TEM de ler; a função só por exceção nominal (as duas `rel_*`, integridade de
+   junção); o TS continua sem recortar (F67/F70).
+7. **A direção B emula a F72** (o piso vira `true` no texto que o catálogo devolve, numa subtransação desfeita) — testa o
+   termo REAL de cada policy. A escrita da direção B depende da ponte e é da F67.
+8. **Nenhum índice** (a medição de §3: o `= any` de um `InitPlan` não serve `ORDER BY … LIMIT` sem Sort; os candidatos vão
+   para a F70, com a igualdade).
+9. **As `rel_*`:** o join ganha o par, o resto byte a byte; a equivalência pelo modo `mesmo-nome`.
+10. **A prova conta a conta** (`conta-a-conta.mjs`, modelo fechado): 0 divergência emulada nos dois bancos antes do apply;
+    a sabotada no ensaio deu 2.
+11. **O custo:** a linha de base do MESMO dia, imediatamente antes do apply de produção; > 15% no p95 é medido de novo, e
+    só é bloqueio se o `medir-rls` atribuir ao predicado.
+12. **O injetor:** sete mutações novas, teto 143 → 150 (cada uma num roteiro só — as da forma em `catalogo_policies.sql`,
+    as de leitura e escrita cruzadas e a das `rel_*` em `isolamento_tenant.sql`); as duas `*-sem-coluna` devolvem as
+    policies da tabela ao texto sem a coluna antes do `drop`.
+13. **O rollback** `F66-desfaz.sql`, antes dos da F65–F62.
+14. **O instrumento antes/depois:** `impressao-policies.sql` e `impressao-catalogo.sql`, com o enchimento e o invólucro do
+    canal; "mudou como planejado" = só as 51, cada uma para o texto-alvo.
+15. **A releitura dos 102** (§4 do plano; a nota no `INVENTARIO-LEITURAS.md`).
+
+**Decisões tomadas na execução:**
+- **(a) O invólucro do canal MCP.** O `execute_sql` devolve o ERRO inline e o trunca; os blocos de medição falam pelo
+  `raise exception`. O invólucro roda o bloco validado, byte a byte, numa subtransação, guarda a mensagem numa configuração
+  local e a devolve por `select` — que o harness grava em arquivo (com o enchimento `_canal`). Nada é gravado no banco.
+  Serve aos três instrumentos (`conta-a-conta.mjs embrulhar --instrumento medir-rls|conta|equivalencia`).
+- **(b) O rollback é conferido contra uma régua INDEPENDENTE:** o md5 `vivas` das policies (54 de `public`, 8 de Storage),
+  o das 11 que não mudam e o `prosrc` das duas `rel_*`, medidos nos dois bancos vivos ANTES de qualquer apply. O
+  `f66_rollback.sql` bateu os seis na mesa (PGlite) e no CI (run `36017896078`) — o Postgres do CI e os dois bancos vivos
+  dão o mesmo texto de policy para a mesma cadeia.
+- **(c) O texto do rollback é GERADO pelo replay da trava de mesa** (`replayPolicies` de `predicado-policies.mjs`), não
+  transcrito: para cada `alter policy` da `0175`–`0178`, as mesmas cláusulas, com o texto da última migration antes da
+  `0175`. A mesa (`rollback-f66.test.ts`) confere as 62 policies cláusula a cláusula e acusou a exceção de estorno
+  retirada numa sabotagem de conferência.
+- **(d) A constante da `L4`** (o corpo das funções que as fases não recriam) passou a excluir as duas `rel_*` que a `0179`
+  recria; o valor novo foi MEDIDO no CI do push 1 (cadeia até a `0174`: `3a2a8000…`, 100 funções) — o mesmo fato (um
+  subconjunto de um conjunto igual é igual).
+- **(e) O modo `mesmo-nome` do `equivalencia-rel.mjs`** é um bloco próprio; os 56 blocos dos modos da F60 saíram idênticos
+  (diff vazio) e a linha do instrumento no PLAN-F60 §0 foi regravada com a diferença declarada (a trava da F60 exige).
+- **(f) A mutação da catraca (`doutrina-excecao-sobrevive-ao-conserto`)** e o teste de mesa da catraca provam agora com a
+  exceção PERMANENTE de `lancamentos_item` — a de `ativos` que eles usavam saiu da lista na `0176`.
+- **(g) O `medir-rls.mjs` ganhou o modo `listas`** (o EXPLAIN das cinco listas das telas, como `authenticated`): a
+  confirmação nos bancos vivos de que a policy nova não pôs Sort em lista nenhuma.
+- **(h) Um erro de tipo** num teste de instrumento passou por um encadeamento de comandos que não parava no `tsc`; o commit
+  local foi corrigido (amend do próprio commit, antes do push) — o push 2 saiu com `tsc` limpo.
+- **(i) A sabotagem E achou um furo na própria bateria, e ele foi fechado na fase.** O 10g tentava o DELETE e o UPDATE
+  da B só com o admin da A, que NÃO lê a B — e o `where` de um UPDATE/DELETE aplica também a policy de SELECT: a recusa
+  vinha da leitura, e uma policy de DELETE sem o termo passava a bateria (medido na mesa). O membro das duas (lê a B pelo
+  piso, é admin pela ponte) passou a tentar cada classe de escrita; o universo do 10g foi de 9 para 12, com trava de mesa.

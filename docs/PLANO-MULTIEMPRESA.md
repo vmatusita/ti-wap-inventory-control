@@ -962,6 +962,23 @@ R-ACC-98 a R-ACC-107; ADR-003, emenda F65; RUNBOOK, Anexo F65.)*
   código duplicariam a linha do relatório. Quando a leitura recortar, o join ganha `and mo.empresa_id = m.empresa_id` —
   a FK composta `movimentacoes_motivo_fkey` já garante que o par existe.
 
+*(Nota F66, 24/09/2026: executada pela ordem [`prompts/F66-policies-ganham-o-recorte-ultracode.md`](prompts/F66-policies-ganham-o-recorte-ultracode.md),
+plano [`PLAN-F66.md`](PLAN-F66.md), migrations `0175`–`0179` (não `0156`–`0159`). **O que entrou:** as **51**
+policies de `public` cuja tabela tem `empresa_id` (não 54: as outras três moram em tabela SEM a coluna — `profiles` ×2,
+F69, e o backup `_bkp_relatorios_gerados_f6a`, permanente; lista nominal `k_recorte_excecoes`) ganharam o termo com a
+função da CLASSE (não `empresas_do_membro()` em todas): leitura pelo piso → `empresas_do_membro()`; escrita →
+`empresas_de_escrita()`; cargo → `empresas_de_admin()` — o admin da A que só consulta a B não administra a B. As seis de
+escrita por unidade viraram a forma de PARES (decisão 2 do Johnny, provada conta a conta nos dois bancos). Quatro lotes
+por família (não três), por causa do ACCESS EXCLUSIVE do `alter policy` numa transação só. A trava lê a ÁRVORE da policy
+(o bloco 6 de `catalogo_policies.sql`), não o texto; `isolamento_tenant.sql` ganhou a bateria de leitura nas duas
+direções (seções 10 e 11). `rel_por_motivo_filiais`/`rel_resumo_filiais` juntam pelo par (`0179`). Sete mutações novas
+(teto 150). **O que NÃO entrou, e para onde foi:** **os índices de lista** — medidos (PLAN-F66 §3): sob o `= any` de um
+`InitPlan` o planner ignora o candidato liderado por `empresa_id` ou o usa sem ganho, e derrubar o antigo põe Sort
+completo em 4 das 5 listas; vão para a **F70**, que põe a empresa como IGUALDADE. **O CHECK de comprimento** — decisão 1
+do Johnny: virou a **F66B** (a ficha abaixo, com o censo). **`eventos_admin`** não mudou de forma (decisão 3 do Johnny):
+só a leitura ganhou o recorte; o jsonb continua na tabela (102 linhas, 4.946 bytes a maior, 110.769 bytes a soma, nenhuma
+acima de 8 kB). **Regras novas:** MATRIZ R-ACC-108 a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66.)*
+
 **Não entra.** Remover o piso (F72). Storage e definer (F67). Escrita por tenant (F67).
 
 **Entregas.** Migrations `0156`–`0159`, `supabase/tests/{catalogo_policies,isolamento_tenant}.sql`, `scripts/db/run-mutation-tests.mjs`.
@@ -977,6 +994,74 @@ R-ACC-98 a R-ACC-107; ADR-003, emenda F65; RUNBOOK, Anexo F65.)*
 **Reversão.** `alter policy` de volta, por lote.
 
 **Repouso.** Perfeito. O sistema fica com RLS de tenant escrita, medida e provada, e o piso ainda aberto — seguro indefinidamente.
+
+---
+
+### F66B — O comprimento vira regra do banco
+
+*(Ficha escrita pela F66, 24/09/2026 — decisão 1 do Johnny: o CHECK de comprimento saiu da F66 para uma fase própria. O
+prompt dela sai em outra conversa. O censo abaixo foi MEDIDO nos dois bancos pelo catálogo e por `max(char_length)`:
+só nomes de objeto e números saíram de consulta nenhuma.)*
+
+**Objetivo.** Fazer o banco recusar texto maior que o teto de cada coluna de texto livre das tabelas de negócio — em banco
+compartilhado, um cliente que grava 500 MB de observação derruba todos, e o Zod só guarda quem passa pela Server Action.
+
+**O censo (24/09/2026).**
+
+- **CHECK em `public`: 36** (a mesma lista, byte a byte, nos dois bancos). **Sete** citam comprimento (não nove, como a
+  ficha antiga): `anotacao_texto_len` (≤ 2.000), `unidades_apelidos_apelido_tamanho` (≤ 80), três de `empresas` (nome ≤ 80,
+  razão social ≤ 200, slug ≤ 40 — fora das 20 de negócio) e dois que só exigem "não vazio" (`lanc_item_ajuste_obs`,
+  `lanc_item_chamado`). **Só cinco têm máximo de verdade; nas 20 de negócio, só dois.**
+- **65 colunas de texto** nas 20 tabelas de negócio (e 7 `jsonb` à parte). O maior valor medido em produção, por coluna,
+  está abaixo de 200 caracteres em 64 delas; a exceção é `relatorios_gerados.observacao` (505). As maiores depois dela:
+  `lancamentos_item.observacao` 184, `senhas_acesso.hash` 168 (saída do scrypt), `movimentacoes.observacao` 162.
+- **`.max(` do Zod: 79 em 16 arquivos** de `src/lib/validators` (80 em 17 pelo grep literal: um é `Math.max(` num teste),
+  mais os de fora da pasta: `actions/relatorios.ts:35` (observação ≤ 2.000) e o plano do import (`LIMITES_CAMPO_PLANO`,
+  `src/lib/import/limites.ts`). **Nenhuma coluna com teto Zod tem linha acima dele em produção** (o máximo medido de cada
+  uma é ≤ o teto).
+- **Colunas SEM teto Zod**, com o máximo medido (os candidatos a teto derivado): em `ativos`, `marca` 8, `modelo` 18,
+  `service_tag` 24 (na compra), `hostname` 14, `memoria` 25, `armazenamento` 21, `processador` 28, `fornecedor` 10,
+  `colaborador_atual` 64, `setor_atual` 45, `pendencia` 38, `origem` 10, `patrimonio`/`patrimonio_original` 11;
+  `movimentacoes.motivo` 24, `colaborador` 64, `setor` 45, `chamado` 28; `eventos_admin.acao` 26, `alvo` 36;
+  `filiais.slug` 14; `tipos_item.slug` 15; `motivos.codigo` 24 (a EDIÇÃO não tem `.max()`, a criação tem 40); os
+  derivados por gatilho (`*_chave`), o vocabulário do import e os caminhos gerados no servidor (`arquivo_path`,
+  `backup_path`, `arquivo_hash`). `ativos.observacoes` tem DOIS tetos Zod (2.000 na ficha, 500 na devolução ao fornecedor).
+- **Os caminhos sem Zod, remedidos:** a RPC do import é gateada por Zod NA ACTION (`actions/importar.ts:512`, o plano
+  inteiro) — mas a RPC em si é chamável direto pelo PostgREST com um JWT de admin, e aí só a guarda de cargo existe;
+  `src/lib/auditoria-registro.ts` é o único write do app genuinamente sem Zod (`eventos_admin`); `createAdminClient()`
+  aparece 83 vezes em 20 arquivos; os `scripts/**` rodam fora do app por construção.
+- **O import aborta INTEIRO** se um CHECK disparar numa linha: `import_criar_ativos` (`0131:358-404`) insere sem
+  `savepoint` por linha, dentro de `importar_ativos_substituir` (`0140:553-560`) — uma linha longa desfaz a filial toda,
+  inclusive a limpeza que veio antes. Não há rejeição individual.
+
+**Entra.**
+
+- CHECK `char_length(<col>) <= <teto>` nas colunas de texto livre das 20 tabelas, com o teto DERIVADO do `.max()` que já
+  existe (onde existe), e da medição com folga documentada onde não existe — nunca um teto abaixo do máximo vivo (a contagem
+  de violação por coluna, nos dois bancos, é o portão de cada lote).
+- **`not valid` → `validate`** só se a contagem não for zero; com zero, validado direto (o `apply_migration` é uma
+  transação: separar não encurta lock).
+- A validação do import por LINHA antes da RPC (o motor já tem `LIMITES_CAMPO_PLANO`) espelhando os mesmos tetos — a
+  recusa tem de acontecer na tela de conferência, não como rollback da filial inteira.
+- A frase pt-BR do `23514` por constraint (`CONSTRAINTS_TRADUZIDAS`), com o campo e o teto.
+- Unificar o teto de `ativos.observacoes` (dois Zod diferentes) e dar `.max()` à edição de `motivos.codigo`.
+
+**Não entra.** `jsonb` (o tamanho do `detalhe` de `eventos_admin` ficou onde está pela decisão 3 do Johnny na F66); as
+colunas de `empresas` (já têm); caminho de expurgo.
+
+**Pronto quando.** Toda coluna de texto livre das 20 tem teto no banco igual ao do Zod (ou derivado com a folga escrita);
+uma escrita acima do teto pela RPC do import chamada direto leva `23514`; o import com uma linha longa é recusado na
+conferência, antes da RPC; nada mudou para a WAP (0 violação medida antes de cada lote).
+
+**Trava.** Um catálogo novo (`comprimento_por_coluna.sql`) derivado de `pg_attribute`: toda coluna `text` das 20 tem CHECK
+de comprimento ou está numa lista nominal com motivo; e o teste de mesa que confere o teto do banco contra o `.max()` do Zod.
+
+**Dependências.** F65 (a forma), F66 (para não ser o lote que mexe em policy e CHECK ao mesmo tempo).
+
+**Risco.** O teto baixo demais recusa o dado legítimo de amanhã. Mitigação: o teto vem do Zod (que já recusa na tela), não
+do máximo de hoje; onde não há Zod, folga escrita e ata.
+
+**Reversão.** `alter table … drop constraint`, por lote.
 
 ---
 
@@ -1043,6 +1128,13 @@ R-ACC-98 a R-ACC-107; ADR-003, emenda F65; RUNBOOK, Anexo F65.)*
   elas; (f) **as travas advisory que esta fase reescreve** — `resetar_acervo`/`resetar_itens` (a sentinela `-1` do
   "tudo") e `apagar_ativos_conflito_filiais` (`hashtext('conflito_apagar')`) — ganham a empresa na chave, e as 16 se
   convertem na MESMA migration (`(bigint)` e `(int, int)` são espaços de lock diferentes). A F65 não tocou em nenhuma.
+
+- *(Nota F66, 24/09/2026 — o que a F66 deixou para cá.)* As POLICIES recortam desde a F66, em conjunção com o piso; mas
+  `e_admin()`, `pode_escrever()` e a ponte `papel_atual()` continuam respondendo pela empresa LEGADA, e as policies de
+  escrita as usam no piso — com uma segunda empresa real, o cargo da pessoa na B viria da WAP até esta fase. A releitura das
+  102 leituras "confia na RLS" (PLAN-F66 §4) deixou duas aqui: `paresEmOutrasFiliais` (`queries/import-logs.ts`) ganha
+  `where` pela empresa da filial do import, e `cadastrosComMesmaIdentidade` (`ativos/identidade.ts`) recusa só pela
+  empresa do cadastro. As policies de `storage.objects` e `pode_ler_arquivo_termo` não mudaram na F66.
 
 **Entregas.** Migrations `0160`–`0165`, `src/lib/actions/{importar,conflitos,termos,dev-destrutivo}.ts`, `supabase/tests/{definer_escopo,storage_por_empresa,conflito_entre_empresas,realtime_escopo,termo_bloqueado}.sql`.
 
@@ -1139,6 +1231,18 @@ fase.)*
 - **Vocabulário na UI:** decidir e registrar se "filial" vira "unidade" no **rótulo** que o cliente lê. **O custo real, medido:** `src/lib/ajuda/conteudo/` tem 35 arquivos de conteúdo (5.914 linhas) mais 4 de teste (3.139), com 519 ocorrências de "filial/filiais" e 9 nomes de filial real; em `src/lib/ajuda/` inteiro são 549. A cobertura é de **424 asserções `toContain` de frase literal**, em dois níveis. Trocar o rótulo derruba centenas delas. A recomendação é **não trocar agora** e deixar a decisão para o §9 — mas ela precisa estar tomada antes de a primeira tela de cliente ir ao ar.
 - **Se houver cor por empresa** (e só se houver): derivação de tema com contraste garantido por construção — matiz preservado (é a identidade), luminosidade resolvida por busca binária até a razão exigida, **medindo o hex final** e não a cor teórica, com varredura do cubo sRGB nos dois temas. E a regra que a acompanha: **marca veste a moldura; a língua funcional não se mexe** — as oito famílias de selo, o âmbar de pendências e o vermelho destrutivo são semântica, não marca. Se não houver cor por empresa, **corte esta peça inteira**.
 
+- *(Nota F66, 24/09/2026 — **OS ÍNDICES DE LISTA**, vindos da F65 → F66 → aqui.)* A F66 mediu (PLAN-F66 §3): sob a
+  policy nova, `empresa_id = any (array (select …))` na coluna líder não serve `ORDER BY … LIMIT` sem Sort (o `= any` de um
+  parâmetro de `InitPlan` não garante a ordem das colunas seguintes) — o candidato é ignorado (movimentações,
+  lançamentos, trilha do import) ou usado por Bitmap sem ganho (`/ativos`, auditoria). Com a empresa ESCOLHIDA como
+  igualdade na consulta (o seletor desta fase), o índice liderado por `empresa_id` serve a lista sem Sort. Os candidatos:
+  `(empresa_id, data desc, ordem desc)` em `movimentacoes`, `(empresa_id, updated_at desc, id)` em `ativos`,
+  `(empresa_id, created_at desc, id desc)` em `lancamentos_item`, **`(empresa_id, quando desc, id desc)`** em
+  `eventos_admin` (a forma da ficha, sem o `id desc`, ainda deixaria `Incremental Sort`) e `(empresa_id, created_at desc)`
+  em `import_logs` — cada um medido com o `where empresa_id =` da consulta nova; o antigo só cai se nenhum consumidor sem o
+  predicado (as `rel_*` por filial, as `security definer`) depender dele. E `getDiagnostico` (`queries/dev.ts`, `/dev`):
+  decidir se conta pela empresa escolhida ou pela plataforma.
+
 **Não entra.** Decomposição dos componentes gigantes. Subdomínio. Reescrita da ajuda.
 
 **Entregas.** `src/lib/empresa/contexto.ts`, `src/components/layout/{marca,seletor-empresa,permissoes,credito-autor}.tsx`, `paleta-comandos.tsx`, `src/app/layout.tsx`, `src/lib/patrimonio.ts`, `.test.tsx` do header e do seletor.
@@ -1189,6 +1293,11 @@ fase.)*
 **Objetivo.** Remover o piso `(select public.papel_atual()) is not null` das **16 policies de SELECT** que o carregam hoje — 15 em `public` e 1 em `storage.objects` —, deixando só o recorte de tenant.
 
 > **Cuidado com o número herdado.** A `0070` aplicou o piso a 13 policies de `public` + 1 de Storage, mas **duas migrations posteriores nasceram já com ele** (`0112_colaboradores.sql:147-149` e `0114_tipos_item.sql:94-96`). Quem partir de "13" deixa duas policies com o piso aberto depois de a fase fechar. A lista sai do catálogo, nunca de memória — e a forma na `pg_policies` é `(select public.papel_atual()) is not null`, não `papel_atual() is not null`: um grep pela segunda string dá **zero** resultados.
+
+> *(Nota F66, 24/09/2026 — o número, de novo.)* Depois da F66, o piso aparece em **19 policies de SELECT de `public`** com o
+> termo de empresa ao lado (a tabela-verdade do PLAN-F66 §2), mais `profiles / leitura operador` (sem `empresa_id` — F69)
+> e a de Storage. Derivar do catálogo, como a F66 fez; e a direção B de `isolamento_tenant.sql` (o piso neutralizado dentro
+> da transação) já prova, no CI, que o recorte sozinho corta — é a asserção que esta fase transforma no estado real.
 
 **Por que ela é pequena.** O predicado novo está no ar, medido e provado desde a F66. Esta fase **apaga o termo redundante** da conjunção — não introduz nada. É a diferença entre "escrever o recorte" e "apagar o piso", e é a razão pela qual este plano não tem ponto de não retorno com prazo de minutos.
 

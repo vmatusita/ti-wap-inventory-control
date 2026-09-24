@@ -65,7 +65,10 @@ sobre o modelo de 3 cargos da F21. **Desde a F62 (22/09/2026) o cargo mora em `m
 hoje só a WAP); `profiles.papel`/`ativo` estão **congelados** (legado, rede de reversão) e
 `profiles` guarda o que é da conta: nome, e-mail, arquivamento.
 
-- **Piso de leitura:** todo logado ATIVO lê tudo — o piso é `papel_atual() is not null`.
+- **Piso de leitura:** todo logado ATIVO lê tudo — o piso é `papel_atual() is not null`. **Desde a F66
+  (24/09/2026), "tudo" é o da EMPRESA dele:** toda policy de tabela com `empresa_id` cita, em AND com o piso, o termo
+  `empresa_id = any (array (select public.<fn>()))` da classe dela (MATRIZ R-ACC-108) — com uma empresa só, inerte; o
+  piso sai na F72.
   Membership desativada (`membros.ativo = false` desde a F62; antes `profiles.ativo`) **ou**
   perfil arquivado (`profiles.excluido_em`, migration `0073`) não lê nem escreve (migrations `0070`/`0073`). Desativar vale no
   **request seguinte**, para leitura E escrita.
@@ -97,10 +100,12 @@ hoje só a WAP); `profiles.papel`/`ativo` estão **congelados** (legado, rede de
 - `pode_escrever_filial(fid)` (`0062`, dev tratado como admin desde `0072`) — reconfere
   `papel_atual()` por dentro a cada chamada; desde a `0158` o vínculo do operador é o da
   membership na empresa legada.
-- **Sem consumidor ainda (F62):** as quatro funções de conjunto da forma-alvo —
-  `empresas_do_membro()`, `empresas_de_escrita()`, `empresas_de_admin()`, `unidades_de_escrita()`
-  (`0157`, as policies da F66 as chamarão) — e `e_plataforma()` (`0154`, sobre o retrato
-  `plataforma_admins`; a `/dev` segue decidindo por `e_dev()`).
+- **As quatro funções de conjunto da forma-alvo** — `empresas_do_membro()`, `empresas_de_escrita()`,
+  `empresas_de_admin()`, `unidades_de_escrita()` (`0157`) — são chamadas pelas policies desde a F66 (`0175`–`0178`),
+  içadas (`= any (array (select …))`, uma avaliação por statement); as seis policies de escrita por unidade trocaram
+  `pode_escrever_filial(filial_id)` pelo par `(empresa_id, filial_id)` sobre `unidades_de_escrita()` (R-ACC-109).
+  **Sem consumidor ainda:** `e_plataforma()` (`0154`, sobre o retrato `plataforma_admins`; a `/dev` segue decidindo por
+  `e_dev()`).
 
 A regra mora **no Postgres** (essas funções + policies, migrations `0061`→`0078`) — o termo e
 o `.docx` também são matéria de filial (`0069`), guardado nas RPCs `security definer` que os

@@ -344,3 +344,41 @@ Até a F61 o cargo era **um por pessoa**: `profiles.papel` e `profiles.ativo`. A
 - **`p_empresa` em `papel_atual()`.** A ponte fica sem parâmetro até as RPCs receberem a empresa (F67).
 - **Derrubar `profiles.papel`/`ativo`.** É a rede de reversão; cai num PATCH depois de semanas verdes.
 - **Seletor de empresa, segunda empresa no seed, consumidor de `e_plataforma()`.** F70, F65 e F67.
+
+## 16. Emenda — O recorte nas policies, em conjunção com o piso (F66 — 24/09/2026)
+
+**Status:** aceito · 24/09/2026 (ordem [`prompts/F66-policies-ganham-o-recorte-ultracode.md`](prompts/F66-policies-ganham-o-recorte-ultracode.md), migrations `0175`–`0179`, com as três decisões do Johnny da mesma data). Esta seção **muda o texto de 51 policies**; nenhum cargo e nenhuma permissão mudaram para a WAP — provado conta a conta nos dois bancos. Ata em [`DECISOES.md`](DECISOES.md) (2026-09-24 · F66); regras em [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-108 a R-ACC-116).
+
+### 16.1 Contexto
+
+A F62 pôs o cargo na membership e criou as quatro funções de conjunto; a F63–F65 deram `empresa_id` às 20 tabelas de negócio e tornaram a chave estrutural. Faltava o banco **usar** a chave para decidir o que cada um vê e onde escreve. Com uma empresa só, escrever o recorte é inerte — é a janela barata, a mesma lógica da §15.
+
+### 16.2 Decisão
+
+1. **O termo de empresa entra EM CONJUNÇÃO com o piso, nunca no lugar dele.** Toda policy de `public` cuja tabela tem `empresa_id` ganha `empresa_id = any (array (select public.<fn>()))` em AND com o que já tinha; tirar o piso é a F72, com a prova de que o recorte sozinho basta (a direção B da bateria já emula isso).
+2. **A função é a da CLASSE da policy** — a classe sai do piso: leitura pelo piso → `empresas_do_membro()`; escrita (`pode_escrever`, `pode_escrever_termo`, a unidade) → `empresas_de_escrita()`; cargo (`e_admin`) → `empresas_de_admin()`. Quem administra a A e só consulta a B lê as duas pelo piso e administra só a A.
+3. **A escrita por unidade é o PAR** `(empresa_id, filial_id)` sobre `unidades_de_escrita()` — decisão 2 do Johnny: entra, provada conta a conta (`pode_escrever_filial(f)` × o par, em toda membership e toda filial, nos dois bancos, 0 divergência antes e depois de cada lote).
+4. **`eventos_admin` não muda de forma** (decisão 3 do Johnny): só a leitura da auditoria ganha o recorte, pela classe de cargo.
+5. **O CHECK de comprimento vira a F66B** (decisão 1 do Johnny): a ficha com o censo está no PLANO.
+
+### 16.3 Como funciona por baixo
+
+**A forma (`0175`–`0178`).** Um `alter policy` literal por policy, com o nome de hoje e o piso copiado por extenso da migration que o escreveu por último — o `alter policy` troca a expressão inteira. Quatro migrations por família (os cadastros e o movimento do acervo, o vocabulário, os registros e vínculos), porque cada `alter policy` toma ACCESS EXCLUSIVE na tabela até o fim da transação, e o `apply_migration` é uma transação só: `lock_timeout` de 2 s, e todo estado entre dois lotes é repouso válido.
+
+**A trava (o bloco 6 de `catalogo_policies.sql`).** Lê do catálogo QUAIS tabelas têm `empresa_id`, e da ÁRVORE de cada policy (`pg_policy.polqual`/`polwithcheck`) se o termo da classe está na conjunção de cima — o texto de `pg_policies` não distingue `and` de `or` dentro de parênteses; a árvore distingue. Uma guarda confere o próprio analisador com oito árvores sintéticas.
+
+**As `rel_*` (`0179`).** O relatório por motivo e o resumo juntavam `motivos` só pelo código; com a PK de `motivos` por empresa (F65), o membro de duas empresas veria a linha duplicada. O join ganhou o par da FK composta.
+
+**Rollback.** `supabase/rollback/F66-desfaz.sql` — as 51 policies de volta ao texto de antes da `0175` e as duas `rel_*` ao corpo da `0143`; roda antes dos rollbacks da F65 para trás (RUNBOOK, Anexo F66).
+
+### 16.4 Consequências
+
+- **Positivas:** o dado de uma empresa deixa de ser legível por quem não é membro dela — provado pela primeira vez entre duas empresas, pelo catálogo (a bateria das seções 10 e 11 de `isolamento_tenant.sql`); a escrita por unidade não confunde a filial 3 da A com a 3 da B; a doutrina do predicado perdeu seis exceções (18 → 12).
+- **Negativas / custo:** o piso continua avaliado em toda leitura até a F72 (duas `InitPlan` por statement, medidas pelo `medir-rls.mjs`); a ponte `papel_atual()` e as funções de cargo seguem globais (empresa legada) até a F67 — com uma segunda empresa real antes disso, o cargo da pessoa na B ainda viria da WAP.
+
+### 16.5 O que **não** foi criado, de propósito
+
+- **Tirar o piso.** F72.
+- **Cargo e escrita por empresa nas funções** (`e_admin`, `pode_escrever`, a ponte), Storage e Realtime. F67.
+- **Recorte em `profiles`.** F69.
+- **Índices liderados por `empresa_id`.** F70 — sob o `= any` de um `InitPlan` o planner não os usa para ordenar (PLAN-F66 §3); com a empresa escolhida como igualdade, sim.
