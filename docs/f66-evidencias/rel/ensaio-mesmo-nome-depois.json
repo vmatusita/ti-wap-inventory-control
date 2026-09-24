@@ -1,0 +1,49 @@
+{
+  "rotulo": "f66-rel-mesmo-nome-depois-ensaio",
+  "sha_codigo": "ccfeefc9dc4ac60312c65cdf34110db510fd81ca",
+  "gerado_em": "2026-09-24T16:38:00.204Z",
+  "metodo": "o corpo da 0143 × o da 0179, célula a célula (as datas de f60-datas-amostra.json × consolidado e cada filial por ordinal × janelas 7d/365d): count(*) e md5 das linhas ordenadas nos dois lados; antes do apply a função viva é a de antes e o corpo novo vai colado, depois o inverso; a guarda confere o prosrc vivo; identidade admin pela membership; raise exception no fim.",
+  "divergentes_total": 0,
+  "funcoes": {
+    "rel_por_motivo_filiais": {
+      "alvo": "ensaio",
+      "fase": "depois",
+      "modo": "mesmo-nome",
+      "lista": [],
+      "papel": "authenticated",
+      "funcao": "rel_por_motivo_filiais",
+      "iguais": 168,
+      "celulas": 168,
+      "n_datas": 12,
+      "postgres": "17.6",
+      "n_filiais": 6,
+      "divergentes": 0,
+      "ordinais_inativos": [],
+      "linhas_antes_total": 404,
+      "linhas_depois_total": 404,
+      "celulas_vazias_nos_dois": 95,
+      "md5_corpo_antes_normalizado": "4340acc35728a592c2de946aea822042",
+      "md5_corpo_depois_normalizado": "3b9d82a3782767a5189a5fb5f3592e42"
+    },
+    "rel_resumo_filiais": {
+      "alvo": "ensaio",
+      "fase": "depois",
+      "modo": "mesmo-nome",
+      "lista": [],
+      "papel": "authenticated",
+      "funcao": "rel_resumo_filiais",
+      "iguais": 168,
+      "celulas": 168,
+      "n_datas": 12,
+      "postgres": "17.6",
+      "n_filiais": 6,
+      "divergentes": 0,
+      "ordinais_inativos": [],
+      "linhas_antes_total": 1082,
+      "linhas_depois_total": 1082,
+      "celulas_vazias_nos_dois": 95,
+      "md5_corpo_antes_normalizado": "ad948cbb7c544eec083d271b8cf27184",
+      "md5_corpo_depois_normalizado": "00db2a30a4b9886445d91393574cc405"
+    }
+  }
+}
