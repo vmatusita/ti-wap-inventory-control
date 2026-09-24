@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { comandoConta, FASES, involucroDoCanal, lerPayload, validarComando, veredito } from './conta-a-conta.mjs'
 import { validarComando as validarMedicao } from './medir-rls.mjs'
+import { blocoMesmoNome, lerCorposMesmoNome, validarBloco as validarEquivalencia } from './equivalencia-rel.mjs'
 
 // A GUARDA DO `conta-a-conta.mjs` — F66. Sem banco.
 //
@@ -89,6 +90,14 @@ describe('3. o invólucro do canal', () => {
 
   it('serve ao medir-rls com o validador DELE (e recusa o bloco de um instrumento no validador do outro)', () => {
     expect(() => involucroDoCanal(EMULADA, validarMedicao)).toThrow(/RECUSADO/)
+  })
+
+  it('serve à equivalência (o modo mesmo-nome da F66) com o validarBloco dela', () => {
+    const bloco = blocoMesmoNome('rel_resumo_filiais', lerCorposMesmoNome(), 'producao', ['2026-09-16'], 'depois')
+    const c = involucroDoCanal(bloco, validarEquivalencia)
+    expect(c).toContain(`execute $bloco$${bloco.trim()}$bloco$;`)
+    expect(() => involucroDoCanal(bloco, validarComando)).toThrow(/RECUSADO/)
+    expect(() => involucroDoCanal(bloco.replace('  -- 4. as células', '  truncate public.motivos;\n  -- 4. as células'), validarEquivalencia)).toThrow(/RECUSADO/)
   })
 })
 

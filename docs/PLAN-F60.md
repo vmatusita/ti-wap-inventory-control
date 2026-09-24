@@ -36,7 +36,7 @@ esta identidade — é ela que o "depois" tem de repetir, ou declarar a diferen�
 | `scripts/perf/medir-rel.mjs` — **versionado** (lote 1 + revisão + o conjunto "depois" do lote 2) | 53.098 | `fd8183d2853252ef315a0187b65a1d81a4d19455226c6961df6b304bb35a7ee7` |
 | `scripts/perf/medir-custo.mjs` — **versionado** (lote 1 + revisão) | 36.046 | `491b9a6aca1bbe9bfeee678a9360c448c77c438ed47ca5b76b0380af14600fb3` |
 | `equivalencia-rel.mjs` (a equivalência velho × novo emulada e o custo dos corpos novos, lote 2) — **original, mediu a equivalência** | 59.660 | `59e11125af7214bef3ad0d2e24f554884ddb6278385eb3374161c28e43a75c9d` |
-| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2 + os modos `*-real` da revisão final) | 73.735 | `50357b4e56292e196fbe8b9e26378cd7df31ee4b965d452a72bb6b41c16d0772` |
+| `scripts/perf/equivalencia-rel.mjs` — **versionado** (lote 2 + os modos `*-real` da revisão final + o modo `mesmo-nome` da F66) | 83.951 | `87bc862a052b0130bf1f7c8828218c2c538357c2848e929437f80708b39a6a9f` |
 
 ⚠ Só `medir-rel.mjs` fixava `RAIZ_REPO` como caminho absoluto desta máquina; `medir-custo.mjs` não tinha raiz, e por isso
 também não conferia onde `--dir` caía. O plano previa um diff de "só essa linha"; o que entrou é maior, e está declarado aqui
@@ -69,6 +69,15 @@ e que até aqui era só prosa). A versão do lote 2 tinha 61.324 bytes e sha256 
 `6f2d0bad83980d60fb6a931eb83cf5bfb75b9ec431e4e9f0bb7ca5e543062eaf`. **A emulação continua reproduzível:** a versão do lote 2 e a
 da revisão geraram os 28 blocos de `gerar-equivalencia`/`gerar-custo` (ensaio e produção, os corpos das migrations 0141 + 0143)
 num diretório fora do repositório, e `diff -r` saiu vazio.
+
+**F66 (24/09/2026) — a diferença declarada.** `scripts/perf/equivalencia-rel.mjs` ganhou o modo `mesmo-nome`
+(`gerar-mesmo-nome`/`analisar-mesmo-nome`, PLAN-F66 decisão 9): a `0179` recria `rel_por_motivo_filiais` e
+`rel_resumo_filiais` com o MESMO nome, e o `MODELO` daqui mapeia cada nova para a velha de outro nome, que a `0145` derrubou.
+O modo novo é um bloco próprio (`blocoMesmoNome`, a identidade pela membership da F62) e não toca o código dos modos da F60. A
+versão da revisão final tinha 73.735 bytes e sha256 (LF) `50357b4e56292e196fbe8b9e26378cd7df31ee4b965d452a72bb6b41c16d0772`.
+**A F60 continua reproduzível:** a versão da revisão e a da F66 geraram os 28 blocos de `gerar-equivalencia`/`gerar-custo` (os
+corpos das migrations 0141 + 0143) e os 28 de `gerar-equivalencia-real`/`gerar-custo-real`, ensaio e produção, num diretório
+fora do repositório, e `diff -r` saiu vazio nos dois pares.
 
 ---
 

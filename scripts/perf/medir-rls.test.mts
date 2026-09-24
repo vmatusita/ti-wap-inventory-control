@@ -5,6 +5,8 @@ import {
   emitir,
   estatistica,
   FORMAS,
+  LISTAS,
+  comandoListas,
   lerPayload,
   validarAlvo,
   validarComando,
@@ -77,6 +79,16 @@ describe('2. o comando, contra o modelo fechado', () => {
     expect(FORMAS.F4.where).toBe(' where empresa_id = any (array (select public.empresas_do_membro()))')
     expect(VALIDO).toContain("from public.ativos where empresa_id = any (array (select public.empresas_do_membro()))'")
     expect(() => validarComando(VALIDO.replace('array (select public.empresas_do_membro())', 'array (select public.empresas_de_admin())'))).toThrow(/RECUSADO/)
+  })
+
+  it('F66: o modo listas — as cinco listas no modelo, o comando passa, e a troca de uma lista é recusada', () => {
+    expect(Object.keys(LISTAS)).toEqual(['movimentacoes', 'ativos', 'lancamentos_item', 'eventos_admin', 'import_logs'])
+    for (const sql of Object.values(LISTAS)) expect(sql).not.toMatch(/empresa_id/)
+    const c = comandoListas({ alvo: 'producao' })
+    expect(validarComando(c)).toBe(c)
+    expect(() => validarComando(c.replace('limit 50 offset 0', 'limit 5000 offset 0'))).toThrow(/RECUSADO/)
+    expect(() => validarComando(c.replace("raise exception 'F59_LISTAS %'", "raise notice 'F59_LISTAS %'"))).toThrow(/RECUSADO/)
+    expect(() => validarComando(c.replace('from public.import_logs order by', 'from public.profiles order by'))).toThrow(/RECUSADO/)
   })
 
   it('comentário em português não é código (a palavra "do" num comentário passa)', () => {

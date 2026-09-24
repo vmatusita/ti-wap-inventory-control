@@ -10,8 +10,9 @@
 //   node scripts/perf/conta-a-conta.mjs gerar    --alvo ensaio|producao --ref <ref> --fase emulada|real --dir <fora>
 //   node scripts/perf/conta-a-conta.mjs gerar    --alvo ensaio --ref <ref> --fase emulada --sabotar --dir <fora>
 //   node scripts/perf/conta-a-conta.mjs analisar --alvo … --ref … --fase … [--sabotar] --dir <mesma> --saida <json>
-//   node scripts/perf/conta-a-conta.mjs embrulhar --arquivo <bloco.sql fora do repo> --instrumento medir-rls|conta
-//        (grava <bloco>.canal.sql: o invólucro do canal MCP — ver `involucroDoCanal`)
+//   node scripts/perf/conta-a-conta.mjs embrulhar --arquivo <bloco.sql fora do repo> --instrumento medir-rls|conta|equivalencia
+//        (grava <bloco>.canal.sql: o invólucro do canal MCP — ver `involucroDoCanal`; cada bloco passa pelo validador DO
+//        instrumento que o gerou: o `validarComando` do medir-rls, o daqui, ou o `validarBloco` do equivalencia-rel)
 //
 // O BLOCO (um `do $f66$ … $f66$;` que termina SEMPRE em `raise exception` — nunca se confirma):
 //   0. `transaction_read_only = on`; o banco confirma o alvo (`rotulo_de_ambiente()`: 'desenvolvimento' no ensaio,
@@ -51,6 +52,7 @@ import { execSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { lexar } from '../db/predicado-policies.mjs'
 import { validarAlvo, validarComando as validarMedicao } from './medir-rls.mjs'
+import { validarBloco as validarEquivalencia } from './equivalencia-rel.mjs'
 
 const RAIZ = process.cwd()
 
@@ -455,8 +457,15 @@ async function main() {
   if (o.modo === 'embrulhar') {
     if (!o.arquivo) recusar('--arquivo é obrigatório.')
     validarDirFora(o.arquivo)
-    const validar = o.instrumento === 'medir-rls' ? validarMedicao : o.instrumento === 'conta' ? validarComando : null
-    if (!validar) recusar('--instrumento medir-rls|conta.')
+    const validar =
+      o.instrumento === 'medir-rls'
+        ? validarMedicao
+        : o.instrumento === 'conta'
+          ? validarComando
+          : o.instrumento === 'equivalencia'
+            ? validarEquivalencia
+            : null
+    if (!validar) recusar('--instrumento medir-rls|conta|equivalencia.')
     const destino = o.arquivo.replace(/.sql$/, '.canal.sql')
     writeFileSync(destino, involucroDoCanal(readFileSync(o.arquivo, 'utf8'), validar))
     console.log(`gravado ${destino}`)

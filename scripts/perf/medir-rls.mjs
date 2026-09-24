@@ -302,6 +302,89 @@ begin
 end $f59$;`
 }
 
+/**
+ * AS CINCO LISTAS DA F66 (PLAN-F66 §3.2): a projeção e a ordenação de cada tela, SEM filtro de empresa — é a consulta
+ * que o app faz hoje, e a policy REAL decide. O modo `listas` confirma nos bancos vivos o que a mesa mediu: sob a
+ * policy da F66, o nó de cada lista é o de antes (nenhum Sort novo) e as funções de conjunto são InitPlan de 1 loop.
+ */
+export const LISTAS = {
+  movimentacoes: 'select id, tipo, data, created_at, ativo_id, filial_id from public.movimentacoes order by data desc, ordem desc limit 50 offset 0',
+  ativos: 'select id, patrimonio, updated_at from public.ativos order by updated_at desc, id asc limit 50',
+  lancamentos_item: 'select id, item_id, filial_id, tipo, created_at from public.lancamentos_item order by created_at desc, id desc limit 50',
+  eventos_admin: 'select id, quando, acao from public.eventos_admin order by quando desc, id desc limit 50',
+  import_logs: 'select id, filial_id, created_at from public.import_logs order by created_at desc limit 50',
+}
+
+/** O bloco do modo `listas` (F66): o plano das cinco listas como authenticated, com a identidade de admin. */
+export function comandoListas({ alvo }) {
+  if (!ALVOS.includes(alvo)) recusar(`alvo ${alvo}`)
+  const nomes = Object.keys(LISTAS)
+  const sqls = nomes.map((l) => `'${LISTAS[l]}'`).join(',\n    ')
+  return `do $f59$
+declare
+  v_alvo   constant text := '${alvo}';
+  v_listas constant text[] := array[${nomes.map((l) => `'${l}'`).join(', ')}];
+  v_sql    constant text[] := array[
+    ${sqls}
+  ];
+  v_rotulo text;
+  v_uid    uuid;
+  v_plano  json;
+  v_p      jsonb;
+  v_res    jsonb := '{}';
+  v_i      int;
+  v_k      int;
+-- 0. nada nesta transação grava; e ela nunca se confirma (termina em raise exception)
+begin
+  perform set_config('transaction_read_only', 'on', true);
+
+  -- 1. o BANCO confirma o alvo
+  v_rotulo := public.rotulo_de_ambiente();
+  if (v_alvo = 'ensaio' and v_rotulo is distinct from 'desenvolvimento')
+     or (v_alvo = 'producao' and v_rotulo is not null) then
+    raise exception 'F59_ALVO_RECUSADO alvo=% rotulo=%', v_alvo, coalesce(v_rotulo, '(null)');
+  end if;
+
+  -- 2. a identidade de nível administrador, escolhida DENTRO do banco — o id não sai daqui
+  select p.id into v_uid
+    from public.profiles p
+    join public.membros m on m.profile_id = p.id and m.empresa_id = public.empresa_legada()
+   where m.ativo and p.excluido_em is null and ${IDENTIDADES.admin}
+   order by p.id
+   limit 1;
+  if v_uid is null then
+    raise exception 'F59_IDENTIDADE_AUSENTE identidade=admin alvo=%', v_alvo;
+  end if;
+
+  -- 3. como authenticated COM a identidade: 1 aquecimento por lista, e o plano da 3ª repetição
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid, 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  for v_i in 1 .. 3 loop
+    for v_k in 1 .. array_length(v_listas, 1) loop
+      execute '${EXPLAIN}' || v_sql[v_k] into v_plano;
+      if v_i = 3 then
+        v_p := v_plano::jsonb -> 0;
+        v_res := v_res || jsonb_build_object(v_listas[v_k], jsonb_build_object(
+          'exec', v_p -> 'Execution Time',
+          'linhas', v_p #> '{Plan,Actual Rows}',
+          'hit', v_p #> '{Plan,Shared Hit Blocks}',
+          'read', v_p #> '{Plan,Shared Read Blocks}',
+          'tipos', jsonb_path_query_array(v_p, 'strict $.**."Node Type"'),
+          'indices', jsonb_path_query_array(v_p, 'strict $.**."Index Name"'),
+          'sort', jsonb_path_exists(v_p, 'strict $.** ? (@."Node Type" like_regex "Sort")'),
+          'subplanos', jsonb_path_query_array(v_p, 'strict $.** ? (exists (@."Subplan Name"))."Subplan Name"'),
+          'loops_subplanos', jsonb_path_query_array(v_p, 'strict $.** ? (exists (@."Subplan Name"))."Actual Loops"')));
+      end if;
+    end loop;
+  end loop;
+
+  raise exception 'F59_LISTAS %', jsonb_build_object(
+    '_canal', repeat('.', 120000),
+    'alvo', v_alvo, 'postgres', current_setting('server_version'), 'papel_na_medicao', current_user,
+    'listas', v_res);
+end $f59$;`
+}
+
 function literal(s) {
   return `'${s.replace(/'/g, "''")}'`
 }
@@ -417,7 +500,7 @@ export function validarComando(sql) {
   if (!/\bbegin\s+perform set_config\('transaction_read_only', 'on', true\);/.test(semComentario)) {
     recusar('o bloco não liga transaction_read_only antes de tudo.')
   }
-  if (!/raise exception 'F59_(MEDICAO|PROVA) %', jsonb_build_object\([\s\S]*\);\s*end\s*$/.test(semComentario)) {
+  if (!/raise exception 'F59_(MEDICAO|PROVA|LISTAS) %', jsonb_build_object\([\s\S]*\);\s*end\s*$/.test(semComentario)) {
     recusar('o bloco não termina em raise exception — ele poderia se confirmar.')
   }
   for (const p of PROIBIDAS) {
@@ -459,6 +542,7 @@ function ehComandoDoModelo(t) {
   const alvo = /v_alvo\s+constant text := '([a-z]+)';/.exec(t)?.[1]
   try {
     if (/raise exception 'F59_PROVA %'/.test(t)) return t === comandoProvaFormaAlvo({ alvo }).trim()
+    if (/raise exception 'F59_LISTAS %'/.test(t)) return t === comandoListas({ alvo }).trim()
     const tabela = /v_tabela constant text := '([a-z_]+)';/.exec(t)?.[1]
     const identidade = /v_ident\s+constant text := '([a-z]+)';/.exec(t)?.[1]
     const n = Number(/v_n\s+constant int\s+:= (\d+);/.exec(t)?.[1])
@@ -605,8 +689,8 @@ function args(argv) {
 
 async function main() {
   const o = args(process.argv.slice(2))
-  if (!['gerar', 'analisar', 'gerar-prova', 'analisar-prova'].includes(o.modo)) {
-    recusar('modo: gerar | analisar | gerar-prova | analisar-prova.')
+  if (!['gerar', 'analisar', 'gerar-prova', 'analisar-prova', 'gerar-listas', 'analisar-listas'].includes(o.modo)) {
+    recusar('modo: gerar | analisar | gerar-prova | analisar-prova | gerar-listas | analisar-listas.')
   }
   const { alvo, ref } = validarAlvo(o.alvo, o.ref)
   const canal = o.canal ?? 'mcp'
@@ -625,6 +709,11 @@ async function main() {
     console.log(JSON.stringify({ alvo, canal, ...r }, null, 2))
     return
   }
+  if (o.modo === 'gerar-listas') {
+    const r = await emitir([{ nome: `${alvo}-listas`, sql: comandoListas({ alvo }) }], { canal, dir: o.dir, ref })
+    console.log(JSON.stringify({ alvo, canal, ...r }, null, 2))
+    return
+  }
   if (o.modo === 'gerar-prova') {
     const r = await emitir([{ nome: `${alvo}-prova-forma-alvo`, sql: comandoProvaFormaAlvo({ alvo }) }], { canal, dir: o.dir, ref })
     console.log(JSON.stringify({ alvo, canal, ...r }, null, 2))
@@ -633,6 +722,26 @@ async function main() {
 
   validarDirFora(o.dir)
   if (!o.saida) recusar('--saida é obrigatório na análise.')
+  if (o.modo === 'analisar-listas') {
+    const arq = join(o.dir, `${alvo}-listas.resposta.txt`)
+    const p = lerPayload(readFileSync(arq, 'utf8'), 'F59_LISTAS')
+    if (p.recusa) recusar(`o banco recusou: ${p.recusa}`)
+    delete p._canal
+    const saida = {
+      rotulo: o.rotulo ?? `f66-listas-${alvo}`,
+      alvo,
+      canal,
+      sha_codigo: shaDoCodigo(),
+      gerado_em: new Date().toISOString(),
+      metodo:
+        'explain (analyze, buffers, verbose, format json) das cinco listas (LISTAS), como authenticated com a identidade de ' +
+        'nível administrador escolhida no banco; 2 aquecimentos, o plano da 3ª; transaction_read_only = on; raise exception no fim.',
+      ...p,
+    }
+    writeFileSync(join(RAIZ, o.saida), JSON.stringify(saida, null, 2) + '\n')
+    console.log(`gravado ${o.saida}`)
+    return
+  }
   if (o.modo === 'analisar-prova') {
     const arq = join(o.dir, `${alvo}-prova-forma-alvo.resposta.txt`)
     const p = lerPayload(readFileSync(arq, 'utf8'), 'F59_PROVA')
