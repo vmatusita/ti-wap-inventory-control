@@ -213,9 +213,12 @@ declare
   -- A GUARDA DO ANALISADOR DO RECORTE (16g): o que cada árvore SINTÉTICA tem de produzir, `caso:achado`. As que não
   -- produzem nada (o array sem `array (select …)`, a outra coluna, o sub-select com filtro) não aparecem — e qualquer
   -- achado delas reprova.
+  -- (Revisão adversarial da F66: o segundo membro do par é conferido — a coluna filial_id da linha, ou a forma do
+  -- snapshot; um literal ou outra coluna no lugar é `pares-mal`.)
   k_recorte_guarda_esperada text[] := array[
     'recorte-canonico:termo:empresas_do_membro', 'recorte-em-and:termo:empresas_do_membro', 'recorte-em-or:fora',
-    'pares:pares', 'pares-em-or:pares-fora'
+    'pares:pares', 'pares-em-or:pares-fora', 'pares-snapshot:pares-snapshot', 'pares-segundo-literal:pares-mal',
+    'pares-segundo-outra-coluna:pares-mal'
   ];
 
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
@@ -519,6 +522,13 @@ declare
   v_rc_fora   int;
   v_rc_pc     int;
   v_rc_pt     int;
+  v_rc_pcol   int;         -- pares na conjunção cujo segundo membro é a coluna filial_id da linha
+  v_rc_psnap  int;         -- pares na conjunção cujo segundo membro é a filial do snapshot (só onde há snapshot_anterior)
+  v_rc_pmal   int;         -- pares (em qualquer lugar) com o segundo membro fora das duas formas
+  v_re_par_col  text;
+  v_re_par_snap text;
+  v_op_int2   oid;
+  v_op_jtexto oid;
   v_rc_funcs  bigint[];
   v_re_canon  text;
   v_re_pares  text;
@@ -531,6 +541,9 @@ declare
   v_rr_fora   int[] := '{}';
   v_rr_pc     int[] := '{}';
   v_rr_pt     int[] := '{}';
+  v_rr_pcol   int[] := '{}';
+  v_rr_psnap  int[] := '{}';
+  v_rr_pmal   int[] := '{}';
   v_rr_funcs  text[] := '{}';
   v_rr_casos  int := 0;
   v_rc_obtida text[] := '{}';
@@ -1705,19 +1718,25 @@ begin
   -- ===============================================================
   v_op_uuid := '=(uuid,uuid)'::regoperator::oid;
   v_f_unid := 'public.unidades_de_escrita()'::regprocedure::oid;
+  v_op_int2 := '=(smallint,smallint)'::regoperator::oid;
+  v_op_jtexto := '->>(jsonb,text)'::regoperator::oid;
 
   -- [laço-do-recorte:início]
   for v_rc in
     select n.nspname || '.' || c.relname || ' / ' || p.polname as chave, a.tipo, a.arvore, null::text as caso,
            (select att.attnum from pg_attribute att
-             where att.attrelid = c.oid and att.attname = 'empresa_id' and not att.attisdropped) as attno
+             where att.attrelid = c.oid and att.attname = 'empresa_id' and not att.attisdropped) as attno,
+           (select att.attnum from pg_attribute att
+             where att.attrelid = c.oid and att.attname = 'filial_id' and not att.attisdropped) as attno_filial,
+           (select att.attnum from pg_attribute att
+             where att.attrelid = c.oid and att.attname = 'snapshot_anterior' and not att.attisdropped) as attno_snap
       from pg_policy p
       join pg_class c on c.oid = p.polrelid
       join pg_namespace n on n.oid = c.relnamespace
       cross join lateral (values ('using', p.polqual::text), ('with check', p.polwithcheck::text)) as a (tipo, arvore)
      where n.nspname = 'public' and a.arvore is not null
     union all
-    select '(árvore sintética ' || s.caso || ')', 'using', s.arvore, s.caso, 99::int2
+    select '(árvore sintética ' || s.caso || ')', 'using', s.arvore, s.caso, 99::int2, 6::int2, 18::int2
       from (values
         ('recorte-canonico', format(
            '{SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true :args ({VAR :varno 1 :varattno 99 :varlevelsup 0} '
@@ -1768,7 +1787,35 @@ begin
            ':functions ({RANGETBLFUNCTION :funcexpr {FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>}})}) '
            ':jointree {FROMEXPR :fromlist ({RANGETBLREF :rtindex 1}) :quals <>} :targetList ({TARGETENTRY :expr {VAR '
            ':varno 1 :varattno 1 :varlevelsup 0}} {TARGETENTRY :expr {VAR :varno 1 :varattno 2 :varlevelsup 0}})}})}',
-           v_op_uuid, v_f_unid))
+           v_op_uuid, v_f_unid)),
+        ('pares-snapshot', format(
+           '{SUBLINK :subLinkType 2 :testexpr {BOOLEXPR :boolop and :args ({OPEXPR :opno %s :args ({VAR :varno 1 '
+           ':varattno 99 :varlevelsup 0} {PARAM :paramkind 2 :paramid 1})} {OPEXPR :opno %s :args ({COERCEVIAIO :arg '
+           '{OPEXPR :opno %s :args ({VAR :varno 1 :varattno 18 :varlevelsup 0} {CONST :consttype 25})} :resulttype 21} '
+           '{PARAM :paramkind 2 :paramid 2})})} :subselect {QUERY :rtable ({RANGETBLENTRY :alias {ALIAS :aliasname u} '
+           ':eref {ALIAS :aliasname u} :rtekind 3 :functions ({RANGETBLFUNCTION :funcexpr {FUNCEXPR :funcid %s '
+           ':funcretset true :funcformat 0 :args <>}})}) :jointree {FROMEXPR :fromlist ({RANGETBLREF :rtindex 1}) '
+           ':quals <>} :targetList ({TARGETENTRY :expr {VAR :varno 1 :varattno 1 :varlevelsup 0}} {TARGETENTRY :expr '
+           '{VAR :varno 1 :varattno 2 :varlevelsup 0}})}}',
+           v_op_uuid, v_op_int2, v_op_jtexto, v_f_unid)),
+        ('pares-segundo-literal', format(
+           '{SUBLINK :subLinkType 2 :testexpr {BOOLEXPR :boolop and :args ({OPEXPR :opno %s :args ({VAR :varno 1 '
+           ':varattno 99 :varlevelsup 0} {PARAM :paramkind 2 :paramid 1})} {OPEXPR :opno %s :args ({CONST :consttype 21} '
+           '{PARAM :paramkind 2 :paramid 2})})} :subselect {QUERY :rtable ({RANGETBLENTRY :alias {ALIAS :aliasname u} '
+           ':eref {ALIAS :aliasname u} :rtekind 3 :functions ({RANGETBLFUNCTION :funcexpr {FUNCEXPR :funcid %s '
+           ':funcretset true :funcformat 0 :args <>}})}) :jointree {FROMEXPR :fromlist ({RANGETBLREF :rtindex 1}) '
+           ':quals <>} :targetList ({TARGETENTRY :expr {VAR :varno 1 :varattno 1 :varlevelsup 0}} {TARGETENTRY :expr '
+           '{VAR :varno 1 :varattno 2 :varlevelsup 0}})}}',
+           v_op_uuid, v_op_int2, v_f_unid)),
+        ('pares-segundo-outra-coluna', format(
+           '{SUBLINK :subLinkType 2 :testexpr {BOOLEXPR :boolop and :args ({OPEXPR :opno %s :args ({VAR :varno 1 '
+           ':varattno 99 :varlevelsup 0} {PARAM :paramkind 2 :paramid 1})} {OPEXPR :opno %s :args ({VAR :varno 1 '
+           ':varattno 7 :varlevelsup 0} {PARAM :paramkind 2 :paramid 2})})} :subselect {QUERY :rtable ({RANGETBLENTRY '
+           ':alias {ALIAS :aliasname u} :eref {ALIAS :aliasname u} :rtekind 3 :functions ({RANGETBLFUNCTION :funcexpr '
+           '{FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>}})}) :jointree {FROMEXPR :fromlist '
+           '({RANGETBLREF :rtindex 1}) :quals <>} :targetList ({TARGETENTRY :expr {VAR :varno 1 :varattno 1 '
+           ':varlevelsup 0}} {TARGETENTRY :expr {VAR :varno 1 :varattno 2 :varlevelsup 0}})}}',
+           v_op_uuid, v_op_int2, v_f_unid))
       ) as s (caso, arvore)
   loop
     if v_rc.caso is not null then
@@ -1776,6 +1823,7 @@ begin
     end if;
     v_rc_tipos := '{}'; v_rc_campos := '{}'; v_rc_filhos := '{}'; v_rc_conj := '{}'; v_rc_bool := '{}';
     v_rc_canon := '{}'; v_rc_fora := 0; v_rc_pc := 0; v_rc_pt := 0; v_rc_funcs := '{}'; v_rc_campo := null;
+    v_rc_pcol := 0; v_rc_psnap := 0; v_rc_pmal := 0;
     -- as duas assinaturas, com a coluna `empresa_id` DESTA tabela (sem a coluna, -1: nada casa)
     v_re_canon := format('^SCALARARRAYOPEXPR\{opno=%s;useOr=true\}\[VAR\{varno=1;varattno=%s;varlevelsup=0\}\[\]'
                          'SUBLINK\{subLinkType=6\}\[QUERY\{\}\[FROMEXPR\{\}\[\]TARGETENTRY\{\}\['
@@ -1789,6 +1837,20 @@ begin
                          'TARGETENTRY\{\}\[VAR\{varno=1;varattno=1;varlevelsup=0\}\[\]\]'
                          'TARGETENTRY\{\}\[VAR\{varno=1;varattno=2;varlevelsup=0\}\[\]\]\]\]$',
                          v_op_uuid, coalesce(v_rc.attno, -1), v_f_unid);
+    -- o SEGUNDO membro, conferido (revisão adversarial da F66): a coluna filial_id DESTA tabela, com `=(smallint,smallint)`;
+    -- ou — só onde a tabela tem `snapshot_anterior` — `(snapshot_anterior ->> <texto>)::smallint` (a chave do texto, a
+    -- 16c confere pelo deparse). Qualquer outra coisa no lugar (um literal, outra coluna, outro operador) é par MAL formado.
+    v_re_par_col := replace(v_re_pares, 'OPEXPR\{opno=\d+\}\[.*PARAM\{paramkind=2;paramid=2\}\[\]\]',
+                            format('OPEXPR\{opno=%s\}\[VAR\{varno=1;varattno=%s;varlevelsup=0\}\[\]'
+                                   'PARAM\{paramkind=2;paramid=2\}\[\]\]', v_op_int2, coalesce(v_rc.attno_filial, -1)));
+    v_re_par_snap := replace(v_re_pares, 'OPEXPR\{opno=\d+\}\[.*PARAM\{paramkind=2;paramid=2\}\[\]\]',
+                             format('OPEXPR\{opno=%s\}\[COERCEVIAIO\{\}\[OPEXPR\{opno=%s\}\['
+                                    'VAR\{varno=1;varattno=%s;varlevelsup=0\}\[\]CONST\{\}\[\]\]\]'
+                                    'PARAM\{paramkind=2;paramid=2\}\[\]\]',
+                                    v_op_int2, v_op_jtexto, coalesce(v_rc.attno_snap, -1)));
+    if v_re_par_col = v_re_pares or v_re_par_snap = v_re_pares then
+      raise exception 'F66: o molde do segundo membro do par não casou no v_re_pares (a regex mudou?)';
+    end if;
     -- um token por casamento: [1] abre nó · [2] fecha nó · [3] nome de campo · [4] valor (a regex do bloco 4)
     for v_m in
       select t.m
@@ -1824,6 +1886,13 @@ begin
           v_rc_pt := v_rc_pt + 1;
           if v_rc_conj[v_rc_topo] then
             v_rc_pc := v_rc_pc + 1;
+          end if;
+          if v_rc_sig ~ v_re_par_col then
+            if v_rc_conj[v_rc_topo] then v_rc_pcol := v_rc_pcol + 1; end if;
+          elsif v_rc_sig ~ v_re_par_snap then
+            if v_rc_conj[v_rc_topo] then v_rc_psnap := v_rc_psnap + 1; end if;
+          else
+            v_rc_pmal := v_rc_pmal + 1;
           end if;
         end if;
         if v_rc_topo > 1 then
@@ -1868,13 +1937,18 @@ begin
       v_rr_fora := v_rr_fora || v_rc_fora;
       v_rr_pc := v_rr_pc || v_rc_pc;
       v_rr_pt := v_rr_pt || v_rc_pt;
+      v_rr_pcol := v_rr_pcol || v_rc_pcol;
+      v_rr_psnap := v_rr_psnap || v_rc_psnap;
+      v_rr_pmal := v_rr_pmal || v_rc_pmal;
       v_rr_funcs := v_rr_funcs || coalesce((select string_agg(distinct pr.proname::text, ',')
                                               from pg_proc pr where pr.oid = any (v_rc_funcs::oid[])), '');
     else
       v_rc_obtida := v_rc_obtida
                      || array(select v_rc.caso || ':termo:' || x from unnest(v_rc_canon) as x)
                      || case when v_rc_fora > 0 then array[v_rc.caso || ':fora'] else '{}'::text[] end
-                     || case when v_rc_pc > 0 then array[v_rc.caso || ':pares'] else '{}'::text[] end
+                     || case when v_rc_pcol > 0 then array[v_rc.caso || ':pares'] else '{}'::text[] end
+                     || case when v_rc_psnap > 0 then array[v_rc.caso || ':pares-snapshot'] else '{}'::text[] end
+                     || case when v_rc_pmal > 0 then array[v_rc.caso || ':pares-mal'] else '{}'::text[] end
                      || case when v_rc_pt > v_rc_pc then array[v_rc.caso || ':pares-fora'] else '{}'::text[] end;
     end if;
   end loop;
@@ -1947,8 +2021,12 @@ begin
   -- 16c — A FORMA DE PARES, nos dois sentidos: cada policy de `k_recorte_unidade` tem, em TODA árvore, exatamente os
   --       pares declarados na conjunção de cima (e nenhum fora dela); e toda policy com pares está na lista.
   -- ---------------------------------------------------------------
+  -- Revisão adversarial da F66: o segundo membro de cada par é conferido — em toda árvore da lista, EXATAMENTE um par
+  -- sobre a coluna `filial_id` da linha e os demais sobre o snapshot (`movimentacoes`: um e um); nenhum par mal formado
+  -- em policy nenhuma; e o par do snapshot lê a chave `filial_id` (pelo deparse — a árvore não guarda o texto do CONST).
   with arv as (
-    select * from unnest(v_rr_chave, v_rr_tipo, v_rr_pc, v_rr_pt) as x (chave, tipo, pc, pt)
+    select * from unnest(v_rr_chave, v_rr_tipo, v_rr_pc, v_rr_pt, v_rr_pcol, v_rr_psnap, v_rr_pmal)
+      as x (chave, tipo, pc, pt, pcol, psnap, pmal)
   ), lista as (
     select split_part(e, ':', 1) as chave, split_part(e, ':', 2)::int as n from unnest(k_recorte_unidade) as e
   )
@@ -1959,6 +2037,23 @@ begin
              || ' fora dela, a lista declara ' || l.n as d
         from lista l join arv a on a.chave = l.chave
        where a.pc <> l.n or a.pt <> a.pc
+      union all
+      select l.chave || ' (' || a.tipo || '): o segundo membro — ' || a.pcol || ' par(es) sobre filial_id e ' || a.psnap
+             || ' sobre o snapshot (tem de ser 1 sobre filial_id e o resto sobre o snapshot)'
+        from lista l join arv a on a.chave = l.chave
+       where a.pc = l.n and (a.pcol <> 1 or a.pcol + a.psnap <> l.n)
+      union all
+      select a.chave || ' (' || a.tipo || '): ' || a.pmal || ' par(es) com o segundo membro fora da forma (nem filial_id da linha, nem o snapshot)'
+        from arv a where a.pmal > 0
+      union all
+      select a.chave || ' (' || a.tipo || '): o par do snapshot não lê a chave filial_id'
+        from arv a
+       where a.psnap > 0
+         and not exists (
+           select 1 from pg_policy p join pg_class c on c.oid = p.polrelid join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname || '.' || c.relname || ' / ' || p.polname = a.chave
+              and position('(snapshot_anterior ->> ''filial_id''::text)' in
+                           pg_get_expr(case a.tipo when 'using' then p.polqual else p.polwithcheck end, p.polrelid)) > 0)
       union all
       select l.chave || ': não é policy viva' from lista l where not exists (select 1 from arv a where a.chave = l.chave)
       union all

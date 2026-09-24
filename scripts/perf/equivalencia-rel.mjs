@@ -105,9 +105,16 @@
 //   · `--fase depois` (depois do apply): o corpo da 0143 colado × a função VIVA, que a guarda confere contra a 0179.
 // A identidade é escolhida pela MEMBERSHIP da empresa legada (o `profiles.papel` congelou na F62). Os blocos são os
 // `do $f60$` desta mesma guarda (`validarBloco`), e os modos da F60 continuam emitindo o SQL de antes, byte a byte.
-//   node equivalencia-rel.mjs gerar-mesmo-nome --alvo=ensaio|producao --fase=antes|depois \
+//   node equivalencia-rel.mjs gerar-mesmo-nome --alvo=ensaio|producao --ref=<ref do projeto> --fase=antes|depois \
 //        --datas=docs/perf/f60-datas-amostra.json --dir=<fora-do-repo>
 //   node equivalencia-rel.mjs analisar-mesmo-nome --alvo=… --fase=… --dir=<…> --saida=<docs/f66-evidencias/rel/…json>
+//
+// F66 — A REVISÃO ADVERSARIAL (24/09/2026) endureceu a GUARDA, e só ela (o SQL emitido por todo modo é o mesmo, byte a
+// byte): (1) a lista FECHADA de funções — o bloco é lido pelo léxico da trava de mesa (`lexar`, inclusive o SQL de
+// dentro dos literais e dos `$tag$` que o `execute` roda), e toda chamada fora de `FUNCOES_PERMITIDAS` recusa (sem ela,
+// um `--corpos` com `pg_advisory_lock(…)` — um lock de SESSÃO, que o `raise` final não desfaz — passava); (2) a lista
+// fechada de configurações, com o valor de cada uma; (3) `deallocate` em dobro de CADA `prepare`; (4) todo modo
+// `gerar-*` exige `--ref`, conferido contra `scripts/env-guard.ts` pelo `validarAlvo` do medir-rls.mjs.
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
@@ -115,6 +122,8 @@ import { join, resolve, relative, isAbsolute, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { lexar } from '../db/predicado-policies.mjs'
+import { validarAlvo } from './medir-rls.mjs'
 
 export class Recusa extends Error {}
 function recusar(msg) {
@@ -246,6 +255,58 @@ const PROIBIDAS = [
   'discard', 'load', 'import', 'security', 'reassign', 'checkpoint', 'analyse',
 ]
 
+/**
+ * As ÚNICAS funções que um bloco do modelo chama (o nome, sem schema) — medidas nos blocos de TODOS os modos (F60 e o
+ * `mesmo-nome` da F66), com os corpos das migrations. `i` é o `%I(` do `prepare` dentro de `format`; `sets`, o
+ * `grouping sets (` de um corpo; `explain`, o `explain (…)`. Função fora da lista recusa pelo NOME.
+ */
+export const FUNCOES_PERMITIDAS = new Set([
+  'array_agg', 'array_append', 'array_length', 'clock_timestamp', 'coalesce', 'count', 'current_setting', 'date_trunc',
+  'empresa_legada', 'explain', 'format', 'greatest', 'i', 'json_build_object', 'jsonb_agg', 'jsonb_build_array',
+  'jsonb_build_object', 'jsonb_object_agg', 'jsonb_object_keys', 'jsonb_path_query', 'jsonb_set', 'jsonb_strip_nulls',
+  'max', 'md5', 'min', 'nullif', 'percentile_cont', 'random', 'regexp_replace', 'repeat', 'rotulo_de_ambiente', 'round',
+  'row_number', 'set_config', 'sets', 'status_tem_detentor', 'string_agg', 'substr', 'sum', 'to_jsonb', 'to_regprocedure',
+  'unnest',
+  'rel_contagem_status_filiais', 'rel_estoque_asof', 'rel_estoque_asof_filiais', 'rel_frescor_itens',
+  'rel_frescor_itens_filiais', 'rel_mov_itens', 'rel_mov_itens_filiais', 'rel_mov_por_mes', 'rel_mov_por_mes_filiais',
+  'rel_por_motivo', 'rel_por_motivo_filiais', 'rel_resumo', 'rel_resumo_filiais', 'rel_saldo_itens',
+  'rel_saldo_itens_filiais',
+])
+/** As ÚNICAS configurações que um bloco liga, e o valor aceito (`null`: o valor é montado, como as claims). */
+const GUCS_PERMITIDOS = {
+  transaction_read_only: "'on'",
+  role: "'authenticated'",
+  plan_cache_mode: "'force_generic_plan'",
+  'request.jwt.claims': null,
+}
+/** Palavras que abrem parêntese sem serem chamada de função. */
+const ABREM_PARENTESE = new Set(
+  ('in any all some exists array values over filter and or not select from where when then else case as loop if elsif ' +
+    'return raise perform execute declare begin end exception by with lateral into on using table returns distinct cast ' +
+    'row interval partition window join left right inner outer group order limit offset having union is null like ilike ' +
+    'between do of for to set within').split(' '),
+)
+
+/** As chamadas de função de um trecho SQL, pelo léxico — inclusive o SQL de dentro dos literais e dos `$tag$`. */
+function chamadasDoBloco(sql, profundidade = 0) {
+  let lx
+  try {
+    lx = lexar(sql)
+  } catch (err) {
+    recusar(`o bloco não é SQL legível: ${err.message}`)
+  }
+  const saida = []
+  lx.tokens.forEach((tk, i, todos) => {
+    const abre = todos[i + 1]?.tipo === 'punct' && todos[i + 1].v === '('
+    const depoisDeAs = todos[i - 1]?.tipo === 'ident' && todos[i - 1].v === 'as'
+    if ((tk.tipo === 'ident' || tk.tipo === 'qident') && abre && !depoisDeAs && !(tk.tipo === 'ident' && ABREM_PARENTESE.has(tk.v))) {
+      saida.push(tk.v)
+    }
+    if ((tk.tipo === 'str' || tk.tipo === 'dollar') && profundidade < 3) saida.push(...chamadasDoBloco(tk.v, profundidade + 1))
+  })
+  return saida
+}
+
 export function validarBloco(sql) {
   const t = sql.trim()
   if (!t.startsWith('do $f60$') || !t.endsWith('end $f60$;')) recusar('bloco fora do modelo (do $f60$ … end $f60$;).')
@@ -259,11 +320,25 @@ export function validarBloco(sql) {
   }
   if (!/rotulo_de_ambiente\(\)/.test(t)) recusar('o bloco não confere rotulo_de_ambiente().')
   if (!/raise exception 'F60_(EQUIVALENCIA|KPIS|CUSTO)(_REAL)? %'/.test(t)) recusar('o bloco não termina em raise exception F60_*.')
-  // prepare/deallocate vivem DENTRO de literais de `execute format(...)`: conta no texto cru
+  // prepare/deallocate vivem DENTRO de literais de `execute format(...)`: conta no texto cru — e DOIS deallocate para
+  // CADA prepare (o caminho normal e o de erro; revisão adversarial da F66: a conta antes era "ao menos dois no total")
   const cru = t.toLowerCase()
-  const prepara = /\bprepare\b/.test(cru)
+  const prepara = (cru.match(/\bprepare\b/g) ?? []).length
   const desaloca = (cru.match(/\bdeallocate\b/g) ?? []).length
-  if (prepara && desaloca < 2) recusar('prepare sem deallocate no caminho normal E no de erro.')
+  if (prepara > 0 && desaloca < 2 * prepara) recusar('prepare sem deallocate no caminho normal E no de erro.')
+  // F66: a lista FECHADA de funções — pelo léxico, dentro dos literais e dos $tag$ também
+  for (const fn of chamadasDoBloco(t)) {
+    if (!FUNCOES_PERMITIDAS.has(fn)) recusar(`chamada a função fora do modelo: "${fn}(…)".`)
+  }
+  // F66: a lista FECHADA de configurações, com o valor
+  let comNome = 0
+  for (const m of t.matchAll(/set_config\(\s*'([^']+)'\s*,\s*([^,]+),/g)) {
+    comNome++
+    if (!(m[1] in GUCS_PERMITIDOS)) recusar(`set_config de "${m[1]}" fora da lista permitida.`)
+    const aceito = GUCS_PERMITIDOS[m[1]]
+    if (aceito !== null && m[2].trim() !== aceito) recusar(`set_config de "${m[1]}" com valor fora do modelo.`)
+  }
+  if ((t.match(/\bset_config\b/g) ?? []).length !== comNome) recusar('set_config com nome de parâmetro que não é literal.')
   return sql
 }
 
@@ -1220,6 +1295,18 @@ async function main() {
     'analisar-mesmo-nome',
   ]
   if (!modos.includes(o.modo)) recusar(`modo: ${modos.join(' | ')}.`)
+
+  // F66 (revisão adversarial): todo modo que GERA comando exige --ref, conferido contra scripts/env-guard.ts ANTES de
+  // gravar qualquer arquivo — o rotulo_de_ambiente() dentro do bloco continua sendo a segunda trava.
+  if (o.modo.startsWith('gerar-')) {
+    if (!ALVOS[o.alvo]) recusar(`--alvo: ${Object.keys(ALVOS).join(' | ')}.`)
+    try {
+      validarAlvo(o.alvo, o.ref)
+    } catch (err) {
+      recusar(err.message.replace(/^medir-rls: RECUSADO — /, ''))
+    }
+    if (ALVOS[o.alvo].projeto !== o.ref) recusar(`--ref não é o projeto do alvo ${o.alvo}.`)
+  }
 
   if (o.modo === 'gerar-mesmo-nome' || o.modo === 'analisar-mesmo-nome') {
     if (!ALVOS[o.alvo]) recusar(`--alvo: ${Object.keys(ALVOS).join(' | ')}.`)

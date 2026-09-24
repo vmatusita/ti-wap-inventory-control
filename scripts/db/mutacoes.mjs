@@ -3243,6 +3243,27 @@ const F66_RECORTE = [
     policies: [{ nome: 'operador atualiza', tabela: 'public.ativos' }],
   },
   {
+    // Revisão adversarial da F66: o 16c contava os pares sem conferir o segundo membro. Esta mutação mantém a FORMA nova
+    // (o termo, o par sobre unidades_de_escrita()) e troca só o segundo membro por um literal — só o 16c a vê.
+    id: 'f66-par-com-segundo-membro-literal',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'escopo-de-filial',
+    derruba: ['16c'],
+    porque:
+      'O par de unidade compara a unidade de escrita com um número fixo em vez da filial do próprio equipamento: quem escreve na filial 1 passa a atualizar equipamento de QUALQUER filial da empresa — com a policy ainda citando a empresa e a unidade, na forma que um olho rápido aprova.',
+    sql: `alter policy "operador atualiza" on public.ativos
+  using (empresa_id = any (array (select public.empresas_de_escrita()))
+         and (empresa_id, 1::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u))
+  with check (empresa_id = any (array (select public.empresas_de_escrita()))
+              and (empresa_id, 1::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u));  ${MARCA}`,
+    prova: {
+      sql: `select coalesce(qual, '') not like '%filial_id)%' from pg_policies
+             where schemaname = 'public' and tablename = 'ativos' and policyname = 'operador atualiza'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'operador atualiza', tabela: 'public.ativos' }],
+  },
+  {
     id: 'f66-policy-to-public',
     roteiro: 'catalogo_policies.sql',
     classe: 'superficie-publica',

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  blocoEquivalencia,
   blocoMesmoNome,
+  FUNCOES_PERMITIDAS,
+  lerCorposDoRepositorio,
   lerCorposMesmoNome,
   md5Normalizado,
   MESMO_NOME,
@@ -76,5 +79,32 @@ describe('2. o bloco, nas duas fases', () => {
   it('a guarda recusa o bloco com escrita, mesmo que ele venha deste gerador', () => {
     const b = blocoMesmoNome('rel_por_motivo_filiais', corpos, 'producao', DATAS, 'depois')
     expect(() => validarBloco(b.replace('  -- 4. as células', '  delete from public.motivos;\n  -- 4. as células'))).toThrow(/RECUSADO/)
+  })
+})
+
+describe('3. a guarda fechada (revisão adversarial da F66): funções, configurações e prepare', () => {
+  // O achado: a guarda só tinha uma lista NEGRA de verbos; um corpo colado com `pg_advisory_lock(…)` — um lock de SESSÃO,
+  // que o `raise` final não desfaz — passava. Agora a lista é FECHADA, lida pelo léxico, dentro dos literais e dos $tag$.
+  const b = blocoMesmoNome('rel_resumo_filiais', corpos, 'producao', DATAS, 'antes')
+
+  it('os blocos do modelo passam (os dois modos da F66 e a equivalência real da F60)', () => {
+    expect(validarBloco(b)).toBe(b)
+    const real = blocoEquivalencia('rel_por_motivo_filiais', (lerCorposDoRepositorio() as Record<string, Def>).rel_por_motivo_filiais, 'producao', DATAS, { real: true })
+    expect(validarBloco(real)).toBe(real)
+    for (const fn of ['pg_advisory_lock', 'nextval', 'setval', 'pg_sleep', 'dblink', 'lo_import', 'pg_read_file']) {
+      expect(FUNCOES_PERMITIDAS.has(fn), fn).toBe(false)
+    }
+  })
+
+  it.each([
+    ['lock de sessão dentro do corpo colado', b.replace('select m.tipo, f.slug, f.nome,', 'select pg_advisory_lock(42), m.tipo, f.slug, f.nome,')],
+    ['sequência avançada num execute', b.replace('  -- 4. as células', "  execute 'select nextval(''public.x'')';\n  -- 4. as células")],
+    ['função chamada entre aspas duplas', b.replace('  -- 4. as células', '  perform "pg_sleep"(1);\n  -- 4. as células')],
+    ['papel que não é authenticated', b.replace("set_config('role', 'authenticated', true)", "set_config('role', 'postgres', true)")],
+    ['configuração fora da lista', b.replace('  -- 4. as células', "  perform set_config('session_replication_role', 'replica', true);\n  -- 4. as células")],
+    ['nome de configuração que não é literal', b.replace('  -- 4. as células', "  perform set_config(v_rot, 'x', true);\n  -- 4. as células")],
+    ['um prepare a mais sem os dois deallocate', b.replace('  -- 4. as células', "  execute format('prepare %I as select 1', 'x');\n  -- 4. as células")],
+  ])('%s → recusa', (_nome, sql) => {
+    expect(() => validarBloco(sql)).toThrow(/RECUSADO/)
   })
 })

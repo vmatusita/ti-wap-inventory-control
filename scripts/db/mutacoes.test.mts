@@ -103,7 +103,11 @@ function rotuloExisteNoFonte(fonte: string, rotulo: string): boolean {
 }
 
 describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
-  it('tem entre 20 e 150 mutações ATIVAS', () => {
+  it('tem entre 20 e 151 mutações ATIVAS', () => {
+    // ⚠ E DE 150 PARA 151 NA REVISÃO ADVERSARIAL DA MESMA F66 (24/09/2026): o revisor achou que o 16c contava os pares sem
+    // conferir o segundo membro; o conserto passou a conferi-lo, e a mutação `f66-par-com-segundo-membro-literal` (a forma
+    // nova mantida, só o segundo membro trocado por um literal) é a que só o 16c vê.
+    //
     // ⚠ O TETO SUBIU DE 143 PARA 150 NA F66 (24/09/2026), no número EXATO. A régua da F63–F65: mutação só onde
     // ela derruba uma trava DESTA fase por estado de banco. O termo sai da leitura (`10a` de
     // `isolamento_tenant.sql`, a bateria); o termo entra em OR com o piso e a policy de cargo usa a função do
@@ -321,7 +325,7 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(150)
+    expect(MUTACOES.length).toBeLessThanOrEqual(151)
   })
 
   it('os `id` são únicos', () => {
