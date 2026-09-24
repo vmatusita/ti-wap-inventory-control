@@ -23,6 +23,11 @@
 //                                                          where public.pode_escrever_filial(f.id)))
 //       (F3 emula `unidades_de_escrita()` sem criá-la: a leitura de `filiais` fica dentro do
 //        sub-select, que não olha a linha — o `InitPlan` que a F66 vai ter)
+//   F4  a conjunção da F66 . where empresa_id = any (array (select public.empresas_do_membro()))
+//       (F66, 24/09/2026: por cima da RLS de HOJE, F4 emula a policy de SELECT da F66 — o piso ∧ o recorte
+//        de empresa, a classe da leitura pelo piso (decisão 2 do PLAN-F66). ANTES do apply, F4 é a forma nova
+//        EMULADA; DEPOIS, F0 JÁ É a forma nova real, e F4 fica como o termo redundante por cima — F0-depois ×
+//        F4-antes é a comparação. A F66 herdou o INSTRUMENTO (decisão 8 do PLAN-F59), não o número.)
 //
 // O CANAL, nesta ordem (ordem F59, Frente E):
 //   mcp — o MCP da Supabase (`execute_sql`). O script NÃO fala com o MCP: ele GRAVA os
@@ -80,6 +85,10 @@ export const FORMAS = {
   F3: {
     descricao: 'içada: col = any (array (select … conjunto …))',
     where: ' where filial_id = any (array (select f.id from public.filiais f where public.pode_escrever_filial(f.id)))',
+  },
+  F4: {
+    descricao: 'a conjunção da F66: RLS de hoje ∧ empresa_id = any (array (select public.empresas_do_membro()))',
+    where: ' where empresa_id = any (array (select public.empresas_do_membro()))',
   },
 }
 export const IDENTIDADES = {
@@ -215,6 +224,7 @@ begin
   end loop;
 
   raise exception 'F59_MEDICAO %', jsonb_build_object(
+    '_canal', repeat('.', 120000),
     'alvo', v_alvo, 'tabela', v_tabela, 'identidade', v_ident, 'n', v_n,
     'postgres', current_setting('server_version'), 'papel_na_medicao', current_user,
     'total', v_total, 'esperado_f1_f3', v_esperado, 'controle_negativo', v_negativo,
@@ -318,9 +328,14 @@ const FUNCOES_PERMITIDAS = new Set([
   'set_config', 'current_setting', 'rotulo_de_ambiente', 'pode_escrever_filial',
   // F62: a identidade é escolhida pela membership da empresa legada (profiles.papel congelou).
   'empresa_legada',
+  // F66: a forma F4 (o recorte de leitura da F66, emulado por cima da RLS de hoje).
+  'empresas_do_membro',
   'json_build_object', 'jsonb_build_object', 'jsonb_build_array', 'jsonb_set',
   'jsonb_path_query_array', 'jsonb_path_query_first', 'jsonb_path_exists',
   'coalesce', 'array_length', 'format', 'count', 'unnest',
+  // F66: o ENCHIMENTO do canal ('_canal' no payload) — o MCP devolve inline a resposta pequena e grava em arquivo a
+  // grande; com ele a resposta cai em arquivo e a medição é EXTRAÍDA dele, nunca transcrita. A análise o ignora.
+  'repeat',
 ])
 /**
  * Os ÚNICOS `execute` que um comando do modelo tem — o texto exato, espaço normalizado.
@@ -533,7 +548,8 @@ export function resumirMedicao(payload) {
   for (const forma of Object.keys(FORMAS)) {
     const a = payload.amostras[forma] ?? []
     const linhas = [...new Set(a.map((x) => x.linhas))]
-    const esperado = forma === 'F0' ? payload.total : payload.esperado_f1_f3
+    // F0 e F4 leem a tabela inteira (uma empresa só: o recorte é inerte); F1–F3, o que a filial deixa
+    const esperado = forma === 'F0' || forma === 'F4' ? payload.total : payload.esperado_f1_f3
     celulas.push({
       tabela: payload.tabela,
       identidade: payload.identidade,
@@ -651,13 +667,13 @@ async function main() {
     }
   }
   const saida = {
-    rotulo: `f59-rls-${alvo}`,
+    rotulo: o.rotulo ?? `f59-rls-${alvo}`,
     alvo,
     canal: canal === 'mcp' ? 'MCP da Supabase (execute_sql), bloco do … raise exception' : 'Management API (database/query)',
     sha_codigo: shaDoCodigo(),
     gerado_em: new Date().toISOString(),
     metodo:
-      `explain (analyze, buffers, verbose, format json), 1 aquecimento por forma, N=${n} repetições intercaladas F0→F3; ` +
+      `explain (analyze, buffers, verbose, format json), 1 aquecimento por forma, N=${n} repetições intercaladas F0→${Object.keys(FORMAS).at(-1)}; ` +
       'como authenticated com request.jwt.claims da identidade escolhida no banco; transaction_read_only = on; o bloco termina em raise exception; ' +
       'mediana e p95 por posto mais próximo (com N=9 o p95 é a maior amostra); buffers do nó raiz.',
     postgres,

@@ -4,6 +4,7 @@ import {
   comandoProvaFormaAlvo,
   emitir,
   estatistica,
+  FORMAS,
   lerPayload,
   validarAlvo,
   validarComando,
@@ -69,6 +70,13 @@ describe('2. o comando, contra o modelo fechado', () => {
     ['execute com o prefixo certo e o resto trocado', VALIDO.replace("execute format('select count(*) from public.%I', v_tabela) into v_total;", "execute format('select count(*) from public.%I', 'movimentacoes') into v_total;")],
   ])('%s → recusa', (_nome, sql) => {
     expect(() => validarComando(sql)).toThrow(/RECUSADO/)
+  })
+
+  it('F66: a forma F4 (a conjunção de hoje com o recorte de leitura) está no modelo e entra no comando', () => {
+    expect(Object.keys(FORMAS)).toEqual(['F0', 'F1', 'F2', 'F3', 'F4'])
+    expect(FORMAS.F4.where).toBe(' where empresa_id = any (array (select public.empresas_do_membro()))')
+    expect(VALIDO).toContain("from public.ativos where empresa_id = any (array (select public.empresas_do_membro()))'")
+    expect(() => validarComando(VALIDO.replace('array (select public.empresas_do_membro())', 'array (select public.empresas_de_admin())'))).toThrow(/RECUSADO/)
   })
 
   it('comentário em português não é código (a palavra "do" num comentário passa)', () => {

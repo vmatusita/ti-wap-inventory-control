@@ -315,7 +315,14 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     'i',
   )
 
-  it('vê a coluna do ACERVO só pelo CATÁLOGO — nenhum comando compara empresa_id de tabela de negócio com um valor (até a F66)', () => {
+  it('F66: o dado do ACERVO por empresa_id é lido SÓ pela bateria (seções 10 e 11), e ela itera o CATÁLOGO', () => {
+    // EMENDA F66 (24/09/2026 — decisões 5 e 7 do PLAN-F66). O teste abaixo, até a F65, proibia QUALQUER comando deste
+    // roteiro de comparar `empresa_id` de tabela de negócio com um valor — "o recorte do acervo é da F66". A F66 é a fase
+    // que LÊ por empresa: a bateria de leitura A↔B nasce aqui, e a verdade nova tem duas metades. (1) A leitura do acervo
+    // por empresa mora SÓ entre os marcadores `[bateria-f66:início]` e `[bateria-f66:fim]` — fora deles, a régua antiga
+    // continua (os cenários 1–9 não recortam o acervo). (2) A bateria existe, LÊ o acervo por empresa, e o universo dela
+    // vem do CATÁLOGO (`pg_policies` + `pg_attribute`), nunca de uma lista de nomes escrita à mão.
+    // O histórico da régua (as emendas F63/F64, mantidas como registro):
     // EMENDA F63 (23/09/2026 — decisão 10 do PLAN-F63). Até a F61 este teste reprovava QUALQUER
     // `empresa_id` em código; a F62 passou a permitir as tabelas DELA (`filiais`, `membros`,
     // `operador_filiais`) e proibia juntar a coluna com tabela de negócio, porque a coluna do
@@ -329,22 +336,34 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     // onze de `k_lote2` — as 20 de negócio a têm —, e a régua NÃO muda: ela já comparava contra
     // `k_negocio` menos `filiais`, então as onze estavam no universo desde a F63. Ler o dado de
     // qualquer uma das 19 por empresa é o recorte, e continua sendo da F66.
+    // Os comandos pelo léxico único (2ª rodada): o `;` de dentro de um texto não parte o comando, o texto
+    // entre aspas sai (o `attname = 'empresa_id'` do catálogo não é o recorte), e o corpo de função e de
+    // `do` entra.
+    const sql = fonte('isolamento_tenant')
+    const ini = sql.indexOf('[bateria-f66:início]')
+    const fim = sql.indexOf('[bateria-f66:fim]')
+    expect(ini, 'o marcador [bateria-f66:início] sumiu').toBeGreaterThan(0)
+    expect(fim, 'o marcador [bateria-f66:fim] sumiu (ou veio antes do início)').toBeGreaterThan(ini)
     const cat = fonte('catalogo_policies')
     const m = /k_negocio text\[\] := array\[([\s\S]*?)\];/.exec(cat)
     expect(m, 'não achei k_negocio em catalogo_policies.sql').not.toBeNull()
     const acervo = [...m![1].matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]).filter((t) => t !== 'filiais')
     expect(acervo.length, 'k_negocio veio vazio — o teste compararia com nada').toBeGreaterThan(10)
-    // Os comandos pelo léxico único (2ª rodada): o `;` de dentro de um texto não parte o comando, o texto
-    // entre aspas sai (o `attname = 'empresa_id'` do catálogo não é o recorte), e o corpo de função e de
-    // `do` entra.
-    const comandos = comandosDoTexto(fonte('isolamento_tenant')).filter((c) => /\bempresa_id\b/.test(c))
-    expect(comandos.length, 'a seção 9 não cita empresa_id — os cenários A↔B sumiram?').toBeGreaterThan(0)
-    const lendoOAcervo = comandos.filter((c) => acervo.some((t) => new RegExp(`public\\.${t}\\b`).test(c)) && RECORTE.test(c))
+    const leAcervo = (texto: string) =>
+      comandosDoTexto(texto)
+        .filter((c) => /\bempresa_id\b/.test(c))
+        .filter((c) => acervo.some((t) => new RegExp(`public\\.${t}\\b`).test(c)) && RECORTE.test(c))
+    const dentro = sql.slice(ini, fim)
+    const fora = sql.slice(0, ini) + sql.slice(fim)
     expect(
-      lendoOAcervo.map((c) => c.trim().slice(0, 160)),
-      'isolamento_tenant.sql LÊ o acervo por empresa_id — o recorte do acervo é da F66',
+      leAcervo(fora).map((c) => c.trim().slice(0, 160)),
+      'isolamento_tenant.sql LÊ o acervo por empresa_id FORA da bateria da F66 — a leitura por empresa mora nas seções 10 e 11',
     ).toEqual([])
+    expect(leAcervo(dentro).length, 'a bateria da F66 não lê o acervo por empresa_id — ela sumiu ou virou esqueleto').toBeGreaterThan(0)
+    expect(dentro, 'a bateria não itera o CATÁLOGO (pg_policies) — viraria lista à mão').toMatch(/from pg_policies p/)
+    expect(dentro, 'a bateria não confere a coluna pelo catálogo (pg_attribute)').toMatch(/pg_attribute a/)
   })
+
 
   it('a régua do recorte sabe reprovar, e distingue a completude (guarda do próprio teste)', () => {
     expect(RECORTE.test('select count(*) from public.ativos where empresa_id = v_emp_a')).toBe(true)
@@ -393,6 +412,12 @@ describe('5. `isolamento_tenant` é honesto sobre o que ainda não sabe', () => 
     expect(sql, 'o cabeçalho não diz o que a F64 preencheu (as onze de k_lote2, as 20 de k_negocio)').toMatch(/F64[\s\S]{0,400}k_lote2[\s\S]{0,600}as 20 de\s*(?:--\s*)?`k_negocio`/)
     expect(sql, 'o cabeçalho ainda anuncia a F64 como pendente').not.toMatch(/a F64 põe a coluna nas 11 tabelas de NEGÓCIO restantes/)
     expect(sql, 'o cabeçalho não nomeia a F66 (a leitura do dado por empresa)').toMatch(/F66/)
+    // EMENDA F66 (24/09/2026): o cabeçalho diz o que a F66 ENTREGOU (a leitura recortada, em conjunção com o piso) e o
+    // que falta — a ponte e a escrita por empresa (F67), o piso (F72), `profiles` (F69) —, e não anuncia mais a leitura
+    // como pendente.
+    expect(sql, 'o cabeçalho não diz que a F66 entregou a leitura recortada EM CONJUNÇÃO').toMatch(/F66[\s\S]{0,300}CONJUNÇÃO/)
+    expect(sql, 'o cabeçalho não diz o que falta: a ponte (F67), o piso (F72) e profiles (F69)').toMatch(/F67[\s\S]{0,400}F72[\s\S]{0,400}F69|F67[\s\S]{0,400}F69[\s\S]{0,400}F72/)
+    expect(sql, 'o cabeçalho ainda anuncia a LEITURA como pendente da F66').not.toMatch(/O que falta continua sendo a LEITURA — o recorte do acervo, da F66/)
   })
 
   it('traz a convenção de honestidade escrita no cabeçalho', () => {
@@ -484,7 +509,9 @@ describe('7. os catálogos são DERIVADOS, não listas que afirmam', () => {
     // (a lista única de exceções) entram com a mesma régua — as asserções 10a/10b e 11a/11b.
     {
       arquivo: 'catalogo_policies',
-      conjuntos: ['k_negocio', 'k_infra', 'k_sem_select', 'k_storage', 'k_realtime', 'k_policies_public', 'k_excecoes_predicado'],
+      // F66: `k_recorte_excecoes` (as policies em tabela SEM `empresa_id`) — a 16e, nos dois sentidos.
+      conjuntos: ['k_negocio', 'k_infra', 'k_sem_select', 'k_storage', 'k_realtime', 'k_policies_public', 'k_excecoes_predicado',
+                  'k_recorte_excecoes'],
     },
     { arquivo: 'catalogo_secdef', conjuntos: ['k_secdef', 'k_invoker_anon', 'k_excecoes_recorte'] },
   ]
@@ -832,9 +859,12 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     expect(sql, '15e: a leitura de catálogo não cobre o lote 2').toMatch(/from unnest\(k_lote2\) as nome\s+\), col as/)
     expect(sql, '15e: o default não é conferido pelo pg_depend').toMatch(/refobjid = 'public\.empresa_legada\(\)'::regprocedure/)
     expect(sql, 'a pendência da F64 continua como aviso — ela tem de REPROVAR').not.toMatch(/pendência nomeada da F64, sem reprovar/)
-    for (const rotulo of ['15d', '15e', '15f', '15g', '15h', '15i', '15j']) {
+    for (const rotulo of ['15d', '15e', '15f', '15h', '15i', '15j']) {
       expect(sql, `o rótulo ${rotulo} não está literal num assert_zero_de (o injetor lê por token)`).toMatch(new RegExp(String.raw`assert_zero_de\(\s*'${rotulo} `))
     }
+    // F66 (24/09/2026): o 15g ("nenhuma policy das onze cita empresa_id") se APOSENTOU — a verdade nova é a 16a do bloco
+    // 6 (toda policy de tabela com a coluna TEM de citá-la), uma fonte só (decisão 5 do PLAN-F66). O rótulo não volta.
+    expect(sql, 'o 15g voltou — a regra dele se inverteu na F66 e mora na 16a').not.toMatch(/assert_zero_de\(\s*'15g /)
   })
 
   it('as tabelas que as exceções podem ler são as duas do kit, e só elas', () => {
@@ -852,14 +882,14 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     const CHAMADA = 'pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit, k_leitura_tenant)'
     expect(sql, '15h não usa o predicado único de _asserts.sql sobre os dois lotes').toContain(CHAMADA)
     // A isenção pela função inteira não volta por NENHUM caminho (2ª rodada: a trava antiga só
-    // reconhecia o alias `c.` que o próprio conserto aposentou): no trecho de 15h — do fim do 15g ao
-    // assert do 15h —, a lista de exceções só aparece DENTRO da chamada do predicado, e nenhum
-    // `proname` é comparado com nada.
-    const i15g = sql.search(/assert_zero_de\(\s*'15g /)
+    // reconhecia o alias `c.` que o próprio conserto aposentou): no trecho de 15h — do assert anterior (o 15f; até a
+    // F65 era o 15g, que a F66 aposentou) ao assert do 15h —, a lista de exceções só aparece DENTRO da chamada do
+    // predicado, e nenhum `proname` é comparado com nada.
+    const i15f = sql.search(/assert_zero_de\(\s*'15f /)
     const i15h = sql.search(/assert_zero_de\(\s*'15h /)
-    expect(i15g, 'não achei o assert de 15g antes do de 15h').toBeGreaterThan(0)
-    expect(i15h).toBeGreaterThan(i15g)
-    const trecho = sql.slice(i15g, i15h)
+    expect(i15f, 'não achei o assert de 15f antes do de 15h').toBeGreaterThan(0)
+    expect(i15h).toBeGreaterThan(i15f)
+    const trecho = sql.slice(i15f, i15h)
     expect(trecho.split(CHAMADA).length, '15h chama o predicado uma vez só').toBe(2)
     expect(trecho.split(CHAMADA).join(''), '15h usa a lista de exceções fora do predicado (isenção pela função inteira)').not.toMatch(
       /k_leitura_integridade|k_tabelas_leitura_kit|k_leitura_tenant/,
@@ -880,7 +910,7 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     const sql = semComentarios(cat).replace(/\s+/g, ' ')
     const CHAMADA = 'pg_temp.leitura_de_empresa(p.proname, p.prosrc, k_lote1 || k_lote2, k_leitura_integridade, k_tabelas_leitura_kit, k_leitura_tenant)'
     const sabotado = sql.replace(CHAMADA, `${CHAMADA} as le, not (x.proname = any (k_leitura_integridade)) as isenta`)
-    const trecho = sabotado.slice(sabotado.search(/assert_zero_de\(\s*'15g /), sabotado.search(/assert_zero_de\(\s*'15h /))
+    const trecho = sabotado.slice(sabotado.search(/assert_zero_de\(\s*'15f /), sabotado.search(/assert_zero_de\(\s*'15h /))
     expect(trecho.split(CHAMADA).join('')).toMatch(/k_leitura_integridade/)
     expect(trecho).toMatch(/proname\s*(?:=|<>|!=|~|\bin\b|\bis\b|\blike\b)/i)
   })
@@ -978,5 +1008,82 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     const sql = semComentarios(cat)
     expect(sql).toMatch(/assert_zero_de\(\s*'15k /)
     expect(sql).toMatch(/from unnest\(k_leitura_tenant\) as e/)
+  })
+})
+
+describe('15. o recorte nas policies (F66): a tabela-verdade, os pares e as exceções moram numa fonte só', () => {
+  // PLAN-F66 §5, decisões 2, 3 e 5. A trava da FORMA do recorte é o bloco 6 de catalogo_policies.sql (16a–16g), que lê
+  // do catálogo QUAIS tabelas têm `empresa_id` e lê a ÁRVORE de cada policy. As três listas que ele consulta são
+  // decisão, e decisão passa por aqui POR EXTENSO: a classe → função (a ordem é a precedência), as seis de escrita por
+  // unidade com os pares de cada árvore, e as três exceções em tabela sem a coluna, com motivo e destino na linha.
+  const cat = fonte('catalogo_policies')
+  const bruto = (nome: string) => {
+    const m = new RegExp(String.raw`${nome}\s+text\[\]\s*:=\s*array\[([\s\S]*?)\n\s*\];`).exec(cat)
+    if (!m) throw new Error(`não achei ${nome}`)
+    return m[1]
+  }
+  const lista = (nome: string) => [...bruto(nome).matchAll(/'([^']+)'/g)].map((x) => x[1])
+
+  it('k_recorte_classe: o piso de hoje → a função de conjunto, na ordem da precedência (admin antes da unidade)', () => {
+    expect(lista('k_recorte_classe')).toEqual([
+      'e_admin:empresas_de_admin',
+      'pode_escrever_termo:empresas_de_escrita',
+      'pode_escrever:empresas_de_escrita',
+      'unidades_de_escrita:empresas_de_escrita',
+      'papel_atual:empresas_do_membro',
+    ])
+  })
+
+  it('k_recorte_unidade: as seis que eram pode_escrever_filial, com os pares de cada árvore (dois no snapshot de movimentacoes)', () => {
+    expect(lista('k_recorte_unidade')).toEqual([
+      'public.ativos / operador atualiza:1',
+      'public.ativos / operador insere:1',
+      'public.lancamentos_item / operador lanca:1',
+      'public.movimentacoes / operador insere:2',
+      'public.pendencias_item / pendencias_item admin reabre:1',
+      'public.pendencias_item / pendencias_item operador resolve:1',
+    ])
+  })
+
+  it('k_recorte_excecoes: as três policies em tabela SEM empresa_id, cada uma com motivo e destino (F69 ou permanente) na linha', () => {
+    expect(lista('k_recorte_excecoes')).toEqual([
+      'public._bkp_relatorios_gerados_f6a / dev le backup f6a',
+      'public.profiles / atualiza proprio perfil',
+      'public.profiles / leitura operador',
+    ])
+    for (const linha of bruto('k_recorte_excecoes').split('\n').filter((l) => /'public\./.test(l))) {
+      expect(linha, `sem motivo: ${linha.trim().slice(0, 80)}`).toMatch(/motivo: \S/)
+      expect(linha, `sem destino F69/permanente: ${linha.trim().slice(0, 80)}`).toMatch(/destino: (F69|permanente)/)
+    }
+  })
+
+  it('o bloco 6 lê a ÁRVORE (pg_policy.polqual/polwithcheck), não o texto normalizado de pg_policies', () => {
+    const ini = cat.indexOf('[laço-do-recorte:início]')
+    const fim = cat.indexOf('[laço-do-recorte:fim]')
+    expect(ini, 'o laço do recorte sumiu').toBeGreaterThan(0)
+    const laco = cat.slice(ini, fim)
+    expect(laco).toMatch(/p\.polqual::text/)
+    expect(laco).toMatch(/p\.polwithcheck::text/)
+    expect(semComentarios(laco), 'o laço do recorte lê pg_policies (o texto) — tem de ler a árvore').not.toMatch(/pg_policies/)
+  })
+
+  it('as asserções 16a–16g estão literais num assert_zero_de (o injetor lê por token), e a 16f confere Storage também', () => {
+    const sql = semComentarios(cat)
+    for (const r of ['16a', '16b', '16c', '16d', '16e', '16f', '16g']) {
+      expect(sql, `o rótulo ${r} não está literal`).toMatch(new RegExp(String.raw`assert_zero_de\(\s*'${r} `))
+    }
+    const i16f = sql.search(/assert_zero_de\(\s*'16f /)
+    const trecho = sql.slice(sql.lastIndexOf('select count(*)', i16f), i16f)
+    expect(trecho, 'a 16f não varre public E storage').toMatch(/n\.nspname in \('public', 'storage'\)/)
+    expect(trecho, "a 16f não compara polroles com {authenticated}").toMatch(/polroles is distinct from array\['authenticated'::regrole::oid\]/)
+  })
+
+  it('nenhuma das seis de unidade continua em k_excecoes_predicado depois da 0176 (a catraca 11b encolhe de 18 para 12)', () => {
+    const migs = listarMigrations(RAIZ)
+    const temA0176 = migs.some((m: string) => m.startsWith('0176_'))
+    const excecoes = lerExcecoesDoCatalogo(cat).entradas.map((e: { chave: string }) => e.chave)
+    const deUnidade = excecoes.filter((c: string) => c.endsWith(' / pode_escrever_filial'))
+    expect(deUnidade, 'as seis exceções de pode_escrever_filial sobreviveram à 0176').toEqual(temA0176 ? [] : deUnidade)
+    if (temA0176) expect(excecoes).toHaveLength(12)
   })
 })

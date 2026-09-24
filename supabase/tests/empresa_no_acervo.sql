@@ -28,9 +28,13 @@
 --       `authenticated` e `service_role`, RLS ligada, sem force, zero policy; e, como cada um
 --       dos três papéis, ler, gravar, alterar e apagar são RECUSADOS — e, de volta como
 --       `postgres`, o conteúdo está intacto;
---   7 — ninguém lê `empresa_id` do acervo (sabotagem I, a metade SQL): nenhuma policy das oito
---       cita a coluna, nenhuma função de `public` e nenhuma view a lê junto de uma das oito — e
---       uma policy e uma função fictícias, que a leem, são acusadas (o gate sabe reprovar).
+--   7 — ninguém lê `empresa_id` do acervo fora da POLICY (sabotagem I, a metade SQL): nenhuma função
+--       de `public` e nenhuma view a lê junto de uma das oito, fora das exceções nominais — e uma
+--       função fictícia, que a lê, é acusada (o gate sabe reprovar).
+--       F66 (24/09/2026): a metade das POLICIES se inverteu — a policy das oito TEM de citar a coluna,
+--       no termo e com a função da classe. O 7a ("nenhuma policy das oito cita empresa_id") saiu, e a
+--       verdade nova mora numa fonte só: a 16a de catalogo_policies.sql (decisão 5 do PLAN-F66); o 7d
+--       ficou com a metade da função.
 --
 -- Tudo por `pg_temp.assert_zero_de`, que recusa universo vazio; rótulo literal (o injetor lê
 -- por token). ESCREVE — `begin; … rollback;`: nada sobra no banco. As tabelas de fixture
@@ -519,15 +523,15 @@ begin
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
-  -- 7 — NINGUÉM LÊ `empresa_id` DO ACERVO (a metade SQL da sabotagem I).
+  -- 7 — NINGUÉM LÊ `empresa_id` DO ACERVO FORA DA POLICY (a metade SQL da sabotagem I).
   -- ==========================================================================
   v_re_oito := '\m(' || array_to_string(k_oito, '|') || ')\M';
 
-  select count(*), count(*) filter (where coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M')
-    into v_univ, v_ruins
-    from pg_policies p where p.schemaname = 'public' and p.tablename = any (k_oito);
-  if pg_temp.assert_zero_de('7a nenhuma policy das oito tabelas do acervo cita empresa_id (o recorte é da F66)', v_ruins, v_univ) then
-    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  -- 7a — APOSENTADA NA F66 (24/09/2026). Ela dizia "nenhuma policy das oito tabelas do acervo cita
+  -- empresa_id (o recorte é da F66)", e a F66 fez o contrário: as 23 policies das oito passaram a
+  -- citar a coluna, no termo e com a função da classe. A verdade nova é a 16a de
+  -- catalogo_policies.sql, derivada do catálogo, para as 21 tabelas com a coluna — uma fonte só
+  -- (decisão 5 do PLAN-F66). O rótulo 7a não volta a ser usado neste roteiro.
 
   -- 7b — funções de public que tocam as oito E citam empresa_id. A exceção nominal
   -- `checagens_integridade_nucleo` (0158) lê `m.empresa_id` de MEMBROS, num comando que não toca
@@ -549,19 +553,15 @@ begin
   if pg_temp.assert_zero_de('7c nenhuma view de public lê empresa_id junto de uma das oito', v_ruins, v_univ) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
-  -- 7d — a AUTO-SABOTAGEM: uma policy e uma função fictícias que leem a coluna são acusadas.
+  -- 7d — a AUTO-SABOTAGEM: uma função fictícia que lê a coluna é acusada. (F66: a metade da POLICY
+  -- saiu com o 7a — a policy fictícia que lê `empresa_id` é hoje a regra, não o defeito; a auto-sabotagem
+  -- da forma do recorte é a 16g de catalogo_policies.sql e as sabotagens A da fase.)
   v_estado := null;
   begin
-    create policy f63_sabotagem_le_empresa on public.ativos for select to authenticated
-      using (empresa_id = (select public.empresa_legada()));
     create function public.f63_sabotagem_le_empresa() returns bigint language sql stable as $s$
       select count(*) from public.movimentacoes m where m.empresa_id = public.empresa_legada()
     $s$;
-    select (select count(*) from pg_policies p
-             where p.schemaname = 'public' and p.tablename = any (k_oito)
-               and (coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'))::text
-           || '/' ||
-           (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    select (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'public' and p.prosrc ~ v_re_oito and p.prosrc ~ '\mempresa_id\M'
                and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes)))::text
       into v_estado;
@@ -569,9 +569,9 @@ begin
   exception when others then
     if sqlerrm <> 'f63-7d-desfaz' then v_estado := 'erro ' || sqlstate || ': ' || sqlerrm; end if;
   end;
-  if pg_temp.assert_zero_de('7d auto-sabotagem: a policy e a função fictícias que leem empresa_id do acervo são ACUSADAS (o gate sabe reprovar)' ||
-       case when v_estado is distinct from '1/1' then ' — acusou ' || coalesce(v_estado, '∅') || ' (esperado 1/1)' else '' end,
-       case when v_estado = '1/1' then 0 else 1 end, 1) then
+  if pg_temp.assert_zero_de('7d auto-sabotagem: a função fictícia que lê empresa_id do acervo é ACUSADA (o gate sabe reprovar)' ||
+       case when v_estado is distinct from '1' then ' — acusou ' || coalesce(v_estado, '∅') || ' (esperado 1)' else '' end,
+       case when v_estado = '1' then 0 else 1 end, 1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM empresa_no_acervo: % asserções, % falhas', v_ok + v_falhas, v_falhas;

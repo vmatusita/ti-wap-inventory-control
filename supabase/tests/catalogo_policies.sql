@@ -154,6 +154,62 @@ declare
     'vocabulario_unidades_guarda:filiais,unidades_apelidos'
   ];
 
+  -- =======================================================================
+  -- F66 (24/09/2026) — O RECORTE DE EMPRESA NAS POLICIES (bloco 6, asserções 16a–16g)
+  --
+  -- A TABELA-VERDADE classe → função (decisão 2 do PLAN-F66), a FONTE ÚNICA que a trava da forma lê. A classe de
+  -- uma policy é a PRIMEIRA função desta lista (na ordem) que a árvore dela cita — o piso de hoje (`e_admin`,
+  -- `pode_escrever_termo`, `pode_escrever`, `papel_atual`) ou a forma de pares (`unidades_de_escrita`) —, e a função
+  -- de conjunto depois dos dois-pontos é a que o termo `empresa_id = any (array (select public.<fn>()))` TEM de usar,
+  -- em USING e em WITH CHECK, na conjunção de cima:
+  --   · e_admin             → empresas_de_admin   (a leitura de cargo — auditoria, trilha do import — e a escrita de
+  --                                                admin; inclusive "admin reabre", que tem os pares também);
+  --   · pode_escrever_termo → empresas_de_escrita (as três de escrita de termos_gerados);
+  --   · pode_escrever       → empresas_de_escrita (a escrita no nível de empresa);
+  --   · unidades_de_escrita → empresas_de_escrita (a escrita por unidade: os pares decidem a filial, o termo dá o índice);
+  --   · papel_atual         → empresas_do_membro  (a leitura pelo piso — todo logado ativo lê a empresa de que é membro).
+  -- A ordem é a precedência: uma policy que cita `e_admin` e os pares é de admin. Policy de tabela com a coluna que não
+  -- cita nenhuma destas REPROVA ("sem classe") — é decisão, não omissão. ⚠ A F72, ao apagar o piso, reescreve esta lista.
+  k_recorte_classe text[] := array[
+    'e_admin:empresas_de_admin', 'pode_escrever_termo:empresas_de_escrita', 'pode_escrever:empresas_de_escrita',
+    'unidades_de_escrita:empresas_de_escrita', 'papel_atual:empresas_do_membro'
+  ];
+
+  -- AS POLICIES DE ESCRITA POR UNIDADE (decisão 3 do PLAN-F66): as seis que chamavam `pode_escrever_filial(filial_id)`
+  -- POR LINHA e passaram à forma de PARES — `(empresa_id, filial_id) in (select u.empresa_id, u.filial_id from
+  -- public.unidades_de_escrita() u)`, em conjunção com o termo de empresa. `:N` é quantos pares cada árvore tem na
+  -- conjunção de cima (em `movimentacoes / operador insere`, dois: a filial declarada e a filial REAL do ativo, lida do
+  -- snapshot da própria linha). A 16c confere nos dois sentidos: cada entrada tem os pares em toda árvore, e toda
+  -- policy com pares está aqui. Fonte única; a F67 (`pode_escrever_unidade` no corpo das RPCs) não mexe nela.
+  -- ⚠ Nos comentários das entradas: nada de aspa simples (o leitor da mesa casa este trecho como texto).
+  k_recorte_unidade text[] := array[
+    'public.ativos / operador atualiza:1', -- 0176 · o operador só atualiza ativo das filiais dele
+    'public.ativos / operador insere:1', -- 0176 · o operador só cadastra ativo nas filiais dele
+    'public.lancamentos_item / operador lanca:1', -- 0176 · o lançamento de item só na filial em que se escreve
+    'public.movimentacoes / operador insere:2', -- 0176 · a filial declarada e a filial real do ativo (o snapshot)
+    'public.pendencias_item / pendencias_item admin reabre:1', -- 0176 · reabrir exige administrar a empresa e a filial
+    'public.pendencias_item / pendencias_item operador resolve:1' -- 0176 · resolver só na filial em que se escreve
+  ];
+
+  -- AS EXCEÇÕES NOMINAIS DO RECORTE — as policies de `public` em tabela SEM `empresa_id`. Uma por policy, com o motivo e o
+  -- destino na linha; a 16e confere nos dois sentidos (policy em tabela sem a coluna fora desta lista reprova; entrada
+  -- sem policy viva, ou em tabela que ganhou a coluna, também). NÃO é a lista da doutrina (`k_excecoes_predicado`, a
+  -- forma do predicado) nem a de leitura de função (`k_leitura_tenant`): fatos diferentes, fontes diferentes.
+  -- ⚠ Nos comentários das entradas: nada de aspa simples.
+  k_recorte_excecoes text[] := array[
+    'public._bkp_relatorios_gerados_f6a / dev le backup f6a', -- 0128 · motivo: backup congelado de uma fase, sem a coluna, só o dev lê · destino: permanente
+    'public.profiles / atualiza proprio perfil', -- 0059 · motivo: identidade da conta, a pessoa edita o próprio nome · destino: F69 (a leitura cruzada de perfis por empresa)
+    'public.profiles / leitura operador' -- 0070 · motivo: identidade da conta, lida por colegas de qualquer filial · destino: F69 (a leitura cruzada de perfis por empresa)
+  ];
+
+  -- A GUARDA DO ANALISADOR DO RECORTE (16g): o que cada árvore SINTÉTICA tem de produzir, `caso:achado`. As que não
+  -- produzem nada (o array sem `array (select …)`, a outra coluna, o sub-select com filtro) não aparecem — e qualquer
+  -- achado delas reprova.
+  k_recorte_guarda_esperada text[] := array[
+    'recorte-canonico:termo:empresas_do_membro', 'recorte-em-and:termo:empresas_do_membro', 'recorte-em-or:fora',
+    'pares:pares', 'pares-em-or:pares-fora'
+  ];
+
   -- INFRA — cinco, cada uma com o motivo escrito. Nenhuma entra por categoria:
   --   · profiles          (0001) — identidade da CONTA, não do acervo. Na virada o
   --                                cargo migra para `membros.papel` (plano §5 → F62,
@@ -444,6 +500,36 @@ declare
   -- F64 — o lote 2 no mesmo bloco 5: a leitura de catálogo das onze, em arrays.
   v_l2_tab    text[];
   v_l2_def    text[];
+  -- F66 — o bloco 6 (o recorte): o laço da árvore do RECORTE, com assinatura por nó (pilha em arrays paralelos).
+  v_rc        record;
+  v_rc_tipos  text[];
+  v_rc_campos text[];
+  v_rc_filhos text[];
+  v_rc_conj   boolean[];
+  v_rc_bool   text[];
+  v_rc_topo   int;
+  v_rc_campo  text;
+  v_rc_tok    text;
+  v_rc_sig    text;
+  v_rc_canon  text[];
+  v_rc_fora   int;
+  v_rc_pc     int;
+  v_rc_pt     int;
+  v_rc_funcs  bigint[];
+  v_re_canon  text;
+  v_re_pares  text;
+  v_op_uuid   oid;
+  v_f_unid    oid;
+  v_rr_chave  text[] := '{}';
+  v_rr_tipo   text[] := '{}';
+  v_rr_coluna boolean[] := '{}';
+  v_rr_canon  text[] := '{}';
+  v_rr_fora   int[] := '{}';
+  v_rr_pc     int[] := '{}';
+  v_rr_pt     int[] := '{}';
+  v_rr_funcs  text[] := '{}';
+  v_rr_casos  int := 0;
+  v_rc_obtida text[] := '{}';
 begin
   -- ===============================================================
   -- BLOCO 1 — AS POLICIES DE `public`
@@ -1476,22 +1562,11 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
-  -- 15g — as policies das onze (universo 22 no dia da F64) não citam empresa_id.
-  select count(*),
-         count(*) filter (where coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'),
-         coalesce(string_agg(p.tablename || '/' || p.policyname, ', ')
-                    filter (where coalesce(p.qual, '') ~ '\mempresa_id\M' or coalesce(p.with_check, '') ~ '\mempresa_id\M'), '')
-    into v_univ, v_cnt, v_lista
-    from pg_policies p
-   where p.schemaname = 'public' and p.tablename = any (k_lote2);
-  if pg_temp.assert_zero_de(
-       '15g nenhuma policy das onze do lote 2 cita empresa_id (o recorte é da F66)' ||
-       case when v_cnt > 0 then ' — cita: ' || v_lista else '' end,
-       v_cnt, v_univ) then
-    v_ok := v_ok + 1;
-  else
-    v_falhas := v_falhas + 1;
-  end if;
+  -- 15g — APOSENTADA NA F66 (24/09/2026), e de propósito. Ela dizia "nenhuma policy das onze do lote 2 cita
+  -- empresa_id (o recorte é da F66)" — e a F66 é exatamente a fase que faz o contrário. A verdade nova (toda policy de
+  -- tabela com a coluna TEM de citá-la, no termo e com a função da classe) é a 16a do bloco 6, derivada do catálogo, e
+  -- vale para as vinte e uma tabelas com a coluna, não só para as onze: duas fontes para o mesmo fato é como um gate
+  -- morre (decisão 5 do PLAN-F66). O rótulo 15g não volta a ser usado.
 
   -- 15h — as funções de `public` que tocam uma das DEZENOVE (os dois lotes) não leem empresa_id —
   -- pelo predicado ÚNICO `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`): o CÓDIGO do corpo
@@ -1593,6 +1668,409 @@ begin
        '15k toda exceção de leitura da F65 (k_leitura_tenant) é uma função que existe e LÊ empresa_id, fora das do kit; a guarda cobre as 20 de negócio' ||
        case when v_cnt > 0 then ' — ' || v_lista else '' end,
        v_cnt, array_length(k_leitura_tenant, 1)::bigint + 1) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ===============================================================
+  -- BLOCO 6 — O RECORTE DE EMPRESA NAS POLICIES (F66, 24/09/2026)
+  --
+  -- A F66 escreve o recorte de empresa nas policies de `public`, EM CONJUNÇÃO com o piso de hoje, na forma içada da
+  -- doutrina: `empresa_id = any (array (select public.<fn>()))`, com a <fn> da CLASSE da policy (`k_recorte_classe`).
+  -- A escrita por unidade passa à forma de PARES sobre `unidades_de_escrita()` (`k_recorte_unidade`). Este bloco é a
+  -- trava que reprova a volta — e reprova, derivada do CATÁLOGO, a policy de tabela com a coluna que:
+  --   16a — não cita o termo canônico da classe em cada árvore (USING quando tem, WITH CHECK quando tem), na
+  --         CONJUNÇÃO de cima (um `or` com o termo dentro não conta), ou o cita com a função errada, ou não tem classe;
+  --   16b — (a tabela-verdade) cita função que não existe;
+  --   16c — é de escrita por unidade e não tem os pares em toda árvore — ou tem pares sem estar declarada;
+  --   16d — (qualquer policy de public e storage) ainda chama `pode_escrever_filial`, pela dependência no catálogo;
+  --   16e — está em tabela SEM a coluna e não é exceção nominal (`k_recorte_excecoes`) — nos dois sentidos;
+  --   16f — (qualquer policy de public e storage) não é `to authenticated` (R-ACC-72, item 2);
+  --   16g — a guarda do próprio analisador: árvores sintéticas produzem EXATAMENTE os achados esperados.
+  --
+  -- ⚠ A ÁRVORE, NÃO O TEXTO. O laço abaixo lê `pg_policy.polqual`/`polwithcheck` com a mesma tokenização do bloco 4 e
+  -- monta, de baixo para cima, uma ASSINATURA de cada nó — o tipo, os campos que decidem (`opno`, `useOr`, `varattno`,
+  -- `varlevelsup`, `funcid`, `funcretset`, `funcformat`, `subLinkType`, `boolop`, `rtekind`, `paramkind`, `paramid`) e
+  -- as assinaturas dos filhos, em ordem. O termo canônico é a assinatura EXATA de `SCALARARRAYOPEXPR` com o operador
+  -- `=(uuid,uuid)` e `useOr`, sobre `VAR` da coluna `empresa_id` DAQUELA tabela (`varlevelsup 0`) e `SUBLINK` tipo 6
+  -- (`ARRAY(…)`) cujo sub-select é só `FUNCEXPR` de conjunto sem argumento — qualquer coisa a mais (um filtro, um
+  -- `from`, outra coluna, a função solta sem o `array (select …)`) muda a assinatura e deixa de ser o termo. A
+  -- conjunção de cima é a raiz, ou filho de `BOOLEXPR and` que também está na conjunção de cima.
+  -- ⚠ A trava julga a FORMA e a CLASSE; o que o recorte AUTORIZA de fato é `isolamento_tenant.sql` (a bateria A↔B).
+  -- ===============================================================
+  v_op_uuid := '=(uuid,uuid)'::regoperator::oid;
+  v_f_unid := 'public.unidades_de_escrita()'::regprocedure::oid;
+
+  -- [laço-do-recorte:início]
+  for v_rc in
+    select n.nspname || '.' || c.relname || ' / ' || p.polname as chave, a.tipo, a.arvore, null::text as caso,
+           (select att.attnum from pg_attribute att
+             where att.attrelid = c.oid and att.attname = 'empresa_id' and not att.attisdropped) as attno
+      from pg_policy p
+      join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+      cross join lateral (values ('using', p.polqual::text), ('with check', p.polwithcheck::text)) as a (tipo, arvore)
+     where n.nspname = 'public' and a.arvore is not null
+    union all
+    select '(árvore sintética ' || s.caso || ')', 'using', s.arvore, s.caso, 99::int2
+      from (values
+        ('recorte-canonico', format(
+           '{SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true :args ({VAR :varno 1 :varattno 99 :varlevelsup 0} '
+           '{SUBLINK :subLinkType 6 :testexpr <> :subselect {QUERY :rtable <> :jointree {FROMEXPR :fromlist <> :quals <>} '
+           ':targetList ({TARGETENTRY :expr {FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>} :resno 1})}})}',
+           v_op_uuid, 'public.empresas_do_membro()'::regprocedure::oid)),
+        ('recorte-em-and', format(
+           '{BOOLEXPR :boolop and :args ({CONST :consttype 16} {SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true '
+           ':args ({VAR :varno 1 :varattno 99 :varlevelsup 0} {SUBLINK :subLinkType 6 :testexpr <> :subselect {QUERY '
+           ':rtable <> :jointree {FROMEXPR :fromlist <> :quals <>} :targetList ({TARGETENTRY :expr {FUNCEXPR :funcid %s '
+           ':funcretset true :funcformat 0 :args <>} :resno 1})}})})}',
+           v_op_uuid, 'public.empresas_do_membro()'::regprocedure::oid)),
+        ('recorte-em-or', format(
+           '{BOOLEXPR :boolop or :args ({CONST :consttype 16} {SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true '
+           ':args ({VAR :varno 1 :varattno 99 :varlevelsup 0} {SUBLINK :subLinkType 6 :testexpr <> :subselect {QUERY '
+           ':rtable <> :jointree {FROMEXPR :fromlist <> :quals <>} :targetList ({TARGETENTRY :expr {FUNCEXPR :funcid %s '
+           ':funcretset true :funcformat 0 :args <>} :resno 1})}})})}',
+           v_op_uuid, 'public.empresas_do_membro()'::regprocedure::oid)),
+        ('recorte-sem-array', format(
+           '{SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true :args ({VAR :varno 1 :varattno 99 :varlevelsup 0} '
+           '{FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>})}',
+           v_op_uuid, 'public.empresas_do_membro()'::regprocedure::oid)),
+        ('recorte-outra-coluna', format(
+           '{SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true :args ({VAR :varno 1 :varattno 98 :varlevelsup 0} '
+           '{SUBLINK :subLinkType 6 :testexpr <> :subselect {QUERY :rtable <> :jointree {FROMEXPR :fromlist <> :quals <>} '
+           ':targetList ({TARGETENTRY :expr {FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>} :resno 1})}})}',
+           v_op_uuid, 'public.empresas_do_membro()'::regprocedure::oid)),
+        ('recorte-com-filtro', format(
+           '{SCALARARRAYOPEXPR :opno %s :opfuncid 2956 :useOr true :args ({VAR :varno 1 :varattno 99 :varlevelsup 0} '
+           '{SUBLINK :subLinkType 6 :testexpr <> :subselect {QUERY :rtable <> :jointree {FROMEXPR :fromlist <> '
+           ':quals {CONST :consttype 16}} :targetList ({TARGETENTRY :expr {FUNCEXPR :funcid %s :funcretset true '
+           ':funcformat 0 :args <>} :resno 1})}})}',
+           v_op_uuid, 'public.empresas_do_membro()'::regprocedure::oid)),
+        ('pares', format(
+           '{SUBLINK :subLinkType 2 :testexpr {BOOLEXPR :boolop and :args ({OPEXPR :opno %s :args ({VAR :varno 1 '
+           ':varattno 99 :varlevelsup 0} {PARAM :paramkind 2 :paramid 1})} {OPEXPR :opno 94 :args ({VAR :varno 1 '
+           ':varattno 6 :varlevelsup 0} {PARAM :paramkind 2 :paramid 2})})} :subselect {QUERY :rtable ({RANGETBLENTRY '
+           ':alias {ALIAS :aliasname u} :eref {ALIAS :aliasname u} :rtekind 3 :functions ({RANGETBLFUNCTION :funcexpr '
+           '{FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>}})}) :jointree {FROMEXPR :fromlist '
+           '({RANGETBLREF :rtindex 1}) :quals <>} :targetList ({TARGETENTRY :expr {VAR :varno 1 :varattno 1 '
+           ':varlevelsup 0}} {TARGETENTRY :expr {VAR :varno 1 :varattno 2 :varlevelsup 0}})}}',
+           v_op_uuid, v_f_unid)),
+        ('pares-em-or', format(
+           '{BOOLEXPR :boolop or :args ({CONST :consttype 16} {SUBLINK :subLinkType 2 :testexpr {BOOLEXPR :boolop and '
+           ':args ({OPEXPR :opno %s :args ({VAR :varno 1 :varattno 99 :varlevelsup 0} {PARAM :paramkind 2 :paramid 1})} '
+           '{OPEXPR :opno 94 :args ({VAR :varno 1 :varattno 6 :varlevelsup 0} {PARAM :paramkind 2 :paramid 2})})} '
+           ':subselect {QUERY :rtable ({RANGETBLENTRY :alias {ALIAS :aliasname u} :eref {ALIAS :aliasname u} :rtekind 3 '
+           ':functions ({RANGETBLFUNCTION :funcexpr {FUNCEXPR :funcid %s :funcretset true :funcformat 0 :args <>}})}) '
+           ':jointree {FROMEXPR :fromlist ({RANGETBLREF :rtindex 1}) :quals <>} :targetList ({TARGETENTRY :expr {VAR '
+           ':varno 1 :varattno 1 :varlevelsup 0}} {TARGETENTRY :expr {VAR :varno 1 :varattno 2 :varlevelsup 0}})}})}',
+           v_op_uuid, v_f_unid))
+      ) as s (caso, arvore)
+  loop
+    if v_rc.caso is not null then
+      v_rr_casos := v_rr_casos + 1;
+    end if;
+    v_rc_tipos := '{}'; v_rc_campos := '{}'; v_rc_filhos := '{}'; v_rc_conj := '{}'; v_rc_bool := '{}';
+    v_rc_canon := '{}'; v_rc_fora := 0; v_rc_pc := 0; v_rc_pt := 0; v_rc_funcs := '{}'; v_rc_campo := null;
+    -- as duas assinaturas, com a coluna `empresa_id` DESTA tabela (sem a coluna, -1: nada casa)
+    v_re_canon := format('^SCALARARRAYOPEXPR\{opno=%s;useOr=true\}\[VAR\{varno=1;varattno=%s;varlevelsup=0\}\[\]'
+                         'SUBLINK\{subLinkType=6\}\[QUERY\{\}\[FROMEXPR\{\}\[\]TARGETENTRY\{\}\['
+                         'FUNCEXPR\{funcid=(\d+);funcretset=true;funcformat=0\}\[\]\]\]\]\]$',
+                         v_op_uuid, coalesce(v_rc.attno, -1));
+    v_re_pares := format('^SUBLINK\{subLinkType=2\}\[BOOLEXPR\{boolop=and\}\[OPEXPR\{opno=%s\}\['
+                         'VAR\{varno=1;varattno=%s;varlevelsup=0\}\[\]PARAM\{paramkind=2;paramid=1\}\[\]\]'
+                         'OPEXPR\{opno=\d+\}\[.*PARAM\{paramkind=2;paramid=2\}\[\]\]\]QUERY\{\}\['
+                         'RANGETBLENTRY\{rtekind=3\}\[ALIAS\{\}\[\]ALIAS\{\}\[\]RANGETBLFUNCTION\{\}\['
+                         'FUNCEXPR\{funcid=%s;funcretset=true;funcformat=0\}\[\]\]\]FROMEXPR\{\}\[RANGETBLREF\{\}\[\]\]'
+                         'TARGETENTRY\{\}\[VAR\{varno=1;varattno=1;varlevelsup=0\}\[\]\]'
+                         'TARGETENTRY\{\}\[VAR\{varno=1;varattno=2;varlevelsup=0\}\[\]\]\]\]$',
+                         v_op_uuid, coalesce(v_rc.attno, -1), v_f_unid);
+    -- um token por casamento: [1] abre nó · [2] fecha nó · [3] nome de campo · [4] valor (a regex do bloco 4)
+    for v_m in
+      select t.m
+        from regexp_matches(v_rc.arvore,
+               '(\{[A-Z_]+)|(\})|(:[A-Za-z_]+)|("(?:[^"\\]|\\.)*"|(?:[^\s{}()\[\]"\\]|\\.)+)', 'g')
+             with ordinality as t (m, i)
+       order by t.i
+    loop
+      v_rc_topo := coalesce(array_length(v_rc_tipos, 1), 0);
+      if v_m[1] is not null then
+        -- abre nó: está na conjunção de cima se é a raiz, ou filho de BOOLEXPR and que está nela
+        v_rc_conj := v_rc_conj || (v_rc_topo = 0 or (v_rc_tipos[v_rc_topo] = 'BOOLEXPR'
+                                                     and v_rc_bool[v_rc_topo] = 'and' and v_rc_conj[v_rc_topo]));
+        v_rc_tipos := v_rc_tipos || ltrim(v_m[1], '{');
+        v_rc_campos := v_rc_campos || ''::text;
+        v_rc_filhos := v_rc_filhos || ''::text;
+        v_rc_bool := v_rc_bool || null::text;
+      elsif v_m[2] is not null then
+        -- fecha nó: a assinatura dele, e ela sobe para o pai
+        if v_rc_topo = 0 then
+          raise exception 'F66: árvore desbalanceada em %', v_rc.chave;
+        end if;
+        v_rc_sig := v_rc_tipos[v_rc_topo] || '{' || rtrim(v_rc_campos[v_rc_topo], ';') || '}['
+                    || v_rc_filhos[v_rc_topo] || ']';
+        if v_rc_sig ~ v_re_canon then
+          if v_rc_conj[v_rc_topo] then
+            v_rc_canon := v_rc_canon || (select pr.proname::text from pg_proc pr
+                                          where pr.oid = substring(v_rc_sig from v_re_canon)::oid);
+          else
+            v_rc_fora := v_rc_fora + 1;
+          end if;
+        elsif v_rc_sig ~ v_re_pares then
+          v_rc_pt := v_rc_pt + 1;
+          if v_rc_conj[v_rc_topo] then
+            v_rc_pc := v_rc_pc + 1;
+          end if;
+        end if;
+        if v_rc_topo > 1 then
+          v_rc_filhos[v_rc_topo - 1] := v_rc_filhos[v_rc_topo - 1] || v_rc_sig;
+        end if;
+        v_rc_tipos := v_rc_tipos[1:v_rc_topo - 1];
+        v_rc_campos := v_rc_campos[1:v_rc_topo - 1];
+        v_rc_filhos := v_rc_filhos[1:v_rc_topo - 1];
+        v_rc_conj := v_rc_conj[1:v_rc_topo - 1];
+        v_rc_bool := v_rc_bool[1:v_rc_topo - 1];
+      elsif v_m[3] is not null then
+        v_rc_campo := v_m[3];
+      else
+        -- valor do campo anterior: só os que decidem entram na assinatura
+        if v_rc_campo is not null and v_rc_topo > 0 then
+          if (v_rc_tipos[v_rc_topo], v_rc_campo) in (
+               ('VAR', ':varno'), ('VAR', ':varattno'), ('VAR', ':varlevelsup'),
+               ('FUNCEXPR', ':funcid'), ('FUNCEXPR', ':funcretset'), ('FUNCEXPR', ':funcformat'),
+               ('SCALARARRAYOPEXPR', ':opno'), ('SCALARARRAYOPEXPR', ':useOr'), ('OPEXPR', ':opno'),
+               ('SUBLINK', ':subLinkType'), ('BOOLEXPR', ':boolop'), ('RANGETBLENTRY', ':rtekind'),
+               ('PARAM', ':paramkind'), ('PARAM', ':paramid')) then
+            v_rc_campos[v_rc_topo] := v_rc_campos[v_rc_topo] || ltrim(v_rc_campo, ':') || '=' || v_m[4] || ';';
+          end if;
+          if v_rc_tipos[v_rc_topo] = 'BOOLEXPR' and v_rc_campo = ':boolop' then
+            v_rc_bool[v_rc_topo] := v_m[4];
+          end if;
+          if v_rc_tipos[v_rc_topo] = 'FUNCEXPR' and v_rc_campo = ':funcid' then
+            v_rc_funcs := v_rc_funcs || v_m[4]::bigint;
+          end if;
+        end if;
+        v_rc_campo := null;
+      end if;
+    end loop;
+    if coalesce(array_length(v_rc_tipos, 1), 0) <> 0 then
+      raise exception 'F66: árvore desbalanceada (sobrou pilha) em %', v_rc.chave;
+    end if;
+    if v_rc.caso is null then
+      v_rr_chave := v_rr_chave || v_rc.chave;
+      v_rr_tipo := v_rr_tipo || v_rc.tipo;
+      v_rr_coluna := v_rr_coluna || (v_rc.attno is not null);
+      v_rr_canon := v_rr_canon || array_to_string(v_rc_canon, ',');
+      v_rr_fora := v_rr_fora || v_rc_fora;
+      v_rr_pc := v_rr_pc || v_rc_pc;
+      v_rr_pt := v_rr_pt || v_rc_pt;
+      v_rr_funcs := v_rr_funcs || coalesce((select string_agg(distinct pr.proname::text, ',')
+                                              from pg_proc pr where pr.oid = any (v_rc_funcs::oid[])), '');
+    else
+      v_rc_obtida := v_rc_obtida
+                     || array(select v_rc.caso || ':termo:' || x from unnest(v_rc_canon) as x)
+                     || case when v_rc_fora > 0 then array[v_rc.caso || ':fora'] else '{}'::text[] end
+                     || case when v_rc_pc > 0 then array[v_rc.caso || ':pares'] else '{}'::text[] end
+                     || case when v_rc_pt > v_rc_pc then array[v_rc.caso || ':pares-fora'] else '{}'::text[] end;
+    end if;
+  end loop;
+  -- [laço-do-recorte:fim]
+
+  -- ---------------------------------------------------------------
+  -- 16a — toda policy de `public` em tabela COM `empresa_id` (lida do catálogo) cita, em cada árvore, o termo canônico
+  --       da CLASSE dela na conjunção de cima. O ✗ nomeia a policy, a árvore e o defeito.
+  -- ---------------------------------------------------------------
+  with arv as (
+    select * from unnest(v_rr_chave, v_rr_tipo, v_rr_coluna, v_rr_canon, v_rr_fora, v_rr_funcs)
+      as x (chave, tipo, coluna, canon, fora, funcs)
+  ), pol as (
+    select a.chave, string_to_array(string_agg(a.funcs, ','), ',') as funcs from arv a group by a.chave
+  ), classe as (
+    select p.chave,
+           (select split_part(k.e, ':', 2) from unnest(k_recorte_classe) with ordinality as k (e, i)
+             where split_part(k.e, ':', 1) = any (p.funcs) order by k.i limit 1) as fn
+      from pol p
+  ), julgado as (
+    select a.chave, a.tipo,
+           case
+             when c.fn is null then 'sem classe na tabela-verdade (k_recorte_classe)'
+             when a.canon = '' and a.fora > 0 then 'o termo está fora da conjunção de cima (num or)'
+             when a.canon = '' then 'sem o termo empresa_id = any (array (select public.' || c.fn || '()))'
+             when not (c.fn = any (string_to_array(a.canon, ','))) then
+               'função errada: ' || a.canon || ' (a classe pede ' || c.fn || ')'
+             when exists (select 1 from unnest(string_to_array(a.canon, ',')) as f where f <> c.fn) then
+               'função a mais: ' || a.canon || ' (a classe pede só ' || c.fn || ')'
+           end as defeito
+      from arv a join classe c on c.chave = a.chave
+     where a.coluna
+  )
+  select count(*), count(*) filter (where j.defeito is not null),
+         coalesce(string_agg(j.chave || ' (' || j.tipo || '): ' || j.defeito, '; ' order by j.chave, j.tipo)
+                    filter (where j.defeito is not null), '')
+    into v_univ, v_cnt, v_lista
+    from julgado j;
+  if pg_temp.assert_zero_de(
+       '16a toda policy de public em tabela com empresa_id cita o termo empresa_id = any (array (select public.<fn>())) da CLASSE dela, em cada árvore, na conjunção de cima' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 16b — a tabela-verdade não guarda fantasma: toda função de `k_recorte_classe` (os dois lados) existe em public.
+  -- ---------------------------------------------------------------
+  select count(*), count(*) filter (where not exists (
+           select 1 from pg_proc pr join pg_namespace n on n.oid = pr.pronamespace
+            where n.nspname = 'public' and pr.proname = s.nome)),
+         coalesce(string_agg(s.nome, ', ') filter (where not exists (
+           select 1 from pg_proc pr join pg_namespace n on n.oid = pr.pronamespace
+            where n.nspname = 'public' and pr.proname = s.nome)), '')
+    into v_univ, v_cnt, v_lista
+    from (select distinct x as nome
+            from unnest(k_recorte_classe) as e, unnest(array[split_part(e, ':', 1), split_part(e, ':', 2)]) as x) as s;
+  if pg_temp.assert_zero_de(
+       '16b toda função da tabela-verdade do recorte (k_recorte_classe) existe em public' ||
+       case when v_cnt > 0 then ' — não existe: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 16c — A FORMA DE PARES, nos dois sentidos: cada policy de `k_recorte_unidade` tem, em TODA árvore, exatamente os
+  --       pares declarados na conjunção de cima (e nenhum fora dela); e toda policy com pares está na lista.
+  -- ---------------------------------------------------------------
+  with arv as (
+    select * from unnest(v_rr_chave, v_rr_tipo, v_rr_pc, v_rr_pt) as x (chave, tipo, pc, pt)
+  ), lista as (
+    select split_part(e, ':', 1) as chave, split_part(e, ':', 2)::int as n from unnest(k_recorte_unidade) as e
+  )
+  select (select count(*) from arv), count(*), coalesce(string_agg(s.d, '; ' order by s.d), '')
+    into v_univ, v_cnt, v_lista
+    from (
+      select l.chave || ' (' || a.tipo || '): ' || a.pc || ' par(es) na conjunção e ' || (a.pt - a.pc)
+             || ' fora dela, a lista declara ' || l.n as d
+        from lista l join arv a on a.chave = l.chave
+       where a.pc <> l.n or a.pt <> a.pc
+      union all
+      select l.chave || ': não é policy viva' from lista l where not exists (select 1 from arv a where a.chave = l.chave)
+      union all
+      select distinct a.chave || ': tem pares e não está em k_recorte_unidade'
+        from arv a where a.pt > 0 and not exists (select 1 from lista l where l.chave = a.chave)
+    ) as s;
+  if pg_temp.assert_zero_de(
+       '16c as policies de escrita por unidade (k_recorte_unidade) têm os pares sobre unidades_de_escrita() em toda árvore, na conjunção de cima, e só elas' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 16d — nenhuma policy de public ou storage chama `pode_escrever_filial` (a dependência que o Postgres registra
+  --       da policy na função — sem ler texto). A regra por linha virou os pares; a função fica para o corpo das RPCs.
+  -- ---------------------------------------------------------------
+  select count(*),
+         count(*) filter (where exists (
+           select 1 from pg_depend d
+            where d.classid = 'pg_policy'::regclass and d.objid = p.oid
+              and d.refclassid = 'pg_proc'::regclass
+              and d.refobjid = 'public.pode_escrever_filial(smallint)'::regprocedure)),
+         coalesce(string_agg(n.nspname || '.' || c.relname || ' / ' || p.polname, ', ') filter (where exists (
+           select 1 from pg_depend d
+            where d.classid = 'pg_policy'::regclass and d.objid = p.oid
+              and d.refclassid = 'pg_proc'::regclass
+              and d.refobjid = 'public.pode_escrever_filial(smallint)'::regprocedure)), '')
+    into v_univ, v_cnt, v_lista
+    from pg_policy p
+    join pg_class c on c.oid = p.polrelid
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('public', 'storage');
+  if pg_temp.assert_zero_de(
+       '16d nenhuma policy de public ou storage chama pode_escrever_filial (a escrita por unidade é a forma de pares)' ||
+       case when v_cnt > 0 then ' — chama: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 16e — AS EXCEÇÕES NOMINAIS DO RECORTE, nos dois sentidos: policy de public em tabela SEM `empresa_id` só se estiver
+  --       em `k_recorte_excecoes`; e toda entrada é policy viva numa tabela que continua sem a coluna.
+  -- ---------------------------------------------------------------
+  with pol as (
+    select n.nspname || '.' || c.relname || ' / ' || p.polname as chave,
+           exists (select 1 from pg_attribute att
+                    where att.attrelid = c.oid and att.attname = 'empresa_id' and not att.attisdropped) as coluna
+      from pg_policy p
+      join pg_class c on c.oid = p.polrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+  )
+  select (select count(*) from pol) + array_length(k_recorte_excecoes, 1), count(*),
+         coalesce(string_agg(s.d, '; ' order by s.d), '')
+    into v_univ, v_cnt, v_lista
+    from (
+      select pol.chave || ' (em tabela sem empresa_id e fora de k_recorte_excecoes)' as d
+        from pol where not pol.coluna and not (pol.chave = any (k_recorte_excecoes))
+      union all
+      select e || ' (exceção sem policy viva em tabela sem a coluna — tire a linha)'
+        from unnest(k_recorte_excecoes) as e
+       where not exists (select 1 from pol where pol.chave = e and not pol.coluna)
+    ) as s;
+  if pg_temp.assert_zero_de(
+       '16e toda policy de public em tabela sem empresa_id é exceção nominal (k_recorte_excecoes), e toda exceção ainda descreve o banco' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 16f — `to authenticated` em TODA policy de public e de storage.objects (R-ACC-72, item 2): sem ele a policy é
+  --       avaliada também para `anon` (a documentação da Supabase: o `TO` sozinho elimina o custo para quem não é o
+  --       papel). Nasceu verde (fato 4 da ordem F66); a prova de que sabe ficar vermelha é a sabotagem B.
+  -- ---------------------------------------------------------------
+  select count(*),
+         count(*) filter (where p.polroles is distinct from array['authenticated'::regrole::oid]),
+         coalesce(string_agg(n.nspname || '.' || c.relname || ' / ' || p.polname, ', ')
+                    filter (where p.polroles is distinct from array['authenticated'::regrole::oid]), '')
+    into v_univ, v_cnt, v_lista
+    from pg_policy p
+    join pg_class c on c.oid = p.polrelid
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('public', 'storage');
+  if pg_temp.assert_zero_de(
+       '16f toda policy de public e storage é to authenticated (e só authenticated)' ||
+       case when v_cnt > 0 then ' — outro papel: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 16g — A GUARDA DO ANALISADOR DO RECORTE: as árvores sintéticas produzem EXATAMENTE os achados esperados, nos dois
+  --       sentidos. Sem ela, um laço quebrado deixaria 16a/16c verdes por não reconhecer termo nenhum — ou reprovaria
+  --       tudo por reconhecer o que não é termo.
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(d, ', ' order by d), '')
+    into v_cnt, v_lista
+    from (
+      select 'não achou ' || e as d from unnest(k_recorte_guarda_esperada) as e where not (e = any (v_rc_obtida))
+      union all
+      select distinct 'achou a mais ' || o from unnest(v_rc_obtida) as o where not (o = any (k_recorte_guarda_esperada))
+    ) as diferencas;
+  if pg_temp.assert_zero_de(
+       '16g o analisador do recorte reconhece o termo e os pares só onde eles estão (' || v_rr_casos || ' árvores sintéticas)' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, (array_length(k_recorte_guarda_esperada, 1) + 4 * v_rr_casos)::bigint) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

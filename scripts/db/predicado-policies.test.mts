@@ -256,6 +256,8 @@ describe('5. R3 — sub-select não lê tabela e não olha a linha', () => {
     for (const ok of [
       'empresa_id = any (array (select public.empresas_do_membro()))',
       '(empresa_id, filial_id) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u)',
+      // F66: o par do snapshot (movimentacoes / operador insere) — operador e cast sobre a coluna, fora do sub-select
+      "(empresa_id, (snapshot_anterior ->> 'filial_id')::smallint) in (select u.empresa_id, u.filial_id from public.unidades_de_escrita() u)",
       'filial_id in (select u.filial_id from public.unidades_de_escrita() as u)',
       'x in (select e from public.empresas_do_membro() e)',
     ]) {
