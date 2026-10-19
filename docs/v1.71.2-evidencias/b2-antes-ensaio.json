@@ -1,0 +1,23 @@
+{
+  "alvo": "ensaio",
+  "lidas": {
+    "colaboradores": 0,
+    "movimentacoes": 3245,
+    "lancamentos_item": 35,
+    "ativos": 1606
+  },
+  "contagens": {
+    "cadastros_total": 0,
+    "cadastros_ativos": 0,
+    "ativos_com_registros_como_a_tela": 0,
+    "sem_registro_por_id": 0,
+    "sem_id_salvos_pela_chave": 0,
+    "sem_id_salvos_so_pelo_detentor": 0,
+    "sem_uso_efetivo": 0,
+    "sem_uso_nunca_usado": 0,
+    "sem_uso_so_estornados": 0,
+    "com_id_mas_so_estornados_por_id": 0,
+    "movimentacoes_estorno": 0,
+    "empresas_com_colaborador": 0
+  }
+}
