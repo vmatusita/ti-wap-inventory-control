@@ -31,6 +31,11 @@ export type ItemReservado = {
   patrimonio: string
   modelo: string
   chamado: string | null
+  // v1.71.1 — a categoria do ativo, para o card "Reservados" separar a lista por categoria.
+  // OPCIONAL, mantém `schema: 2` (precedentes `emprestado?`, `serieEstado?`,
+  // `movimentacoesItens?`): todo snapshot gerado antes não tem o campo, e o card mostra o total e
+  // a lista corrida de antes (`agruparReservados`, lib/relatorios/reservados.ts).
+  categoria?: CategoriaAtivo
 }
 export type ItemManutencao = {
   patrimonio: string

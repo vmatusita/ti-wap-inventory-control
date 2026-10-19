@@ -1,0 +1,102 @@
+{
+  "varias-categorias__claro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "varias-categorias__claro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "varias-categorias__claro__impressao.png": {
+    "scrollWidth": 794,
+    "clientWidth": 794,
+    "rolaHorizontal": false
+  },
+  "varias-categorias__escuro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "varias-categorias__escuro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "uma-categoria__claro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "uma-categoria__claro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "uma-categoria__claro__impressao.png": {
+    "scrollWidth": 794,
+    "clientWidth": 794,
+    "rolaHorizontal": false
+  },
+  "uma-categoria__escuro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "uma-categoria__escuro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "snapshot-antigo__claro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "snapshot-antigo__claro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "snapshot-antigo__claro__impressao.png": {
+    "scrollWidth": 794,
+    "clientWidth": 794,
+    "rolaHorizontal": false
+  },
+  "snapshot-antigo__escuro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "snapshot-antigo__escuro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "lista-longa__claro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "lista-longa__claro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  },
+  "lista-longa__claro__impressao.png": {
+    "scrollWidth": 794,
+    "clientWidth": 794,
+    "rolaHorizontal": false
+  },
+  "lista-longa__escuro__1366.png": {
+    "scrollWidth": 1366,
+    "clientWidth": 1366,
+    "rolaHorizontal": false
+  },
+  "lista-longa__escuro__390.png": {
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "rolaHorizontal": false
+  }
+}

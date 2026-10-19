@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { Constants } from '@/lib/types/database'
 import type { StatusAtivo } from '@/lib/dominio'
 import {
+  itensReservadosDeEstado,
   kpisDeContagens,
   kpisDeEstado,
   type ContagemPorStatus,
   type EstadoAtivo,
 } from '@/lib/queries/relatorios/estoque'
+import { agruparReservados } from '@/lib/relatorios/reservados'
+import type { CategoriaAtivo } from '@/lib/dominio'
 
 // F60 · fato 13 — os OITO números do dashboard não mudam quando a leitura troca de fonte.
 //
@@ -98,5 +101,64 @@ describe('kpisDeContagens ≡ kpisDeEstado — os oito números por contagem', (
     ])
     expect(k.total).toBe(2)
     expect(k.em_uso).toBe(2)
+  })
+})
+
+// v1.71.1 — A1: o total do card "Reservados" é o tile "Reservados" e é a soma dos grupos.
+//
+// A lista sai de `itensReservadosDeEstado` sobre o MESMO `estado` que `kpisDeEstado` conta (é assim
+// que `getSnapshotRelatorioV2` chama os dois). A fixture mistura reservados de três categorias com
+// todos os outros status e com as duas baixas terminais — que `kpisDeEstado` tira do total, e que
+// nunca são `reservado`.
+describe('o card "Reservados": total = KPI = soma dos grupos (v1.71.1)', () => {
+  function reservado(categoria: CategoriaAtivo, patrimonio: string): EstadoAtivo {
+    return { ...ativo('reservado'), categoria, marca: 'Marca', modelo: 'Modelo Fictício', ativo_id: `id-${patrimonio}` }
+  }
+  const RESERVADOS = [
+    reservado('celular', 'FIC0000003'),
+    reservado('notebook', 'FIC0000002'),
+    reservado('monitor', 'FIC0000005'),
+    reservado('notebook', 'FIC0000001'),
+    reservado('celular', 'FIC0000004'),
+  ]
+  const ESTADO: EstadoAtivo[] = [
+    ...varios('em_uso', 7),
+    ...varios('em_estoque', 4),
+    ...varios('descartado', 3),
+    ...varios('devolvido_fornecedor', 2),
+    ...varios('em_manutencao', 1),
+    ...RESERVADOS,
+  ]
+  const dados = new Map(RESERVADOS.map((a) => [a.ativo_id, { patrimonio: a.ativo_id.slice(3), marca: 'Marca', modelo: 'Modelo Fictício' }]))
+  const chamados = new Map([[RESERVADOS[0].ativo_id, '4101']])
+
+  it('cada item da lista leva a categoria do estado — sem leitura nova', () => {
+    const itens = itensReservadosDeEstado(ESTADO, dados, chamados)
+    expect(itens.map((i) => [i.patrimonio, i.categoria])).toEqual([
+      ['FIC0000001', 'notebook'],
+      ['FIC0000002', 'notebook'],
+      ['FIC0000003', 'celular'],
+      ['FIC0000004', 'celular'],
+      ['FIC0000005', 'monitor'],
+    ])
+    expect(itens.find((i) => i.patrimonio === 'FIC0000003')?.chamado).toBe('4101')
+  })
+
+  it('o total agrupado é igual ao kpis.reservado do mesmo estado, e à soma dos grupos', () => {
+    const { total, grupos } = agruparReservados(itensReservadosDeEstado(ESTADO, dados, chamados))
+    expect(total).toBe(kpisDeEstado(ESTADO).reservado)
+    expect(total).toBe(5)
+    expect(grupos?.reduce((s, g) => s + g.total, 0)).toBe(total)
+    expect(grupos?.map((g) => [g.categoria, g.total])).toEqual([
+      ['notebook', 2],
+      ['celular', 2],
+      ['monitor', 1],
+    ])
+  })
+
+  it('sem reservado nenhum: lista vazia, total 0, igual ao KPI', () => {
+    const semReserva = ESTADO.filter((a) => a.status !== 'reservado')
+    expect(itensReservadosDeEstado(semReserva, dados, chamados)).toEqual([])
+    expect(kpisDeEstado(semReserva).reservado).toBe(0)
   })
 })

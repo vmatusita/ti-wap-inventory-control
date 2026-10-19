@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.71.1',
+    data: '2026-10-19',
+    titulo: 'O card "Reservados" do relatório passou a dizer quantos são e a separar a lista por categoria',
+    mudancas: [
+      'No relatório (de cada filial e no "Consolidado", também para quem entra pela senha de acesso), o card "Reservados" passou a mostrar o total logo abaixo do título — "12 reservados", o mesmo número do indicador "Reservados" do topo.',
+      'A lista do card passou a vir separada por categoria (Notebook, Celular, Monitor…), na mesma ordem do card vizinho "Disponíveis por modelo", cada categoria com o seu total. Dentro de cada uma, as linhas continuam como eram: patrimônio, modelo e número do chamado.',
+      'Quando há reservados de duas categorias ou mais, uma linha de etiquetas no alto do card resume quantos há em cada uma ("Notebook 3", "Celular 2"). As etiquetas são só resumo: não filtram nem levam a outro lugar.',
+      'Os relatórios gerados antes desta versão continuam abrindo normalmente, com o total e a lista numa coluna só, do jeito que foram guardados. Na impressão, o nome de cada categoria nunca fica sozinho no pé da folha, separado da primeira linha dela.',
+    ],
+  },
+  {
     versao: '1.71.0',
     data: '2026-09-24',
     fase: 'F66',

@@ -94,7 +94,7 @@ export const entregarEmprestarReservar: PaginaAjuda = {
         // deixou de ser opcional na reserva — é o que sustenta o card
         // "Reservados" do relatório, e é exatamente o que a re-reserva não
         // pode apagar (ver abaixo). "Chamado" continua opcional.
-        `No passo "Movimentação", escolha "${T.reserva.rotulo}". Preencha "Colaborador" ou "Setor" — um dos dois é obrigatório, porque é o que aparece no card "Reservados" do relatório, na linha "patrimônio · modelo · nº do chamado"; sem um destino, o registro não teria para quem apontar. "Chamado (opcional)" continua livre.`,
+        `No passo "Movimentação", escolha "${T.reserva.rotulo}". Preencha "Colaborador" ou "Setor" — um dos dois é obrigatório, porque é o que aparece no card "Reservados" do relatório, na linha "patrimônio · modelo · nº do chamado" (dentro do grupo da categoria do equipamento); sem um destino, o registro não teria para quem apontar. "Chamado (opcional)" continua livre.`,
         `Registrado, o ativo fica "${S.reservado.rotulo}" e some do que está disponível para entrega — o KPI "Reservados" ("aguardando entrega") sobe e o "${S.em_estoque.rotulo}" desce.`,
         `Quando a pessoa retirar o equipamento, registre a "${T.saida.rotulo}" (ou o "${T.emprestimo.rotulo}") normalmente: o ativo reservado aceita os dois direto, sem voltar ao estoque. É aí que o termo é oferecido.`,
         // F34 — a reserva passou a valer também sobre um ativo já reservado
@@ -111,7 +111,7 @@ export const entregarEmprestarReservar: PaginaAjuda = {
       itens: [
         `${T.saida.rotulo} deixa o ativo "${S.em_uso.rotulo}"; ${T.emprestimo.rotulo}, "${S.emprestado.rotulo}"; ${T.reserva.rotulo}, "${S.reservado.rotulo}". O estado novo aparece na hora na ficha, na lista de ativos e nos KPIs.`,
         'Os três gravam o Colaborador e o Setor informados na ficha do ativo, nos campos "Colaborador" e "Setor" do card "Dados do ativo".',
-        `No relatório, a tabela "Saídas" mostra as movimentações de "${T.saida.rotulo}" e de "${T.emprestimo.rotulo}" do período, com as colunas "Motivo", "Chamado", "Colab./Setor" e "Termo". A "${T.reserva.rotulo}" NÃO entra nessa tabela — ela aparece no KPI "Reservados" e no card "Reservados" ("patrimônio · modelo · nº do chamado"), que é a lista de quem está separado esperando entrega.`,
+        `No relatório, a tabela "Saídas" mostra as movimentações de "${T.saida.rotulo}" e de "${T.emprestimo.rotulo}" do período, com as colunas "Motivo", "Chamado", "Colab./Setor" e "Termo". A "${T.reserva.rotulo}" NÃO entra nessa tabela — ela aparece no KPI "Reservados" e no card "Reservados" (o total no subtítulo e, separado por categoria, "patrimônio · modelo · nº do chamado"), que é a lista de quem está separado esperando entrega.`,
         `Pendência de termo: um ativo entregue abre a pendência "termo" enquanto a assinatura não for confirmada — e isso vale só para quem ficou "${S.em_uso.rotulo}" ou "${S.emprestado.rotulo}". Ativo apenas "${S.reservado.rotulo}" não é cobrado por termo, e ativo que veio do import de startup também não.`,
         'A movimentação entra na linha do tempo da ficha com o estado de → para, o motivo, o destino e o chamado, e na tabela "Saídas" do relatório do período (com as colunas Motivo, Chamado, Colab./Setor e Termo).',
         'Nada disso mexe nos itens por quantidade: mouse, fone e carregador que vão junto com o notebook são lançados à parte, na tela Itens.',

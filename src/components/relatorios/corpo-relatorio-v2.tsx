@@ -4,6 +4,7 @@ import type { GranularidadeSerie, SnapshotRelatorioV2 } from '@/lib/relatorios/t
 import { agregarAcervoPorSituacao } from '@/lib/relatorios/acervo'
 import { resumoRiscoManutencao } from '@/lib/relatorios/resumo-manutencao'
 import { totalDaTabela } from '@/lib/relatorios/teto-tabela'
+import { rotuloReservados } from '@/lib/relatorios/reservados'
 import { MAX_PONTOS_SERIE_ESTADO, MAX_SEMANAS_SERIE_ESTADO } from '@/lib/relatorios/serie-estado'
 import { recorteParaSegmento } from '@/lib/relatorios/cliques-grafico'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
@@ -257,9 +258,12 @@ export function CorpoRelatorioV2({
             <ListaModeloCategoria grupos={s.disponiveisPorModelo} />
           </CardRelatorio>
 
+          {/* v1.71.1 — o subtítulo é o TOTAL ("12 reservados"): a mesma contagem do tile
+              "Reservados" logo acima (`s.kpis.reservado`), porque a lista sai do MESMO estado que o
+              KPI conta. A lista vem separada por categoria, na ordem do card vizinho. */}
           <CardRelatorio
             titulo="Reservados"
-            subtitulo="patrimônio · modelo · nº do chamado"
+            subtitulo={rotuloReservados(s.reservados.length)}
             janela="foto"
             periodoJanela={periodo}
             vazio={s.reservados.length === 0}
