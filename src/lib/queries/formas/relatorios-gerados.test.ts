@@ -254,3 +254,33 @@ describe('a forma do snapshot com o corte das tabelas (F60 — tabelasTruncadas)
     ).toBe(false)
   })
 })
+
+// v1.71.1 — `categoria?` em cada item de `reservados` (o card "Reservados" por categoria). Chave
+// OPCIONAL da V2 (e da V1, que nunca a tem): o snapshot de antes continua aceito, o novo a guarda, e a
+// chave não vira porta para valor fora do vocabulário.
+describe('a forma do snapshot com a categoria dos reservados (v1.71.1)', () => {
+  const reservadoNovo = { patrimonio: 'WAP0001234', modelo: 'ThinkPad', chamado: 'CH-1', categoria: 'notebook' }
+
+  it('o v2 e o v1 SEM a categoria (todo snapshot gerado antes da v1.71.1) continuam aceitos', () => {
+    expect(V2_COMPLETO.reservados.every((r) => !('categoria' in r))).toBe(true)
+    expect(aceita(V2_COMPLETO)).toBe(true)
+    expect(V1_COMPLETO.reservados.every((r) => !('categoria' in r))).toBe(true)
+    expect(aceita(V1_COMPLETO)).toBe(true)
+  })
+
+  it('aceita o v2 novo com a categoria, e a leitura a devolve intacta para o card', () => {
+    const novo = JSON.parse(JSON.stringify({ ...V2_COMPLETO, reservados: [reservadoNovo] }))
+    const { aceitas, recusas } = conferirValores([novo], FORMA_SNAPSHOT, [])
+    expect(recusas).toEqual([])
+    expect(aceitas[0].reservados).toEqual([reservadoNovo])
+  })
+
+  it('aceita a mistura (um item com e outro sem) — o card é quem decide mostrar a lista corrida', () => {
+    expect(aceita({ ...V2_COMPLETO, reservados: [reservadoNovo, V2_COMPLETO.reservados[0]] })).toBe(true)
+  })
+
+  it('recusa categoria fora do vocabulário do banco', () => {
+    expect(aceita({ ...V2_COMPLETO, reservados: [{ ...reservadoNovo, categoria: 'impressora' }] })).toBe(false)
+    expect(aceita({ ...V2_COMPLETO, reservados: [{ ...reservadoNovo, categoria: null }] })).toBe(false)
+  })
+})
