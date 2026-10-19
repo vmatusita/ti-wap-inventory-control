@@ -6,6 +6,24 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 19/10/2026 — O card "Reservados" por categoria ✅
+
+Entrega avulsa (**v1.71.1**) · **sem migration** · sem dependência nova. Ordem
+[`docs/prompts/prompt-reservados-por-categoria-e-colaborador-sem-uso.md`](docs/prompts/prompt-reservados-por-categoria-e-colaborador-sem-uso.md),
+plano em [`docs/PLAN-v1.71.1-v1.71.2.md`](docs/PLAN-v1.71.1-v1.71.2.md), ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- ✨ **O card "Reservados" diz o total e separa a lista por categoria.** O subtítulo passa a ser "N reservados" — o
+  mesmo número do KPI "Reservados", porque a lista sai do mesmo estado que o KPI conta —, e a lista vem em grupos por
+  categoria, na ordem de categoria do card vizinho "Disponíveis por modelo" (`CATEGORIA_ORDEM`), cada grupo com o seu
+  total e as linhas de sempre (patrimônio · modelo · nº do chamado). Com duas categorias ou mais, chips no topo resumem
+  os totais; são resumo, sem link nem filtro, e o visualizador por senha continua sem `href` no card.
+- 🧊 **Snapshot congelado não muda.** `ItemReservado` ganha `categoria?` OPCIONAL (mantém `schema: 2`), preenchida do
+  estado que já estava em memória — zero leitura nova. O snapshot gerado antes não tem o campo e abre com o total e a
+  lista corrida, sem reler o banco; o v1 também.
+- 🖨️ **Impressão.** O cabeçalho do grupo leva `break-after-avoid` e cada linha `break-inside-avoid`: o nome da
+  categoria não fica sozinho no pé da folha. Prova fotografada (antes × depois, claro e escuro, 1366 e 390, impressão
+  e o PDF paginado de uma lista longa) em `docs/v1.71.1-evidencias/`.
+
 ## 24/09/2026 — F66 · As policies ganham o recorte, em conjunção ✅
 
 **v1.71.0** · **com migrations `0175`–`0179`**, aplicadas no ensaio e em produção antes do merge · A quinta fase da virada
