@@ -13734,3 +13734,19 @@ frente). Sem migration.
    estática (sem hidratação, como na F61); a escolha do filtro é provada no teste de DOM.
 10. **Fora, para o backlog (regra 1):** `v_colaboradores_textos` (0144) junta `colaboradores` só pela chave, sem a
     empresa (N3 do plano) — inerte com uma empresa, a rever na F67/F70.
+11. **A revisão adversarial (três lentes, um cético por achado)** confirmou UM achado e refutou sete:
+    - **Confirmado e corrigido:** com o filtro em "Sem uso", um `router.refresh()` (o "Editar" salva e recarrega) que
+      trouxesse o uso indisponível deixava o controle desligado PRESO em "Sem uso" e a tela vazia ("0 de N") ao lado
+      do aviso de lista completa. O filtro que vale passa a ser "todos" enquanto o uso estiver indisponível; teste de
+      DOM novo, com a sabotagem (sem o conserto, ele cai).
+    - **Refutados, mas baratos e feitos:** (a) o rodapé da `0180` apontava o instrumento em `docs/…` — corrigido para
+      `scripts/colaboradores/medir-uso.mts` e a trava regravada com `npm run db:lock -- --regravar-alterada`: a `0180`
+      NUNCA chegou a ensaio nem a produção (o conector não alcançava os projetos), então ela ainda podia ser corrigida
+      no lugar — é a exceção que a própria trava prevê; (b) a seção nova do `CLAUDE.md` de `src/lib/colaboradores`
+      tinha sido inserida no meio de uma lista; (c) o roteiro ganhou o u11 (o acessório entregue e não devolvido como
+      ÚNICO registro → em uso) e o u6 passou a usar o nome do detentor em OUTRA grafia (casa pela chave) — 11
+      asserções, e as cinco mutações seguem detectadas.
+    - **Refutado e registrado como comportamento herdado:** renomear o cadastro em "Editar" para outra CHAVE desliga
+      dele o histórico em texto e o detentor da carga — o contrato de identidade por chave é o da `0112` (e de
+      `v_colaboradores_textos`), não desta entrega. A ajuda passou a dizê-lo ao operador; avisar no próprio "Editar" vai
+      para o backlog.
