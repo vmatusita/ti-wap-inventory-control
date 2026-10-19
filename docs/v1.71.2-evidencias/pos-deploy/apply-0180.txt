@@ -1,0 +1,34 @@
+# apply da 0180_colaboradores_uso_efetivo.sql — 19/10/2026, pelo conector da Supabase (apply_migration, name colaboradores_uso_efetivo)
+# Texto colado = o arquivo inteiro do PR #88 (138 linhas). Só catálogo e contagens abaixo — nenhum dado de pessoa.
+
+## ENSAIO (sgmvldiizsrjbxzzpmhh)
+antes .......... ambiente = desenvolvimento · função ausente (to_regprocedure nulo) · 0179 no ledger · colaboradores 0
+advisors antes . security: rls_enabled_no_policy 6 · authenticated_security_definer_function_executable 34 · auth_leaked_password_protection 1
+                 performance: unindexed_foreign_keys 39 · no_primary_key 1 · unused_index 47 · multiple_permissive_policies 1
+apply .......... success · ledger 20261019153913 colaboradores_uso_efetivo
+sonda .......... secdef f · volatil s · config {search_path=public} · authenticated t · anon f
+                 md5_corpo b406f6cddc5375cafd9badda986ac893 (2596 caracteres) = o calculado do arquivo
+                 uma_por_cadastro t · sem_uso 0
+notify ......... pgrst reload schema
+advisors depois  security 6 · 34 · 1 · performance 39 · 1 · 47 · 1 — iguais ao antes, nenhum achado novo
+
+## PRODUÇÃO (pbtjcalbmepmrqzprusb)
+antes .......... sem marca de ambiente de desenvolvimento · função ausente · 0179 no ledger · colaboradores 88 (88 ativos)
+advisors antes . security: 6 · 34 · 1
+                 performance: unindexed_foreign_keys 39 · no_primary_key 1 · unused_index 7 · multiple_permissive_policies 1
+apply .......... success · ledger 20261019154231 colaboradores_uso_efetivo
+sonda .......... secdef f · volatil s · config {search_path=public} · authenticated t · anon f
+                 md5_corpo b406f6cddc5375cafd9badda986ac893 (2596 caracteres) = ensaio = arquivo
+                 uma_por_cadastro t · sem_uso 1 (nunca usado 1 · só estornados 0) · com uso 87
+notify ......... pgrst reload schema
+advisors depois  security 6 · 34 · 1 · performance 39 · 1 · 7 · 1 — iguais ao antes, nenhum achado novo
+instrumento .... scripts/colaboradores/medir-uso.mts --alvo=producao → sem_uso_efetivo 1 (nunca usado 1) — fecha com a
+                 função. A 1ª tentativa recusou ("não contei movimentacoes (sem count)") logo depois do reload do schema;
+                 a 2ª, segundos depois, leu tudo e fechou contra o count exato (b2-depois-producao.json).
+
+## TIPOS (generate_typescript_types de PRODUÇÃO, depois do apply)
+bloco colaboradores_uso_efetivo gerado md5 0a95415b912349264e8813bdc9df730f = o do hand-fix do PR #88 (byte a byte),
+na mesma posição (entre colaborador_chave e confirmar_assinatura_lote_com_anotacoes).
+Fora do bloco, o gerado difere do arquivo em 3 pontos que já estão na main antes desta entrega (operador_filiais.Insert
+com empresa_id/membro_id opcionais no arquivo e obrigatórios em produção; um comentário da F65 em v_colaboradores_textos).
+Não são da v1.71.2 — backlog (relatório §6; ata do pós-deploy da v1.71.2).

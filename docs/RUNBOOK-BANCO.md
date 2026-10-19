@@ -1632,8 +1632,13 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
 - **`0180` — o uso efetivo do colaborador** (entrega avulsa v1.71.2, 19/10/2026). `0180_colaboradores_uso_efetivo`
   (ADITIVA: UMA função nova, `colaboradores_uso_efetivo()`, `language sql stable security invoker`, só leitura;
   `revoke all … from public, anon` + `grant execute … to authenticated`). Ledger: `colaboradores_uso_efetivo`.
-  **Apply PENDENTE em 19/10/2026:** o conector da Supabase da run estava ligado a outra conta, e o PR #88 ficou sem
-  merge. **O caminho** (ensaio, depois produção, ANTES do merge): `get_advisors` (segurança e desempenho) → confirmar
+  **Aplicada em 19/10/2026, pelo conector, ANTES do merge do PR #88:** ensaio (ledger `20261019153913`) e produção
+  (`20261019154231`, hora local). Sonda igual nos dois (md5 do corpo `b406f6cd…` = o do arquivo), advisors depois =
+  antes, `sem_uso` ensaio 0 · produção 1 (= `medir-uso.mts`). O bloco gerado dos tipos de produção bateu byte a byte
+  com o hand-fix; o arquivo NÃO foi trocado pelo gerado (3 diferenças anteriores fora do bloco — ata do pós-deploy da
+  v1.71.2). Números em `docs/v1.71.2-evidencias/pos-deploy/apply-0180.txt`. No começo da run o conector estava
+  ligado a outra conta, e o apply ficou pendente até ele ser religado no mesmo dia.
+  **O caminho seguido** (ensaio, depois produção, ANTES do merge): `get_advisors` (segurança e desempenho) → confirmar
   `to_regprocedure('public.colaboradores_uso_efetivo()') is null` → `apply_migration` com o texto EXATO do arquivo →
   a sonda de efeito (a função existe com `prosecdef = false`, `provolatile = 's'`, `proconfig = {search_path=public}`;
   `has_function_privilege` authenticated = t, anon = f; `md5(prosrc)` igual ao do trecho entre os `$$` do arquivo, LF;

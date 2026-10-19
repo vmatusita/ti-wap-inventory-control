@@ -1,0 +1,9 @@
+# CI do PR #88 no head que foi mergeado (b724f53, run 39302928533, 19/10/2026)
+verificar ......... success (18:29:32Z → 18:33:25Z) · Test Files 264 passed (264) · Tests 8103 passed (8103)
+banco-sem-docker .. success (18:29:32Z → 18:32:17Z)
+  roteiros ........ 54 roteiro(s), 1153 asserções no total
+  injetor ......... 156/156 detectadas pelo cenário nomeado (as 5 v1712-* detectadas, pelos cenários u1, u5, u4, u8 e u6)
+  tipos ........... gate de deriva VERDE — banco 38 relações · 358 colunas · 95 funções = database.ts
+Vercel ............ success
+merge ............. gh pr merge 88 --merge → 8f4d2cefceeae5b540530980e909c4403ba52b31 (18:46:34Z)
+tag ............... v1.71.2 (anotada) no commit do merge, publicada (git push origin v1.71.2)
