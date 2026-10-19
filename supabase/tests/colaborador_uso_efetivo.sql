@@ -18,6 +18,7 @@
 --   u7 inativo sem registro → fora do selo (sem_uso = false)
 --   u8 homônimo em OUTRA empresa, com registro válido lá → não conta: o daqui segue sem uso
 --   u9 a chamada com a sessão de um administrador (authenticated, RLS) dá a mesma resposta que a do dono
+--   u11 o acessório entregue e não devolvido como ÚNICO registro → em uso (a revisão adversarial pediu a prova)
 -- Antes da 0180 o roteiro é VERMELHO (u0: a função não existe) — foi assim que ele nasceu, num push.
 --
 -- Dado 100% fictício ("Fulano ZZUE …", patrimônio `ZZUE…`, a empresa B "ZZUE"). Fixtures plantadas como dono, com o
@@ -44,7 +45,7 @@ declare
   v_item   smallint;
   v_a      uuid[] := array[]::uuid[];
   v_ab     uuid;
-  v_p      uuid[] := array[]::uuid[];   -- p[1]..p[8] na empresa A
+  v_p      uuid[] := array[]::uuid[];   -- p[1]..p[9] na empresa A
   v_pb     uuid;                        -- o homônimo da empresa B
   v_mov    uuid;
   v_lanc   uuid;
@@ -99,6 +100,7 @@ begin
   insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Detentor', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
   insert into public.colaboradores (nome, filial_id, criado_por, ativo) values ('Fulano ZZUE Inativo', v_f1, k_admin, false) returning id into v_mov; v_p := v_p || v_mov;
   insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Homonimo', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Acessorio', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
 
   -- u1: saída vinculada e estornada
   insert into public.movimentacoes (ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
@@ -131,7 +133,12 @@ begin
     values (v_item, v_f1, 'retorno', 1, current_date, 'Fulano ZZUE Item', v_p[5], v_lanc, 'Estorno: roteiro uso efetivo', k_admin);
 
   -- u6: o detentor de hoje sem movimentação vinculada (o equipamento chegou com a pessoa, como na carga do go-live)
-  update public.ativos set status = 'em_uso', colaborador_atual = 'Fulano ZZUE Detentor' where id = v_a[5];
+  -- (outra grafia da mesma chave, como vem da carga: o detentor casa pela chave, não pelo texto igual)
+  update public.ativos set status = 'em_uso', colaborador_atual = '  fulano zzue DETENTOR ' where id = v_a[5];
+
+  -- u11: o único uso é um acessório entregue e NÃO devolvido (o lançamento sem inverso)
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, criado_por)
+    values (v_item, v_f1, 'saida', 1, current_date, 'Fulano ZZUE Acessorio', v_p[9], k_admin);
 
   -- u8: a empresa B — um homônimo com registro VÁLIDO lá (pela chave do texto) e o ativo com ele
   insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)
@@ -187,7 +194,7 @@ begin
 
   select * into v_r from public.colaboradores_uso_efetivo() u where u.colaborador_id = v_p[6];
   if v_r.uso_efetivo and not v_r.sem_uso and v_r.ativos_com_a_pessoa = 1 and v_r.registros_validos = 0 then
-    v_ok := v_ok + 1; raise notice '✓ u6 o detentor de hoje, sem movimentação vinculada: em uso (1 ativo com a pessoa)';
+    v_ok := v_ok + 1; raise notice '✓ u6 o detentor de hoje, sem movimentação vinculada e com o nome em outra grafia: em uso (1 ativo com a pessoa)';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'u6; ';
     raise warning '✗ u6 detentor: esperava em uso com 1 ativo; veio uso=% ativos=% validos=%', v_r.uso_efetivo, v_r.ativos_com_a_pessoa, v_r.registros_validos;
@@ -210,6 +217,14 @@ begin
     raise warning '✗ u8 homônimo: esperava o daqui sem uso e o de lá em uso; veio sem_uso=% validos=% ativos=% (o de lá: %)', v_r.sem_uso, v_r.registros_validos, v_r.ativos_com_a_pessoa, v_k;
   end if;
 
+  select * into v_r from public.colaboradores_uso_efetivo() u where u.colaborador_id = v_p[9];
+  if v_r.uso_efetivo and not v_r.sem_uso and v_r.registros_validos = 1 and v_r.registros_estornados = 0 then
+    v_ok := v_ok + 1; raise notice '✓ u11 o acessório entregue e não devolvido, como único registro: em uso (1 válido)';
+  else
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || 'u11; ';
+    raise warning '✗ u11 só o acessório: esperava em uso com 1 válido; veio uso=% validos=% estornados=%', v_r.uso_efetivo, v_r.registros_validos, v_r.registros_estornados;
+  end if;
+
   -- u9 — com a sessão do administrador (authenticated, RLS da F66): a mesma resposta para as pessoas da empresa dele
   select count(*) filter (where u.sem_uso), count(*)
     into v_n, v_m
@@ -229,11 +244,11 @@ begin
   -- a resposta tem uma linha por cadastro, e nenhuma linha muda estado
   select count(*) into v_n from public.colaboradores_uso_efetivo();
   select count(*) into v_m from public.colaboradores;
-  if v_n = v_m and (select count(*) from public.colaboradores where id = any (v_p) and ativo) = 7 then
+  if v_n = v_m and (select count(*) from public.colaboradores where id = any (v_p) and ativo) = 8 then
     v_ok := v_ok + 1; raise notice '✓ u10 uma linha por cadastro (% e %), e nenhum cadastro mudou de estado', v_n, v_m;
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'u10; ';
-    raise warning '✗ u10 esperava uma linha por cadastro e os 7 ativos intactos; veio % linhas para % cadastros', v_n, v_m;
+    raise warning '✗ u10 esperava uma linha por cadastro e os 8 ativos intactos; veio % linhas para % cadastros', v_n, v_m;
   end if;
 
   insert into _ue_resumo values (v_ok, v_falhas, nullif(v_msgs, ''));

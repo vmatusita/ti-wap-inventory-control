@@ -130,7 +130,7 @@ reset lock_timeout;
 --   `prosrc` igual ao calculado deste arquivo (o trecho entre os `$$`, LF); `has_function_privilege` dá
 --   authenticated = t e anon = f; `select count(*) from public.colaboradores_uso_efetivo()` = `select count(*) from
 --   public.colaboradores`; e a contagem de `sem_uso` igual à do instrumento só-leitura
---   docs/v1.71.2-evidencias/medir-uso.mts no mesmo banco.
+--   scripts/colaboradores/medir-uso.mts no mesmo banco.
 --
 -- ROLLBACK: derrubar a função nova, colaboradores_uso_efetivo (a única coisa que esta migration cria) — aditiva, nada
 -- mais a desfazer, nenhum dado foi tocado. Antes, o app volta à versão que não a chama (a tela de colaboradores a lê).
