@@ -6,6 +6,31 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 19/10/2026 — O colaborador sem uso ✅
+
+Entrega avulsa (**v1.71.2**) · **com migration `0180`** (uma função nova, só leitura — classe ADITIVA), a aplicar no
+ensaio e em produção ANTES do merge (o conector da Supabase da run enxergava outra conta; o caminho do apply está no
+topo de [`docs/RELATORIO-v1.71.1-v1.71.2.md`](docs/RELATORIO-v1.71.1-v1.71.2.md)) · sem dependência nova. Plano em
+[`docs/PLAN-v1.71.1-v1.71.2.md`](docs/PLAN-v1.71.1-v1.71.2.md) §2, ata em [`docs/DECISOES.md`](docs/DECISOES.md).
+
+- 🔎 **Provado por execução: o estorno não toca o cadastro.** `supabase/tests/colaborador_estorno.sql` reproduz o
+  cadastro inline → saída (com e sem item) → estorno, e o formulário abandonado, com as RPCs reais: o cadastro segue
+  ativo, a original guarda o vínculo, a linha `estorno` não leva pessoa, o inverso do item guarda o vínculo, o ativo
+  volta sem detentor, "Com esta pessoa" vem vazio, "Registros" conta o estornado e o campo continua sugerindo a pessoa.
+- 🧮 **A regra do uso efetivo, no banco.** `colaboradores_uso_efetivo()` (0180, `security invoker`): por cadastro, os
+  registros da MESMA empresa que continuam valendo — movimentação não estornada, lançamento sem inverso, ou o detentor
+  atual —, pelo `colaborador_id` ou, com o id nulo, pela chave do nome (o histórico em texto e o cadastro da
+  consolidação). Função, e não view: a trava 7c recusa view que leia `empresa_id`; a exceção nominal entra em
+  `k_leitura_tenant`, como as duas `rel_*` da F66. `colaborador_uso_efetivo.sql` (u1–u10) nasceu vermelho no CI e cinco
+  mutações provam cada pedaço da regra.
+- 🏷️ **O selo e o filtro.** Em Administração › Colaboradores, a linha ATIVA sem uso efetivo ganha "Sem uso" com o
+  porquê ("nunca usado" / "N registros, todos estornados"), e a tabela ganha o filtro "Uso: todos · Em uso · Sem uso",
+  em estado local. "Registros" mantém o significado de hoje; inativo não ganha selo; nada muda sozinho. Se a leitura do
+  uso falhar, a lista sai inteira, sem selo, e a tela avisa.
+- 📏 **A medição de antes (produção, só contagens):** 87 cadastros ativos; 4 sem vínculo por id, dos quais 3 são salvos
+  pela chave do texto (uma regra só por id os marcaria por engano); 1 sem uso efetivo, nunca usado. No ensaio, 0
+  cadastros.
+
 ## 19/10/2026 — O card "Reservados" por categoria ✅
 
 Entrega avulsa (**v1.71.1**) · **sem migration** · sem dependência nova. Ordem

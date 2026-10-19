@@ -23,6 +23,17 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.71.2',
+    data: '2026-10-19',
+    titulo: 'Em Administração › Colaboradores, quem foi cadastrado e ficou sem uso ganhou um selo e um filtro',
+    mudancas: [
+      'Em Administração › Colaboradores, a pessoa ativa que não tem nenhum registro valendo — nenhuma movimentação que não tenha sido estornada, nenhum acessório que não tenha sido desfeito por estorno e nenhum equipamento com ela hoje — ganhou o selo "Sem uso" na coluna "Status", com o motivo ao lado: "nunca usado" ou "N registros, todos estornados".',
+      'O filtro novo "Uso", ao lado da busca e do filtro por filial, mostra só quem tem o selo ("Sem uso"), só quem está em uso ("Em uso") ou todo mundo ("Uso: todos").',
+      'Quem foi cadastrado pelo botão "Cadastrar" do campo Colaborador e teve a movimentação estornada — ou deixou o formulário sem registrar — continua no cadastro: o estorno desfaz a movimentação, mas não apaga nem desativa a pessoa. O selo existe para você achar esses casos e decidir; nada muda sozinho, e desativar continua sendo pelo "Editar".',
+      'Quem só aparece no histórico com o nome escrito à mão, de antes de ter cadastro, conta como em uso e não recebe o selo. A coluna "Registros" continua contando o mesmo de antes.',
+    ],
+  },
+  {
     versao: '1.71.1',
     data: '2026-10-19',
     titulo: 'O card "Reservados" do relatório passou a dizer quantos são e a separar a lista por categoria',
