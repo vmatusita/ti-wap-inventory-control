@@ -1,0 +1,8 @@
+# CI do PR #86 (run 39291360774, head 4c0b2ed) — verificar pass 3m40s · banco-sem-docker pass 3m07s
+ Test Files  261 passed (261)
+      Tests  8061 passed (8061)
+[gate] VERDE — nenhum identificador registrado sem binding.
+VERDE: o database.ts conhece tudo o que o banco tem.
+  52 roteiro(s), 1123 asserções no total
+Lote inteiro detectado pelo cenário nomeado.
+# merge 408cbea6656781028ceec9fef297fdcdd28c667c em 2026-10-19T17:11:11Z; tag anotada v1.71.1 no commit do merge
