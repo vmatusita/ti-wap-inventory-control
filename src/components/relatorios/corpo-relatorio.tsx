@@ -6,6 +6,7 @@ import type {
   SnapshotRelatorio,
 } from '@/lib/relatorios/tipos'
 import { ehSnapshotV2 } from '@/lib/relatorios/tipos'
+import { rotuloReservados } from '@/lib/relatorios/reservados'
 import { CardRelatorio } from '@/components/relatorios/card-relatorio'
 import { KpiTiles, type LinksKpi } from '@/components/relatorios/kpi-tiles'
 import { PendenciasChips } from '@/components/relatorios/pendencias-chips'
@@ -167,9 +168,11 @@ function CorpoRelatorioV1({
           <ListaManutencao itens={s.emManutencao} />
         </CardRelatorio>
 
+        {/* v1.71.1 — o total no subtítulo, como no v2. O snapshot v1 nunca tem a categoria, e
+            por isso a lista fica corrida (o caminho do snapshot antigo de `ListaReservados`). */}
         <CardRelatorio
           titulo="Reservados"
-          subtitulo="patrimônio · modelo · nº do chamado"
+          subtitulo={rotuloReservados(s.reservados.length)}
           vazio={s.reservados.length === 0}
         >
           <ListaReservados itens={s.reservados} />

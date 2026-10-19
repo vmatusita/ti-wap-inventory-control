@@ -430,19 +430,32 @@ export async function reservadosDeEstado(
   estado: EstadoAtivo[],
   ate: string,
 ): Promise<ItemReservado[]> {
-  const reservados = estado.filter((a) => a.status === 'reservado')
-  const ids = reservados.map((a) => a.ativo_id)
+  const ids = estado.filter((a) => a.status === 'reservado').map((a) => a.ativo_id)
   const [dados, chamados] = await Promise.all([
     dadosAtivos(client, ids),
     chamadoAteData(client, ids, ate),
   ])
-  return reservados
+  return itensReservadosDeEstado(estado, dados, chamados)
+}
+
+// v1.71.1 — a MONTAGEM da lista, pura: separada das duas leituras acima para o teste provar, com
+// fixture e sem client, que a lista sai do MESMO `estado` que `kpisDeEstado` conta (o total do card
+// "Reservados" é o tile "Reservados"). A `categoria` vem do `EstadoAtivo`, que já está em memória —
+// nenhuma leitura nova; o card a usa para separar a lista por categoria.
+export function itensReservadosDeEstado(
+  estado: readonly EstadoAtivo[],
+  dados: ReadonlyMap<string, Pick<DadosAtivo, 'patrimonio' | 'marca' | 'modelo'>>,
+  chamados: ReadonlyMap<string, string>,
+): ItemReservado[] {
+  return estado
+    .filter((a) => a.status === 'reservado')
     .map((a) => {
       const d = dados.get(a.ativo_id)
       return {
         patrimonio: d?.patrimonio ?? '—',
         modelo: modeloDe(d?.marca ?? a.marca, d?.modelo ?? a.modelo),
         chamado: chamados.get(a.ativo_id) ?? null,
+        categoria: a.categoria,
       }
     })
     .sort((a, b) => a.patrimonio.localeCompare(b.patrimonio, 'pt-BR'))

@@ -59,7 +59,13 @@ const KPIS = z.looseObject({
 
 const CONTAGEM_CATEGORIA = z.looseObject({ categoria: ENUM.categoriaAtivo, total: n })
 const ITEM_MODELO = z.looseObject({ modelo: s, total: n })
-const ITEM_RESERVADO = z.looseObject({ patrimonio: s, modelo: s, chamado: sn })
+// v1.71.1 — `categoria?` (o card "Reservados" por categoria): ausente em todo snapshot gerado antes.
+const ITEM_RESERVADO = z.looseObject({
+  patrimonio: s,
+  modelo: s,
+  chamado: sn,
+  categoria: ENUM.categoriaAtivo.optional(),
+})
 const ITEM_MANUTENCAO = z.looseObject({ patrimonio: s, modelo: s, observacao: sn })
 const PONTO_MES = z.looseObject({ mes: s, saidas: n, devolucoes: n })
 
