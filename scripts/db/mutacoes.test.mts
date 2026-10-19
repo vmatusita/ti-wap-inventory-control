@@ -324,8 +324,13 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // rodar INCONDICIONALMENTE no CI. O teto existe só para que um lote que cresça sem
     // ninguém perceber passe por uma decisão. Se a F51/F52 precisarem de mais, sobem o
     // número E escrevem por quê, como esta linha faz.
+    // ⚠ O TETO SUBIU DE 151 PARA 156 NA v1.71.2 (19/10/2026). A entrega cria a regra do USO EFETIVO do colaborador
+    // (`colaboradores_uso_efetivo()`, 0180) e escreveu UMA MUTAÇÃO POR PEDAÇO DA REGRA — a movimentação estornada, o
+    // item estornado, o histórico em texto, o par de empresa da chave e o detentor —, cada uma derrubando o seu cenário
+    // de `colaborador_uso_efetivo.sql`. Sem elas, o roteiro podia ficar verde com a regra afrouxada em qualquer um dos
+    // cinco pontos. 151 + 5 = 156, sem folga: a próxima entrega que precisar de mais sobe o número e escreve por quê.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(151)
+    expect(MUTACOES.length).toBeLessThanOrEqual(156)
   })
 
   it('os `id` são únicos', () => {

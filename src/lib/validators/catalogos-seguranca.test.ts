@@ -1004,10 +1004,13 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     }
   })
 
-  it('k_leitura_tenant: as três exceções da F65 e as duas rel_* da F66, e as cópias em empresa_no_acervo e empresa_no_vocabulario batem', () => {
+  it('k_leitura_tenant: as três exceções da F65, as duas rel_* da F66 e o uso efetivo da v1.71.2, e as cópias em empresa_no_acervo e empresa_no_vocabulario batem', () => {
     const tenant = lista(cat, 'k_leitura_tenant')
     // F66 (24/09/2026): + as duas `rel_*` que a 0179 recria com o join pelo par da FK composta (integridade de junção)
+    // v1.71.2 (19/10/2026): + `colaboradores_uso_efetivo` (0180), pelo mesmo motivo — o registro da pessoa é o da
+    // empresa dela; é função, e não view, porque a 7c de empresa_no_acervo.sql recusa view que leia a coluna
     expect(tenant.map((e) => e.split(':')[0])).toEqual([
+      'colaboradores_uso_efetivo',
       'guarda_empresa',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',
@@ -1021,6 +1024,7 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     expect(tabelas.vocabulario_unidades_guarda).toEqual(['filiais', 'unidades_apelidos'])
     expect(tabelas.rel_por_motivo_filiais).toEqual(['motivos', 'movimentacoes'])
     expect(tabelas.rel_resumo_filiais).toEqual(['ativos', 'motivos', 'movimentacoes'])
+    expect(tabelas.colaboradores_uso_efetivo).toEqual(['ativos', 'colaboradores', 'lancamentos_item', 'movimentacoes'])
     expect(lista(fonte('empresa_no_vocabulario'), 'k_leitura_tenant'), 'empresa_no_vocabulario.sql: a cópia divergiu').toEqual(tenant)
     expect(lista(fonte('empresa_no_acervo'), 'k_leitura_tenant_nomes'), 'empresa_no_acervo.sql: a cópia dos nomes divergiu').toEqual(
       tenant.map((e) => e.split(':')[0]),

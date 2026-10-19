@@ -253,6 +253,9 @@ const DA_F38 = [
   // mais no join de `motivos` (`and mo.empresa_id = m.empresa_id`, o par da FK composta); o resto byte a byte da 0143.
   // Entra pela exceção nominal `RECRIACOES_AUTORIZADAS`, para que a lista seja EXAUSTIVA, como a da 0143.
   '0179',
+  // v1.71.2 — a `0180` CRIA `colaboradores_uso_efetivo()` (nova, `security invoker`, só leitura): o uso efetivo de cada
+  // cadastro de colaborador. Nenhuma função recriada, nenhuma escrita no acervo.
+  '0180',
 ]
 
 /**

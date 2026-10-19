@@ -526,16 +526,21 @@ begin
   -- `rel_resumo_filiais` (o join pelo par da FK composta, uma condição a mais; RECRIACOES_AUTORIZADAS de
   -- migrations-f38.test.ts). O conjunto encolhe em duas e a constante é a dele, medida no CI (push das travas da F66,
   -- a cadeia até a 0174 — docs/f66-evidencias/B-travas/): o fato provado é o mesmo, "o resto ficou byte a byte".
+  -- v1.71.2 (19/10/2026): e as funções que uma entrega seguinte CRIA, nominalmente — a 0180 cria
+  -- `colaboradores_uso_efetivo` (o uso efetivo do colaborador). Ela não existia antes da 0165, então o conjunto medido é o
+  -- MESMO e a constante não muda (provado na mesa: o md5 com a 0180 e esta exclusão é igual ao da cadeia até a 0179).
   select md5(string_agg(p.oid::regprocedure::text || ':' || md5(p.prosrc), E'\n' order by p.oid::regprocedure::text))
     into v_m0
     from pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
-                           'rel_por_motivo_filiais', 'rel_resumo_filiais');
+                           'rel_por_motivo_filiais', 'rel_resumo_filiais',
+                           'colaboradores_uso_efetivo');
   raise notice '(medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: % (% funções)', v_m0,
     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
         and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
-                              'rel_por_motivo_filiais', 'rel_resumo_filiais'));
+                              'rel_por_motivo_filiais', 'rel_resumo_filiais',
+                              'colaboradores_uso_efetivo'));
   if pg_temp.assert_zero_de(
        'L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,
