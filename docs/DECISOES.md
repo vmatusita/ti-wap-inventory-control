@@ -13647,3 +13647,39 @@ a R-ACC-116; ADR-001 e ADR-002 (§16), emendas F66; RUNBOOK, Anexo F66; PLANO, a
   mede é o proxy chamando `auth.getUser()` (a API de Auth), sem PostgREST e sem policy; o `medir-rls` não tem o que
   atribuir, e de manhã, antes de qualquer apply, a mesma rota já tinha medido p95 117,2 ms. **Ruído declarado**, com os
   números no relatório; nenhum bloqueio, nenhum rollback.
+
+## 2026-10-19 · Entrega avulsa (v1.71.1) · o card "Reservados" por categoria
+
+**Contexto.** Ordem [`prompts/prompt-reservados-por-categoria-e-colaborador-sem-uso.md`](prompts/prompt-reservados-por-categoria-e-colaborador-sem-uso.md),
+Frente A. Plano medido em [`PLAN-v1.71.1-v1.71.2.md`](PLAN-v1.71.1-v1.71.2.md) (§0.1 os 15 fatos reconferidos; §1 a
+frente). Sem migration.
+
+1. **O fato 6 da ordem não se sustenta (D2 do plano).** `lista-reservados.tsx` NÃO está em `PENDENTES`: está em
+   `SOB_REGRA_CONGELADA` (`pendentes-da-regua.ts:483`), o piso de quem já está sob a régua — a F61 o converteu, e
+   `PENDENTES` não pode ter arquivo de `src/components/relatorios/` (a catraca recusa). Não há linha a tirar; o arquivo
+   reescrito segue sob a régua (`consistencia.test.ts` verde) e o arquivo novo (`lib/relatorios/reservados.ts`) não é
+   componente. O fato 7 estava incompleto: o card também é citado em `entregar-emprestar-reservar.ts:114` (com o
+   subtítulo antigo), emendado junto.
+2. **A ordem dos grupos é `CATEGORIA_ORDEM`** — a constante que `disponiveisPorModeloDeEstado` (o card vizinho),
+   `categoriaDeEstado` e `estoqueCatStatusDeEstado` usam no mesmo relatório. Não é a ordem do enum do banco nem a de
+   `CATEGORIA_META`, que diferem. Categoria fora da constante (não existe hoje — `dominio.test.ts`) entra no fim, para o
+   total nunca divergir da soma dos grupos.
+3. **A montagem dos reservados virou função pura (D5).** `itensReservadosDeEstado(estado, dados, chamados)` em
+   `queries/relatorios/estoque.ts`; `reservadosDeEstado` faz as MESMAS duas leituras de antes e a chama. É o que deixa o
+   teste provar, com fixture e sem client, que o total do card é o `kpis.reservado` do mesmo estado e a soma dos grupos
+   (critério A1). No v2 os dois números são iguais por construção nos quatro caminhos (filial, consolidado, estado de
+   hoje, as-of). Nos snapshots v1 o motor que os gerou não existe mais; o subtítulo mostra o tamanho da lista congelada
+   (D6). A divergência histórica entre a lista e o KPI de snapshots v1 não foi medida (sem canal de banco nesta run).
+4. **Um item sem categoria derruba o agrupamento inteiro**, em vez de criar um grupo "sem categoria": o snapshot
+   antigo é congelado (spec §7), e agrupar só parte inventaria uma categoria que ninguém gravou. `ITEM_RESERVADO` ganha
+   `categoria: ENUM.categoriaAtivo.optional()` — a forma espelha o tipo campo a campo (a união continua atribuível a
+   `AnySnapshot` sem `as`).
+5. **Os chips são `<li>` com `<span>`, sem link, botão nem âncora,** visíveis na impressão, no estilo do `ChipsResumo`
+   (`bg-muted` com o texto na cor padrão — o par `text-muted-foreground`/`bg-muted` está recusado no `contraste.mjs`).
+   Só com duas categorias ou mais.
+6. **Impressão:** `break-after-avoid` no cabeçalho do grupo e `break-inside-avoid` em cada linha. Provado no PDF
+   paginado do Chromium (`docs/v1.71.1-evidencias/depois/lista-longa__impressao.pdf`) e travado no teste de componente.
+7. **A prévia estática nova (`scripts/design/previa-v1711.tsx`)** segue o molde da F61, com uma diferença declarada no
+   cabeçalho: define `--font-geist-sans` como `system-ui` — sem o `next/font`, a variável vazia invalidava a pilha
+   inteira e o texto da foto caía em serifa. O dado é fictício com o prefixo `FIC` (fora do formato que
+   `varrer-evidencias` procura) e a sentinela `WAP0001234`.
