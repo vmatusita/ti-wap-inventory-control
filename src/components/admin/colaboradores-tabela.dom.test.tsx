@@ -58,6 +58,29 @@ describe('ColaboradoresTabela — o filtro "Uso"', () => {
     expect(nomesNaTabela()).toEqual(['Fulano ZZ Nunca Usado'])
   })
 
+  it('com "Sem uso" escolhido, se um refresh trouxer o uso indisponível, a lista volta inteira (o filtro não fica preso)', async () => {
+    // A revisão adversarial da v1.71.2: o estado do cliente sobrevive ao `router.refresh()` do "Editar". Se nesse
+    // refresh a leitura do uso falhar, o controle desliga — e não pode desligar PRESO em "Sem uso", com a tela vazia.
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <ColaboradoresTabela colaboradores={COLABORADORES_FICTICIOS} filiais={FILIAIS_FICTICIAS} />,
+    )
+    await escolher(user, 'Sem uso')
+    expect(nomesNaTabela()).toHaveLength(2)
+
+    rerender(
+      <ColaboradoresTabela
+        colaboradores={COLABORADORES_FICTICIOS.map((c) => ({ ...c, uso: null }))}
+        filiais={FILIAIS_FICTICIAS}
+      />,
+    )
+    expect(nomesNaTabela()).toHaveLength(4)
+    expect(screen.getByRole('status').textContent).toContain('4 no total')
+    const filtro = screen.getByRole('combobox', { name: 'Filtrar por uso' })
+    expect(filtro.hasAttribute('disabled')).toBe(true)
+    expect(filtro.textContent).toContain('Uso: todos')
+  })
+
   it('sem o uso calculado, o filtro fica desligado', () => {
     render(
       <ColaboradoresTabela

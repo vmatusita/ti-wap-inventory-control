@@ -58,6 +58,10 @@ export function ColaboradoresTabela({
   // v1.71.2 — sem o uso calculado para NINGUÉM, a leitura do uso falhou (o servidor degradou para `null`): o filtro
   // fica desligado e a tela diz por quê, em vez de mostrar "0 sem uso" como se fosse verdade.
   const usoIndisponivel = colaboradores.length > 0 && colaboradores.every((c) => c.uso === null)
+  // O filtro que VALE: com o uso indisponível, "todos" — mesmo que o estado guarde "Sem uso" de antes de um
+  // `router.refresh()` (o estado do cliente sobrevive ao refresh). Sem isto, o controle desligado ficaria preso em
+  // "Sem uso" e a tela, vazia, diria "0 de N" ao lado do aviso de que a lista está completa (revisão da v1.71.2).
+  const filtroAplicado: FiltroDeUso = usoIndisponivel ? 'todos' : uso
 
   const nomeDaFilial = useMemo(
     () => new Map(filiais.map((f) => [f.id, f.nome])),
@@ -74,10 +78,10 @@ export function ColaboradoresTabela({
         const texto = `${c.nome} ${c.matricula ?? ''} ${c.setor ?? ''} ${
           c.filial_id != null ? (nomeDaFilial.get(c.filial_id) ?? '') : ''
         }`
-        if (!casaFiltroDeUso(c.uso, uso)) return false
+        if (!casaFiltroDeUso(c.uso, filtroAplicado)) return false
         return casaBusca(texto, busca)
       }),
-    [colaboradores, busca, filial, uso, nomeDaFilial],
+    [colaboradores, busca, filial, filtroAplicado, nomeDaFilial],
   )
 
   return (
@@ -115,7 +119,7 @@ export function ColaboradoresTabela({
         {/* v1.71.2 — "Uso": quem tem registro que continua valendo (ou equipamento com a pessoa) × o selo "Sem uso".
             Estado local, como os dois filtros acima; o número de cada linha vem pronto do banco. */}
         <Select
-          value={uso}
+          value={filtroAplicado}
           onValueChange={(v) => setUso(ehFiltroDeUso(v) ? v : 'todos')}
           disabled={usoIndisponivel}
         >
@@ -131,7 +135,7 @@ export function ColaboradoresTabela({
           </SelectContent>
         </Select>
         <p role="status" className="text-sm text-muted-foreground tabular-nums">
-          {busca.trim() || filial !== TODAS || uso !== 'todos'
+          {busca.trim() || filial !== TODAS || filtroAplicado !== 'todos'
             ? `${visiveis.length} de ${colaboradores.length}`
             : `${colaboradores.length} no total`}
         </p>
