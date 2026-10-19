@@ -21,8 +21,15 @@ criação:
   Um só componente, três pontos de uso — não duplique.
 - `src/components/admin/com-esta-pessoa-linha.tsx` — expande a LINHA de `admin/colaboradores`
   com o bloco reusável "Com esta pessoa" (saldo por colaborador), sem precisar de rota nova
-  (F38 §C.2). O bloco em si (`src/components/itens/com-esta-pessoa.tsx`) é alimentado pela view
-  `rel_saldo_colaborador`.
+  (F38 §C.2). O bloco em si (`src/components/itens/com-esta-pessoa.tsx`) é alimentado pela FUNÇÃO
+  `rel_saldo_colaborador(p_colaborador)` (0118 — não é view; corrigido na v1.71.2).
+
+## `uso.ts` — o selo "Sem uso" (v1.71.2)
+
+O texto do porquê ("nunca usado" / "N registros, todos estornados") e o filtro "Uso" da tabela de
+`admin/colaboradores`. Módulo PURO: os números vêm prontos de `colaboradores_uso_efetivo()` (0180) —
+a REGRA mora no banco, não aqui. O estorno e o formulário abandonado não tocam o cadastro (provado em
+`supabase/tests/colaborador_estorno.sql`); o selo só informa, nada muda sozinho.
 - `src/components/movimentacoes/nova/com-esta-pessoa-devolucao.tsx` — o TERCEIRO ponto de uso
   do mesmo bloco reusável, ao lado do checklist de devolução (F38). Mesma regra do
   `campo-colaborador.tsx` acima: é instância do bloco `itens/com-esta-pessoa.tsx`, não uma

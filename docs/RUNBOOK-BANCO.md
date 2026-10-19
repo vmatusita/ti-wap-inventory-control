@@ -1629,6 +1629,19 @@ O bloco abaixo abre com a divergência do ledger medida em 23/07/2026, que é a 
 
   ⚠ **Lacuna deste Anexo, registrada e não preenchida aqui:** não há entradas das `0133`→`0140` (F53 a F56) nem das
   `0146`→`0149` (passos 1 e 2 da reauditoria), embora as atas dessas fases e entregas registrem os applies.
+- **`0180` — o uso efetivo do colaborador** (entrega avulsa v1.71.2, 19/10/2026). `0180_colaboradores_uso_efetivo`
+  (ADITIVA: UMA função nova, `colaboradores_uso_efetivo()`, `language sql stable security invoker`, só leitura;
+  `revoke all … from public, anon` + `grant execute … to authenticated`). Ledger: `colaboradores_uso_efetivo`.
+  **Apply PENDENTE em 19/10/2026:** o conector da Supabase da run estava ligado a outra conta, e o PR #88 ficou sem
+  merge. **O caminho** (ensaio, depois produção, ANTES do merge): `get_advisors` (segurança e desempenho) → confirmar
+  `to_regprocedure('public.colaboradores_uso_efetivo()') is null` → `apply_migration` com o texto EXATO do arquivo →
+  a sonda de efeito (a função existe com `prosecdef = false`, `provolatile = 's'`, `proconfig = {search_path=public}`;
+  `has_function_privilege` authenticated = t, anon = f; `md5(prosrc)` igual ao do trecho entre os `$$` do arquivo, LF;
+  `select count(*) from public.colaboradores_uso_efetivo()` = `select count(*) from public.colaboradores`) →
+  `notify pgrst, 'reload schema'` → `get_advisors` de novo (achado novo = rollback antes de diagnosticar) → a contagem
+  de `sem_uso` igual à de `scripts/colaboradores/medir-uso.mts` no mesmo banco → `generate_typescript_types` de
+  PRODUÇÃO, que substitui o hand-fix do `database.ts`. **Rollback:** derrubar a função (nenhum dado foi tocado), com o
+  app de volta a uma versão que não a chama. Detalhe e comandos no topo de `docs/RELATORIO-v1.71.1-v1.71.2.md`.
 ---
 
 ## Anexo B — reconciliação do ledger (opcional, cosmética)

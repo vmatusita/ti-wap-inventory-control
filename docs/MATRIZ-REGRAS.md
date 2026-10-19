@@ -1302,3 +1302,12 @@ planner não usa o índice para ordenar a lista (medido, PLAN-F66 §3); o item p
 > de `storage.objects` e `pode_ler_arquivo_termo` não mudam — F67. (4) **`profiles`**: F69. (5) **Que o app recorte**: as
 > consultas do TS continuam sem filtro de empresa (F67/F70) — a RLS é quem corta. (6) **Os índices por empresa**: F70,
 > com a igualdade na consulta. (7) **O comprimento do texto**: F66B.
+
+## Emenda v1.71.2 (19/10/2026) — o uso efetivo do colaborador
+
+Entrega avulsa, não fase. Plano em [`PLAN-v1.71.1-v1.71.2.md`](PLAN-v1.71.1-v1.71.2.md) §2; ata em [`DECISOES.md`](DECISOES.md).
+Uma regra nova, e uma exceção nominal a mais nas listas que as R-ACC-89/96 já tinham.
+
+| Regra | Enunciado | Origem | Onde mora | Prova | Estado |
+|---|---|---|---|---|---|
+| R-ACC-117 | **O uso efetivo de um cadastro de colaborador sai PRONTO do banco, pela regra escrita, e não muda estado nenhum.** Uso efetivo = pelo menos UM registro da MESMA empresa que continua valendo: movimentação vinculada que não é estorno nem foi estornada, lançamento de item vinculado sem inverso, ou o detentor atual de um ativo; "vinculado" é o `colaborador_id` ou, com o id nulo, a chave do nome (o histórico em texto e o cadastro da consolidação). `sem_uso` = cadastro ATIVO sem uso efetivo — o selo de Administração › Colaboradores, que só informa: desativar continua sendo decisão de quem administra. É FUNÇÃO `security invoker` (`colaboradores_uso_efetivo()`, 0180), e não view, porque a 7c de `empresa_no_acervo.sql` recusa view que leia `empresa_id`: o `empresa_id` do join é INTEGRIDADE DE JUNÇÃO (o registro da pessoa é o da empresa dela), não recorte — exceção nominal em `k_leitura_tenant`, conferida por comando pela 15h, como as duas `rel_*` da F66. | ordem v1.71.2 (B3) · PLAN §2.2 · D4 | `supabase/migrations/0180_colaboradores_uso_efetivo.sql`; `k_leitura_tenant` (`catalogo_policies.sql`) e as cópias (`empresa_no_acervo.sql`, `empresa_no_vocabulario.sql`); `src/lib/colaboradores/uso.ts` (o texto do selo e o filtro) | `supabase/tests/colaborador_uso_efetivo.sql` (u1–u10, nascido vermelho no CI); `colaborador_estorno.sql` (o que o estorno faz com a pessoa, ce1–ce10); cinco mutações `v1712-*` no injetor; `colaboradores-tabela.test.tsx` e `.dom.test.tsx` | CI; bancos vivos pendentes do apply |
