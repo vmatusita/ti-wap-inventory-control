@@ -1,0 +1,11 @@
+{
+  "o_que": "GET /admin/colaboradores em produção com a sessão da conta do smoke (v1.71.2, commit 8f4d2ce), contando marcadores no HTML — só contagens",
+  "http": 200,
+  "bytes": 1718369,
+  "selo_sem_uso_no_html": 1,
+  "porque_nunca_usado_no_html": 1,
+  "payload_semUso_true": 1,
+  "payload_semUso_false": 87,
+  "payload_uso_null": 0,
+  "aviso_uso_indisponivel": 0
+}

@@ -13750,3 +13750,34 @@ frente). Sem migration.
       dele o histórico em texto e o detentor da carga — o contrato de identidade por chave é o da `0112` (e de
       `v_colaboradores_textos`), não desta entrega. A ajuda passou a dizê-lo ao operador; avisar no próprio "Editar" vai
       para o backlog.
+
+## 2026-10-19 · Entrega avulsa (v1.71.2, pós-deploy) · o caminho B executado
+
+**Contexto.** O conector da Supabase foi religado na conta que enxerga os dois projetos da WAP, e o Johnny pediu a
+retomada: apply da `0180` no ensaio e em produção, merge do PR #88 e tag `v1.71.2`. Evidência em
+`docs/v1.71.2-evidencias/pos-deploy/`; números no §0 e no §2 do
+[`RELATORIO-v1.71.1-v1.71.2.md`](RELATORIO-v1.71.1-v1.71.2.md).
+
+1. **O apply, como o RUNBOOK manda.** Ensaio primeiro: advisors de base, função ausente, `apply_migration` com o texto
+   exato do arquivo, sonda, `notify pgrst`, advisors de novo. Depois produção, igual. A sonda deu o mesmo nos dois
+   bancos (`f · s · {search_path=public} · t · f`, md5 do corpo `b406f6cd…` = o do arquivo, uma linha por cadastro), e
+   os advisors depois = antes nos dois. `sem_uso`: ensaio 0, produção 1.
+2. **O 1 de produção, por três caminhos.** A função (sonda), o instrumento só-leitura `medir-uso.mts` e o HTML de
+   Administração › Colaboradores com a sessão do smoke dão 1 selo "Sem uso", "nunca usado". Entre a medição "antes" e
+   o apply nasceu um cadastro (87 → 88), já com registro valendo; o selo segue em 1.
+3. **O instrumento recusou uma vez** ("não contei movimentacoes (sem count)") logo depois do `notify pgrst`; a segunda
+   rodada, segundos depois, fechou contra o count exato. Transitório do recarregamento do schema, não da função.
+4. **O arquivo de tipos não foi trocado pelo gerado.** O bloco `colaboradores_uso_efetivo` gerado de produção é byte a
+   byte o do hand-fix (md5 `0a95415b…`, mesma posição). O passo 7 do relatório dizia para trocar o comentário pelo
+   arquivo gerado. Não troquei: fora do bloco, o gerado de produção difere da `main` em 3 pontos anteriores a esta
+   entrega (`operador_filiais.Insert` com `empresa_id`/`membro_id` obrigatórios em produção e opcionais no arquivo; um
+   comentário da F65). Trocar o arquivo levaria essa diferença para o código sem saber de onde ela vem, e o gate de
+   deriva não a vê (compara conjuntos, não obrigatoriedade). Vai para o backlog. O comentário do hand-fix fica, como os
+   das F62–F65; o arquivo não mudou, e não houve ciclo de CI a mais.
+5. **Merge e tag.** CI verde no head `b724f53` (264/8103, 54 roteiros/1153 asserções, 156/156 mutações, tipos VERDE);
+   `gh pr ready 88` e `gh pr merge 88 --merge`, sem `--admin` → `8f4d2ce`; tag anotada `v1.71.2` no commit do merge,
+   publicada. `/api/saude` = `1.71.2` (`8f4d2ce`, banco ok) já no primeiro GET; smoke `109 OK · 1 aviso · 0 falha` (o
+   aviso de `kits_modelos`, o mesmo da v1.71.1).
+6. **Nenhuma escrita em produção além do `apply_migration`** (o `notify pgrst` só recarrega o schema). Nenhum
+   colaborador foi desativado, reativado ou apagado. Nas evidências, só contagens, md5 e status — nenhum nome, id ou
+   e-mail.

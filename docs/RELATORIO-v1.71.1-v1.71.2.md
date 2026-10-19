@@ -1,8 +1,9 @@
 # RELATÓRIO v1.71.1 + v1.71.2 — Reservados por categoria · o colaborador que sobra do estorno
 
 Ordem: [`prompts/prompt-reservados-por-categoria-e-colaborador-sem-uso.md`](prompts/prompt-reservados-por-categoria-e-colaborador-sem-uso.md).
-Plano: [`PLAN-v1.71.1-v1.71.2.md`](PLAN-v1.71.1-v1.71.2.md). Atas: as duas de 2026-10-19 no fim de [`DECISOES.md`](DECISOES.md) — a da v1.71.1 já está na `main`; a da v1.71.2 vai com o PR #88.
-Run de 19/10/2026.
+Plano: [`PLAN-v1.71.1-v1.71.2.md`](PLAN-v1.71.1-v1.71.2.md). Atas: as de 2026-10-19 no fim de [`DECISOES.md`](DECISOES.md) — a da v1.71.1, a da v1.71.2 (PR #88) e a do
+pós-deploy da v1.71.2.
+Run de 19/10/2026; o caminho B (§0) foi executado no mesmo dia, depois que o conector da Supabase foi religado.
 
 ## 0. No topo
 
@@ -17,11 +18,16 @@ decide desativar é você.
 
 - **v1.71.1 entregue em produção:** PR #86 mergeado (`408cbea`), tag `v1.71.1` publicada, `/api/saude` = `1.71.1`,
   smoke `109 OK · 1 aviso · 0 falha`.
-- **v1.71.2 com o código pronto e o CI verde, mas SEM apply e SEM merge.** O conector da Supabase desta sessão estava
-  ligado a OUTRA conta, onde o único projeto visível é um `prod` que não é da WAP. Por isso `execute_sql` nos dois
-  projetos da WAP respondeu `You do not have permission to perform this action`, tanto na sessão principal quanto nos
-  cinco subagentes. Pela própria ordem (§Autonomia), o PR #88 fica aberto, em rascunho, sem merge. O caminho está
-  abaixo.
+- **v1.71.2 entregue em produção:** `0180` aplicada no ensaio e em produção, com a sonda igual nos dois bancos (md5
+  do corpo `b406f6cd…`) e os advisors iguais ao antes. PR #88 mergeado (`8f4d2ce`), tag `v1.71.2` publicada,
+  `/api/saude` = `1.71.2`, smoke `109 OK · 1 aviso · 0 falha`. Em produção, o selo "Sem uso" aparece em **1** cadastro
+  ("nunca usado"), o mesmo número da função, do instrumento B2 e da tela. Evidência em
+  `docs/v1.71.2-evidencias/pos-deploy/`.
+- **Como chegou lá:** no começo da run, o conector da Supabase estava ligado a OUTRA conta, onde o único projeto
+  visível é um `prod` que não é da WAP. Por isso `execute_sql` nos dois projetos da WAP respondeu `You do not have
+  permission to perform this action`, na sessão principal e nos cinco subagentes. Pela ordem (§Autonomia), o PR #88
+  ficou em rascunho, sem merge, e o caminho B abaixo ficou escrito. O conector foi religado na conta certa e o caminho
+  B rodou inteiro no mesmo dia.
 
 ### O roteiro do Johnny: onde clicar
 
@@ -33,12 +39,18 @@ decide desativar é você.
 
    Abra também um relatório GERADO antigo em **Relatórios › Gerados**. Ele tem de abrir com o total e a lista numa
    coluna só, sem erro. Imprima um para ver a quebra de página.
-2. **O selo, depois do caminho B.** Abra **Administração › Colaboradores** e use o filtro **"Uso: Sem uso"**.
-   - A quantidade tem de bater com a contagem B2 (hoje, em produção: **1**).
+2. **O selo (já no ar).** Abra **Administração › Colaboradores** e use o filtro **"Uso: Sem uso"**.
+   - A quantidade tem de bater com a contagem B2 (em produção, depois do deploy: **1**, "nunca usado").
    - Quem recebeu equipamento antes de ter cadastro NÃO pode aparecer ali.
    - Desative quem quiser pelo "Editar". Essa decisão é sua.
 
 ### O caminho B: o que ficou para você (a v1.71.2)
+
+> **Executado em 19/10/2026**, passo a passo como abaixo, depois que o conector foi religado. Os números de cada
+> passo estão em `docs/v1.71.2-evidencias/pos-deploy/apply-0180.txt`. Uma diferença do roteiro: no passo 7 o bloco
+> gerado bateu byte a byte com o hand-fix, mas o arquivo de tipos NÃO foi trocado pelo gerado. Fora do bloco, o gerado
+> de produção traz 3 diferenças que já estavam na `main` (§6, backlog), e trocá-lo agora importaria essa deriva para o
+> código. O comentário do hand-fix fica, como os das F62–F65.
 
 O apply não depende de decisão nova. Só faltou o canal. Reconecte o conector da Supabase do claude.ai na conta que
 enxerga `pbtjcalbmepmrqzprusb` e `sgmvldiizsrjbxzzpmhh`, e peça numa sessão nova:
@@ -115,16 +127,21 @@ depois do apply, use `select count(*) filter (where sem_uso) from public.colabor
 
 | Contagem (cadastros ativos) | Ensaio, antes | Produção, antes | Produção, depois do deploy |
 |---|---:|---:|---:|
-| cadastros (total / ativos) | 0 / 0 | 87 / 87 | pendente (caminho B) |
-| com "Registros" > 0, como a tela conta hoje | 0 | 83 | — |
-| sem registro vinculado por id | 0 | 4 | — |
-| … desses, salvos pela chave do texto (o fato 13) | 0 | **3** | — |
-| … desses, salvos só pelo detentor atual | 0 | 0 | — |
-| **sem uso efetivo (o selo)** | 0 | **1** | pendente: o filtro tem de dar 1 |
-| … nunca usado | 0 | 1 | — |
-| … só registros estornados | 0 | 0 | — |
-| com id, mas só registros estornados por id | 0 | 0 | — |
-| movimentações `estorno` no acervo | 0 | 15 | — |
+| cadastros (total / ativos) | 0 / 0 | 87 / 87 | 88 / 88 |
+| com "Registros" > 0, como a tela conta hoje | 0 | 83 | 84 |
+| sem registro vinculado por id | 0 | 4 | 4 |
+| … desses, salvos pela chave do texto (o fato 13) | 0 | **3** | 3 |
+| … desses, salvos só pelo detentor atual | 0 | 0 | 0 |
+| **sem uso efetivo (o selo)** | 0 | **1** | **1** — função, instrumento e tela |
+| … nunca usado | 0 | 1 | 1 |
+| … só registros estornados | 0 | 0 | 0 |
+| com id, mas só registros estornados por id | 0 | 0 | 0 |
+| movimentações `estorno` no acervo | 0 | 15 | 15 |
+
+O cadastro a mais entre o "antes" e o "depois" (87 → 88) foi feito por alguém no uso normal do dia e já tem registro
+valendo — por isso o selo continua em 1. "Depois" = `docs/v1.71.2-evidencias/pos-deploy/b2-depois-producao.json`
+(instrumento), a sonda do `apply-0180.txt` (função) e o `tela-colaboradores.json` (o HTML de Administração ›
+Colaboradores em produção: 1 selo, 1 "nunca usado", 87 com uso, sem o aviso de cálculo indisponível).
 
 **O fato 13 confirmado com caso real:** dos 4 cadastros ativos de produção sem vínculo por id, 3 são salvos pela chave
 do texto. Uma regra só por id marcaria essas 3 pessoas por engano. No ensaio não há cadastro nenhum, então a
@@ -337,17 +354,37 @@ evidência. Cada achado passou por um cético. O resultado:
   registrada como comportamento herdado da `0112`.
 - **A re-revisão das correções deu 0 achado.** O detalhe está na ata, item 11.
 
-### 5.6 v1.71.2 — o que NÃO tem saída, e por quê
+### 5.6 v1.71.2 — depois do caminho B
 
-Não há `/api/saude` em `1.71.2`, smoke da v1.71.2, contagem B2 "depois", advisors nem tipos de produção. Todos
-dependem do apply da `0180`, que ficou no caminho B (§0) porque o conector da Supabase da run não alcançava os projetos
-da WAP.
+Tudo em `docs/v1.71.2-evidencias/pos-deploy/`:
+
+```
+apply-0180.txt ........ ensaio e produção: sonda f · s · {search_path=public} · t · f · b406f6cd… · t
+                        sem_uso: ensaio 0 · produção 1 · advisors depois = antes nos dois bancos
+                        tipos de produção: bloco colaboradores_uso_efetivo = hand-fix (md5 0a95415b…)
+ci-pr88.txt ........... head b724f53: 264/8103 · 54 roteiros/1153 asserções · 156/156 mutações · tipos VERDE
+                        merge 8f4d2ce · tag v1.71.2
+api-saude.txt ......... {"ok":true,"versao":"1.71.2","commit":"8f4d2ce","banco":"ok"}
+smoke-prod.txt ........ RESUMO · 109 OK · 1 aviso · 0 n/a · 0 falha (o aviso é o de kits_modelos, o mesmo da v1.71.1)
+b2-depois-producao.json  sem_uso_efetivo 1 (nunca usado 1)
+tela-colaboradores.json  1 selo "Sem uso" · 87 com uso · aviso de indisponível 0
+```
+
+A primeira rodada do instrumento B2, logo depois do `notify pgrst`, recusou com "não contei movimentacoes (sem
+count)". A segunda, segundos depois, leu tudo e fechou com o count exato. Foi o recarregamento do schema, não a
+função.
 
 ## 6. Pendências e backlog
 
 **Pendente desta ordem**
-- O caminho B (§0): o apply da `0180` nos dois bancos, o merge do PR #88, a tag `v1.71.2`, o deploy, o smoke, o A8
-  "depois" e os tipos de produção no lugar do hand-fix.
+- Nenhuma. O caminho B (§0) foi executado em 19/10/2026.
+
+**Achado do pós-deploy (fora do escopo)**
+- **Os tipos de produção divergem do arquivo em `operador_filiais.Insert`**: `empresa_id` e `membro_id` são
+  opcionais em `src/lib/types/database.ts` (bloco do hand-fix da F62) e obrigatórios no gerado de produção. O gate de
+  deriva do CI não pega isso porque compara conjuntos (relações, colunas, nomes de função), não a obrigatoriedade no
+  Insert (`scripts/db/diff-tipos.mjs`). Antes de trocar o arquivo pelo gerado, confira se a diferença é hand-fix
+  deliberado ou deriva.
 
 **Backlog (regra 1, fora do escopo)**
 - **O cadastro só nasce ao salvar.** Mover o `criarColaboradorInline` do clique para o INSERT da movimentação
