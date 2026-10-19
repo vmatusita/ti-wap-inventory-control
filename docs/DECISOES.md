@@ -13683,3 +13683,70 @@ frente). Sem migration.
    cabeçalho: define `--font-geist-sans` como `system-ui` — sem o `next/font`, a variável vazia invalidava a pilha
    inteira e o texto da foto caía em serifa. O dado é fictício com o prefixo `FIC` (fora do formato que
    `varrer-evidencias` procura) e a sentinela `WAP0001234`.
+
+## 2026-10-19 · Entrega avulsa (v1.71.2) · o colaborador sem uso
+
+**Contexto.** A mesma ordem, Frente B. Plano em [`PLAN-v1.71.1-v1.71.2.md`](PLAN-v1.71.1-v1.71.2.md) §2. Migration
+`0180`. PR #88. A v1.71.1 (Frente A) já estava em produção (`408cbea`, tag `v1.71.1`).
+
+1. **Sem canal de banco, sem apply e sem merge (D1).** O conector da Supabase desta sessão estava ligado a uma conta
+   em que o único projeto visível é um terceiro (`prod`, alheio à WAP): `execute_sql` nos dois refs da WAP respondeu
+   "You do not have permission", da sessão principal e dos cinco subagentes. Nada foi tentado no projeto alheio, e o
+   token da Management API não foi procurado (é operação de credencial). Pela própria ordem: a Frente B foi entregue
+   inteira no código, provada pelo CI, com o PR aberto **em rascunho** — o rascunho é a trava contra um merge antes do
+   apply, porque a tela de colaboradores passa a ler a função nova. O caminho do apply está no topo do relatório e no
+   Anexo A do RUNBOOK.
+2. **Os fatos que não se sustentaram (D3).** Fato 10: a última definição de `estornar_movimentacao_com_itens` é a
+   `0122`, não a `0161` (que só a cita em comentário); a regra "sem saldo vai sem vínculo" é decidida no TypeScript, e
+   a RPC grava o que o payload traz. Fato 14: `rel_saldo_colaborador` é FUNÇÃO (`0118`), não view; a `0120` só cria um
+   índice (o `CLAUDE.md` de `src/lib/colaboradores` dizia "view" e foi corrigido). Fato 13: confirmado por CONTAGEM em
+   produção — dos 4 cadastros ativos sem vínculo por id, 3 são salvos pela chave do texto; no ensaio não há cadastro
+   nenhum (0), então a confirmação "contando no ensaio" que a ordem pedia não tinha caso para contar.
+3. **A regra é FUNÇÃO, não view (D4).** O "mesma empresa" exige ler `empresa_id`, e a 7c de `empresa_no_acervo.sql`
+   recusa TODA view de `public` que cite a coluna junto das oito do acervo, sem lista de exceção. A forma sancionada
+   desde a F66 para ler a coluna fora de policy é a função `security invoker` em `k_leitura_tenant`, conferida por
+   comando pela 15h — o mesmo motivo das duas `rel_*` da 0179 (integridade de junção, não recorte). Antes da exceção,
+   a 7b e a 15h ACUSARAM a função na mesa (a exceção é necessária, não enfeite). Ela entrou na fonte única e nas duas
+   cópias, com as quatro tabelas e o motivo escrito, e nas duas travas de mesa. E o injetor alcança o corpo de uma
+   função — cinco mutações (`v1712-*`), uma por pedaço da regra, cada uma derrubando o seu cenário (provado na mesa e
+   no CI); o teto do lote subiu de 151 para 156, com o porquê no teste.
+4. **Duas travas de CENSO mudaram com o objeto novo, sem afrouxar:** a L4 de `integridade_tenant.sql` congela o md5
+   das funções de `public` que existiam antes da `0165` e passou a excluir pelo nome a função nova (o md5 com a `0180`
+   e a exclusão é IGUAL ao da cadeia até a 0179 — `54002b61…` na mesa, 100 funções; a constante do CI não muda); e o
+   `diff-tipos.test.mts` conta 95 funções no `database.ts` (eram 94). O `database.ts` ganhou a função por HAND-FIX
+   datado (sem MCP não há geração); o gate `db:types:diff` do CI fechou verde contra o banco do CI.
+5. **A regra por extenso** (PLAN §2.2): uso efetivo = movimentação não estornada, lançamento sem inverso, ou detentor
+   atual, da mesma empresa, por id ou — com o id nulo — pela chave do nome. `registros_estornados` conta os registros
+   vinculados que não valem mais (a movimentação estornada, o lançamento com inverso e o inverso que guarda a pessoa).
+   Consequência dita na ajuda: o "N" do selo pode passar de "Registros", que conta só o vínculo por id.
+6. **O filtro (D9):** "Em uso" = tem uso efetivo (qualquer status); "Sem uso" = o selo (ativo sem uso). O inativo nunca
+   usado não está em nenhum dos dois. **A degradação (D10):** se a leitura do uso falhar, a lista de pessoas sai
+   inteira, sem selo, com o filtro desligado e um aviso — a lista não cai por um selo.
+7. **A medição B2 (D8)** foi pela API de leitura do app, com a sessão de consulta do smoke (`--env-file`), paginada até
+   o fim e conferida contra `count exact`, só contagens (`scripts/colaboradores/medir-uso.mts`): produção 87 ativos, 4
+   sem vínculo por id, 3 salvos pela chave, 0 salvo só pelo detentor, **1 sem uso (nunca usado)**, 0 só estornados, 15
+   movimentações `estorno`. O SQL equivalente (o mesmo da função) fica para o caminho B.
+8. **O vermelho primeiro** (A9): o push `c51a0e1` levou só os roteiros; o run 39292478389 reprovou
+   `colaborador_uso_efetivo.sql` por `✗ u0` (a função não existe) e passou `colaborador_estorno.sql` (19 asserções).
+   O push seguinte, com a `0180`, fechou o `banco-sem-docker` verde.
+9. **A prévia** (`scripts/design/previa-v1712.tsx`) roda com o `tsconfig.previa.json` — o dublê de diálogo da F61 abria
+   todo "Editar" na foto; com o diálogo real fechado, o SSR só desenha o botão. O valor do `Select` sai vazio na foto
+   estática (sem hidratação, como na F61); a escolha do filtro é provada no teste de DOM.
+10. **Fora, para o backlog (regra 1):** `v_colaboradores_textos` (0144) junta `colaboradores` só pela chave, sem a
+    empresa (N3 do plano) — inerte com uma empresa, a rever na F67/F70.
+11. **A revisão adversarial (três lentes, um cético por achado)** confirmou UM achado e refutou sete:
+    - **Confirmado e corrigido:** com o filtro em "Sem uso", um `router.refresh()` (o "Editar" salva e recarrega) que
+      trouxesse o uso indisponível deixava o controle desligado PRESO em "Sem uso" e a tela vazia ("0 de N") ao lado
+      do aviso de lista completa. O filtro que vale passa a ser "todos" enquanto o uso estiver indisponível; teste de
+      DOM novo, com a sabotagem (sem o conserto, ele cai).
+    - **Refutados, mas baratos e feitos:** (a) o rodapé da `0180` apontava o instrumento em `docs/…` — corrigido para
+      `scripts/colaboradores/medir-uso.mts` e a trava regravada com `npm run db:lock -- --regravar-alterada`: a `0180`
+      NUNCA chegou a ensaio nem a produção (o conector não alcançava os projetos), então ela ainda podia ser corrigida
+      no lugar — é a exceção que a própria trava prevê; (b) a seção nova do `CLAUDE.md` de `src/lib/colaboradores`
+      tinha sido inserida no meio de uma lista; (c) o roteiro ganhou o u11 (o acessório entregue e não devolvido como
+      ÚNICO registro → em uso) e o u6 passou a usar o nome do detentor em OUTRA grafia (casa pela chave) — 11
+      asserções, e as cinco mutações seguem detectadas.
+    - **Refutado e registrado como comportamento herdado:** renomear o cadastro em "Editar" para outra CHAVE desliga
+      dele o histórico em texto e o detentor da carga — o contrato de identidade por chave é o da `0112` (e de
+      `v_colaboradores_textos`), não desta entrega. A ajuda passou a dizê-lo ao operador; avisar no próprio "Editar" vai
+      para o backlog.

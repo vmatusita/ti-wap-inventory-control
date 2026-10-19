@@ -8,6 +8,8 @@ import {
 import { chaveColaborador, chavesDistintas } from '@/lib/colaboradores/chave'
 import { registrarFalha } from '@/lib/observabilidade'
 import { linhasDe, linhasOuFalha } from '@/lib/supabase/linhas'
+import { chamarRpc } from '@/lib/supabase/rpc'
+import type { UsoDoColaborador } from '@/lib/colaboradores/uso'
 import {
   LEITURA_COLABORADORES_POR_NOME,
   LEITURA_FILA_CONSOLIDACAO,
@@ -15,6 +17,7 @@ import {
   LEITURA_SUGESTAO_CADASTRO,
   LEITURA_SUGESTAO_LANCAMENTOS,
   LEITURA_SUGESTAO_MOVIMENTACOES,
+  LEITURA_USO_COLABORADORES,
 } from '@/lib/queries/formas/colaboradores'
 
 // Leituras do cadastro de pessoas (F37 · D5). Rota só do operador — usam o client do
@@ -37,6 +40,11 @@ export type ColaboradorAdmin = Colaborador & {
   created_at: string
   movimentacoes: number
   lancamentos: number
+  /**
+   * v1.71.2 — o uso efetivo, PRONTO do banco (`colaboradores_uso_efetivo()`, 0180). `null` quando a leitura do uso
+   * falhou (ou o cadastro nasceu entre as duas leituras): a linha aparece sem selo, e a lista de pessoas não cai.
+   */
+  uso: UsoDoColaborador | null
 }
 
 /** Uma linha da fila de consolidação — já agregada pelo banco (view da 0112). */
@@ -87,7 +95,49 @@ const TETO_FILA = 500
 // 0115. O índice continua justificado, pelo `where ativo = true order by nome` de
 // `sugestoesDoCampoColaborador`.
 
-/** Cadastro completo + quantos registros cada pessoa já tem vinculados. */
+/**
+ * v1.71.2 — o uso efetivo de cada cadastro, PRONTO do banco: `colaboradores_uso_efetivo()` (0180) devolve uma linha
+ * por cadastro com os números já contados (a lição do teto de 1.000: contagem nunca nasce de linhas lidas aqui). A
+ * leitura é paginada até o fim (OFFSET pelo id, com teto que LANÇA) e passa pela forma.
+ *
+ * DEGRADA, não derruba: se a função falhar (ou ainda não existir no banco — a migration vai antes do deploy, mas a
+ * tela não pode cair por um selo), registra a falha e devolve `null`. A lista de pessoas sai inteira, sem o selo, e
+ * a tabela avisa que o uso não pôde ser calculado.
+ */
+async function lerUsoDosColaboradores(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<Map<string, UsoDoColaborador> | null> {
+  try {
+    // OFFSET, não keyset: a fonte é RPC (o builder da porta não tem filtro no tipo). `colaborador_id` é único por
+    // linha (a função lê `colaboradores` uma vez), então é ordem total.
+    const brutas = await paginarTodos(
+      'Falha ao ler o uso dos colaboradores',
+      (from, to) =>
+        chamarRpc(supabase, 'colaboradores_uso_efetivo')
+          .order('colaborador_id', { ascending: true })
+          .range(from, to),
+      CAP_COLABORADORES,
+    )
+    const linhas = linhasDe(brutas, LEITURA_USO_COLABORADORES.forma, LEITURA_USO_COLABORADORES.rotulo)
+    return new Map(
+      linhas.map((u) => [
+        u.colaborador_id,
+        {
+          usoEfetivo: u.uso_efetivo,
+          semUso: u.sem_uso,
+          registrosValidos: u.registros_validos,
+          registrosEstornados: u.registros_estornados,
+          ativosComAPessoa: u.ativos_com_a_pessoa,
+        },
+      ]),
+    )
+  } catch (erro) {
+    registrarFalha({ escopo: 'colaboradores.uso-efetivo', erro })
+    return null
+  }
+}
+
+/** Cadastro completo + quantos registros cada pessoa já tem vinculados + o uso efetivo (v1.71.2). */
 export async function listarColaboradoresAdmin(): Promise<ColaboradorAdmin[]> {
   const supabase = await createClient()
   type Row = Colaborador & {
@@ -97,21 +147,24 @@ export async function listarColaboradoresAdmin(): Promise<ColaboradorAdmin[]> {
   }
   // OFFSET, não keyset (F60 · PLAN §2.1, #4): lista de TELA, com ordem composta `nome, id` — o
   // cursor simples pelo `id` mudaria a ordem visível, que é alfabética.
-  const linhas = await paginarTodos<Row>(
-    'Falha ao listar colaboradores',
-    (from, to) =>
-      supabase
-        .from('colaboradores')
-        .select(
-          'id, nome, matricula, setor, filial_id, ativo, nome_chave, created_at, movimentacoes(count), lancamentos_item(count)',
-        )
-        // `nome` NÃO é único (a chave é `nome_chave`), então sozinho ele não é ordem
-        // TOTAL — o `id` é o desempate que torna a paginação determinística.
-        .order('nome', { ascending: true })
-        .order('id', { ascending: true })
-        .range(from, to),
-    CAP_COLABORADORES,
-  )
+  const [linhas, usos] = await Promise.all([
+    paginarTodos<Row>(
+      'Falha ao listar colaboradores',
+      (from, to) =>
+        supabase
+          .from('colaboradores')
+          .select(
+            'id, nome, matricula, setor, filial_id, ativo, nome_chave, created_at, movimentacoes(count), lancamentos_item(count)',
+          )
+          // `nome` NÃO é único (a chave é `nome_chave`), então sozinho ele não é ordem
+          // TOTAL — o `id` é o desempate que torna a paginação determinística.
+          .order('nome', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to),
+      CAP_COLABORADORES,
+    ),
+    lerUsoDosColaboradores(supabase),
+  ])
   return linhas.map((r) => ({
     id: r.id,
     nome: r.nome,
@@ -123,6 +176,7 @@ export async function listarColaboradoresAdmin(): Promise<ColaboradorAdmin[]> {
     created_at: r.created_at,
     movimentacoes: r.movimentacoes?.[0]?.count ?? 0,
     lancamentos: r.lancamentos_item?.[0]?.count ?? 0,
+    uso: usos?.get(r.id) ?? null,
   }))
 }
 

@@ -23,6 +23,13 @@ import { casaBusca } from '@/lib/ajuda/busca'
 import { QuadroDeTabela } from '@/components/layout/quadro-de-tabela'
 import { ColaboradorDialog } from '@/components/admin/colaborador-dialog'
 import { ComEstaPessoaLinha } from '@/components/admin/com-esta-pessoa-linha'
+import {
+  casaFiltroDeUso,
+  ehFiltroDeUso,
+  FILTROS_DE_USO,
+  porqueSemUso,
+  type FiltroDeUso,
+} from '@/lib/colaboradores/uso'
 import type { ColaboradorAdmin } from '@/lib/queries/colaboradores'
 import type { Filial } from '@/lib/queries/filiais'
 
@@ -47,6 +54,14 @@ export function ColaboradoresTabela({
   const buscaId = useId()
   const [busca, setBusca] = useState('')
   const [filial, setFilial] = useState(TODAS)
+  const [uso, setUso] = useState<FiltroDeUso>('todos')
+  // v1.71.2 — sem o uso calculado para NINGUÉM, a leitura do uso falhou (o servidor degradou para `null`): o filtro
+  // fica desligado e a tela diz por quê, em vez de mostrar "0 sem uso" como se fosse verdade.
+  const usoIndisponivel = colaboradores.length > 0 && colaboradores.every((c) => c.uso === null)
+  // O filtro que VALE: com o uso indisponível, "todos" — mesmo que o estado guarde "Sem uso" de antes de um
+  // `router.refresh()` (o estado do cliente sobrevive ao refresh). Sem isto, o controle desligado ficaria preso em
+  // "Sem uso" e a tela, vazia, diria "0 de N" ao lado do aviso de que a lista está completa (revisão da v1.71.2).
+  const filtroAplicado: FiltroDeUso = usoIndisponivel ? 'todos' : uso
 
   const nomeDaFilial = useMemo(
     () => new Map(filiais.map((f) => [f.id, f.nome])),
@@ -63,9 +78,10 @@ export function ColaboradoresTabela({
         const texto = `${c.nome} ${c.matricula ?? ''} ${c.setor ?? ''} ${
           c.filial_id != null ? (nomeDaFilial.get(c.filial_id) ?? '') : ''
         }`
+        if (!casaFiltroDeUso(c.uso, filtroAplicado)) return false
         return casaBusca(texto, busca)
       }),
-    [colaboradores, busca, filial, nomeDaFilial],
+    [colaboradores, busca, filial, filtroAplicado, nomeDaFilial],
   )
 
   return (
@@ -100,12 +116,36 @@ export function ColaboradoresTabela({
             ))}
           </SelectContent>
         </Select>
+        {/* v1.71.2 — "Uso": quem tem registro que continua valendo (ou equipamento com a pessoa) × o selo "Sem uso".
+            Estado local, como os dois filtros acima; o número de cada linha vem pronto do banco. */}
+        <Select
+          value={filtroAplicado}
+          onValueChange={(v) => setUso(ehFiltroDeUso(v) ? v : 'todos')}
+          disabled={usoIndisponivel}
+        >
+          <SelectTrigger size="sm" className="w-[9rem]" aria-label="Filtrar por uso">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FILTROS_DE_USO.map((f) => (
+              <SelectItem key={f.valor} value={f.valor}>
+                {f.rotulo}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p role="status" className="text-sm text-muted-foreground tabular-nums">
-          {busca.trim() || filial !== TODAS
+          {busca.trim() || filial !== TODAS || filtroAplicado !== 'todos'
             ? `${visiveis.length} de ${colaboradores.length}`
             : `${colaboradores.length} no total`}
         </p>
       </div>
+      {usoIndisponivel && (
+        <p className="text-sm text-muted-foreground">
+          Não foi possível calcular agora quem está sem uso. A lista está completa; o selo &quot;Sem uso&quot; e o
+          filtro &quot;Uso&quot; voltam quando a página for recarregada.
+        </p>
+      )}
 
       {visiveis.length === 0 ? (
         <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
@@ -153,11 +193,23 @@ export function ColaboradoresTabela({
                       {registros > 0 ? registros.toLocaleString('pt-BR') : '—'}
                     </TableCell>
                     <TableCell>
-                      {c.ativo ? (
-                        <Badge variant="sucesso">Ativo</Badge>
-                      ) : (
-                        <Badge variant="secondary">Inativo</Badge>
-                      )}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {c.ativo ? (
+                          <Badge variant="sucesso">Ativo</Badge>
+                        ) : (
+                          <Badge variant="secondary">Inativo</Badge>
+                        )}
+                        {/* v1.71.2 — o selo só na linha ATIVA sem uso efetivo, com o porquê. Ele não muda nada
+                            sozinho: desativar continua sendo decisão de quem administra, pelo "Editar". */}
+                        {c.ativo && c.uso?.semUso && (
+                          <>
+                            <Badge variant="outline">Sem uso</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {porqueSemUso(c.uso.registrosEstornados)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {/* F38 · §C.2 — "Com esta pessoa" expande a LINHA, sem rota nova. */}

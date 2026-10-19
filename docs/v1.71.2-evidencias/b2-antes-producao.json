@@ -1,0 +1,23 @@
+{
+  "alvo": "producao",
+  "lidas": {
+    "colaboradores": 87,
+    "movimentacoes": 3802,
+    "lancamentos_item": 377,
+    "ativos": 1633
+  },
+  "contagens": {
+    "cadastros_total": 87,
+    "cadastros_ativos": 87,
+    "ativos_com_registros_como_a_tela": 83,
+    "sem_registro_por_id": 4,
+    "sem_id_salvos_pela_chave": 3,
+    "sem_id_salvos_so_pelo_detentor": 0,
+    "sem_uso_efetivo": 1,
+    "sem_uso_nunca_usado": 1,
+    "sem_uso_so_estornados": 0,
+    "com_id_mas_so_estornados_por_id": 0,
+    "movimentacoes_estorno": 15,
+    "empresas_com_colaborador": 1
+  }
+}

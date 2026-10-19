@@ -204,7 +204,7 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     readFileSync(join(RAIZ, 'src', 'lib', 'types', 'database.ts'), 'utf8'),
   )
 
-  it('lê as 37 relações (28 tabelas + 9 views) e as 94 funções', () => {
+  it('lê as 37 relações (28 tabelas + 9 views) e as 95 funções (v1.71.2: +colaboradores_uso_efetivo)', () => {
     // ⚠ 08/09/2026 (F51): as funções passaram de 60 para 68 — as OITO auxiliares do
     // import que a migration 0131 cria. Elas entraram no `database.ts` À MÃO, e não
     // pelo gerador: `npm run db:types` lê um projeto REAL pela Management API, e a
@@ -293,8 +293,13 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // `empresa_id` às onze tabelas do lote 2; a `0164` cria UMA função — a do gatilho do kit
     // (`kit_motivo_da_empresa`, `returns trigger`), que fica fora pela regra de sempre — e RECRIA o
     // núcleo da integridade (mesmo nome). HAND-FIX datado no `database.ts` antes do apply.
+    //
+    // v1.71.2 (19/10/2026): relações 38 -> 38, funções 94 -> 95. A `0180` cria UMA função que o gerador lista
+    // (`colaboradores_uso_efetivo`, `returns table` — o uso efetivo do colaborador). HAND-FIX datado no `database.ts`
+    // antes do apply; a geração do MCP de produção depois do apply o substitui. O número SUBIU porque o banco ganhou
+    // um objeto.
     expect(real.relacoes.size).toBe(38)
-    expect(real.funcoes.size).toBe(94)
+    expect(real.funcoes.size).toBe(95)
     expect(real.colunas.size).toBeGreaterThanOrEqual(314)
   })
 

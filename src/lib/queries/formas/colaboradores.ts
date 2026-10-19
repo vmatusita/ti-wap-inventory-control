@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { naoNulaNaView } from '@/lib/supabase/colunas-de-view'
-import { leituraDeRelacao } from '@/lib/supabase/leitura'
+import { leituraDeRelacao, leituraDeRpc } from '@/lib/supabase/leitura'
 
 // As formas das leituras do cadastro de pessoas (F58 · Frente C · lote 2).
 
@@ -89,3 +89,23 @@ export const LEITURA_GRUPOS_A_CONSOLIDAR = leituraDeRelacao({
   ordem: ['nome_chave'],
 })
 
+
+// v1.71.2 — o USO EFETIVO de cada cadastro (`colaboradores_uso_efetivo()`, migration 0180): RPC de LEITURA (`stable`,
+// `security invoker`), uma linha por cadastro, todas as colunas não-nulas por construção (`coalesce` e comparações no
+// corpo — o gerador as declara não-nulas também, por ser `returns table`). A contagem vem PRONTA do banco: a tela só
+// junta por id e filtra a lista completa. `ordem` é o id, único por linha (a função lê `colaboradores` uma vez).
+export const LEITURA_USO_COLABORADORES = leituraDeRpc({
+  rotulo: 'colaboradores.uso-efetivo',
+  rpc: 'colaboradores_uso_efetivo',
+  forma: z.strictObject({
+    colaborador_id: z.string(),
+    registros_validos: z.number(),
+    registros_estornados: z.number(),
+    ativos_com_a_pessoa: z.number(),
+    uso_efetivo: z.boolean(),
+    sem_uso: z.boolean(),
+  }),
+  retorno: 'linhas',
+  matriz: { tipo: 'sem-argumentos' },
+  ordem: ['colaborador_id'],
+})

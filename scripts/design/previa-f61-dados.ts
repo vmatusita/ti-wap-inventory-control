@@ -109,6 +109,8 @@ export const ITENS_ADMIN_PREVIA: ItemAdmin[] = [
   { id: 103, nome: 'Adaptador de tomada padrão antigo', grupo: 'acessorio', ordem: 4, ativo: false, estoque_minimo: 0, lancamentos: 0, tipo_id: null },
 ]
 
+// v1.71.2: `uso` (o uso efetivo, que a tela lê pronto do banco) entra "em uso" nas três — a vitrine da F61 continua
+// sem o selo "Sem uso" e sem o aviso de uso indisponível, idêntica à foto daquela fase.
 export const COLABORADORES_ADMIN_PREVIA: ColaboradorAdmin[] = [
   {
     id: 'a0000000-0000-4000-8000-000000000001',
@@ -121,6 +123,7 @@ export const COLABORADORES_ADMIN_PREVIA: ColaboradorAdmin[] = [
     created_at: '2026-01-10T09:00:00.000Z',
     movimentacoes: 4,
     lancamentos: 2,
+    uso: { usoEfetivo: true, semUso: false, registrosValidos: 1, registrosEstornados: 0, ativosComAPessoa: 0 },
   },
   {
     id: 'a0000000-0000-4000-8000-000000000002',
@@ -133,6 +136,7 @@ export const COLABORADORES_ADMIN_PREVIA: ColaboradorAdmin[] = [
     created_at: '2025-03-05T14:30:00.000Z',
     movimentacoes: 2,
     lancamentos: 0,
+    uso: { usoEfetivo: true, semUso: false, registrosValidos: 1, registrosEstornados: 0, ativosComAPessoa: 0 },
   },
   {
     id: 'a0000000-0000-4000-8000-000000000003',
@@ -145,6 +149,7 @@ export const COLABORADORES_ADMIN_PREVIA: ColaboradorAdmin[] = [
     created_at: '2026-06-01T11:00:00.000Z',
     movimentacoes: 0,
     lancamentos: 0,
+    uso: { usoEfetivo: true, semUso: false, registrosValidos: 1, registrosEstornados: 0, ativosComAPessoa: 0 },
   },
 ]
 

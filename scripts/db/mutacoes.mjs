@@ -3314,6 +3314,112 @@ const F66_RECORTE = [
       espera: 't',
     },
   },
+
+  // ===========================================================================
+  // colaborador_uso_efetivo.sql — v1.71.2: a regra do USO EFETIVO (0180), um pedaço por mutação
+  // ===========================================================================
+  // A função nasce com `create function` (sem `or replace`), daí `mutarFuncaoSemReplace`. Cada mutação afrouxa UM
+  // pedaço da regra (docs/PLAN-v1.71.1-v1.71.2.md §2.2) e o cenário que só aquele pedaço segura fica vermelho.
+  {
+    id: 'v1712-uso-conta-a-movimentacao-estornada',
+    roteiro: 'colaborador_uso_efetivo.sql',
+    classe: 'regra-de-negocio',
+    derruba: ['u1'],
+    porque:
+      'A movimentação estornada volta a contar como uso: quem só teve uma saída desfeita por estorno some do filtro "Sem uso", e o administrador deixa de achar justamente o cadastro que sobrou do estorno.',
+    sql: mutarFuncaoSemReplace(
+      'public.colaboradores_uso_efetivo()',
+      `           (x.id is null) as vale
+`,
+      `           true as vale  ${MARCA}
+`,
+      'v1712-uso-conta-a-movimentacao-estornada',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.colaboradores_uso_efetivo()'::regprocedure) not like '%(x.id is null) as vale%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'v1712-uso-conta-o-item-estornado',
+    roteiro: 'colaborador_uso_efetivo.sql',
+    classe: 'regra-de-negocio',
+    derruba: ['u5'],
+    porque:
+      'O lançamento de item desfeito (e o próprio inverso) volta a contar como uso: a pessoa a quem um acessório foi entregue e devolvido por estorno passa a parecer em uso para sempre.',
+    sql: mutarFuncaoSemReplace(
+      'public.colaboradores_uso_efetivo()',
+      `           (l.estorna_id is null and y.id is null) as vale
+`,
+      `           true as vale  ${MARCA}
+`,
+      'v1712-uso-conta-o-item-estornado',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.colaboradores_uso_efetivo()'::regprocedure) not like '%(l.estorna_id is null and y.id is null) as vale%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'v1712-uso-esquece-o-historico-em-texto',
+    roteiro: 'colaborador_uso_efetivo.sql',
+    classe: 'regra-de-negocio',
+    derruba: ['u4'],
+    porque:
+      'A regra passa a olhar só o vínculo por id: toda pessoa que a fila de consolidação transformou em cadastro — cujo histórico só existe como texto — ganha o selo "Sem uso" por engano, e o administrador desativaria gente que recebeu equipamento.',
+    sql: mutarFuncaoSemReplace(
+      'public.colaboradores_uso_efetivo()',
+      `      left join por_chave pc on pc.empresa_id = c.empresa_id and pc.chave = c.nome_chave
+`,
+      `      left join por_chave pc on false  ${MARCA}
+`,
+      'v1712-uso-esquece-o-historico-em-texto',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.colaboradores_uso_efetivo()'::regprocedure) like '%left join por_chave pc on false%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'v1712-uso-casa-a-chave-de-outra-empresa',
+    roteiro: 'colaborador_uso_efetivo.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['u8'],
+    porque:
+      'O casamento pela chave do nome perde o par de empresa: um homônimo de OUTRA empresa com registro válido lá tira do selo "Sem uso" o cadastro daqui, que nunca foi usado.',
+    sql: mutarFuncaoSemReplace(
+      'public.colaboradores_uso_efetivo()',
+      `      left join por_chave pc on pc.empresa_id = c.empresa_id and pc.chave = c.nome_chave
+`,
+      `      left join por_chave pc on pc.chave = c.nome_chave  ${MARCA}
+`,
+      'v1712-uso-casa-a-chave-de-outra-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.colaboradores_uso_efetivo()'::regprocedure) not like '%pc.empresa_id = c.empresa_id%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'v1712-uso-esquece-o-detentor',
+    roteiro: 'colaborador_uso_efetivo.sql',
+    classe: 'regra-de-negocio',
+    derruba: ['u6'],
+    porque:
+      'A regra deixa de olhar quem está com o equipamento hoje: a pessoa que recebeu o notebook na carga do go-live, sem movimentação vinculada, ganha o selo "Sem uso" enquanto o equipamento está com ela.',
+    sql: mutarFuncaoSemReplace(
+      'public.colaboradores_uso_efetivo()',
+      `      left join detentores d on d.empresa_id = c.empresa_id and d.chave = c.nome_chave
+`,
+      `      left join detentores d on false  ${MARCA}
+`,
+      'v1712-uso-esquece-o-detentor',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.colaboradores_uso_efetivo()'::regprocedure) like '%left join detentores d on false%'`,
+      espera: 't',
+    },
+  },
 ]
 
 export const MUTACOES = [

@@ -121,7 +121,8 @@ declare
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
     'vocabulario_unidades_guarda:filiais,unidades_apelidos',
     'rel_por_motivo_filiais:movimentacoes,motivos',
-    'rel_resumo_filiais:movimentacoes,motivos,ativos'
+    'rel_resumo_filiais:movimentacoes,motivos,ativos',
+    'colaboradores_uso_efetivo:colaboradores,movimentacoes,lancamentos_item,ativos'
   ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162) — o texto que o CI aplica.

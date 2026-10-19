@@ -550,8 +550,9 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     ).toEqual([])
   })
 
-  it('as exceções de k_leitura_tenant (as três da F65, as duas rel_* da F66) são função vigente, LEEM, e provam a origem no comando', () => {
+  it('as exceções de k_leitura_tenant (as três da F65, as duas rel_* da F66, o uso efetivo da v1.71.2) são função vigente, LEEM, e provam a origem no comando', () => {
     expect([...LEITURA_TENANT.keys()].sort()).toEqual([
+      'colaboradores_uso_efetivo',
       'guarda_empresa',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',

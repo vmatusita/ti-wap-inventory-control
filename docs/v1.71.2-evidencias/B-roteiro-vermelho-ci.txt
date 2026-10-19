@@ -1,0 +1,32 @@
+# CI do PR #88, run 39292478389 (push e3a2a56/c51a0e1): o roteiro da regra nasce VERMELHO, o diagnóstico verde
+banco-sem-docker	Rodar os roteiros de teste SQL (falha o CI em ✗ ou em roteiro que abortou)	﻿2026-10-19T17:16:12.6916913Z ##[group]Run bash scripts/db/rodar-roteiros.sh
+==== supabase/tests/colaborador_estorno.sql ====
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce1a o cadastro segue ATIVO depois do estorno (nenhum caminho do estorno toca colaboradores)
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce2a a movimentação ORIGINAL continua com o colaborador_id da pessoa (o acervo é imutável)
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce3a a linha do estorno existe, aponta a original e NÃO tem pessoa (nem texto nem id)
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce5a o ativo voltou a "em estoque" SEM detentor — o detentor restaurado é o de antes da saída
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce6a "Com esta pessoa" (rel_saldo_colaborador) vem vazio
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce7a a coluna "Registros" conta 1 (a movimentação ESTORNADA) — o embed não separa o que foi desfeito
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce1b o cadastro segue ATIVO depois do estorno com item
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce2b a movimentação original continua com o colaborador_id da pessoa
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce3b a linha do estorno existe e não tem pessoa
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce4b o inverso do item (retorno) guarda o colaborador_id da pessoa — ela tinha saldo
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce5b o ativo voltou a "em estoque" sem detentor
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce6b "Com esta pessoa" vem vazio — o retorno zerou a saída, e o par zerado não volta
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce7b a coluna "Registros" conta 3 (a movimentação estornada, a saída do item e o inverso)
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce1c o cadastro do formulário abandonado existe e segue ATIVO — nada o desfaz
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce7c a coluna "Registros" fica em branco (0 e 0)
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce6c "Com esta pessoa" vem vazio
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce8 o campo Colaborador continua sugerindo as três pessoas (o filtro é só "ativo")
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce9 v_colaboradores_textos: as duas pessoas estornadas aparecem como JÁ CADASTRADAS (o texto da original — e, com item, o da saída e do inverso: 1 e 3 ocorrências); a abandonada não aparece (não há texto)
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  ✓ ce10 os três cadastros seguem ativos: nenhum estado do cadastro muda sozinho
+psql:supabase/tests/colaborador_estorno.sql:305: NOTICE:  FIM colaborador_estorno: 19 asserções, 0 falhas
+==== supabase/tests/colaborador_uso_efetivo.sql ====
+psql:supabase/tests/colaborador_uso_efetivo.sql:244: WARNING:  ✗ u0 a função public.colaboradores_uso_efetivo() não existe — a regra do uso efetivo não está no banco
+  0 |      1 | u0
+##[error]roteiro supabase/tests/colaborador_uso_efetivo.sql não emitiu a linha 'FIM colaborador_uso_efetivo: N asserções, M falhas' — abortou antes do fim
+##[error]roteiro supabase/tests/colaborador_uso_efetivo.sql marcou 1 ✗ (cenário falhou)
+  ✓ colaborador_estorno — 19 asserções
+  ✗ colaborador_uso_efetivo — não emitiu a linha 'FIM colaborador_uso_efetivo: N asserções, M falhas' — abortou antes do fim
+  ✗ colaborador_uso_efetivo — marcou 1 ✗ (cenário falhou)
+  54 roteiro(s), 1142 asserções no total

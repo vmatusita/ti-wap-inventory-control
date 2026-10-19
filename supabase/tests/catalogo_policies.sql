@@ -154,12 +154,21 @@ declare
   -- `movimentacoes` e `motivos`, no comando do relatório; `rel_resumo_filiais` cita `ativos` no MESMO comando (o join por
   -- id que dá a categoria), e por isso a tabela entra na lista dela — o predicado único exige toda tabela do lote citada
   -- no comando que lê a coluna (o `a.empresa_id` não é lido: a origem de cada `x.empresa_id` é provada por comando).
+  -- v1.71.2 (19/10/2026) — mais uma, pelo MESMO motivo das duas rel_* (docs/PLAN-v1.71.1-v1.71.2.md, D4):
+  --   · colaboradores_uso_efetivo (0180) — o uso efetivo de cada cadastro de colaborador: os registros da pessoa que
+  --                                   continuam valendo NA EMPRESA DELA. Casa `colaboradores` com `movimentacoes`,
+  --                                   `lancamentos_item` e `ativos` pelo `empresa_id` (para o vínculo pela chave do
+  --                                   nome e para o detentor, que não têm FK) — integridade de JUNÇÃO, não recorte:
+  --                                   ela é `security invoker` e quem recorta o que cada um vê é a RLS. É FUNÇÃO, e não
+  --                                   view, porque a 7c de empresa_no_acervo.sql recusa view que leia a coluna (sem
+  --                                   lista de exceção) — a exceção nominal, por comando, mora aqui.
   k_leitura_tenant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
     'vocabulario_unidades_guarda:filiais,unidades_apelidos',
     'rel_por_motivo_filiais:movimentacoes,motivos',
-    'rel_resumo_filiais:movimentacoes,motivos,ativos'
+    'rel_resumo_filiais:movimentacoes,motivos,ativos',
+    'colaboradores_uso_efetivo:colaboradores,movimentacoes,lancamentos_item,ativos'
   ];
 
   -- =======================================================================

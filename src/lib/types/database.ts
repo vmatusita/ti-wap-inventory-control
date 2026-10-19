@@ -1750,6 +1750,19 @@ export type Database = {
         }[]
       }
       colaborador_chave: { Args: { p_nome: string }; Returns: string }
+      // v1.71.2 hand-fix (19/10/2026): a função da 0180 escrita à mão antes do apply (o conector da run não alcançou os
+      // projetos); a geração do MCP de PRODUÇÃO, depois do apply, o substitui.
+      colaboradores_uso_efetivo: {
+        Args: never
+        Returns: {
+          ativos_com_a_pessoa: number
+          colaborador_id: string
+          registros_estornados: number
+          registros_validos: number
+          sem_uso: boolean
+          uso_efetivo: boolean
+        }[]
+      }
       confirmar_assinatura_lote_com_anotacoes: {
         Args: {
           p_ativo_ids: string[]

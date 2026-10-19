@@ -72,6 +72,7 @@ import {
   LEITURA_SUGESTAO_CADASTRO,
   LEITURA_SUGESTAO_LANCAMENTOS,
   LEITURA_SUGESTAO_MOVIMENTACOES,
+  LEITURA_USO_COLABORADORES,
 } from '@/lib/queries/formas/colaboradores'
 import { LEITURA_ULTIMA_COMPRA_DO_OPERADOR } from '@/lib/queries/formas/compras'
 import { LEITURA_CHECAGENS_INTEGRIDADE } from '@/lib/queries/formas/dev'
@@ -180,6 +181,8 @@ export const CATALOGO: readonly Descritor[] = [
   LEITURA_SUGESTAO_CADASTRO,
   LEITURA_SUGESTAO_MOVIMENTACOES,
   LEITURA_SUGESTAO_LANCAMENTOS,
+  // v1.71.2 — colaboradores.ts (o uso efetivo, RPC de leitura da 0180)
+  LEITURA_USO_COLABORADORES,
   // lote 2 — compras.ts
   LEITURA_ULTIMA_COMPRA_DO_OPERADOR,
   // lote 2 — dev.ts (recibo — RPC só-dev, provada contra o corpo vivo)
