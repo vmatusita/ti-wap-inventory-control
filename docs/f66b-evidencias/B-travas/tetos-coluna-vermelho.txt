@@ -1,0 +1,11 @@
+# tetos-coluna.test.ts SEM as migrations 0181–0184 — 12/11/2026 15:44 — a trava de mesa nasce VERMELHA
+     × toda entrada da fonte tem o CHECK com o MESMO nome, coluna e teto, na migration do lote dela 
+     × cada migration da F66B cria só o seu lote, as tabelas na ordem de lock declarada 
+     × ativos.observacoes · validators/devolucao-fornecedor.ts · substituto da devolução 
+     × motivos.codigo · validators/admin.ts:347 · editar motivo (filtro; F66B: .max(40)) 
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/tetos-coluna.test.ts > 2. migrations ↔ fonte, nos dois sentidos > toda entrada da fonte tem o CHECK com o MESMO nome, coluna e teto, na migration do lote dela
+ FAIL  |puro| src/lib/validators/tetos-coluna.test.ts > 2. migrations ↔ fonte, nos dois sentidos > cada migration da F66B cria só o seu lote, as tabelas na ordem de lock declarada
+ FAIL  |puro| src/lib/validators/tetos-coluna.test.ts > 3. os caminhos com teto: nenhum aceita mais do que o banco > ativos.observacoes · validators/devolucao-fornecedor.ts · substituto da devolução
+ FAIL  |puro| src/lib/validators/tetos-coluna.test.ts > 3. os caminhos com teto: nenhum aceita mais do que o banco > motivos.codigo · validators/admin.ts:347 · editar motivo (filtro; F66B: .max(40))
+      Tests  4 failed | 105 passed (109)
