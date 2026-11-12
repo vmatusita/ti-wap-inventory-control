@@ -1,0 +1,564 @@
+{
+  "alvo": "producao",
+  "ref": "pbtjcalbmepmrqzprusb",
+  "medido_em": "2026-11-12T18:16:03.810Z",
+  "tabelas": {
+    "anotacoes": {
+      "legivel": true,
+      "linhas": 41
+    },
+    "ativos": {
+      "legivel": true,
+      "linhas": 1632
+    },
+    "colaboradores": {
+      "legivel": true,
+      "linhas": 132
+    },
+    "eventos_admin": {
+      "legivel": false,
+      "linhas": null,
+      "motivo": "RLS: leitura só de administrador"
+    },
+    "filiais": {
+      "legivel": true,
+      "linhas": 6
+    },
+    "import_logs": {
+      "legivel": false,
+      "linhas": null,
+      "motivo": "RLS: leitura só de administrador"
+    },
+    "import_prefixos_patrimonio": {
+      "legivel": true,
+      "linhas": 7
+    },
+    "import_termos_categoria": {
+      "legivel": true,
+      "linhas": 5
+    },
+    "import_termos_estado": {
+      "legivel": true,
+      "linhas": 17
+    },
+    "itens": {
+      "legivel": true,
+      "linhas": 25
+    },
+    "kits_modelos": {
+      "legivel": true,
+      "linhas": 0
+    },
+    "lancamentos_item": {
+      "legivel": true,
+      "linhas": 473
+    },
+    "motivos": {
+      "legivel": true,
+      "linhas": 14
+    },
+    "movimentacoes": {
+      "legivel": true,
+      "linhas": 3960
+    },
+    "pendencias_item": {
+      "legivel": true,
+      "linhas": 53
+    },
+    "relatorios_gerados": {
+      "legivel": true,
+      "linhas": 15
+    },
+    "senhas_acesso": {
+      "legivel": false,
+      "linhas": null,
+      "motivo": "RLS: nenhuma policy de leitura (só o servidor lê)"
+    },
+    "termos_gerados": {
+      "legivel": true,
+      "linhas": 293
+    },
+    "tipos_item": {
+      "legivel": true,
+      "linhas": 10
+    },
+    "unidades_apelidos": {
+      "legivel": true,
+      "linhas": 13
+    }
+  },
+  "colunas": {
+    "anotacoes.texto": {
+      "linhas": 41,
+      "nao_nulos": 41,
+      "max_caracteres": 71,
+      "max_utf16": 71,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.patrimonio": {
+      "linhas": 1632,
+      "nao_nulos": 1632,
+      "max_caracteres": 11,
+      "max_utf16": 11,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.patrimonio_original": {
+      "linhas": 1632,
+      "nao_nulos": 1626,
+      "max_caracteres": 11,
+      "max_utf16": 11,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.marca": {
+      "linhas": 1632,
+      "nao_nulos": 1632,
+      "max_caracteres": 8,
+      "max_utf16": 8,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.modelo": {
+      "linhas": 1632,
+      "nao_nulos": 1624,
+      "max_caracteres": 18,
+      "max_utf16": 18,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.service_tag": {
+      "linhas": 1632,
+      "nao_nulos": 1596,
+      "max_caracteres": 24,
+      "max_utf16": 24,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.hostname": {
+      "linhas": 1632,
+      "nao_nulos": 1329,
+      "max_caracteres": 14,
+      "max_utf16": 14,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.memoria": {
+      "linhas": 1632,
+      "nao_nulos": 823,
+      "max_caracteres": 25,
+      "max_utf16": 25,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.armazenamento": {
+      "linhas": 1632,
+      "nao_nulos": 827,
+      "max_caracteres": 21,
+      "max_utf16": 21,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.processador": {
+      "linhas": 1632,
+      "nao_nulos": 625,
+      "max_caracteres": 28,
+      "max_utf16": 28,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.fornecedor": {
+      "linhas": 1632,
+      "nao_nulos": 1611,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.colaborador_atual": {
+      "linhas": 1632,
+      "nao_nulos": 1244,
+      "max_caracteres": 62,
+      "max_utf16": 62,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.setor_atual": {
+      "linhas": 1632,
+      "nao_nulos": 295,
+      "max_caracteres": 45,
+      "max_utf16": 45,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.pendencia": {
+      "linhas": 1632,
+      "nao_nulos": 36,
+      "max_caracteres": 15,
+      "max_utf16": 15,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.origem": {
+      "linhas": 1632,
+      "nao_nulos": 1632,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.observacoes": {
+      "linhas": 1632,
+      "nao_nulos": 838,
+      "max_caracteres": 127,
+      "max_utf16": 127,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.telefone": {
+      "linhas": 1632,
+      "nao_nulos": 4,
+      "max_caracteres": 14,
+      "max_utf16": 14,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.imei": {
+      "linhas": 1632,
+      "nao_nulos": 3,
+      "max_caracteres": 15,
+      "max_utf16": 15,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "ativos.pulsus": {
+      "linhas": 1632,
+      "nao_nulos": 17,
+      "max_caracteres": 3,
+      "max_utf16": 3,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "colaboradores.nome": {
+      "linhas": 132,
+      "nao_nulos": 132,
+      "max_caracteres": 48,
+      "max_utf16": 48,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "colaboradores.matricula": {
+      "linhas": 132,
+      "nao_nulos": 0,
+      "max_caracteres": 0,
+      "max_utf16": 0,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "colaboradores.setor": {
+      "linhas": 132,
+      "nao_nulos": 3,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "colaboradores.nome_chave": {
+      "linhas": 132,
+      "nao_nulos": 132,
+      "max_caracteres": 48,
+      "max_utf16": 48,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "filiais.slug": {
+      "linhas": 6,
+      "nao_nulos": 6,
+      "max_caracteres": 14,
+      "max_utf16": 14,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "filiais.nome": {
+      "linhas": 6,
+      "nao_nulos": 6,
+      "max_caracteres": 15,
+      "max_utf16": 15,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "filiais.cidade": {
+      "linhas": 6,
+      "nao_nulos": 6,
+      "max_caracteres": 20,
+      "max_utf16": 20,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "import_prefixos_patrimonio.prefixo": {
+      "linhas": 7,
+      "nao_nulos": 7,
+      "max_caracteres": 3,
+      "max_utf16": 3,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "import_termos_categoria.termo": {
+      "linhas": 5,
+      "nao_nulos": 5,
+      "max_caracteres": 8,
+      "max_utf16": 8,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "import_termos_categoria.rotulo": {
+      "linhas": 5,
+      "nao_nulos": 5,
+      "max_caracteres": 8,
+      "max_utf16": 8,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "import_termos_estado.termo": {
+      "linhas": 17,
+      "nao_nulos": 17,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "import_termos_estado.rotulo": {
+      "linhas": 17,
+      "nao_nulos": 7,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "itens.nome": {
+      "linhas": 25,
+      "nao_nulos": 25,
+      "max_caracteres": 22,
+      "max_utf16": 22,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "itens.nome_chave": {
+      "linhas": 25,
+      "nao_nulos": 25,
+      "max_caracteres": 22,
+      "max_utf16": 22,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "kits_modelos.nome": {
+      "linhas": 0,
+      "nao_nulos": 0,
+      "max_caracteres": 0,
+      "max_utf16": 0,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "lancamentos_item.chamado": {
+      "linhas": 473,
+      "nao_nulos": 49,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "lancamentos_item.colaborador": {
+      "linhas": 473,
+      "nao_nulos": 364,
+      "max_caracteres": 45,
+      "max_utf16": 45,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "lancamentos_item.observacao": {
+      "linhas": 473,
+      "nao_nulos": 173,
+      "max_caracteres": 192,
+      "max_utf16": 192,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "motivos.codigo": {
+      "linhas": 14,
+      "nao_nulos": 14,
+      "max_caracteres": 24,
+      "max_utf16": 24,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "motivos.rotulo": {
+      "linhas": 14,
+      "nao_nulos": 14,
+      "max_caracteres": 27,
+      "max_utf16": 27,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "movimentacoes.motivo": {
+      "linhas": 3960,
+      "nao_nulos": 735,
+      "max_caracteres": 24,
+      "max_utf16": 24,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "movimentacoes.colaborador": {
+      "linhas": 3960,
+      "nao_nulos": 1611,
+      "max_caracteres": 64,
+      "max_utf16": 64,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "movimentacoes.setor": {
+      "linhas": 3960,
+      "nao_nulos": 519,
+      "max_caracteres": 45,
+      "max_utf16": 45,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "movimentacoes.chamado": {
+      "linhas": 3960,
+      "nao_nulos": 617,
+      "max_caracteres": 28,
+      "max_utf16": 28,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "movimentacoes.observacao": {
+      "linhas": 3960,
+      "nao_nulos": 3460,
+      "max_caracteres": 162,
+      "max_utf16": 162,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "movimentacoes.chamado_fornecedor": {
+      "linhas": 3960,
+      "nao_nulos": 20,
+      "max_caracteres": 13,
+      "max_utf16": 13,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "pendencias_item.item": {
+      "linhas": 53,
+      "nao_nulos": 53,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "pendencias_item.colaborador": {
+      "linhas": 53,
+      "nao_nulos": 48,
+      "max_caracteres": 37,
+      "max_utf16": 37,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "pendencias_item.status": {
+      "linhas": 53,
+      "nao_nulos": 53,
+      "max_caracteres": 9,
+      "max_utf16": 9,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "pendencias_item.desfecho": {
+      "linhas": 53,
+      "nao_nulos": 17,
+      "max_caracteres": 10,
+      "max_utf16": 10,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "pendencias_item.observacao": {
+      "linhas": 53,
+      "nao_nulos": 2,
+      "max_caracteres": 19,
+      "max_utf16": 19,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "relatorios_gerados.observacao": {
+      "linhas": 15,
+      "nao_nulos": 9,
+      "max_caracteres": 505,
+      "max_utf16": 505,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "termos_gerados.tipo": {
+      "linhas": 293,
+      "nao_nulos": 293,
+      "max_caracteres": 32,
+      "max_utf16": 32,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "termos_gerados.colaborador": {
+      "linhas": 293,
+      "nao_nulos": 293,
+      "max_caracteres": 62,
+      "max_utf16": 62,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "termos_gerados.arquivo_path": {
+      "linhas": 293,
+      "nao_nulos": 293,
+      "max_caracteres": 41,
+      "max_utf16": 41,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "tipos_item.slug": {
+      "linhas": 10,
+      "nao_nulos": 10,
+      "max_caracteres": 15,
+      "max_utf16": 15,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "tipos_item.rotulo": {
+      "linhas": 10,
+      "nao_nulos": 10,
+      "max_caracteres": 15,
+      "max_utf16": 15,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "unidades_apelidos.apelido": {
+      "linhas": 13,
+      "nao_nulos": 13,
+      "max_caracteres": 17,
+      "max_utf16": 17,
+      "acima_do_teto": null,
+      "teto": null
+    },
+    "unidades_apelidos.apelido_chave": {
+      "linhas": 13,
+      "nao_nulos": 13,
+      "max_caracteres": 17,
+      "max_utf16": 17,
+      "acima_do_teto": null,
+      "teto": null
+    }
+  },
+  "arrays": {
+    "movimentacoes.itens_faltantes": {
+      "linhas": 3960,
+      "nao_nulos": 200,
+      "max_elementos": 4,
+      "max_caracteres_elemento": 10
+    }
+  }
+}
