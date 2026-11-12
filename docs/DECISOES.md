@@ -13851,3 +13851,19 @@ R-ACC-118 a R-ACC-123; ADR-003, nota F66B; RUNBOOK, Anexo F66B; PLANO, a nota F6
 - **(e) Os caminhos de escrita sem `.max()`** (compra, devolução, ficha, movimentação) não ganharam `.max()`: a decisão 6
   da ordem proíbe mexer em teto de tela. Ficam numa lista nominal da trava de mesa, que confere que continuam sem teto ≤ o
   banco. Backlog nomeado.
+- **(f) O `maxLength` do formulário da devolução** (o campo de observações do substituto) acompanha a decisão 6 — sem
+  ele a tela seguiria em 500. É o único componente tocado: **desvio declarado** do critério 18.
+- **(g) "O backup fica" no 23514 do import** (texto da ordem, decisão 10): medido, o código (desde a F7F, sem mudança)
+  DESCARTA o backup do import que a RPC recusou — a transação reverteu, não há o que restaurar. A fase não mudou isso; a
+  frase nova chega pelo mesmo `traduzErroBanco`.
+- **(h) A revisão adversarial** (seis lentes pelo SHA `1a18079`, um cético por achado): 7 achados, 5 refutados, 2
+  sobreviventes baixos — a trava de mesa exigia o CHECK na migration do lote (bloquearia o procedimento oficial de mudar
+  um teto) e a auto-sabotagem testava uma cópia da consulta —, corrigidos no `19fab9e`. A re-revisão, até limpar: a 1ª
+  passada achou o filtro do `count` escrito à parte do da lista (corrigido no `d05a52a`); a 2ª, o `drop … cascade` não
+  reconhecido pelo casador (corrigido no `8bc70ba`); a 3ª, `rename`/`drop column`/`drop table`/`alter table if exists`
+  (corrigido no `1fc3b22`). **Troca de abordagem** (a regra dos ~3 ciclos): as bordas eram da RÉPLICA do casador, cada
+  vez mais hipotéticas; a autoridade é a trava de catálogo no CI, que acusaria cada uma — o ciclo parou. O SHA de código
+  congelado é o `1fc3b22`.
+- **(i) O apply não aconteceu.** O conector da Supabase ficou na conta errada a run inteira (conferido no começo, a cada
+  marco e antes de fechar); o PR #92 ficou aberto, sem merge, com o caminho B no topo do relatório. O Johnny foi avisado
+  por notificação no começo da run.

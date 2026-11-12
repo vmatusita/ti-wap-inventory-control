@@ -1,8 +1,8 @@
 # F66B — as sabotagens A, B, F e I, com a saída real
 
-Onde estão as outras: **C** (o comportamento, teto + 1 e sem o CHECK) e **D** (a RPC do import por fora) são asserções do roteiro `comprimento_comportamento.sql` (B1e, L*c, I1–I4) e da trava vermelha (`B-travas/`); **E** em `E-import-pela-tela.txt`; **G** em `G-contagem/` (a mesa; o ensaio é do portão); **H** em `H-rollback/`; o injetor em `injetor-mesa.txt`. A auto-sabotagem S1–S6 roda DENTRO de `comprimento_por_coluna.sql` a cada execução. Tudo na mesa (PGlite PG 17.5) e, no que é SQL, conferido pelo CI do PR #92.
+Onde estão as outras: **C** (o comportamento, teto + 1 e sem o CHECK) e **D** (a RPC do import por fora) são asserções do roteiro `comprimento_comportamento.sql` (B1e, L*c, I1–I4) e da trava vermelha (`B-travas/`); **E** em `E-import-pela-tela.txt`; **G** em `G-contagem/` (a mesa; o ensaio é do portão); **H** em `H-rollback/`; o injetor em `injetor-mesa.txt`. A auto-sabotagem S1–S6 roda DENTRO de `comprimento_por_coluna.sql` a cada execução, chamando as mesmas funções das asserções. Tudo na mesa (PGlite PG 17.5) e, no que é SQL, conferido pelo CI do PR #92.
 
-## Sabotagem A — comprimento_por_coluna.sql com o catálogo SABOTADO (mesa PGlite PG 17.5, cadeia 0001–0184, 12/11/2026 16:16)
+## Sabotagem A — comprimento_por_coluna.sql (SHA d05a52a) com o catálogo SABOTADO (mesa PGlite PG 17.5, cadeia 0001–0184, 12/11/2026 16:29)
 
 Cada caso: o que foi sabotado e os rótulos ✗ que o roteiro derrubou, com o nome da coluna. O controle (sem sabotagem) dá 17 asserções, 0 falhas; a cadeia SEM a F66B dá 6 falhas (B-travas/).
 ```
@@ -30,10 +30,9 @@ supabase/tests/comprimento_por_coluna.sql: FIM comprimento_por_coluna: 17 asser�
 WARNING:  ✗ C1 toda coluna de texto das 20 tem o CHECK de comprimento com o nome esperado — sem: senhas_acesso.observacao_interna: 1 de 66 fora da regra
 WARNING:  ✗ C4 o teto do CHECK é o da fonte única (k_comprimento_teto) — divergente: senhas_acesso.observacao_interna (banco ∅, fonte ∅): 1 de 66 fora da regra
 supabase/tests/comprimento_por_coluna.sql: FIM comprimento_por_coluna: 17 asserções, 2 falhas · ✗ vistos=2
-### a5: k_comprimento_excecao = ['ativos._f66b_inexistente'] (exceção que aponta coluna inexistente)
-WARNING:  ✗ C7a toda exceção nominal aponta coluna de texto viva das 20 — fantasma: ativos._f66b_inexistente: 1 de 66 fora da regra
-WARNING:  ✗ S6 a C7a não acusou a exceção fantasma (contou 2)
-a5.sql: FIM comprimento_por_coluna: 17 asserções, 2 falhas · ✗ vistos=2
+### a5: k_comprimento_excecao = ['ativos._f66b_fantasma'] (exceção que aponta coluna inexistente)
+WARNING:  ✗ C7a toda exceção nominal aponta coluna de texto viva das 20 — fantasma: ativos._f66b_fantasma: 1 de 66 fora da regra
+a5.sql: FIM comprimento_por_coluna: 17 asserções, 1 falhas · ✗ vistos=1
 ### a6: k_comprimento_excecao = ['senhas_acesso.rotulo'] (exceção para coluna que TEM o CHECK)
 WARNING:  ✗ C7b nenhuma exceção nominal tem o CHECK canônico (exceção com CHECK é lista desatualizada) — com CHECK: senhas_acesso.rotulo: 1 de 65 fora da regra
 a6.sql: FIM comprimento_por_coluna: 17 asserções, 1 falhas · ✗ vistos=1

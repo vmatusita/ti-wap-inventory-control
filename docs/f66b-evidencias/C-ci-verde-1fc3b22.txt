@@ -1,0 +1,25 @@
+# CI do PR #92, run 43291899564, head 1fc3b22 (O SHA DE CÓDIGO CONGELADO) — os dois jobs VERDES (verificar, banco-sem-docker)
+
+---- gate de deriva de tipos ----
+banco ....... 38 relações · 358 colunas · 95 funções
+database.ts . 38 relações · 358 colunas · 95 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  FIM comprimento_comportamento: 28 asserções, 0 falhas
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  FIM comprimento_por_coluna: 17 asserções, 0 falhas
+supabase/tests/f62_rollback.sql:213: NOTICE:  FIM f62_rollback: 4 asserções, 0 falhas
+supabase/tests/f63_rollback.sql:158: NOTICE:  FIM f63_rollback: 5 asserções, 0 falhas
+supabase/tests/f64_rollback.sql:184: NOTICE:  FIM f64_rollback: 5 asserções, 0 falhas
+supabase/tests/f65_rollback.sql:200: NOTICE:  FIM f65_rollback: 5 asserções, 0 falhas
+supabase/tests/f66_rollback.sql:164: NOTICE:  FIM f66_rollback: 6 asserções, 0 falhas
+supabase/tests/f66b_rollback.sql:114: NOTICE:  FIM f66b_rollback: 5 asserções, 0 falhas
+  57 roteiro(s), 1203 asserções no total
+f66b-check-some                                            comprimento_por_coluna.sql           C1                                detectada            476 ms
+f66b-check-not-valid                                       comprimento_por_coluna.sql           C3,C9                             detectada            492 ms
+f66b-check-octet-length                                    comprimento_por_coluna.sql           C2                                detectada            481 ms
+f66b-teto-sobe-sem-a-fonte                                 comprimento_por_coluna.sql           C4                                detectada            481 ms
+f66b-coluna-nova-sem-teto                                  comprimento_por_coluna.sql           C1                                detectada            482 ms
+f66b-import-por-fora-sem-teto                              comprimento_comportamento.sql        I1,I2                             detectada            344 ms
+f66b-chave-com-o-teto-da-origem                            comprimento_comportamento.sql        K2                                detectada            350 ms
+163/163 detectadas pelo cenário nomeado · 50328 ms no total
+ Test Files  268 passed (268)

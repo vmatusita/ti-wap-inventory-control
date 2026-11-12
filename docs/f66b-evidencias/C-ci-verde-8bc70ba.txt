@@ -1,0 +1,87 @@
+# CI do PR #92, run 43291114484, head 8bc70ba — os dois jobs VERDES (verificar, banco-sem-docker)
+# 8bc70ba difere do SHA congelado (1fc3b22) só em src/lib/validators/tetos-coluna.test.ts (o casador da trava de mesa); o CI do 1fc3b22 está no RELATORIO §8.
+
+## o gate de deriva de tipos
+---- gate de deriva de tipos ----
+banco ....... 38 relações · 358 colunas · 95 funções
+database.ts . 38 relações · 358 colunas · 95 funções
+
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+## as travas da F66B e os ensaios de rollback
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  FIM comprimento_comportamento: 28 asserções, 0 falhas
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  FIM comprimento_por_coluna: 17 asserções, 0 falhas
+supabase/tests/f62_rollback.sql:213: NOTICE:  FIM f62_rollback: 4 asserções, 0 falhas
+supabase/tests/f63_rollback.sql:158: NOTICE:  FIM f63_rollback: 5 asserções, 0 falhas
+supabase/tests/f64_rollback.sql:184: NOTICE:  FIM f64_rollback: 5 asserções, 0 falhas
+supabase/tests/f65_rollback.sql:200: NOTICE:  FIM f65_rollback: 5 asserções, 0 falhas
+supabase/tests/f66_rollback.sql:164: NOTICE:  FIM f66_rollback: 6 asserções, 0 falhas
+supabase/tests/f66b_rollback.sql:114: NOTICE:  FIM f66b_rollback: 5 asserções, 0 falhas
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ D0 os derivados declarados são exatamente as colunas geradas de texto das 20 (0 de 3 conferidos)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ B1a o valor NO teto passa, em cada uma das colunas da fonte (0 de 65 conferidos)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ B1b o teto + 1 leva 23514 com o nome <tabela>_<coluna>_tamanho, em cada coluna (0 de 65 conferidos)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ B1c NULL passa, em cada coluna (0 de 65 conferidos)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ B1d o UPDATE para o teto + 1 leva 23514 com o nome, em cada coluna (0 de 65 conferidos)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ B1e sem o CHECK o teto + 1 passa (quem recusou foi o CHECK) (0 de 65 conferidos)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L1a colaboradores: INSERT do nome com 120 passa, com 121 leva 23514 colaboradores_nome_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L1b colaboradores: UPDATE do setor com 80 passa, com 81 leva 23514 colaboradores_setor_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L1c sem colaboradores_nome_tamanho o nome com 121 passa (quem recusou foi o CHECK)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L2a ativos: INSERT da marca com 60 passa, com 61 leva 23514 ativos_marca_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ M1 a mensagem do 23514 é "new row for relation "ativos" violates check constraint "ativos_marca_tamanho"" — o formato que a tradução lê
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L2b ativos: UPDATE das observações com 2000 passa, com 2001 leva 23514 ativos_observacoes_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L2c sem ativos_observacoes_tamanho as observações com 2001 passam (quem recusou foi o CHECK)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L3a motivos: INSERT do código com 40 passa, com 41 leva 23514 motivos_codigo_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L3b motivos: UPDATE do rótulo com 80 passa, com 81 leva 23514 motivos_rotulo_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L3c sem motivos_codigo_tamanho o código com 41 passa (quem recusou foi o CHECK)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L4a senhas_acesso: INSERT do rótulo com 80 passa, com 81 leva 23514 senhas_acesso_rotulo_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L4b senhas_acesso: UPDATE do hash com 200 passa, com 201 leva 23514 senhas_acesso_hash_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ L4c sem senhas_acesso_hash_tamanho o hash com 201 passa (quem recusou foi o CHECK)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ I1 a RPC do import chamada por fora com a marca de 61 leva 23514 ativos_marca_tamanho
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ I2 depois da recusa a filial está como antes (1 ativo, 1 movimentação, o mesmo ativo, nenhuma trilha)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ I3 a mesma chamada com a marca de 60 (o teto) grava o ativo
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ I4 sem ativos_marca_tamanho a RPC chamada por fora grava a marca de 61 (o desvio que o CHECK fecha)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ K1 colaborador_chave de 120 × U+FB2C tem 360 caracteres: maior que a origem (120), dentro do teto da chave (360)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ K2 o colaborador de nome 120 × U+FB2C grava (nome_chave no pior caso cabe em colaboradores_nome_chave_tamanho)
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ K3 item_chave de 80 × U+FB2C tem 240 caracteres: > 80 e ≤ 240
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ K4 vocabulario_chave de 80 × U+AC01 tem 240 caracteres: > 80 e ≤ 240
+supabase/tests/comprimento_comportamento.sql:508: NOTICE:  ✓ K5 colaborador_chave de 120 × U+0130 tem 120 caracteres (≤ 360)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C0 as 20 tabelas de k_negocio existem (0 de 20 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C1 toda coluna de texto das 20 tem o CHECK de comprimento com o nome esperado (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C2 o CHECK de comprimento tem a forma char_length(<a coluna>) <= <inteiro> (lida pela árvore conbin) (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C3 o CHECK de comprimento está validado (nenhum not valid) (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C4 o teto do CHECK é o da fonte única (k_comprimento_teto) (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C5 nenhuma coluna tem mais de um CHECK canônico de comprimento (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C6 toda entrada de k_comprimento_teto é coluna de texto viva das 20 (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C7a toda exceção nominal aponta coluna de texto viva das 20 (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C7b nenhuma exceção nominal tem o CHECK canônico (exceção com CHECK é lista desatualizada) (0 de 65 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C8 todo nome alternativo é justificado (o nome do padrão pertence a uma constraint anterior de outra forma) (0 de 1 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ C9 nenhum CHECK de comprimento das 20 (char_length, length, octet_length, character_length) está not valid (0 de 69 conferidos)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ S1 a C1 acusa a coluna text sintética sem CHECK (kits_modelos._f66b_sintetica)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ S2 a C1 acusa a coluna cujo CHECK foi retirado (ativos.marca)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ S3 a C3 acusa o CHECK recriado not valid (motivos_rotulo_tamanho)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ S4 a C2 acusa o CHECK com octet_length no lugar de char_length (filiais_nome_tamanho)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ S5 a C7b acusa a exceção que tem o CHECK (senhas_acesso.rotulo)
+supabase/tests/comprimento_por_coluna.sql:438: NOTICE:  ✓ S6 a C7a acusa a exceção que aponta coluna inexistente (ativos._f66b_inexistente)
+supabase/tests/f66b_rollback.sql:114: NOTICE:  (medição) CHECK de public antes/depois do rollback: 101:b47d3c3269951792326b587500295b62 → 36:f921131b4bf0a4c7635606c14a29f790; canônicos de comprimento 65 → 0
+supabase/tests/f66b_rollback.sql:114: NOTICE:  ✓ rb0 antes do rollback, os 65 CHECK de comprimento da F66B existem (101 CHECK em public) (0 de 2 conferidos)
+supabase/tests/f66b_rollback.sql:114: NOTICE:  ✓ rb1 depois do rollback, nenhum CHECK canônico de comprimento sobra (0 de 65 conferidos)
+supabase/tests/f66b_rollback.sql:114: NOTICE:  ✓ rb2 as CHECK de public depois do rollback são as de ANTES da 0181 (contagem e md5 do pg_get_constraintdef) (0 de 1 conferidos)
+supabase/tests/f66b_rollback.sql:114: NOTICE:  ✓ rb3 as de comprimento anteriores à F66B (anotacao_texto_len, unidades_apelidos_apelido_tamanho) ficaram (0 de 2 conferidos)
+supabase/tests/f66b_rollback.sql:114: NOTICE:  ✓ rb4 o rollback rodado de novo não muda nada (idempotente) (0 de 1 conferidos)
+
+## o total dos roteiros
+  57 roteiro(s), 1203 asserções no total
+
+## o injetor
+f66b-check-some                                            comprimento_por_coluna.sql           C1                                detectada            486 ms
+f66b-check-not-valid                                       comprimento_por_coluna.sql           C3,C9                             detectada            490 ms
+f66b-check-octet-length                                    comprimento_por_coluna.sql           C2                                detectada            494 ms
+f66b-teto-sobe-sem-a-fonte                                 comprimento_por_coluna.sql           C4                                detectada            491 ms
+f66b-coluna-nova-sem-teto                                  comprimento_por_coluna.sql           C1                                detectada            493 ms
+f66b-import-por-fora-sem-teto                              comprimento_comportamento.sql        I1,I2                             detectada            358 ms
+f66b-chave-com-o-teto-da-origem                            comprimento_comportamento.sql        K2                                detectada            363 ms
+163/163 detectadas pelo cenário nomeado · 53334 ms no total
+
+## os testes
+ Test Files  268 passed (268)
+      Tests  8442 passed (8442)

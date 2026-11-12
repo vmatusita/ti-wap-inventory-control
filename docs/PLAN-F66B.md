@@ -386,4 +386,16 @@ acima do import (fato 6); os rollbacks F63–F65 dependem da F66B (fato 18); o M
 
 ## 9. O SHA de código congelado
 
-*(preenchido na Frente G, passo 3.)*
+**`1fc3b22`** (12/11/2026) — o último commit que toca `src/**`, `scripts/**` ou `supabase/**`, depois da revisão
+adversarial (seis lentes, 7 achados, 2 sobreviventes corrigidos no `19fab9e`) e de três passadas da re-revisão (1
+sobrevivente em cada, corrigidos no `d05a52a`, no `8bc70ba` e no `1fc3b22`). Depois dele, só `docs/**` e
+`CHANGELOG.md`. O CI deste SHA é o do §8 do relatório; o apply nos bancos espera o conector da Supabase (o caminho B no
+topo de `RELATORIO-F66B.md`).
+
+**A troca de abordagem na re-revisão** (a regra dos ~3 ciclos da ordem): as três passadas acharam, cada uma, uma borda a
+mais do CASADOR da trava de mesa — a réplica, em TypeScript, do que as migrations fazem com cada CHECK (`drop … cascade`;
+`rename`, `drop column`, `drop table`, `alter table if exists`). A réplica nunca será o Postgres; a autoridade de "o CHECK
+existe, com este nome, esta forma e este teto" é a trava de CATÁLOGO (`comprimento_por_coluna.sql`, C0–C9), que roda no
+CI contra o banco construído das migrations e acusaria cada uma dessas bordas (C1, C4, C6, C0). Paramos de perseguir a
+réplica: a trava de mesa fica com o que só ela vê (a fonte ↔ o literal das migrations, os caminhos de tela, o import), e
+o que ela não vê está declarado no cabeçalho dela e na ata.
