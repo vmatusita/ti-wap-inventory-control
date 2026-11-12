@@ -94,54 +94,57 @@ $f$;
 -- AS ASSERÇÕES QUE A AUTO-SABOTAGEM EXERCITA, cada uma numa função: a asserção do bloco abaixo e a sabotagem chamam A
 -- MESMA função (revisão adversarial da F66B: uma CÓPIA da consulta dentro da sabotagem provaria a cópia, não a
 -- asserção). Devolvem (ruins, universo, lista); a lista é `tabela.coluna` (C1, C7a, C7b) ou o nome da constraint (C2, C3).
+-- O filtro de cada uma é escrito UMA vez (o conjunto `ruim`), e a contagem e a lista saem dele — a re-revisão achou
+-- que, com os dois filtros escritos à parte, um `count` afrouxado passaria com a lista intacta.
 create function pg_temp.f66b_c1(p_neg text[], p_exc text[], p_alt text[], p_teto text[])
 returns table (ruins bigint, univ bigint, lista text)
 language sql stable as $f$
-  select count(*) filter (where not e.excecao and not e.tem), count(*),
-         coalesce(string_agg(e.tabela || '.' || e.coluna, ', ' order by e.tabela, e.coluna)
-                    filter (where not e.excecao and not e.tem), '')
-    from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto) e
+  with e as (select * from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto)),
+       ruim as (select e.tabela || '.' || e.coluna as item from e where not e.excecao and not e.tem)
+  select (select count(*) from ruim), (select count(*) from e),
+         coalesce((select string_agg(item, ', ' order by item) from ruim), '')
 $f$;
 
 create function pg_temp.f66b_c2(p_neg text[], p_exc text[], p_alt text[], p_teto text[])
 returns table (ruins bigint, univ bigint, lista text)
 language sql stable as $f$
-  select count(*) filter (where e.tem and not e.canonica), count(*),
-         coalesce(string_agg(e.nome, ', ' order by e.nome) filter (where e.tem and not e.canonica), '')
-    from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto) e
+  with e as (select * from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto)),
+       ruim as (select e.nome as item from e where e.tem and not e.canonica)
+  select (select count(*) from ruim), (select count(*) from e),
+         coalesce((select string_agg(item, ', ' order by item) from ruim), '')
 $f$;
 
 create function pg_temp.f66b_c3(p_neg text[], p_exc text[], p_alt text[], p_teto text[])
 returns table (ruins bigint, univ bigint, lista text)
 language sql stable as $f$
-  select count(*) filter (where e.tem and not e.validada), count(*),
-         coalesce(string_agg(e.nome, ', ' order by e.nome) filter (where e.tem and not e.validada), '')
-    from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto) e
+  with e as (select * from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto)),
+       ruim as (select e.nome as item from e where e.tem and not e.validada)
+  select (select count(*) from ruim), (select count(*) from e),
+         coalesce((select string_agg(item, ', ' order by item) from ruim), '')
 $f$;
 
 create function pg_temp.f66b_c7a(p_neg text[], p_exc text[])
 returns table (ruins bigint, univ bigint, lista text)
 language sql stable as $f$
-  select count(*) filter (where not exists (select 1 from pg_temp.f66b_universo(p_neg) u where u.tabela || '.' || u.coluna = x)),
-         (select count(*) from pg_temp.f66b_universo(p_neg)) + count(*),
-         coalesce(string_agg(x, ', ' order by x)
-                    filter (where not exists (select 1 from pg_temp.f66b_universo(p_neg) u where u.tabela || '.' || u.coluna = x)), '')
-    from unnest(p_exc) as x
+  with u as (select tabela || '.' || coluna as item from pg_temp.f66b_universo(p_neg)),
+       ruim as (select x as item from unnest(p_exc) as x where not exists (select 1 from u where u.item = x))
+  select (select count(*) from ruim), (select count(*) from u) + coalesce(cardinality(p_exc), 0),
+         coalesce((select string_agg(item, ', ' order by item) from ruim), '')
 $f$;
 
 create function pg_temp.f66b_c7b(p_neg text[], p_exc text[], p_alt text[], p_teto text[])
 returns table (ruins bigint, univ bigint, lista text)
 language sql stable as $f$
-  select count(*) filter (where e.excecao and e.n_canonicas > 0), count(*),
-         coalesce(string_agg(e.tabela || '.' || e.coluna, ', ' order by e.tabela, e.coluna)
-                    filter (where e.excecao and e.n_canonicas > 0), '')
-    from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto) e
+  with e as (select * from pg_temp.f66b_estado(p_neg, p_exc, p_alt, p_teto)),
+       ruim as (select e.tabela || '.' || e.coluna as item from e where e.excecao and e.n_canonicas > 0)
+  select (select count(*) from ruim), (select count(*) from e),
+         coalesce((select string_agg(item, ', ' order by item) from ruim), '')
 $f$;
 
--- a lista de uma asserção cita o item? (item inteiro, separado por ', ')
+-- a lista de uma asserção cita o item, inteiro? (sem curinga: position, não like)
 create function pg_temp.f66b_cita(p_lista text, p_item text) returns boolean
 language sql immutable as $f$
-  select (', ' || coalesce(p_lista, '') || ',') like ('%, ' || p_item || ',%')
+  select position((', ' || p_item || ',') in (', ' || coalesce(p_lista, '') || ',')) > 0
 $f$;
 
 do $$
@@ -348,84 +351,84 @@ begin
   -- dela CITE o item sabotado — vale no catálogo verde (a lista tem só ele) e no vermelho (ele está entre os outros).
 
   -- S1 — uma coluna text NOVA numa das 20, sem CHECK → a C1 a acusa
-  v_lista := null; v_erro := null;
+  v_cnt := null; v_lista := null; v_erro := null;
   begin
     alter table public.kits_modelos add column _f66b_sintetica text;
-    select lista into v_lista
+    select ruins, lista into v_cnt, v_lista
       from pg_temp.f66b_c1(k_negocio, k_comprimento_excecao, k_comprimento_nome_alternativo, k_comprimento_teto);
     raise exception 'f66b-desfaz';
   exception when others then
     if sqlerrm <> 'f66b-desfaz' then v_erro := sqlerrm; end if;
   end;
-  if pg_temp.f66b_cita(v_lista, 'kits_modelos._f66b_sintetica') then
+  if v_cnt >= 1 and pg_temp.f66b_cita(v_lista, 'kits_modelos._f66b_sintetica') then
     v_ok := v_ok + 1; raise notice '✓ S1 a C1 acusa a coluna text sintética sem CHECK (kits_modelos._f66b_sintetica)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ S1 a C1 não acusou a coluna sintética (lista: %; erro: %)', coalesce(v_lista, '∅'), coalesce(v_erro, '—');
   end if;
 
   -- S2 — o CHECK de uma coluna some → a C1 o acusa
-  v_lista := null; v_erro := null;
+  v_cnt := null; v_lista := null; v_erro := null;
   begin
     alter table public.ativos drop constraint ativos_marca_tamanho;
-    select lista into v_lista
+    select ruins, lista into v_cnt, v_lista
       from pg_temp.f66b_c1(k_negocio, k_comprimento_excecao, k_comprimento_nome_alternativo, k_comprimento_teto);
     raise exception 'f66b-desfaz';
   exception when others then
     if sqlerrm <> 'f66b-desfaz' then v_erro := sqlerrm; end if;
   end;
-  if pg_temp.f66b_cita(v_lista, 'ativos.marca') then
+  if v_cnt >= 1 and pg_temp.f66b_cita(v_lista, 'ativos.marca') then
     v_ok := v_ok + 1; raise notice '✓ S2 a C1 acusa a coluna cujo CHECK foi retirado (ativos.marca)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ S2 a C1 não acusou o CHECK retirado (lista: %; erro: %)', coalesce(left(v_lista, 200), '∅'), coalesce(v_erro, '—');
   end if;
 
   -- S3 — o CHECK recriado not valid → a C3 o acusa
-  v_lista := null; v_erro := null;
+  v_cnt := null; v_lista := null; v_erro := null;
   begin
     alter table public.motivos drop constraint motivos_rotulo_tamanho;
     alter table public.motivos add constraint motivos_rotulo_tamanho check (char_length(rotulo) <= 80) not valid;
-    select lista into v_lista
+    select ruins, lista into v_cnt, v_lista
       from pg_temp.f66b_c3(k_negocio, k_comprimento_excecao, k_comprimento_nome_alternativo, k_comprimento_teto);
     raise exception 'f66b-desfaz';
   exception when others then
     if sqlerrm <> 'f66b-desfaz' then v_erro := sqlerrm; end if;
   end;
-  if pg_temp.f66b_cita(v_lista, 'motivos_rotulo_tamanho') then
+  if v_cnt >= 1 and pg_temp.f66b_cita(v_lista, 'motivos_rotulo_tamanho') then
     v_ok := v_ok + 1; raise notice '✓ S3 a C3 acusa o CHECK recriado not valid (motivos_rotulo_tamanho)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ S3 a C3 não acusou o CHECK not valid (lista: %; erro: %)', coalesce(v_lista, '∅'), coalesce(v_erro, '—');
   end if;
 
   -- S4 — o CHECK com OUTRA forma (octet_length), com o mesmo nome → a C2 o acusa
-  v_lista := null; v_erro := null;
+  v_cnt := null; v_lista := null; v_erro := null;
   begin
     alter table public.filiais drop constraint filiais_nome_tamanho;
     alter table public.filiais add constraint filiais_nome_tamanho check (octet_length(nome) <= 80);
-    select lista into v_lista
+    select ruins, lista into v_cnt, v_lista
       from pg_temp.f66b_c2(k_negocio, k_comprimento_excecao, k_comprimento_nome_alternativo, k_comprimento_teto);
     raise exception 'f66b-desfaz';
   exception when others then
     if sqlerrm <> 'f66b-desfaz' then v_erro := sqlerrm; end if;
   end;
-  if pg_temp.f66b_cita(v_lista, 'filiais_nome_tamanho') then
+  if v_cnt >= 1 and pg_temp.f66b_cita(v_lista, 'filiais_nome_tamanho') then
     v_ok := v_ok + 1; raise notice '✓ S4 a C2 acusa o CHECK com octet_length no lugar de char_length (filiais_nome_tamanho)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ S4 a C2 não acusou a forma trocada (lista: %; erro: %)', coalesce(v_lista, '∅'), coalesce(v_erro, '—');
   end if;
 
   -- S5 — uma exceção nominal para coluna que TEM o CHECK → a C7b a acusa
-  select lista into v_lista
+  select ruins, lista into v_cnt, v_lista
     from pg_temp.f66b_c7b(k_negocio, k_comprimento_excecao || array['senhas_acesso.rotulo'],
                           k_comprimento_nome_alternativo, k_comprimento_teto);
-  if pg_temp.f66b_cita(v_lista, 'senhas_acesso.rotulo') then
+  if v_cnt >= 1 and pg_temp.f66b_cita(v_lista, 'senhas_acesso.rotulo') then
     v_ok := v_ok + 1; raise notice '✓ S5 a C7b acusa a exceção que tem o CHECK (senhas_acesso.rotulo)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ S5 a C7b não acusou a exceção com CHECK (lista: %)', coalesce(v_lista, '∅');
   end if;
 
   -- S6 — uma exceção nominal que aponta coluna inexistente → a C7a a acusa
-  select lista into v_lista from pg_temp.f66b_c7a(k_negocio, k_comprimento_excecao || array['ativos._f66b_inexistente']);
-  if pg_temp.f66b_cita(v_lista, 'ativos._f66b_inexistente') then
+  select ruins, lista into v_cnt, v_lista from pg_temp.f66b_c7a(k_negocio, k_comprimento_excecao || array['ativos._f66b_inexistente']);
+  if v_cnt >= 1 and pg_temp.f66b_cita(v_lista, 'ativos._f66b_inexistente') then
     v_ok := v_ok + 1; raise notice '✓ S6 a C7a acusa a exceção que aponta coluna inexistente (ativos._f66b_inexistente)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ S6 a C7a não acusou a exceção fantasma (lista: %)', coalesce(v_lista, '∅');
