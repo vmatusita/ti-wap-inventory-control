@@ -3428,6 +3428,7 @@ const F66_RECORTE = [
 // as migrations, e não vê um banco que divergiu delas). "A exceção nominal ganha uma coluna que tem CHECK" não entra:
 // é edição do ROTEIRO, não do banco — provada pela auto-sabotagem S5 e pela evidência A6 (PLAN-F66B, decisão 13).
 // =============================================================================
+/** @type {Mutacao[]} */
 const F66B_COMPRIMENTO = [
   {
     id: 'f66b-check-some',

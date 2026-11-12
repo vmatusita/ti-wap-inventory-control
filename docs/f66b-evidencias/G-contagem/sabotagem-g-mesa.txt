@@ -1,0 +1,15 @@
+# Sabotagem G na MESA (PGlite PG 17.5, cadeia 0001–0184, 12/11/2026 16:05) — o bloco SABE achar violação.
+# A prova nos bancos vivos (o ensaio, pelo MCP) é do portão da Frente G; aqui, o mesmo texto do bloco contra um banco descartável.
+# fixture (fictícia): public.ambiente = 'desenvolvimento' e 3 ativos com marca 'Marca Ficticia' (14 caracteres).
+## normal-sem-fixture (alvo producao)
+[contagem-violacao] alvo producao · rótulo (null) · 65 colunas · 67 linhas · 0 acima do teto · 0 faltando
+## normal-com-fixture (alvo ensaio)
+[contagem-violacao] alvo ensaio · rótulo desenvolvimento · 65 colunas · 71 linhas · 0 acima do teto · 0 faltando
+## sabotada-com-fixture (alvo ensaio)
+[contagem-violacao] alvo ensaio · rótulo desenvolvimento · 65 colunas · 71 linhas · 3 acima do teto · 0 faltando · SABOTADO
+  ✗ ativos.marca: 3 acima do teto 0 (máx 14)
+## sabotada-sem-rotulo (alvo producao)
+{
+  "alvo": "producao",
+  "recusa": "F66B_SABOTAGEM_FORA_DO_ENSAIO rotulo=(null)"
+}
