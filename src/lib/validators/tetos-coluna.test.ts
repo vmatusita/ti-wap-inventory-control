@@ -189,17 +189,26 @@ const tetoDe = (coluna: string): number => {
   return v
 }
 
-/** Os `add constraint … check (char_length(…) <= N)` das migrations, pelo léxico único. */
-function constraintsDasMigrations() {
-  const achadas = new Map<string, { tabela: string; coluna: string; teto: number; migration: string }>()
-  for (const arquivo of listarMigrations(RAIZ)) {
-    for (const cmd of comandosDoTexto(ler('supabase', 'migrations', arquivo))) {
+/**
+ * Os `add constraint … check (char_length(…) <= N)` das migrations, pelo léxico único, na ORDEM das migrations: o estado
+ * final de cada nome (o último `add` depois do último `drop`) e a migration que o CRIOU pela primeira vez (`criadaEm`).
+ * Mudar um teto é uma migration NOVA com `drop`/`add` (o procedimento do cabeçalho de tetos-coluna.ts): o `teto` passa a
+ * ser o dela, e o `criadaEm` continua sendo o lote da F66B — revisão adversarial da F66B, achado 1.
+ */
+function constraintsDe(migracoes: readonly (readonly [arquivo: string, sql: string])[]) {
+  const achadas = new Map<string, { tabela: string; coluna: string; teto: number; migration: string; criadaEm: string }>()
+  const criadaEm = new Map<string, string>()
+  for (const [arquivo, sql] of migracoes) {
+    for (const cmd of comandosDoTexto(sql)) {
       const c = cmd.replace(/\s+/g, ' ').trim().toLowerCase()
       const m = /^alter table (?:only )?(?:public\.)?([a-z_0-9]+) (.*)$/.exec(c)
       if (!m) continue
       for (const parte of m[2].split(/,\s*(?=add constraint |drop constraint )/)) {
         const add = /^add constraint ([a-z_0-9]+) check \(char_length\(([a-z_0-9]+)\) <= (\d+)\)$/.exec(parte.trim())
-        if (add) achadas.set(add[1], { tabela: m[1], coluna: add[2], teto: Number(add[3]), migration: arquivo })
+        if (add) {
+          if (!criadaEm.has(add[1])) criadaEm.set(add[1], arquivo)
+          achadas.set(add[1], { tabela: m[1], coluna: add[2], teto: Number(add[3]), migration: arquivo, criadaEm: criadaEm.get(add[1])! })
+        }
         const drop = /^drop constraint (?:if exists )?([a-z_0-9]+)$/.exec(parte.trim())
         if (drop) achadas.delete(drop[1])
       }
@@ -207,6 +216,8 @@ function constraintsDasMigrations() {
   }
   return achadas
 }
+const constraintsDasMigrations = () =>
+  constraintsDe(listarMigrations(RAIZ).map((arquivo: string) => [arquivo, ler('supabase', 'migrations', arquivo)] as const))
 
 /** Lê um `text[]` de um roteiro: `<nome> text[] := array[ … ];` → as strings. */
 function arrayDoRoteiro(roteiro: string, nome: string): string[] {
@@ -263,16 +274,25 @@ describe('2. migrations ↔ fonte, nos dois sentidos', () => {
   const achadas = constraintsDasMigrations()
   const cs = constraintsDeTamanho()
 
-  it('toda entrada da fonte tem o CHECK com o MESMO nome, coluna e teto, na migration do lote dela', () => {
+  it('toda entrada da fonte tem o CHECK com o MESMO nome, coluna e teto (o vigente), criado na migration do lote dela', () => {
     for (const c of cs) {
       const m = achadas.get(c.nome)
       expect(m, `${c.nome}: nenhuma migration o cria`).toBeDefined()
       expect(m!.tabela, c.nome).toBe(c.tabela)
       expect(m!.coluna, c.nome).toBe(c.coluna)
-      expect(m!.teto, `${c.nome}: o teto da migration diverge da fonte`).toBe(c.teto)
+      expect(m!.teto, `${c.nome}: o teto vigente nas migrations (${m!.migration}) diverge da fonte`).toBe(c.teto)
       const lote = LOTES_COMPRIMENTO.find((l) => (l.tabelas as readonly string[]).includes(c.tabela))!
-      expect(m!.migration, c.nome).toBe(lote.migration)
+      expect(m!.criadaEm, `${c.nome}: não nasceu no lote dele`).toBe(lote.migration)
     }
+  })
+
+  it('o casador segue a ORDEM das migrations: uma migration nova que muda o teto (drop/add) passa a valer', () => {
+    // o casador DE VERDADE (constraintsDe), sobre o texto sintético de duas migrations
+    const r = constraintsDe([
+      ['0182_x.sql', 'alter table public.ativos add constraint ativos_marca_tamanho check (char_length(marca) <= 60);'],
+      ['0190_y.sql', 'alter table public.ativos drop constraint ativos_marca_tamanho, add constraint ativos_marca_tamanho check (char_length(marca) <= 80);'],
+    ])
+    expect(r.get('ativos_marca_tamanho')).toMatchObject({ teto: 80, criadaEm: '0182_x.sql', migration: '0190_y.sql' })
   })
 
   it('todo CHECK de comprimento canônico das migrations está na fonte (nenhum teto fora dela)', () => {
