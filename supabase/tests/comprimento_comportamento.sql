@@ -18,6 +18,8 @@
 --   K1–K5 — a chave derivada no pior caso: 120 caracteres de U+FB2C dão uma chave MAIOR que a origem (K1 — o teto igual
 --        ao da origem seria o bug) e que CABE no teto 3× (K2, inserindo de verdade); idem item e vocabulário (K3, K4);
 --        e o U+0130 cabe (K5).
+--   M1 — a mensagem do 23514 é, de verdade, `new row for relation "<t>" violates check constraint "<nome>"`: o
+--        formato de que a tradução (fraseDeComprimento, src/lib/supabase/erros-do-banco.ts) tira o nome.
 --
 -- Antes das migrations da F66B ele reprova: o teto + 1 passa (B1b, B1d, L*, I1). docs/f66b-evidencias/B-travas/.
 --
@@ -267,6 +269,21 @@ begin
   else
     v_falhas := v_falhas + 1; raise warning '✗ L2a ativos INSERT: no teto %, teto + 1 %', v_r, v_s;
   end if;
+  -- M1 — a mensagem REAL do 23514 cita a constraint no formato que a tradução lê (fraseDeComprimento, erros-do-banco.ts)
+  v_estado := null; v_con := null; v_erro := null;
+  begin
+    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, marca)
+    values (null, 'ZZF66BST3', 'notebook', v_f, repeat('m', 61));
+  exception when others then
+    get stacked diagnostics v_estado = returned_sqlstate, v_con = constraint_name, v_erro = message_text;
+  end;
+  if v_estado = '23514'
+     and v_erro = 'new row for relation "ativos" violates check constraint "ativos_marca_tamanho"' then
+    v_ok := v_ok + 1; raise notice '✓ M1 a mensagem do 23514 é "%" — o formato que a tradução lê', v_erro;
+  else
+    v_falhas := v_falhas + 1; raise warning '✗ M1 a mensagem do 23514: estado %, texto "%"', coalesce(v_estado, '∅'), coalesce(v_erro, '∅');
+  end if;
+
   select id into v_ativo from public.ativos where filial_id = v_f and service_tag = 'ZZF66BST1';
   v_r := pg_temp.f66b_tenta(format('update public.ativos set observacoes = repeat(%L, 2000) where id = %L', 'o', v_ativo));
   v_s := pg_temp.f66b_tenta(format('update public.ativos set observacoes = repeat(%L, 2001) where id = %L', 'o', v_ativo));

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { definicoesDeFuncao, fimDoComando } from '../../../scripts/db/corpo-vigente.mjs'
 import {
+  COMPRIMENTO_TRADUZIDO,
   CONSTRAINTS_TRADUZIDAS,
   FRASES_DO_AUTH,
   FRASES_DO_MOTOR,
@@ -241,5 +242,27 @@ describe('CONSTRAINTS_TRADUZIDAS — cada nome existe no esquema vivo', () => {
   })
   it.each(Object.entries(TABELAS_CITADAS_EM_ERRO))('a tabela citada %s (%s) existe viva', (_chave, tabela) => {
     expect(TABELAS_VIVAS.has(tabela)).toBe(true)
+  })
+})
+
+// F66B (12/11/2026) — as constraints de COMPRIMENTO. Toda entrada de COMPRIMENTO_TRADUZIDO existe viva como `check`
+// (nenhuma tradução morta), e todo `check` vivo terminado em `_tamanho` tem frase (nenhum teto sem frase — o 23514
+// dele cairia no genérico "Não foi possível concluir a operação").
+describe('COMPRIMENTO_TRADUZIDO — a frase de cada teto de comprimento, contra o esquema vivo', () => {
+  it.each(Object.entries(COMPRIMENTO_TRADUZIDO))('%s existe vivo como check, na tabela declarada', (nome, { tabela }) => {
+    expect(NOMES_VIVOS.get(nome), `${nome} não existe como check no esquema que as migrations produzem hoje`).toBe('check')
+    expect(TABELAS_VIVAS.has(tabela), `${nome}: a tabela ${tabela} não existe`).toBe(true)
+    expect(nome.startsWith(tabela + '_') || nome === 'anotacao_texto_len', `${nome} não começa pela tabela ${tabela}`).toBe(true)
+  })
+
+  it('todo check vivo terminado em _tamanho tem frase', () => {
+    const semFrase = [...NOMES_VIVOS.entries()]
+      .filter(([nome, tipo]) => tipo === 'check' && nome.endsWith('_tamanho') && !(nome in COMPRIMENTO_TRADUZIDO))
+      .map(([nome]) => nome)
+    expect(semFrase, `CHECK de comprimento sem frase pt-BR: ${semFrase.join(', ')}`).toEqual([])
+  })
+
+  it('são as 65 da F66B mais as quatro anteriores', () => {
+    expect(Object.keys(COMPRIMENTO_TRADUZIDO)).toHaveLength(69)
   })
 })

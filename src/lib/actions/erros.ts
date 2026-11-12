@@ -1,6 +1,6 @@
 import { MSG_CHAMADO_OBRIGATORIO } from '@/lib/validators/item'
 import { registrarFalha } from '@/lib/observabilidade'
-import { casa, casaConstraint, FRASES_DO_MOTOR, MSG_SQL } from '@/lib/supabase/erros-do-banco'
+import { casa, casaConstraint, FRASES_DO_MOTOR, fraseDeComprimento, MSG_SQL } from '@/lib/supabase/erros-do-banco'
 
 // Contrato de retorno padrão das Server Actions simples (ok + erro opcional).
 // Antes redefinido como AdminResult/ItemActionResult/EditarAtivoResult/
@@ -42,6 +42,13 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (c === '57014' || casa(m, FRASES_DO_MOTOR.timeout)) {
     return 'A importação demorou demais e foi cancelada — tente novamente ou avise o TI.'
   }
+
+  // F66B — o teto de COMPRIMENTO do banco (23514 de um CHECK `<tabela>_<coluna>_tamanho`): a frase diz o campo e o
+  // teto, com o rótulo e o número da fonte única (`fraseDeComprimento`, erros-do-banco.ts). Chega aqui o texto longo
+  // que escapou do Zod — a tela sem `.max()`, a RPC do import chamada por fora; no import pela tela, a action segue
+  // tratando 23514 como recusa da RPC (RECUSAS_DA_RPC) e descartando o backup, e a frase é esta.
+  const comprimento = fraseDeComprimento(m)
+  if (comprimento) return comprimento
 
   // Transicao invalida (raise do status_apos_movimentacao / trigger).
   if (casa(m, MSG_SQL.transicaoInvalida)) {
