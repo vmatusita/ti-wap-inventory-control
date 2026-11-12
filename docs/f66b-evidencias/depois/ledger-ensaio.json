@@ -1,0 +1,12 @@
+{
+  "projeto": "ensaio (sgmvldiizsrjbxzzpmhh)",
+  "consulta": "select name, md5(statements[1]) from supabase_migrations.schema_migrations where name like 'comprimento\_%'",
+  "ledger": [
+    { "version": "20261112170651", "name": "comprimento_cadastros_do_acervo", "md5_ledger": "65bd515b78f4e121706339e52b3c5057", "md5_arquivo": "65bd515b78f4e121706339e52b3c5057" },
+    { "version": "20261112170901", "name": "comprimento_movimento_do_acervo", "md5_ledger": "c783082f2e80b3a470a4b3b5866bb2a4", "md5_arquivo": "c783082f2e80b3a470a4b3b5866bb2a4" },
+    { "version": "20261112171037", "name": "comprimento_vocabulario", "md5_ledger": "c9ba45b2bcfa43796f1dd50e3ba5e64b", "md5_arquivo": "c9ba45b2bcfa43796f1dd50e3ba5e64b" },
+    { "version": "20261112171208", "name": "comprimento_registros", "md5_ledger": "a3dbc8899bd8d8ccd2d242ea5862c456", "md5_arquivo": "a3dbc8899bd8d8ccd2d242ea5862c456" }
+  ],
+  "total_ledger": 181,
+  "nota": "md5 do texto aplicado (statements[1]) = md5sum do arquivo em supabase/migrations/: o apply foi byte a byte. A versão é a hora local (-03)."
+}

@@ -3,104 +3,65 @@
 Ordem: [`prompts/F66B-comprimento-vira-regra-do-banco-ultracode.md`](prompts/F66B-comprimento-vira-regra-do-banco-ultracode.md).
 Plano: [`PLAN-F66B.md`](PLAN-F66B.md). Ata: 2026-11-12 · F66B em [`DECISOES.md`](DECISOES.md). Regras: MATRIZ, emenda
 F66B (R-ACC-118 a R-ACC-123); ADR-003, emenda F66B; RUNBOOK, Anexo F66B. Evidências: [`f66b-evidencias/`](f66b-evidencias/).
-PR [#92](https://github.com/vmatusita/ti-wap-inventory-control/pull/92). Versão **1.72.0**. Run de 12/11/2026.
+PR [#92](https://github.com/vmatusita/ti-wap-inventory-control/pull/92) (merge `2fbebaa`). Versão **1.72.0**. Run de
+12/11/2026.
 
 ## 0. No topo
 
 ### A resposta
 
-**O código da fase está pronto, verde na mesa e no CI, e NÃO foi aplicado nos bancos.** As 65 colunas de texto das 20
-tabelas de negócio ganham, em quatro migrations (`0181`–`0184`), um teto de comprimento no próprio banco, com o teto ≥ todo
-caminho que grava nelas e ≥ o maior valor vivo nos dois bancos; um texto acima dele leva uma frase pt-BR com o campo e o
-limite. **O apply não aconteceu porque o conector da Supabase desta run estava ligado a OUTRA conta** — o mesmo quadro da
-v1.71.2. Pela ordem, o PR #92 ficou **aberto, sem merge**, e o caminho B está logo abaixo.
+**A fase está no ar: 65 colunas de texto das 20 tabelas de negócio têm, no próprio banco, um teto de comprimento — nos
+dois bancos, com nada mudado para a WAP.** As quatro migrations (`0181`–`0184`) correram lote a lote no ensaio e em
+produção no mesmo dia, cada lote só depois da contagem de violação dar 0 naquele banco, e nenhuma tupla foi reescrita (o
+`relfilenode` das 20 tabelas é o mesmo antes e depois, nos dois). Um texto acima do teto leva uma frase pt-BR com o campo
+e o limite. O PR #92 foi mergeado (`2fbebaa`), a v1.72.0 está no ar, e a tag `v1.72.0` sai com o PR de documentação.
 
 ### Desfecho da run
 
 - **Código:** a branch `f66b-comprimento-vira-regra-do-banco`. **O SHA de código congelado é o `1fc3b22`** (§9 do
-  PLAN-F66B: o último commit que toca `src/**`, `scripts/**` ou `supabase/**`); depois dele, só `docs/**`.
+  PLAN-F66B: o último commit que toca `src/**`, `scripts/**` ou `supabase/**`); depois dele, só `docs/**`. Merge do PR
+  #92: **`2fbebaa`**.
 - **Mesa (no SHA congelado `1fc3b22`):** lint, tipos, 268 arquivos / 8.442 testes, build, contraste e o gate de actions
   limpos. A cadeia inteira numa mesa PG 17.5 (PGlite, fora do projeto): os três roteiros novos verdes, os 54 de antes com
   o MESMO resultado com e sem os 65 CHECK, os seis ensaios de rollback verdes, as sete mutações novas detectadas.
 - **CI:** as travas nasceram vermelhas no PR (run `43283138978`, os dois jobs); verde no `8bc70ba` (57 roteiros, 1.203
   asserções, 0 ✗; injetor 163/163) e no SHA congelado `1fc3b22` (run `43291899564`, os dois jobs; §8).
-- **Bancos vivos: nada aplicado, nada lido pelo SQL.** O máximo vivo por coluna foi medido pela API de leitura do app
-  (17 das 20 tabelas, só números); a contagem de violação e a impressão "antes" esperam o conector.
+- **Bancos vivos (§5, §6):** a primeira parte da run correu com o conector da Supabase ligado a OUTRA conta — o máximo
+  vivo saiu pela API de leitura do app (17 das 20 tabelas). Religado, o caminho B correu inteiro no mesmo dia: o portão
+  (0 acima do teto nas 65 colunas, nos dois bancos, antes de cada lote; a variante sabotada acusou `ativos.marca` no
+  ensaio), as quatro migrations com o texto byte a byte do arquivo (o md5 do ledger = o do arquivo), as CHECK com o md5
+  do CI (`3d16ad91…`), o `relfilenode`, as funções e as policies iguais ao "antes", os advisors sem nada novo, o
+  conferidor de formas sem recusa e o smoke sem falha, a paridade das 11 classes. **Nenhum rollback.**
 - **A revisão adversarial** (seis lentes, um cético por achado, lendo pelo SHA): 7 achados, 5 refutados, **2
   sobreviventes, os dois baixos e corrigidos** (§13). A re-revisão das correções: §13.
+- **Um ponto vermelho que não é da fase:** a Parte B do `saude.yml` (disparada à mão depois do deploy) tem a sonda de
+  deriva limpa (0 pendentes, ledger na `0184`), mas o veredito é VERMELHO pelos dois achados de integridade de DADOS de
+  produção que reprovam a Parte B todo dia desde 19/10 (issue de alarme #84) — os mesmos números na execução agendada de
+  hoje ANTES do apply. Backlog, §12.
 
-### O caminho B: o que ficou para você (o apply, o merge e a tag)
+### Como o caminho B correu
 
-O apply não depende de decisão nova. Só faltou o canal: **o conector da Supabase desta run estava ligado a OUTRA conta**
-(`list_projects` mostra um projeto só, "Invoice Control"; `execute_sql` em `pbtjcalbmepmrqzprusb` e
-`sgmvldiizsrjbxzzpmhh` responde `You do not have permission to perform this action`) — conferido no começo e a cada
-marco. Pela ordem (Bloqueios reais), nada de token, nada de `.env.local`: o PR #92 ficou **aberto, sem merge**.
+A primeira parte da run terminou com o PR #92 em rascunho e este §0 pedindo o apply: o conector da Supabase estava
+ligado a outra conta (`list_projects` mostrava só "Invoice Control"; `execute_sql` nos dois refs da WAP respondia `You do
+not have permission`) e a ordem não deixava buscar token nem abrir o `.env.local`. O Johnny religou o conector ("Já
+reconectei") e o caminho correu na mesma sessão, nesta ordem (o Anexo F66B do `RUNBOOK-BANCO.md`; o detalhe passo a
+passo, com cada arquivo de evidência, em [`f66b-evidencias/depois/pos-deploy.md`](f66b-evidencias/depois/pos-deploy.md)):
 
-Reconecte o conector da Supabase do claude.ai na conta que enxerga os dois projetos da WAP, confira que as ferramentas
-`execute_sql`, `apply_migration`, `list_migrations`, `get_advisors` e `generate_typescript_types` estão ligadas, e peça
-numa sessão nova:
-
-> Retome a F66B pelo §0 do docs/RELATORIO-F66B.md: rode o portão (contagem e impressão) e aplique a 0181–0184 lote a lote
-> no ensaio e em produção, confira, mergeie o PR #92, faça a conferência pós-deploy, o PR de documentação e a tag v1.72.0.
-
-Os passos, na ordem (o Anexo F66B do `RUNBOOK-BANCO.md`, que vai com o PR #92):
-
-1. **O CI do PR #92 verde** no SHA congelado (`verificar` e `banco-sem-docker`). Se a `main` andou, rebase e CI de novo.
-2. **Os blocos** (fora do repositório):
-   ```bash
-   npx tsx scripts/comprimento/contagem-violacao.mts gerar --dir ../f66b-canal
-   ```
-   ```bash
-   npx tsx scripts/comprimento/contagem-violacao.mts gerar --dir ../f66b-canal --sabotar
-   ```
-   Os mesmos textos já estão em `docs/f66b-evidencias/G-contagem/` (o gerador recusa um bloco que não seja, byte a byte, o
-   dele).
-3. **No ENSAIO (`sgmvldiizsrjbxzzpmhh`)**, pelo MCP:
-   1. `get_advisors` segurança e desempenho (o "antes", por nível e nome);
-   2. `execute_sql` com `docs/f66b-evidencias/impressao-f66b.sql` → `docs/f66b-evidencias/antes/impressao-ensaio.json`
-      (extraída por script; esperado: 36 CHECK, 3 `_tamanho`, 1 `not valid` — o `movimentacoes_chamado_fornecedor_envio`,
-      de antes —, 20 tabelas);
-   3. `execute_sql` com `contagem-violacao.canal.sql` → a resposta extraída para um arquivo →
-      ```bash
-      npx tsx scripts/comprimento/contagem-violacao.mts analisar --resposta ../f66b-canal/resposta-ensaio.txt --alvo ensaio --saida docs/f66b-evidencias/G-contagem/ensaio-antes.json
-      ```
-      **0 acima do teto em 65 colunas**; e o sabotado (`contagem-violacao-sabotada.canal.sql`) → **> 0** em
-      `ativos.marca` (a prova de que o bloco acha, no banco de verdade);
-   4. `apply_migration` com `name` `comprimento_cadastros_do_acervo` e o conteúdo EXATO de
-      `supabase/migrations/0181_comprimento_cadastros_do_acervo.sql`; depois, a impressão (o `relfilenode` das quatro
-      tabelas igual; as 10 constraints com o md5 do `pg_get_constraintdef` igual ao do CI) e a contagem de novo (0);
-   5. idem `comprimento_movimento_do_acervo` (`0182`), `comprimento_vocabulario` (`0183`) e `comprimento_registros`
-      (`0184`), com a contagem 0 ANTES de cada um;
-   6. `notify pgrst, 'reload schema'`; advisors (nada novo que cite objeto da fase); a impressão "depois" (101 CHECK, 68
-      `_tamanho`; o `relfilenode` das 20 IGUAL ao "antes"; funções e policies byte a byte); o conferidor de formas:
-      ```bash
-      NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env.local scripts/formas/conferir.mts --alvo=ensaio --saida=docs/f66b-evidencias/depois/conferidor-ensaio.json
-      ```
-      **0 recusadas**.
-4. **Em PRODUÇÃO (`pbtjcalbmepmrqzprusb`)**, em até 24 h, os mesmos passos (sem o sabotado), a contagem 0 IMEDIATAMENTE
-   antes de CADA lote, o `relfilenode` igual, e logo depois do último:
-   ```bash
-   node scripts/smoke/smoke-prod.mjs
-   ```
-   ```bash
-   NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env.local scripts/formas/conferir.mts --alvo=producao --saida=docs/f66b-evidencias/depois/conferidor-producao.json
-   ```
-   e a paridade ensaio × produção nas 11 classes (`supabase/ci/impressao-schema.sql`). As três tabelas que a API não lê
-   (`eventos_admin`, `import_logs`, `senhas_acesso`) são medidas pela primeira vez aqui, pelo bloco.
-   - **Se a contagem der > 0 antes de um lote:** aquele lote NÃO é aplicado; o teto sobe por migration NOVA (a régua do
-     PLAN §2), nunca o dado.
-   - **Se o smoke ou o conferidor recusarem:** rollback imediato com o conteúdo EXATO de
-     `supabase/rollback/F66B-desfaz.sql` pelo `execute_sql`, e o PR fica sem merge.
-5. **O merge** do PR #92 (merge normal, os dois checks verdes — nunca `--admin`).
-6. **A conferência pós-deploy:** `/api/saude` com `1.72.0` e o commit do merge; o smoke com 0 falha; a Parte B do
-   `saude.yml` disparada à mão, verde, sem pendente na sonda de deriva.
-7. **O PR só de documentação** com a evidência do apply e o fecho deste relatório; no merge dele, a tag:
-   ```bash
-   git tag -a v1.72.0 -m "v1.72.0 — F66B: o comprimento vira regra do banco"
-   ```
-   ```bash
-   git push origin v1.72.0
-   ```
+1. **O CI do PR #92 verde** no head `bcbdefd` (só `docs/**` depois do congelado `1fc3b22`), a `main` sem andar.
+2. **No ENSAIO (`sgmvldiizsrjbxzzpmhh`):** os advisors e a impressão "antes" (36 CHECK, md5 `a88a9b4f…` = mesa = CI); o
+   bloco de contagem (`G-contagem/contagem-violacao.canal.sql`) → **0 acima do teto** em 65 colunas; o sabotado →
+   **1.602** em `ativos.marca` (o bloco acha no banco de verdade); a `0181` (`comprimento_cadastros_do_acervo`), a
+   impressão (as 10 com o md5 da mesa, o `relfilenode` igual), a contagem 0, a `0182`, …, a `0184`; o `notify pgrst`;
+   a impressão "depois" (101 CHECK, 68 `_tamanho`, md5 `3d16ad91…`); os advisors (= antes); o conferidor (0 recusadas).
+3. **Em PRODUÇÃO (`pbtjcalbmepmrqzprusb`)**, quatro minutos depois do último lote do ensaio: os mesmos passos, sem o
+   sabotado, a contagem 0 IMEDIATAMENTE antes de cada lote (6.842 linhas; as três tabelas que a API não lia, medidas
+   aqui pela primeira vez, abaixo do teto — a mais perto, `senhas_acesso.hash`, 168 de 200); logo depois do último, o
+   smoke (sem falha), o conferidor (272 pontos, 0 recusadas, 0 reprovados), a impressão "depois" (= ensaio = CI), os
+   advisors (= antes) e a paridade das 11 classes (ensaio = produção; a classe `constraint` = o CI).
+4. **O merge** do PR #92: `gh pr ready` e `gh pr merge --merge`, sem `--admin`, os quatro checks verdes → `2fbebaa`.
+5. **A conferência pós-deploy:** `/api/saude` = `1.72.0` · `2fbebaa` · banco ok; o smoke `109 OK · 1 aviso · 0 falha`;
+   a Parte B do `saude.yml` (run `43300224028`) com a deriva limpa e o vermelho de dados de antes da fase (acima).
+6. **O PR de documentação** com a evidência e este fecho; no merge dele, a tag anotada `v1.72.0`, publicada.
 
 ### O roteiro do Johnny, depois do deploy: onde clicar
 
@@ -114,7 +75,9 @@ Entre com a sua conta em produção e confira que tudo grava como sempre:
 6. **Administração › Importar:** abra a conferência de um import com uma planilha FICTÍCIA que tenha uma célula longa
    demais (por exemplo, uma marca com 61 caracteres) e veja a linha recusada ali, com "valor longo demais" — **sem
    aplicar**.
-7. **`/api/saude`** com `1.72.0`, e a Parte B do `saude.yml` verde no dia seguinte, sem issue de alarme aberta.
+7. **`/api/saude`** com `1.72.0` (já conferido: `2fbebaa`, banco ok). A Parte B do `saude.yml` vai continuar vermelha
+   pelos dois achados de dados da issue #84 (de 19/10, não desta fase — §12); a linha de deriva dela tem de dizer
+   `0 pendente(s)` com a `0184` no ledger.
 8. **`git diff v1.71.2 v1.72.0 --stat`.** Devem aparecer: `supabase/migrations/0181_*` a `0184_*`,
    `supabase/migrations.lock.json`, `supabase/rollback/F66B-desfaz.sql`; `supabase/tests/comprimento_por_coluna.sql`,
    `comprimento_comportamento.sql`, `f66b_rollback.sql` e uma linha nova em `f62`/`f63`/`f64`/`f65_rollback.sql` (§1); em
@@ -206,8 +169,28 @@ engole o erro), `pendencias_item.item` 80 (o irmão `itens.nome`), `termos_gerad
 
 ## 5. A contagem de violação, lote a lote, e o `relfilenode`
 
-**Nos bancos vivos: PENDENTE** (o caminho B). **Na mesa** (o mesmo texto do bloco, `G-contagem/sabotagem-g-mesa.txt`):
-0 acima do teto em 65 colunas; a variante sabotada achou 3 (o teto 0 em `ativos.marca`); fora do ensaio ela recusa.
+**Nos bancos vivos** (o MESMO texto do bloco, pelo `execute_sql`, a resposta extraída por script e analisada por
+`contagem-violacao.mts analisar`; `G-contagem/`):
+
+| | ensaio (5.002 linhas) | produção (6.842 linhas) |
+|---|---|---|
+| antes da `0181` | **0** acima do teto em 65 colunas | **0** em 65 |
+| sabotado (teto 0 em `ativos.marca`) | **1.602** em `ativos.marca`, 0 no resto | — (recusa fora do ensaio, pela ordem não roda) |
+| antes da `0182` · `0183` · `0184` | 0 · 0 · 0 | 0 · 0 · 0 |
+| depois da `0184` | 0 | — (os CHECK validados são a contagem) |
+
+As três tabelas que a API não lia, medidas em produção pela primeira vez: `eventos_admin` (acao 26/80, alvo 36/500),
+`import_logs` (modo 10/40, arquivo_hash 64/128, backup_path 44/120), `senhas_acesso` (rotulo 15/80, hash 168/200).
+
+**Na mesa** (o mesmo texto, `G-contagem/sabotagem-g-mesa.txt`): 0 acima do teto em 65 colunas; a variante sabotada achou
+3; fora do ensaio ela recusa.
+
+**O `relfilenode` nos bancos vivos** (`impressao-f66b.sql`, depois de CADA lote, `comparar` contra o "antes" do mesmo
+banco): o md5 das 20 igual ao "antes" em todos os oito pontos (quatro lotes × dois bancos); as 36 CHECK de antes byte a
+byte; as novas do lote com o md5 de `pg_get_constraintdef` da mesa; as 106 funções e as 62 policies iguais. O md5 das
+CHECK depois de cada lote foi o MESMO nos dois bancos — `17b3c08e…`, `9f69a44b…`, `c9a83642…` e, no fim, **`3d16ad91…`,
+o da mesa e do CI**. O texto aplicado: `md5(statements[1])` do ledger = `md5sum` do arquivo, nas quatro, nos dois bancos
+(`depois/ledger-*.json`).
 
 **O `relfilenode`** (a sabotagem I, mesa): a cadeia `0001`–`0180` e a mesma base com as quatro migrations por cima dão o
 MESMO md5 das 20 (`d81abfff…`), as mesmas 106 funções (`7180f4c1…`) e as mesmas 62 policies (`cdbd5463…`); as CHECK vão de
@@ -218,7 +201,16 @@ CHECK.
 
 ## 6. O conferidor e o smoke
 
-**PENDENTES** (dependem do apply). O smoke de hoje (sem a fase) é o da linha de base da v1.71.2.
+| | ensaio | produção |
+|---|---|---|
+| conferidor de formas (depois da `0184`) | 248 pontos · 88.182 linhas · **0 recusadas** · 1 NÃO PROVADO (`itens.saldo-colaborador` sem célula: o ensaio não tem colaborador para chamar — o mesmo desde a F65) | 272 pontos · 112.035 linhas · **0 recusadas · 0 reprovados** |
+| smoke logo depois do apply | — (o smoke é de produção) | 1ª `108 OK · 2 avisos · 0 falha` (o aviso antigo de `kits_modelos` e um 307 → `/login` em `/admin/tipos-item` no meio da sessão); 2ª, em seguida, `109 OK · 1 aviso · 0 falha` — transitório de sessão |
+| smoke pós-deploy (`2fbebaa`) | — | **`109 OK · 1 aviso · 0 falha`** |
+| advisors | = antes, lint a lint | = antes, lint a lint |
+| paridade das 11 classes | = produção | = ensaio; `constraint` (209 · `0b0ead9c…`) = o CI |
+
+`func` e `grant_func` da paridade diferem do CI antes e depois da fase (os corpos vivos que divergem do arquivo e o CI
+sem os grants da plataforma); a F66B não cria nem recria função.
 
 ---
 
@@ -232,7 +224,7 @@ CHECK.
 | D | a RPC do import por fora | idem (I1–I4) | 23514 `ativos_marca_tamanho`, a filial intacta; sem o CHECK a mesma chamada grava a marca de 61 e substitui o acervo |
 | E | o import pela tela, campo a campo | `E-import-pela-tela.txt` | 13 campos, 40 casos |
 | F | a tradução | `A-B-F-I-sabotagens.md` | uma `_tamanho` sem frase → 3 vermelhos |
-| G | o portão sabe achar | `G-contagem/` | mesa: 0 / 3 / recusa fora do ensaio; ensaio: pendente |
+| G | o portão sabe achar | `G-contagem/` | mesa: 0 / 3 / recusa fora do ensaio; ensaio: 0 / **1.602** em `ativos.marca` |
 | H | o rollback | `H-rollback/encadeamento-mesa.txt`, `f66b_rollback.sql` | as CHECK voltam a 36 · `f921131b…`; F63–F65 vermelhos sem o encadeamento, verdes com ele |
 | I | o instrumento | `A-B-F-I-sabotagens.md` | acima (§5) |
 
@@ -252,7 +244,10 @@ E o injetor: as sete mutações, uma a uma na mesa, detectadas (`injetor-mesa.tx
 | CHECK de comprimento nas 20 | 2 | 67 |
 | colunas com teto · exceções · nome alternativo | 0 · — · — | 65 · 0 · 1 |
 | caminhos declarados na trava de mesa | — | 44 com teto · 25 sem `.max()` · 18 campos do import |
-| advisors, `relfilenode` e contagem nos bancos vivos | — | PENDENTES (caminho B) |
+| CHECK em `public` nos bancos vivos · md5 | 36 · `a88a9b4f…` | 101 · `3d16ad91…` (= CI), nos dois |
+| contagem de violação nos bancos vivos | — | 0 antes de cada lote, nos dois |
+| `relfilenode` das 20 · funções · policies | — | iguais ao "antes", nos dois |
+| advisors (segurança · desempenho), produção | 6·34·1 · — | 6·34·1 · 39·1·7·1 (nada novo) |
 
 | o gate de deriva de tipos (CI) | 38 relações · 358 colunas · 95 funções | **o mesmo** (`database.ts` intocado) |
 
@@ -271,26 +266,26 @@ o injetor 163/163, o `db:types:diff` verde (`f66b-evidencias/C-ci-verde-1fc3b22.
 |---:|---|---|
 | 1 | lint, test, typecheck, build, contraste, actions; CI `banco-sem-docker` | ✅ na mesa; CI no §8 |
 | 2 | o PLAN com os 24 fatos, a tabela-verdade, o mapa, as 14 decisões, a ordem e o rollback, antes do primeiro commit de código | ✅ (`0824cac` é o primeiro commit da branch) |
-| 3 | a contagem e a impressão "antes" nos dois bancos | ⚠ **parcial**: o universo e as CHECK pela cadeia; o máximo vivo pela API (17/20); a contagem SQL e a impressão pelo MCP **pendentes** |
+| 3 | a contagem e a impressão "antes" nos dois bancos | ✅ (o máximo vivo pela API na 1ª parte; a contagem SQL e a impressão pelo MCP depois de religado — `antes/`, `G-contagem/`) |
 | 4 | migrations desde a 0181, classe, rollback, lock, DA_F38; sem update/cascade/dinâmica/not valid; nada recriado | ✅ (classificador; `rollback-f66b.test.ts`; revisão) |
-| 5 | toda coluna com o CHECK, validado, nos dois bancos e no CI; o catálogo nasceu vermelho e está verde | ✅ CI e mesa; ⏳ bancos (pendente) |
-| 6 | nenhum teto abaixo de caminho ou do vivo; a trava nasceu sabendo ficar vermelha | ✅ (o vivo de 17 tabelas; as 3 restantes pelo portão) |
+| 5 | toda coluna com o CHECK, validado, nos dois bancos e no CI; o catálogo nasceu vermelho e está verde | ✅ (101 CHECK, 1 `not valid` — o de antes —, md5 `3d16ad91…` = CI, nos dois) |
+| 6 | nenhum teto abaixo de caminho ou do vivo; a trava nasceu sabendo ficar vermelha | ✅ (as 20 tabelas medidas: 17 pela API e as 20 pelo portão SQL, 0 acima nos dois bancos) |
 | 7 | derivados e gerados com teto provado | ✅ (K1–K5; os formatos) |
 | 8 | a cobertura do import e a RPC por fora | ✅ |
 | 9 | toda `_tamanho` com frase; nenhuma morta | ✅ |
 | 10 | um teto só nas observações; `.max(40)` na edição do motivo; nenhum outro teto de tela mudou | ✅ (+ o `maxLength` declarado) |
-| 11 | nada mudou para a WAP: contagem 0 antes de cada lote, smoke, conferidor | ⏳ **pendente** (caminho B) |
-| 12 | nenhuma tupla reescrita: `relfilenode` igual nos dois bancos | ✅ mesa; ⏳ bancos |
-| 13 | funções e policies byte a byte; só as `_tamanho` novas | ✅ mesa; ⏳ bancos |
+| 11 | nada mudou para a WAP: contagem 0 antes de cada lote, smoke, conferidor | ✅ (§5, §6) |
+| 12 | nenhuma tupla reescrita: `relfilenode` igual nos dois bancos | ✅ (mesa e os dois bancos, depois de cada lote) |
+| 13 | funções e policies byte a byte; só as `_tamanho` novas | ✅ (mesa e os dois bancos) |
 | 14 | o rollback escrito e ensaiado no CI; F62–F66 medidos | ✅ (mesa e CI) |
 | 15 | os roteiros adaptados listados; nenhuma asserção mudou | ✅ (nenhum adaptado) |
 | 16 | o injetor: as mutações detectadas, o teto exato, a quarentena < ⅓ | ✅ |
-| 17 | advisors, paridade, `database.ts` | ⏳ advisors e paridade pendentes; `database.ts` intocado ✅ |
+| 17 | advisors, paridade, `database.ts` | ✅ (advisors = antes nos dois; paridade 11/11; `database.ts` intocado) |
 | 18 | nenhuma dependência; os intocados | ✅ (exceto o `maxLength` declarado) |
 | 19 | as emendas | ✅ |
-| 20 | versão, CHANGELOG, registry; a tag | ✅ versão; ⏳ a tag (no PR de documentação, depois do merge) |
-| 21 | os dois PRs mergeados e a conferência | ⏳ **pendente**: o bloqueio no topo |
-| 22 | as sabotagens A–I com saída real | ✅ (G e o conferidor nos bancos, pendentes) |
+| 20 | versão, CHANGELOG, registry; a tag | ✅ (a tag `v1.72.0` no merge do PR de documentação) |
+| 21 | os dois PRs mergeados e a conferência | ✅ PR #92 (`2fbebaa`), `/api/saude`, smoke; ⚠ a Parte B do `saude.yml` VERMELHA por dados de antes da fase (issue #84; a deriva limpa) |
+| 22 | as sabotagens A–I com saída real | ✅ (G também no ensaio: 1.602 em `ativos.marca`) |
 | 23 | nenhum dado real; ninguém abriu o `.env.local` | ✅ |
 | 24 | este relatório no padrão | ✅ |
 
@@ -298,17 +293,19 @@ o injetor 163/163, o `db:types:diff` verde (`f66b-evidencias/C-ci-verde-1fc3b22.
 
 ## 10. O estado de repouso
 
-**Se o projeto parar aqui por dois meses:** a `main` continua na v1.71.2, os bancos sem os CHECK, e o PR #92 aberto — nada
-mudou para ninguém. O risco de parar é só o que já existia (o texto longo por fora do Zod). Quando o PR for retomado, o
-portão (a contagem) refaz a medição no dia, e os tetos que o dado de então passar sobem por migration nova, antes do
-apply. **Depois do apply e do merge:** um estado terminal — 65 colunas com teto, a frase do erro, o rollback ensaiado.
+**Um estado terminal, no ar:** 65 colunas com teto nos dois bancos, a frase do erro, o rollback ensaiado no CI e
+encadeado com os da F62–F66. Se o projeto parar aqui por dois meses, nada fica pela metade: a fonte (`tetos-coluna.ts`),
+a trava de mesa e a de catálogo seguram o próximo que acrescentar uma coluna de texto ou mudar um teto (o Anexo F66B do
+RUNBOOK diz como). Desfazer, se um dia precisar: `supabase/rollback/F66B-desfaz.sql` pelo `execute_sql`, nenhum dado se
+perde.
 
 ---
 
 ## 11. O que este relatório NÃO prova
 
-- **Que os bancos vivos aceitam os tetos**: a contagem de violação pelo SQL não rodou (o conector); a medição pela API
-  cobre 17 das 20 tabelas — `eventos_admin`, `import_logs` e `senhas_acesso` só pelo portão.
+- **Que um texto longo pela tela de produção leva a frase certa**: a frase está provada no CI (M1, a mensagem real do
+  23514) e na mesa; em produção ninguém gravou texto acima do teto (o roteiro do Johnny, item 6, mostra a recusa do
+  import na conferência, sem aplicar).
 - **Que um backup antigo (do import ou de migração) restaura sem `23514`** (fato 20): o conteúdo dos backups não foi lido.
 - **Que o seed fictício respeita os tetos** (ele não roda no CI): o ensaio tem `setor` com 84 — dentro de 120.
 - **Que os tetos sem Zod servem ao dado de amanhã**: vêm da medição de hoje, com folga.
@@ -320,10 +317,14 @@ apply. **Depois do apply e do merge:** um estado terminal — 65 colunas com tet
 
 ## 12. Pendências e backlog nomeado
 
-**Pendente desta fase (o caminho B, §0):** o portão e o apply nos dois bancos; o merge do PR #92; a conferência
-pós-deploy; o PR de documentação; a tag `v1.72.0`.
+**Pendente desta fase:** nada — o caminho B correu inteiro (§0); a tag `v1.72.0` sai no merge do PR de documentação.
 
 **Backlog:**
+- **Os dois achados de integridade de dados de produção que reprovam a Parte B do `saude.yml` todo dia desde
+  19/10/2026** (issue de alarme #84): `backup_orfao` 10 → 12 e `detentor_em_estado_sem_dono` 0 → 1. Anteriores à F66B (a
+  execução agendada de 12/11 às 17:43Z, antes do apply, deu os mesmos números) e fora desta ordem (ela proíbe escrita em
+  produção fora do apply). Pede diagnóstico próprio — de onde vieram os dois backups e o detentor, e se a linha de base
+  ou o dado é que deve mudar — antes de qualquer conserto.
 - **F67** (dividida em F67/F67B/F67C pelas decisões de hoje): a ponte de `papel_atual()`, as `security definer`, as
   destrutivas, a mesa de conflitos, a trava do termo; Storage e Realtime; o fim do default.
 - **F69:** `profiles` e a saída das contas dev de `membros`.

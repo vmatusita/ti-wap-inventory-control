@@ -1,0 +1,18 @@
+{
+  "alvo": "producao",
+  "ref": "pbtjcalbmepmrqzprusb",
+  "medido_em": "2026-11-12T20:22–20:23Z",
+  "depois_de": ["0181", "0182", "0183", "0184"],
+  "seguranca": {
+    "INFO rls_enabled_no_policy": 6,
+    "WARN authenticated_security_definer_function_executable": 34,
+    "WARN auth_leaked_password_protection": 1
+  },
+  "desempenho": {
+    "INFO unindexed_foreign_keys": 39,
+    "INFO no_primary_key": 1,
+    "INFO unused_index": 7,
+    "WARN multiple_permissive_policies": 1
+  },
+  "nota": "Segurança: as mesmas contagens do antes (antes/advisors-producao.json, 20:14Z), lint a lint, e as mesmas do ensaio. Desempenho: as mesmas classes do ensaio; unused_index 7 em produção (o ensaio, em PG 17.11, tem as estatísticas zeradas: 47). Nenhum achado cita constraint `_tamanho` nem objeto da F66B."
+}

@@ -6,12 +6,13 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
-## 12/11/2026 — F66B · O comprimento vira regra do banco 🚧
+## 12/11/2026 — F66B · O comprimento vira regra do banco ✅
 
 Fase **F66B** (**v1.72.0**) · **com migrations `0181`–`0184`** (65 `CHECK` de comprimento, classe ADITIVA, nenhuma
-tupla reescrita), a aplicar no ensaio e em produção ANTES do merge, lote a lote, com a contagem de violação 0 antes de
-cada um (o conector da Supabase da run enxergava outra conta; o caminho do apply está no topo de
-[`docs/RELATORIO-F66B.md`](docs/RELATORIO-F66B.md)) · sem dependência nova. Plano em
+tupla reescrita), aplicadas no ensaio e em produção ANTES do merge, lote a lote, com a contagem de violação 0 antes de
+cada um e o `relfilenode` das 20 tabelas igual depois (o conector da Supabase foi religado na conta da WAP e o caminho
+B do topo de [`docs/RELATORIO-F66B.md`](docs/RELATORIO-F66B.md) correu no mesmo dia; PR #92, merge `2fbebaa`) · sem
+dependência nova. Plano em
 [`docs/PLAN-F66B.md`](docs/PLAN-F66B.md), ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-12 · F66B).
 
 - 📏 **O banco passa a recusar o texto longo demais.** As 65 colunas de texto das 20 tabelas de negócio ganham

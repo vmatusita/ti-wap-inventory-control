@@ -13867,3 +13867,44 @@ R-ACC-118 a R-ACC-123; ADR-003, nota F66B; RUNBOOK, Anexo F66B; PLANO, a nota F6
 - **(i) O apply não aconteceu.** O conector da Supabase ficou na conta errada a run inteira (conferido no começo, a cada
   marco e antes de fechar); o PR #92 ficou aberto, sem merge, com o caminho B no topo do relatório. O Johnny foi avisado
   por notificação no começo da run.
+
+## 2026-11-12 · F66B (v1.72.0, pós-deploy) · o caminho B executado
+
+**Contexto.** O Johnny religou o conector da Supabase na conta que enxerga os dois projetos da WAP ("Já reconectei") e a
+mesma sessão retomou o caminho B do §0 do [`RELATORIO-F66B.md`](RELATORIO-F66B.md): o portão, o apply lote a lote no
+ensaio e em produção, o merge do PR #92, a conferência pós-deploy, este PR de documentação e a tag `v1.72.0`. Evidência
+em `docs/f66b-evidencias/` (`antes/`, `G-contagem/`, `depois/`, com o passo a passo em `depois/pos-deploy.md`).
+
+1. **O portão antes de cada lote, nos dois bancos.** O bloco de contagem (o MESMO texto de `G-contagem/`), a resposta
+   extraída do arquivo de resposta por script e analisada por `contagem-violacao.mts analisar`: 0 acima do teto nas 65
+   colunas antes da `0181`, da `0182`, da `0183` e da `0184`, no ensaio (5.002 linhas) e em produção (6.842). O sabotado
+   (só no ensaio) acusou 1.602 linhas em `ativos.marca` — a prova de que o bloco acha no banco de verdade. As três
+   tabelas que a API não lia, medidas em produção pela primeira vez, ficaram abaixo do teto (a mais perto,
+   `senhas_acesso.hash`, 168 de 200): nenhum teto precisou subir.
+2. **O apply byte a byte.** `apply_migration` com o nome sem o `NNNN_` e o conteúdo do arquivo; o ledger confirma:
+   `md5(statements[1])` = `md5sum` do arquivo nas quatro, nos dois bancos. O `lock_timeout` de 2 s não disparou; uma
+   tentativa cada. Ensaio 17:06–17:12, produção 17:16–17:20 (hora local), o mesmo dia.
+3. **Nenhuma tupla reescrita, nada além das `_tamanho`.** A impressão `impressao-f66b.sql` depois de CADA lote, comparada
+   por script ao "antes" do mesmo banco e à mesa com a F66B: o `relfilenode` das 20 igual nos oito pontos; as 36 CHECK de
+   antes byte a byte; as do lote com o md5 de `pg_get_constraintdef` da mesa; funções e policies iguais. O md5 do
+   conjunto das CHECK no fim: `3d16ad91…`, o mesmo nos dois bancos, na mesa e no CI.
+4. **Os portões de rollback não dispararam.** Advisors = antes, lint a lint, nos dois (CHECK não é objeto do linter);
+   conferidor de formas sem recusa nos dois (no ensaio, o NÃO PROVADO conhecido de `itens.saldo-colaborador`); smoke sem
+   falha. A primeira rodada do smoke teve um aviso novo — um 307 → `/login` em `/admin/tipos-item` no meio de uma sessão
+   que abriu as outras telas de admin; a segunda, logo em seguida, deu 200. Decidi tratar como transitório de sessão e
+   não como recusa: aviso não é falha no smoke, a leitura de uma tela não passa por CHECK, e a repetição limpou. As duas
+   saídas vão na evidência.
+5. **Paridade das 11 classes:** ensaio = produção. A classe `constraint` (209 · `0b0ead9c…`) = o CI do SHA congelado;
+   `func`/`grant_func` diferem do CI antes e depois da fase (os corpos vivos divergentes e os grants da plataforma).
+6. **Merge e pós-deploy.** `gh pr ready 92` e `gh pr merge 92 --merge`, sem `--admin`, os quatro checks verdes no
+   `bcbdefd` → `2fbebaa`. `/api/saude` = `1.72.0` · `2fbebaa` · banco ok; smoke `109 OK · 1 aviso · 0 falha` (o aviso
+   antigo de `kits_modelos`).
+7. **A Parte B do `saude.yml` ficou VERMELHA, e registro por que isso não reprova a fase.** Disparada à mão (run
+   `43300224028`): a sonda de deriva limpa (`0 pendente(s)`, a `0184` no ledger); o vermelho vem de dois achados de
+   integridade de DADOS de produção — `backup_orfao` 10 → 12 e `detentor_em_estado_sem_dono` 0 → 1 — os da issue de
+   alarme #84, que mudou de estado em 19/10/2026 e reprova a Parte B todo dia desde então. A execução agendada de hoje às
+   17:43Z (run `43272391981`, no `0a3a586`, antes de qualquer apply) deu os mesmos números. A ordem pedia a Parte B
+   "verde"; não dá para cumprir sem escrever dado em produção, o que a ordem proíbe, e o problema é anterior e alheio à
+   fase. Fica no backlog do relatório (§12), com diagnóstico próprio antes de qualquer conserto.
+8. **Nenhuma escrita em produção além dos quatro `apply_migration`** (o `notify pgrst` só recarrega o schema). Nas
+   evidências, só números, nomes de esquema, textos de constraint e hashes — nenhum valor de linha.
