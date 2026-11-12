@@ -1,0 +1,18 @@
+{
+  "alvo": "ensaio",
+  "ref": "sgmvldiizsrjbxzzpmhh",
+  "postgres": "17.11.0.003",
+  "medido_em": "2026-11-12T20:01Z",
+  "seguranca": {
+    "INFO rls_enabled_no_policy": 6,
+    "WARN authenticated_security_definer_function_executable": 34,
+    "WARN auth_leaked_password_protection": 1
+  },
+  "desempenho": {
+    "INFO unindexed_foreign_keys": 39,
+    "INFO no_primary_key": 1,
+    "INFO unused_index": 47,
+    "WARN multiple_permissive_policies": 1
+  },
+  "nota": "unused_index 47 (eram 11 no ensaio da F66): o ensaio está em PG 17.11 (produção 17.6) — upgrade da plataforma, estatísticas de uso zeradas. Nenhum lint cita objeto da F66B (não há objeto da fase ainda)."
+}

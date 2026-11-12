@@ -1,0 +1,402 @@
+{
+  "alvo": "ensaio",
+  "rotulo": "desenvolvimento",
+  "sabotado": true,
+  "colunas": 65,
+  "linhas_conferidas": 5002,
+  "violacoes": 1602,
+  "por_coluna": [
+    {
+      "coluna": "colaboradores.nome",
+      "teto": 120,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "colaboradores.matricula",
+      "teto": 40,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "colaboradores.setor",
+      "teto": 80,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "colaboradores.nome_chave",
+      "teto": 360,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "itens.nome",
+      "teto": 80,
+      "maximo": 26,
+      "acima": 0
+    },
+    {
+      "coluna": "itens.nome_chave",
+      "teto": 240,
+      "maximo": 26,
+      "acima": 0
+    },
+    {
+      "coluna": "termos_gerados.tipo",
+      "teto": 40,
+      "maximo": 25,
+      "acima": 0
+    },
+    {
+      "coluna": "termos_gerados.colaborador",
+      "teto": 200,
+      "maximo": 13,
+      "acima": 0
+    },
+    {
+      "coluna": "termos_gerados.arquivo_path",
+      "teto": 80,
+      "maximo": 41,
+      "acima": 0
+    },
+    {
+      "coluna": "anotacoes.texto",
+      "teto": 2000,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.patrimonio",
+      "teto": 60,
+      "maximo": 19,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.patrimonio_original",
+      "teto": 60,
+      "maximo": 19,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.marca",
+      "teto": 0,
+      "maximo": 14,
+      "acima": 1602
+    },
+    {
+      "coluna": "ativos.modelo",
+      "teto": 120,
+      "maximo": 19,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.service_tag",
+      "teto": 100,
+      "maximo": 24,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.hostname",
+      "teto": 60,
+      "maximo": 14,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.memoria",
+      "teto": 80,
+      "maximo": 25,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.armazenamento",
+      "teto": 80,
+      "maximo": 21,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.processador",
+      "teto": 80,
+      "maximo": 28,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.fornecedor",
+      "teto": 80,
+      "maximo": 11,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.colaborador_atual",
+      "teto": 120,
+      "maximo": 94,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.setor_atual",
+      "teto": 120,
+      "maximo": 84,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.pendencia",
+      "teto": 200,
+      "maximo": 57,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.origem",
+      "teto": 40,
+      "maximo": 10,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.observacoes",
+      "teto": 2000,
+      "maximo": 163,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.telefone",
+      "teto": 60,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.imei",
+      "teto": 60,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "ativos.pulsus",
+      "teto": 60,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "movimentacoes.motivo",
+      "teto": 40,
+      "maximo": 17,
+      "acima": 0
+    },
+    {
+      "coluna": "movimentacoes.colaborador",
+      "teto": 120,
+      "maximo": 93,
+      "acima": 0
+    },
+    {
+      "coluna": "movimentacoes.setor",
+      "teto": 120,
+      "maximo": 84,
+      "acima": 0
+    },
+    {
+      "coluna": "movimentacoes.chamado",
+      "teto": 80,
+      "maximo": 13,
+      "acima": 0
+    },
+    {
+      "coluna": "movimentacoes.observacao",
+      "teto": 500,
+      "maximo": 87,
+      "acima": 0
+    },
+    {
+      "coluna": "movimentacoes.chamado_fornecedor",
+      "teto": 200,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "pendencias_item.item",
+      "teto": 80,
+      "maximo": 14,
+      "acima": 0
+    },
+    {
+      "coluna": "pendencias_item.colaborador",
+      "teto": 120,
+      "maximo": 42,
+      "acima": 0
+    },
+    {
+      "coluna": "pendencias_item.status",
+      "teto": 40,
+      "maximo": 6,
+      "acima": 0
+    },
+    {
+      "coluna": "pendencias_item.desfecho",
+      "teto": 40,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "pendencias_item.observacao",
+      "teto": 500,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "lancamentos_item.chamado",
+      "teto": 20,
+      "maximo": 13,
+      "acima": 0
+    },
+    {
+      "coluna": "lancamentos_item.colaborador",
+      "teto": 120,
+      "maximo": 13,
+      "acima": 0
+    },
+    {
+      "coluna": "lancamentos_item.observacao",
+      "teto": 2000,
+      "maximo": 137,
+      "acima": 0
+    },
+    {
+      "coluna": "import_prefixos_patrimonio.prefixo",
+      "teto": 4,
+      "maximo": 3,
+      "acima": 0
+    },
+    {
+      "coluna": "import_termos_categoria.termo",
+      "teto": 40,
+      "maximo": 8,
+      "acima": 0
+    },
+    {
+      "coluna": "import_termos_categoria.rotulo",
+      "teto": 40,
+      "maximo": 8,
+      "acima": 0
+    },
+    {
+      "coluna": "import_termos_estado.termo",
+      "teto": 40,
+      "maximo": 10,
+      "acima": 0
+    },
+    {
+      "coluna": "import_termos_estado.rotulo",
+      "teto": 40,
+      "maximo": 10,
+      "acima": 0
+    },
+    {
+      "coluna": "unidades_apelidos.apelido",
+      "teto": 80,
+      "maximo": 20,
+      "acima": 0
+    },
+    {
+      "coluna": "unidades_apelidos.apelido_chave",
+      "teto": 240,
+      "maximo": 20,
+      "acima": 0
+    },
+    {
+      "coluna": "tipos_item.slug",
+      "teto": 30,
+      "maximo": 10,
+      "acima": 0
+    },
+    {
+      "coluna": "tipos_item.rotulo",
+      "teto": 60,
+      "maximo": 14,
+      "acima": 0
+    },
+    {
+      "coluna": "motivos.codigo",
+      "teto": 40,
+      "maximo": 17,
+      "acima": 0
+    },
+    {
+      "coluna": "motivos.rotulo",
+      "teto": 80,
+      "maximo": 27,
+      "acima": 0
+    },
+    {
+      "coluna": "kits_modelos.nome",
+      "teto": 80,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "filiais.slug",
+      "teto": 40,
+      "maximo": 14,
+      "acima": 0
+    },
+    {
+      "coluna": "filiais.nome",
+      "teto": 80,
+      "maximo": 14,
+      "acima": 0
+    },
+    {
+      "coluna": "filiais.cidade",
+      "teto": 120,
+      "maximo": 20,
+      "acima": 0
+    },
+    {
+      "coluna": "relatorios_gerados.observacao",
+      "teto": 2000,
+      "maximo": 0,
+      "acima": 0
+    },
+    {
+      "coluna": "import_logs.modo",
+      "teto": 40,
+      "maximo": 10,
+      "acima": 0
+    },
+    {
+      "coluna": "import_logs.arquivo_hash",
+      "teto": 128,
+      "maximo": 64,
+      "acima": 0
+    },
+    {
+      "coluna": "import_logs.backup_path",
+      "teto": 120,
+      "maximo": 46,
+      "acima": 0
+    },
+    {
+      "coluna": "eventos_admin.acao",
+      "teto": 80,
+      "maximo": 18,
+      "acima": 0
+    },
+    {
+      "coluna": "eventos_admin.alvo",
+      "teto": 500,
+      "maximo": 35,
+      "acima": 0
+    },
+    {
+      "coluna": "senhas_acesso.rotulo",
+      "teto": 80,
+      "maximo": 42,
+      "acima": 0
+    },
+    {
+      "coluna": "senhas_acesso.hash",
+      "teto": 200,
+      "maximo": 170,
+      "acima": 0
+    }
+  ],
+  "faltando": [],
+  "zero": false
+}

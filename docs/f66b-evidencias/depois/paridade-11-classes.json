@@ -1,0 +1,73 @@
+{
+  "sonda": "supabase/ci/impressao-schema.sql (o texto a partir do `with`), pelo execute_sql do MCP, só leitura",
+  "medido_em": "2026-11-12T20:24Z, depois das quatro migrations nos dois bancos",
+  "classes": {
+    "coluna": {
+      "objetos": 350,
+      "ensaio": "9646dcc70a5a6cb2eb14936123923f2b",
+      "producao": "9646dcc70a5a6cb2eb14936123923f2b",
+      "ci_1fc3b22": "9646dcc70a5a6cb2eb14936123923f2b"
+    },
+    "constraint": {
+      "objetos": 209,
+      "ensaio": "0b0ead9c960e8a74a2a7dd7f75fa5ba8",
+      "producao": "0b0ead9c960e8a74a2a7dd7f75fa5ba8",
+      "ci_1fc3b22": "0b0ead9c960e8a74a2a7dd7f75fa5ba8"
+    },
+    "enum": {
+      "objetos": 7,
+      "ensaio": "34837fbf7cb50082e461fd8cdad47532",
+      "producao": "34837fbf7cb50082e461fd8cdad47532",
+      "ci_1fc3b22": "34837fbf7cb50082e461fd8cdad47532"
+    },
+    "func": {
+      "objetos": 106,
+      "ensaio": "ec28be60012e00073f1b733fa534640c",
+      "producao": "ec28be60012e00073f1b733fa534640c",
+      "ci_1fc3b22": "fa137ebf16cb64672ff3d2bb2a817c77"
+    },
+    "grant_func": {
+      "objetos": 106,
+      "ensaio": "6eaf6b5fd93e4d42bf2a87f0393bac28",
+      "producao": "6eaf6b5fd93e4d42bf2a87f0393bac28",
+      "ci_1fc3b22": "2a62134e7c906aad0d2d3ac2b604a69f"
+    },
+    "indice": {
+      "objetos": 105,
+      "ensaio": "e810d3b29e6b6ca41b6ff5f2136ad7e0",
+      "producao": "e810d3b29e6b6ca41b6ff5f2136ad7e0",
+      "ci_1fc3b22": "e810d3b29e6b6ca41b6ff5f2136ad7e0"
+    },
+    "policy": {
+      "objetos": 54,
+      "ensaio": "1497c486d1b386cfd4779ebe136d915d",
+      "producao": "1497c486d1b386cfd4779ebe136d915d",
+      "ci_1fc3b22": "1497c486d1b386cfd4779ebe136d915d"
+    },
+    "policy_storage": {
+      "objetos": 8,
+      "ensaio": "cd68b8eccf9532909791b7cf67619b08",
+      "producao": "cd68b8eccf9532909791b7cf67619b08",
+      "ci_1fc3b22": "cd68b8eccf9532909791b7cf67619b08"
+    },
+    "rls_flag": {
+      "objetos": 28,
+      "ensaio": "0b95c89a31d36e88406a1617fa270523",
+      "producao": "0b95c89a31d36e88406a1617fa270523",
+      "ci_1fc3b22": "0b95c89a31d36e88406a1617fa270523"
+    },
+    "trigger": {
+      "objetos": 52,
+      "ensaio": "1e0bba952eea8589a9a979f949a8f7c9",
+      "producao": "1e0bba952eea8589a9a979f949a8f7c9",
+      "ci_1fc3b22": "1e0bba952eea8589a9a979f949a8f7c9"
+    },
+    "view": {
+      "objetos": 9,
+      "ensaio": "eccffb70b9021b329278eaf0cd2c6601",
+      "producao": "eccffb70b9021b329278eaf0cd2c6601",
+      "ci_1fc3b22": "eccffb70b9021b329278eaf0cd2c6601"
+    }
+  },
+  "veredito": "ensaio = produção nas 11 classes. Contra o CI do SHA congelado: a classe `constraint` (onde a F66B mexe) bate byte a byte (209 · 0b0ead9c…). `func` e `grant_func` diferem do CI ANTES e DEPOIS da fase — os três corpos vivos que divergem do arquivo desde antes da F46 e o CI sem os grants da plataforma (memórias \"corpo vivo diverge do arquivo\" e \"verde no ensaio, vermelho no CI\"); a F66B não cria nem recria função (o md5 de prosrc das 106 é o mesmo antes e depois nos dois bancos, impressao-*.json)."
+}

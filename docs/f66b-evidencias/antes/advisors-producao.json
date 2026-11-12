@@ -1,0 +1,11 @@
+{
+  "alvo": "producao",
+  "ref": "pbtjcalbmepmrqzprusb",
+  "medido_em": "2026-11-12T20:14Z",
+  "seguranca": {
+    "INFO rls_enabled_no_policy": 6,
+    "WARN authenticated_security_definer_function_executable": 34,
+    "WARN auth_leaked_password_protection": 1
+  },
+  "nota": "Antes da 0181 em produção. As mesmas contagens de segurança do ensaio. Desempenho: ver depois/advisors-producao.json (antes × depois medidos no mesmo arquivo)."
+}
