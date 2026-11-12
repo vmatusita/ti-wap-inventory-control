@@ -256,6 +256,10 @@ const DA_F38 = [
   // v1.71.2 — a `0180` CRIA `colaboradores_uso_efetivo()` (nova, `security invoker`, só leitura): o uso efetivo de cada
   // cadastro de colaborador. Nenhuma função recriada, nenhuma escrita no acervo.
   '0180',
+  // F66B — a `0181`…`0184` só fazem `alter table … add constraint … check (char_length(<col>) <= <teto>)`, um lote por
+  // família (os cadastros e o movimento do acervo, o vocabulário, os registros): nenhuma função criada ou recriada,
+  // nenhuma escrita no acervo, nenhuma tupla reescrita.
+  '0181',
 ]
 
 /**
