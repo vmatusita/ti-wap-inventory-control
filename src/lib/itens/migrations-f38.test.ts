@@ -260,6 +260,7 @@ const DA_F38 = [
   // família (os cadastros e o movimento do acervo, o vocabulário, os registros): nenhuma função criada ou recriada,
   // nenhuma escrita no acervo, nenhuma tupla reescrita.
   '0181',
+  '0182',
 ]
 
 /**
