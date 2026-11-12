@@ -3422,6 +3422,106 @@ const F66_RECORTE = [
   },
 ]
 
+// =============================================================================
+// comprimento_por_coluna.sql e comprimento_comportamento.sql — F66B (12/11/2026): o comprimento é regra do banco.
+// Uma mutação por classe de trava da fase que nenhum teste de mesa derruba (o injetor muta o BANCO; a trava de mesa lê
+// as migrations, e não vê um banco que divergiu delas). "A exceção nominal ganha uma coluna que tem CHECK" não entra:
+// é edição do ROTEIRO, não do banco — provada pela auto-sabotagem S5 e pela evidência A6 (PLAN-F66B, decisão 13).
+// =============================================================================
+const F66B_COMPRIMENTO = [
+  {
+    id: 'f66b-check-some',
+    roteiro: 'comprimento_por_coluna.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['C1'],
+    porque:
+      'O CHECK de comprimento de uma coluna some do banco: a ficha volta a aceitar hostname de qualquer tamanho por fora da tela, e nada no catálogo nem no CI acusaria — a coluna simplesmente fica sem teto de novo.',
+    sql: `alter table public.ativos drop constraint ativos_hostname_tamanho;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_constraint where conname = 'ativos_hostname_tamanho')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f66b-check-not-valid',
+    roteiro: 'comprimento_por_coluna.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['C3', 'C9'],
+    porque:
+      'O CHECK de comprimento recriado NOT VALID: as linhas que já existiam deixam de ser conferidas — um texto acima do teto gravado antes da recriação mora na tabela com o banco dizendo que a regra vale.',
+    sql: `alter table public.tipos_item drop constraint tipos_item_rotulo_tamanho; alter table public.tipos_item add constraint tipos_item_rotulo_tamanho check (char_length(rotulo) <= 60) not valid;  ${MARCA}`,
+    prova: {
+      sql: `select not convalidated from pg_constraint where conname = 'tipos_item_rotulo_tamanho'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f66b-check-octet-length',
+    roteiro: 'comprimento_por_coluna.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['C2'],
+    porque:
+      'O CHECK troca char_length por octet_length com o MESMO nome: o teto passa a contar bytes, e um nome de kit com acento que a tela aceita (80 caracteres) leva 23514 — a forma errada que um grep pelo nome da constraint não distingue da certa.',
+    sql: `alter table public.kits_modelos drop constraint kits_modelos_nome_tamanho; alter table public.kits_modelos add constraint kits_modelos_nome_tamanho check (octet_length(nome) <= 80);  ${MARCA}`,
+    prova: {
+      sql: `select pg_get_constraintdef(oid) like '%octet_length%' from pg_constraint where conname = 'kits_modelos_nome_tamanho'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f66b-teto-sobe-sem-a-fonte',
+    roteiro: 'comprimento_por_coluna.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['C4'],
+    porque:
+      'O teto de uma coluna sobe no banco sem a fonte única: a observação do relatório passa a aceitar 5000 caracteres que nenhuma tela grava e nenhuma frase do 23514 cita — o banco e a fonte divergem em silêncio.',
+    sql: `alter table public.relatorios_gerados drop constraint relatorios_gerados_observacao_tamanho; alter table public.relatorios_gerados add constraint relatorios_gerados_observacao_tamanho check (char_length(observacao) <= 5000);  ${MARCA}`,
+    prova: {
+      sql: `select pg_get_constraintdef(oid) like '%<= 5000%' from pg_constraint where conname = 'relatorios_gerados_observacao_tamanho'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f66b-coluna-nova-sem-teto',
+    roteiro: 'comprimento_por_coluna.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['C1'],
+    porque:
+      'Uma coluna de texto NOVA numa tabela de negócio, sem CHECK: a próxima fase que acrescente um campo livre reabre a bomba de 500 MB — a trava tem de achá-la pelo catálogo, não por uma lista de 65 nomes.',
+    sql: `alter table public.filiais add column apelido_curto text;  ${MARCA}`,
+    prova: {
+      sql: `select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'filiais' and column_name = 'apelido_curto')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f66b-import-por-fora-sem-teto',
+    roteiro: 'comprimento_comportamento.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['I1', 'I2'],
+    porque:
+      'Sem o CHECK da marca, a RPC do import chamada por fora (JWT de administrador, jsonb cru, sem a conferência) grava a marca longa E substitui o acervo da filial — o desvio que a F66B fecha, de volta.',
+    sql: `alter table public.ativos drop constraint ativos_marca_tamanho;  ${MARCA}`,
+    prova: {
+      sql: `select not exists (select 1 from pg_constraint where conname = 'ativos_marca_tamanho')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f66b-chave-com-o-teto-da-origem',
+    roteiro: 'comprimento_comportamento.sql',
+    classe: 'teto-de-comprimento',
+    derruba: ['K2'],
+    porque:
+      'O teto da chave derivada igual ao da origem (120, e não 3×): um nome legítimo de 120 caracteres cuja normalização expande (U+FB2C vira três) passa a ser recusado com 23514 — o bug latente da chave que herda o teto da origem sem prova.',
+    sql: `alter table public.colaboradores drop constraint colaboradores_nome_chave_tamanho; alter table public.colaboradores add constraint colaboradores_nome_chave_tamanho check (char_length(nome_chave) <= 120);  ${MARCA}`,
+    prova: {
+      sql: `select pg_get_constraintdef(oid) like '%<= 120%' from pg_constraint where conname = 'colaboradores_nome_chave_tamanho'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -3445,6 +3545,7 @@ export const MUTACOES = [
   ...F64_LOTE2_E_KIT,
   ...F65_TENANT,
   ...F66_RECORTE,
+  ...F66B_COMPRIMENTO,
 ]
 
 /**

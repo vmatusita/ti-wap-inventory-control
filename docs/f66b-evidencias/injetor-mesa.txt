@@ -1,0 +1,9 @@
+# O injetor da F66B na mesa (PGlite PG 17.5, cadeia 0001–0184, 12/11/2026 15:59): cada mutação aplicada num banco novo do dump,
+# a prova (espera t), e os rótulos ✗ que o roteiro dela derrubou. derruba ⊆ caídos em todas. O CI (run-mutation-tests) é a autoridade.
+f66b-chave-com-o-teto-da-origem · comprimento_comportamento.sql · prova=true · derruba=K2 · caídos: ✗ B1a ✗ B1d ✗ K2 ✗ L1a ✗ L1c 
+f66b-check-not-valid · comprimento_por_coluna.sql · prova=true · derruba=C3,C9 · caídos: ✗ C3 ✗ C4 ✗ C9 
+f66b-check-octet-length · comprimento_por_coluna.sql · prova=true · derruba=C2 · caídos: ✗ C2 ✗ C4 
+f66b-check-some · comprimento_por_coluna.sql · prova=true · derruba=C1 · caídos: ✗ C1 ✗ C4 
+f66b-coluna-nova-sem-teto · comprimento_por_coluna.sql · prova=true · derruba=C1 · caídos: ✗ C1 ✗ C4 
+f66b-import-por-fora-sem-teto · comprimento_comportamento.sql · prova=true · derruba=I1,I2 · caídos: ✗ B1b ✗ B1d ✗ I1 ✗ I2 ✗ I4 ✗ L2a ✗ M1 
+f66b-teto-sobe-sem-a-fonte · comprimento_por_coluna.sql · prova=true · derruba=C4 · caídos: ✗ C4 
