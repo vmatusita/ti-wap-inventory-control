@@ -201,9 +201,31 @@ function constraintsDe(migracoes: readonly (readonly [arquivo: string, sql: stri
   for (const [arquivo, sql] of migracoes) {
     for (const cmd of comandosDoTexto(sql)) {
       const c = cmd.replace(/\s+/g, ' ').trim().toLowerCase()
-      const m = /^alter table (?:only )?(?:public\.)?([a-z_0-9]+) (.*)$/.exec(c)
+      // `drop table` tira todas as da tabela (passadas da re-revisão: o casador tem de seguir o que o banco faria)
+      const dropTabela = /^drop table (?:if exists )?(?:public\.)?([a-z_0-9]+)\b/.exec(c)
+      if (dropTabela) {
+        for (const [nome, v] of [...achadas]) if (v.tabela === dropTabela[1]) achadas.delete(nome)
+        continue
+      }
+      const m = /^alter table (?:if exists )?(?:only )?(?:public\.)?([a-z_0-9]+) (.*)$/.exec(c)
       if (!m) continue
-      for (const parte of m[2].split(/,\s*(?=add constraint |drop constraint )/)) {
+      // `rename constraint a to b` leva o estado de `a` para `b`
+      const ren = /^rename constraint ([a-z_0-9]+) to ([a-z_0-9]+)$/.exec(m[2].trim())
+      if (ren) {
+        const v = achadas.get(ren[1])
+        if (v) {
+          achadas.delete(ren[1])
+          achadas.set(ren[2], v)
+        }
+        continue
+      }
+      for (const parte of m[2].split(/,\s*(?=add constraint |drop constraint |drop column |drop )/)) {
+        // `drop column` (com ou sem a palavra column) leva junto o CHECK que a cita
+        const dropCol = /^drop (?:column )?(?:if exists )?([a-z_0-9]+)(?: (?:cascade|restrict))?$/.exec(parte.trim())
+        if (dropCol && dropCol[1] !== 'constraint') {
+          for (const [nome, v] of [...achadas]) if (v.tabela === m[1] && v.coluna === dropCol[1]) achadas.delete(nome)
+          continue
+        }
         const add = /^add constraint ([a-z_0-9]+) check \(char_length\(([a-z_0-9]+)\) <= (\d+)\)$/.exec(parte.trim())
         if (add) {
           if (!criadaEm.has(add[1])) criadaEm.set(add[1], arquivo)
@@ -303,6 +325,17 @@ describe('2. migrations ↔ fonte, nos dois sentidos', () => {
       ])
       expect(s.has('ativos_marca_tamanho'), `drop${sufixo}`).toBe(false)
     }
+    // rename leva o estado para o nome novo (e o nome velho deixa de existir — a fonte reprovaria)
+    const add0182: readonly [string, string] = ['0182_x.sql', 'alter table public.ativos add constraint ativos_marca_tamanho check (char_length(marca) <= 60);']
+    const ren = constraintsDe([add0182, ['0192_r.sql', 'alter table if exists public.ativos rename constraint ativos_marca_tamanho to ativos_marca_len;']])
+    expect(ren.has('ativos_marca_tamanho')).toBe(false)
+    expect(ren.get('ativos_marca_len')).toMatchObject({ teto: 60, coluna: 'marca' })
+    // drop column e drop table levam junto o CHECK
+    expect(constraintsDe([add0182, ['0193_c.sql', 'alter table public.ativos drop column marca;']]).has('ativos_marca_tamanho')).toBe(false)
+    expect(constraintsDe([add0182, ['0193_c.sql', 'alter table public.ativos drop if exists marca cascade;']]).has('ativos_marca_tamanho')).toBe(false)
+    expect(constraintsDe([add0182, ['0194_t.sql', 'drop table if exists public.ativos cascade;']]).has('ativos_marca_tamanho')).toBe(false)
+    // e um drop column de OUTRA coluna não mexe nele
+    expect(constraintsDe([add0182, ['0193_c.sql', 'alter table public.ativos drop column modelo;']]).has('ativos_marca_tamanho')).toBe(true)
   })
 
   it('todo CHECK de comprimento canônico das migrations está na fonte (nenhum teto fora dela)', () => {
