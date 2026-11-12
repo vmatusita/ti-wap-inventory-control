@@ -83,7 +83,7 @@ language sql stable as $f$
          coalesce(pg_temp.f66b_canonica(k.conbin, e.attnum) and k.conkey = array[e.attnum], false),
          coalesce(k.convalidated, false),
          case when pg_temp.f66b_canonica(k.conbin, e.attnum)
-              then (regexp_match(pg_get_constraintdef(k.oid), '<= (\d+)\)\)$'))[1]::int end,
+              then (regexp_match(pg_get_constraintdef(k.oid), '<= (\d+)\)\)( NOT VALID)?$'))[1]::int end,
          e.teto_fonte,
          (select count(*)::int from pg_constraint x
            where x.conrelid = e.relid and x.contype = 'c' and pg_temp.f66b_canonica(x.conbin, e.attnum))
@@ -377,7 +377,8 @@ begin
   -- S5 — uma exceção nominal para coluna que TEM o CHECK → a C7b a acusa
   select count(*) filter (where excecao and n_canonicas > 0) into v_s
     from pg_temp.f66b_estado(k_negocio, k_comprimento_excecao || array['senhas_acesso.rotulo'],
-                             k_comprimento_nome_alternativo, k_comprimento_teto);
+                             k_comprimento_nome_alternativo, k_comprimento_teto)
+   where tabela = 'senhas_acesso' and coluna = 'rotulo';
   if v_s = 1 then
     v_ok := v_ok + 1; raise notice '✓ S5 a C7b acusa a exceção que tem o CHECK (senhas_acesso.rotulo)';
   else
@@ -387,7 +388,7 @@ begin
   -- S6 — uma exceção nominal que aponta coluna inexistente → a consulta da C7a a acusa
   select count(*) into v_s
     from unnest(k_comprimento_excecao || array['ativos._f66b_inexistente']) as x
-   where not exists (select 1 from pg_temp.f66b_universo(k_negocio) u where u.tabela || '.' || u.coluna = x);
+   where x = 'ativos._f66b_inexistente' and not exists (select 1 from pg_temp.f66b_universo(k_negocio) u where u.tabela || '.' || u.coluna = x);
   if v_s = 1 then
     v_ok := v_ok + 1; raise notice '✓ S6 a C7a acusa a exceção que aponta coluna inexistente (ativos._f66b_inexistente)';
   else
