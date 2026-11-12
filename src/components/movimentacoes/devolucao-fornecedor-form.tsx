@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select'
 import { devolverAoFornecedor } from '@/lib/actions/devolucao-fornecedor'
 import type { DevolverFornecedorInput } from '@/lib/validators/devolucao-fornecedor'
+// F66B (decisão 6): as observações do cadastro do substituto gravam em ativos.observacoes — o teto da ficha (2000).
+import { TETOS_COLUNA } from '@/lib/validators/tetos-coluna'
 import { CATEGORIA_ORDEM, rotuloCategoria, type CategoriaAtivo } from '@/lib/dominio'
 import { hojeISO, ouTraco } from '@/lib/format'
 import type { Filial } from '@/lib/queries/filiais'
@@ -506,7 +508,7 @@ export function DevolucaoFornecedorForm({
               <Textarea
                 id="sub-observacoes"
                 rows={2}
-                maxLength={500}
+                maxLength={TETOS_COLUNA.ativos.observacoes.teto}
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
                 placeholder="Notas sobre o equipamento novo (opcional)"

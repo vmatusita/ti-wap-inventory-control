@@ -314,9 +314,12 @@ describe('3. os caminhos com teto: nenhum aceita mais do que o banco', () => {
   })
 
   it('a observação do relatório (actions/relatorios.ts, schema não exportável de um arquivo use server) ≤ o banco', () => {
-    const m = /observacao: z\.string\(\)\.trim\(\)\.max\((\d+)/.exec(ler('src', 'lib', 'actions', 'relatorios.ts'))
+    const m = /observacao: z\s*\.string\(\)\s*\.trim\(\)\s*\.max\(\s*(\d+|TETOS_COLUNA\.relatorios_gerados\.observacao\.teto)\b/.exec(
+      ler('src', 'lib', 'actions', 'relatorios.ts'),
+    )
     expect(m, 'não achei o .max() da observação em actions/relatorios.ts').not.toBeNull()
-    expect(Number(m![1])).toBeLessThanOrEqual(tetoDe('relatorios_gerados.observacao'))
+    const teto = /^\d+$/.test(m![1]) ? Number(m![1]) : tetoDe('relatorios_gerados.observacao')
+    expect(teto).toBeLessThanOrEqual(tetoDe('relatorios_gerados.observacao'))
   })
 
   it('o tipo do termo (enum de 7) e a ação da trilha (literais de AcaoAdmin) cabem no banco', () => {
