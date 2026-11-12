@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.72.0',
+    data: '2026-11-12',
+    fase: 'F66B',
+    titulo: 'Um texto longo demais passou a ser recusado pelo próprio sistema, com uma mensagem que diz o campo e o limite',
+    mudancas: [
+      'Cada campo de texto do sistema — observações, nomes, marca, modelo, chamado, setor e os demais — passou a ter um limite de tamanho guardado no próprio sistema, e não só na tela. Quem tenta gravar um texto acima dele recebe uma mensagem que diz o campo e o limite, por exemplo: "O campo Marca aceita no máximo 60 caracteres."',
+      'Nada do que já estava cadastrado mudou ou foi cortado: cada limite foi escolhido acima do maior texto que o sistema guarda hoje e de tudo o que as telas já aceitavam.',
+      'Na importação de planilha (Administração › Importar), a linha com um texto acima do limite continua aparecendo como recusada na conferência, antes de importar, com o campo e o tamanho — e nada da filial é apagado por causa dela.',
+      'O campo "Observações" do equipamento passou a ter o mesmo limite em todas as telas: 2.000 caracteres na ficha do ativo e no cadastro do equipamento substituto da devolução ao fornecedor (antes, 500 ali).',
+      'Na edição de um motivo (Administração › Motivos), o código segue o mesmo limite da criação: 40 caracteres.',
+    ],
+  },
+  {
     versao: '1.71.2',
     data: '2026-10-19',
     titulo: 'Em Administração › Colaboradores, quem foi cadastrado e ficou sem uso ganhou um selo e um filtro',
