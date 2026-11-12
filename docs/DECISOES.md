@@ -13781,3 +13781,73 @@ retomada: apply da `0180` no ensaio e em produção, merge do PR #88 e tag `v1.7
 6. **Nenhuma escrita em produção além do `apply_migration`** (o `notify pgrst` só recarrega o schema). Nenhum
    colaborador foi desativado, reativado ou apagado. Nas evidências, só contagens, md5 e status — nenhum nome, id ou
    e-mail.
+
+## 2026-11-12 · F66B (v1.72.0) · o comprimento vira regra do banco
+
+**Contexto.** Ordem [`prompts/F66B-comprimento-vira-regra-do-banco-ultracode.md`](prompts/F66B-comprimento-vira-regra-do-banco-ultracode.md)
+(os 24 fatos, as três decisões do Johnny de 12/11/2026). Plano medido em [`PLAN-F66B.md`](PLAN-F66B.md) (os 24 fatos
+remedidos, a tabela-verdade das 65 colunas × caminhos, o mapa do import, as catorze decisões, a ordem de apply e de
+rollback). Migrations `0181`–`0184`. Relatório em [`RELATORIO-F66B.md`](RELATORIO-F66B.md). Regras novas: MATRIZ
+R-ACC-118 a R-ACC-123; ADR-003, nota F66B; RUNBOOK, Anexo F66B; PLANO, a nota F66B e as notas nas fichas F67 e F69.
+
+**As três decisões do Johnny (12/11/2026):**
+1. **A F66B roda agora, antes da F67**, como o plano manda.
+2. **A F67 vai ser dividida em três**: F67 (cargo por empresa, `security definer`, RPCs destrutivas, mesa de conflitos e
+   trava do termo), F67B (Storage e Realtime) e F67C (o fim do default `empresa_legada()` — a escrita passa a informar a
+   empresa). Esta fase só registra a decisão numa nota da ficha F67; quem escreve as fichas novas é a própria F67.
+3. **As duas contas dev continuam em `membros` por ora.** Na F67, `e_dev()` passa a ser "dev da empresa OU
+   `e_plataforma()`"; a saída de `membros` vai para a F69. Aqui só as notas nas fichas F67 e F69.
+
+**As catorze decisões da fase** (detalhe no `PLAN-F66B.md` §4):
+1. **O universo:** toda coluna `text`/`varchar`/`bpchar` (ou domínio sobre elas) das 20 de `k_negocio`, do catálogo — 65,
+   todas `text`. `movimentacoes.itens_faltantes` (`text[]`) e os `jsonb` ficam fora, declarados (o elemento do array vira
+   `pendencias_item.item`, que tem teto).
+2. **A régua:** ≥ o maior caminho com Zod/`LIMITES_CAMPO_PLANO`, ≥ o vivo nos dois bancos, e, sem Zod, o degrau da
+   escada `40 · 80 · 120 · 200 · 320 · 500 · 2000` ≥ 2× o vivo e ≥ o irmão. Acima do maior caminho só com motivo escrito
+   (`lancamentos_item.observacao`, `ativos.pendencia`, `eventos_admin.alvo`, `pendencias_item.item`, `termos_gerados.tipo`).
+3. **A forma `char_length(<col>) <= <N>`, sem `btrim`; o nome `<tabela>_<coluna>_tamanho`.** As duas que já existiam
+   ficam como estão (renomear nunca), mas **não viram exceção — desvio medido da proposta da ordem**: as duas limitam o
+   valor APARADO (`btrim` tira só espaço), e o valor GUARDADO ficava sem teto. `anotacoes.texto` ganha
+   `anotacoes_texto_tamanho`; `unidades_apelidos.apelido`, cujo nome do padrão é da 0139, ganha o nome alternativo
+   `unidades_apelidos_apelido_bruto_tamanho` (lista nominal `k_comprimento_nome_alternativo`, com motivo).
+4. **Os derivados (`*_chave`) com 3× a origem, não 2× — desvio medido:** as chaves crescem até 3× (o NFC decompõe os
+   caracteres de exclusão de composição; o `lower` do U+0130 dá 2 code points; no vocabulário, a sobra do NFD). No PG 17,
+   120 × U+FB2C dão uma chave de EXATAMENTE 360. Não há `unaccent` (fato 21 da ordem, corrigido).
+5. **Os gerados no servidor** com o formato e um degrau: `arquivo_path` 80 (41), `senhas_acesso.hash` 200 (168),
+   `backup_path` 120 (49; ≈ 94 com a empresa no prefixo da F67), `arquivo_hash` 128 (o Zod). Nenhum é exceção.
+6. **Os dois ajustes:** `ativos.observacoes` com um teto só nas telas (2.000: a ficha e o substituto da devolução, que
+   grava nessa coluna — medido); a observação da MOVIMENTAÇÃO da devolução fica em 500 (outra coluna); o import em 500,
+   declarado. `motivos.codigo` na edição com `.max(40)` (ela não grava o código — coerência). O `maxLength` do campo no
+   formulário da devolução acompanha (**desvio declarado** do critério 18: um componente tocado, por causa da decisão).
+   Nenhum outro teto de tela muda; as telas SEM `.max()` (fato 8) ficam como estão — o banco passa a ser o limite delas e
+   a frase do 23514 chega à tela. Backlog.
+7. **A fonte única** `src/lib/validators/tetos-coluna.ts` e a trava `tetos-coluna.test.ts` (migrations ↔ fonte nos dois
+   sentidos; sondas pelo schema real; a lista dos caminhos sem `.max()`; `LIMITES` ↔ colunas e `AtivoPlano` ↔ `LIMITES`;
+   as cópias dos roteiros). O que ela não pega está declarado.
+8. **`comprimento_por_coluna.sql`** lê a árvore (`conbin`: opno de `<=(int4,int4)`, funcid de `char_length(text)`, o
+   `varattno`), a cópia de `k_negocio` amarrada à fonte, as exceções (vazias) nos dois sentidos, e a auto-sabotagem S1–S6.
+9. **O mapa do import:** sem buraco — o import não muda. A cobertura campo a campo virou teste (sabotagem E).
+10. **A tradução:** um ramo (`fraseDeComprimento`, em `erros-do-banco.ts`), o nome da constraint lido da mensagem real do
+    Postgres (capturada no roteiro, M1), o rótulo e o teto da fonte; num derivado, os da origem. As quatro de comprimento
+    anteriores à F66B ganharam frase própria. O import segue tratando 23514 como recusa da RPC.
+11. **Quatro lotes** na ordem de lock das 0175–0178.
+12. **Nada mais muda:** nenhuma função, policy ou coluna; nenhum `update`. Prova: a impressão antes × depois.
+13. **O injetor:** sete mutações (teto 156 → 163). "A exceção ganha uma coluna com CHECK" não entra: é edição do roteiro,
+    não do banco (provada pela auto-sabotagem S5).
+14. **O rollback** `F66B-desfaz.sql` (drop constraint if exists literal, 0184 → 0181); os da F65, F64 e F63 o rodam antes
+    (medido: o `rb3` deles reprova sem ele); o da F62 também, pela ordem; o da F66 não precisa.
+
+**Decisões tomadas na execução:**
+- **(a) O conector da Supabase na conta errada.** Toda a run: `list_projects` só vê outro projeto; `execute_sql` nos refs
+  da WAP dá "no permission". Pela ordem: nada de token, nada de `.env.local`, PR sem merge, caminho B no topo do
+  relatório. O máximo vivo foi medido pela API do app com a sessão de consulta (`medir-maximos.mts`, molde da v1.71.2) —
+  17 das 20 tabelas; as três que a consulta não lê ficam para o portão SQL.
+- **(b) A mesa PGlite** (PG 17.5, fora do projeto) aplicou a cadeia inteira, mediu o universo, rodou todos os roteiros
+  antes e depois (nenhum roteiro existente mudou de resultado), mediu o fato 18 e rodou cada mutação. O CI é a autoridade.
+- **(c) A constante do ensaio de rollback** (as 36 CHECK de antes da 0181, `f921131b…`) foi medida na mesa e conferida no
+  CI; a dos bancos vivos é do portão.
+- **(d) O ensaio teve mais que produção** (o seed fictício): `setor` com 84 em `ativos.setor_atual` e
+  `movimentacoes.setor` — acima dos 80 do import. O teto do setor do movimento subiu para 120 (a régua (b)).
+- **(e) Os caminhos de escrita sem `.max()`** (compra, devolução, ficha, movimentação) não ganharam `.max()`: a decisão 6
+  da ordem proíbe mexer em teto de tela. Ficam numa lista nominal da trava de mesa, que confere que continuam sem teto ≤ o
+  banco. Backlog nomeado.

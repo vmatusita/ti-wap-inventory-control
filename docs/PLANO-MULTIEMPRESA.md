@@ -1003,6 +1003,24 @@ acima de 8 kB). **Regras novas:** MATRIZ R-ACC-108 a R-ACC-116; ADR-001 e ADR-00
 prompt dela sai em outra conversa. O censo abaixo foi MEDIDO nos dois bancos pelo catálogo e por `max(char_length)`:
 só nomes de objeto e números saíram de consulta nenhuma.)*
 
+*(Nota F66B, 12/11/2026: executada pela ordem [`prompts/F66B-comprimento-vira-regra-do-banco-ultracode.md`](prompts/F66B-comprimento-vira-regra-do-banco-ultracode.md),
+plano [`PLAN-F66B.md`](PLAN-F66B.md), migrations `0181`–`0184` (quatro lotes por família, na ordem de lock das
+`0175`–`0178`), versão `1.72.0`. **O que entrou:** as **65** colunas `text` das 20 (o universo lido do catálogo; o
+`text[]` `movimentacoes.itens_faltantes` e os `jsonb` fora, declarados) ganharam `CHECK (char_length(<col>) <= <teto>)`
+validado, `<tabela>_<coluna>_tamanho`, com o teto ≥ todo caminho que grava na coluna e ≥ o vivo nos dois bancos (a
+tabela-verdade coluna × caminho, PLAN §2), de uma FONTE ÚNICA (`src/lib/validators/tetos-coluna.ts`) que alimenta as
+migrations, a trava de mesa, o bloco de contagem e a frase pt-BR do `23514`. **Os desvios medidos:** (1) as duas
+constraints de comprimento que já existiam limitam só o valor APARADO — não viraram exceção; `anotacoes.texto` ganhou
+`anotacoes_texto_tamanho` e `unidades_apelidos.apelido` o nome alternativo `unidades_apelidos_apelido_bruto_tamanho`; (2)
+as chaves derivadas crescem até **3×** (não 2×; não há `unaccent`): teto 3× a origem, provado no PG 17; (3) "uma coluna,
+vários tetos" é pior que a ficha dizia — várias telas gravam SEM `.max()` (compra, devolução, ficha, movimentação): o
+banco passa a ser o limite delas, e pôr o `.max()` é backlog (nenhum teto de tela muda — só os dois ajustes da ficha);
+(4) a validação por linha do import já existia (F56) e não tinha buraco — o import não mudou, a cobertura virou teste
+campo a campo; (5) o ensaio tem `setor` com 84 (o seed), acima dos 80 do import — o teto do setor do movimento é 120. **O
+que NÃO entrou:** o apply nos bancos vivos — o conector da Supabase esteve ligado a outra conta durante toda a run; o PR
+ficou aberto, sem merge, com o caminho B no topo do relatório. **Regras novas:** MATRIZ R-ACC-118 a R-ACC-123; ADR-003,
+emenda F66B; RUNBOOK, Anexo F66B.)*
+
 **Objetivo.** Fazer o banco recusar texto maior que o teto de cada coluna de texto livre das tabelas de negócio — em banco
 compartilhado, um cliente que grava 500 MB de observação derruba todos, e o Zod só guarda quem passa pela Server Action.
 
@@ -1139,6 +1157,16 @@ do máximo de hoje; onde não há Zod, folga escrita e ata.
   com a ponte por empresa, ela ganha a ESCRITA da direção B (que depende da ponte) e passa a rodar com as policies reais
   — e o `where` explícito de `v_conflitos_filiais`/`_grupos` (acima) continua desta fase.
 
+- *(Nota F66B, 12/11/2026 — **AS DECISÕES 2 E 3 DO JOHNNY SOBRE ESTA FICHA**, registradas pela F66B, que só as anota.)*
+  **(2) A F67 vai ser dividida em três fases:** a **F67** (cargo por empresa, `security definer`, RPCs destrutivas, mesa de
+  conflitos e trava do termo), a **F67B** (Storage e Realtime) e a **F67C** (o fim do default `empresa_legada()`: a escrita
+  passa a informar a empresa). Quem escreve as fichas novas, com o escopo de cada uma, é a própria F67, na conversa dela.
+  **(3) As duas contas dev continuam em `membros` por ora.** Na F67, `e_dev()` passa a ser "dev da empresa OU
+  `e_plataforma()`"; a saída das contas dev de `membros` vai para a **F69**, junto com a decisão de quanto a plataforma
+  enxerga. E o que a F66B deixa para cá: nenhum objeto (os CHECK de comprimento não dependem de `empresa_id` nem de
+  policy) — mas toda coluna `text` nova que a F67 criar numa das 20 nasce reprovada por `comprimento_por_coluna.sql` até
+  ganhar o teto na fonte única e o CHECK na migration (RUNBOOK, Anexo F66B).
+
 **Entregas.** Migrations `0160`–`0165`, `src/lib/actions/{importar,conflitos,termos,dev-destrutivo}.ts`, `supabase/tests/{definer_escopo,storage_por_empresa,conflito_entre_empresas,realtime_escopo,termo_bloqueado}.sql`.
 
 **Pronto quando.** `isolamento_tenant.sql` prova, nas duas direções, que admin de A não escreve em nada de B — em `ativos`, `movimentacoes`, `lancamentos_item`, `termos_gerados` e nas cinco RPCs de conta; admin de A não lista nem baixa objeto de B em nenhum dos dois buckets; admin de A **ainda apaga** o termo degenerado (`ativo_ids = '{}'`) da própria empresa — o teste que prova que a correção não recriou o lixo imortal que a `0069` documenta; emitir termo para a empresa B é recusado com 42501; `definer-escopo.test.ts` fica sem exceções.
@@ -1203,6 +1231,10 @@ fase.)*
 - **`queries/admin.ts` escopado.** Nove funções leem com service role e **enumeram o projeto Auth inteiro** (`listUsers`, até 10 mil contas). `auth.users` é do PROJETO, não da empresa: não há filtro possível na API, e o recorte tem de ser feito **depois**, em memória, contra `membros` — hoje o código faz o contrário (lê tudo do Auth e junta por id). Toda função recebe `empresaId` **obrigatório**. `perfilPorEmail` é o caso agudo: existe para responder "de quem é este e-mail?" e com N empresas responde sobre contas de outros clientes — reduzir a superfície fazendo a busca partir de `membros`, com `getUserById` (pontual) no lugar da enumeração.
 - **A leitura cruzada de perfis, com a distinção fina que vale copiar:** quem LÊ tem de ser membro **ativo**; quem É LIDO continua sendo colega mesmo desativado — o histórico precisa do nome de quem já saiu.
 - `fronteira-admin.test.ts` nasce **allow-list** (o tripwire do viewer nasceu deny-list, e é por isso que estava furado): falha em qualquer `.from('X')` fora de `['profiles','membros','operador_filiais','filiais','motivos','senhas_acesso']` e em qualquer `admin.auth.admin.<método>` fora de lista nominal com motivo.
+
+- *(Nota F66B, 12/11/2026 — decisão 3 do Johnny.)* **A saída das duas contas dev de `membros` chega a esta fase**: até a
+  F67 elas ficam em `membros` (na F67, `e_dev()` = dev da empresa OU `e_plataforma()`); aqui, com a identidade por empresa,
+  elas saem de `membros` e a fase decide quanto a plataforma enxerga.
 
 **Não entra.** UI (F70).
 
