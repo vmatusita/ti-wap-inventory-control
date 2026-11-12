@@ -84,6 +84,10 @@ $f$;
 -- F66 (24/09/2026): a F66 sai antes de todas — as policies dela citam `empresa_id` (que os rollbacks da F64 e da F63
 -- derrubam) e as funções de conjunto (que o da F62 derruba), e a impressão de antes tem de ser o estado que as fases
 -- anteriores deixaram. O que este roteiro prova não muda.
+-- F66B (12/11/2026): e a F66B antes da F66 — a impressão de antes que este roteiro compara inclui TODA constraint
+-- das tabelas (o `con|…|pg_get_constraintdef`), e os CHECK de comprimento da F66B a mudariam: medido na mesa e no CI,
+-- o rb3 reprova sem esta linha (fato 18 do PLAN-F66B). O que este roteiro prova não muda.
+\ir ../rollback/F66B-desfaz.sql
 \ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql
 
