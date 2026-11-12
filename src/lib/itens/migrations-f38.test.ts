@@ -261,6 +261,7 @@ const DA_F38 = [
   // nenhuma escrita no acervo, nenhuma tupla reescrita.
   '0181',
   '0182',
+  '0183',
 ]
 
 /**
