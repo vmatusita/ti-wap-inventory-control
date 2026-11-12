@@ -209,7 +209,9 @@ function constraintsDe(migracoes: readonly (readonly [arquivo: string, sql: stri
           if (!criadaEm.has(add[1])) criadaEm.set(add[1], arquivo)
           achadas.set(add[1], { tabela: m[1], coluna: add[2], teto: Number(add[3]), migration: arquivo, criadaEm: criadaEm.get(add[1])! })
         }
-        const drop = /^drop constraint (?:if exists )?([a-z_0-9]+)$/.exec(parte.trim())
+        // `cascade`/`restrict` no fim também é drop (terceira passada da revisão: sem isso, um drop com cascade sem add
+        // posterior deixaria a constraint "vigente" no casador, e a trava verde sobre um banco sem o CHECK)
+        const drop = /^drop constraint (?:if exists )?([a-z_0-9]+)(?: (?:cascade|restrict))?$/.exec(parte.trim())
         if (drop) achadas.delete(drop[1])
       }
     }
@@ -293,6 +295,14 @@ describe('2. migrations ↔ fonte, nos dois sentidos', () => {
       ['0190_y.sql', 'alter table public.ativos drop constraint ativos_marca_tamanho, add constraint ativos_marca_tamanho check (char_length(marca) <= 80);'],
     ])
     expect(r.get('ativos_marca_tamanho')).toMatchObject({ teto: 80, criadaEm: '0182_x.sql', migration: '0190_y.sql' })
+    // e um drop SEM add depois — com ou sem cascade/restrict — tira a constraint do estado vigente
+    for (const sufixo of ['', ' cascade', ' restrict']) {
+      const s = constraintsDe([
+        ['0182_x.sql', 'alter table public.ativos add constraint ativos_marca_tamanho check (char_length(marca) <= 60);'],
+        ['0191_z.sql', `alter table public.ativos drop constraint ativos_marca_tamanho${sufixo};`],
+      ])
+      expect(s.has('ativos_marca_tamanho'), `drop${sufixo}`).toBe(false)
+    }
   })
 
   it('todo CHECK de comprimento canônico das migrations está na fonte (nenhum teto fora dela)', () => {
