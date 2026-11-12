@@ -6,6 +6,29 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 12/11/2026 — F66B · O comprimento vira regra do banco 🚧
+
+Fase **F66B** (**v1.72.0**) · **com migrations `0181`–`0184`** (65 `CHECK` de comprimento, classe ADITIVA, nenhuma
+tupla reescrita), a aplicar no ensaio e em produção ANTES do merge, lote a lote, com a contagem de violação 0 antes de
+cada um (o conector da Supabase da run enxergava outra conta; o caminho do apply está no topo de
+[`docs/RELATORIO-F66B.md`](docs/RELATORIO-F66B.md)) · sem dependência nova. Plano em
+[`docs/PLAN-F66B.md`](docs/PLAN-F66B.md), ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-12 · F66B).
+
+- 📏 **O banco passa a recusar o texto longo demais.** As 65 colunas de texto das 20 tabelas de negócio ganham
+  `CHECK (char_length(<col>) <= <teto>)`, `<tabela>_<coluna>_tamanho`, com o teto ≥ todo caminho que grava na coluna (as
+  telas, o import, as funções do banco) e ≥ o maior valor vivo nos dois bancos. Até aqui só o Zod limitava — e a RPC do
+  import chamada por fora, os scripts e as telas sem `.max()` gravavam qualquer tamanho.
+- 🧮 **Uma fonte só para os 65 números** (`src/lib/validators/tetos-coluna.ts`): as migrations, a trava de mesa, o bloco de
+  contagem e a frase do erro saem dela. As chaves derivadas (`*_chave`) têm 3× a origem — a normalização alonga até 3×,
+  medido.
+- 💬 **A frase do erro:** um `23514` de comprimento chega como *"O campo <rótulo> aceita no máximo <N> caracteres."*.
+- 📥 **O import continua recusando na conferência** (`valor_longo_demais`), provado campo a campo; a RPC chamada por fora
+  leva `23514` sem gravar nada.
+- 📝 **Os dois ajustes:** as observações do equipamento com um teto só nas telas (2.000); o código do motivo com `.max(40)`
+  também na edição.
+- 🔒 **As travas:** `comprimento_por_coluna.sql` (do catálogo, pela árvore), `comprimento_comportamento.sql`, `tetos-coluna.test.ts`,
+  `f66b_rollback.sql`; sete mutações novas no injetor (teto 163).
+
 ## 19/10/2026 — O colaborador sem uso ✅
 
 Entrega avulsa (**v1.71.2**) · **com migration `0180`** (uma função nova, só leitura — classe ADITIVA), a aplicar no

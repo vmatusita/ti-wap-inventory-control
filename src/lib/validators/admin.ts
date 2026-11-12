@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TETOS_COLUNA } from '@/lib/validators/tetos-coluna'
 import { Constants } from '@/lib/types/database'
 import { DOMINIOS_TEXTO, emailDeOperador } from '@/lib/auth/dominios-email'
 import { eAdmin, eDev, validarVinculosDoPapel } from '@/lib/auth/papeis'
@@ -316,7 +317,7 @@ export const atualizarFilialSchema = filialSchema.extend({
 // e manter o mesmo número evita um caso especial sem necessidade (é o mesmo teto
 // que `motivoSchema.rotulo` e `senhaSchema.rotulo` já usam para texto curto de
 // vocabulário).
-export const MAX_TAMANHO_APELIDO = 80
+export const MAX_TAMANHO_APELIDO = TETOS_COLUNA.unidades_apelidos.apelido.teto
 
 export const apelidoFilialSchema = z.object({
   filialId: z.number().int().positive(),
@@ -338,13 +339,15 @@ export const motivoSchema = z.object({
     .trim()
     .toLowerCase()
     .regex(/^[a-z0-9_]+$/, 'Código: só letras minúsculas, números e _')
-    .max(40),
+    .max(TETOS_COLUNA.motivos.codigo.teto),
   rotulo: z.string().trim().min(2, 'Informe o rótulo').max(80),
   aplica_a: z.array(z.enum(tiposMov)).min(1, 'Escolha ao menos um tipo'),
 })
 
 export const atualizarMotivoSchema = z.object({
-  codigo: z.string().trim().min(1),
+  // F66B (decisão 6): o mesmo teto da criação. A edição não grava o código (ele só localiza a linha), mas um código
+  // acima do teto não existe no banco — recusar aqui é a mesma regra, dita antes.
+  codigo: z.string().trim().min(1).max(TETOS_COLUNA.motivos.codigo.teto),
   rotulo: z.string().trim().min(2, 'Informe o rótulo').max(80),
   aplica_a: z.array(z.enum(tiposMov)).min(1, 'Escolha ao menos um tipo'),
   ativo: z.boolean(),

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { traduzErroBanco } from './erros'
+import { COMPRIMENTO_TRADUZIDO } from '@/lib/supabase/erros-do-banco'
+import { constraintsDeTamanho } from '@/lib/validators/tetos-coluna'
 
 // F7F (OS §2) — revisão adversarial do "erro genérico" do Substituir tudo. A
 // `traduzErroBanco` é função pura testável, MAS com dois efeitos colaterais que os
@@ -362,5 +364,48 @@ describe('as guardas do tenant (F65 · 0173): frases próprias, antes dos ramos 
     traduzErroBanco(EMPRESA, '42501')
     traduzErroBanco(TERMO, '23503')
     expect(spyErro).not.toHaveBeenCalled()
+  })
+})
+
+// F66B (12/11/2026) — o 23514 de um teto de comprimento do BANCO. A mensagem é a do Postgres, no formato medido no PG 17
+// (`new row for relation "<t>" violates check constraint "<nome>"`, INSERT e UPDATE; o roteiro
+// comprimento_comportamento.sql a captura de verdade, M1). Nenhum valor real: só nomes de esquema.
+describe('teto de comprimento (23514, F66B)', () => {
+  const msg = (t: string, nome: string) => `new row for relation "${t}" violates check constraint "${nome}"`
+
+  it.each(constraintsDeTamanho().map((c) => [c.nome, c] as const))('%s vira a frase com o campo e o teto', (_n, c) => {
+    const frase = traduzErroBanco(msg(c.tabela, c.nome), '23514')
+    expect(frase).toBe(`O campo ${c.rotuloNaFrase} aceita no máximo ${c.tetoNaFrase} caracteres.`)
+    expect(frase).toContain(String(c.tetoNaFrase))
+    expect(spyErro).not.toHaveBeenCalled()
+  })
+
+  it('um derivado (a chave) cita a ORIGEM: o rótulo e o teto do campo que o operador digitou', () => {
+    expect(traduzErroBanco(msg('colaboradores', 'colaboradores_nome_chave_tamanho'), '23514')).toBe(
+      'O campo Nome do colaborador aceita no máximo 120 caracteres.',
+    )
+  })
+
+  it('as de comprimento anteriores à F66B têm frase própria', () => {
+    expect(traduzErroBanco(msg('anotacoes', 'anotacao_texto_len'), '23514')).toBe(COMPRIMENTO_TRADUZIDO.anotacao_texto_len.frase)
+    expect(traduzErroBanco(msg('unidades_apelidos', 'unidades_apelidos_apelido_tamanho'), '23514')).toBe(
+      'O apelido precisa ter entre 2 e 80 caracteres.',
+    )
+  })
+
+  it('a frase vale sem o code (chamadores antigos passam só a mensagem) e com o code do import', () => {
+    expect(traduzErroBanco(msg('ativos', 'ativos_marca_tamanho'))).toBe('O campo Marca aceita no máximo 60 caracteres.')
+  })
+
+  it('um CHECK que NÃO é de comprimento segue o ramo dele', () => {
+    expect(traduzErroBanco(msg('lancamentos_item', 'lanc_item_chamado'), '23514')).not.toContain('aceita no máximo')
+  })
+
+  it('um CHECK desconhecido terminado em _tamanho não inventa frase: cai no genérico, e registra', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    expect(traduzErroBanco(msg('ativos', 'ativos_coluna_inexistente_tamanho'), '23514')).toBe(
+      'Não foi possível concluir a operação. Tente novamente.',
+    )
+    expect(spyErro).toHaveBeenCalled()
   })
 })

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TETOS_COLUNA } from '@/lib/validators/tetos-coluna'
 import { Constants } from '@/lib/types/database'
 import { dataNaoFuturaSchema } from '@/lib/validators/data'
 import { PATRIMONIO_CANONICAL_RE } from '@/lib/patrimonio'
@@ -20,6 +21,18 @@ const opcional = z.preprocess(
 const textoMax500 = z.preprocess(
   (v) => (v === '' || v == null ? undefined : v),
   z.string().trim().max(500, 'No máximo 500 caracteres').optional(),
+)
+
+// F66B (decisão 6 do PLAN-F66B) — as observações do CADASTRO do substituto gravam em `ativos.observacoes`, a mesma
+// coluna da ficha do ativo: um teto só nas telas, o da coluna (2000, src/lib/validators/tetos-coluna.ts). A observação
+// da MOVIMENTAÇÃO (`observacao`, abaixo) continua em 500 — é outra coluna (`movimentacoes.observacao`).
+const observacoesDoAtivo = z.preprocess(
+  (v) => (v === '' || v == null ? undefined : v),
+  z
+    .string()
+    .trim()
+    .max(TETOS_COLUNA.ativos.observacoes.teto, `No máximo ${TETOS_COLUNA.ativos.observacoes.teto} caracteres`)
+    .optional(),
 )
 
 // Sub-form do SUBSTITUTO (MN4): reusa as regras cadastrais da compra
@@ -48,7 +61,7 @@ export const substitutoSchema = z.object({
   processador: opcional,
   hostname: opcional,
   filial_id: z.number().int().positive('Escolha a filial'),
-  observacoes: textoMax500, // cadastro do ativo
+  observacoes: observacoesDoAtivo, // cadastro do ativo (ativos.observacoes — o teto da ficha)
   observacao: textoMax500, // F15: vai na movimentação `troca` do substituto (não `compra`)
   data: dataNaoFuturaSchema,
 })

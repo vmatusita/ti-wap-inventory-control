@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { TETOS_COLUNA } from '@/lib/validators/tetos-coluna'
 import { exigirPapel } from '@/lib/auth/acesso'
 import { createClient } from '@/lib/supabase/server'
 import { registrarFalha } from '@/lib/observabilidade'
@@ -32,7 +33,14 @@ const periodoSchema = z.object({
   de: dataRealSchema('Data inicial inválida'),
   ate: dataRealSchema('Data final inválida'),
   // B4 (F6B): observação da semana — texto livre opcional definido no ato de gerar.
-  observacao: z.string().trim().max(2000, 'Observação: no máximo 2000 caracteres').optional(),
+  observacao: z
+    .string()
+    .trim()
+    .max(
+      TETOS_COLUNA.relatorios_gerados.observacao.teto,
+      `Observação: no máximo ${TETOS_COLUNA.relatorios_gerados.observacao.teto} caracteres`,
+    )
+    .optional(),
 })
 
 // Gera o relatório da semana (snapshot congelado — spec §7.1 / OS-F3 3.8.2 /

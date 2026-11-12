@@ -151,3 +151,25 @@ por empresa, a guarda da empresa, a coerência do termo e a diagonal por empresa
    fases anteriores: o `drop column empresa_id` delas falha com o gatilho `UPDATE OF empresa_id` e as FKs compostas.
 
 A regra é a R-ACC-98 a R-ACC-107 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F65.
+
+## Emenda F66B (12/11/2026) — o CHECK que valida a tabela é ADITIVO, e a contagem de violação é o portão
+
+O método continua o mesmo. A F66B (quatro migrations, `0181`–`0184`: 65 `CHECK (char_length(<col>) <= <teto>)` nas
+colunas de texto das 20 tabelas de negócio) acrescenta três pontos:
+
+1. **`alter table … add constraint … check (…)` é ADITIVA** para o classificador (não sobrescreve dado, não derruba nada),
+   e é — mas ela VALIDA a tabela inteira: uma linha que já viole o CHECK derruba a migration, e um teto abaixo do dado vivo
+   recusaria amanhã o que se aceita hoje. Por isso, nesta classe de migration, **a contagem de violação é o portão**: um
+   bloco só leitura (o MESMO texto nos dois bancos, só números) conta, por coluna, as linhas acima do teto,
+   IMEDIATAMENTE antes de cada lote, nos dois bancos; tem de dar 0. Se não der, o lote não é aplicado e o teto sobe — o
+   dado nunca é cortado nem atualizado. A ferramenta é `scripts/comprimento/contagem-violacao.mts`.
+2. **Validado direto, sem `not valid`.** O `apply_migration` do MCP é uma transação só: separar `not valid` e `validate`
+   na mesma migration não encurta o ACCESS EXCLUSIVE. Com a contagem 0, o `add constraint` validado é o certo; um `not
+   valid` deixado sem validar é recusado pela trava (`comprimento_por_coluna.sql`, C3/C9).
+3. **Um `alter table` literal por tabela, com todas as constraints dela** (as subcomandos "combined into a single pass",
+   PG 17), um lote por família na ordem de lock do app, `lock_timeout` de 2 s. A prova de "nenhuma tupla reescrita" é o
+   `relfilenode` das tabelas, igual antes e depois.
+
+A regra é a R-ACC-118 a R-ACC-123 da [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md), emenda F66B; a receita é o Anexo F66B do
+[`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md).
+

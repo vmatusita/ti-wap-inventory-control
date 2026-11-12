@@ -1,0 +1,124 @@
+# Os 54 roteiros que existiam antes da F66B, na mesa (PGlite PG 17.5), na cadeia 0001–0180 (ANTES) e 0001–0184 (DEPOIS), 12/11/2026.
+# Nenhum roteiro existente mudou de resultado com os 65 CHECK: os únicos ✗ são as diferenças de AMBIENTE conhecidas da mesa
+# (memória 'mesa com PGlite': fuso/pg_locks — fuso_do_negocio, f38 3d, transferencia_item 3a — e o md5 de prosrc — integridade_tenant L4),
+# idênticas antes e depois. Os cinco ensaios de rollback (f62–f66) não rodavam no runner da mesa nesta medição (\gset); ver H-rollback/.
+# == ANTES
+supabase/tests/asof_desempate.sql: FIM asof_desempate: 21 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/asserts_ferramenta.sql: FIM asserts_ferramenta: 7 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/cargo_dev.sql: FIM cargo_dev: 71 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/cargo_em_membros.sql: FIM cargo_em_membros: 5 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/cargo_equivalencia.sql: FIM cargo_equivalencia: 7 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/catalogo_policies.sql: FIM catalogo_policies: 42 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/catalogo_secdef.sql: FIM catalogo_secdef: 16 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/colaborador_estorno.sql: FIM colaborador_estorno: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/colaborador_uso_efetivo.sql: FIM colaborador_uso_efetivo: 11 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/conflito_filiais.sql: FIM conflito_filiais: 51 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/definer_sem_tenant.sql: FIM definer_sem_tenant: 6 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/dev_destrutivo.sql: FIM dev_destrutivo: 108 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/dominios_login.sql: FIM dominios_login: 16 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/empresa_no_acervo.sql: FIM empresa_no_acervo: 22 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/empresa_no_vocabulario.sql: FIM empresa_no_vocabulario: 15 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/escrita_atomica_ativos_anotacao.sql: FIM escrita_atomica_ativos_anotacao: 16 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f34_triagem_reserva.sql: FIM f34_triagem_reserva: 21 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f36_detentor.sql: FIM f36_detentor: 18 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f37_colaboradores_tipos.sql: FIM f37_colaboradores_tipos: 26 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f38_itens_com_ativo.sql: FIM f38_itens_com_ativo: 51 asserções, 1 falhas · ✗ vistos=2
+supabase/tests/f41_regularizacao.sql: FIM f41_regularizacao: 26 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f60_recorte.sql: FIM f60_recorte: 17 asserções, 0 falhas · ✗ vistos=0
+ERRO em supabase/tests/f62_rollback.sql: syntax error at or near "savepoint"
+supabase/tests/f62_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f63_rollback.sql: syntax error at or near "set"
+supabase/tests/f63_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f64_rollback.sql: syntax error at or near "set"
+supabase/tests/f64_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f65_rollback.sql: syntax error at or near "set"
+supabase/tests/f65_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f66_rollback.sql: syntax error at or near "set"
+supabase/tests/f66_rollback.sql: (sem FIM) · ✗ vistos=0
+supabase/tests/forma_multiempresa.sql: FIM forma_multiempresa: 8 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/fuso_do_negocio.sql: FIM fuso_do_negocio: 5 asserções, 2 falhas · ✗ vistos=2
+supabase/tests/import_fora_da_unidade.sql: FIM import_fora_da_unidade: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/import_substituir.sql: FIM import_substituir: 32 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/imutabilidade_tenant.sql: FIM imutabilidade_tenant: 9 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/integridade_alarme.sql: FIM integridade_alarme: 40 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/integridade_tenant.sql: FIM integridade_tenant: 24 asserções, 1 falhas · ✗ vistos=1
+supabase/tests/isolamento_tenant.sql: FIM isolamento_tenant: 44 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/itens_extra.sql: FIM itens_extra: 4 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/itens_quantidade.sql: FIM itens_quantidade: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/kit_motivo_da_empresa.sql: FIM kit_motivo_da_empresa: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/ledger_de_migracoes.sql: FIM ledger_de_migracoes: 6 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/manutencao_fornecedor.sql: FIM manutencao_fornecedor: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/maquina_estados.sql: FIM maquina_estados: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/movimentacao_grade.sql: FIM movimentacao_grade: 45 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/papeis_rls.sql: FIM papeis_rls: 77 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/pendencias_import_termo.sql: FIM pendencias_import_termo: 5 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/pendencias_item.sql: FIM pendencias_item: 15 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/reabrir_pendencia_item.sql: FIM reabrir_pendencia_item: 4 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/restauracao.sql: FIM restauracao: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/seguranca_catalogo.sql: FIM seguranca_catalogo: 8 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/storage_termo.sql: FIM storage_termo: 13 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/transferencia_item.sql: FIM transferencia_item: 18 asserções, 1 falhas · ✗ vistos=2
+supabase/tests/transicoes_extra.sql: FIM transicoes_extra: 13 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/troca.sql: FIM troca: 13 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/unicidade_por_empresa.sql: FIM unicidade_por_empresa: 3 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/vocabulario_import.sql: FIM vocabulario_import: 56 asserções, 0 falhas · ✗ vistos=0
+# == DEPOIS
+supabase/tests/asof_desempate.sql: FIM asof_desempate: 21 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/asserts_ferramenta.sql: FIM asserts_ferramenta: 7 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/cargo_dev.sql: FIM cargo_dev: 71 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/cargo_em_membros.sql: FIM cargo_em_membros: 5 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/cargo_equivalencia.sql: FIM cargo_equivalencia: 7 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/catalogo_policies.sql: FIM catalogo_policies: 42 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/catalogo_secdef.sql: FIM catalogo_secdef: 16 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/colaborador_estorno.sql: FIM colaborador_estorno: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/colaborador_uso_efetivo.sql: FIM colaborador_uso_efetivo: 11 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/conflito_filiais.sql: FIM conflito_filiais: 51 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/definer_sem_tenant.sql: FIM definer_sem_tenant: 6 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/dev_destrutivo.sql: FIM dev_destrutivo: 108 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/dominios_login.sql: FIM dominios_login: 16 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/empresa_no_acervo.sql: FIM empresa_no_acervo: 22 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/empresa_no_vocabulario.sql: FIM empresa_no_vocabulario: 15 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/escrita_atomica_ativos_anotacao.sql: FIM escrita_atomica_ativos_anotacao: 16 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f34_triagem_reserva.sql: FIM f34_triagem_reserva: 21 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f36_detentor.sql: FIM f36_detentor: 18 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f37_colaboradores_tipos.sql: FIM f37_colaboradores_tipos: 26 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f38_itens_com_ativo.sql: FIM f38_itens_com_ativo: 51 asserções, 1 falhas · ✗ vistos=2
+supabase/tests/f41_regularizacao.sql: FIM f41_regularizacao: 26 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/f60_recorte.sql: FIM f60_recorte: 17 asserções, 0 falhas · ✗ vistos=0
+ERRO em supabase/tests/f62_rollback.sql: syntax error at or near "savepoint"
+supabase/tests/f62_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f63_rollback.sql: syntax error at or near "set"
+supabase/tests/f63_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f64_rollback.sql: syntax error at or near "set"
+supabase/tests/f64_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f65_rollback.sql: syntax error at or near "set"
+supabase/tests/f65_rollback.sql: (sem FIM) · ✗ vistos=0
+ERRO em supabase/tests/f66_rollback.sql: syntax error at or near "set"
+supabase/tests/f66_rollback.sql: (sem FIM) · ✗ vistos=0
+supabase/tests/forma_multiempresa.sql: FIM forma_multiempresa: 8 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/fuso_do_negocio.sql: FIM fuso_do_negocio: 5 asserções, 2 falhas · ✗ vistos=2
+supabase/tests/import_fora_da_unidade.sql: FIM import_fora_da_unidade: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/import_substituir.sql: FIM import_substituir: 32 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/imutabilidade_tenant.sql: FIM imutabilidade_tenant: 9 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/integridade_alarme.sql: FIM integridade_alarme: 40 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/integridade_tenant.sql: FIM integridade_tenant: 24 asserções, 1 falhas · ✗ vistos=1
+supabase/tests/isolamento_tenant.sql: FIM isolamento_tenant: 44 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/itens_extra.sql: FIM itens_extra: 4 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/itens_quantidade.sql: FIM itens_quantidade: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/kit_motivo_da_empresa.sql: FIM kit_motivo_da_empresa: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/ledger_de_migracoes.sql: FIM ledger_de_migracoes: 6 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/manutencao_fornecedor.sql: FIM manutencao_fornecedor: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/maquina_estados.sql: FIM maquina_estados: 14 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/movimentacao_grade.sql: FIM movimentacao_grade: 45 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/papeis_rls.sql: FIM papeis_rls: 77 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/pendencias_import_termo.sql: FIM pendencias_import_termo: 5 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/pendencias_item.sql: FIM pendencias_item: 15 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/reabrir_pendencia_item.sql: FIM reabrir_pendencia_item: 4 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/restauracao.sql: FIM restauracao: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/seguranca_catalogo.sql: FIM seguranca_catalogo: 8 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/storage_termo.sql: FIM storage_termo: 13 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/transferencia_item.sql: FIM transferencia_item: 18 asserções, 1 falhas · ✗ vistos=2
+supabase/tests/transicoes_extra.sql: FIM transicoes_extra: 13 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/troca.sql: FIM troca: 13 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/unicidade_por_empresa.sql: FIM unicidade_por_empresa: 3 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/vocabulario_import.sql: FIM vocabulario_import: 56 asserções, 0 falhas · ✗ vistos=0

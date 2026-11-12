@@ -1,0 +1,32 @@
+# CI do PR #92, run 43283138978, head a977430 (as travas, SEM as migrations) — o recorte das travas da F66B; os dois jobs reprovaram
+# jobs: banco-sem-docker = failure · verificar = failure
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ B1b o teto + 1 leva 23514 com o nome <tabela>_<coluna>_tamanho, em cada coluna — colaboradores.nome=ok colaboradores.matricula=ok colaboradores.setor=ok colaboradores.nome_chave=ok itens.nome=ok itens.nome_chave=ok termos_gerados.tipo=ok termos_gerados.colaborador=ok termos_gerados.arquivo_path=ok anotacoes.texto=ok ativos.patr
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ B1d o UPDATE para o teto + 1 leva 23514 com o nome, em cada coluna — colaboradores.nome=ok colaboradores.matricula=ok colaboradores.setor=ok colaboradores.nome_chave=ok itens.nome=ok itens.nome_chave=ok termos_gerados.tipo=ok termos_gerados.colaborador=ok termos_gerados.arquivo_path=ok anotacoes.texto=ok ativos.patrimonio=ok at
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L1a colaboradores INSERT: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L1b colaboradores UPDATE: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L1c sem o CHECK: ∅ (erro: constraint "colaboradores_nome_tamanho" of relation "colaboradores" does not exist)
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L2a ativos INSERT: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L2b ativos UPDATE: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L2c sem o CHECK: ∅ (erro: constraint "ativos_observacoes_tamanho" of relation "ativos" does not exist)
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L3a motivos INSERT: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L3b motivos UPDATE: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L3c sem o CHECK: ∅ (erro: constraint "motivos_codigo_tamanho" of relation "motivos" does not exist)
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L4a senhas_acesso INSERT: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L4b senhas_acesso UPDATE: no teto ok, teto + 1 ok
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ L4c sem o CHECK: ∅ (erro: constraint "senhas_acesso_hash_tamanho" of relation "senhas_acesso" does not exist)
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ I1 a RPC do import com a marca de 61: ok (constraint ∅)
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ I2 depois da recusa: ativos 1, movimentações 1, o de antes f
+psql:supabase/tests/comprimento_comportamento.sql:491: WARNING:  ✗ I4 sem o CHECK: ∅ (erro: constraint "ativos_marca_tamanho" of relation "ativos" does not exist)
+psql:supabase/tests/comprimento_comportamento.sql:491: NOTICE:  FIM comprimento_comportamento: 27 asserções, 17 falhas
+psql:supabase/tests/comprimento_por_coluna.sql:398: WARNING:  ✗ C1 toda coluna de texto das 20 tem o CHECK de comprimento com o nome esperado — sem: anotacoes.texto, ativos.armazenamento, ativos.colaborador_atual, ativos.fornecedor, ativos.hostname, ativos.imei, ativos.marca, ativos.memoria, ativos.modelo, ativos.observacoes, ativos.origem, ativos.patrimonio, ativos.patrimonio_original, ativos
+psql:supabase/tests/comprimento_por_coluna.sql:398: WARNING:  ✗ C4 o teto do CHECK é o da fonte única (k_comprimento_teto) — divergente: anotacoes.texto (banco ∅, fonte 2000), ativos.armazenamento (banco ∅, fonte 80), ativos.colaborador_atual (banco ∅, fonte 120), ativos.fornecedor (banco ∅, fonte 80), ativos.hostname (banco ∅, fonte 60), ativos.imei (banco ∅, fonte 60), ativos.m
+psql:supabase/tests/comprimento_por_coluna.sql:398: WARNING:  ✗ S2 a C1 não acusou o CHECK retirado (contou ∅; erro: constraint "ativos_marca_tamanho" of relation "ativos" does not exist)
+psql:supabase/tests/comprimento_por_coluna.sql:398: WARNING:  ✗ S3 a C3 não acusou o CHECK not valid (contou ∅; erro: constraint "motivos_rotulo_tamanho" of relation "motivos" does not exist)
+psql:supabase/tests/comprimento_por_coluna.sql:398: WARNING:  ✗ S4 a C2 não acusou a forma trocada (contou ∅; erro: constraint "filiais_nome_tamanho" of relation "filiais" does not exist)
+psql:supabase/tests/comprimento_por_coluna.sql:398: WARNING:  ✗ S5 a C7b não acusou a exceção com CHECK (contou 0)
+psql:supabase/tests/comprimento_por_coluna.sql:398: NOTICE:  FIM comprimento_por_coluna: 17 asserções, 6 falhas
+ FAIL   puro  src/lib/validators/tetos-coluna.test.ts > 2. migrations ↔ fonte, nos dois sentidos > toda entrada da fonte tem o CHECK com o MESMO nome, coluna e teto, na migration do lote dela
+ FAIL   puro  src/lib/validators/tetos-coluna.test.ts > 2. migrations ↔ fonte, nos dois sentidos > cada migration da F66B cria só o seu lote, as tabelas na ordem de lock declarada
+ FAIL   puro  src/lib/validators/tetos-coluna.test.ts > 3. os caminhos com teto: nenhum aceita mais do que o banco > ativos.observacoes · validators/devolucao-fornecedor.ts · substituto da devolução
+ FAIL   puro  src/lib/validators/tetos-coluna.test.ts > 3. os caminhos com teto: nenhum aceita mais do que o banco > motivos.codigo · validators/admin.ts:347 · editar motivo (filtro; F66B: .max(40))
+ Test Files  1 failed | 264 passed (265)

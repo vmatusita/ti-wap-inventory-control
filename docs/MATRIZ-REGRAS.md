@@ -1311,3 +1311,53 @@ Uma regra nova, e uma exceção nominal a mais nas listas que as R-ACC-89/96 já
 | Regra | Enunciado | Origem | Onde mora | Prova | Estado |
 |---|---|---|---|---|---|
 | R-ACC-117 | **O uso efetivo de um cadastro de colaborador sai PRONTO do banco, pela regra escrita, e não muda estado nenhum.** Uso efetivo = pelo menos UM registro da MESMA empresa que continua valendo: movimentação vinculada que não é estorno nem foi estornada, lançamento de item vinculado sem inverso, ou o detentor atual de um ativo; "vinculado" é o `colaborador_id` ou, com o id nulo, a chave do nome (o histórico em texto e o cadastro da consolidação). `sem_uso` = cadastro ATIVO sem uso efetivo — o selo de Administração › Colaboradores, que só informa: desativar continua sendo decisão de quem administra. É FUNÇÃO `security invoker` (`colaboradores_uso_efetivo()`, 0180), e não view, porque a 7c de `empresa_no_acervo.sql` recusa view que leia `empresa_id`: o `empresa_id` do join é INTEGRIDADE DE JUNÇÃO (o registro da pessoa é o da empresa dela), não recorte — exceção nominal em `k_leitura_tenant`, conferida por comando pela 15h, como as duas `rel_*` da F66. | ordem v1.71.2 (B3) · PLAN §2.2 · D4 | `supabase/migrations/0180_colaboradores_uso_efetivo.sql`; `k_leitura_tenant` (`catalogo_policies.sql`) e as cópias (`empresa_no_acervo.sql`, `empresa_no_vocabulario.sql`); `src/lib/colaboradores/uso.ts` (o texto do selo e o filtro) | `supabase/tests/colaborador_uso_efetivo.sql` (u1–u10, nascido vermelho no CI); `colaborador_estorno.sql` (o que o estorno faz com a pessoa, ce1–ce10); cinco mutações `v1712-*` no injetor; `colaboradores-tabela.test.tsx` e `.dom.test.tsx` | CI; bancos vivos pendentes do apply |
+
+## Emenda F66B (12/11/2026) — o comprimento vira regra do banco
+
+A fase entre a F66 (as policies recortam) e a F67 (a escrita por empresa). Quatro migrations de `add constraint`
+(`0181`→`0184`, uma por família, na ordem de lock das `0175`–`0178`) põem um `CHECK (char_length(<col>) <= <teto>)` em
+**cada uma das 65 colunas de texto das 20 tabelas de negócio**. Até aqui só o Zod limitava, e o Zod só guarda quem passa
+pela Server Action: a RPC do import chamada por fora, um script com service role, e as telas que gravam SEM `.max()`
+(compra, devolução, ficha, movimentação) gravavam qualquer tamanho — num banco compartilhado, quem grava 500 MB derruba
+todo mundo. **Nenhuma tupla reescrita, nenhuma função, policy ou coluna criada ou recriada.**
+
+**As três decisões do Johnny (12/11/2026):** (1) a F66B roda agora, antes da F67; (2) a F67 vai ser dividida em três (F67:
+cargo por empresa, definer, destrutivas, mesa de conflitos e trava do termo; F67B: Storage e Realtime; F67C: o fim do
+default `empresa_legada()`) — aqui só a nota na ficha; (3) as contas dev ficam em `membros` por ora (na F67, `e_dev()` =
+dev da empresa OU `e_plataforma()`; a saída de `membros` é da F69) — aqui só as notas.
+
+**Seis regras novas** (R-ACC-118 a R-ACC-123), abaixo. Ata em [`docs/DECISOES.md`](DECISOES.md) (2026-11-12 · F66B); plano
+[`PLAN-F66B.md`](PLAN-F66B.md); relatório [`RELATORIO-F66B.md`](RELATORIO-F66B.md).
+
+| ID | Regra | Fonte | Onde vive (conferido) | Prova | Veredito |
+|---|---|---|---|---|---|
+| R-ACC-118 | **O comprimento é regra do BANCO: toda coluna `text`/`varchar`/`bpchar` (ou domínio sobre elas) das 20 de `k_negocio` tem um CHECK `<tabela>_<coluna>_tamanho` na forma `char_length(<col>) <= <N>`, validado — ou está na lista nominal de exceções, com motivo.** O universo sai do CATÁLOGO (`pg_attribute`), não de uma lista de 65: uma coluna de texto nova nasce reprovada. A forma é lida pela ÁRVORE (`conbin`): `length`, `octet_length`, `character_length`, `char_length(btrim(x))` e `N >= char_length(x)` são outra árvore. Exceções: nenhuma hoje, conferidas nos dois sentidos. | ficha F66B · decisões 1, 3 e 8 do PLAN-F66B | `0181`–`0184`; `supabase/tests/comprimento_por_coluna.sql` (C1–C9, S1–S6) | C1–C9; auto-sabotagem S1–S6; mutações `f66b-check-some`, `f66b-check-not-valid`, `f66b-check-octet-length`, `f66b-coluna-nova-sem-teto` | CONFORME |
+| R-ACC-119 | **Uma coluna, um teto, ≥ todo caminho: o teto do banco é ≥ o MAIOR teto entre os caminhos com Zod ou `LIMITES_CAMPO_PLANO` que gravam na coluna, e ≥ o maior valor vivo nos dois bancos.** Onde não há Zod, o degrau da escada `40 · 80 · 120 · 200 · 320 · 500 · 2000` ≥ 2× o vivo e ≥ o irmão de mesmo significado; acima do maior caminho, só com motivo escrito. A FONTE ÚNICA dos 65 números é `src/lib/validators/tetos-coluna.ts`; as migrations, a cópia do roteiro, o bloco de contagem e a frase do 23514 saem dela. | decisão 2 do PLAN-F66B | `tetos-coluna.ts`; `tetos-coluna.test.ts` (migrations ↔ fonte nos dois sentidos; as sondas de cada caminho pelo schema real) | `tetos-coluna.test.ts` 1–6; C4 do catálogo; mutação `f66b-teto-sobe-sem-a-fonte` | CONFORME |
+| R-ACC-120 | **Uma chave derivada (`*_chave`) tem teto próprio, 3× o da origem — nunca o da origem sem prova.** A normalização ALONGA: o NFC decompõe os caracteres de exclusão de composição (até 3), o `lower` do U+0130 dá 2 code points, e no vocabulário a sobra do NFD chega a 3. No PG 17, 120 × U+FB2C dão uma chave de exatamente 360. A frase do 23514 de um derivado cita a ORIGEM. | decisão 4 do PLAN-F66B | `colaboradores_nome_chave_tamanho` (360), `itens_nome_chave_tamanho` (240), `unidades_apelidos_apelido_chave_tamanho` (240) | K1–K5 de `comprimento_comportamento.sql`; mutação `f66b-chave-com-o-teto-da-origem` | CONFORME |
+| R-ACC-121 | **O import recusa a linha longa na CONFERÊNCIA, nunca na RPC; e a RPC chamada por fora leva 23514 sem gravar nada.** O motor bloqueia `valor_longo_demais` com `LIMITES_CAMPO_PLANO` antes do plano existir (F56), e todo campo de texto do plano que vira coluna das 20 tem teto ≤ o da coluna — provado campo a campo. A RPC só faz `nullif`/cast e grava constantes: nada alonga. Chamada por fora com um campo acima do teto, o 23514 aborta tudo — a filial fica como antes, inclusive a limpeza. | decisão 9 do PLAN-F66B · fatos 9 e 10 | `src/lib/import/plano.ts:340-352`; `src/lib/import/comprimento-coluna.test.ts`; I1–I4 de `comprimento_comportamento.sql` | a sabotagem E (40 casos); I1–I4; mutação `f66b-import-por-fora-sem-teto` | CONFORME |
+| R-ACC-122 | **Todo CHECK de comprimento tem frase pt-BR com o campo e o teto.** `fraseDeComprimento` (`erros-do-banco.ts`) lê o nome da constraint na mensagem real do Postgres (`violates check constraint "<nome>"`) e devolve *"O campo <rótulo> aceita no máximo <N> caracteres."* com o rótulo e o teto da fonte; as de comprimento anteriores à F66B têm frase própria. Nas duas direções contra o esquema vivo: nenhum `_tamanho` sem frase, nenhuma frase de constraint morta. | decisão 10 do PLAN-F66B | `src/lib/supabase/erros-do-banco.ts`; `src/lib/actions/erros.ts` | `erros-do-banco-sql.test.ts`; `erros.test.ts` (as 65); M1 do roteiro | CONFORME |
+| R-ACC-123 | **Pôr CHECK com o app no ar: contagem 0 antes de cada lote, nos dois bancos; nenhuma tupla reescrita; rollback por `drop constraint`, antes dos da F65–F62.** O bloco só leitura de `contagem-violacao.mts` (o MESMO texto nos dois bancos, só números) é o portão; o `relfilenode` das 20 igual antes e depois é a prova. `F66B-desfaz.sql` (0184 → 0181, idempotente) devolve as CHECK de antes da 0181; os ensaios F65, F64 e F63 o rodam antes dos deles (a impressão deles lê toda constraint). | decisões 11, 12 e 14 do PLAN-F66B · RUNBOOK Anexo F66B | `scripts/comprimento/contagem-violacao.mts`; `docs/f66b-evidencias/impressao-f66b.sql`; `supabase/rollback/F66B-desfaz.sql` | `f66b_rollback.sql` (rb0–rb4); `rollback-f66b.test.ts`; a sabotagem G (mesa); a sabotagem I | CONFORME na mesa e no CI; **o apply nos bancos vivos está PENDENTE** (o conector na conta errada) |
+
+### As exceções (todas nomeadas, todas com motivo)
+
+| exceção | onde | motivo |
+|---|---|---|
+| o nome alternativo `unidades_apelidos_apelido_bruto_tamanho` | `k_comprimento_nome_alternativo` (`comprimento_por_coluna.sql`) e `NOME_ALTERNATIVO_DE_TAMANHO` (`tetos-coluna.ts`) | o nome do padrão é da `0139` (`char_length(btrim(apelido)) between 2 and 80`), que limita o valor APARADO; renomear é proibido (contrato de tradução) |
+| `movimentacoes.itens_faltantes` (`text[]`) fora do universo | PLAN-F66B §2 | um CHECK sobre os elementos exigiria função (proibido nesta fase); o elemento vira `pendencias_item.item`, que tem teto |
+| as telas que gravam SEM `.max()` | `CAMINHOS_SEM_TETO` (`tetos-coluna.test.ts`) | a decisão 6 proíbe mexer em teto de tela; o banco é o limite delas, e a frase do 23514 chega à tela — backlog |
+
+### As afirmações erradas conhecidas (registro — não se editam)
+
+- **O fato 14 da ordem F66B** dizia que o Zod conta unidades UTF-16; o Zod do projeto (4.6.5) conta CODE POINTS desde a
+  4.5 — o mesmo que o `char_length`. A conclusão (o CHECK nunca recusa o que o `.max(N)` aceita) vale.
+- **O fato 21** falava de `unaccent`; não há `unaccent` (é extensão). As chaves alongam por `normalize` e `lower` — e até
+  3×, não 2× como a decisão 4 propunha.
+- **A decisão 3 da ordem** propunha as duas constraints de comprimento antigas como exceção nominal, "um segundo CHECK
+  redundante é pior"; medido, elas limitam só o valor aparado, e o segundo CHECK não é redundante.
+- **O fato 12** contava 19 entradas em `CONSTRAINTS_TRADUZIDAS`; são 17.
+
+> **Nota de escopo — o que a emenda F66B NÃO afirma.** (1) **Que o apply está feito nos bancos vivos**: o conector da
+> Supabase esteve ligado a outra conta durante toda a run; as regras são CONFORME na mesa e no CI, e o caminho B está no
+> topo do relatório. (2) **Que um backup antigo restaura sem 23514** (os backups não foram lidos). (3) **Que `jsonb` está
+> limitado** (fora). (4) **Que as telas sem `.max()` dizem o limite antes de gravar** (backlog). (5) **Nada sobre
+> isolamento por empresa** (F67).

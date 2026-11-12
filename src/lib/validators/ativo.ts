@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TETOS_COLUNA } from '@/lib/validators/tetos-coluna'
 import { Constants } from '@/lib/types/database'
 import { dataOpcionalSchema, dataRealSchema } from '@/lib/validators/data'
 import { canonicalizarPatrimonio } from '@/lib/patrimonio'
@@ -33,7 +34,11 @@ export const editarAtivoSchema = z.object({
   pulsus: opcionalCurto,
   observacoes: z.preprocess(
     (v) => (v === '' || v == null ? undefined : v),
-    z.string().trim().max(2000, 'Observações: no máximo 2000 caracteres').optional(),
+    z
+      .string()
+      .trim()
+      .max(TETOS_COLUNA.ativos.observacoes.teto, `Observações: no máximo ${TETOS_COLUNA.ativos.observacoes.teto} caracteres`)
+      .optional(),
   ),
   // termo: '' (vazio) = "não informado" -> null no banco.
   termo_assinado: z.preprocess(
@@ -61,7 +66,7 @@ export const anotacaoSchema = z.object({
     .string()
     .trim()
     .min(1, 'Escreva a anotação')
-    .max(2000, 'Anotação: no máximo 2000 caracteres'),
+    .max(TETOS_COLUNA.anotacoes.texto.teto, `Anotação: no máximo ${TETOS_COLUNA.anotacoes.texto.teto} caracteres`),
 })
 
 // ---------------------------------------------------------------------------
@@ -103,7 +108,11 @@ export const corrigirPatrimonioSchema = z.object({
 // ---------------------------------------------------------------------------
 export const definirServiceTagSchema = z.object({
   ativo_id: z.string().uuid('Ativo inválido'),
-  service_tag: z.string().trim().min(1, 'Informe a service tag').max(100, 'Service tag longa demais'),
+  service_tag: z
+    .string()
+    .trim()
+    .min(1, 'Informe a service tag')
+    .max(TETOS_COLUNA.ativos.service_tag.teto, 'Service tag longa demais'),
 })
 
 export type CorrecaoPatrimonio =

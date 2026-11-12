@@ -23,8 +23,11 @@
 // de uma grafia viva do MESMO ramo. Frase que só existe num corpo histórico reprova; frase que não
 // existe em lugar nenhum e não é gêmea de nada, também.
 //
-// Módulo PURO e sem dependência: importável pelo Vitest, pelas actions e por função pura de `lib/`.
+// Módulo PURO: importável pelo Vitest, pelas actions e por função pura de `lib/`. A única dependência é a fonte dos
+// tetos de comprimento (F66B, `src/lib/validators/tetos-coluna.ts`), também pura e folha.
 // `casamento-por-texto.test.ts` reprova casamento de mensagem de erro por texto literal FORA daqui.
+
+import { constraintsDeTamanho } from '@/lib/validators/tetos-coluna'
 
 /** Uma frase e suas grafias (a viva e a gêmea de acento). */
 export type Grafias = readonly [string, ...string[]]
@@ -100,6 +103,45 @@ export function casaConstraint(mensagem: string | null | undefined, ...nomes: re
 export const TABELAS_CITADAS_EM_ERRO = {
   snapshotDeRelatorio: 'relatorios_gerados',
 } as const
+
+// ---------------------------------------------------------------------------
+// O teto de COMPRIMENTO do banco (F66B, 12/11/2026)
+// ---------------------------------------------------------------------------
+//
+// Desde a F66B toda coluna de texto das 20 tabelas de negócio tem um CHECK `<tabela>_<coluna>_tamanho` (0181–0184). Um
+// texto acima do teto que escape do Zod — o caminho de tela sem `.max()`, a RPC chamada por fora, um script — leva
+// SQLSTATE 23514, e a mensagem do Postgres CITA a constraint: `new row for relation "<t>" violates check constraint
+// "<nome>"` (medido no PG 17, INSERT e UPDATE; roteiro comprimento_comportamento.sql, M1). Um ramo só traduz as 65:
+// o nome da constraint sai da mensagem, e o rótulo e o teto saem da FONTE ÚNICA (src/lib/validators/tetos-coluna.ts,
+// módulo puro como este) — nenhuma frase fica para trás quando um teto muda. Num derivado (`*_chave`) a frase cita a
+// ORIGEM, que é o que o operador digitou. As de comprimento ANTERIORES à F66B (com mínimo, sobre o valor aparado)
+// têm frase própria. `erros-do-banco-sql.test.ts` confere: toda entrada existe viva como `check`, e todo `check`
+// vivo terminado em `_tamanho` tem frase.
+
+/** A frase de cada constraint de comprimento. */
+export const COMPRIMENTO_TRADUZIDO: Readonly<Record<string, { readonly tabela: string; readonly frase: string }>> = {
+  ...Object.fromEntries(
+    constraintsDeTamanho().map((c) => [
+      c.nome,
+      { tabela: c.tabela, frase: `O campo ${c.rotuloNaFrase} aceita no máximo ${c.tetoNaFrase} caracteres.` },
+    ]),
+  ),
+  // as anteriores à F66B (0017, 0139, 0154): limitam o valor APARADO e exigem um mínimo
+  anotacao_texto_len: { tabela: 'anotacoes', frase: 'A anotação precisa ter entre 1 e 2000 caracteres.' },
+  unidades_apelidos_apelido_tamanho: { tabela: 'unidades_apelidos', frase: 'O apelido precisa ter entre 2 e 80 caracteres.' },
+  empresas_nome_tamanho: { tabela: 'empresas', frase: 'O nome da empresa precisa ter entre 1 e 80 caracteres.' },
+  empresas_razao_social_tamanho: { tabela: 'empresas', frase: 'A razão social precisa ter entre 1 e 200 caracteres.' },
+}
+
+/**
+ * A frase pt-BR de uma violação de comprimento, ou `null` se a mensagem não é a violação de um CHECK de comprimento
+ * conhecido. Lê o nome da constraint na mensagem do Postgres — nunca casa por prefixo de tabela.
+ */
+export function fraseDeComprimento(mensagem: string | null | undefined): string | null {
+  const m = /violates check constraint "([a-z_][a-z0-9_]*)"/i.exec(mensagem ?? '')
+  if (!m) return null
+  return COMPRIMENTO_TRADUZIDO[m[1].toLowerCase()]?.frase ?? null
+}
 
 // ---------------------------------------------------------------------------
 // Os textos NOSSOS de raise — um ramo por tradução

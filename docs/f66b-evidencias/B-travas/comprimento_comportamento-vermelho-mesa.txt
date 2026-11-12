@@ -1,0 +1,30 @@
+# comprimento_comportamento.sql na cadeia 0001–0180 (SEM a F66B) — mesa PGlite PG 17.5, 12/11/2026 15:44 — a trava nasce VERMELHA
+NOTICE:  ✓ D0 os derivados declarados são exatamente as colunas geradas de texto das 20 (0 de 3 conferidos)
+NOTICE:  ✓ B1a o valor NO teto passa, em cada uma das colunas da fonte (0 de 65 conferidos)
+WARNING:  ✗ B1b o teto + 1 leva 23514 com o nome <tabela>_<coluna>_tamanho, em cada coluna — colaboradores.nome=ok colaboradores.matricula=ok colaboradores.setor=ok colaboradores.nome_chave=ok itens.nome=ok itens.nome_chave=ok termos_gerados.tipo=ok termos_gerados.colaborador=ok termos_gerados.arquivo_path=ok anotacoes.texto=ok ativos.patrimonio=ok ativos.patrimonio_original=ok ativos.marca=ok ativos.modelo=ok ativos.service_tag=ok ativos.hostname=ok ativos.memoria=ok ativos.armazenamento=ok ativos.processador=ok ativos.fornecedor=ok ativos.colaborador_atual=ok ativos.setor_atual=ok ativos.pendencia=ok ativos.origem=ok ativos.observacoes=ok ativos.telefone=ok ativos.imei=ok ativos.pulsus=ok movimentacoes.motivo=ok movimentacoes.colaborador=ok movimentacoes.setor=ok movimentacoes.chamado=ok movimentacoes.observacao=ok movimentacoes.chamado_fornecedor=ok pendencias_item.item=ok pendencias_item.colaborador=ok pendencias_item.status=ok pendencias_item.desfecho=ok pendencias_item.observacao=ok lancamentos_item.chamado=ok lancamentos_item.colaborador=ok lancamentos_item.observacao=ok import_prefixos_patrimonio.prefixo=ok import_termos_categoria.termo=ok import_termos_categoria.rotulo=ok import_termos_estado.termo=ok import_termos_estado.rotulo=ok unidades_apelidos.apelido=ok unidades_apelidos.apelido_chave=ok tipos_item.slug=ok tipos_item.rotulo=ok motivos.codigo=ok motivos.rotulo=ok kits_modelos.nome=ok filiais.slug=ok filiais.nome=ok filiais.cidade=ok relatorios_gerados.observacao=ok import_logs.modo=ok import_logs.arquivo_hash=ok import_logs.backup_path=ok eventos_admi: 65 de 65 fora da regra
+NOTICE:  ✓ B1c NULL passa, em cada coluna (0 de 65 conferidos)
+WARNING:  ✗ B1d o UPDATE para o teto + 1 leva 23514 com o nome, em cada coluna — colaboradores.nome=ok colaboradores.matricula=ok colaboradores.setor=ok colaboradores.nome_chave=ok itens.nome=ok itens.nome_chave=ok termos_gerados.tipo=ok termos_gerados.colaborador=ok termos_gerados.arquivo_path=ok anotacoes.texto=ok ativos.patrimonio=ok ativos.patrimonio_original=ok ativos.marca=ok ativos.modelo=ok ativos.service_tag=ok ativos.hostname=ok ativos.memoria=ok ativos.armazenamento=ok ativos.processador=ok ativos.fornecedor=ok ativos.colaborador_atual=ok ativos.setor_atual=ok ativos.pendencia=ok ativos.origem=ok ativos.observacoes=ok ativos.telefone=ok ativos.imei=ok ativos.pulsus=ok movimentacoes.motivo=ok movimentacoes.colaborador=ok movimentacoes.setor=ok movimentacoes.chamado=ok movimentacoes.observacao=ok movimentacoes.chamado_fornecedor=ok pendencias_item.item=ok pendencias_item.colaborador=ok pendencias_item.status=ok pendencias_item.desfecho=ok pendencias_item.observacao=ok lancamentos_item.chamado=ok lancamentos_item.colaborador=ok lancamentos_item.observacao=ok import_prefixos_patrimonio.prefixo=ok import_termos_categoria.termo=ok import_termos_categoria.rotulo=ok import_termos_estado.termo=ok import_termos_estado.rotulo=ok unidades_apelidos.apelido=ok unidades_apelidos.apelido_chave=ok tipos_item.slug=ok tipos_item.rotulo=ok motivos.codigo=ok motivos.rotulo=ok kits_modelos.nome=ok filiais.slug=ok filiais.nome=ok filiais.cidade=ok relatorios_gerados.observacao=ok import_logs.modo=ok import_logs.arquivo_hash=ok import_logs.backup_path=ok eventos_admi: 65 de 65 fora da regra
+NOTICE:  ✓ B1e sem o CHECK o teto + 1 passa (quem recusou foi o CHECK) (0 de 65 conferidos)
+WARNING:  ✗ L1a colaboradores INSERT: no teto ok, teto + 1 ok
+WARNING:  ✗ L1b colaboradores UPDATE: no teto ok, teto + 1 ok
+WARNING:  ✗ L1c sem o CHECK: ∅ (erro: constraint "colaboradores_nome_tamanho" of relation "colaboradores" does not exist)
+WARNING:  ✗ L2a ativos INSERT: no teto ok, teto + 1 ok
+WARNING:  ✗ L2b ativos UPDATE: no teto ok, teto + 1 ok
+WARNING:  ✗ L2c sem o CHECK: ∅ (erro: constraint "ativos_observacoes_tamanho" of relation "ativos" does not exist)
+WARNING:  ✗ L3a motivos INSERT: no teto ok, teto + 1 ok
+WARNING:  ✗ L3b motivos UPDATE: no teto ok, teto + 1 ok
+WARNING:  ✗ L3c sem o CHECK: ∅ (erro: constraint "motivos_codigo_tamanho" of relation "motivos" does not exist)
+WARNING:  ✗ L4a senhas_acesso INSERT: no teto ok, teto + 1 ok
+WARNING:  ✗ L4b senhas_acesso UPDATE: no teto ok, teto + 1 ok
+WARNING:  ✗ L4c sem o CHECK: ∅ (erro: constraint "senhas_acesso_hash_tamanho" of relation "senhas_acesso" does not exist)
+WARNING:  ✗ I1 a RPC do import com a marca de 61: ok (constraint ∅)
+WARNING:  ✗ I2 depois da recusa: ativos 1, movimentações 1, o de antes f
+NOTICE:  ✓ I3 a mesma chamada com a marca de 60 (o teto) grava o ativo
+WARNING:  ✗ I4 sem o CHECK: ∅ (erro: constraint "ativos_marca_tamanho" of relation "ativos" does not exist)
+NOTICE:  ✓ K1 colaborador_chave de 120 × U+FB2C tem 360 caracteres: maior que a origem (120), dentro do teto da chave (360)
+NOTICE:  ✓ K2 o colaborador de nome 120 × U+FB2C grava (nome_chave no pior caso cabe em colaboradores_nome_chave_tamanho)
+NOTICE:  ✓ K3 item_chave de 80 × U+FB2C tem 240 caracteres: > 80 e ≤ 240
+NOTICE:  ✓ K4 vocabulario_chave de 80 × U+AC01 tem 240 caracteres: > 80 e ≤ 240
+NOTICE:  ✓ K5 colaborador_chave de 120 × U+0130 tem 120 caracteres (≤ 360)
+NOTICE:  FIM comprimento_comportamento: 27 asserções, 17 falhas
+supabase/tests/comprimento_comportamento.sql: FIM comprimento_comportamento: 27 asserções, 17 falhas · ✗ vistos=17

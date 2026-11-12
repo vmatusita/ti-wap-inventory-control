@@ -330,7 +330,12 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // de `colaborador_uso_efetivo.sql`. Sem elas, o roteiro podia ficar verde com a regra afrouxada em qualquer um dos
     // cinco pontos. 151 + 5 = 156, sem folga: a próxima entrega que precisar de mais sobe o número e escreve por quê.
     expect(MUTACOES.length).toBeGreaterThanOrEqual(20)
-    expect(MUTACOES.length).toBeLessThanOrEqual(156)
+    // ⚠ O TETO SUBIU DE 156 PARA 163 NA F66B (12/11/2026). A fase põe o teto de comprimento no BANCO (65 CHECK, 0181–0184)
+    // e escreveu UMA MUTAÇÃO POR CLASSE DE TRAVA que só o banco revela: o CHECK some (C1), vira not valid (C3/C9), troca
+    // char_length por octet_length (C2), o teto sobe sem a fonte (C4), uma coluna nova nasce sem teto (C1), a RPC do
+    // import chamada por fora grava sem o CHECK (I1/I2) e a chave derivada fica com o teto da origem (K2). 156 + 7 = 163,
+    // sem folga: a próxima entrega que precisar de mais sobe o número e escreve por quê.
+    expect(MUTACOES.length).toBeLessThanOrEqual(163)
   })
 
   it('os `id` são únicos', () => {

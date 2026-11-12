@@ -1853,3 +1853,68 @@ Ensaio primeiro; produção em até 24 h, com o TTFB retomado no mesmo dia.
   empresa fora.
 - **Entre fases:** os rollbacks da F65, F64, F63 e F62 rodam este antes dos deles (as policies citam `empresa_id` e as
   funções de conjunto).
+
+## Anexo F66B — pôr CHECK de comprimento com o app no ar (12/11/2026)
+
+A F66B (`0181`–`0184`) põe um teto de comprimento no banco em toda coluna de texto das 20 tabelas de negócio. A regra é a
+R-ACC-118 a R-ACC-123 da MATRIZ; as receitas abaixo são as que a fase usou e o CI provou.
+
+### A receita: contagem 0 → apply literal por lote → relfilenode igual
+
+1. **A impressão "antes"** (`docs/f66b-evidencias/impressao-f66b.sql`, só leitura, só catálogo e hash): as CHECK de
+   `public` com o md5 do `pg_get_constraintdef`, o `relfilenode` das 20, o md5 do `prosrc` das funções, o md5 das
+   policies. Mais os advisors de segurança e de desempenho.
+2. **A contagem de violação**, imediatamente antes do lote:
+   ```bash
+   npx tsx scripts/comprimento/contagem-violacao.mts gerar --dir <fora-do-repo>
+   ```
+   grava `contagem-violacao.sql` e `contagem-violacao.canal.sql` (o invólucro do canal da F66: o bloco roda numa
+   subtransação e a mensagem volta por `select`). Rode o `.canal.sql` pelo `execute_sql`; a resposta cai em arquivo
+   (o enchimento `_canal`) — extraia-a por script para `<dir>/resposta.txt`, nunca transcreva — e:
+   ```bash
+   npx tsx scripts/comprimento/contagem-violacao.mts analisar --resposta <dir>/resposta.txt --alvo ensaio|producao --saida docs/f66b-evidencias/…
+   ```
+   O analisador recusa o rótulo errado (o banco diz quem é, `rotulo_de_ambiente()`). **Critério: 0 acima do teto em toda
+   coluna.** Se der > 0: o lote NÃO é aplicado; a coluna sem Zod tem o teto subido pela régua (decisão 2 do PLAN-F66B);
+   a com Zod e linha ACIMA do Zod é achado (algum caminho contornou a tela) — o teto sobe para cobrir o vivo, por
+   migration NOVA, e o caminho suspeito vai para o backlog. **O dado nunca é alterado.**
+3. **O apply** pelo `apply_migration`, `name` = o nome do arquivo sem `NNNN_`, ensaio primeiro. Cada migration é um
+   `alter table` literal por tabela, validado direto, com `set lock_timeout = '2s'` / `reset`. Sem o lock: registrar e
+   repetir, no máximo três vezes em 30 min; não subir o timeout, não matar sessão.
+4. **Depois de cada lote:** a contagem do lote seguinte (0); o `relfilenode` das tabelas do lote IGUAL; as constraints do
+   lote com o md5 do `pg_get_constraintdef` igual ao do CI.
+5. **Depois do último:** `notify pgrst, 'reload schema'`; advisors (nada novo que cite objeto da fase); a impressão
+   "depois" (101 CHECK, as 36 de antes byte a byte; o `relfilenode` das 20 igual; funções e policies byte a byte); o
+   conferidor de formas (0 recusadas); em produção, o smoke a partir da branch.
+
+A sabotagem que prova que o bloco sabe achar violação (`--sabotar`: o teto de `ativos.marca` vira 0) só roda no ensaio —
+o bloco recusa fora dele.
+
+### O teto de uma coluna nova
+
+Coluna `text` nova numa das 20 nasce reprovada por `comprimento_por_coluna.sql` (C1). No MESMO commit: a entrada na fonte
+única (`src/lib/validators/tetos-coluna.ts`), a `add constraint <tabela>_<coluna>_tamanho check (char_length(<col>) <=
+<N>)` na migration (a trava de mesa confere os dois sentidos), a cópia em `k_comprimento_teto` dos dois roteiros, e o
+caminho de tela na lista da trava. A frase do 23514 sai sozinha da fonte. Mudar um teto é o mesmo: migration NOVA com o
+`drop`/`add` + a fonte.
+
+### A restauração de backup antigo
+
+`scripts/db/restaurar.mjs` e os backups do import (`backups-import`) guardam linhas de outras épocas; os imports
+anteriores à F56 não tinham teto por campo. Um backup antigo PODE ter valor acima do teto de hoje, e restaurá-lo passa a
+dar 23514 — a restauração aborta inteira (nada é gravado pela metade). O conteúdo dos objetos do bucket não foi medido
+pela F66B. Se acontecer: o teto daquela coluna sobe por migration NOVA (a régua da decisão 2, cobrindo o valor do
+backup), e a restauração se repete. Nunca cortar o valor do backup.
+
+### O rollback da F66B
+
+- **Quando:** a contagem deu > 0 depois de um lote (impossível sem escrita concorrente — investigar); o `relfilenode`
+  mudou; as constraints divergiram do CI; advisor de segurança novo que cite objeto da fase; o conferidor recusou; em
+  produção, o smoke recusou. Em produção, **imediato**, antes do diagnóstico.
+- **O arquivo:** `supabase/rollback/F66B-desfaz.sql` — `0184` → `0181`, `drop constraint if exists` literal por nome,
+  as tabelas de cada lote invertidas; idempotente (serve ao apply parado entre lotes). Ensaiado no CI por
+  `supabase/tests/f66b_rollback.sql` (as CHECK de public voltam a 36 · `f921131b…`). Num banco vivo: o `execute_sql` com
+  o conteúdo EXATO do arquivo. O ledger fica (a sonda de deriva acusa a linha da migration sem o efeito — registrar).
+- **Depois do rollback**, a defesa contra o texto longo volta a ser só o Zod. Nenhum dado se perde.
+- **Entre fases:** o da F66B vem ANTES dos da F65, F64, F63 e F62 (os ensaios da F65, F64 e F63 comparam uma impressão
+  que lê toda constraint das tabelas — medido, reprovam sem ele); o da F66 não depende dele.

@@ -1,0 +1,35 @@
+# Sabotagem H — o encadeamento dos rollbacks com os 65 CHECK no lugar (mesa PGlite PG 17.5, 12/11/2026 15:56)
+# (1) os ensaios F62–F65 COMO ESTAVAM (sem rodar o F66B-desfaz antes), sobre a cadeia 0001–0184:
+supabase/tests/f62_rollback.sql: FIM f62_rollback: 4 asserções, 0 falhas · ✗ vistos=0
+WARNING:  ✗ rb3 o esquema das oito depois do rollback é o do CI antes da 0159 — impressão 52e2548b3f17648592d11bb258b602ab, esperada c533eeff15f4196c2f8a5ec4721ff570: 1 de 1 fora da regra
+supabase/tests/f63_rollback.sql: FIM f63_rollback: 5 asserções, 1 falhas · ✗ vistos=1
+WARNING:  ✗ rb3 o esquema das onze (e as duas funções) depois do rollback é o do CI antes da 0162 — impressão 656937a1fe678ac9c2374a5b5e980892, esperada 9ab2b820d7cdaa5d46cd6e9f17424054: 1 de 1 fora da regra
+supabase/tests/f64_rollback.sql: FIM f64_rollback: 5 asserções, 1 falhas · ✗ vistos=1
+WARNING:  ✗ rb3 o esquema das 20 (e as três funções) depois do rollback é o do CI antes da 0165 — impressão 65aefcef9514b6afffcd1760149ff7c0, esperada 1c72ca42784d716f9009cc68f504c8f3: 1 de 1 fora da regra
+supabase/tests/f65_rollback.sql: FIM f65_rollback: 5 asserções, 1 falhas · ✗ vistos=1
+supabase/tests/f66_rollback.sql: FIM f66_rollback: 6 asserções, 0 falhas · ✗ vistos=0
+
+# (2) os ensaios com o F66B-desfaz antes do F66-desfaz (esta fase), e o da própria F66B:
+NOTICE:  FIM f62_rollback: 4 asserções, 0 falhas
+supabase/tests/f62_rollback.sql: FIM f62_rollback: 4 asserções, 0 falhas · ✗ vistos=0
+NOTICE:  (medição) impressão do esquema das oito DEPOIS do rollback: c533eeff15f4196c2f8a5ec4721ff570 · antes, sem o que a F63 declarou: c533eeff15f4196c2f8a5ec4721ff570
+NOTICE:  FIM f63_rollback: 5 asserções, 0 falhas
+supabase/tests/f63_rollback.sql: FIM f63_rollback: 5 asserções, 0 falhas · ✗ vistos=0
+NOTICE:  (medição) impressão do esquema das onze DEPOIS do rollback: 9ab2b820d7cdaa5d46cd6e9f17424054 · antes, sem o que a F64 declarou: edd4bcf933df4d3b5a4dfbb5bb839b60 · depois, sem: edd4bcf933df4d3b5a4dfbb5bb839b60
+NOTICE:  FIM f64_rollback: 5 asserções, 0 falhas
+supabase/tests/f64_rollback.sql: FIM f64_rollback: 5 asserções, 0 falhas · ✗ vistos=0
+NOTICE:  (medição) impressão do esquema das 20 DEPOIS do rollback: 1c72ca42784d716f9009cc68f504c8f3 · antes, sem o que a F65 declarou: 548711b04d4af05ad1f110447260186c · depois, sem: 548711b04d4af05ad1f110447260186c
+NOTICE:  FIM f65_rollback: 5 asserções, 0 falhas
+supabase/tests/f65_rollback.sql: FIM f65_rollback: 5 asserções, 0 falhas · ✗ vistos=0
+NOTICE:  (medição) contagens antes/depois do rollback (citam conjunto / chamam pode_escrever_filial / rel_* pelo par): 51/0/2 → 0/6/0
+NOTICE:  (medição) depois do rollback: public 886118ad686f67c857cf0d370fd6828d · storage f116b8d0da8bda75038564a44720c2e8 · as 11 eb294504b0b6cec30936d10de6f9d001 · rel rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9
+NOTICE:  FIM f66_rollback: 6 asserções, 0 falhas
+supabase/tests/f66_rollback.sql: FIM f66_rollback: 6 asserções, 0 falhas · ✗ vistos=0
+NOTICE:  (medição) CHECK de public antes/depois do rollback: 101:b47d3c3269951792326b587500295b62 → 36:f921131b4bf0a4c7635606c14a29f790; canônicos de comprimento 65 → 0
+NOTICE:  FIM f66b_rollback: 5 asserções, 0 falhas
+supabase/tests/f66b_rollback.sql: FIM f66b_rollback: 5 asserções, 0 falhas · ✗ vistos=0
+
+# (3) a impressão das CHECK de public (contagem:md5) — cadeia 0001–0180 / 0001–0184 / 0001–0184 + F66B-desfaz:
+36|f921131b4bf0a4c7635606c14a29f790
+101|b47d3c3269951792326b587500295b62
+36|f921131b4bf0a4c7635606c14a29f790
