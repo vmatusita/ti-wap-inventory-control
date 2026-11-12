@@ -1,0 +1,42 @@
+# Sabotagem E — o import pela tela: uma planilha fictícia por campo, com a célula em LIMITES_CAMPO_PLANO + 1 (12/11/2026 15:53)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > patrimonioOriginal: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > serviceTag: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > marca: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > modelo: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > fornecedor: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > memoria: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > armazenamento: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > processador: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > hostname: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > observacoes: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > colaborador: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > setor: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > chamado: limite + 1 vira valor_longo_demais e nenhum plano nasce
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > patrimonioOriginal: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > serviceTag: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > marca: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > modelo: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > fornecedor: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > memoria: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > armazenamento: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > processador: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > hostname: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > observacoes: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > colaborador: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > setor: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > chamado: no limite exato, a linha passa (a régua é <=, não <)
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > patrimonioOriginal: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > serviceTag: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > marca: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > modelo: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > fornecedor: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > memoria: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > armazenamento: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > processador: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > hostname: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > observacoes: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > colaborador: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > setor: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > chamado: o limite do campo cabe em toda coluna que ele alimenta
+ ✓ |puro| src/lib/import/comprimento-coluna.test.ts > F66B · o import recusa a célula longa NA CONFERÊNCIA, campo a campo > os casos cobrem todo campo de texto do plano que vira coluna das 20 (o patrimônio canônico tem 10; o cru, o original)
+      Tests  40 passed (40)
