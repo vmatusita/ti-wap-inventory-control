@@ -277,6 +277,7 @@ const DA_F38 = [
   '0189',
   '0190',
   '0191',
+  '0192',
 ]
 
 /**
@@ -705,6 +706,7 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     ],
     // a mesa: a forma nova e a antiga recriada só com a chave de advisory por empresa (pelo mesmo motivo da 0190)
     '0191': ['exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais', 'apagar_ativos_conflito_filiais'],
+    '0192': ['empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa'],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
