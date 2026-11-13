@@ -1,0 +1,62 @@
+public	_bkp_relatorios_gerados_f6a	dev le backup f6a	SELECT	{authenticated}	a1f171a3	d41d8cd9
+public	anotacoes	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	anotacoes	operador anota	INSERT	{authenticated}	d41d8cd9	235dba5a
+public	ativos	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	ativos	operador atualiza	UPDATE	{authenticated}	2c5c0dbe	2c5c0dbe
+public	ativos	operador insere	INSERT	{authenticated}	d41d8cd9	2c5c0dbe
+public	colaboradores	admin atualiza colaborador	UPDATE	{authenticated}	33e0b98f	33e0b98f
+public	colaboradores	escrita cria colaborador	INSERT	{authenticated}	d41d8cd9	235dba5a
+public	colaboradores	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	eventos_admin	admin le auditoria	SELECT	{authenticated}	33e0b98f	d41d8cd9
+public	filiais	admin apaga	DELETE	{authenticated}	33e0b98f	d41d8cd9
+public	filiais	admin atualiza	UPDATE	{authenticated}	33e0b98f	33e0b98f
+public	filiais	admin insere	INSERT	{authenticated}	d41d8cd9	33e0b98f
+public	filiais	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	import_logs	leitura operador	SELECT	{authenticated}	33e0b98f	d41d8cd9
+public	import_logs	operador insere	INSERT	{authenticated}	d41d8cd9	33e0b98f
+public	import_prefixos_patrimonio	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	import_termos_categoria	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	import_termos_estado	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	itens	admin apaga	DELETE	{authenticated}	33e0b98f	d41d8cd9
+public	itens	admin atualiza	UPDATE	{authenticated}	33e0b98f	33e0b98f
+public	itens	escrita cria item	INSERT	{authenticated}	d41d8cd9	235dba5a
+public	itens	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	kits_modelos	admin apaga	DELETE	{authenticated}	33e0b98f	d41d8cd9
+public	kits_modelos	admin atualiza	UPDATE	{authenticated}	33e0b98f	33e0b98f
+public	kits_modelos	admin insere	INSERT	{authenticated}	d41d8cd9	33e0b98f
+public	kits_modelos	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	lancamentos_item	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	lancamentos_item	operador lanca	INSERT	{authenticated}	d41d8cd9	a29ff0c3
+public	membros	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	motivos	admin apaga	DELETE	{authenticated}	33e0b98f	d41d8cd9
+public	motivos	admin atualiza	UPDATE	{authenticated}	33e0b98f	33e0b98f
+public	motivos	admin insere	INSERT	{authenticated}	d41d8cd9	33e0b98f
+public	motivos	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	movimentacoes	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	movimentacoes	operador insere	INSERT	{authenticated}	d41d8cd9	d3df3952
+public	operador_filiais	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	pendencias_item	pendencias_item admin reabre	UPDATE	{authenticated}	dd75186e	1e1f897b
+public	pendencias_item	pendencias_item leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	pendencias_item	pendencias_item operador resolve	UPDATE	{authenticated}	1ed73f1a	2c5c0dbe
+public	profiles	atualiza proprio perfil	UPDATE	{authenticated}	15c587ac	15c587ac
+public	profiles	leitura operador	SELECT	{authenticated}	cb680040	d41d8cd9
+public	relatorios_gerados	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	relatorios_gerados	operador gera	INSERT	{authenticated}	d41d8cd9	235dba5a
+public	termos_gerados	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	termos_gerados	operador apaga	DELETE	{authenticated}	b59536cc	d41d8cd9
+public	termos_gerados	operador atualiza	UPDATE	{authenticated}	b59536cc	7b24cd8f
+public	termos_gerados	operador insere	INSERT	{authenticated}	d41d8cd9	7b24cd8f
+public	tipos_item	admin atualiza tipo	UPDATE	{authenticated}	33e0b98f	33e0b98f
+public	tipos_item	admin insere tipo	INSERT	{authenticated}	d41d8cd9	33e0b98f
+public	tipos_item	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+public	unidades_apelidos	admin apaga apelido	DELETE	{authenticated}	33e0b98f	d41d8cd9
+public	unidades_apelidos	admin insere apelido	INSERT	{authenticated}	d41d8cd9	33e0b98f
+public	unidades_apelidos	leitura operador	SELECT	{authenticated}	cd757cb1	d41d8cd9
+storage	objects	backups-import apaga operador	DELETE	{authenticated}	646657dc	d41d8cd9
+storage	objects	backups-import atualiza operador	UPDATE	{authenticated}	646657dc	646657dc
+storage	objects	backups-import insere operador	INSERT	{authenticated}	d41d8cd9	646657dc
+storage	objects	backups-import leitura operador	SELECT	{authenticated}	646657dc	d41d8cd9
+storage	objects	termos apaga operador	DELETE	{authenticated}	511754c1	d41d8cd9
+storage	objects	termos atualiza operador	UPDATE	{authenticated}	511754c1	511754c1
+storage	objects	termos insere operador	INSERT	{authenticated}	d41d8cd9	511754c1
+storage	objects	termos leitura operador	SELECT	{authenticated}	fef6d2b3	d41d8cd9

@@ -1,0 +1,65 @@
+apagar_ativo(p_ativo uuid, p_confirmacao text, p_justificativa text)	anon=0	authenticated=1	service_role=0	public=0
+apagar_ativos_conflito_filiais(p_ativos uuid[], p_confirmacao text, p_justificativa text, p_backup_path text)	anon=0	authenticated=1	service_role=0	public=0
+apagar_item(p_item smallint, p_confirmacao text, p_justificativa text)	anon=0	authenticated=1	service_role=0	public=0
+apagar_movimentacao(p_mov uuid, p_confirmacao text, p_justificativa text)	anon=0	authenticated=1	service_role=0	public=0
+apagar_usuario(p_alvo uuid)	anon=0	authenticated=1	service_role=0	public=0
+aplicar_movimentacao()	anon=0	authenticated=0	service_role=1	public=0
+checagens_integridade_nucleo()	anon=0	authenticated=0	service_role=0	public=0
+checagens_integridade_resumo()	anon=0	authenticated=1	service_role=0	public=0
+definir_papel_usuario(p_alvo uuid, p_papel papel_usuario)	anon=0	authenticated=1	service_role=0	public=0
+definir_status_usuario(p_alvo uuid, p_ativo boolean)	anon=0	authenticated=1	service_role=0	public=0
+definir_vinculos_usuario(p_alvo uuid, p_filiais smallint[])	anon=0	authenticated=1	service_role=0	public=0
+dev_checagens_integridade()	anon=0	authenticated=1	service_role=0	public=0
+e_admin()	anon=0	authenticated=1	service_role=1	public=0
+e_dev()	anon=0	authenticated=1	service_role=1	public=0
+e_plataforma()	anon=0	authenticated=1	service_role=0	public=0
+empresas_de_admin()	anon=0	authenticated=1	service_role=1	public=0
+empresas_de_escrita()	anon=0	authenticated=1	service_role=1	public=0
+empresas_do_membro()	anon=0	authenticated=1	service_role=1	public=0
+encerrar_sessoes_usuario(p_alvo uuid)	anon=0	authenticated=1	service_role=0	public=0
+estorno_item_coerente(p_estorna_id uuid, p_filial smallint, p_item smallint)	anon=0	authenticated=1	service_role=1	public=0
+exigir_ativos_da_empresa(p_ids uuid[])	anon=0	authenticated=0	service_role=0	public=0
+exigir_dev_para_destruir(p_justificativa text)	anon=0	authenticated=0	service_role=0	public=0
+exigir_gestao_de(p_alvo uuid, p_papel_pedido papel_usuario)	anon=0	authenticated=0	service_role=0	public=0
+exigir_identidade_livre_na_filial(p_ativo uuid, p_filial smallint, p_acao text)	anon=0	authenticated=0	service_role=0	public=0
+existe_outro_admin_ativo(p_excluindo uuid, p_escopo uuid)	anon=0	authenticated=0	service_role=0	public=0
+forcar_estado_ativo(p_ativo uuid, p_status status_ativo, p_justificativa text)	anon=0	authenticated=1	service_role=0	public=0
+forcar_saldo_item(p_item smallint, p_filial smallint, p_saldo_alvo integer, p_justificativa text)	anon=0	authenticated=1	service_role=0	public=0
+guarda_acervo()	anon=0	authenticated=0	service_role=0	public=0
+handle_new_user()	anon=0	authenticated=0	service_role=1	public=0
+import_apagar_acervo_filial(p_filial smallint)	anon=0	authenticated=0	service_role=0	public=0
+import_conferir_resultado(p_plano jsonb, p_filial smallint, p_criados integer, p_total integer)	anon=0	authenticated=0	service_role=0	public=0
+import_contar_conflitos(p_filial smallint)	anon=0	authenticated=0	service_role=0	public=0
+import_criar_ativos(p_elemento jsonb, p_filial smallint)	anon=0	authenticated=0	service_role=0	public=0
+import_gravar_trilha(p_plano jsonb, p_filial smallint, p_backup_path text, p_correcoes jsonb, p_uid uuid, p_criados integer, p_movs integer, p_anotacoes integer, p_termos integer, p_conflitos integer)	anon=0	authenticated=0	service_role=0	public=0
+import_lancar_movimentacoes(p_ativo uuid, p_elemento jsonb, p_filial smallint, p_uid uuid, p_data_import date, p_obs_marcador text)	anon=0	authenticated=0	service_role=0	public=0
+import_revalidar_contagens(p_contagens jsonb, p_filial smallint)	anon=0	authenticated=0	service_role=0	public=0
+import_validar_plano(p_plano jsonb, p_backup_path text, p_correcoes jsonb, p_filial smallint)	anon=0	authenticated=0	service_role=0	public=0
+importar_ativos_substituir(p_plano jsonb, p_backup_path text, p_contagens jsonb, p_correcoes jsonb)	anon=0	authenticated=1	service_role=0	public=0
+ledger_de_migracoes()	anon=0	authenticated=1	service_role=0	public=0
+membros_guarda_dev()	anon=0	authenticated=0	service_role=0	public=0
+mesmo_escopo_de_gestao(p_alvo uuid)	anon=0	authenticated=0	service_role=0	public=0
+movimentacao_abrir_pendencias_item(p_mov movimentacoes, p_ativo ativos)	anon=0	authenticated=0	service_role=0	public=0
+movimentacao_desfazer_pendencias_item(p_movimentacao_estornada uuid)	anon=0	authenticated=0	service_role=0	public=0
+movimentacao_detentor_sincronizado(p_status status_ativo, p_tipo tipo_movimentacao, p_informado text, p_atual text)	anon=0	authenticated=0	service_role=0	public=0
+movimentacao_estornar(p_mov movimentacoes, p_ativo ativos)	anon=0	authenticated=0	service_role=0	public=0
+movimentacao_pendencia_de_termo_restaurada(p_snapshot jsonb, p_atual text)	anon=0	authenticated=0	service_role=0	public=0
+movimentacao_transicionar(p_mov movimentacoes, p_ativo ativos)	anon=0	authenticated=0	service_role=0	public=0
+operador_filiais_deriva_membership()	anon=0	authenticated=0	service_role=0	public=0
+papel_atual()	anon=0	authenticated=1	service_role=1	public=0
+pode_escrever()	anon=0	authenticated=1	service_role=1	public=0
+pode_escrever_arquivo_termo(p_nome text)	anon=0	authenticated=1	service_role=1	public=0
+pode_escrever_filial(fid smallint)	anon=0	authenticated=1	service_role=1	public=0
+pode_escrever_termo(p_ativo_ids uuid[])	anon=0	authenticated=1	service_role=1	public=0
+pode_ler_arquivo_termo(p_nome text)	anon=0	authenticated=1	service_role=1	public=0
+previa_reset(p_bloco text, p_filial smallint)	anon=0	authenticated=1	service_role=0	public=0
+profiles_guarda_dev()	anon=0	authenticated=0	service_role=0	public=0
+registrar_tentativa_senha(p_ip text, p_max integer, p_janela_seg integer)	anon=0	authenticated=0	service_role=1	public=0
+resetar_acervo(p_filial smallint, p_confirmacao text, p_justificativa text, p_backup_path text, p_contagens jsonb)	anon=0	authenticated=1	service_role=0	public=0
+resetar_dados_ficticios(p_confirmacao text)	anon=0	authenticated=0	service_role=1	public=0
+resetar_itens(p_filial smallint, p_confirmacao text, p_justificativa text, p_backup_path text, p_contagens jsonb)	anon=0	authenticated=1	service_role=0	public=0
+rotulo_alcance_reset(p_filial smallint)	anon=0	authenticated=0	service_role=0	public=0
+rotulo_de_ambiente()	anon=0	authenticated=0	service_role=1	public=0
+termo_ancora_coerente(p_movimentacao_ids uuid[], p_ativo_ids uuid[])	anon=0	authenticated=1	service_role=1	public=0
+ultima_migracao_aplicada()	anon=0	authenticated=1	service_role=1	public=0
+unidades_de_escrita()	anon=0	authenticated=1	service_role=1	public=0

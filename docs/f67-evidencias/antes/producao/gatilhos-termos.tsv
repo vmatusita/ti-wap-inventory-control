@@ -1,0 +1,6 @@
+# termos_gerados (tgname, tgenabled, tgtype, funcao)
+termos_gerados_guarda_empresa	O	19	guarda_empresa
+termos_gerados_ids_da_empresa	O	23	termo_da_empresa
+zz_guarda_empresa	O	19	guarda_empresa
+# gatilhos nao internos por tabela (public)
+anotacoes=2, ativos=3, colaboradores=2, eventos_admin=2, filiais=3, import_logs=2, import_prefixos_patrimonio=2, import_termos_categoria=2, import_termos_estado=2, itens=2, kits_modelos=3, lancamentos_item=4, membros=1, motivos=2, movimentacoes=4, operador_filiais=1, pendencias_item=2, profiles=1, relatorios_gerados=2, senhas_acesso=2, termos_gerados=3, tipos_item=2, unidades_apelidos=3

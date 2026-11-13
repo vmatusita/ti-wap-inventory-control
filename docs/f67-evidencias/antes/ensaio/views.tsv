@@ -1,0 +1,9 @@
+v_colaboradores_consolidacao	2e49beb027	{security_invoker=true}
+v_colaboradores_textos	7c4fa2c3c7	{security_invoker=true}
+v_conflitos_filiais	7ed67acfa9	{security_invoker=true}
+v_conflitos_filiais_grupos	6514284508	{security_invoker=true}
+v_estoque_atual	7dfa2ed9ce	{security_invoker=true}
+v_fila_pendencias	a46e0e8c92	{security_invoker=true}
+v_movimentacoes_mes	556bfba8de	{security_invoker=true}
+v_pendencias	a212e7a97b	{security_invoker=true}
+v_pendencias_item	f2a0a38cb7	{security_invoker=true}

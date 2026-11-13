@@ -1,0 +1,13 @@
+# public.checagens_integridade_nucleo() medido via execute_sql 2026-11-13
+arquivo_termo_orfao=0
+ativo_filial_inativa=0
+backup_orfao=0
+conflito_entre_filiais=0
+detentor_em_estado_sem_dono=0
+kit_motivo_orfao=0
+operador_sem_filial=1
+patrimonio_duplicado=0
+pendencia_de_estornada=0
+perfil_sem_conta=0
+reserva_aberta=0
+termo_sem_arquivo=0

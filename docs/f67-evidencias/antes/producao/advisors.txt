@@ -1,0 +1,11 @@
+SECURITY (producao) 2026-11-13
+INFO  rls_enabled_no_policy = 6 (ambiente, backups_migration, empresas, plataforma_admins, senha_tentativas, senhas_acesso)
+WARN  authenticated_security_definer_function_executable = 34
+WARN  auth_leaked_password_protection = 1
+ERROR: 0
+PERFORMANCE (producao)
+INFO  unindexed_foreign_keys = 39
+INFO  no_primary_key = 1 (_bkp_relatorios_gerados_f6a)
+INFO  unused_index = 7
+WARN  multiple_permissive_policies = 1 (pendencias_item UPDATE authenticated)
+ERROR: 0
