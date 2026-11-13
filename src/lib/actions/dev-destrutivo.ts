@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirDev } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
+import { empresaDaFilial } from '@/lib/escopo/empresa-da-filial'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import {
@@ -175,7 +177,11 @@ export async function calcularPreviaReset(input: {
   const aut = await exigirDev(supabase)
   if (!aut.ok) return { ok: false, erro: aut.erro }
   try {
-    return { ok: true, dados: await previaDoReset(input.bloco, input.filialId) }
+    // F67: a empresa da prévia — a DA FILIAL, ou a da operação no "tudo" (a legada EXPLÍCITA até a F70).
+    const empresaId =
+      input.filialId === null ? empresaDaOperacao() : await empresaDaFilial(supabase, input.filialId)
+    if (empresaId === null) return { ok: false, erro: 'Filial não encontrada.' }
+    return { ok: true, dados: await previaDoReset(input.bloco, input.filialId, empresaId) }
   } catch (err) {
     registrarFalha({ escopo: 'dev-destrutivo.calcular-previa', erro: err, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível calcular o tamanho deste reset agora.' }
@@ -221,6 +227,7 @@ export async function apagarAtivo(input: {
   }
 
   const { data, error } = await chamarRpc(supabase, 'apagar_ativo', {
+    p_empresa: empresaDaOperacao(),
     p_ativo: ativoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -282,6 +289,7 @@ export async function apagarMovimentacao(input: {
   if (recusa) return { ok: false, erro: recusa }
 
   const { data, error } = await chamarRpc(supabase, 'apagar_movimentacao', {
+    p_empresa: empresaDaOperacao(),
     p_mov: movimentacaoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -328,6 +336,7 @@ export async function apagarItem(input: {
   if (recusa) return { ok: false, erro: recusa }
 
   const { data, error } = await chamarRpc(supabase, 'apagar_item', {
+    p_empresa: empresaDaOperacao(),
     p_item: itemId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -368,9 +377,20 @@ export async function resetarBloco(input: {
   }
   const { bloco, filialId, confirmacao, justificativa } = parsed.data
 
+  // F67: a empresa do reset — a DA FILIAL (lida no servidor) ou, no "tudo", a da operação (a legada EXPLÍCITA até a
+  // F70). O banco confere de novo: filial de outra empresa → 42501, e o "tudo" é todas as filiais DESTA empresa.
+  let empresaId: string | null
+  try {
+    empresaId = filialId === null ? empresaDaOperacao() : await empresaDaFilial(supabase, filialId)
+  } catch (err) {
+    registrarFalha({ escopo: 'dev-destrutivo.resetar-empresa', erro: err, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível conferir a filial deste reset agora. Nada foi apagado — tente de novo em instantes.' }
+  }
+  if (empresaId === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   let previa
   try {
-    previa = await previaDoReset(bloco, filialId)
+    previa = await previaDoReset(bloco, filialId, empresaId)
   } catch (err) {
     registrarFalha({ escopo: 'dev-destrutivo.resetar-previa', erro: err, operador: aut.uid })
     return {
@@ -424,6 +444,7 @@ export async function resetarBloco(input: {
   // `p_filial = null` é o alcance GLOBAL, valor de domínio — a porta aceita null aqui por
   // `ALCANCE_DO_RESET` (src/lib/supabase/rpc.ts).
   const { data, error } = await chamarRpc(supabase, rpc, {
+    p_empresa: empresaId,
     p_filial: filialId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -471,6 +492,7 @@ export async function forcarEstado(input: {
   const { ativoId, status, justificativa } = parsed.data
 
   const { data, error } = await chamarRpc(supabase, 'forcar_estado_ativo', {
+    p_empresa: empresaDaOperacao(),
     p_ativo: ativoId,
     p_status: status,
     p_justificativa: justificativa,
@@ -508,7 +530,18 @@ export async function forcarSaldo(input: {
   }
   const { itemId, filialId, saldoAlvo, justificativa } = parsed.data
 
+  // F67: a empresa é a DA FILIAL (o banco confere que o item é dela também).
+  let empresaId: string | null
+  try {
+    empresaId = await empresaDaFilial(supabase, filialId)
+  } catch (err) {
+    registrarFalha({ escopo: 'dev-destrutivo.forcar-saldo-empresa', erro: err, operador: aut.uid })
+    return { ok: false, erro: 'Não foi possível conferir a filial agora. Nada foi alterado — tente de novo em instantes.' }
+  }
+  if (empresaId === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const { data, error } = await chamarRpc(supabase, 'forcar_saldo_item', {
+    p_empresa: empresaId,
     p_item: itemId,
     p_filial: filialId,
     p_saldo_alvo: saldoAlvo,

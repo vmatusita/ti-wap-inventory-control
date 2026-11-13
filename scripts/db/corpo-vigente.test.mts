@@ -129,7 +129,8 @@ describe('4. corpoVigente contra as migrations REAIS do repositório', () => {
     )
     expect(criadoras.length, 'a função deveria ter mais de uma versão na cadeia').toBeGreaterThan(1)
     expect(arquivo).toBe(criadoras[criadoras.length - 1])
-    expect(sql).toContain("'dev'")
+    // F67 (0186): o corpo vivo DELEGA a pode_escrever_unidade (a empresa da filial) — o "'dev'" mora lá agora.
+    expect(sql).toContain('pode_escrever_unidade(')
   })
 
   it('o corpo devolvido é UMA função só — não engoliu a seguinte', () => {

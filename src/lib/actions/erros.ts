@@ -347,6 +347,26 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
     return 'Este usuário não pertence à sua organização — a ação foi recusada.'
   }
 
+  // ---- F67: as recusas POR EMPRESA (a empresa vai como 1º parâmetro e o banco a confere) ----
+  if (casa(m, MSG_SQL.registroDeOutraEmpresa)) {
+    return 'Este registro pertence a outra empresa — a ação foi recusada.'
+  }
+  if (casa(m, MSG_SQL.filialDeOutraEmpresa)) {
+    return 'Esta filial pertence a outra empresa — a ação foi recusada.'
+  }
+  if (casa(m, MSG_SQL.usuarioDeOutraEmpresa)) {
+    return 'Este usuário não pertence a esta empresa — a ação foi recusada.'
+  }
+  if (casa(m, MSG_SQL.contaDeOutraEmpresa)) {
+    return 'Esta conta também pertence a outra empresa: só a plataforma pode agir sobre ela.'
+  }
+  if (casa(m, MSG_SQL.empresaNaoInformada)) {
+    return 'A operação chegou sem a empresa. Recarregue a página e tente de novo.'
+  }
+  if (casa(m, MSG_SQL.termoSemModeloNaEmpresa)) {
+    return 'A emissão de termo ainda não está disponível para esta empresa.'
+  }
+
   if (casa(m, MSG_SQL.saldoAlvoInvalido)) {
     return 'O saldo alvo precisa ser zero ou maior.'
   }

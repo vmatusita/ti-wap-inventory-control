@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
+import { empresaDaFilial, unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
@@ -448,7 +449,10 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
     c.patrimonio === null && c.serviceTag ? [c.serviceTag] : [],
   )
   try {
-    const emOutras = await paresEmOutrasFiliais(client, filial.id, patrimonios, tagsSemPatrimonio)
+    // F67: as unidades da EMPRESA da filial do import — o par de outra empresa não é conflito.
+    const unidades = await unidadesDaMesmaEmpresa(client, filial.id)
+    if (unidades === null) throw new Error('A filial do import não foi encontrada.')
+    const emOutras = await paresEmOutrasFiliais(client, filial.id, unidades, patrimonios, tagsSemPatrimonio)
     if (emOutras.size > 0) {
       validacao = await validarArquivoImport(buffer, filialSel, vocabulario, undefined, pedido.correcoes, emOutras)
     }
@@ -674,7 +678,17 @@ export async function aplicarImport(input: {
   // `create or replace` casa pela LISTA DE TIPOS dos argumentos. O overload quebraria
   // `seguranca_catalogo.sql`, que resolve a assinatura de 4 argumentos e exige UMA linha.
   const planoComConfirmacao = { ...plano, confirmacao: confirmacaoTexto }
+  // F67: a empresa do import é a DA FILIAL do plano (lida no servidor); o banco a confere antes da trava e do backup.
+  let empresaDoImport: string | null
+  try {
+    empresaDoImport = await empresaDaFilial(client, plano.filialId)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.empresa-da-filial', erro })
+    return { ok: false, erro: 'Não foi possível conferir a filial do import. Nada foi apagado — tente de novo em instantes.' }
+  }
+  if (empresaDoImport === null) return { ok: false, erro: 'Filial não encontrada.' }
   const { data, error } = await chamarRpc(client, 'importar_ativos_substituir', {
+    p_empresa: empresaDoImport,
     p_plano: planoComConfirmacao,
     p_backup_path: backupPath,
     p_contagens: custoPreview,

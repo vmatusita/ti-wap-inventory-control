@@ -56,6 +56,8 @@ export type LeituraDeRelacao<O extends Relacao = Relacao, S extends string = str
  */
 export type MatrizDeRpc =
   | { readonly tipo: 'sem-argumentos' }
+  // F67: as formas de cargo POR EMPRESA — uma célula, com a empresa legada no parâmetro nomeado (até a F70).
+  | { readonly tipo: 'empresa-legada'; readonly empresa: string }
   | { readonly tipo: 'colaborador'; readonly colaborador: string }
   | { readonly tipo: 'filiais'; readonly filiais: string }
   | { readonly tipo: 'filiais-e-data'; readonly filiais: string; readonly data: string }

@@ -40,6 +40,7 @@ import { CATALOGO } from '../../src/lib/queries/formas/catalogo'
 import { conferirValores, type ProblemaDeForma } from '../../src/lib/supabase/forma'
 import type { LeituraDeRelacao, LeituraDeRpc, MatrizDeRpc } from '../../src/lib/supabase/leitura'
 import { idsDeFiliais, listaDoConsolidado } from './filiais-da-matriz'
+import { EMPRESA_LEGADA_ID } from '../../src/lib/auth/empresa-legada'
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const opcao = (nome: string) => process.argv.find((a) => a.startsWith(`--${nome}=`))?.slice(nome.length + 3)
@@ -283,6 +284,9 @@ function celulas(m: MatrizDeRpc): Celula[] {
   switch (m.tipo) {
     case 'sem-argumentos':
       return [{ rotulo: 'única', args: {} }]
+    case 'empresa-legada':
+      // F67: o cargo POR EMPRESA, perguntado na empresa legada — a mesma que o app pergunta (empresaDaOperacao).
+      return [{ rotulo: 'empresa legada', args: { [m.empresa]: EMPRESA_LEGADA_ID } }]
     case 'colaborador':
       return pessoas.map((id, i) => ({ rotulo: `pessoa #${i + 1}`, args: { [m.colaborador]: id } }))
     case 'filiais':

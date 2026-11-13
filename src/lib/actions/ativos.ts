@@ -14,10 +14,11 @@ import {
 } from '@/lib/validators/ativo'
 import { PENDENCIA_SEM_PATRIMONIO, PENDENCIA_SEM_SERVICE_TAG } from '@/lib/dominio'
 import {
-  ALCANCE_DA_RECUSA_MANUAL,
+  alcanceDaRecusaManual,
   cadastrosComMesmaIdentidade,
   chaveDeIdentidadeSemUnidade,
 } from '@/lib/ativos/identidade'
+import { unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
 
 // Remove UM trecho de uma pendência `;`-joinable (comparação case-insensitive),
 // preservando os demais (ex.: 'sem patrimônio físico; termo pendente' → 'termo
@@ -66,11 +67,15 @@ async function filialComMesmaIdentidade(
   patrimonio: string | null,
   serviceTag: string | null,
   exetoAtivoId: string,
+  filialDoAtivo: number,
 ): Promise<string | null> {
   const par = { patrimonio: patrimonio ? patrimonio : null, serviceTag: (serviceTag ?? '').trim() }
 
+  // F67: as unidades da EMPRESA do ativo — o par de outra empresa não é o mesmo equipamento.
+  const unidades = await unidadesDaMesmaEmpresa(supabase, filialDoAtivo)
+  if (unidades === null) throw new Error('A filial do ativo não foi encontrada.')
   const res = await cadastrosComMesmaIdentidade(supabase, [par], {
-    alcance: ALCANCE_DA_RECUSA_MANUAL,
+    alcance: alcanceDaRecusaManual(unidades),
     excetoAtivoId: exetoAtivoId,
   })
   if (!res.ok) throw new Error(res.erro.message)
@@ -263,7 +268,7 @@ export async function corrigirPatrimonio(input: {
   // F24 — a checagem que o índice global fazia até a 0091. Corrigir o patrimônio não pode
   // criar um par que já exista em OUTRA filial: conflito entre filiais nasce só do import.
   try {
-    const jaEm = await filialComMesmaIdentidade(supabase, novo, ativo.service_tag, ativo_id)
+    const jaEm = await filialComMesmaIdentidade(supabase, novo, ativo.service_tag, ativo_id, ativo.filial_id)
     if (jaEm) {
       return {
         ok: false,
@@ -353,7 +358,7 @@ export async function definirServiceTag(input: {
   // Vale para os dois casos de identidade — o ativo COM patrimônio (o par) e o SEM
   // patrimônio (a tag sozinha, que é justamente o caso comum aqui).
   try {
-    const jaEm = await filialComMesmaIdentidade(supabase, ativo.patrimonio, service_tag, ativo_id)
+    const jaEm = await filialComMesmaIdentidade(supabase, ativo.patrimonio, service_tag, ativo_id, ativo.filial_id)
     if (jaEm) {
       return {
         ok: false,

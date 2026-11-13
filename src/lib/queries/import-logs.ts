@@ -249,9 +249,15 @@ async function contarPonteirosSubstituto(
 export async function paresEmOutrasFiliais(
   client: DbClient,
   filialId: number,
+  unidadesDaEmpresa: readonly number[],
   patrimonios: string[],
   serviceTagsSemPatrimonio: string[] = [],
 ): Promise<Map<string, string>> {
+  // F67 (13/11/2026; a nota F66 da ficha): só as OUTRAS filiais DA MESMA EMPRESA — o par de outra empresa não é conflito
+  // (a identidade do ativo é por empresa desde a F65) e não entra no mapa. As unidades vêm de quem chama
+  // (`unidadesDaMesmaEmpresa`, src/lib/escopo/empresa-da-filial.ts), resolvidas no servidor.
+  const outrasDaEmpresa = unidadesDaEmpresa.filter((u) => u !== filialId)
+  if (outrasDaEmpresa.length === 0) return new Map<string, string>()
   const mapa = new Map<string, string>()
 
   // (1) Pares COM patrimônio — a régua F7C original.
@@ -261,7 +267,7 @@ export async function paresEmOutrasFiliais(
       .from('ativos')
       .select(LEITURA_PAR_COM_PATRIMONIO_EM_OUTRA_FILIAL.select)
       .in('patrimonio', lote)
-      .neq('filial_id', filialId)
+      .in('filial_id', outrasDaEmpresa)
     if (error) throw new Error(`Falha ao conferir patrimônios em outras filiais: ${error.message}`)
     const linhas = linhasDe(
       data,
@@ -285,7 +291,7 @@ export async function paresEmOutrasFiliais(
       .select(LEITURA_PAR_SEM_PATRIMONIO_EM_OUTRA_FILIAL.select)
       .is('patrimonio', null)
       .in('service_tag', lote)
-      .neq('filial_id', filialId)
+      .in('filial_id', outrasDaEmpresa)
     if (error) {
       throw new Error(
         `Falha ao conferir service tags sem patrimônio em outras filiais: ${error.message}`,

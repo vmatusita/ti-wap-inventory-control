@@ -13,6 +13,7 @@ import {
   raizDoConflito,
 } from '@/lib/storage/copiar-antes-de-remover'
 import { exigirAdmin } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { registrarFalha } from '@/lib/observabilidade'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { traduzErroBanco } from '@/lib/actions/erros'
@@ -285,7 +286,9 @@ export async function apagarConflito(input: {
   // `p_backup_path = null` é "sem arquivo" (abaixo do cap não há backup em arquivo — o
   // backup vai em jsonb no próprio evento) — a porta aceita null aqui pelo mapa da RPC
   // (src/lib/supabase/rpc.ts).
+  // F67: a empresa da mesa é a da operação (a legada EXPLÍCITA até a F70); o banco recusa id de outra empresa (42501).
   const { data, error } = await chamarRpc(supabase, 'apagar_ativos_conflito_filiais', {
+    p_empresa: empresaDaOperacao(),
     p_ativos: ativoIds,
     p_confirmacao: parsed.data.confirmacao,
     p_justificativa: parsed.data.justificativa,

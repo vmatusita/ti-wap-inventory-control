@@ -15,7 +15,11 @@ import { STATUS_ORDEM, type StatusAtivo } from '@/lib/dominio'
 /** Mínimo da justificativa. Espelha `exigir_dev_para_destruir` (migration 0082). */
 export const MIN_JUSTIFICATIVA = 10
 
-/** A frase do reset de alcance GLOBAL. Espelha `rotulo_alcance_reset` (migration 0083). */
+/**
+ * O começo da frase do "tudo". Espelha `rotulo_alcance_reset(p_empresa, p_filial, p_bloco)` (migration 0190): desde a
+ * F67 o "tudo" é de UMA empresa e carrega a QUANTIDADE do que vai sumir — `RESETAR TUDO — <N> ATIVOS` (acervo) ou
+ * `RESETAR TUDO — <N> LANÇAMENTOS` (itens), N sem separador de milhar, o travessão U+2014.
+ */
 export const FRASE_RESET_GLOBAL = 'RESETAR TUDO'
 
 export const justificativaSchema = z
@@ -98,8 +102,13 @@ export function confirmacaoConfere(digitado: string, esperado: string): boolean 
  * MESMA forma. Uma confirmação que a tela monta de um jeito e o banco de outro é uma
  * confirmação que nunca confere, e o dev não teria como saber por quê.
  */
-export function rotuloAlcanceReset(nomeFilial: string | null): string {
-  return nomeFilial === null ? FRASE_RESET_GLOBAL : nomeFilial
+export function rotuloAlcanceReset(
+  nomeFilial: string | null,
+  quantidade: number,
+  bloco: 'acervo' | 'itens' = 'acervo',
+): string {
+  if (nomeFilial !== null) return nomeFilial
+  return `${FRASE_RESET_GLOBAL} — ${quantidade} ${bloco === 'itens' ? 'LANÇAMENTOS' : 'ATIVOS'}`
 }
 
 /**

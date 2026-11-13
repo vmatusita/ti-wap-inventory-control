@@ -50,7 +50,8 @@ const DEFINICOES = new Map(Object.keys(COLUNAS_DE_VIEW_NAO_NULAS).map((v) => [v,
 describe('a resolução da definição viva de view (guarda do próprio teste)', () => {
   it('acha as views do mapa nas migrations em que vivem', () => {
     expect(definicaoViva('v_estoque_atual')?.arquivo).toBe('0006_views.sql')
-    expect(definicaoViva('v_conflitos_filiais')?.arquivo).toBe('0134_desempate_por_ordem.sql')
+    // F67: a 0191 recriou a view com a partição por empresa (a coluna `empresa` no fim).
+    expect(definicaoViva('v_conflitos_filiais')?.arquivo).toBe('0191_mesa_por_empresa.sql')
   })
   it('uma view inexistente não resolve', () => {
     expect(definicaoViva('v_que_nao_existe')).toBeNull()

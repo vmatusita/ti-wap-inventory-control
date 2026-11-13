@@ -9,10 +9,11 @@ import {
   type DevolverFornecedorInput,
 } from '@/lib/validators/devolucao-fornecedor'
 import {
-  ALCANCE_DA_RECUSA_MANUAL,
+  alcanceDaRecusaManual,
   cadastrosComMesmaIdentidade,
   recusasDeIdentidadeNoAcervo,
 } from '@/lib/ativos/identidade'
+import { unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
 import { buscarAtivoResumo } from '@/lib/queries/ativos'
 import { ultimoEnvioManutencao } from '@/lib/queries/movimentacoes'
 import { chamarRpc } from '@/lib/supabase/rpc'
@@ -77,10 +78,13 @@ export async function devolverAoFornecedor(
   // unidades: o substituto nasce por cadastro, e cadastro nunca abre conflito entre filiais.
   const sub = dados.substituto
   if (sub) {
+    // F67: as unidades da EMPRESA da filial do substituto — o par de outra empresa não o impede.
+    const unidades = await unidadesDaMesmaEmpresa(supabase, sub.filial_id)
+    if (unidades === null) return { ok: false, erroGeral: 'Filial não encontrada.' }
     const noAcervo = await cadastrosComMesmaIdentidade(
       supabase,
       [{ patrimonio: sub.patrimonio, serviceTag: sub.service_tag }],
-      { alcance: ALCANCE_DA_RECUSA_MANUAL },
+      { alcance: alcanceDaRecusaManual(unidades) },
     )
     if (!noAcervo.ok) {
       return { ok: false, erroGeral: traduzErroBanco(noAcervo.erro.message, noAcervo.erro.code) }

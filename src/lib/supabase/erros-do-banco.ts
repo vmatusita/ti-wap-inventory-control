@@ -205,6 +205,16 @@ export const MSG_SQL = {
   importRepetido: ['já foi importado nesta filial', 'ja foi importado nesta filial'],
   semEscritaNoImport: ['não tem permissão de escrita na filial', 'nao tem permissao de escrita na filial'],
   foraDaOrganizacao: ['não pertence à sua organização', 'nao pertence a sua organizacao'],
+  // F67 (13/11/2026) — as recusas POR EMPRESA (decisão 20 do PLAN-F67): uma frase por classe, sem valor de linha.
+  registroDeOutraEmpresa: ['este registro pertence a outra empresa'],
+  filialDeOutraEmpresa: ['esta filial pertence a outra empresa'],
+  usuarioDeOutraEmpresa: ['este usuário não pertence a esta empresa', 'este usuario nao pertence a esta empresa'],
+  contaDeOutraEmpresa: ['esta conta também pertence a outra empresa', 'esta conta tambem pertence a outra empresa'],
+  empresaNaoInformada: ['informe a empresa da operação', 'informe a empresa da operacao'],
+  termoSemModeloNaEmpresa: [
+    'a emissão de termo ainda não está disponível para esta empresa',
+    'a emissao de termo ainda nao esta disponivel para esta empresa',
+  ],
   saldoAlvoInvalido: ['saldo alvo precisa ser'],
   // mesa de conflitos entre filiais (F24)
   foraDeConflito: ['só apaga ativo que esteja em conflito', 'so apaga ativo que esteja em conflito'],

@@ -79,16 +79,21 @@ export function chaveDeIdentidade(
 // ---------------------------------------------------------------------------
 
 export type AlcanceDaIdentidade =
-  | { readonly alcance: 'todas-as-unidades' }
+  | { readonly alcance: 'todas-as-unidades-da-empresa'; readonly unidades: readonly number[] }
   | { readonly alcance: 'unidade'; readonly unidadeId: number }
 
 /**
  * O alcance da recusa de CADASTRO MANUAL (compra, correção de patrimônio, service tag,
- * substituto): todas as unidades. Ver o ⚠ do cabeçalho — spec §10.2.
+ * substituto): todas as unidades DA EMPRESA do cadastro. Ver o ⚠ do cabeçalho — spec §10.2.
+ *
+ * F67 (13/11/2026; a nota F66 da ficha): a identidade do ativo é POR EMPRESA desde a F65 — o par que
+ * existe noutra EMPRESA não é o mesmo equipamento e não impede o cadastro. O alcance carrega as
+ * unidades da empresa do cadastro (`unidadesDaMesmaEmpresa`, src/lib/escopo/empresa-da-filial.ts),
+ * resolvidas por quem chama, no servidor.
  */
-export const ALCANCE_DA_RECUSA_MANUAL: AlcanceDaIdentidade = Object.freeze({
-  alcance: 'todas-as-unidades',
-})
+export function alcanceDaRecusaManual(unidadesDaEmpresa: readonly number[]): AlcanceDaIdentidade {
+  return Object.freeze({ alcance: 'todas-as-unidades-da-empresa', unidades: Object.freeze([...unidadesDaEmpresa]) })
+}
 
 // ---------------------------------------------------------------------------
 // A consulta — o ÚNICO lugar que procura identidade no acervo
@@ -150,6 +155,7 @@ export async function cadastrosComMesmaIdentidade(
     let q = client.from('ativos').select(LEITURA_MESMA_IDENTIDADE.select)
     if (opcoes.excetoAtivoId) q = q.neq('id', opcoes.excetoAtivoId)
     if (opcoes.alcance.alcance === 'unidade') q = q.eq('filial_id', opcoes.alcance.unidadeId)
+    else q = q.in('filial_id', [...opcoes.alcance.unidades])
     return q
   }
 

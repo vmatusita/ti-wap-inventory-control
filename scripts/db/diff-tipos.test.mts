@@ -298,8 +298,14 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // (`colaboradores_uso_efetivo`, `returns table` — o uso efetivo do colaborador). HAND-FIX datado no `database.ts`
     // antes do apply; a geração do MCP de produção depois do apply o substitui. O número SUBIU porque o banco ganhou
     // um objeto.
+    //
+    // F67 (13/11/2026): relações 38 -> 38, funções 95 -> 102. A 0185 cria SETE (papel_na_empresa, e_admin_na, e_dev_na,
+    // pode_escrever_na, pode_escrever_unidade, empresa_da_filial, filial_da_empresa), a 0192 UMA que o gerador lista
+    // (empresas_com_modelo_de_termo; a do gatilho é `returns trigger` e fica de fora), e a 0193 derruba `e_dev` — +8 −1.
+    // As de nome mantido e assinatura nova não mudam a conta (o gate compara por NOME). HAND-FIX datado no
+    // `database.ts`; a geração do MCP de produção depois da contração o substitui.
     expect(real.relacoes.size).toBe(38)
-    expect(real.funcoes.size).toBe(95)
+    expect(real.funcoes.size).toBe(102)
     expect(real.colunas.size).toBeGreaterThanOrEqual(314)
   })
 
