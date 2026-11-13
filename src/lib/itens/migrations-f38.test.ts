@@ -271,6 +271,7 @@ const DA_F38 = [
   // `0193` (a contração) só derruba as 21 assinaturas antigas e `e_dev()`. Nenhuma é intocável; todas entram nas
   // exceções nominais abaixo para que as listas sejam EXAUSTIVAS, como a da 0143. Nenhuma escreve no acervo no apply.
   '0185',
+  '0186',
 ]
 
 /**
@@ -659,6 +660,15 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'empresa_da_filial',
       'filial_da_empresa',
       'pode_escrever_unidade',
+    ],
+    '0186': [
+      'pode_escrever_filial',
+      'pode_escrever_termo',
+      'pode_ler_arquivo_termo',
+      'checagens_integridade_resumo',
+      'ledger_de_migracoes',
+      'dev_checagens_integridade',
+      'ultima_migracao_aplicada',
     ],
   }
 
