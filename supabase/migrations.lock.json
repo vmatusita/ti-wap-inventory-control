@@ -188,6 +188,7 @@
     "0183_comprimento_vocabulario.sql": "36d449d7e56e37b45021e40d6996cc3c750f7ed5dd842640cd8ad5f470279ad9",
     "0184_comprimento_registros.sql": "3061b992cd461b5e805d7a40336fe8eb87199ed3db6a4e6591aea380be16601c",
     "0185_cargo_por_empresa.sql": "db96c54ba9af52a687b330aed8429779e7b7ffd09daa2ce98bde183a3223e0dc",
-    "0186_consumidores_por_empresa.sql": "5c0147b8a28f13dac91f38ffefc16cf2d41868c0f96eafb1cb571bb35f0bc12c"
+    "0186_consumidores_por_empresa.sql": "5c0147b8a28f13dac91f38ffefc16cf2d41868c0f96eafb1cb571bb35f0bc12c",
+    "0187_policies_sem_par_por_empresa.sql": "29dc759c81fc152cc22461bdf2e562419b7560e3648c54ae1c15205c8c848052"
   }
 }

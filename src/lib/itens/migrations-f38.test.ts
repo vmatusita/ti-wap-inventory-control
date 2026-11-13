@@ -272,6 +272,7 @@ const DA_F38 = [
   // exceções nominais abaixo para que as listas sejam EXAUSTIVAS, como a da 0143. Nenhuma escreve no acervo no apply.
   '0185',
   '0186',
+  '0187',
 ]
 
 /**
