@@ -274,6 +274,7 @@ const DA_F38 = [
   '0186',
   '0187',
   '0188',
+  '0189',
 ]
 
 /**
@@ -673,6 +674,16 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'ultima_migracao_aplicada',
     ],
     '0188': ['papel_atual'],
+    '0189': [
+      'mesmo_escopo_de_gestao',
+      'existe_outro_admin_ativo',
+      'exigir_gestao_de',
+      'definir_papel_usuario',
+      'definir_status_usuario',
+      'definir_vinculos_usuario',
+      'apagar_usuario',
+      'encerrar_sessoes_usuario',
+    ],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
