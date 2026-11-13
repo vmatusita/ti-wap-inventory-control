@@ -6,6 +6,31 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 13/11/2026 — F67 · O cargo por empresa, as `security definer` e as destrutivas 🚧
+
+Fase **F67** (**v1.73.0**) · **com migrations `0185`–`0192` (a expansão) e `0193` (a contração)** — funções, views, nove
+policies e um gatilho; nenhum dado de negócio muda. Expandir e contrair, zero janela: a forma nova nasce ao lado da
+antiga, o app novo vai ao ar, e a antiga sai depois da prova de zero chamadas em `pg_stat_statements` (RUNBOOK, Anexo
+F67) · sem dependência nova. PR #94. Plano em [`docs/PLAN-F67.md`](docs/PLAN-F67.md), ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-13 · F67), relatório em [`docs/RELATORIO-F67.md`](docs/RELATORIO-F67.md).
+Storage e Realtime por empresa e o fim do default `empresa_legada()` ficaram para as duas fases seguintes, com ficha
+própria no plano (decisão do Johnny de 12/11).
+
+- 🏢 **O cargo POR EMPRESA.** `papel_na_empresa(p_empresa)` é a fonte única do cargo naquela empresa; `e_admin_na`,
+  `e_dev_na`, `pode_escrever_na` derivam dela; `pode_escrever_unidade(p_empresa, p_filial)` testa a empresa da filial
+  ANTES do cargo. A plataforma é dev em toda empresa ("dev sou só eu", decisão do Johnny de 13/11).
+- 🧱 **O piso** `papel_atual()` passa a "o cargo mais forte entre as memberships ativas" e só vale pareado numa policy com
+  o recorte do mesmo cargo; os consumidores sem par foram convertidos; `e_dev()` sai.
+- 🧨 **As destrutivas, a prévia, o import, a mesa e as cinco RPCs de conta** recebem `p_empresa` 1º, sem default: a linha,
+  a filial e o alvo têm de ser da empresa (42501, frase pt-BR). O "tudo" do reset é toda filial DESTA empresa, e a
+  confirmação carrega a quantidade (`RESETAR TUDO — <N> ATIVOS`). A trilha grava a empresa alvo.
+- 🔀 **O conflito entre empresas é impossível**: a mesa agrupa por empresa da filial e chave; a identidade do ativo é por
+  empresa também no cadastro e no import.
+- 📄 **A trava do termo**: o banco recusa emitir termo para empresa sem modelo próprio, em qualquer caminho.
+- 🔒 **As travas:** `cargo_por_empresa.sql`, `termo_bloqueado.sql`, `conflito_entre_empresas.sql`, a asserção 4 de
+  `definer_sem_tenant.sql`, `isolamento_tenant.sql` 10k–10m, `f67_rollback.sql` (os dois estados), a catraca TS da empresa
+  legada e o conta a conta contra um oráculo da regra de antes; sete mutações novas no injetor (teto 170).
+
 ## 12/11/2026 — F66B · O comprimento vira regra do banco ✅
 
 Fase **F66B** (**v1.72.0**) · **com migrations `0181`–`0184`** (65 `CHECK` de comprimento, classe ADITIVA, nenhuma
