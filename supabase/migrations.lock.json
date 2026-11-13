@@ -194,6 +194,7 @@
     "0189_gestao_de_contas_por_empresa.sql": "1adc580512bd33e9e8f7605145429d2705b9c27845e29b8cde367feb597390a2",
     "0190_destrutivas_por_empresa.sql": "ba84a766a36eb0dbd22847151c0b3361d874c0e278e513970c07a5f7182eeeb1",
     "0191_mesa_por_empresa.sql": "63032300f00877ab57de72c6ab711e0bb2ca21be67f9dc90187d38385eeb23b4",
-    "0192_termo_por_empresa.sql": "a966265415a6ef7893c9dce8b382664cc0b101af32e74b954ed8f2812b2c5da9"
+    "0192_termo_por_empresa.sql": "a966265415a6ef7893c9dce8b382664cc0b101af32e74b954ed8f2812b2c5da9",
+    "0193_contracao_assinaturas_antigas.sql": "a7e750328fecbf3d946eadff0560e63c594b2cb79c5218a57b16d019052cc740"
   }
 }

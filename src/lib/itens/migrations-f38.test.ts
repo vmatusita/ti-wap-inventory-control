@@ -278,6 +278,7 @@ const DA_F38 = [
   '0190',
   '0191',
   '0192',
+  '0193',
 ]
 
 /**
@@ -721,6 +722,32 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'rel_mov_por_mes',
       'rel_por_motivo',
       'rel_resumo',
+    ],
+    // F67 — a contração derruba as 21 assinaturas antigas que a expansão (0189–0191) deixou de pé e `e_dev()` (sem
+    // consumidor desde a 0186/0187). Nenhuma intocável; a lista é EXAUSTIVA. Só depois do deploy e da janela com
+    // Δ = 0 em pg_stat_statements (RUNBOOK, Anexo F67).
+    '0193': [
+      'apagar_usuario',
+      'definir_papel_usuario',
+      'definir_status_usuario',
+      'definir_vinculos_usuario',
+      'encerrar_sessoes_usuario',
+      'exigir_gestao_de',
+      'mesmo_escopo_de_gestao',
+      'apagar_ativo',
+      'apagar_item',
+      'apagar_movimentacao',
+      'forcar_estado_ativo',
+      'forcar_saldo_item',
+      'previa_reset',
+      'resetar_acervo',
+      'resetar_itens',
+      'exigir_dev_para_destruir',
+      'rotulo_alcance_reset',
+      'apagar_ativos_conflito_filiais',
+      'exigir_ativos_da_empresa',
+      'importar_ativos_substituir',
+      'e_dev',
     ],
   }
 
