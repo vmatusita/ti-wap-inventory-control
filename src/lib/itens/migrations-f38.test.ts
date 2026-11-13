@@ -275,6 +275,7 @@ const DA_F38 = [
   '0187',
   '0188',
   '0189',
+  '0190',
 ]
 
 /**
@@ -683,6 +684,23 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'definir_vinculos_usuario',
       'apagar_usuario',
       'encerrar_sessoes_usuario',
+    ],
+    // as duas de reset aparecem DUAS vezes: a forma nova (com `p_empresa`) e a antiga recriada só com a chave de
+    // advisory por empresa (a legada) — as duas famílias não podem se cruzar durante a janela.
+    '0190': [
+      'exigir_dev_para_destruir',
+      'rotulo_alcance_reset',
+      'previa_reset',
+      'resetar_acervo',
+      'resetar_itens',
+      'resetar_acervo',
+      'resetar_itens',
+      'apagar_ativo',
+      'apagar_item',
+      'apagar_movimentacao',
+      'forcar_estado_ativo',
+      'forcar_saldo_item',
+      'importar_ativos_substituir',
     ],
   }
 
