@@ -192,7 +192,9 @@ grant insert, update, delete on
   public.tipos_item,        -- 10f
   public.anotacoes,         -- 10f
   public.motivos,           -- 10f
-  public.movimentacoes      -- 11c: o snapshot — a filial real do ativo, pelos pares
+  public.movimentacoes,     -- 11c: o snapshot — a filial real do ativo, pelos pares; 10g-b
+  public.lancamentos_item,  -- 10g-b (F67): a escrita da direção B
+  public.termos_gerados     -- 10g-b (F67): a escrita da direção B (o update/delete do termo da A)
   to authenticated;
 
 -- `profiles`: espelho EXATO do grant da 0063 — nunca `update` de TABELA.
@@ -243,7 +245,8 @@ declare
                             'eventos_admin', 'import_logs', 'import_prefixos_patrimonio', 'import_termos_categoria',
                             'import_termos_estado', 'itens', 'kits_modelos', 'lancamentos_item', 'motivos', 'movimentacoes',
                             'pendencias_item', 'relatorios_gerados', 'termos_gerados', 'tipos_item', 'unidades_apelidos'];
-  k_escrita text[] := array['ativos', 'operador_filiais', 'colaboradores', 'tipos_item', 'anotacoes', 'motivos', 'movimentacoes'];
+  k_escrita text[] := array['ativos', 'operador_filiais', 'colaboradores', 'tipos_item', 'anotacoes', 'motivos', 'movimentacoes',
+                            'lancamentos_item', 'termos_gerados'];
 
   -- =======================================================================
   -- F62 — AS PERSONAS DOS CENÁRIOS A↔B (uuid fixo, prefixo f62a; e-mails de fantasia)
@@ -304,6 +307,17 @@ declare
   v_t_ub       bigint[] := '{}';
   v_k          int;
   v_uid_p      uuid;
+
+  -- =======================================================================
+  -- F67 — A ESCRITA DA DIREÇÃO B, AS CINCO RPCs DE CONTA E AS DESTRUTIVAS (seções 10g-b, 10k, 10l; prefixo f67a)
+  -- =======================================================================
+  k_dev_a      uuid := '00000000-f67a-4000-8000-0000000000d8';  -- dev SÓ em A, SEM plataforma (a 13/11-1: o dev da A não destrói a B)
+  v_r          text;
+  v_res        text;
+  v_atv_a      uuid;
+  v_atv_b      uuid;
+  v_md5_x0     text;
+  v_md5_x1     text;
 begin
   -- =========================================================================
   -- FIXTURES (como postgres — antes de qualquer troca de papel).
@@ -780,10 +794,15 @@ begin
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ---------------------------------------------------------------
-  -- 9g — A PONTE de papel_atual() é DETERMINÍSTICA para quem tem duas memberships: o
-  --      consultor (admin em A, consulta em B) recebe 'admin' — a membership na empresa
-  --      LEGADA, nunca "a mais forte" nem "a primeira que o planejador achar"; e quem só tem
-  --      membership em B (oper_b) não tem cargo pela ponte (até a F67).
+  -- 9g — O PISO papel_atual() é DETERMINÍSTICO para quem tem duas memberships.
+  --      ⚠ F67 (13/11/2026) — A PONTE SAIU, DECLARADO. Até a F67 esta asserção provava a PONTE
+  --      da F62: o cargo vinha da membership na empresa LEGADA ("nunca a mais forte"), e quem só
+  --      tinha membership em B não tinha cargo. A F67 (0188) faz de papel_atual() o PISO — o cargo
+  --      MAIS FORTE entre as memberships ativas —, que só vale pareado com o recorte do mesmo
+  --      cargo (a trava Q de cargo_por_empresa.sql); o cargo NUMA empresa é papel_na_empresa().
+  --      A asserção passa a provar o piso: o consultor (admin em A, consulta em B) recebe 'admin'
+  --      (o mais forte — o MESMO valor de antes, pela outra razão) duas vezes, e quem só tem
+  --      membership em B (oper_b, operador) recebe 'operador' (antes: sem cargo).
   -- ---------------------------------------------------------------
   perform set_config('request.jwt.claims', json_build_object('sub', k_consultor, 'role', 'authenticated')::text, true);
   set local role authenticated;
@@ -793,12 +812,12 @@ begin
   set local role authenticated;
   v_depois := coalesce(public.papel_atual()::text, '∅');
   reset role;
-  if v_antes = 'admin/admin' and v_depois = '∅' then
+  if v_antes = 'admin/admin' and v_depois = 'operador' then
     v_ok := v_ok + 1;
-    raise notice '✓ 9g a ponte responde pela empresa legada: consultor=admin (duas vezes), só-em-B=sem cargo';
+    raise notice '✓ 9g o piso é o cargo mais forte, determinístico: consultor=admin (duas vezes), só-em-B=operador';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 9g a ponte de papel_atual() não é a da empresa legada: consultor=% só-em-B=%', v_antes, v_depois;
+    raise warning '✗ 9g o piso papel_atual() não é o cargo mais forte entre as memberships: consultor=% só-em-B=%', v_antes, v_depois;
   end if;
 
   -- ---------------------------------------------------------------
@@ -1070,24 +1089,22 @@ begin
   -- O QUE CADA CENÁRIO PROVA, E O QUE NÃO PROVA:
   --   10a/10b — DIREÇÃO A, com as policies REAIS: o admin só da A vê TODA linha da A e NENHUMA da B. Prova o recorte da
   --             conjunção (o piso passa para ele; é o termo de empresa que tira a B).
-  --   10c/10d — DIREÇÃO B, com o PISO NEUTRALIZADO dentro de uma subtransação desfeita: cada policy de SELECT das tabelas
-  --             da bateria perde o piso (`papel_atual()`/`e_admin()` vira `true` no texto que o próprio catálogo devolve)
-  --             e fica SÓ com o termo de empresa que a migration escreveu — o estado que a F72 vai deixar. O admin só da
-  --             B vê toda linha da B e nenhuma da A. Prova que o recorte SOZINHO isola nas duas direções (decisão 7 do
-  --             PLAN-F66: emular a F72, e não a F67 — neutralizar o piso testa o termo REAL de cada policy; emular a
-  --             ponte inventaria um `papel_atual()` que nenhuma fase vai ter). O `alter policy` é DDL dinâmico DENTRO
-  --             desta transação de roteiro — fora de supabase/migrations/, invisível ao replay da mesa e ao universo
-  --             congelado (10a/10b de catalogo_policies.sql rodam em outra sessão), e desfeito pelo `raise` da
-  --             subtransação antes da asserção seguinte.
-  --   10e     — A PONTE (declarada, NÃO é prova do recorte): com as policies reais, quem é só da B não vê NADA — o piso
-  --             de hoje (`papel_atual()` responde só pela empresa legada) fecha tudo. A F67 tira a ponte e inverte isto.
+  --   10c/10d — DIREÇÃO B, com as policies REAIS desde a F67 (até ela, com o piso NEUTRALIZADO numa subtransação, porque
+  --             o piso da F62 respondia só pela empresa legada): o admin só da B vê toda linha da B e nenhuma da A.
+  --   10e     — O 10e INVERTIDO (F67): com as policies reais, quem é SÓ da B (o operador da B) vê o que é DELE — toda
+  --             linha da B pelo piso, nenhuma nas de cargo, nenhuma da A. Até a F67 ele afirmava a PONTE ("não vê nada").
   --   10f     — O MEMBRO DAS DUAS (admin na A, consulta na B), com as policies reais: vê as duas nas tabelas de leitura
   --             pelo piso; nas de leitura por CARGO (auditoria, trilha do import), só a A — ele não administra a B.
   --   10g/10h — A ESCRITA CRUZADA: o admin da A (e o membro das duas) inserindo com `empresa_id` da B — com pais da B,
   --             para a FK composta não ser quem recusa — leva 42501 pelo WITH CHECK; atualizando ou apagando linha da
   --             B, afeta 0 linhas; de volta como postgres, a B está intacta (regra 2); e o par legítimo (a mesma escrita
   --             na A) passa. 10h: sem o termo no WITH CHECK, a mesma escrita cruzada PASSA — quem recusou foi o recorte.
-  --             A escrita da direção B (a pessoa da B escrevendo) depende da ponte e é da F67.
+  --             A escrita da direção B (a pessoa da B escrevendo) é o 10g-b, desde a F67.
+  --   10g-b   — F67: o admin só da B escrevendo na A (ativos, movimentações, lançamentos, termos) é recusado e a A fica
+  --             intacta; o par legítimo, na B, passa.
+  --   10k     — F67: as CINCO RPCs de conta, nas duas direções e com o par legítimo (a empresa como 1º parâmetro).
+  --   10l     — F67: as DESTRUTIVAS — o dev só da A não destrói nada da B; a plataforma destrói, com a trilha na empresa
+  --             ALVO (decisão 13/11-1 do Johnny: "dev sou só eu").
   --   10i/10j — O JOIN DAS rel_*: duas empresas com o MESMO código de motivo; para o membro das duas, o relatório por
   --             motivo e o resumo não duplicam (0179). Sem o par no join, duplicam (10j, a prova de que o cenário acusa).
   -- ⚠ Nenhum cenário aqui prova o Storage, o Realtime nem as `security definer` (F67) — nem `profiles` (F69).
@@ -1154,63 +1171,53 @@ begin
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   v_estado := null;
 
-  -- 10c/10d — DIREÇÃO B, com o piso NEUTRALIZADO numa subtransação desfeita (o estado que a F72 vai deixar)
-  v_estado2 := null; v_neutras := 0; v_viu_a := 0; v_viu_b := 0; v_tabs_erro := ''; v_antes := '';
-  begin
-    for v_pol in
-      select p.polname, c.relname::text as tabela, pg_get_expr(p.polqual, p.polrelid) as qual
-        from pg_policy p join pg_class c on c.oid = p.polrelid
-       where c.relnamespace = 'public'::regnamespace and p.polcmd in ('r', '*') and c.relname::text = any (v_t_tabs)
-    loop
-      v_expr := replace(replace(v_pol.qual, '(( SELECT papel_atual() AS papel_atual) IS NOT NULL)', 'true'),
-                        '( SELECT e_admin() AS e_admin)', 'true');
-      if v_expr = v_pol.qual or v_expr ~ '\m(papel_atual|e_admin)\(' then
-        raise exception 'f66-10c-piso-nao-neutralizado % / %', v_pol.tabela, v_pol.polname;
-      end if;
-      execute format('alter policy %I on public.%I using (%s)', v_pol.polname, v_pol.tabela, v_expr);
-      v_neutras := v_neutras + 1;
-    end loop;
-    perform set_config('request.jwt.claims', json_build_object('sub', k_admin_b, 'role', 'authenticated')::text, true);
-    for v_k in 1 .. v_n_tab loop
-      set local role authenticated;
-      execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
-                     v_t_tabs[v_k]) into v_sa, v_sb using v_emp_a, v_emp_b;
-      reset role;
-      v_viu_a := v_viu_a + v_sa;
-      if v_sa > 0 then v_tabs_erro := v_tabs_erro || ' ' || v_t_tabs[v_k] || '(' || v_sa || ' da A)'; end if;
-      if v_sb <> v_t_ub[v_k] then
-        v_viu_b := v_viu_b + 1;
-        v_antes := v_antes || ' ' || v_t_tabs[v_k] || '(' || v_sb || ' de ' || v_t_ub[v_k] || ' da B)';
-      end if;
-    end loop;
-    raise exception 'f66-10c-desfaz';
-  exception when others then
-    if sqlerrm <> 'f66-10c-desfaz' then v_estado2 := 'erro ' || sqlstate || ': ' || sqlerrm; end if;
-  end;
-  reset role;
-  raise notice '(medição) 10c o piso neutralizado em % policies de SELECT, na subtransação desfeita (%)', v_neutras,
-    coalesce(v_estado2, 'sem erro');
-  if pg_temp.assert_zero_de('10c direção B, com o piso neutralizado (o recorte SOZINHO): o admin só da B não vê NENHUMA linha da A' ||
-       case when v_viu_a > 0 or v_estado2 is not null then ' — viu:' || v_tabs_erro || ' ' || coalesce(v_estado2, '') else '' end,
-       v_viu_a + case when v_estado2 is not null then 1 else 0 end, v_tot_ua) then
-    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
-  if pg_temp.assert_zero_de('10d direção B, com o piso neutralizado: o admin só da B vê TODA linha da B, e o piso saiu de toda policy de SELECT da bateria' ||
-       case when v_viu_b > 0 or v_estado2 is not null or v_neutras < v_n_tab then ' — faltou:' || v_antes || ' (' || v_neutras || ' policies neutralizadas de ' || v_n_tab || ' tabelas) ' || coalesce(v_estado2, '') else '' end,
-       v_viu_b + case when v_estado2 is not null or v_neutras < v_n_tab then 1 else 0 end, v_n_tab) then
-    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
-  v_antes := null;
-
-  -- 10e — A PONTE (declarada, não é prova do recorte): com as policies reais, quem é só da B não vê nada
-  v_soma := 0;
+  -- 10c/10d — DIREÇÃO B, com as policies REAIS (F67, 13/11/2026 — declarado: até a F67 a direção B rodava com o piso
+  -- NEUTRALIZADO numa subtransação desfeita, porque o piso da F62 respondia só pela empresa legada e fechava tudo para
+  -- quem era só da B; a 0188 fez do piso o cargo mais forte, e a bateria passa a rodar com as policies vivas, sem DDL).
+  v_viu_a := 0; v_viu_b := 0; v_tabs_erro := ''; v_antes := '';
   perform set_config('request.jwt.claims', json_build_object('sub', k_admin_b, 'role', 'authenticated')::text, true);
   for v_k in 1 .. v_n_tab loop
     set local role authenticated;
-    execute format('select count(*) from public.%I where empresa_id in ($1, $2)', v_t_tabs[v_k]) into v_cnt using v_emp_a, v_emp_b;
+    execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
+                   v_t_tabs[v_k]) into v_sa, v_sb using v_emp_a, v_emp_b;
     reset role;
-    v_soma := v_soma + v_cnt;
+    v_viu_a := v_viu_a + v_sa;
+    if v_sa > 0 then v_tabs_erro := v_tabs_erro || ' ' || v_t_tabs[v_k] || '(' || v_sa || ' da A)'; end if;
+    if v_sb <> v_t_ub[v_k] then
+      v_viu_b := v_viu_b + 1;
+      v_antes := v_antes || ' ' || v_t_tabs[v_k] || '(' || v_sb || ' de ' || v_t_ub[v_k] || ' da B)';
+    end if;
   end loop;
-  if pg_temp.assert_zero_de('10e a ponte: com as policies reais, quem é só da B não vê nada — o piso de hoje responde só pela empresa legada (a F67 tira a ponte; isto NÃO prova o recorte)',
-       v_soma, v_tot_ua + v_tot_ub) then
+  if pg_temp.assert_zero_de('10c direção B, com as policies reais: o admin só da B não vê NENHUMA linha da A' ||
+       case when v_viu_a > 0 then ' — viu:' || v_tabs_erro else '' end,
+       v_viu_a, v_tot_ua) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  if pg_temp.assert_zero_de('10d direção B, com as policies reais: o admin só da B vê TODA linha da B (o recorte não tranca a própria empresa)' ||
+       case when v_viu_b > 0 then ' — faltou:' || v_antes else '' end,
+       v_viu_b, v_n_tab) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  v_antes := null;
+
+  -- 10e — O 10e INVERTIDO (F67, declarado: até a F67 ele afirmava a PONTE — "quem é só da B não vê nada"). Com as policies
+  -- reais, quem é SÓ da B (o operador da B) vê o que é DELE: toda linha da B nas tabelas de leitura pelo piso, nenhuma
+  -- nas de leitura por CARGO (ele não administra), e nenhuma da A em lugar nenhum.
+  v_soma := 0; v_viu_b := 0; v_tabs_erro := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_oper_b, 'role', 'authenticated')::text, true);
+  for v_k in 1 .. v_n_tab loop
+    set local role authenticated;
+    execute format('select count(*) filter (where empresa_id = $1), count(*) filter (where empresa_id = $2) from public.%I',
+                   v_t_tabs[v_k]) into v_sa, v_sb using v_emp_a, v_emp_b;
+    reset role;
+    v_soma := v_soma + v_sa;
+    if v_sa > 0 or v_sb <> (case when v_t_adm[v_k] then 0 else v_t_ub[v_k] end) then
+      v_viu_b := v_viu_b + 1;
+      v_tabs_erro := v_tabs_erro || ' ' || v_t_tabs[v_k] || '(A ' || v_sa || ', B ' || v_sb || '/'
+                     || (case when v_t_adm[v_k] then 0 else v_t_ub[v_k] end) || ')';
+    end if;
+  end loop;
+  if pg_temp.assert_zero_de('10e quem é só da B vê o que é dela: o operador da B vê toda linha da B nas tabelas de leitura pelo piso, nenhuma nas de cargo, e nenhuma da A (as policies reais; o inverso da ponte)' ||
+       case when v_viu_b > 0 then ' — diferente:' || v_tabs_erro else '' end,
+       v_viu_b, v_n_tab) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 10f — O MEMBRO DAS DUAS, com as policies reais (admin na A, consulta na B)
@@ -1364,6 +1371,216 @@ begin
   if pg_temp.assert_zero_de('10h sem o termo de empresa no WITH CHECK, a mesma escrita cruzada PASSA — a recusa de 10g é do recorte, não do acaso' ||
        case when v_estado2 is distinct from 'passou' then ' — ' || coalesce(v_estado2, '∅') else '' end,
        case when v_estado2 = 'passou' then 0 else 1 end, 1) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10g-b — F67: A ESCRITA DA DIREÇÃO B nas quatro tabelas do movimento (ativos, movimentacoes, lancamentos_item,
+  -- termos_gerados), com as policies reais: o admin só da B escrevendo na A é recusado (42501 no insert; 0 linhas no
+  -- update), a A fica intacta (a segunda prova), e o par legítimo — a mesma escrita na B — passa. O termo da B legítimo
+  -- NÃO passa: a trava do termo (0192) o recusa antes, por não haver modelo (termo_bloqueado.sql) — declarado.
+  select md5(string_agg(x, ',' order by x)) into v_md5_x0
+    from (select to_jsonb(a)::text as x from public.ativos a where a.empresa_id = v_emp_a
+          union all select to_jsonb(m)::text from public.movimentacoes m where m.empresa_id = v_emp_a
+          union all select to_jsonb(l)::text from public.lancamentos_item l where l.empresa_id = v_emp_a
+          union all select to_jsonb(t)::text from public.termos_gerados t where t.empresa_id = v_emp_a) as s;
+  v_ruins := 0; v_rotulos := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+        values (null, 'F67BXA1', 'notebook', (v_pa->>'filiais')::smallint, 'cadastro', v_emp_a);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-ativo';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-ativo(' || sqlstate || ')'; end;
+  begin insert into public.movimentacoes (ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, empresa_id)
+        values ((v_pa->>'ativos')::uuid, 'ajuste', current_date, (v_pa->>'filiais')::smallint, 'em_estoque', 'f67 cruzado',
+                k_admin_b, v_emp_a);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-movimentacao';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-movimentacao(' || sqlstate || ')'; end;
+  begin insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por, empresa_id)
+        values ((v_pa->>'itens')::smallint, (v_pa->>'filiais')::smallint, 'entrada', 1, current_date, k_admin_b, v_emp_a);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-lancamento';
+  exception when insufficient_privilege then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-lancamento(' || sqlstate || ')'; end;
+  begin insert into public.termos_gerados (tipo, movimentacao_ids, ativo_ids, dados, arquivo_path, gerado_por, empresa_id)
+        values ('responsabilidade_desktop', array[(v_pa->>'movimentacoes')::uuid], array[(v_pa->>'ativos')::uuid],
+                '{}'::jsonb, 'f67-cruzado.docx', k_admin_b, v_emp_a);
+        v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-termo';
+  -- o termo cruzado é recusado ANTES da policy pelo gatilho de coerência (termo_da_empresa, invoker): para quem é da B,
+  -- os ids da A são invisíveis e não contam como da empresa do termo (23503). Recusa igual — e a A intacta é a 2ª prova.
+  exception when insufficient_privilege or foreign_key_violation then null;
+            when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' insert-termo(' || sqlstate || ')'; end;
+  update public.ativos set modelo = 'invadido-f67' where id = (v_pa->>'ativos')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-ativo'; end if;
+  update public.termos_gerados set dados = '{"f67": true}'::jsonb where id = (v_pa->>'termos_gerados')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' update-termo'; end if;
+  delete from public.termos_gerados where id = (v_pa->>'termos_gerados')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt > 0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' delete-termo'; end if;
+  reset role;
+  select md5(string_agg(x, ',' order by x)) into v_md5_x1
+    from (select to_jsonb(a)::text as x from public.ativos a where a.empresa_id = v_emp_a
+          union all select to_jsonb(m)::text from public.movimentacoes m where m.empresa_id = v_emp_a
+          union all select to_jsonb(l)::text from public.lancamentos_item l where l.empresa_id = v_emp_a
+          union all select to_jsonb(t)::text from public.termos_gerados t where t.empresa_id = v_emp_a) as s;
+  if v_md5_x1 is distinct from v_md5_x0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' a-A-mudou'; end if;
+  -- o par legítimo: a mesma escrita na B, pelo mesmo admin da B
+  perform set_config('request.jwt.claims', json_build_object('sub', k_admin_b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+        values (null, 'F67BLEG1', 'notebook', (v_pb->>'filiais')::smallint, 'cadastro', v_emp_b);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-insert-ativo(' || sqlstate || ')'; end;
+  begin insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por, empresa_id)
+        values ((v_pb->>'itens')::smallint, (v_pb->>'filiais')::smallint, 'entrada', 1, current_date, k_admin_b, v_emp_b);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-insert-lancamento(' || sqlstate || ')'; end;
+  update public.ativos set modelo = 'editado-f67' where id = (v_pb->>'ativos')::uuid;
+  get diagnostics v_cnt = row_count;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-update-ativo(' || v_cnt || ')'; end if;
+  reset role;
+  if pg_temp.assert_zero_de('10g-b a escrita da direção B: o admin só da B não escreve na A (ativos, movimentações, lançamentos, termos — insert 42501, update/delete 0 linhas), a A fica intacta, e o par legítimo na B passa' ||
+       case when v_ruins > 0 then ' — fora:' || v_rotulos else '' end, v_ruins, 11) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10k — F67: AS CINCO RPCs DE CONTA, nas duas direções, com o par legítimo. A empresa vai como 1º parâmetro; o banco
+  -- confere que o ALVO é membro dela (pertencimento antes da patente) e o cargo de quem chama NAQUELA empresa.
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
+  values (k_dev_a, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f67.dev.a@wap.ind.br',
+          '', now(), now(), now());
+  perform pg_temp.plantar_cargo(k_dev_a, 'dev');                                   -- dev SÓ em A, sem plataforma
+  perform pg_temp.plantar_cargo(k_novo, 'operador');                               -- o alvo da A
+  v_ruins := 0; v_rotulos := '';
+  for v_r, v_uid_p, v_expr, v_txt in
+    select * from (values
+      -- o admin da A sobre quem é só da B: pela empresa A, o alvo não é dela; pela empresa B, ele não administra a B
+      ('a-papel-A',     k_admin_a, format('public.definir_papel_usuario(%L::uuid, %L::uuid, ''consulta'')', v_emp_a, k_oper_b),        'Este usuário não pertence a esta empresa.'),
+      ('a-papel-B',     k_admin_a, format('public.definir_papel_usuario(%L::uuid, %L::uuid, ''consulta'')', v_emp_b, k_oper_b),        'Esta ação é restrita a administradores.'),
+      ('a-status-B',    k_admin_a, format('public.definir_status_usuario(%L::uuid, %L::uuid, false)', v_emp_b, k_oper_b),              'Esta ação é restrita a administradores.'),
+      ('a-vinculos-B',  k_admin_a, format('public.definir_vinculos_usuario(%L::uuid, %L::uuid, array[%s]::smallint[])', v_emp_b, k_oper_b, v_fb), 'Esta ação é restrita a administradores.'),
+      ('a-apagar-B',    k_admin_a, format('public.apagar_usuario(%L::uuid, %L::uuid)', v_emp_b, k_oper_b),                             'Esta ação é restrita a administradores.'),
+      ('a-sessoes-B',   k_admin_a, format('public.encerrar_sessoes_usuario(%L::uuid, %L::uuid)', v_emp_b, k_oper_b),                   'Esta ação é restrita a administradores.'),
+      -- o admin da B sobre quem é só da A
+      ('b-papel-B',     k_admin_b, format('public.definir_papel_usuario(%L::uuid, %L::uuid, ''consulta'')', v_emp_b, k_novo),          'Este usuário não pertence a esta empresa.'),
+      ('b-papel-A',     k_admin_b, format('public.definir_papel_usuario(%L::uuid, %L::uuid, ''consulta'')', v_emp_a, k_novo),          'Esta ação é restrita a administradores.'),
+      ('b-status-A',    k_admin_b, format('public.definir_status_usuario(%L::uuid, %L::uuid, false)', v_emp_a, k_novo),                'Esta ação é restrita a administradores.'),
+      -- o vínculo com filial de OUTRA empresa (o admin da A, na A, apontando a filial da B)
+      ('a-vinculo-fb',  k_admin_a, format('public.definir_vinculos_usuario(%L::uuid, %L::uuid, array[%s]::smallint[])', v_emp_a, k_novo, v_fb), 'Esta filial pertence a outra empresa.'),
+      -- o dev SÓ da A não age sobre a conta de quem é só da B (nem com a empresa B, nem com a A)
+      ('dev-sessoes-B', k_dev_a,   format('public.encerrar_sessoes_usuario(%L::uuid, %L::uuid)', v_emp_b, k_oper_b),                   'Esta ação é restrita a administradores.'),
+      ('dev-apagar-A',  k_dev_a,   format('public.apagar_usuario(%L::uuid, %L::uuid)', v_emp_a, k_oper_b),                             'Este usuário não pertence a esta empresa.'),
+      -- o membro das duas (consultor: admin da A, consulta da B) não age na B
+      ('c-papel-B',     k_consultor, format('public.definir_papel_usuario(%L::uuid, %L::uuid, ''consulta'')', v_emp_b, k_oper_b),      'Esta ação é restrita a administradores.')
+    ) as t(r, pessoa, expr, frase)
+  loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid_p, 'role', 'authenticated')::text, true);
+    begin
+      execute 'select (' || v_expr || ')::text' into v_res;
+      v_res := 'passou';
+    exception when others then
+      v_res := sqlstate || ': ' || sqlerrm;
+    end;
+    if v_res <> '42501: ' || v_txt then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_r || '(' || left(v_res, 80) || ')';
+    end if;
+  end loop;
+  perform set_config('request.jwt.claims', '', true);
+  -- a conta de quem é só da B ficou como estava
+  select count(*) into v_cnt from public.membros
+   where profile_id = k_oper_b and empresa_id = v_emp_b and papel = 'operador' and ativo;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' a-conta-da-B-mudou'; end if;
+  -- os pares legítimos: o admin da B rebaixa o operador DA B; o admin da A desativa e revincula o operador DA A; a
+  -- plataforma encerra as sessões de quem é só da B (a conta é só de uma empresa)
+  for v_r, v_uid_p, v_expr in
+    select * from (values
+      ('par-b-papel',     k_admin_b,    format('public.definir_papel_usuario(%L::uuid, %L::uuid, ''consulta'')', v_emp_b, k_oper_b)),
+      ('par-a-vinculos',  k_admin_a,    format('public.definir_vinculos_usuario(%L::uuid, %L::uuid, array[%s]::smallint[])', v_emp_a, k_novo, v_f1)),
+      ('par-a-status',    k_admin_a,    format('public.definir_status_usuario(%L::uuid, %L::uuid, false)', v_emp_a, k_novo)),
+      ('par-plat-sessoes', k_plataforma, format('public.encerrar_sessoes_usuario(%L::uuid, %L::uuid)', v_emp_b, k_oper_b))
+    ) as t(r, pessoa, expr)
+  loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid_p, 'role', 'authenticated')::text, true);
+    begin
+      execute 'select (' || v_expr || ')::text' into v_res;
+      v_res := 'passou';
+    exception when others then
+      v_res := sqlstate || ': ' || sqlerrm;
+    end;
+    if v_res <> 'passou' then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_r || '(' || left(v_res, 80) || ')';
+    end if;
+  end loop;
+  perform set_config('request.jwt.claims', '', true);
+  select count(*) into v_cnt from public.membros where profile_id = k_oper_b and empresa_id = v_emp_b and papel = 'consulta';
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-b-nao-gravou'; end if;
+  if pg_temp.assert_zero_de('10k as cinco RPCs de conta: o admin da A não troca cargo, status, vínculo, sessão nem apaga conta de quem é só da B (e vice-versa), o vínculo com filial de outra empresa é recusado, o dev só da A não alcança a conta da B — e os pares legítimos passam' ||
+       case when v_ruins > 0 then ' — fora:' || v_rotulos else '' end, v_ruins, 19) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- 10l — F67: AS DESTRUTIVAS. O dev só da A (membro dev da A, SEM plataforma) não destrói nada da B — nem informando a
+  -- empresa B (não é dev lá), nem informando a A com a linha ou a filial da B (registro/filial de outra empresa). A
+  -- plataforma ("dev sou só eu", 13/11-1) destrói na B, e a trilha grava a empresa ALVO.
+  select md5(string_agg(x, ',' order by x)) into v_md5_x0
+    from (select to_jsonb(a)::text as x from public.ativos a where a.empresa_id = v_emp_b
+          union all select to_jsonb(m)::text from public.movimentacoes m where m.empresa_id = v_emp_b
+          union all select to_jsonb(l)::text from public.lancamentos_item l where l.empresa_id = v_emp_b
+          union all select to_jsonb(i)::text from public.itens i where i.empresa_id = v_emp_b) as s;
+  v_ruins := 0; v_rotulos := '';
+  perform set_config('request.jwt.claims', json_build_object('sub', k_dev_a, 'role', 'authenticated')::text, true);
+  for v_r, v_expr, v_txt in
+    select * from (values
+      ('apagar-ativo-B',       format('public.apagar_ativo(%L::uuid, %L::uuid, ''x'', ''justificativa ficticia F67'')', v_emp_b, v_pb->>'ativos'),                       'Esta operação é restrita ao cargo Desenvolvedor.'),
+      ('apagar-ativo-A',       format('public.apagar_ativo(%L::uuid, %L::uuid, ''x'', ''justificativa ficticia F67'')', v_emp_a, v_pb->>'ativos'),                       'Este registro pertence a outra empresa.'),
+      ('apagar-mov-A',         format('public.apagar_movimentacao(%L::uuid, %L::uuid, ''x'', ''justificativa ficticia F67'')', v_emp_a, v_pb->>'movimentacoes'),         'Este registro pertence a outra empresa.'),
+      ('apagar-item-A',        format('public.apagar_item(%L::uuid, %s::smallint, ''x'', ''justificativa ficticia F67'')', v_emp_a, v_pb->>'itens'),                      'Este registro pertence a outra empresa.'),
+      ('forcar-estado-A',      format('public.forcar_estado_ativo(%L::uuid, %L::uuid, ''defasado'', ''justificativa ficticia F67'')', v_emp_a, v_pb->>'ativos'),          'Este registro pertence a outra empresa.'),
+      ('forcar-saldo-filialB', format('public.forcar_saldo_item(%L::uuid, %s::smallint, %s::smallint, 5, ''justificativa ficticia F67'')', v_emp_a, v_pa->>'itens', v_pb->>'filiais'), 'Esta filial pertence a outra empresa.'),
+      ('forcar-saldo-itemB',   format('public.forcar_saldo_item(%L::uuid, %s::smallint, %s::smallint, 5, ''justificativa ficticia F67'')', v_emp_a, v_pb->>'itens', v_pa->>'filiais'), 'Este registro pertence a outra empresa.'),
+      ('previa-filialB',       format('public.previa_reset(%L::uuid, ''acervo'', %s::smallint)', v_emp_a, v_pb->>'filiais'),                                               'Esta filial pertence a outra empresa.'),
+      ('reset-filialB',        format('public.resetar_acervo(%L::uuid, %s::smallint, ''x'', ''justificativa ficticia F67'', ''x'', ''{}''::jsonb)', v_emp_a, v_pb->>'filiais'), 'Esta filial pertence a outra empresa.'),
+      ('reset-itens-B',        format('public.resetar_itens(%L::uuid, null, ''x'', ''justificativa ficticia F67'', ''x'', ''{}''::jsonb)', v_emp_b),                      'Esta operação é restrita ao cargo Desenvolvedor.'),
+      ('previa-B',             format('public.previa_reset(%L::uuid, ''acervo'', null)', v_emp_b),                                                                         'Esta operação é restrita ao cargo Desenvolvedor.')
+    ) as t(r, expr, frase)
+  loop
+    begin
+      execute 'select (' || v_expr || ')::text' into v_res;
+      v_res := 'passou';
+    exception when others then
+      v_res := sqlstate || ': ' || sqlerrm;
+    end;
+    if v_res <> '42501: ' || v_txt then
+      v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' ' || v_r || '(' || left(v_res, 80) || ')';
+    end if;
+  end loop;
+  perform set_config('request.jwt.claims', '', true);
+  select md5(string_agg(x, ',' order by x)) into v_md5_x1
+    from (select to_jsonb(a)::text as x from public.ativos a where a.empresa_id = v_emp_b
+          union all select to_jsonb(m)::text from public.movimentacoes m where m.empresa_id = v_emp_b
+          union all select to_jsonb(l)::text from public.lancamentos_item l where l.empresa_id = v_emp_b
+          union all select to_jsonb(i)::text from public.itens i where i.empresa_id = v_emp_b) as s;
+  if v_md5_x1 is distinct from v_md5_x0 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' a-B-mudou'; end if;
+  -- os pares: o dev da A força o estado de um ativo DA A; a plataforma força o da B — e a trilha grava a empresa ALVO.
+  -- Dois ativos PRÓPRIOS (o da fixture segue para o 10i, que precisa dele no estado de antes).
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+  values (null, 'F67FORCA', 'notebook', (v_pa->>'filiais')::smallint, 'cadastro', v_emp_a) returning id into v_atv_a;
+  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
+  values (null, 'F67FORCB', 'notebook', (v_pb->>'filiais')::smallint, 'cadastro', v_emp_b) returning id into v_atv_b;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_dev_a, 'role', 'authenticated')::text, true);
+  begin
+    execute format('select public.forcar_estado_ativo(%L::uuid, %L::uuid, ''defasado'', ''justificativa ficticia F67'')', v_emp_a, v_atv_a);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-dev-A(' || left(sqlstate || ': ' || sqlerrm, 80) || ')'; end;
+  perform set_config('request.jwt.claims', json_build_object('sub', k_plataforma, 'role', 'authenticated')::text, true);
+  begin
+    execute format('select public.forcar_estado_ativo(%L::uuid, %L::uuid, ''defasado'', ''justificativa ficticia F67'')', v_emp_b, v_atv_b);
+  exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' par-plataforma-B(' || left(sqlstate || ': ' || sqlerrm, 80) || ')'; end;
+  perform set_config('request.jwt.claims', '', true);
+  select count(*) into v_cnt from public.eventos_admin e
+   where e.acao = 'estado_forcado' and e.autor = k_plataforma and e.empresa_id = v_emp_b;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' trilha-sem-a-empresa-alvo(' || v_cnt || ')'; end if;
+  select count(*) into v_cnt from public.eventos_admin e
+   where e.acao = 'estado_forcado' and e.autor = k_dev_a and e.empresa_id = v_emp_a;
+  if v_cnt <> 1 then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' trilha-do-dev-A(' || v_cnt || ')'; end if;
+  if pg_temp.assert_zero_de('10l as destrutivas: o dev só da A não destrói nada da B (nem pela empresa B, nem pela A com a linha ou a filial da B), a B fica intacta, e a plataforma destrói na B com a trilha gravando a empresa alvo' ||
+       case when v_ruins > 0 then ' — fora:' || v_rotulos else '' end, v_ruins, 16) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- 10i/10j — O JOIN DAS rel_*: o mesmo código de motivo nas duas empresas; o membro das duas lê o relatório

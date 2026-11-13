@@ -529,9 +529,21 @@ begin
   -- quando um cenário move o relatório de uma para a filial da outra
   values (current_date - 7 - length(p_marca) - ascii(right(p_marca, 1)), current_date - 1 - length(p_marca) - ascii(right(p_marca, 1)),
           v_f, '{}'::jsonb, p_autor, p_empresa) returning id into v_rel;
+  -- F67 (13/11/2026): a TRAVA DO TERMO (0192) recusa termo de empresa sem modelo próprio — e a fixture da empresa B
+  -- PRECISA de um termo dela (as baterias de isolamento leem e tentam escrever nele). O termo da B aqui modela o dado de
+  -- uma empresa que já tenha modelo; a trava sai do caminho SÓ para este insert, dentro da transação do roteiro, e volta
+  -- logo depois. A recusa da trava em si é supabase/tests/termo_bloqueado.sql.
+  if to_regprocedure('public.empresas_com_modelo_de_termo()') is not null then
+    if not (p_empresa = any (public.empresas_com_modelo_de_termo())) then
+      execute 'alter table public.termos_gerados disable trigger termo_exige_modelo_da_empresa';
+    end if;
+  end if;
   insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por, empresa_id)
   values (v_termo, 'responsabilidade_notebook', array[v_mov], array[v_ativo], 'Fulano F65 ' || p_marca, '{}'::jsonb,
           v_termo::text || '.docx', p_autor, p_empresa);
+  if to_regprocedure('public.empresas_com_modelo_de_termo()') is not null then
+    execute 'alter table public.termos_gerados enable trigger termo_exige_modelo_da_empresa';
+  end if;
   insert into public.kits_modelos (nome, payload, criado_por, empresa_id)
   values ('F65 kit ' || p_marca, jsonb_build_object('tipo', 'saida', 'motivo', v_mot), p_autor, p_empresa) returning id into v_kit;
   insert into public.senhas_acesso (rotulo, hash, criado_por, empresa_id)

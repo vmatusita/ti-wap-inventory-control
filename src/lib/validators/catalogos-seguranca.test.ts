@@ -1009,12 +1009,27 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     // F66 (24/09/2026): + as duas `rel_*` que a 0179 recria com o join pelo par da FK composta (integridade de junção)
     // v1.71.2 (19/10/2026): + `colaboradores_uso_efetivo` (0180), pelo mesmo motivo — o registro da pessoa é o da
     // empresa dela; é função, e não view, porque a 7c de empresa_no_acervo.sql recusa view que leia a coluna
+    // F67 (13/11/2026): + DOZE de uma classe nova — o RECORTE DA `security definer` (PLAN-F67, decisão 5): as destrutivas,
+    // a prévia, o rótulo do "tudo", a mesa e a guarda dela recortam pela empresa INFORMADA e gravam a empresa na trilha;
+    // o gatilho da trava do termo lê `new.empresa_id`. Em ordem alfabética (o `lista` ordena).
     expect(tenant.map((e) => e.split(':')[0])).toEqual([
+      'apagar_ativo',
+      'apagar_ativos_conflito_filiais',
+      'apagar_item',
+      'apagar_movimentacao',
       'colaboradores_uso_efetivo',
+      'exigir_ativos_da_empresa',
+      'forcar_estado_ativo',
+      'forcar_saldo_item',
       'guarda_empresa',
+      'previa_reset',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',
+      'resetar_acervo',
+      'resetar_itens',
+      'rotulo_alcance_reset',
       'termo_da_empresa',
+      'termo_exige_modelo_da_empresa',
       'vocabulario_unidades_guarda',
     ])
     // a guarda cobre as 20 de negócio; as outras duas, só as tabelas delas
@@ -1025,6 +1040,19 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     expect(tabelas.rel_por_motivo_filiais).toEqual(['motivos', 'movimentacoes'])
     expect(tabelas.rel_resumo_filiais).toEqual(['ativos', 'motivos', 'movimentacoes'])
     expect(tabelas.colaboradores_uso_efetivo).toEqual(['ativos', 'colaboradores', 'lancamentos_item', 'movimentacoes'])
+    // F67: cada destrutiva só com as tabelas DELA (a trilha é eventos_admin); a mesa e a guarda dela, só ativos
+    expect(tabelas.resetar_acervo).toEqual(['anotacoes', 'ativos', 'eventos_admin', 'movimentacoes', 'pendencias_item', 'termos_gerados'])
+    expect(tabelas.resetar_itens).toEqual(['eventos_admin', 'lancamentos_item'])
+    expect(tabelas.previa_reset).toEqual(['anotacoes', 'ativos', 'lancamentos_item', 'movimentacoes', 'pendencias_item', 'termos_gerados'])
+    expect(tabelas.rotulo_alcance_reset).toEqual(['ativos', 'lancamentos_item'])
+    expect(tabelas.apagar_ativo).toEqual(['ativos', 'eventos_admin'])
+    expect(tabelas.apagar_item).toEqual(['eventos_admin', 'itens'])
+    expect(tabelas.apagar_movimentacao).toEqual(['eventos_admin', 'movimentacoes'])
+    expect(tabelas.forcar_estado_ativo).toEqual(['ativos', 'eventos_admin', 'movimentacoes'])
+    expect(tabelas.forcar_saldo_item).toEqual(['eventos_admin', 'itens', 'lancamentos_item'])
+    expect(tabelas.apagar_ativos_conflito_filiais).toEqual(['ativos', 'eventos_admin'])
+    expect(tabelas.exigir_ativos_da_empresa).toEqual(['ativos'])
+    expect(tabelas.termo_exige_modelo_da_empresa).toEqual(['termos_gerados'])
     expect(lista(fonte('empresa_no_vocabulario'), 'k_leitura_tenant'), 'empresa_no_vocabulario.sql: a cópia divergiu').toEqual(tenant)
     expect(lista(fonte('empresa_no_acervo'), 'k_leitura_tenant_nomes'), 'empresa_no_acervo.sql: a cópia dos nomes divergiu').toEqual(
       tenant.map((e) => e.split(':')[0]),

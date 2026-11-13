@@ -3,9 +3,10 @@
 -- =============================================================
 -- POR QUE ELE EXISTE
 --
--- O sistema tem 65 funções `security definer` (48 quando este arquivo nasceu na
--- F48; as três da 0138/F55, a da 0148, as seis da 0150 e as sete da F62 fecham a conta
--- — o histórico está no comentário de `k_secdef`) — cada uma roda com o privilégio do
+-- O sistema tem 69 funções `security definer` (48 quando este arquivo nasceu na
+-- F48; as três da 0138/F55, a da 0148, as seis da 0150, as sete da F62 e as cinco por
+-- empresa da F67, menos o `e_dev()` que a F67 derruba, fecham a conta — o histórico
+-- está no comentário de `k_secdef`) — cada uma roda com o privilégio do
 -- DONO e, por construção, IGNORA a RLS das tabelas que lê e escreve. É a superfície
 -- mais concentrada de poder do banco, e até hoje **ninguém a enumerava**. Uma função
 -- `security definer` nova podia nascer executável por `anon`, ou com `search_path`
@@ -53,9 +54,9 @@ declare
   v_secdef boolean;
 
   -- -----------------------------------------------------------------------
-  -- A TABELA-VERDADE — as 65 `security definer` de `public`, classificadas (eram 51
-  -- na medição abaixo; a 0148 trouxe uma, a 0150 trouxe seis e a F62 trouxe sete, cada
-  -- uma com o motivo).
+  -- A TABELA-VERDADE — as 69 `security definer` de `public`, classificadas (eram 51
+  -- na medição abaixo; a 0148 trouxe uma, a 0150 trouxe seis, a F62 trouxe sete e a F67
+  -- trouxe cinco e tirou uma, cada uma com o motivo).
   -- Medidas em 10/09/2026 sobre as migrations 0001→0138 (eram 48 até a 0137; a
   -- F55 acrescentou TRÊS na 0138 — as três no fim desta lista, com o motivo).
   -- Ordem alfabética dentro de cada bloco. O histórico da contagem:
@@ -72,7 +73,10 @@ declare
   k_secdef text[] := array[
     -- Modelo de acesso (0072/0073): leem `profiles`, e a policy de `profiles`
     -- chama `papel_atual()`. Precisam rodar como o DONO ou o ciclo fecha (42P17).
-    'papel_atual', 'e_admin', 'e_dev', 'pode_escrever', 'pode_escrever_filial',
+    -- F67 (0193): `e_dev()` SAIU — sem consumidor depois da 0186/0187 (o cargo dev numa
+    -- empresa é `e_dev_na(p_empresa)`, abaixo). `papel_atual`/`e_admin`/`pode_escrever`
+    -- ficam só como PISO de policy, pareado com o recorte do mesmo cargo.
+    'papel_atual', 'e_admin', 'pode_escrever', 'pode_escrever_filial',
     -- Gestão de contas (0074): agem sobre `profiles` e `auth.*`, com a guarda
     -- de cargo POR DENTRO. Nenhuma é chamável por quem não tem sessão.
     'apagar_usuario', 'definir_papel_usuario', 'definir_status_usuario',
@@ -190,7 +194,14 @@ declare
     -- service role incluso; `operador_filiais_deriva_membership` lê `filiais` e
     -- `membros` para preencher a membership do vínculo, e tem de enxergá-las inteiras
     -- qualquer que seja quem insere (a RPC definer, o seed pelo service role).
-    'membros_guarda_dev', 'operador_filiais_deriva_membership'
+    'membros_guarda_dev', 'operador_filiais_deriva_membership',
+    -- F67 (13/11/2026) — as CINCO FUNÇÕES DE CARGO POR EMPRESA (0185), 69 no total (o `e_dev()`
+    -- saiu na 0193). Leem `membros`/`profiles`/`plataforma_admins`, cuja leitura passa por
+    -- policy que as chama (as de `storage` e a de `profiles`, com a legada EXPLÍCITA) — o ciclo
+    -- 42P17 que a 0070 provou exige o dono. `search_path = ''`; EXECUTE só de `authenticated`.
+    -- Recebem a empresa do cliente: estão em definer_sem_tenant.sql como a BASE do fecho da
+    -- asserção 4 (a empresa testada antes do cargo; argumento nulo fecha).
+    'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade'
   ];
 
   -- -----------------------------------------------------------------------

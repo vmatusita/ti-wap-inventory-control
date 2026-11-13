@@ -31,6 +31,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { semComentarios } from './classificar-migration.mjs'
 
 /** A pasta das migrations, relativa à raiz do repositório. */
 export const PASTA_MIGRATIONS = ['supabase', 'migrations']
@@ -256,15 +257,88 @@ export function definicoesDeFuncao(sql) {
  * @returns {{ sql: string, arquivo: string }}
  * @throws se a função não existir em migration nenhuma, ou se a assinatura for ambígua
  */
+/** O tipo de um argumento na forma em que se compara assinatura: sem `public.`, com os apelidos de inteiro resolvidos. */
+function tipoComparavel(t) {
+  return t
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/^public\./, '')
+    .replace(/^(int|int4)$/, 'integer')
+    .replace(/^int2$/, 'smallint')
+    .trim()
+}
+
+/** A chave de uma assinatura (`nome(tipo,tipo)`), na forma comparável. */
+function chaveDeAssinatura(nome, tipos) {
+  return `${nome.toLowerCase()}(${tipos.map(tipoComparavel).join(',')})`
+}
+
+/**
+ * As assinaturas que um `drop function` da cadeia derruba: chave → os índices (na ordem de `listarMigrations`) dos
+ * arquivos que as derrubam. Lido do CÓDIGO (sem comentário — `semComentarios`, o leitor único de migration), por isso
+ * a receita de rollback escrita em prosa num rodapé não conta como drop.
+ * @param {string} [raiz]
+ * @returns {Map<string, number[]>}
+ */
+const cacheDerrubadas = new Map()
+export function assinaturasDerrubadas(raiz = process.cwd()) {
+  const arquivos = listarMigrations(raiz)
+  // Cache pela LISTA de arquivos (uma migration nova muda a chave): o injetor resolve centenas de corpos por nome.
+  const chaveCache = `${raiz}|${arquivos.join(',')}`
+  if (cacheDerrubadas.has(chaveCache)) return cacheDerrubadas.get(chaveCache)
+  const derrubadas = new Map()
+  cacheDerrubadas.set(chaveCache, derrubadas)
+  for (let i = 0; i < arquivos.length; i++) {
+    const codigo = semComentarios(readFileSync(join(raiz, ...PASTA_MIGRATIONS, arquivos[i]), 'utf8'))
+    const re = /drop\s+function\s+(?:if\s+exists\s+)?(?:([a-z_][a-z0-9_]*)\s*\.\s*)?([a-z_][a-z0-9_]*)\s*\(([^)]*)\)/gi
+    let m
+    while ((m = re.exec(codigo)) !== null) {
+      if ((m[1] ?? 'public').toLowerCase() !== 'public') continue
+      const tipos = m[3].trim() === '' ? [] : m[3].split(',').map((x) => tipoDoArgumento(x))
+      const chave = chaveDeAssinatura(m[2], tipos)
+      if (!derrubadas.has(chave)) derrubadas.set(chave, [])
+      derrubadas.get(chave).push(i)
+    }
+  }
+  return derrubadas
+}
+
+/**
+ * Se a assinatura (nome, tipos), definida no arquivo de índice `i` da cadeia (a ordem de `listarMigrations`), é
+ * derrubada por um `drop function` de um arquivo POSTERIOR — a pergunta das varreduras de "corpo vigente" que montam o
+ * mapa assinatura → última definição (F67: a contração derruba as assinaturas antigas que a expansão deixou de pé).
+ * @param {string} nome
+ * @param {string[]} tipos os tipos como `definicoesDeFuncao` os devolve
+ * @param {number} i
+ * @param {string} [raiz]
+ */
+export function derrubadaDepois(nome, tipos, i, raiz = process.cwd()) {
+  return (assinaturasDerrubadas(raiz).get(chaveDeAssinatura(nome, tipos)) ?? []).some((j) => j > i)
+}
+
 export function corpoVigente(assinatura, raiz = process.cwd()) {
   const alvo = lerAssinatura(assinatura)
   const arquivos = listarMigrations(raiz)
+  // F67 (13/11/2026) — A CONTRAÇÃO. Pedida SEM os tipos, uma assinatura que um `drop function` POSTERIOR derrubou não é
+  // vigente: no arquivo da expansão a antiga e a nova vivem juntas, mas a cadeia termina só com a nova (a contração a
+  // derruba). Sem isto, toda busca por nome do que a F67 expandiu acusaria "duas sobrecargas". Pedida COM os tipos, a
+  // busca continua devolvendo a definição mais nova daquela assinatura, ainda que derrubada depois — quem pede o corpo
+  // de uma assinatura antiga pelos tipos (o rollback, a prova do diff da expansão) sabe o que pede.
+  const derrubadas = alvo.tipos === null ? assinaturasDerrubadas(raiz) : new Map()
+  // F67 (13/11/2026) — A EXPANSÃO. Uma assinatura nova pode nascer, num arquivo mais NOVO, ao lado da antiga de mesmo
+  // nome (a receita "trocar a assinatura sem trocar o nome", RUNBOOK Anexo F67). Pedida COM os tipos, a antiga continua
+  // definida no arquivo mais velho: a busca segue para trás em vez de parar no primeiro arquivo que cita o nome. Ela
+  // continua reprovando ALTO quando NENHUMA migration define a sobrecarga pedida — com as vistas na mensagem.
+  const vistas = new Set()
 
   for (let i = arquivos.length - 1; i >= 0; i--) {
     const arquivo = arquivos[i]
     const sql = readFileSync(join(raiz, ...PASTA_MIGRATIONS, arquivo), 'utf8')
     const candidatas = definicoesDeFuncao(sql).filter(
-      (d) => d.nome === alvo.nome && d.esquema === alvo.esquema,
+      (d) =>
+        d.nome === alvo.nome &&
+        d.esquema === alvo.esquema &&
+        !(derrubadas.get(chaveDeAssinatura(d.nome, d.tipos)) ?? []).some((j) => j > i),
     )
     if (candidatas.length === 0) continue
 
@@ -277,11 +351,8 @@ export function corpoVigente(assinatura, raiz = process.cwd()) {
           )
 
     if (casadas.length === 0) {
-      const vistas = candidatas.map((d) => `${d.nome}(${d.tipos.join(', ')})`).join(' · ')
-      throw new Error(
-        `corpoVigente: em ${arquivo} a função ${alvo.esquema}.${alvo.nome} existe, mas nenhuma ` +
-          `sobrecarga bate com "${assinatura}". Vistas: ${vistas}`,
-      )
+      for (const d of candidatas) vistas.add(`${d.nome}(${d.tipos.join(', ')}) em ${arquivo}`)
+      continue
     }
 
     // Assinaturas DIFERENTES no mesmo arquivo, sem tipos pedidos, é ambiguidade de
@@ -298,6 +369,13 @@ export function corpoVigente(assinatura, raiz = process.cwd()) {
     }
 
     return { sql: casadas[casadas.length - 1].texto, arquivo }
+  }
+
+  if (vistas.size > 0) {
+    throw new Error(
+      `corpoVigente: a função ${alvo.esquema}.${alvo.nome} existe, mas nenhuma sobrecarga bate com ` +
+        `"${assinatura}" em migration nenhuma. Vistas: ${[...vistas].join(' · ')}`,
+    )
   }
 
   throw new Error(

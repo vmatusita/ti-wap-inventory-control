@@ -453,8 +453,11 @@ begin
        case when v_cnt > 0 then ' — fora da regra:' || v_rot else '' end, v_cnt, 4) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   v_cnt := 0; v_rot := '';
+  -- F67 (13/11/2026): o termo coerente se prova na empresa que TEM modelo de termo (a A, a legada). O da B (os ids da B,
+  -- a empresa B) passaria pela coerência, mas a TRAVA DO TERMO (0192) o recusa antes, por não haver modelo — e essa
+  -- recusa é de supabase/tests/termo_bloqueado.sql. A coerência continua provada nos dois sentidos (I1 recusa, I2 aceita).
   v_res := pg_temp.f65_tentar(format('insert into public.termos_gerados (tipo, movimentacao_ids, ativo_ids, dados, arquivo_path, gerado_por, empresa_id) values (''responsabilidade_desktop'', array[%L]::uuid[], array[%L]::uuid[], ''{}''::jsonb, ''f65/i2.docx'', %L, %L)',
-                                     v_b->>'movimentacoes', v_b->>'ativos', k_autor, v_emp_b), false);
+                                     v_a->>'movimentacoes', v_a->>'ativos', k_autor, v_emp_a), false);
   if v_res <> 'passou' then v_cnt := v_cnt + 1; v_rot := v_rot || ' o-coerente(' || left(v_res, 70) || ')'; end if;
   -- o reuso de persistirTermo: UPDATE de dados/arquivo_path reenviando os MESMOS arrays
   v_res := pg_temp.f65_tentar(format('update public.termos_gerados set dados = ''{"f65": true}''::jsonb, arquivo_path = arquivo_path, movimentacao_ids = movimentacao_ids, ativo_ids = ativo_ids, atualizado_em = now(), atualizado_por = %L where id = %L',
@@ -529,18 +532,44 @@ begin
   -- v1.71.2 (19/10/2026): e as funções que uma entrega seguinte CRIA, nominalmente — a 0180 cria
   -- `colaboradores_uso_efetivo` (o uso efetivo do colaborador). Ela não existia antes da 0165, então o conjunto medido é o
   -- MESMO e a constante não muda (provado na mesa: o md5 com a 0180 e esta exclusão é igual ao da cadeia até a 0179).
+  -- F67 (13/11/2026): e as QUARENTA E UMA que a F67 cria, recria (as de nome mantido e assinatura nova também) ou derruba
+  -- (`e_dev`), nominalmente (RECRIACOES_AUTORIZADAS de migrations-f38.test.ts, 0185–0193). O conjunto encolhe e a
+  -- constante é a dele, medida no CI na cadeia até a 0184 (o push das travas da F67 — docs/f67-evidencias/B-travas/): o
+  -- fato provado é o mesmo, "o resto ficou byte a byte".
   select md5(string_agg(p.oid::regprocedure::text || ':' || md5(p.prosrc), E'\n' order by p.oid::regprocedure::text))
     into v_m0
     from pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
                            'rel_por_motivo_filiais', 'rel_resumo_filiais',
-                           'colaboradores_uso_efetivo');
+                           'colaboradores_uso_efetivo',
+                           'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade',
+                           'empresa_da_filial', 'filial_da_empresa', 'pode_escrever_filial', 'pode_escrever_termo',
+                           'pode_ler_arquivo_termo', 'checagens_integridade_resumo', 'ledger_de_migracoes',
+                           'dev_checagens_integridade', 'ultima_migracao_aplicada', 'papel_atual', 'e_dev',
+                           'mesmo_escopo_de_gestao', 'existe_outro_admin_ativo', 'exigir_gestao_de',
+                           'definir_papel_usuario', 'definir_status_usuario', 'definir_vinculos_usuario',
+                           'apagar_usuario', 'encerrar_sessoes_usuario', 'exigir_dev_para_destruir',
+                           'rotulo_alcance_reset', 'previa_reset', 'resetar_acervo', 'resetar_itens', 'apagar_ativo',
+                           'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo', 'forcar_saldo_item',
+                           'importar_ativos_substituir', 'exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais',
+                           'empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa');
   raise notice '(medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: % (% funções)', v_m0,
     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
         and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
                               'rel_por_motivo_filiais', 'rel_resumo_filiais',
-                              'colaboradores_uso_efetivo'));
+                              'colaboradores_uso_efetivo',
+                              'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade',
+                           'empresa_da_filial', 'filial_da_empresa', 'pode_escrever_filial', 'pode_escrever_termo',
+                           'pode_ler_arquivo_termo', 'checagens_integridade_resumo', 'ledger_de_migracoes',
+                           'dev_checagens_integridade', 'ultima_migracao_aplicada', 'papel_atual', 'e_dev',
+                           'mesmo_escopo_de_gestao', 'existe_outro_admin_ativo', 'exigir_gestao_de',
+                           'definir_papel_usuario', 'definir_status_usuario', 'definir_vinculos_usuario',
+                           'apagar_usuario', 'encerrar_sessoes_usuario', 'exigir_dev_para_destruir',
+                           'rotulo_alcance_reset', 'previa_reset', 'resetar_acervo', 'resetar_itens', 'apagar_ativo',
+                           'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo', 'forcar_saldo_item',
+                           'importar_ativos_substituir', 'exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais',
+                           'empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa'));
   if pg_temp.assert_zero_de(
        'L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,
