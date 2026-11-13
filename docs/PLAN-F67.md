@@ -479,7 +479,11 @@ revisão. PR em rascunho desde o primeiro.
 
 ## 9. O SHA de código congelado
 
-*(preenchido no passo 3 da Frente G)*
+**`051a5f8`** (`chore(f67): versão 1.73.0`), congelado depois da revisão adversarial (0 de 7 achados confirmados) e com o
+CI verde nele (run `43448719684`: `verificar` e `banco-sem-docker` — 61 roteiros sem falha, o injetor 170/170, o gate de
+tipos 102 = 102). O texto de cada migration aplicada nos dois bancos é o deste commit, e o ledger o prova (o md5 do
+statement gravado = o do arquivo, nos nove lotes do ensaio e nos oito de produção). Os commits depois dele são SÓ de
+documentação e evidência (`docs/f67-evidencias/`, a ata, o relatório).
 
 ## 10. O que este plano NÃO promete
 

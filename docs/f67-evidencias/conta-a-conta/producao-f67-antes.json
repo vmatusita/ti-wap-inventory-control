@@ -1,0 +1,29 @@
+{
+  "rotulo": "f67-conta-a-conta-producao-conta-f67-antes",
+  "canal": "MCP da Supabase (execute_sql), bloco do … raise exception",
+  "sha_codigo": "5579ce7410fa0593aa64f280d7cb2e406e7f56a0",
+  "gerado_em": "2026-11-13T15:33:13.794Z",
+  "metodo": "para cada membership ativa (identidade escolhida DENTRO do banco; nenhum id sai), as funções reais × o ORÁCULO da regra de antes (a membership ativa na legada, a conta viva, o vínculo na legada — o corpo da 0158): o cargo, as derivadas, o piso, pode_escrever_filial e pode_escrever_unidade em cada filial da legada, exigir_gestao_de sobre um alvo dev e um comum, exigir_dev_para_destruir e existe_outro_admin_ativo. transaction_read_only = on; o bloco termina em raise exception.",
+  "alvo": "producao",
+  "fase": "f67-antes",
+  "pares": 84,
+  "gestoes": 28,
+  "sabotar": false,
+  "postgres": "17.6",
+  "memberships": 14,
+  "divergencias": {
+    "piso": 0,
+    "zona": 0,
+    "cargo": 0,
+    "gestao": 0,
+    "derivadas": 0,
+    "ultimo_admin": 0,
+    "escrita_filial": 0,
+    "escrita_unidade": 0
+  },
+  "veredito": {
+    "total": 0,
+    "zero": true,
+    "corrida": 0
+  }
+}

@@ -14023,3 +14023,31 @@ migrations `0185`–`0192` (a expansão, oito lotes) e `0193` (a contração); e
     `docs/f67-evidencias/B-travas/`), as oito migrations da expansão (uma por commit, com o `db:lock` e as entradas da
     trava da F38 de cada uma), o TS, os roteiros e o rollback, o injetor, a contração e o conta a conta. No CI do
     `e329086`: os 61 roteiros sem falha, o injetor 170/170, o gate de tipos 102 = 102.
+14. **A revisão adversarial**: sete achados, cada um por um cético instruído a refutar; **0 confirmados**. Dois viraram
+    backlog nomeado, porque são verdade mas não são defeito desta fase: (a) o backup do "tudo" (`montarBackupDoReset`)
+    ainda lê o acervo do sistema inteiro — inofensivo com uma empresa e fora do escopo por regra (o Storage e o TS que
+    escrevem são da F67B/F67C); (b) o conta a conta percorre só as memberships ATIVAS — a desativada não tem cargo nas
+    duas regras, então não há o que divergir, mas o instrumento não o prova.
+15. **O SHA congelado é `051a5f8`** (CI `43448719684` verde). Tudo depois dele é documentação e evidência.
+16. **O apply no ensaio** (13/11, ~12:10–12:32 de Brasília): os nove lotes com o texto exato (o md5 do statement do ledger
+    = o do arquivo, nos nove), a prova compacta depois de cada um (`docs/f67-evidencias/G-apply/ensaio.md`), o conta a
+    conta 0 divergência depois da expansão E depois da contração, a sabotagem I com 3 divergências (o instrumento
+    enxerga), o conferidor 0 recusadas (o único "reprovado" é `itens.saldo-colaborador` sem célula — o ensaio não tem
+    colaborador para a grade; o mesmo da F66) e a sabotagem J ao vivo: depois da contração, `e_dev()` dá HTTP 404
+    `PGRST202` no PostgREST do ensaio.
+17. **Em produção, uma medida a mais que a ordem pedia: o conta a conta `f67-antes` DEPOIS da 0188.** A 0188 muda o
+    sentido de `papel_atual()` em todas as policies vivas; o bloco `f67-antes` só usa funções que já existiam e compara
+    `papel_atual()`, as derivadas e `pode_escrever_filial` com o oráculo. Deu 0 nas 14 contas e nos 84 pares — medido
+    antes de seguir para a 0189, para que uma divergência no piso aparecesse no lote que a causou.
+18. **Os advisors de segurança ganharam 20, e é o desenho.** `authenticated_security_definer_function_executable` foi de
+    34 a 54 nos dois bancos com a expansão: são exatamente as 15 RPCs `p_empresa` e as 5 formas de cargo por empresa,
+    cada uma com o grant da forma antiga correspondente (que já estava no lint — doutrina da `0062`: RPC com guarda
+    interna, ou função chamada dentro de policy). Com a contração, 54 − 16 = **38** (medido no ensaio): as 15 antigas de
+    API e `e_dev()` saem; as outras cinco das 21 eram fechadas. Nenhum lint novo, nenhum ERROR.
+19. **O apply em produção** (13/11, ~12:33–12:50 de Brasília): antes do 1º lote o conta a conta 0 e o #84 nos números
+    travados (12 e 1); os oito lotes da expansão com o texto exato e a prova depois de cada um
+    (`docs/f67-evidencias/G-apply/producao.md`); depois do último: o conta a conta 0 nas 8 classes, o smoke 109 OK · 0
+    falha (o app no ar é o de ANTES — a expansão não o quebra), o conferidor 272 pontos · 0 recusadas, os advisors (o
+    +20 acima) e a paridade nas 11 classes — 9 idênticas, e `func`/`grant_func` de produção sem as 21 = o ensaio
+    contraído, fingerprint por fingerprint (`paridade-expansao.json`). A mesa continua com 120 linhas e 59 grupos, igual
+    à regra de antes. Nenhum gatilho de rollback disparou; o classificador não barrou nada.
