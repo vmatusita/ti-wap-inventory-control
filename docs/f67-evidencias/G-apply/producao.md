@@ -1,4 +1,4 @@
-# F67 — o apply em PRODUÇÃO (pbtjcalbmepmrqzprusb), 13/11/2026 — só a EXPANSÃO (0185–0192)
+# F67 — o apply em PRODUÇÃO (pbtjcalbmepmrqzprusb), 13/11/2026 — a EXPANSÃO (0185–0192); a contração, em `janela.md`
 
 Canal e prova: os mesmos do ensaio (`ensaio.md`) — `apply_migration` com o texto EXATO do commit congelado `051a5f8`
 (o mesmo texto que já tinha batido byte a byte no ledger do ensaio) e, depois de CADA lote, a prova compacta só de
