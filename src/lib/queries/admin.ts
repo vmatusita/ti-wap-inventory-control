@@ -222,12 +222,14 @@ export async function listarUsuarios(): Promise<ListaUsuarios> {
 // null` porque uma conta apagada não administra nada.
 // F62: o cargo e a situação vêm da membership da empresa legada (como no banco, 0158); o
 // arquivamento continua sendo da CONTA (profiles). Duas leituras, o mesmo conjunto de antes.
-export async function idsDeAdminsAtivos(): Promise<string[]> {
+// F67 (13/11/2026): POR EMPRESA — o conjunto é o de `existe_outro_admin_ativo(p_excluindo, p_escopo)` com a MESMA
+// empresa (a da operação). As contas dev CONTAM enquanto forem membros (decisão 12/11-3 do Johnny).
+export async function idsDeAdminsAtivos(empresaId: string): Promise<string[]> {
   const admin = createAdminClient()
   const { data: membros, error } = await admin
     .from('membros')
     .select('profile_id')
-    .eq('empresa_id', EMPRESA_LEGADA_ID)
+    .eq('empresa_id', empresaId)
     .in('papel', ['admin', 'dev'])
     .eq('ativo', true)
   if (error) throw new Error(`Falha ao conferir os administradores ativos: ${error.message}`)

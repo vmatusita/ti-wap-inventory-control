@@ -87,6 +87,11 @@ $f$;
 -- F66B (12/11/2026): e a F66B antes da F66 — a impressão de antes que este roteiro compara inclui TODA constraint
 -- das tabelas (o `con|…|pg_get_constraintdef`), e os CHECK de comprimento da F66B a mudariam: medido na mesa e no CI,
 -- o rb3 reprova sem esta linha (fato 18 do PLAN-F66B). O que este roteiro prova não muda.
+-- F67 (13/11/2026): e a F67 antes de todas — as policies e as funções dela citam `empresa_legada()` e as funções de
+-- conjunto que os rollbacks da F62 em diante derrubam, e a 0187 reescreve nove policies que as impressões de antes
+-- destes roteiros comparam (medido na mesa: f63/f65/f66 reprovam o rb3 sem esta linha, e o da F62 nem roda). O que
+-- este roteiro prova não muda.
+\ir ../rollback/F67-desfaz.sql
 \ir ../rollback/F66B-desfaz.sql
 \ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql

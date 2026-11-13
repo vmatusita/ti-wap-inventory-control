@@ -6,11 +6,12 @@ import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
 import { compraLoteSchema, type CompraLoteInput } from '@/lib/validators/compra'
 import {
-  ALCANCE_DA_RECUSA_MANUAL,
+  alcanceDaRecusaManual,
   cadastrosComMesmaIdentidade,
   recusasDeIdentidadeNoAcervo,
   recusasDeRepeticaoNoLote,
 } from '@/lib/ativos/identidade'
+import { unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
 import { exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
 import {
   sugestoesMarcas,
@@ -70,10 +71,13 @@ export async function registrarCompra(
   // por filial desde a 0091 e deixaria esta compra passar se o par existisse noutra filial — mas
   // cadastro manual nunca abre conflito entre filiais (spec §10.2; o conflito só nasce do
   // import), e esta consulta é a única linha que segura isso.
+  // F67: as unidades da EMPRESA da filial do lote — o par de outra empresa não impede a compra.
+  const unidades = await unidadesDaMesmaEmpresa(supabase, dados.filial_id)
+  if (unidades === null) return { ok: false, criados: [], erroGeral: 'Filial não encontrada.' }
   const noAcervo = await cadastrosComMesmaIdentidade(
     supabase,
     dados.itens.map((it) => ({ patrimonio: it.patrimonio, serviceTag: it.service_tag })),
-    { alcance: ALCANCE_DA_RECUSA_MANUAL },
+    { alcance: alcanceDaRecusaManual(unidades) },
   )
   if (!noAcervo.ok) {
     return {

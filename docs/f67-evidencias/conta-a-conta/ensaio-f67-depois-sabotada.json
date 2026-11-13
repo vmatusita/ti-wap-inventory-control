@@ -1,0 +1,29 @@
+{
+  "rotulo": "f67-conta-a-conta-ensaio-conta-f67-depois-sabotada",
+  "canal": "MCP da Supabase (execute_sql), bloco do … raise exception",
+  "sha_codigo": "051a5f8bd27cbb506f2f09107481be476b36b885",
+  "gerado_em": "2026-11-13T15:27:59.614Z",
+  "metodo": "para cada membership ativa (identidade escolhida DENTRO do banco; nenhum id sai), as funções reais × o ORÁCULO da regra de antes (a membership ativa na legada, a conta viva, o vínculo na legada — o corpo da 0158): o cargo, as derivadas, o piso, pode_escrever_filial e pode_escrever_unidade em cada filial da legada, exigir_gestao_de sobre um alvo dev e um comum, exigir_dev_para_destruir e existe_outro_admin_ativo. transaction_read_only = on; o bloco termina em raise exception.",
+  "alvo": "ensaio",
+  "fase": "f67-depois",
+  "pares": 18,
+  "gestoes": 3,
+  "sabotar": true,
+  "postgres": "17.11",
+  "memberships": 3,
+  "divergencias": {
+    "piso": 0,
+    "zona": 0,
+    "cargo": 3,
+    "gestao": 0,
+    "derivadas": 0,
+    "ultimo_admin": 0,
+    "escrita_filial": 0,
+    "escrita_unidade": 0
+  },
+  "veredito": {
+    "total": 3,
+    "zero": false,
+    "corrida": 0
+  }
+}

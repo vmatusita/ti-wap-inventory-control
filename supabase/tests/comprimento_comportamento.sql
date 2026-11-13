@@ -403,7 +403,7 @@ begin
   -- I1 — acima do teto: 23514 com o nome
   v_estado := null; v_con := null;
   begin
-    v_res := public.importar_ativos_substituir(v_plano, v_prefixo || 'existe.json',
+    v_res := public.importar_ativos_substituir(public.empresa_legada(), v_plano, v_prefixo || 'existe.json',
                jsonb_build_object('ativos', 1, 'movimentacoes', 1, 'anotacoes', 0, 'termos', 0));
     v_estado := 'ok';
   exception when others then
@@ -430,7 +430,7 @@ begin
   -- I3 — no teto exato, a mesma chamada grava (numa subtransação desfeita)
   v_s := null; v_erro := null;
   begin
-    v_res := public.importar_ativos_substituir(
+    v_res := public.importar_ativos_substituir(public.empresa_legada(),
       jsonb_set(v_plano, '{ativos,0,marca}', to_jsonb(repeat('m', 60))), v_prefixo || 'existe.json',
       jsonb_build_object('ativos', 1, 'movimentacoes', 1, 'anotacoes', 0, 'termos', 0));
     select (v_res->>'ativos_criados') || '/' || coalesce(max(char_length(marca))::text, '∅') into v_s
@@ -449,7 +449,7 @@ begin
   v_s := null; v_erro := null;
   begin
     alter table public.ativos drop constraint ativos_marca_tamanho;
-    v_res := public.importar_ativos_substituir(v_plano, v_prefixo || 'existe.json',
+    v_res := public.importar_ativos_substituir(public.empresa_legada(), v_plano, v_prefixo || 'existe.json',
                jsonb_build_object('ativos', 1, 'movimentacoes', 1, 'anotacoes', 0, 'termos', 0));
     select (v_res->>'ativos_criados') || '/' || coalesce(max(char_length(marca))::text, '∅') into v_s
       from public.ativos where filial_id = v_fi;

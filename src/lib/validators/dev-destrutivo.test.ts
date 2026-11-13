@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { corpoVigente } from '../../../scripts/db/corpo-vigente.mjs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -66,9 +67,10 @@ describe('rotuloDoAtivo', () => {
 })
 
 describe('rotuloAlcanceReset', () => {
-  it('devolve o nome da filial, ou a frase fixa no alcance global', () => {
-    expect(rotuloAlcanceReset('Matriz')).toBe('Matriz')
-    expect(rotuloAlcanceReset(null)).toBe(FRASE_RESET_GLOBAL)
+  it('devolve o nome da filial, ou — no "tudo" da empresa — a frase com a QUANTIDADE (F67)', () => {
+    expect(rotuloAlcanceReset('Matriz', 12)).toBe('Matriz')
+    expect(rotuloAlcanceReset(null, 1633)).toBe('RESETAR TUDO — 1633 ATIVOS')
+    expect(rotuloAlcanceReset(null, 40, 'itens')).toBe('RESETAR TUDO — 40 LANÇAMENTOS')
   })
 })
 
@@ -105,7 +107,7 @@ describe('schemas', () => {
     const ok = resetarSchema.safeParse({
       bloco: 'acervo',
       filialId: null,
-      confirmacao: FRASE_RESET_GLOBAL,
+      confirmacao: rotuloAlcanceReset(null, 10),
       justificativa: 'preparando a filial para o import de startup',
     })
     expect(ok.success).toBe(true)
@@ -167,20 +169,17 @@ describe('vocabulário da auditoria', () => {
 })
 
 describe('constantes duplicadas do SQL', () => {
-  it('MIN_JUSTIFICATIVA bate com a guarda exigir_dev_para_destruir (0082)', () => {
-    const sql = readFileSync(
-      join(process.cwd(), 'supabase', 'migrations', '0082_dev_apagar.sql'),
-      'utf8',
-    )
+  it('MIN_JUSTIFICATIVA bate com a guarda VIGENTE exigir_dev_para_destruir (F67: a forma por empresa, 0190)', () => {
+    const { sql } = corpoVigente('public.exigir_dev_para_destruir(uuid, text)')
     // A guarda no SQL é `< 10`; se alguém afrouxar de um lado, este teste cai.
     expect(sql).toContain(`length(btrim(p_justificativa)), 0) < ${MIN_JUSTIFICATIVA}`)
   })
 
-  it('FRASE_RESET_GLOBAL bate com rotulo_alcance_reset (0083)', () => {
-    const sql = readFileSync(
-      join(process.cwd(), 'supabase', 'migrations', '0083_dev_resetar.sql'),
-      'utf8',
-    )
-    expect(sql).toContain(`'${FRASE_RESET_GLOBAL}'`)
+  it('o rótulo do "tudo" bate com o rotulo_alcance_reset VIGENTE (F67: com a quantidade, 0190)', () => {
+    const { sql } = corpoVigente('public.rotulo_alcance_reset(uuid, smallint, text)')
+    expect(sql).toContain(`'${FRASE_RESET_GLOBAL} — '`)
+    expect(sql).toContain("|| ' ATIVOS'")
+    expect(sql).toContain("|| ' LANÇAMENTOS'")
+    expect(sql).toMatch(/count\(\*\)/)
   })
 })

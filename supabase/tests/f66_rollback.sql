@@ -75,6 +75,11 @@ language sql as $f$
      and p.proname in ('rel_por_motivo_filiais', 'rel_resumo_filiais')
 $f$;
 
+-- F67 (13/11/2026): e a F67 antes de todas — as policies e as funções dela citam `empresa_legada()` e as funções de
+-- conjunto que os rollbacks da F62 em diante derrubam, e a 0187 reescreve nove policies que as impressões de antes
+-- destes roteiros comparam (medido na mesa: f63/f65/f66 reprovam o rb3 sem esta linha, e o da F62 nem roda). O que
+-- este roteiro prova não muda.
+\ir ../rollback/F67-desfaz.sql
 select pg_temp.f66_contagens() as contagens_antes,
        pg_temp.f66_as_11()     as as_11_antes
 \gset

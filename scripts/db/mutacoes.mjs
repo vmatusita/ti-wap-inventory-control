@@ -41,7 +41,9 @@
 // Ver o cabeçalho de `scripts/db/corpo-vigente.mjs`.
 // =============================================================================
 
-import { corpoVigente, trocarNoCorpo } from './corpo-vigente.mjs'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { corpoVigente, fimDoComando, trocarNoCorpo } from './corpo-vigente.mjs'
 
 /**
  * @typedef {object} Sonda
@@ -452,17 +454,18 @@ const CARGO_DEV = [
     derruba: ['2a', '2b', '2c', '2e'],
     porque:
       'Enfraquece a GUARDA COMUM das cinco RPCs de gestão: quando a ação toca um dev, ela passa a aceitar nível administrador. É o núcleo da hierarquia — um admin comum promove, rebaixa, desativa e revincula um desenvolvedor.',
-    sql: mutarFuncao(
-      'public.exigir_gestao_de(uuid, public.papel_usuario)',
-      `    if not public.e_dev() then
+    // F67 (13/11/2026): a forma por empresa (0189) — o cargo dev NAQUELA empresa vira o de administrador NAQUELA empresa.
+    sql: mutarFuncaoSemReplace(
+      'public.exigir_gestao_de(uuid, uuid, public.papel_usuario)',
+      `    if not public.e_dev_na(p_empresa) then
       raise exception 'Só um desenvolvedor pode gerir o cargo Desenvolvedor.'`,
-      `    if not public.e_admin() then  ${MARCA}
+      `    if not public.e_admin_na(p_empresa) then  ${MARCA}
       raise exception 'Só um desenvolvedor pode gerir o cargo Desenvolvedor.'`,
       'dev-guarda-de-gestao-aceita-nivel-admin',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
-              like '%if not public.e_admin() then  --%'`,
+      sql: `select pg_get_functiondef('public.exigir_gestao_de(uuid, uuid, public.papel_usuario)'::regprocedure)
+              like '%if not public.e_admin_na(p_empresa) then  --%'`,
       espera: 't',
     },
   },
@@ -473,17 +476,18 @@ const CARGO_DEV = [
     derruba: ['2f-bis'],
     porque:
       'A checagem PRÓPRIA de `apagar_usuario` — a que protege o caso em que o alvo NÃO é dev — passa a aceitar nível administrador. A guarda comum não cobre esse caso, e é exatamente por isso que a checagem própria existe.',
-    sql: mutarFuncao(
-      'public.apagar_usuario(uuid)',
-      `  if not public.e_dev() then
+    // F67 (13/11/2026): a forma por empresa (0189).
+    sql: mutarFuncaoSemReplace(
+      'public.apagar_usuario(uuid, uuid)',
+      `  if not public.e_dev_na(p_empresa) then
     raise exception 'Só um desenvolvedor pode apagar uma conta de usuário.'`,
-      `  if not public.e_admin() then  ${MARCA}
+      `  if not public.e_admin_na(p_empresa) then  ${MARCA}
     raise exception 'Só um desenvolvedor pode apagar uma conta de usuário.'`,
       'dev-apagar-conta-aceita-nivel-admin',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.apagar_usuario(uuid)'::regprocedure)
-              like '%e_admin() then  --%'`,
+      sql: `select pg_get_functiondef('public.apagar_usuario(uuid, uuid)'::regprocedure)
+              like '%e_admin_na(p_empresa) then  --%'`,
       espera: 't',
     },
   },
@@ -494,17 +498,18 @@ const CARGO_DEV = [
     derruba: ['2f'],
     porque:
       'A mesma classe na ação mais barulhenta: derrubar as sessões de alguém passa a bastar nível administrador. Igual à anterior, o alvo comum é o caso que só a checagem própria protege.',
-    sql: mutarFuncao(
-      'public.encerrar_sessoes_usuario(uuid)',
-      `  if not public.e_dev() then
+    // F67 (13/11/2026): a forma por empresa (0189).
+    sql: mutarFuncaoSemReplace(
+      'public.encerrar_sessoes_usuario(uuid, uuid)',
+      `  if not public.e_dev_na(p_empresa) then
     raise exception 'Só um desenvolvedor pode encerrar as sessões de um usuário.'`,
-      `  if not public.e_admin() then  ${MARCA}
+      `  if not public.e_admin_na(p_empresa) then  ${MARCA}
     raise exception 'Só um desenvolvedor pode encerrar as sessões de um usuário.'`,
       'dev-encerrar-sessoes-aceita-nivel-admin',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.encerrar_sessoes_usuario(uuid)'::regprocedure)
-              like '%e_admin() then  --%'`,
+      sql: `select pg_get_functiondef('public.encerrar_sessoes_usuario(uuid, uuid)'::regprocedure)
+              like '%e_admin_na(p_empresa) then  --%'`,
       espera: 't',
     },
   },
@@ -561,14 +566,14 @@ const CARGO_DEV = [
     // houve exceção. A F48 plantou o universo (2 sessões do alvo + 1 de uma testemunha) e
     // passou a exigir as DUAS metades — as do alvo somem, a da testemunha fica. Com o
     // alvo trocado, a RPC devolve 0, as 2 do alvo continuam lá e o cenário acusa.
-    sql: mutarFuncao(
-      'public.encerrar_sessoes_usuario(uuid)',
+    sql: mutarFuncaoSemReplace(
+      'public.encerrar_sessoes_usuario(uuid, uuid)',
       '  delete from auth.sessions where user_id = p_alvo;',
       `  delete from auth.sessions where user_id = auth.uid();  ${MARCA}`,
       'gestao-encerrar-sessoes-mira-o-alvo-errado',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.encerrar_sessoes_usuario(uuid)'::regprocedure)
+      sql: `select pg_get_functiondef('public.encerrar_sessoes_usuario(uuid, uuid)'::regprocedure)
               like '%where user_id = auth.uid();  --%'`,
       espera: 't',
     },
@@ -591,8 +596,9 @@ const DEV_DESTRUTIVO = [
     derruba: ['12b', '12e'],
     porque:
       'Tira a régua de 10 caracteres da justificativa compartilhada por todas as ferramentas destrutivas: passa-se a apagar acervo sem explicar por quê, e a justificativa é o que sobra depois que o dado morre.',
-    sql: mutarFuncao(
-      'public.exigir_dev_para_destruir(text)',
+    // F67 (13/11/2026): a forma por empresa (0190) — a régua é a mesma.
+    sql: mutarFuncaoSemReplace(
+      'public.exigir_dev_para_destruir(uuid, text)',
       `  -- A justificativa é o que sobra depois que o dado morre. Vazia, ela não é justificativa.
   if coalesce(length(btrim(p_justificativa)), 0) < 10 then
     raise exception 'A justificativa é obrigatória e precisa ter pelo menos 10 caracteres.'
@@ -602,7 +608,7 @@ const DEV_DESTRUTIVO = [
       'destrutivo-justificativa-sem-tamanho-minimo',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.exigir_dev_para_destruir(text)'::regprocedure) like '%< 10 then%'`,
+      sql: `select pg_get_functiondef('public.exigir_dev_para_destruir(uuid, text)'::regprocedure) like '%< 10 then%'`,
       espera: 'f',
     },
   },
@@ -1076,7 +1082,9 @@ const IMPORT_SUBSTITUIR = [
 // conflito_filiais.sql — a mesa de conflitos entre filiais
 // =============================================================================
 // A ÚNICA exclusão de ativo que o nível administrador alcança (F24 · 0093→0100).
-const RPC_CONFLITO = 'public.apagar_ativos_conflito_filiais(uuid[], text, text, text)'
+// F67 (13/11/2026): a forma POR EMPRESA (0191) — a antiga sai na contração (0193). Nasce `create function`, por isso as
+// mutações dela passam por `mutarFuncaoSemReplace`.
+const RPC_CONFLITO = 'public.apagar_ativos_conflito_filiais(uuid, uuid[], text, text, text)'
 
 /** @type {Mutacao[]} */
 const CONFLITO_FILIAIS = [
@@ -1087,7 +1095,7 @@ const CONFLITO_FILIAIS = [
     derruba: ['5f'],
     porque:
       'A exclusão em massa de cadastros em conflito passa a aceitar justificativa de qualquer tamanho — a mesma classe da régua do destrutivo, na única exclusão de ativo que o nível administrador alcança.',
-    sql: mutarFuncao(
+    sql: mutarFuncaoSemReplace(
       RPC_CONFLITO,
       `  if coalesce(length(btrim(p_justificativa)), 0) < 10 then`,
       `  if false then  ${MARCA}`,
@@ -1106,7 +1114,7 @@ const CONFLITO_FILIAIS = [
     derruba: ['5d', '5e'],
     porque:
       'A confirmação digitada deixa de ser conferida: some a exigência de escrever `APAGAR <N>` com a quantidade certa. É a única exclusão de ativo que o nível administrador alcança, e a quantidade no texto é o que faz a pessoa ler o que vai apagar.',
-    sql: mutarFuncao(
+    sql: mutarFuncaoSemReplace(
       RPC_CONFLITO,
       `  if upper(btrim(coalesce(p_confirmacao, ''))) <> upper(v_esperado) then`,
       `  if false then  ${MARCA}`,
@@ -1125,14 +1133,14 @@ const CONFLITO_FILIAIS = [
     derruba: ['11e', '11f', '11g', '11h'],
     porque:
       'Afrouxa a conferencia do caminho do backup para olhar SO o prefixo de conflito, sem o digest da selecao. E exatamente o furo que a 0100 fechou: conferir so o prefixo aceita o backup de QUALQUER outra exclusao de conflito que por acaso esteja no bucket — inclusive o resto de uma tentativa recusada. Com o digest, o proprio nome do arquivo vira uma afirmacao verificavel sobre QUAIS ids ele cobre.',
-    sql: mutarFuncao(
-      'public.apagar_ativos_conflito_filiais(uuid[], text, text, text)',
+    sql: mutarFuncaoSemReplace(
+      RPC_CONFLITO,
       "    if btrim(p_backup_path) not like public.prefixo_backup_conflito() || v_digest || '/%' then",
       `    if btrim(p_backup_path) not like public.prefixo_backup_conflito() || '%' then  ${MARCA}`,
       'conflito-backup-em-arquivo-sem-prefixo-do-digest',
     ),
     prova: {
-      sql: "select position('not like public.prefixo_backup_conflito() || ''%'' then  --' in pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid[],text,text,text)'::regprocedure)) > 0",
+      sql: "select position('not like public.prefixo_backup_conflito() || ''%'' then  --' in pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid,uuid[],text,text,text)'::regprocedure)) > 0",
       espera: 't',
     },
   },
@@ -1317,11 +1325,11 @@ const F52_GUARDAS = [
     derruba: ['7c'],
     porque:
       'Remove a chamada a `mesmo_escopo_de_gestao` de dentro de `exigir_gestao_de` — a guarda de pertencimento das CINCO RPCs de conta. É a forma REALISTA de o defeito nascer: a RPC é recriada em cadeia, e o método de mudá-la sempre foi copiar o corpo e editar o trecho novo. Uma condição de quatro linhas se perde numa recriação sem que roteiro nenhum de comportamento acuse, porque hoje ela não tem efeito.',
-    sql: mutarFuncao(
-      'public.exigir_gestao_de(uuid, public.papel_usuario)',
-      `  if not public.mesmo_escopo_de_gestao(p_alvo) then
-    raise exception 'Este usuário não pertence à sua organização.'
-      using errcode = '42501';
+    // F67 (13/11/2026): a forma por empresa (0189) — a guarda deixou de ser no-op (o alvo é membro DESTA empresa).
+    sql: mutarFuncaoSemReplace(
+      'public.exigir_gestao_de(uuid, uuid, public.papel_usuario)',
+      `  if not public.mesmo_escopo_de_gestao(p_empresa, p_alvo) then
+    raise exception 'Este usuário não pertence a esta empresa.' using errcode = '42501';
   end if;`,
       `  ${MARCA}
   -- (a guarda de pertencimento foi removida daqui)`,
@@ -1331,8 +1339,8 @@ const F52_GUARDAS = [
     // comentários, e o comentário que a 0132 escreveu em volta da guarda CITA o nome —
     // uma sonda por nome cru diria que a mutação "não pegou" quando ela pegou.
     prova: {
-      sql: `select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
-              not like '%not public.mesmo_escopo_de_gestao(p_alvo)%'`,
+      sql: `select pg_get_functiondef('public.exigir_gestao_de(uuid, uuid, public.papel_usuario)'::regprocedure)
+              not like '%not public.mesmo_escopo_de_gestao(p_empresa, p_alvo)%'`,
       espera: 't',
     },
   },
@@ -1343,15 +1351,16 @@ const F52_GUARDAS = [
     derruba: ['7a', '7j'],
     porque:
       'O eixo do EFEITO: faz `mesmo_escopo_de_gestao` devolver `false`. Se a guarda estiver mesmo no caminho das cinco RPCs, o cenário que ACEITA O LEGÍTIMO (7a) e o par positivo de `definir_vinculos_usuario` (7j) têm de ficar vermelhos. Se ficarem verdes, a condição foi escrita mas não é percorrida — que é o modo de falha silenciosa desta fase inteira.',
-    sql: mutarFuncao(
-      'public.mesmo_escopo_de_gestao(uuid)',
-      '  select true',
-      `  select false  ${MARCA}`,
+    // F67 (13/11/2026): a forma por empresa (0189): o pertencimento real — a mutação a faz responder "não" sempre.
+    sql: mutarFuncaoSemReplace(
+      'public.mesmo_escopo_de_gestao(uuid, uuid)',
+      '  select p_empresa is not null\n',
+      `  select false and p_empresa is not null  ${MARCA}\n`,
       'f52-escopo-de-gestao-passa-a-recusar',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.mesmo_escopo_de_gestao(uuid)'::regprocedure)
-              like '%select false%'`,
+      sql: `select pg_get_functiondef('public.mesmo_escopo_de_gestao(uuid, uuid)'::regprocedure)
+              like '%select false and p_empresa%'`,
       espera: 't',
     },
   },
@@ -1361,24 +1370,17 @@ const F52_GUARDAS = [
     classe: 'escopo-nulo-recusa-tudo',
     derruba: ['7f', '7i'],
     porque:
-      'Troca a disjunção GUARDADA (`p_escopo is null or true`) por igualdade CRUA contra NULL. É o risco que o plano da fase nomeia por escrito: escopo ausente faz a comparação virar NULL, o `exists` devolve false, e a trava do último administrador passa a RECUSAR TUDO — toda troca de cargo, toda desativação, todo apagamento de conta. Um defeito silencioso trocado por um travamento barulhento.',
-    // ⚠ `create or replace` À FORÇA. O corpo vigente desta função na 0132 é um
-    // `create function` PURO — ela vem logo depois de um `drop`, porque acrescentar
-    // parâmetro cria assinatura nova. Reemitir esse texto colide com a função que já
-    // existe ("already exists with same argument types") e a mutação sai como "NÃO
-    // aplicou". O `replace` abaixo devolve o `or replace` que o corpo original não tem.
+      'Troca o `coalesce(p_escopo, empresa_legada())` por igualdade CRUA contra o escopo. É o risco que o plano da F52 nomeou por escrito, na forma que a F67 deu à trava: escopo ausente faz a comparação virar NULL, o `exists` devolve false, e a trava do último administrador passa a RECUSAR TUDO para quem chama sem escopo — toda troca de cargo, toda desativação, todo apagamento de conta. Um defeito silencioso trocado por um travamento barulhento.',
+    // F67 (13/11/2026): a 0189 recria a função com `create or replace` e o escopo POR EMPRESA (`coalesce` para a legada quando nulo).
     sql: mutarFuncao(
       'public.existe_outro_admin_ativo(uuid, uuid)',
-      '       and (p_escopo is null or true)',
-      `       and null::uuid = p_escopo  ${MARCA}`,
+      '     where m.empresa_id = coalesce(p_escopo, public.empresa_legada())\n',
+      `     where m.empresa_id = p_escopo  ${MARCA}\n`,
       'f52-admin-ativo-volta-a-igualdade-crua',
-    ).replace(
-      'create function public.existe_outro_admin_ativo',
-      'create or replace function public.existe_outro_admin_ativo',
     ),
     prova: {
       sql: `select pg_get_functiondef('public.existe_outro_admin_ativo(uuid, uuid)'::regprocedure)
-              like '%null::uuid = p_escopo%'`,
+              like '%where m.empresa_id = p_escopo  --%'`,
       espera: 't',
     },
   },
@@ -1389,9 +1391,10 @@ const F52_GUARDAS = [
     derruba: ['5a-ter'],
     porque:
       'Remove `pode_escrever_filial(v_filial)` da orquestradora do import. Ela é a única das RPCs destrutivas que ficou de fora da varredura da 0064, recebe a filial do PAYLOAD e faz `delete from public.ativos where filial_id = v_filial` sem teto, dentro da janela que desarma a `guarda_acervo`. Hoje a condição é inerte (nível administrador escreve em toda filial), e é justamente por ser inerte que alguém a "simplificaria" por parecer redundante.',
-    sql: mutarFuncao(
-      'public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)',
-      `  if not public.pode_escrever_filial(v_filial) then
+    // F67 (13/11/2026): a forma por empresa (0190): a guarda é `pode_escrever_unidade(p_empresa, v_filial)`.
+    sql: mutarFuncaoSemReplace(
+      'public.importar_ativos_substituir(uuid, jsonb, text, jsonb, jsonb)',
+      `  if not public.pode_escrever_unidade(p_empresa, v_filial) then
     raise exception 'Você não tem permissão de escrita na filial % — o import foi recusado.', v_filial
       using errcode = '42501';
   end if;`,
@@ -1402,8 +1405,8 @@ const F52_GUARDAS = [
     // ⚠ Mesma armadilha da anterior: o comentário da 0132 cita `pode_escrever_filial`
     // três vezes, então a sonda tem de mirar a CHAMADA.
     prova: {
-      sql: `select pg_get_functiondef('public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)'::regprocedure)
-              not like '%not public.pode_escrever_filial(v_filial)%'`,
+      sql: `select pg_get_functiondef('public.importar_ativos_substituir(uuid, jsonb, text, jsonb, jsonb)'::regprocedure)
+              not like '%not public.pode_escrever_unidade(p_empresa, v_filial)%'`,
       espera: 't',
     },
   },
@@ -1471,16 +1474,17 @@ const F52_GUARDAS = [
     derruba: ['10b'],
     porque:
       'Remove `exigir_ativos_da_empresa(v_ids)` de `apagar_ativos_conflito_filiais`. É a MESMA classe da primeira mutação desta família, e no lugar mais perigoso: a mesa é a ÚNICA exceção à exclusividade do dev sobre exclusão de ativo, e a RPC é recriada em cadeia (0093 → 0098 → 0100 → 0132). A guarda foi extraída como função própria exatamente para que a chamada seja UMA linha que o diff denuncia se sumir.',
-    sql: mutarFuncao(
-      'public.apagar_ativos_conflito_filiais(uuid[], text, text, text)',
-      '  perform public.exigir_ativos_da_empresa(v_ids);',
+    // F67 (13/11/2026): a forma por empresa (0191) — a guarda recebe a empresa e deixou de ser no-op.
+    sql: mutarFuncaoSemReplace(
+      RPC_CONFLITO,
+      '  perform public.exigir_ativos_da_empresa(p_empresa, v_ids);',
       `  ${MARCA}
   -- (a guarda de pertencimento foi removida daqui)`,
       'f52-mesa-perde-a-guarda-de-pertencimento',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid[], text, text, text)'::regprocedure)
-              not like '%exigir_ativos_da_empresa%'`,
+      sql: `select pg_get_functiondef('${RPC_CONFLITO}'::regprocedure)
+              not like '%perform public.exigir_ativos_da_empresa(p_empresa, v_ids)%'`,
       espera: 't',
     },
   },
@@ -1747,7 +1751,7 @@ const F55_INTEGRIDADE = [
       'language plpgsql stable security definer set search_path = public',
       `as ${CIFRAO}mut${CIFRAO}`,
       'begin',
-      '  if public.papel_atual() is null then',
+      '  if public.papel_na_empresa(public.empresa_legada()) is null then',
       "    raise exception 'Esta consulta exige uma conta ativa.' using errcode = '42501';",
       '  end if;',
       '  return query select n.chave, n.total, n.amostra from public.checagens_integridade_nucleo() n;',
@@ -2277,9 +2281,10 @@ const REAUDITORIA_PASSO2 = [
     derruba: ['2a'],
     porque:
       'A leitura do ledger é security definer e perde a guarda de papel: qualquer sessão com o grant de authenticated — inclusive um perfil DESATIVADO, que o piso de leitura da 0070/0073 manda recusar — passa a ler um schema que o PostgREST não expõe. O anon continua barrado pela falta de grant (2b fica verde), que é o disfarce: a guarda de dentro some sem que a de fora denuncie.',
+    // F67 (13/11/2026): a guarda é o cargo NA legada (0186), declarado — o recorte de observabilidade é da decisão 14.
     sql: mutarFuncao(
       'public.ledger_de_migracoes()',
-      '  if public.papel_atual() is null then',
+      '  if public.papel_na_empresa(public.empresa_legada()) is null then',
       '  if false then',
       'reaud-ae-ledger-sem-guarda-de-papel',
     ),
@@ -2611,9 +2616,9 @@ const F62_CARGO = [
     id: 'f62-ponte-esquece-arquivado',
     roteiro: 'cargo_equivalencia.sql',
     classe: 'revogacao-perdida',
-    derruba: ['1', '2', '3'],
+    derruba: ['1', '2'],
     porque:
-      'A ponte de papel_atual() esquece o arquivamento da CONTA (profiles.excluido_em): quem foi apagado e ficou com a membership ativa por um UPDATE manual volta a ter cargo. A grade compara o corpo antigo com o vivo e nomeia a célula arquivado×ativo (sabotagem B).',
+      'O piso papel_atual() esquece o arquivamento da CONTA (profiles.excluido_em): quem foi apagado e ficou com a membership ativa por um UPDATE manual volta a ter cargo. A grade compara o corpo antigo com o vivo e nomeia a célula arquivado×ativo (sabotagem B). F67: o piso é o cargo mais forte (0188) — as células 1 e 2 o leem; a 3 (pode_escrever_filial) passou à forma por empresa.',
     sql: mutarFuncao(
       'public.papel_atual()',
       '     and p.excluido_em is null\n',
@@ -2626,9 +2631,9 @@ const F62_CARGO = [
     id: 'f62-ponte-esquece-inativo',
     roteiro: 'cargo_equivalencia.sql',
     classe: 'revogacao-perdida',
-    derruba: ['1', '2', '3'],
+    derruba: ['1', '2'],
     porque:
-      'A ponte de papel_atual() esquece o status da membership: quem foi DESATIVADO continua com cargo, leitura e escrita. É a desativação no request seguinte (0070) deixando de valer para todo mundo de uma vez — a grade nomeia cada célula inativa (sabotagem B).',
+      'O piso papel_atual() esquece o status da membership: quem foi DESATIVADO continua com cargo, leitura e escrita. É a desativação no request seguinte (0070) deixando de valer para todo mundo de uma vez — a grade nomeia cada célula inativa (sabotagem B). F67: as células 1 e 2 leem o piso; a 3 passou à forma por empresa.',
     sql: mutarFuncao(
       'public.papel_atual()',
       '     and m.ativo\n',
@@ -2641,16 +2646,16 @@ const F62_CARGO = [
     id: 'f62-ponte-responde-pela-empresa-errada',
     roteiro: 'cargo_equivalencia.sql',
     classe: 'escopo-cruzado',
-    derruba: ['1', '5'],
+    derruba: ['1', '2', '5'],
     porque:
-      'A ponte de papel_atual() deixa de responder pela empresa LEGADA: o consultor admin na WAP e consulta num cliente passa a valer pelo cargo do cliente — e, com uma empresa só, todo perfil perde o cargo. A ponte tem de ser determinística e apontar a empresa legada até a F67.',
-    sql: mutarFuncao(
-      'public.papel_atual()',
-      '     and m.empresa_id = public.empresa_legada()\n',
-      `     and m.empresa_id <> public.empresa_legada()  ${MARCA}\n`,
+      'O cargo POR EMPRESA deixa de responder pela empresa PEDIDA: o consultor admin na WAP e consulta num cliente passa a valer pelo cargo do cliente — e, com uma empresa só, todo perfil perde o cargo. F67: a ponte de papel_atual() virou papel_na_empresa(p_empresa) (0185), a fonte única do cargo numa empresa; o id é o da F62, a classe e o efeito os mesmos.',
+    sql: mutarFuncaoSemReplace(
+      'public.papel_na_empresa(uuid)',
+      '                and m.empresa_id = p_empresa\n',
+      `                and m.empresa_id <> p_empresa  ${MARCA}\n`,
       'f62-ponte-responde-pela-empresa-errada',
     ),
-    prova: provaMarca('public.papel_atual()'),
+    prova: provaMarca('public.papel_na_empresa(uuid)'),
   },
   {
     id: 'f62-vinculo-de-qualquer-membership',
@@ -2658,16 +2663,16 @@ const F62_CARGO = [
     classe: 'vinculo-de-outra-pessoa',
     derruba: ['3'],
     porque:
-      'pode_escrever_filial() deixa de exigir que o vínculo seja da membership de QUEM CHAMA: basta alguém estar vinculado à filial para todo operador escrever nela. É a escrita por filial virando escrita por cargo — o recorte de escrita inteiro caindo por uma condição a menos.',
-    sql: mutarFuncao(
-      'public.pode_escrever_filial(smallint)',
+      'A escrita por unidade deixa de exigir que o vínculo seja da membership de QUEM CHAMA: basta alguém estar vinculado à filial para todo operador escrever nela. É a escrita por filial virando escrita por cargo — o recorte de escrita inteiro caindo por uma condição a menos. F67: pode_escrever_filial delega a pode_escrever_unidade (0185/0186), onde o vínculo mora agora.',
+    sql: mutarFuncaoSemReplace(
+      'public.pode_escrever_unidade(uuid, smallint)',
       `       where m.profile_id = (select auth.uid())
-         and m.empresa_id = public.empresa_legada()
-         and vf.filial_id  = fid`,
-      `       where vf.filial_id  = fid  ${MARCA}`,
+         and m.empresa_id = p_empresa
+         and vf.filial_id = p_filial`,
+      `       where vf.filial_id = p_filial  ${MARCA}`,
       'f62-vinculo-de-qualquer-membership',
     ),
-    prova: provaMarca('public.pode_escrever_filial(smallint)'),
+    prova: provaMarca('public.pode_escrever_unidade(uuid, smallint)'),
   },
   {
     id: 'f62-outro-admin-conta-inativo',
@@ -2691,16 +2696,16 @@ const F62_CARGO = [
     derruba: ['2c', '8b'],
     porque:
       'A guarda comum das RPCs de conta volta a ler o cargo do ALVO na coluna CONGELADA de profiles: um dev promovido depois da F62 (que só a membership diz ser dev) vira um alvo comum, e um administrador passa a desativar, rebaixar e revincular desenvolvedores — o "dev intocável" furado pela fonte errada.',
-    sql: mutarFuncao(
-      'public.exigir_gestao_de(uuid, public.papel_usuario)',
+    sql: mutarFuncaoSemReplace(
+      'public.exigir_gestao_de(uuid, uuid, public.papel_usuario)',
       `  select m.papel into v_papel_alvo
     from public.membros m
    where m.profile_id = p_alvo
-     and m.empresa_id = public.empresa_legada();`,
+     and m.empresa_id = p_empresa;`,
       `  select p.papel into v_papel_alvo from public.profiles p where p.id = p_alvo;  ${MARCA}`,
       'f62-guarda-de-gestao-le-o-cargo-congelado',
     ),
-    prova: provaMarca('public.exigir_gestao_de(uuid, public.papel_usuario)'),
+    prova: provaMarca('public.exigir_gestao_de(uuid, uuid, public.papel_usuario)'),
   },
   {
     id: 'f62-guarda-do-dev-em-membros-neutralizada',
@@ -2740,14 +2745,14 @@ const F62_CARGO = [
     derruba: ['2g-bis', '3a'],
     porque:
       'A troca de cargo volta a gravar a coluna CONGELADA de profiles: a tela diz "cargo alterado" e nada muda, porque tudo que decide acesso lê membros. É a dupla fonte que a decisão iii proíbe, virando uma promoção que não promove.',
-    sql: mutarFuncao(
-      'public.definir_papel_usuario(uuid, public.papel_usuario)',
+    sql: mutarFuncaoSemReplace(
+      'public.definir_papel_usuario(uuid, uuid, public.papel_usuario)',
       `  update public.membros set papel = p_papel
-   where profile_id = p_alvo and empresa_id = public.empresa_legada();`,
+   where profile_id = p_alvo and empresa_id = p_empresa;`,
       `  update public.profiles set papel = p_papel where id = p_alvo;  ${MARCA}`,
       'f62-definir-papel-grava-a-coluna-congelada',
     ),
-    prova: provaMarca('public.definir_papel_usuario(uuid, public.papel_usuario)'),
+    prova: provaMarca('public.definir_papel_usuario(uuid, uuid, public.papel_usuario)'),
   },
   {
     id: 'f62-definir-status-grava-a-coluna-congelada',
@@ -2756,14 +2761,14 @@ const F62_CARGO = [
     derruba: ['3c'],
     porque:
       'A desativação volta a gravar a coluna CONGELADA de profiles: a tela diz "acesso desativado" e a pessoa continua lendo e escrevendo, porque a membership continua ativa. É a revogação mais importante do sistema virando um aviso sem efeito.',
-    sql: mutarFuncao(
-      'public.definir_status_usuario(uuid, boolean)',
+    sql: mutarFuncaoSemReplace(
+      'public.definir_status_usuario(uuid, uuid, boolean)',
       `  update public.membros set ativo = p_ativo
-   where profile_id = p_alvo and empresa_id = public.empresa_legada();`,
+   where profile_id = p_alvo and empresa_id = p_empresa;`,
       `  update public.profiles set ativo = p_ativo where id = p_alvo;  ${MARCA}`,
       'f62-definir-status-grava-a-coluna-congelada',
     ),
-    prova: provaMarca('public.definir_status_usuario(uuid, boolean)'),
+    prova: provaMarca('public.definir_status_usuario(uuid, uuid, boolean)'),
   },
   {
     id: 'f62-apagar-nao-desativa-memberships',
@@ -2772,15 +2777,15 @@ const F62_CARGO = [
     derruba: ['6b'],
     porque:
       'Apagar a conta deixa de desligar as memberships: a conta arquivada continua "membro ativo" das empresas, e só o excluido_em a segura. Quando a F72 tirar o piso e as funções de conjunto forem a única porta, a conta apagada volta a ler.',
-    sql: mutarFuncao(
-      'public.apagar_usuario(uuid)',
+    sql: mutarFuncaoSemReplace(
+      'public.apagar_usuario(uuid, uuid)',
       `  update public.membros
      set ativo = false
    where profile_id = p_alvo;`,
       `  ${MARCA}`,
       'f62-apagar-nao-desativa-memberships',
     ),
-    prova: provaMarca('public.apagar_usuario(uuid)'),
+    prova: provaMarca('public.apagar_usuario(uuid, uuid)'),
   },
   {
     id: 'f62-guarda-de-profiles-esquece-a-membership',
@@ -3523,6 +3528,169 @@ const F66B_COMPRIMENTO = [
   },
 ]
 
+// =============================================================================
+// F67 — o cargo POR EMPRESA, a definer por empresa e as destrutivas (migrations 0185–0193)
+// =============================================================================
+// docs/PLAN-F67.md, decisão 16: UMA mutação por classe de trava que nenhum teste de mesa derruba — cada uma vira o
+// defeito que a fase existe para impedir, e o roteiro da fase tem de ficar vermelho no rótulo dela.
+/** A view da mesa como a 0191 a escreve (o texto inteiro, para recriá-la com UMA troca). */
+function viewDaMesaF67() {
+  const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', '0191_mesa_por_empresa.sql'), 'utf8').replace(/\r\n/g, '\n')
+  const inicio = sql.indexOf('create or replace view public.v_conflitos_filiais\n')
+  if (inicio === -1) throw new Error('viewDaMesaF67: a 0191 não tem mais a view v_conflitos_filiais')
+  const fim = fimDoComando(sql, inicio)
+  if (fim === -1) throw new Error('viewDaMesaF67: a view da 0191 não fecha')
+  return sql.slice(inicio, fim)
+}
+
+/** @type {Mutacao[]} */
+const F67_CARGO_POR_EMPRESA = [
+  {
+    id: 'f67-unidade-cargo-antes-da-empresa',
+    roteiro: 'cargo_por_empresa.sql',
+    classe: 'ordem-de-guarda-invertida',
+    derruba: ['P4'],
+    porque:
+      'pode_escrever_unidade passa a olhar o CARGO antes da EMPRESA da filial: o admin da A que informa a filial da B é aprovado pelo ramo de cargo — ele é admin em algum lugar. É a ordem que a fase inteira existe para impor (a empresa antes do cargo), invertida por um movimento de bloco que um diff mal lido deixaria passar.',
+    sql: mutarFuncaoSemReplace(
+      'public.pode_escrever_unidade(uuid, smallint)',
+      `  if not public.filial_da_empresa(p_empresa, p_filial) then
+    return false;
+  end if;
+
+  v_papel := public.papel_na_empresa(p_empresa);
+
+  -- dev/admin escrevem em toda filial DA EMPRESA, inclusive a desativada (sem \`where f.ativo\`, de propósito).
+  if v_papel in ('dev', 'admin') then
+    return true;
+  end if;`,
+      `  v_papel := public.papel_na_empresa(p_empresa);
+  if v_papel in ('dev', 'admin') then  ${MARCA}
+    return true;
+  end if;
+  if not public.filial_da_empresa(p_empresa, p_filial) then
+    return false;
+  end if;`,
+      'f67-unidade-cargo-antes-da-empresa',
+    ),
+    prova: provaMarca('public.pode_escrever_unidade(uuid, smallint)'),
+  },
+  {
+    id: 'f67-piso-num-corpo',
+    roteiro: 'cargo_por_empresa.sql',
+    classe: 'piso-sem-par',
+    derruba: ['Qa', 'P5'],
+    porque:
+      'pode_escrever_filial volta a consultar o PISO (e_admin(), o cargo mais forte em QUALQUER empresa) antes da empresa da filial: o admin da A escreve na filial da B. É o consumidor sem par que a F67 converteu — o piso só vale pareado numa policy, nunca sozinho num corpo.',
+    sql: mutarFuncao(
+      'public.pode_escrever_filial(smallint)',
+      '  return public.pode_escrever_unidade(public.empresa_da_filial(fid), fid);',
+      `  if public.e_admin() then  ${MARCA}
+    return true;
+  end if;
+  return public.pode_escrever_unidade(public.empresa_da_filial(fid), fid);`,
+      'f67-piso-num-corpo',
+    ),
+    prova: provaMarca('public.pode_escrever_filial(smallint)'),
+  },
+  {
+    id: 'f67-apagar-ativo-sem-recusa-de-empresa',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['10l'],
+    porque:
+      'apagar_ativo deixa de conferir que a LINHA é da empresa informada: o dev da A, informando a A, apaga um ativo da B pelo id. A trava de cargo continua certa (ele é dev na A) — é o registro que é de outra empresa, e só a recusa por linha o vê.',
+    sql: mutarFuncaoSemReplace(
+      'public.apagar_ativo(uuid, uuid, text, text)',
+      `  if not exists (select 1 from public.ativos a where a.id = p_ativo and a.empresa_id = p_empresa) then
+    raise exception 'Este registro pertence a outra empresa.' using errcode = '42501';
+  end if;`,
+      `  ${MARCA}
+  -- (a recusa de registro de outra empresa foi removida daqui)`,
+      'f67-apagar-ativo-sem-recusa-de-empresa',
+    ),
+    prova: provaMarca('public.apagar_ativo(uuid, uuid, text, text)'),
+  },
+  {
+    id: 'f67-view-da-mesa-sem-particao',
+    roteiro: 'conflito_entre_empresas.sql',
+    classe: 'particao-perdida',
+    derruba: ['C1'],
+    porque:
+      'O grupo de conflito da mesa volta a ser decidido pela CHAVE sozinha, atravessando empresas: o mesmo patrimônio numa filial da A e noutra da B vira "conflito" nas duas mesas, e o administrador de cada uma passa a ver (e a apagar) um cadastro que é legítimo do outro lado. A identidade do ativo é por empresa desde a F65.',
+    sql: trocarNoCorpo(
+      viewDaMesaF67(),
+      `grupos as (
+  select i.empresa, i.chave
+    from ident i
+   where i.chave is not null
+   group by i.empresa, i.chave
+  having count(distinct i.filial_id) > 1
+)`,
+      `grupos as (  ${MARCA}
+  select i.empresa, i.chave
+    from ident i
+   where i.chave in (select i2.chave from ident i2 where i2.chave is not null
+                      group by i2.chave having count(distinct i2.filial_id) > 1)
+   group by i.empresa, i.chave
+)`,
+      'f67-view-da-mesa-sem-particao',
+    ),
+    prova: {
+      sql: `select pg_get_viewdef('public.v_conflitos_filiais'::regclass) like '%i2.chave%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f67-sentinela-do-tudo-sem-empresa',
+    roteiro: 'cargo_por_empresa.sql',
+    classe: 'chave-de-trava-cruzada',
+    derruba: ['D4'],
+    porque:
+      'A sentinela de advisory do "tudo" do reset volta a ser -1, a mesma para TODA empresa: o reset da A e o import de uma filial da B passam a se esperar — e, pior, a chave deixa de dizer de quem é a trava. Com a empresa na chave, cada empresa serializa só consigo mesma.',
+    sql: mutarFuncaoSemReplace(
+      'public.resetar_acervo(uuid, smallint, text, text, text, jsonb)',
+      "    perform pg_advisory_xact_lock(hashtext('import_substituir'), hashtext(p_empresa::text));",
+      `    perform pg_advisory_xact_lock(hashtext('import_substituir'), -1);  ${MARCA}`,
+      'f67-sentinela-do-tudo-sem-empresa',
+    ),
+    prova: provaMarca('public.resetar_acervo(uuid, smallint, text, text, text, jsonb)'),
+  },
+  {
+    id: 'f67-gatilho-do-termo-desligado',
+    roteiro: 'termo_bloqueado.sql',
+    classe: 'guarda-neutralizada',
+    derruba: ['T1'],
+    porque:
+      'O gatilho que recusa o termo de empresa sem modelo próprio deixa de recusar: a empresa B passa a gerar termo com o modelo, a marca e os dizeres da WAP — um documento assinado em nome de outra empresa. O gatilho é a única barreira que não depende do caminho (service role, SQL Editor, RPC).',
+    // ⚠ O CORPO, e não `disable trigger`: a fixture da F65 (`pg_temp.f65_plantar`, _asserts.sql) desliga e RELIGA o
+    // gatilho para plantar o termo da B — um `disable` da mutação seria desfeito pelo próprio roteiro (medido na mesa:
+    // "não detectada" sem nenhum ✗). Neutralizar a função é o defeito que a fixture não desfaz.
+    sql: mutarFuncaoSemReplace(
+      'public.termo_exige_modelo_da_empresa()',
+      '  if not (new.empresa_id = any (public.empresas_com_modelo_de_termo())) then',
+      `  if false then  ${MARCA}`,
+      'f67-gatilho-do-termo-desligado',
+    ),
+    prova: provaMarca('public.termo_exige_modelo_da_empresa()'),
+  },
+  {
+    id: 'f67-outro-admin-conta-todas-as-empresas',
+    roteiro: 'isolamento_tenant.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['10m'],
+    porque:
+      'A trava do último administrador passa a contar os administradores de TODAS as empresas: o último admin da B é rebaixado ou desativado porque a A tem administradores, e /admin fica trancado para a B. A trava protege uma empresa de ficar sem administração — e isso só se responde por empresa.',
+    sql: mutarFuncao(
+      'public.existe_outro_admin_ativo(uuid, uuid)',
+      '     where m.empresa_id = coalesce(p_escopo, public.empresa_legada())\n',
+      `     where true  ${MARCA}\n`,
+      'f67-outro-admin-conta-todas-as-empresas',
+    ),
+    prova: provaMarca('public.existe_outro_admin_ativo(uuid, uuid)'),
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -3547,6 +3715,7 @@ export const MUTACOES = [
   ...F65_TENANT,
   ...F66_RECORTE,
   ...F66B_COMPRIMENTO,
+  ...F67_CARGO_POR_EMPRESA,
 ]
 
 /**

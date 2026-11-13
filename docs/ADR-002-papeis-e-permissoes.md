@@ -382,3 +382,43 @@ A F62 pôs o cargo na membership e criou as quatro funções de conjunto; a F63�
 - **Cargo e escrita por empresa nas funções** (`e_admin`, `pode_escrever`, a ponte), Storage e Realtime. F67.
 - **Recorte em `profiles`.** F69.
 - **Índices liderados por `empresa_id`.** F70 — sob o `= any` de um `InitPlan` o planner não os usa para ordenar (PLAN-F66 §3); com a empresa escolhida como igualdade, sim.
+
+## 17. Emenda — O cargo POR EMPRESA nas funções, nas `security definer` e nas destrutivas (F67 — 13/11/2026)
+
+**Status:** aceito · 13/11/2026 (ordem [`prompts/F67-cargo-por-empresa-definer-e-destrutivas-ultracode.md`](prompts/F67-cargo-por-empresa-definer-e-destrutivas-ultracode.md), plano [`PLAN-F67.md`](PLAN-F67.md), migrations `0185`–`0193`, com as decisões do Johnny de 12/11 e 13/11). Para a WAP, ninguém muda de cargo nem de alcance — provado conta a conta nos dois bancos contra um oráculo da regra de antes. Ata em [`DECISOES.md`](DECISOES.md) (2026-11-13 · F67); regras em [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-124 a R-ACC-130).
+
+### 17.1 Contexto
+
+A §15 pôs o cargo na membership e deixou a PONTE: `papel_atual()` respondia pela membership na empresa LEGADA, e todo corpo que decidia por cargo (`e_admin()`, `e_dev()`, `pode_escrever()`, `pode_escrever_filial`, as guardas das RPCs de conta e da Zona destrutiva) herdava a ponte. A §16 deu o recorte às policies — mas as `security definer` atravessam a RLS por construção, e nelas o cargo "da WAP" valeria para qualquer empresa. Com uma segunda empresa real, o admin da A administraria a B pela porta das RPCs.
+
+### 17.2 Decisão
+
+1. **O cargo por empresa tem NOME PRÓPRIO**: `papel_na_empresa(p_empresa)` é a fonte única; `e_admin_na`, `e_dev_na`, `pode_escrever_na` derivam dela; `pode_escrever_unidade(p_empresa, p_filial)` testa a empresa da filial ANTES do cargo. Empresa nula → NULL/false. A plataforma é `dev` em toda empresa que existe ("dev sou só eu" — decisão 13/11-1: o cargo dev é só do Johnny, e a Zona destrutiva de qualquer empresa é dele por desenho). A ficha pedia `papel_atual(p_empresa)`: com 60 policies citando a forma sem argumento, ou `cascade`, ou uma sobrecarga ambígua — o nome próprio evita os dois.
+2. **O piso é o cargo MAIS FORTE entre as memberships ativas** (`0188`) e só vale PAREADO numa policy com o recorte do mesmo cargo — pareado, é exatamente "este cargo nesta empresa". **Isto REVERTE a frase da `0158`** ("a ponte responde pela empresa legada, nunca pelo cargo mais forte entre empresas"): ela existia porque havia consumidor do piso SEM par, que leria o cargo da empresa errada; a F67 converteu todos (a trava Qa/Qb de `cargo_por_empresa.sql` recusa um novo), e o "mais forte" passou a ser o que o recorte já delimita. `e_dev()` saiu na contração.
+3. **Toda `security definer` alcançável que recebe id do cliente confere a empresa por uma primitiva POR EMPRESA** (a asserção 4 de `definer_sem_tenant.sql`), e toda RPC destrutiva, de conta, a mesa e o import recebem `p_empresa uuid` como 1º argumento, sem default: a linha, a filial e o alvo têm de ser da empresa (42501). **Nenhum alcance multi-empresa**: o "tudo" do reset é toda filial DESTA empresa, e a confirmação carrega a quantidade.
+4. **O conflito entre empresas é impossível por construção** — as views da mesa agrupam por (empresa da filial, chave).
+5. **O termo é recusado pelo banco** para empresa sem modelo próprio (gatilho, 42501), em qualquer caminho.
+6. **Trocar a assinatura sem trocar o nome** (decisão 13/11-2): a forma nova nasce ao lado da antiga, o app novo vai ao ar, e a antiga sai depois da prova de zero chamadas (RUNBOOK, Anexo F67).
+
+### 17.3 Como funciona por baixo
+
+**A expansão** (`0185`–`0192`): as formas por empresa; os consumidores sem par convertidos (a empresa real, ou a legada EXPLÍCITA com o destino escrito — Storage → F67B, `profiles` → F69, observabilidade, o backup da F6A); as nove policies sem par; o piso; as cinco de conta; as destrutivas, a prévia e o import; a mesa; a trava do termo. As antigas ficam, só com a chave de advisory por empresa (as famílias não se cruzam na janela). **A contração** (`0193`): `drop function` das 20 antigas e de `e_dev()`.
+
+**O TS**: a empresa da FILIAL quando a operação tem filial (`src/lib/escopo/empresa-da-filial.ts`); senão `empresaDaOperacao()` — a legada EXPLÍCITA, o ponto de injeção da F70 —, contada arquivo a arquivo pela catraca `src/lib/auth/empresa-legada-catraca.test.ts`. As guardas de Server Action continuam dando a mensagem; quem decide é o banco.
+
+**A prova**: o conta a conta (`scripts/perf/conta-a-conta.mjs`, fases `f67-antes`/`f67-depois`) compara, para cada membership ativa, as funções reais com um ORÁCULO da regra de antes escrito no bloco — antes do apply (o oráculo é a regra viva) e depois de cada lote (o novo = o oráculo). A bateria entre duas empresas fictícias é `isolamento_tenant.sql` (10k as RPCs de conta, 10l as destrutivas, 10m a trava do último administrador), `conflito_entre_empresas.sql` e `termo_bloqueado.sql`.
+
+**Rollback**: `supabase/rollback/F67-desfaz.sql`, idempotente nos dois estados (só a expansão; expansão + contração), antes dos rollbacks da F66 para trás. Depois dele a ponte volta.
+
+### 17.4 Consequências
+
+- **Positivas:** o cargo da pessoa na B vem da B; o admin da A não escreve, não destrói, não importa, não resolve conflito e não gere conta na B — provado pela primeira vez pelas RPCs, não só pelas policies; o "tudo" deixou de ser uma frase de 12 caracteres capaz de apagar todos os clientes; o termo em nome de outra empresa deixou de ser possível.
+- **Negativas / custo:** o TS ainda pergunta pela legada EXPLÍCITA onde a operação não tem filial (a F70 troca pela empresa da sessão); a plataforma conta na trava do último administrador onde é membro (a forma é da F69); o piso continua avaliado em toda leitura (F72); a filial inexistente agora fecha até para o admin (antes abria pelo cargo) — nenhuma filial real muda de resposta.
+
+### 17.5 O que **não** foi criado, de propósito
+
+- **Storage e Realtime por empresa.** F67B.
+- **O fim do default `empresa_legada()`** e os escritores comuns. F67C.
+- **A identidade por empresa** (`handle_new_user`, `profiles`, as contas dev fora de `membros`). F69.
+- **A empresa da sessão na tela.** F70.
+- **Trava nova sobre conceder o cargo dev.** A forma é da F69 (a decisão 13/11-1 está só registrada).

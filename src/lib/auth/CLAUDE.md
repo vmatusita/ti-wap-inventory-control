@@ -20,8 +20,13 @@ importa para quem mexe NESTE código: implementação, não a política.
   comparação de enum: inverter esse sinal aqui é bug clássico.
 - `acesso.ts` — as guardas de Server Action e a resolução de sessão. Ver abaixo.
 - `empresa-legada.ts` — `EMPRESA_LEGADA_ID`, o id da WAP (F62): espelho do literal que
-  `public.empresa_legada()` devolve (`0152`), e `empresa-legada.test.ts` compara os dois. É o
-  filtro da membership em `getOperador` e em `queries/admin.ts` enquanto a ponte existir (até a F64).
+  `public.empresa_legada()` devolve (`0152`), e `empresa-legada.test.ts` compara os dois. **Desde a F67** ele também
+  exporta `empresaDaOperacao()` — a empresa que o TS passa às RPCs por empresa quando a operação NÃO tem filial de onde
+  tirá-la (o cargo de navegação, a gestão de contas, a mesa, o "tudo" e as linhas da Zona destrutiva). É a legada
+  EXPLÍCITA e o **ponto de injeção da F70** (a empresa da sessão). Quando a operação TEM filial, a empresa é a DELA
+  (`empresaDaFilial`, `src/lib/escopo/empresa-da-filial.ts`). Cada uso do literal e de `empresaDaOperacao()` é contado,
+  arquivo a arquivo, com o destino escrito, por `empresa-legada-catraca.test.ts` — uma ocorrência nova reprova e obriga a
+  decidir: a empresa da filial, a da sessão, ou legada de propósito.
 
 ## `acesso.ts` — o que uma guarda nova precisa respeitar
 
@@ -31,7 +36,7 @@ importa para quem mexe NESTE código: implementação, não a política.
 - **As guardas dão a MENSAGEM em pt-BR, não a segurança.** O RLS é o guarda-costas real
   (recusa em SQLSTATE); a guarda aqui é avaliada ANTES, só para não deixar a pessoa tentar uma
   escrita que o banco vai recusar de qualquer jeito. As duas concordam **por construção**
-  porque chamam as mesmas funções do banco (`papel_atual()`/`pode_escrever_filial()`) — se
+  porque chamam as mesmas funções do banco (`papel_na_empresa()`/`pode_escrever_filial()` desde a F67) — se
   divergirem, é bug de UMA das duas camadas, nunca "a guarda está certa, o banco está errado".
 - **`cargoDoRequest` é memoizada por request** (`cache()` do React) — de propósito, e só ela.
   `lerVinculo`/`pode_escrever_filial()` NUNCA são memoizadas: é a releitura a cada chamada que
@@ -43,8 +48,13 @@ importa para quem mexe NESTE código: implementação, não a política.
   meio do request receberia `ok` sem tocar o banco e o UPDATE afetaria 0 linhas SEM SQLSTATE:
   falso sucesso. Por isso até o ramo "admin escreve em qualquer filial" faz UMA chamada a
   `lerVinculo`.
+- **Desde a F67 o cargo de navegação é POR EMPRESA**: `cargoDoRequest` chama a RPC `papel_na_empresa` com
+  `empresaDaOperacao()`; `papel_atual()` (o piso — o cargo mais forte entre as memberships) é só de policy pareada e
+  nenhum código do app o chama (a catraca o recusa). Toda RPC que decide por cargo recebe `p_empresa` como 1º argumento,
+  sem default — o tipo gerado a exige, e o banco confere a linha, a filial e o alvo (42501, frase pt-BR em
+  `src/lib/supabase/erros-do-banco.ts`).
 - **Cargo NUNCA vem de `raw_user_meta_data`** — o próprio usuário edita esse campo; toda leitura
-  de cargo passa por `papel_atual()` (RPC) ou pela tabela `membros` direto (a membership na
+  de cargo passa por `papel_na_empresa()` (RPC, F67) ou pela tabela `membros` direto (a membership na
   empresa legada, `EMPRESA_LEGADA_ID` de `empresa-legada.ts`), nunca pelo JWT. **Desde a F62
   `profiles.papel`/`ativo` estão CONGELADOS**: ler ou gravar o cargo ali reprova na mesa
   (`src/lib/validators/cargo-em-membros.test.ts`, que varre também o TypeScript) — `profiles`
@@ -57,9 +67,11 @@ importa para quem mexe NESTE código: implementação, não a política.
 admin) · `0073` (`profiles_guarda_dev`, arquivamento) · `0074` (as cinco RPCs de gestão:
 `definir_papel_usuario`/`definir_status_usuario`/`definir_vinculos_usuario`/`apagar_usuario`/
 `encerrar_sessoes_usuario`) · `0152`–`0158` (F62: `empresas`/`empresa_legada()`, `membros` e
-`membros_guarda_dev`, o vínculo por membership, e a troca de todo leitor do cargo). Porquê e
-como funciona por baixo: ADR-002 §13 (cargo dev), §14 (zona destrutiva) e §15 (o cargo por
-empresa) — não repita aqui, edite lá se o comportamento mudar.
+`membros_guarda_dev`, o vínculo por membership, e a troca de todo leitor do cargo) · `0185`–`0193` (F67: o cargo
+POR EMPRESA — `papel_na_empresa`/`e_admin_na`/`e_dev_na`/`pode_escrever_na`/`pode_escrever_unidade` —, o piso pelo cargo
+mais forte, as cinco RPCs de gestão com `p_empresa`, e `e_dev()` fora). Porquê e
+como funciona por baixo: ADR-002 §13 (cargo dev), §14 (zona destrutiva), §15 (o cargo por
+empresa) e §17 (o cargo por empresa nas funções, F67) — não repita aqui, edite lá se o comportamento mudar.
 
 ## Página fora daqui que este modelo também rege
 

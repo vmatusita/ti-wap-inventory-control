@@ -11,6 +11,13 @@
 --   1 — papel_atual()
 --   2 — e_admin(), e_dev(), pode_escrever() (derivadas do papel)
 --   3 — pode_escrever_filial(f) para a filial vinculada, outra filial e NULL
+--
+-- F67 (13/11/2026; PLAN-F67, decisões 1 e 2) — o cargo "sem empresa" saiu. O VIVO de cada célula passou a ser a forma
+-- POR EMPRESA na legada (`papel_na_empresa`, `e_admin_na`, `e_dev_na`, `pode_escrever_na` de `empresa_legada()`) junto
+-- do PISO que fica (`papel_atual()` = o cargo mais forte entre as memberships ativas; `e_admin()`, `pode_escrever()`);
+-- `e_dev()` sai na contração (0193). Com UMA membership por pessoa (a grade) os dois respondem o antigo. As mudanças
+-- DECLARADAS: a filial NULL fecha para todos (a filial antes do cargo), e na célula 5 o piso é o mais forte e a filial de
+-- B responde pelo cargo em B. O rollback da F67 (supabase/rollback/F67-desfaz.sql) devolve a ponte.
 --   4 — existe_outro_admin_ativo(<a própria pessoa>)
 --  4b — a mesma trava onde ela responde "não": UM só admin ativo, os outros desativados
 --        ou arquivados (sem ele, a grade sempre tinha admin de sobra e a resposta era `true`)
@@ -300,29 +307,42 @@ begin
       perform set_config('request.jwt.claims', '', true);
     end if;
 
-    -- 1 — papel_atual()
+    -- 1 — o cargo NA WAP. F67 (13/11/2026; PLAN-F67, decisões 1 e 2): o cargo "sem empresa" saiu — o vivo é a forma POR
+    -- EMPRESA na legada (`papel_na_empresa(empresa_legada())`), e o PISO (`papel_atual()`, o cargo mais forte entre as
+    -- memberships ativas) — que, com UMA membership por pessoa (a grade), é o mesmo cargo. Os dois contra o antigo.
     v_antigo := coalesce(pg_temp.papel_atual_f61()::text, '∅');
-    v_vivo   := coalesce(public.papel_atual()::text, '∅');
+    v_antigo := v_antigo || '/' || v_antigo;
+    v_vivo   := coalesce(public.papel_na_empresa(public.empresa_legada())::text, '∅') || '/'
+             || coalesce(public.papel_atual()::text, '∅');
     v_c1 := v_c1 + 1;
     if v_antigo is distinct from v_vivo then
       v_m1 := v_m1 + 1;
       v_l1 := v_l1 || ' [' || v_rotulo || ': antigo=' || v_antigo || ' vivo=' || v_vivo || ']';
     end if;
 
-    -- 2 — as três derivadas (a régua de 0072: e_admin/e_dev/pode_escrever)
+    -- 2 — as três derivadas (a régua de 0072: e_admin/e_dev/pode_escrever). F67: as POR EMPRESA na legada
+    -- (`e_admin_na`, `e_dev_na`, `pode_escrever_na`) — `e_dev()` sai na contração (0193) — e as duas do piso que ficam
+    -- (`e_admin()`, `pode_escrever()`), que com uma membership por pessoa dão o mesmo.
     v_antigo := coalesce(pg_temp.papel_atual_f61() in ('admin', 'dev'), false)::text || '/'
              || coalesce(pg_temp.papel_atual_f61() = 'dev', false)::text || '/'
+             || coalesce(pg_temp.papel_atual_f61() in ('dev', 'admin', 'operador'), false)::text || '/'
+             || coalesce(pg_temp.papel_atual_f61() in ('admin', 'dev'), false)::text || '/'
              || coalesce(pg_temp.papel_atual_f61() in ('dev', 'admin', 'operador'), false)::text;
-    v_vivo := public.e_admin()::text || '/' || public.e_dev()::text || '/' || public.pode_escrever()::text;
+    v_vivo := public.e_admin_na(public.empresa_legada())::text || '/' || public.e_dev_na(public.empresa_legada())::text
+           || '/' || public.pode_escrever_na(public.empresa_legada())::text
+           || '/' || public.e_admin()::text || '/' || public.pode_escrever()::text;
     v_c2 := v_c2 + 1;
     if v_antigo is distinct from v_vivo then
       v_m2 := v_m2 + 1;
       v_l2 := v_l2 || ' [' || v_rotulo || ': antigo=' || v_antigo || ' vivo=' || v_vivo || ']';
     end if;
 
-    -- 3 — pode_escrever_filial: a vinculada, outra, e NULL
+    -- 3 — pode_escrever_filial: a vinculada, outra, e NULL. F67 (PLAN-F67 §4): a filial é testada ANTES do cargo —
+    -- filial que não existe (NULL incluído) fecha para TODOS, inclusive dev/admin (o antigo abria pelo cargo, sem
+    -- olhar a filial). Na célula NULL o esperado é `false`, declarado; nas duas filiais da WAP, o antigo.
     foreach v_f in array array[v_f1, v_f2, null]::smallint[] loop
-      v_antigo := coalesce(pg_temp.pode_escrever_filial_f61(v_f)::text, '∅');
+      v_antigo := case when v_f is null then 'false'
+                       else coalesce(pg_temp.pode_escrever_filial_f61(v_f)::text, '∅') end;
       v_vivo   := coalesce(public.pode_escrever_filial(v_f)::text, '∅');
       v_c3 := v_c3 + 1;
       if v_antigo is distinct from v_vivo then
@@ -351,14 +371,20 @@ begin
                        else 'dupla operador-WAP/admin-B' end;
       perform set_config('request.jwt.claims',
         json_build_object('sub', v_id, 'role', 'authenticated')::text, true);
+      -- F67: na WAP, a forma POR EMPRESA responde como o antigo (o cargo e as duas filiais da WAP); o PISO e a filial
+      -- de B, não — são o que a F67 muda, declarado: o piso é o cargo MAIS FORTE entre as memberships ativas (admin
+      -- nas duas) e a filial de B responde pelo cargo EM B (consulta → não escreve; admin → escreve).
       v_antigo := coalesce(pg_temp.papel_atual_f61()::text, '∅');
-      v_vivo   := coalesce(public.papel_atual()::text, '∅');
-      foreach v_f in array array[v_f1, v_f2, v_filial_b]::smallint[] loop
+      v_vivo   := coalesce(public.papel_na_empresa(public.empresa_legada())::text, '∅');
+      foreach v_f in array array[v_f1, v_f2]::smallint[] loop
         v_antigo := v_antigo || '|' || coalesce(pg_temp.pode_escrever_filial_f61(v_f)::text, '∅');
         v_vivo   := v_vivo   || '|' || coalesce(public.pode_escrever_filial(v_f)::text, '∅');
       end loop;
       v_antigo := v_antigo || '|' || pg_temp.existe_outro_admin_ativo_f61(v_id)::text;
       v_vivo   := v_vivo   || '|' || public.existe_outro_admin_ativo(v_id)::text;
+      v_antigo := v_antigo || '|piso=admin|B=' || case when v_id = k_dupla_admin then 'false' else 'true' end;
+      v_vivo   := v_vivo   || '|piso=' || coalesce(public.papel_atual()::text, '∅')
+               || '|B=' || coalesce(public.pode_escrever_filial(v_filial_b)::text, '∅');
       v_c5 := v_c5 + 1;
       if v_antigo is distinct from v_vivo then
         v_m5 := v_m5 + 1;
@@ -479,20 +505,20 @@ begin
     raise notice '(6 não se aplica antes da 0152 — não há membros para a recópia reconciliar)';
   end if;
 
-  if pg_temp.assert_zero_de('1 papel_atual(): antigo = vivo em toda a grade' ||
+  if pg_temp.assert_zero_de('1 o cargo na WAP (papel_na_empresa da legada) e o piso papel_atual(): antigo = vivo em toda a grade' ||
        case when v_m1 > 0 then ' —' || v_l1 else '' end, v_m1, v_c1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
-  if pg_temp.assert_zero_de('2 e_admin/e_dev/pode_escrever: antigo = vivo em toda a grade' ||
+  if pg_temp.assert_zero_de('2 e_admin_na/e_dev_na/pode_escrever_na (legada) e o piso e_admin/pode_escrever: antigo = vivo em toda a grade' ||
        case when v_m2 > 0 then ' —' || v_l2 else '' end, v_m2, v_c2) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
-  if pg_temp.assert_zero_de('3 pode_escrever_filial: antigo = vivo (vinculada, outra, NULL)' ||
+  if pg_temp.assert_zero_de('3 pode_escrever_filial: antigo = vivo na vinculada e na outra; NULL fecha para todos (F67)' ||
        case when v_m3 > 0 then ' —' || v_l3 else '' end, v_m3, v_c3) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   if pg_temp.assert_zero_de('4 existe_outro_admin_ativo: antigo = vivo para cada pessoa da grade' ||
        case when v_m4 > 0 then ' —' || v_l4 else '' end, v_m4, v_c4) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   if v_tem_membros then
-    if pg_temp.assert_zero_de('5 a ponte com DUAS memberships responde pela empresa legada, nunca pela mais forte' ||
+    if pg_temp.assert_zero_de('5 com DUAS memberships, a forma por empresa responde pela WAP como antes; o piso é o cargo mais forte e a filial de B responde pelo cargo em B (F67)' ||
          case when v_m5 > 0 then ' —' || v_l5 else '' end, v_m5, v_c5) then
       v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   else

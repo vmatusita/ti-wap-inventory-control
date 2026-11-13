@@ -65,10 +65,10 @@ export type EntradaDeMapa = { readonly motivo: string; readonly evidencia: strin
 // este mapa estaria declarando um nulo que significa "tudo" — a forma que a F60 existe para proibir
 // (a trava de recorte, `rpcs-recorte-sql.test.ts`, a reprovaria de qualquer jeito no corpo).
 
-/** O alcance da Zona destrutiva (F23): NULL em `p_filial` é o reset GLOBAL. */
+/** O alcance da Zona destrutiva (F23): NULL em `p_filial` é o "tudo" — desde a F67, de UMA empresa. */
 const ALCANCE_DO_RESET = {
   p_filial: {
-    motivo: 'NULL é o alcance GLOBAL da Zona destrutiva (todas as filiais), escolhido na tela do dev',
+    motivo: 'NULL é o "tudo" da Zona destrutiva — todas as filiais DA EMPRESA informada (F67) —, escolhido na tela do dev',
     evidencia: 'p_filial is null or',
   },
 } as const satisfies Record<string, EntradaDeMapa>
@@ -150,8 +150,17 @@ export const COLUNAS_DE_RETORNO_ANULAVEIS = {
 export const ESCALARES_ANULAVEIS = {
   papel_atual: {
     motivo:
-      'membership desativada, conta arquivada, sem membership na empresa legada ou sem sessão (F62: o cargo mora em membros): o select não acha linha e a função sql devolve NULL — é "sem cargo", não erro',
-    evidencia: 'and m.ativo and p.excluido_em is null',
+      'o PISO (F67): sem membership ATIVA em empresa nenhuma, conta arquivada ou sem sessão, o select não acha linha e a função sql devolve NULL — é "sem cargo", não erro',
+    evidencia: 'and m.ativo',
+  },
+  papel_na_empresa: {
+    motivo:
+      'o cargo NUMA empresa (F67): empresa nula, sem membership ATIVA nela (nem a plataforma), conta arquivada ou sem sessão devolve NULL — é "sem cargo naquela empresa", não erro',
+    evidencia: 'when p_empresa is null then null::public.papel_usuario',
+  },
+  empresa_da_filial: {
+    motivo: 'filial que não existe (ou que a RLS de quem pede não mostra) não tem empresa: o select sql devolve NULL',
+    evidencia: 'from public.filiais f where f.id = p_filial',
   },
   ultima_migracao_aplicada: {
     motivo: 'banco sem a tabela de histórico de migrations (ou vazia) devolve NULL',

@@ -27,7 +27,12 @@ propósito da ferramenta (provar que a mutação foi DETECTADA).
 
 `corpo-vigente.mjs` resolve o corpo VIVO de uma função varrendo as migrations da maior para a
 menor; `trocarNoCorpo` recusa a troca que viraria no-op silencioso (proteção contra mutar uma
-função de 400 linhas colando uma cópia que envelhece e some do radar).
+função de 400 linhas colando uma cópia que envelhece e some do radar). **Desde a F67 ele sabe de sobrecarga e de
+`drop`**: pedida COM os tipos, a busca segue para trás até a definição daquela assinatura (a forma nova nasce num arquivo
+mais novo ao lado da antiga); pedida SÓ pelo nome, uma assinatura derrubada por um `drop function` posterior não conta
+(`assinaturasDerrubadas`/`derrubadaDepois` — servem também às varreduras de mesa que montam o mapa assinatura → última
+definição). Mutação de função que nasce `create function` (as formas por empresa da F67) passa por
+`mutarFuncaoSemReplace` — reemitir `create function` contra o banco em que ela existe sai "NÃO aplicou".
 
 `saida-roteiro.mjs` lê a saída do roteiro por **TOKEN**, nunca substring — `2c` é prefixo de
 `2c-bis`, e em `dev_destrutivo` o rótulo `1` é prefixo de outros dezenove. Um novo roteiro

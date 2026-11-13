@@ -7,16 +7,16 @@ import { leituraDeRelacao, leituraDeRpc } from '@/lib/supabase/leitura'
 
 const sn = z.string().nullable()
 
-// `papel_atual()` — RPC de LEITURA (`stable`), não recibo: o conferidor de formas PODE
-// chamá-la (é `select`/RPC estável, nunca escreve). Está em `ESCALARES_ANULAVEIS`
-// (`src/lib/supabase/rpc.ts`): perfil sem sessão, sem perfil ou desativado devolve NULL — "sem
-// cargo", não erro. `lerPapel` continua distinguindo esse `null` de "não deu para saber".
+// `papel_na_empresa(p_empresa)` (F67; era `papel_atual()`) — RPC de LEITURA (`stable`), não recibo: o conferidor de
+// formas PODE chamá-la (nunca escreve), com a empresa legada (a matriz `empresa-legada`). Está em `ESCALARES_ANULAVEIS`
+// (`src/lib/supabase/rpc.ts`): sem sessão, sem membership ativa naquela empresa ou arquivado devolve NULL — "sem cargo",
+// não erro. `lerPapel` continua distinguindo esse `null` de "não deu para saber".
 export const LEITURA_PAPEL_ATUAL = leituraDeRpc({
   rotulo: 'auth.papel-atual',
-  rpc: 'papel_atual',
+  rpc: 'papel_na_empresa',
   forma: ENUM.papelUsuario.nullable(),
   retorno: 'valor',
-  matriz: { tipo: 'sem-argumentos' },
+  matriz: { tipo: 'empresa-legada', empresa: 'p_empresa' },
 })
 
 // `getOperador` — o que é da CONTA: o nome e o arquivamento. F62: o cargo e o status saíram

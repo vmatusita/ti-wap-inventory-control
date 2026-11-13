@@ -16,7 +16,7 @@ import {
   LEITURA_PAPEL_ATUAL,
   LEITURA_PERFIL_OPERADOR,
 } from '@/lib/queries/formas/auth'
-import { EMPRESA_LEGADA_ID } from '@/lib/auth/empresa-legada'
+import { EMPRESA_LEGADA_ID, empresaDaOperacao } from '@/lib/auth/empresa-legada'
 
 // Fonte única de `DbClient` (reauditoria de 18/09/2026, item AJ — antes também
 // declarado, duplicado, em `queries/relatorios/comum.ts`, que agora reexporta
@@ -95,8 +95,9 @@ export async function idOperador(supabase: DbClient): Promise<string | null> {
 // Cargo e vínculos
 // ---------------------------------------------------------------------------
 
-// Cargo vigente de quem está pedindo, lido do BANCO pela mesma função que a RLS usa
-// (`papel_atual()`, migration 0062). Devolve null sem sessão, sem perfil OU com o perfil
+// Cargo vigente de quem está pedindo, lido do BANCO — F67: pela forma POR EMPRESA,
+// `papel_na_empresa(p_empresa)` (0185), com a empresa da operação (a legada EXPLÍCITA até a F70:
+// `empresaDaOperacao()`). O cargo SEM empresa (`papel_atual()`) é só piso de policy desde a F67. Devolve null sem sessão, sem perfil OU com o perfil
 // DESATIVADO — é o que faz a desativação valer no request seguinte.
 //
 // Por que via RPC e não por um `select papel from profiles`: assim a action e a policy
@@ -118,7 +119,7 @@ export async function papelAtual(supabase: DbClient): Promise<PapelUsuario | nul
 type LeituraPapel = { ok: true; papel: PapelUsuario | null } | { ok: false }
 
 async function lerPapel(supabase: DbClient): Promise<LeituraPapel> {
-  const { data, error } = await chamarRpc(supabase, 'papel_atual')
+  const { data, error } = await chamarRpc(supabase, 'papel_na_empresa', { p_empresa: empresaDaOperacao() })
   if (error) {
     // Logado ALTO: é assim que se descobre que o banco caiu, em vez de ler o sintoma como
     // "todo mundo foi desativado".
@@ -132,8 +133,8 @@ async function lerPapel(supabase: DbClient): Promise<LeituraPapel> {
   return { ok: true, papel: lido.valor }
 }
 
-// Espelho de `pode_escrever_filial(fid)` do banco (migration 0062). Mesma razão de cima:
-// uma fonte só para o predicado do vínculo.
+// Espelho de `pode_escrever_filial(fid)` do banco. Mesma razão de cima: uma fonte só para o
+// predicado do vínculo. F67: a função responde pela EMPRESA DA FILIAL (`pode_escrever_unidade`).
 export async function podeEscreverFilial(
   supabase: DbClient,
   filialId: number,

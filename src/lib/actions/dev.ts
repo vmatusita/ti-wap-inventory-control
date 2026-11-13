@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirDev } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
@@ -124,7 +125,7 @@ export async function apagarUsuario(input: {
   try {
     ;[estado, adminsAtivosIds, email] = await Promise.all([
       getEstadoUsuario(usuarioId),
-      idsDeAdminsAtivos(),
+      idsDeAdminsAtivos(empresaDaOperacao()),
       emailDoUsuario(usuarioId),
     ])
   } catch (err) {
@@ -150,8 +151,11 @@ export async function apagarUsuario(input: {
   })
   if (recusa) return { ok: false, erro: recusa }
 
-  // 1º — o banco. Aqui mora a trava de verdade (a RPC exige `e_dev()`).
-  const { error: erroRpc } = await chamarRpc(supabase, 'apagar_usuario', { p_alvo: usuarioId })
+  // 1º — o banco. Aqui mora a trava de verdade (a RPC exige o dev DA EMPRESA — `e_dev_na`, F67).
+  const { error: erroRpc } = await chamarRpc(supabase, 'apagar_usuario', {
+    p_empresa: empresaDaOperacao(),
+    p_alvo: usuarioId,
+  })
   if (erroRpc) return { ok: false, erro: traduzErroBanco(erroRpc.message, erroRpc.code) }
 
   // 2º — o Auth. `alvo` é o e-mail LEGÍVEL: depois desta linha ele não existe mais em lugar
@@ -231,7 +235,10 @@ export async function encerrarSessoes(input: { usuarioId: string }): Promise<Dev
   }
   const { usuarioId } = parsed.data
 
-  const { data, error } = await chamarRpc(supabase, 'encerrar_sessoes_usuario', { p_alvo: usuarioId })
+  const { data, error } = await chamarRpc(supabase, 'encerrar_sessoes_usuario', {
+    p_empresa: empresaDaOperacao(),
+    p_alvo: usuarioId,
+  })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
   const quantas = typeof data === 'number' ? data : 0

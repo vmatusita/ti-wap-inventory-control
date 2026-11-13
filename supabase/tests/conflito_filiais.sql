@@ -330,7 +330,7 @@ begin
       set local role authenticated;
       perform set_config('request.jwt.claims',
         json_build_object('sub', v_cargos[v_n], 'role', 'authenticated')::text, true);
-      perform public.apagar_ativos_conflito_filiais(
+      perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
         array[v_a2], 'APAGAR 1', 'tentativa de cargo sem permissao');
       reset role;
       v_falhas := v_falhas + 1;
@@ -348,11 +348,11 @@ begin
 
   -- SERVICE ROLE sem EXECUTE (a superfície de API — precedente 0088)
   if not has_function_privilege('service_role',
-       'public.apagar_ativos_conflito_filiais(uuid[],text,text,text)', 'execute')
+       'public.apagar_ativos_conflito_filiais(uuid,uuid[],text,text,text)', 'execute')
      and not has_function_privilege('anon',
-       'public.apagar_ativos_conflito_filiais(uuid[],text,text,text)', 'execute')
+       'public.apagar_ativos_conflito_filiais(uuid,uuid[],text,text,text)', 'execute')
      and has_function_privilege('authenticated',
-       'public.apagar_ativos_conflito_filiais(uuid[],text,text,text)', 'execute') then
+       'public.apagar_ativos_conflito_filiais(uuid,uuid[],text,text,text)', 'execute') then
     v_ok := v_ok + 1; raise notice '✓ 5b  grants: authenticated=true, anon=false, service_role=false';
   else
     v_falhas := v_falhas + 1; raise warning '✗ 5b  grants da RPC de conflito fora do padrão';
@@ -374,7 +374,7 @@ begin
 
   -- CONFIRMAÇÃO errada não passa
   begin
-    perform public.apagar_ativos_conflito_filiais(array[v_a2], 'APAGAR', 'justificativa suficientemente longa');
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(), array[v_a2], 'APAGAR', 'justificativa suficientemente longa');
     v_falhas := v_falhas + 1; raise warning '✗ 5d  confirmação incompleta foi ACEITA';
   exception when others then
     if SQLSTATE = '22023' then
@@ -386,7 +386,7 @@ begin
 
   -- confirmação com o número ERRADO (a régua que força a leitura do tamanho)
   begin
-    perform public.apagar_ativos_conflito_filiais(array[v_a2], 'APAGAR 2', 'justificativa suficientemente longa');
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(), array[v_a2], 'APAGAR 2', 'justificativa suficientemente longa');
     v_falhas := v_falhas + 1; raise warning '✗ 5e  confirmação com número errado foi ACEITA';
   exception when others then
     if SQLSTATE = '22023' then
@@ -398,7 +398,7 @@ begin
 
   -- JUSTIFICATIVA curta não passa
   begin
-    perform public.apagar_ativos_conflito_filiais(array[v_a2], 'APAGAR 1', 'curta');
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(), array[v_a2], 'APAGAR 1', 'curta');
     v_falhas := v_falhas + 1; raise warning '✗ 5f  justificativa curta foi ACEITA';
   exception when others then
     if SQLSTATE = '22023' then
@@ -413,7 +413,7 @@ begin
   -- ==========================================================================
   -- id FORA de conflito na lista → recusa TUDO (all-or-nothing)
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array[v_a2, v_solo], 'APAGAR 2', 'tentativa com um ativo fora de conflito');
     v_falhas := v_falhas + 1; raise warning '✗ 4a  a lista com um ativo FORA de conflito foi aceita';
   exception when insufficient_privilege then
@@ -432,7 +432,7 @@ begin
 
   -- ativo SEM IDENTIDADE (nunca em conflito) também é recusado
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array[v_sem_id], 'APAGAR 1', 'tentativa com ativo sem identidade');
     v_falhas := v_falhas + 1; raise warning '✗ 4c  ativo sem identidade foi aceito';
   exception when insufficient_privilege then
@@ -443,7 +443,7 @@ begin
 
   -- id INEXISTENTE recusa antes de qualquer coisa
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array['00000000-f24a-4000-8000-00000000ffff'::uuid], 'APAGAR 1', 'tentativa com id inexistente');
     v_falhas := v_falhas + 1; raise warning '✗ 4d  id inexistente foi aceito';
   exception when others then
@@ -456,7 +456,7 @@ begin
 
   -- id REPETIDO no array não infla a contagem que a pessoa confirmou
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array[v_a2, v_a2, v_a2], 'APAGAR 3', 'tentativa com id repetido inflando a contagem');
     v_falhas := v_falhas + 1; raise warning '✗ 4e  "APAGAR 3" com o mesmo id três vezes foi aceito';
   exception when others then
@@ -472,7 +472,7 @@ begin
   -- ==========================================================================
   -- (a) UM lado: o grupo de 3 (v_a1/v_a2/v_c3) perde o v_c3 e continua conflito
   if v_c3 is not null then
-    v_jsonb := public.apagar_ativos_conflito_filiais(
+    v_jsonb := public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array[v_c3], 'APAGAR 1', 'resolvendo o conflito: este cadastro e o errado');
     if (v_jsonb->>'ativos')::int = 1 and not exists (select 1 from public.ativos where id = v_c3) then
       v_ok := v_ok + 1; raise notice '✓ 3a  apagou UM lado e devolveu as contagens';
@@ -505,7 +505,7 @@ begin
   end if;
 
   -- (c) APAGAR AMBOS — o grupo some inteiro
-  v_jsonb := public.apagar_ativos_conflito_filiais(
+  v_jsonb := public.apagar_ativos_conflito_filiais(public.empresa_legada(),
     array[v_b1, v_b2], 'APAGAR 2', 'os dois cadastros estao errados, refazer do zero');
   if (v_jsonb->>'ativos')::int = 2
      and not exists (select 1 from public.v_conflitos_filiais where ativo_id in (v_b1, v_b2)) then
@@ -527,7 +527,7 @@ begin
   -- O par e o termo de lote misto já nasceram no bloco de FIXTURES, como dono — criá-los aqui,
   -- com a sessão já em `authenticated`, esbarraria no WITH CHECK da RLS de `termos_gerados`.
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array[v_x1], 'APAGAR 1', 'tentativa com termo de lote misto no caminho');
     v_falhas := v_falhas + 1; raise warning '✗ 8a  termo de lote misto NÃO impediu a exclusão';
   exception when insufficient_privilege then
@@ -544,7 +544,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
-  v_jsonb := public.apagar_ativos_conflito_filiais(
+  v_jsonb := public.apagar_ativos_conflito_filiais(public.empresa_legada(),
     array[v_x1], 'APAGAR 1', 'agora o termo cobre so este cadastro');
   if (v_jsonb->>'termos')::int = 1
      and (v_jsonb->'arquivos_termos'->>0) = 'termos/f24-misto.docx' then
@@ -622,7 +622,7 @@ begin
 
   -- (b) a janela FECHA quando a RPC estoura no meio
   begin
-    perform public.apagar_ativos_conflito_filiais(array[v_solo], 'APAGAR 1', 'provocando erro de proposito');
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(), array[v_solo], 'APAGAR 1', 'provocando erro de proposito');
   exception when others then null;
   end;
   if coalesce(current_setting('estoque.dev_destrutivo', true), '') <> 'on' then
@@ -637,7 +637,7 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    v_jsonb := public.apagar_ativo(v_solo, 'WAP0009199', 'conferindo que a ferramenta do dev segue de pe');
+    v_jsonb := public.apagar_ativo(public.empresa_legada(), v_solo, 'WAP0009199', 'conferindo que a ferramenta do dev segue de pe');
     if not exists (select 1 from public.ativos where id = v_solo) then
       v_ok := v_ok + 1; raise notice '✓ 6c  apagar_ativo (F23, cargo dev) continua funcionando';
     else
@@ -653,7 +653,7 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
   begin
-    perform public.apagar_ativo(v_a2, 'WAP0009101', 'admin nao pode usar a ferramenta do dev');
+    perform public.apagar_ativo(public.empresa_legada(), v_a2, 'WAP0009101', 'admin nao pode usar a ferramenta do dev');
     v_falhas := v_falhas + 1; raise warning '✗ 6d  o ADMIN executou apagar_ativo (exclusividade do dev quebrada)';
   exception when insufficient_privilege then
     v_ok := v_ok + 1; raise notice '✓ 6d  o admin continua SEM apagar_ativo — a exceção da F24 é só a mesa';
@@ -668,11 +668,11 @@ begin
   -- ==========================================================================
   -- A 0132 acrescenta `exigir_ativos_da_empresa`, chamada de dentro de
   -- `apagar_ativos_conflito_filiais` depois da etapa (3) do lock em dois tempos e
-  -- antes da revalidação do grupo. Hoje ela NÃO LEVANTA NUNCA (uma empresa só) —
-  -- então este bloco não prova recusa (não há o que recusar ainda); prova que a
-  -- FECHADURA está no lugar certo e que o caminho feliz segue de pé com ela no
-  -- meio. É o PAR da guarda no-op que a regra 1 da ordem F52 exige: um cenário
-  -- que recusaria o alheio (aqui, hoje, inerte) e um que aceita o legítimo (10d).
+  -- antes da revalidação do grupo. Até a F66 ela NÃO LEVANTAVA NUNCA (uma empresa só);
+  -- F67 (0191): recebe a empresa INFORMADA e recusa ativo de outra empresa (42501) — a
+  -- RECUSA mora em conflito_entre_empresas.sql (C*) e isolamento_tenant.sql; este bloco
+  -- prova que a FECHADURA está no lugar certo e que o caminho feliz segue de pé com ela
+  -- no meio (10d), na empresa legada.
 
   -- (a) a função existe, é SECURITY DEFINER e está FECHADA nos quatro papéis —
   --     o mesmo padrão de `import_substituir.sql:191-219` (asserção 0e), aqui
@@ -681,7 +681,7 @@ begin
   --     `public` é no-op silencioso (a lição da F50, registrada em MEMORY.md).
   select count(*) into v_n
     from (values ('anon'), ('authenticated'), ('service_role')) r(rolname)
-   where has_function_privilege(r.rolname, 'public.exigir_ativos_da_empresa(uuid[])', 'execute');
+   where has_function_privilege(r.rolname, 'public.exigir_ativos_da_empresa(uuid, uuid[])', 'execute');
 
   select v_n + count(*) into v_n
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -704,7 +704,8 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'apagar_ativos_conflito_filiais';
 
-  v_pos_call   := position('public.exigir_ativos_da_empresa(v_ids)' in v_def);
+  -- F67: a forma por empresa (0191) — a guarda recebe a empresa INFORMADA e deixou de ser no-op.
+  v_pos_call   := position('public.exigir_ativos_da_empresa(p_empresa, v_ids)' in v_def);
   v_pos_etapa3 := position('trava o RESTO do grupo' in v_def);
   v_pos_ident  := position('with ident as (' in v_def);
 
@@ -749,7 +750,7 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
   begin
-    v_jsonb := public.apagar_ativos_conflito_filiais(
+    v_jsonb := public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       array[v_t1, v_t2], 'APAGAR 2',
       'par positivo da guarda de escopo F52: exclusao legitima de conflito continua passando');
     if (v_jsonb->>'ativos')::int = 2
@@ -839,7 +840,7 @@ begin
   --     `p_backup_path` tem default null: a chamada de três argumentos é exatamente o que a
   --     mesa manda hoje para qualquer seleção pequena, e é o que não pode passar aqui.
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       v_lote, 'APAGAR 26', 'acima do teto o backup em arquivo e obrigatorio');
     v_falhas := v_falhas + 1; raise warning '✗ 11b 26 ativos SEM caminho de backup: a RPC apagou (deveria exigir arquivo)';
   exception when others then
@@ -852,7 +853,7 @@ begin
 
   -- (c) GUARDA 2, metade do PREFIXO — o objeto existe no bucket, mas fora de `conflito/`.
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       v_lote, 'APAGAR 26', 'backup que existe no bucket mas fora do prefixo conflito', v_path_fora);
     v_falhas := v_falhas + 1; raise warning '✗ 11c backup fora do prefixo conflito/ foi ACEITO';
   exception when others then
@@ -867,7 +868,7 @@ begin
   --     Fica ANTES de 11e de propósito: é a guarda que sobra quando a do digest cai, e ela
   --     precisa ser exercitada por um caminho que a do digest deixaria passar.
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       v_lote, 'APAGAR 26', 'caminho certo mas o arquivo nao foi para o bucket', v_path_fantasma);
     v_falhas := v_falhas + 1; raise warning '✗ 11d backup inexistente no bucket foi ACEITO';
   exception when others then
@@ -883,7 +884,7 @@ begin
   --     digest é o de OUTRA seleção (um subconjunto destes mesmos ids). Sem a conferência do
   --     digest, este é o backup que apagaria 26 cadastros sem conter 13 deles.
   begin
-    perform public.apagar_ativos_conflito_filiais(
+    perform public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       v_lote, 'APAGAR 26', 'exclusao de 26 conflitos acima do teto do backup inline', v_path_errado);
     v_falhas := v_falhas + 1; raise warning '✗ 11e o backup de OUTRA seleção foi aceito — a amarra pelo digest (0100) não está pegando';
   exception when others then
@@ -907,7 +908,7 @@ begin
   --     11g não fossem o mesmo cenário com o caminho trocado, a recusa de 11e poderia estar
   --     vindo de qualquer outra coisa.
   begin
-    v_jsonb := public.apagar_ativos_conflito_filiais(
+    v_jsonb := public.apagar_ativos_conflito_filiais(public.empresa_legada(),
       v_lote, 'APAGAR 26', 'exclusao de 26 conflitos acima do teto do backup inline', v_path_ok);
     select count(*) into v_n from public.ativos where id = any (v_lote);
     if (v_jsonb->>'ativos')::int = 26 and v_n = 0 then

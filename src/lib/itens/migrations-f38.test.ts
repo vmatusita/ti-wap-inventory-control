@@ -263,6 +263,22 @@ const DA_F38 = [
   '0182',
   '0183',
   '0184',
+  // F67 — o cargo POR EMPRESA (docs/PLAN-F67.md §6). A `0185` CRIA as sete funções de cargo por empresa e de unidade
+  // (nome novo); a `0186` RECRIA os sete consumidores sem par (o cargo da empresa real, ou a legada EXPLÍCITA); a `0187`
+  // só faz `alter policy`; a `0188` RECRIA `papel_atual` (o piso: o cargo mais forte); a `0189` cria as formas por
+  // empresa da gestão de contas ao lado das antigas; a `0190`, as destrutivas, a prévia e o import (e RECRIA as duas
+  // antigas de reset com a chave de advisory por empresa); a `0191`, a mesa (idem); a `0192` cria a trava do termo; a
+  // `0193` (a contração) só derruba as 21 assinaturas antigas e `e_dev()`. Nenhuma é intocável; todas entram nas
+  // exceções nominais abaixo para que as listas sejam EXAUSTIVAS, como a da 0143. Nenhuma escreve no acervo no apply.
+  '0185',
+  '0186',
+  '0187',
+  '0188',
+  '0189',
+  '0190',
+  '0191',
+  '0192',
+  '0193',
 ]
 
 /**
@@ -639,6 +655,59 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // (PLAN-F66, decisão 9). O diff do `prosrc` contra a 0143 é UMA condição por função; a equivalência antes × depois
     // (0 célula) e o md5 do corpo nos dois bancos estão em docs/f66-evidencias/.
     '0179': ['rel_por_motivo_filiais', 'rel_resumo_filiais'],
+    // 13/11/2026 — F67 (docs/PLAN-F67.md §6). Nenhuma intocável; as listas são EXAUSTIVAS sobre o que cada migration
+    // define. Criadas (nome ou assinatura nova, ao lado da antiga) e recriadas (mesma assinatura, corpo novo) juntas:
+    // a prova de cada corpo é o roteiro da fase (cargo_por_empresa, dev_destrutivo, conflito_entre_empresas,
+    // termo_bloqueado) e a conta a conta antes × depois nos dois bancos (docs/f67-evidencias/).
+    '0185': [
+      'papel_na_empresa',
+      'e_admin_na',
+      'e_dev_na',
+      'pode_escrever_na',
+      'empresa_da_filial',
+      'filial_da_empresa',
+      'pode_escrever_unidade',
+    ],
+    '0186': [
+      'pode_escrever_filial',
+      'pode_escrever_termo',
+      'pode_ler_arquivo_termo',
+      'checagens_integridade_resumo',
+      'ledger_de_migracoes',
+      'dev_checagens_integridade',
+      'ultima_migracao_aplicada',
+    ],
+    '0188': ['papel_atual'],
+    '0189': [
+      'mesmo_escopo_de_gestao',
+      'existe_outro_admin_ativo',
+      'exigir_gestao_de',
+      'definir_papel_usuario',
+      'definir_status_usuario',
+      'definir_vinculos_usuario',
+      'apagar_usuario',
+      'encerrar_sessoes_usuario',
+    ],
+    // as duas de reset aparecem DUAS vezes: a forma nova (com `p_empresa`) e a antiga recriada só com a chave de
+    // advisory por empresa (a legada) — as duas famílias não podem se cruzar durante a janela.
+    '0190': [
+      'exigir_dev_para_destruir',
+      'rotulo_alcance_reset',
+      'previa_reset',
+      'resetar_acervo',
+      'resetar_itens',
+      'resetar_acervo',
+      'resetar_itens',
+      'apagar_ativo',
+      'apagar_item',
+      'apagar_movimentacao',
+      'forcar_estado_ativo',
+      'forcar_saldo_item',
+      'importar_ativos_substituir',
+    ],
+    // a mesa: a forma nova e a antiga recriada só com a chave de advisory por empresa (pelo mesmo motivo da 0190)
+    '0191': ['exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais', 'apagar_ativos_conflito_filiais'],
+    '0192': ['empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa'],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
@@ -653,6 +722,32 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'rel_mov_por_mes',
       'rel_por_motivo',
       'rel_resumo',
+    ],
+    // F67 — a contração derruba as 21 assinaturas antigas que a expansão (0189–0191) deixou de pé e `e_dev()` (sem
+    // consumidor desde a 0186/0187). Nenhuma intocável; a lista é EXAUSTIVA. Só depois do deploy e da janela com
+    // Δ = 0 em pg_stat_statements (RUNBOOK, Anexo F67).
+    '0193': [
+      'apagar_usuario',
+      'definir_papel_usuario',
+      'definir_status_usuario',
+      'definir_vinculos_usuario',
+      'encerrar_sessoes_usuario',
+      'exigir_gestao_de',
+      'mesmo_escopo_de_gestao',
+      'apagar_ativo',
+      'apagar_item',
+      'apagar_movimentacao',
+      'forcar_estado_ativo',
+      'forcar_saldo_item',
+      'previa_reset',
+      'resetar_acervo',
+      'resetar_itens',
+      'exigir_dev_para_destruir',
+      'rotulo_alcance_reset',
+      'apagar_ativos_conflito_filiais',
+      'exigir_ativos_da_empresa',
+      'importar_ativos_substituir',
+      'e_dev',
     ],
   }
 

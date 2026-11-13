@@ -971,7 +971,7 @@ begin
   -- Fortalecer não é afrouxar: tudo o que 3i reprovava antes (o operador EXECUTAR a RPC)
   -- continua reprovando, e agora dois desfechos que passavam em silêncio também reprovam.
   begin
-    perform public.importar_ativos_substituir('{"filialId":1,"ativos":[]}'::jsonb,
+    perform public.importar_ativos_substituir(public.empresa_legada(), '{"filialId":1,"ativos":[]}'::jsonb,
                                               'backup/teste', '{}'::jsonb, '[]'::jsonb);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3i; ';
     raise warning '✗ 3i operador executou a RPC de import (deveria exigir admin)';

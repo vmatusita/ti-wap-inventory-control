@@ -1,0 +1,2 @@
+membros=16 | membros_ativos=14 | empresas=1 | filiais=6 | filiais_empresas_distintas=1 | plataforma_admins=2 | ativos=1633 | movs=3964 | termos=294
+membros por papel (papel, ativo, n): admin f 1; admin t 2; consulta t 5; dev t 2; operador f 1; operador t 5

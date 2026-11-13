@@ -367,11 +367,13 @@ export type PreviaReset = {
 export async function previaDoReset(
   bloco: 'acervo' | 'itens',
   filialId: number | null,
+  empresaId: string,
 ): Promise<PreviaReset> {
   const supabase = await sessaoDeDev()
-  // `p_filial = null` é o ALCANCE GLOBAL, valor de domínio — a porta aceita null aqui por
-  // `ALCANCE_DO_RESET` (src/lib/supabase/rpc.ts).
+  // `p_filial = null` é o "tudo" DA EMPRESA (F67: todas as filiais dela), valor de domínio — a porta aceita null aqui
+  // por `ALCANCE_DO_RESET` (src/lib/supabase/rpc.ts). O rótulo do "tudo" volta do banco com a QUANTIDADE.
   const { data, error } = await chamarRpc(supabase, 'previa_reset', {
+    p_empresa: empresaId,
     p_bloco: bloco,
     p_filial: filialId,
   })

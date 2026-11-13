@@ -1,0 +1,34 @@
+{
+  "rotulo": "f67-paridade-expansao",
+  "instrumento": "supabase/ci/impressao-schema.sql (a sonda de paridade do RUNBOOK-BANCO, 11 classes) + as variantes func/grant_func sem as 21 assinaturas que a 0193 derruba",
+  "medido_em": "2026-11-13 (ensaio: 0185–0193; produção: 0185–0192)",
+  "ensaio": {
+    "coluna":         { "objetos": 352, "fp": "c93899b1d44c6a079dfb9dc82009d88a" },
+    "constraint":     { "objetos": 209, "fp": "0b0ead9c960e8a74a2a7dd7f75fa5ba8" },
+    "enum":           { "objetos": 7,   "fp": "34837fbf7cb50082e461fd8cdad47532" },
+    "func":           { "objetos": 114, "fp": "46836858474a6b4a1abba20517479309" },
+    "grant_func":     { "objetos": 114, "fp": "df46036104300ba6ca71779ac62831fd" },
+    "indice":         { "objetos": 105, "fp": "e810d3b29e6b6ca41b6ff5f2136ad7e0" },
+    "policy":         { "objetos": 54,  "fp": "66a947ba6f67d70825dca0bfba3793d4" },
+    "policy_storage": { "objetos": 8,   "fp": "189b0335fbda8946dd16effe16c340f4" },
+    "rls_flag":       { "objetos": 28,  "fp": "0b95c89a31d36e88406a1617fa270523" },
+    "trigger":        { "objetos": 53,  "fp": "eda8b0a715458abbbc12b8f0baa1f56c" },
+    "view":           { "objetos": 9,   "fp": "48be647d2f2db5f067813f5c0ccf11f4" }
+  },
+  "producao": {
+    "coluna":                     { "objetos": 352, "fp": "c93899b1d44c6a079dfb9dc82009d88a" },
+    "constraint":                 { "objetos": 209, "fp": "0b0ead9c960e8a74a2a7dd7f75fa5ba8" },
+    "enum":                       { "objetos": 7,   "fp": "34837fbf7cb50082e461fd8cdad47532" },
+    "func":                       { "objetos": 135, "fp": "96f6822aaf1260ac6383d1b569af2177" },
+    "func_menos_contracao":       { "objetos": 114, "fp": "46836858474a6b4a1abba20517479309" },
+    "grant_func":                 { "objetos": 135, "fp": "cad6e48c12decd1a3958a6283378dfbb" },
+    "grant_func_menos_contracao": { "objetos": 114, "fp": "df46036104300ba6ca71779ac62831fd" },
+    "indice":                     { "objetos": 105, "fp": "e810d3b29e6b6ca41b6ff5f2136ad7e0" },
+    "policy":                     { "objetos": 54,  "fp": "66a947ba6f67d70825dca0bfba3793d4" },
+    "policy_storage":             { "objetos": 8,   "fp": "189b0335fbda8946dd16effe16c340f4" },
+    "rls_flag":                   { "objetos": 28,  "fp": "0b95c89a31d36e88406a1617fa270523" },
+    "trigger":                    { "objetos": 53,  "fp": "eda8b0a715458abbbc12b8f0baa1f56c" },
+    "view":                       { "objetos": 9,   "fp": "48be647d2f2db5f067813f5c0ccf11f4" }
+  },
+  "leitura": "As 9 classes que a fase não toca por assinatura (e as que toca sem trocar assinatura: policy, policy_storage, trigger, view) são idênticas nos dois bancos. func e grant_func diferem SÓ pela contração: produção sem as 21 assinaturas antigas = o ensaio contraído, fingerprint por fingerprint. Depois da 0193 em produção, as 11 classes têm de bater sem variante."
+}

@@ -30,15 +30,16 @@
 --        4b  o mesmo hash em OUTRA filial → PASSA (a janela é por filial, não global).
 --        4c  o mesmo hash na mesma filial mas fora da janela (48h atrás) → PASSA — o
 --            reimport legítimo depois de uma correção não pode ficar preso para sempre.
---   5. importar_ativos_substituir — pode_escrever_filial em CONJUNÇÃO com e_admin().
---        5a  em runtime: uma sessão de nível administrador PASSA em pode_escrever_filial
---            mesmo para uma filial que não existe — prova que a guarda de hoje não
---            recorta por vínculo nenhum.
---        5a-bis  pelo CORPO de pode_escrever_filial: o ramo que devolve true para
---            dev/admin aparece ANTES de qualquer leitura de operador_filiais — ou
---            seja, dev/admin nunca chega a ser filtrado por filial.
---        5a-ter  pelo CORPO de importar_ativos_substituir: a chamada a
---            pode_escrever_filial CONTINUA lá (a orquestradora é recriada em cadeia;
+--   5. importar_ativos_substituir — a unidade em CONJUNÇÃO com o cargo de administrador.
+--      F67 (13/11/2026; PLAN-F67 §4): a FILIAL É TESTADA ANTES DO CARGO. Até a F66, o ramo dev/admin de
+--      pode_escrever_filial devolvia true para QUALQUER filial — inclusive uma que não existe (era o que 5a provava, como
+--      par positivo); com duas empresas, "admin em algum lugar" aprovaria a filial da outra. Agora:
+--        5a  em runtime: uma sessão de nível administrador é RECUSADA em pode_escrever_filial para uma filial que não
+--            existe (a filial não tem empresa) — e PASSA numa filial da WAP (o par positivo).
+--        5a-bis  pelo CORPO de pode_escrever_unidade: o teste "a filial é desta empresa?" (filial_da_empresa) aparece
+--            ANTES do ramo que devolve true para dev/admin — o cargo nunca abre filial de outra empresa.
+--        5a-ter  pelo CORPO de importar_ativos_substituir (a forma por empresa): a chamada a
+--            pode_escrever_unidade(p_empresa, v_filial) CONTINUA lá (a orquestradora é recriada em cadeia;
 --            é exatamente o jeito como uma guarda inline se perde numa recriação
 --            futura — por isso a prova é sobre o texto vigente, não sobre memória).
 --
@@ -342,56 +343,56 @@ begin
   -- 5 — importar_ativos_substituir: pode_escrever_filial em CONJUNÇÃO
   -- =========================================================================
 
-  -- 5a — em runtime: sessão de nível administrador PASSA em pode_escrever_filial
-  -- mesmo para uma filial que NÃO EXISTE (32000) — a função não confere existência
-  -- nem vínculo nenhum para dev/admin, então "qualquer filial" é literal.
+  -- 5a — em runtime: sessão de nível administrador é RECUSADA em pode_escrever_filial para uma filial que NÃO EXISTE
+  -- (32000) — F67: a filial é testada antes do cargo, e a que não existe não tem empresa. E PASSA numa filial da WAP
+  -- (o par positivo: a recusa não é o cargo).
   -- ⚠ O `::smallint` e OBRIGATORIO aqui pelo mesmo motivo do 1a: a conversao de
   -- `integer` para `smallint` no Postgres e de ATRIBUICAO, nao implicita, e um literal
   -- cru resolve para "function does not exist" — o que ABORTA o roteiro em vez de
   -- deixar a assercao vermelha. (32000 cabe em smallint; o teto e 32767.)
-  if public.pode_escrever_filial(32000::smallint) then
+  if not public.pode_escrever_filial(32000::smallint)
+     and public.pode_escrever_filial((select min(f.id) from public.filiais f where f.empresa_id = public.empresa_legada())) then
     v_ok := v_ok + 1;
-    raise notice '✓ 5a sessão de nível administrador PASSA em pode_escrever_filial(32000::smallint), filial inexistente — o par positivo da guarda nova';
+    raise notice '✓ 5a sessão de nível administrador: a filial inexistente (32000) FECHA e uma filial da WAP abre (F67: a filial antes do cargo)';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 5a sessão de nível administrador NÃO passou em pode_escrever_filial(32000::smallint)';
+    raise warning '✗ 5a sessão de nível administrador: pode_escrever_filial(32000::smallint) = % (esperado false) e na filial da WAP = % (esperado true)',
+      public.pode_escrever_filial(32000::smallint),
+      public.pode_escrever_filial((select min(f.id) from public.filiais f where f.empresa_id = public.empresa_legada()));
   end if;
 
-  -- 5a-bis — pelo CORPO de pode_escrever_filial: o ramo dev/admin devolve true ANTES
-  -- de qualquer leitura de operador_filiais (a tabela que recorta por vínculo).
+  -- 5a-bis — pelo CORPO de pode_escrever_unidade (F67; pode_escrever_filial delega a ela): o teste de EMPRESA da filial
+  -- (`not public.filial_da_empresa(p_empresa, p_filial)`) vem ANTES do ramo dev/admin.
   --
-  -- ⚠ A ÂNCORA É A CLÁUSULA `from public.operador_filiais`, e NÃO o nome cru da tabela.
-  -- O nome cru aparece ANTES, no COMENTÁRIO da própria função ("…escreve em toda
-  -- filial, sem linha em operador_filiais"), e `pg_get_functiondef` devolve o corpo COM
-  -- os comentários — então a comparação de posições media o comentário contra o código e
-  -- reprovava uma função correta. Casar com a LEITURA é o que torna a asserção honesta.
-  select pg_get_functiondef('public.pode_escrever_filial(smallint)'::regprocedure) into v_def;
-  v_pos_dev := position('in (''dev'', ''admin'')' in v_def);
-  v_pos_fil := position('from public.operador_filiais' in v_def);
-  if v_pos_dev > 0 and v_pos_fil > 0 and v_pos_dev < v_pos_fil then
+  -- ⚠ As âncoras são as CHAMADAS (o `if not …(` e o `v_papel in (`), não os nomes crus: o comentário da função cita os
+  -- dois antes do código, e `pg_get_functiondef` devolve o corpo COM os comentários — casar com o nome cru mediria o
+  -- comentário contra o código e aprovaria uma função invertida.
+  select pg_get_functiondef('public.pode_escrever_unidade(uuid, smallint)'::regprocedure) into v_def;
+  v_pos_fil := position('if not public.filial_da_empresa(p_empresa, p_filial) then' in v_def);
+  v_pos_dev := position('if v_papel in (''dev'', ''admin'') then' in v_def);
+  if v_pos_dev > 0 and v_pos_fil > 0 and v_pos_fil < v_pos_dev then
     v_ok := v_ok + 1;
-    raise notice '✓ 5a-bis o corpo de pode_escrever_filial devolve true para dev/admin ANTES de consultar operador_filiais (posições % < %)', v_pos_dev, v_pos_fil;
+    raise notice '✓ 5a-bis o corpo de pode_escrever_unidade testa a empresa da filial ANTES do ramo dev/admin (posições % < %)', v_pos_fil, v_pos_dev;
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 5a-bis pode_escrever_filial: ramo dev/admin não aparece mais antes do recorte por filial (dev em %, operador_filiais em %)', v_pos_dev, v_pos_fil;
+    raise warning '✗ 5a-bis pode_escrever_unidade: o teste de empresa da filial não vem mais antes do ramo dev/admin (filial em %, dev/admin em %)', v_pos_fil, v_pos_dev;
   end if;
 
-  -- 5a-ter — pelo CORPO de importar_ativos_substituir: a CHAMADA nova continua lá.
+  -- 5a-ter — pelo CORPO de importar_ativos_substituir (F67: a forma por empresa, 0190): a CHAMADA continua lá.
   --
-  -- ⚠ A ÂNCORA É A CHAMADA INTEIRA (`not public.pode_escrever_filial(v_filial)`), e não
-  -- o nome cru. O comentário que a 0132 escreveu em volta da guarda CITA o nome três
-  -- vezes (é ele que explica por que a condição não deve ser "simplificada"), então uma
-  -- asserção pelo nome cru continuaria VERDE mesmo com a chamada removida — e a mutação
+  -- ⚠ A ÂNCORA É A CHAMADA INTEIRA (`not public.pode_escrever_unidade(p_empresa, v_filial)`), e não
+  -- o nome cru. O comentário em volta da guarda CITA o nome (é ele que explica por que a condição não deve ser
+  -- "simplificada"), então uma asserção pelo nome cru continuaria VERDE mesmo com a chamada removida — e a mutação
   -- `f52-import-perde-a-guarda-de-filial`, que remove exatamente o `if`, sairia como
   -- "não detectada". Uma asserção que não sabe ficar vermelha não prova nada.
-  select pg_get_functiondef('public.importar_ativos_substituir(jsonb,text,jsonb,jsonb)'::regprocedure) into v_def;
-  v_pos_call := position('not public.pode_escrever_filial(v_filial)' in v_def);
+  select pg_get_functiondef('public.importar_ativos_substituir(uuid,jsonb,text,jsonb,jsonb)'::regprocedure) into v_def;
+  v_pos_call := position('not public.pode_escrever_unidade(p_empresa, v_filial)' in v_def);
   if v_pos_call > 0 then
     v_ok := v_ok + 1;
-    raise notice '✓ 5a-ter o corpo de importar_ativos_substituir CHAMA pode_escrever_filial';
+    raise notice '✓ 5a-ter o corpo de importar_ativos_substituir CHAMA pode_escrever_unidade(p_empresa, v_filial)';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 5a-ter a chamada a pode_escrever_filial sumiu do corpo de importar_ativos_substituir';
+    raise warning '✗ 5a-ter a chamada a pode_escrever_unidade sumiu do corpo de importar_ativos_substituir';
   end if;
 
   raise notice 'FIM import_fora_da_unidade: % asserções, % falhas', v_ok + v_falhas, v_falhas;

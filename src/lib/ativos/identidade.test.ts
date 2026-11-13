@@ -3,7 +3,7 @@ import { join, relative, sep } from 'node:path'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, it } from 'vitest'
 import {
-  ALCANCE_DA_RECUSA_MANUAL,
+  alcanceDaRecusaManual,
   cadastrosComMesmaIdentidade,
   recusasDeIdentidadeNoAcervo,
   recusasDeRepeticaoNoLote,
@@ -75,12 +75,16 @@ function clienteDoAcervo(): { client: SupabaseClient<Database>; consultas: Filtr
   return { client: { from } as unknown as SupabaseClient<Database>, consultas }
 }
 
+// F67 (13/11/2026): o alcance da recusa manual é o das unidades DA EMPRESA do cadastro — aqui, as quatro filiais do
+// acervo fictício. O par que só existe numa filial de OUTRA empresa não recusa (o caso novo, abaixo).
+const UNIDADES_DA_EMPRESA = [1, 2, 3, 4] as const
+
 async function recusasDaCompra(itens: ItemComPatrimonio[]): Promise<string[]> {
   const { client } = clienteDoAcervo()
   const res = await cadastrosComMesmaIdentidade(
     client,
     itens.map((i) => ({ patrimonio: i.patrimonio, serviceTag: i.service_tag })),
-    { alcance: ALCANCE_DA_RECUSA_MANUAL },
+    { alcance: alcanceDaRecusaManual(UNIDADES_DA_EMPRESA) },
   )
   if (!res.ok) throw new Error(res.erro.message)
   return [...recusasDeRepeticaoNoLote(itens), ...recusasDeIdentidadeNoAcervo(itens, res.porChave)]
@@ -125,7 +129,7 @@ describe('cadastrosComMesmaIdentidade — a consulta única', () => {
     const res = await cadastrosComMesmaIdentidade(
       client,
       [{ patrimonio: null, serviceTag: 'SEMPLACA-7' }],
-      { alcance: ALCANCE_DA_RECUSA_MANUAL },
+      { alcance: alcanceDaRecusaManual(UNIDADES_DA_EMPRESA) },
     )
     expect(res.ok && [...res.porChave.values()].flat()).toEqual([
       { ativoId: 'a3', filialId: 4, filialNome: 'Delta' },
@@ -137,7 +141,7 @@ describe('cadastrosComMesmaIdentidade — a consulta única', () => {
     const res = await cadastrosComMesmaIdentidade(
       client,
       [{ patrimonio: 'WAP0001234', serviceTag: 'ST-01' }],
-      { alcance: ALCANCE_DA_RECUSA_MANUAL, excetoAtivoId: 'a1' },
+      { alcance: alcanceDaRecusaManual(UNIDADES_DA_EMPRESA), excetoAtivoId: 'a1' },
     )
     expect(res.ok && res.porChave.size).toBe(0)
   })
@@ -154,7 +158,17 @@ describe('cadastrosComMesmaIdentidade — a consulta única', () => {
     expect(consultas.flat()).toContainEqual({ metodo: 'eq', coluna: 'filial_id', valor: 2 })
   })
 
-  it('com o alcance da recusa manual, nenhuma cláusula de filial é aplicada', async () => {
+  it('o par que só existe numa filial de OUTRA empresa não recusa (F67: a identidade é por empresa)', async () => {
+    // As unidades da empresa do cadastro são a 1 e a 2; o WAP0001234 sem tag está na Charlie (3), que é de outra
+    // empresa — não é o mesmo equipamento, e a compra passa.
+    const { client } = clienteDoAcervo()
+    const res = await cadastrosComMesmaIdentidade(client, [{ patrimonio: 'WAP0001234', serviceTag: null }], {
+      alcance: alcanceDaRecusaManual([1, 2]),
+    })
+    expect(res.ok && res.porChave.size).toBe(0)
+  })
+
+  it('com o alcance da recusa manual, a cláusula é a das unidades DA EMPRESA (F67) — e nenhuma outra de filial', async () => {
     const { client, consultas } = clienteDoAcervo()
     await cadastrosComMesmaIdentidade(
       client,
@@ -162,16 +176,19 @@ describe('cadastrosComMesmaIdentidade — a consulta única', () => {
         { patrimonio: 'WAP0001234', serviceTag: null },
         { patrimonio: null, serviceTag: 'SEMPLACA-7' },
       ],
-      { alcance: ALCANCE_DA_RECUSA_MANUAL },
+      { alcance: alcanceDaRecusaManual(UNIDADES_DA_EMPRESA) },
     )
     expect(consultas).toHaveLength(2)
-    expect(consultas.flat().filter((f) => f.coluna === 'filial_id')).toEqual([])
+    expect(consultas.flat().filter((f) => f.coluna === 'filial_id')).toEqual([
+      { metodo: 'in', coluna: 'filial_id', valor: [...UNIDADES_DA_EMPRESA] },
+      { metodo: 'in', coluna: 'filial_id', valor: [...UNIDADES_DA_EMPRESA] },
+    ])
   })
 
   it('par sem identidade (sem patrimônio e sem tag) não consulta nada', async () => {
     const { client, consultas } = clienteDoAcervo()
     const res = await cadastrosComMesmaIdentidade(client, [{ patrimonio: null, serviceTag: '' }], {
-      alcance: ALCANCE_DA_RECUSA_MANUAL,
+      alcance: alcanceDaRecusaManual(UNIDADES_DA_EMPRESA),
     })
     expect(res.ok && res.porChave.size).toBe(0)
     expect(consultas).toEqual([])
@@ -270,7 +287,7 @@ describe('a régua de identidade mora num lugar só (src/lib/ativos/identidade.t
     expect(nasQueries).toEqual(esperado)
   })
 
-  it('as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades', () => {
+  it('as três recusas de cadastro chamam a consulta única, com o alcance de TODAS as unidades DA EMPRESA', () => {
     // A metade de PRESENÇA. Trocar o alcance numa action (recortar a compra por filial) derruba
     // este teste: é a mudança de regra da spec §10.2, e ela não pode entrar em silêncio.
     for (const arquivo of [
@@ -283,7 +300,7 @@ describe('a régua de identidade mora num lugar só (src/lib/ativos/identidade.t
       expect(chamadas.length, `${arquivo}: chama a consulta única`).toBeGreaterThan(0)
       for (const args of chamadas) {
         expect(args, `${arquivo}: cadastrosComMesmaIdentidade(${args})`).toMatch(
-          /alcance:\s*ALCANCE_DA_RECUSA_MANUAL\b/,
+          /alcance:\s*alcanceDaRecusaManual\(/,
         )
       }
     }

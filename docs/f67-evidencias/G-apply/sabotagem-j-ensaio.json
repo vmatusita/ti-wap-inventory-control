@@ -1,0 +1,14 @@
+{
+  "alvo": "ensaio (sgmvldiizsrjbxzzpmhh)",
+  "quando": "2026-11-13T15:53:09.362Z",
+  "e_dev() — a assinatura ANTIGA, derrubada pela 0193": {
+    "http": 404,
+    "code": "PGRST202",
+    "message": "Could not find the function public.e_dev without parameters in the schema cache"
+  },
+  "e_dev_na(p_empresa) — a forma NOVA, viva (anon sem EXECUTE)": {
+    "http": 401,
+    "code": "42501",
+    "message": "permission denied for function e_dev_na"
+  }
+}

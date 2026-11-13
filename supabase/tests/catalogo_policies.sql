@@ -162,13 +162,39 @@ declare
   --                                   ela é `security invoker` e quem recorta o que cada um vê é a RLS. É FUNÇÃO, e não
   --                                   view, porque a 7c de empresa_no_acervo.sql recusa view que leia a coluna (sem
   --                                   lista de exceção) — a exceção nominal, por comando, mora aqui.
+  -- F67 (13/11/2026) — DOZE, de uma classe NOVA: o RECORTE DA `security definer` (docs/PLAN-F67.md, decisão 5). Uma
+  -- `security definer` atravessa a RLS por construção, então a empresa de quem opera se confere NO CORPO — e as
+  -- destrutivas da Zona, a prévia, o rótulo do "tudo", a mesa e a guarda dela leem `empresa_id` para recortar pela
+  -- EMPRESA INFORMADA (`empresa_id = p_empresa`, a linha `x.empresa_id` da própria tabela) e GRAVAM a empresa alvo na
+  -- trilha (`eventos_admin.empresa_id`, decisão 1 do Johnny de 13/11 — e, nas duas de forçar, a linha que inserem no
+  -- acervo, decisão 18). Cada uma só com as tabelas DELA, a leitura provada por comando:
+  --   · resetar_acervo / resetar_itens (0190) — o "tudo" é todas as filiais DESTA empresa, em todo comando do alcance;
+  --   · previa_reset (0190)                   — o espelho exato das contagens dos dois resets;
+  --   · rotulo_alcance_reset (0190)           — a quantidade da confirmação do "tudo" (count dos ativos / lançamentos);
+  --   · apagar_ativo / apagar_item / apagar_movimentacao / forcar_estado_ativo / forcar_saldo_item (0190)
+  --                                           — a linha (ou o item) é da empresa informada; a trilha com a empresa;
+  --   · apagar_ativos_conflito_filiais (0191) — o grupo recalculado DENTRO da empresa; a trilha com a empresa;
+  --   · exigir_ativos_da_empresa (0191)       — a guarda de pertencimento da mesa (era no-op da F52);
+  --   · termo_exige_modelo_da_empresa (0192)  — o gatilho da trava do termo lê `new.empresa_id` (só `termos_gerados`).
   k_leitura_tenant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
     'vocabulario_unidades_guarda:filiais,unidades_apelidos',
     'rel_por_motivo_filiais:movimentacoes,motivos',
     'rel_resumo_filiais:movimentacoes,motivos,ativos',
-    'colaboradores_uso_efetivo:colaboradores,movimentacoes,lancamentos_item,ativos'
+    'colaboradores_uso_efetivo:colaboradores,movimentacoes,lancamentos_item,ativos',
+    'resetar_acervo:ativos,movimentacoes,anotacoes,pendencias_item,termos_gerados,eventos_admin',
+    'resetar_itens:lancamentos_item,eventos_admin',
+    'previa_reset:ativos,movimentacoes,anotacoes,pendencias_item,termos_gerados,lancamentos_item',
+    'rotulo_alcance_reset:ativos,lancamentos_item',
+    'apagar_ativo:ativos,eventos_admin',
+    'apagar_item:itens,eventos_admin',
+    'apagar_movimentacao:movimentacoes,eventos_admin',
+    'forcar_estado_ativo:ativos,movimentacoes,eventos_admin',
+    'forcar_saldo_item:itens,lancamentos_item,eventos_admin',
+    'apagar_ativos_conflito_filiais:ativos,eventos_admin',
+    'exigir_ativos_da_empresa:ativos',
+    'termo_exige_modelo_da_empresa:termos_gerados'
   ];
 
   -- =======================================================================
@@ -328,9 +354,17 @@ declare
     'anotacoes', 'ativos', 'colaboradores', 'filiais', 'import_prefixos_patrimonio',
     'import_termos_categoria', 'import_termos_estado', 'itens', 'kits_modelos',
     'lancamentos_item', 'membros', 'motivos', 'movimentacoes', 'operador_filiais',
-    'pendencias_item', 'profiles', 'relatorios_gerados', 'termos_gerados', 'tipos_item',
+    'pendencias_item', 'relatorios_gerados', 'termos_gerados', 'tipos_item',
     'unidades_apelidos'
   ];
+
+  -- F67 (13/11/2026): `profiles` SAIU do piso — a policy de SELECT dela não tinha par (a tabela não
+  -- tem `empresa_id`), e o piso passou a "o cargo mais forte em ALGUMA empresa" (0188). Sem par, ele
+  -- daria a quem é só de outra empresa a leitura dos perfis da WAP. A 0187 a passou à forma por
+  -- empresa com a legada EXPLÍCITA (`papel_na_empresa(empresa_legada()) is not null`), que mantém o
+  -- gate da 0070 (desativado não lê) — destino F69, a leitura de perfis por empresa. A 6a-bis
+  -- confere a forma; a 6c a conta no universo.
+  k_piso_legada text[] := array['profiles'];
 
   -- As TRÊS que decidem por CARGO em vez do piso, e por quê — congeladas junto, para
   -- que uma delas afrouxar para `papel_atual()` (que é MAIS permissivo) reprove:
@@ -767,6 +801,28 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
+  -- 6a-bis — F67: a policy de SELECT das tabelas de `k_piso_legada` cita a forma por empresa com a
+  -- legada EXPLÍCITA (`papel_na_empresa` e `empresa_legada`) e NÃO o piso (`papel_atual`).
+  select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
+    into v_cnt, v_lista
+    from unnest(k_piso_legada) as nome
+   where not exists (
+     select 1 from pg_policies p
+      where p.schemaname = 'public' and p.tablename = nome and p.cmd = 'SELECT'
+        and coalesce(p.qual, '') ilike '%papel_na_empresa%'
+        and coalesce(p.qual, '') ilike '%empresa_legada%'
+        and coalesce(p.qual, '') not ilike '%papel_atual%'
+   );
+  if pg_temp.assert_zero_de(
+       '6a-bis as policies de SELECT sem par (' || array_length(k_piso_legada, 1) ||
+       ') leem pela forma por empresa com a legada explícita, não pelo piso' ||
+       case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
+       v_cnt, array_length(k_piso_legada, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
   select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
     into v_cnt, v_lista
     from unnest(k_piso_cargo) as nome
@@ -810,9 +866,10 @@ begin
     from pg_policies p
    where p.schemaname = 'public' and p.cmd = 'SELECT'
      and not (p.tablename = any (k_piso_papel))
-     and not (p.tablename = any (k_piso_cargo));
+     and not (p.tablename = any (k_piso_cargo))
+     and not (p.tablename = any (k_piso_legada));
   if pg_temp.assert_zero_de(
-       '6c toda policy de SELECT de public está numa das duas listas do piso' ||
+       '6c toda policy de SELECT de public está numa das três listas do piso' ||
        case when v_cnt > 0 then ' — não decidida(s): ' || v_lista else '' end,
        v_cnt, v_univ) then
     v_ok := v_ok + 1;

@@ -1571,6 +1571,8 @@ export type Database = {
           chave: string | null
           colaborador_atual: string | null
           created_at: string | null
+          // F67 hand-fix (13/11/2026): a empresa da filial, a partição da 0191 (no fim da view).
+          empresa: string | null
           entrada_em: string | null
           filial: string | null
           filial_id: number | null
@@ -1602,6 +1604,8 @@ export type Database = {
           algum_com_historico_real: boolean | null
           ativos: number | null
           chave: string | null
+          // F67 hand-fix (13/11/2026): a partição da 0191.
+          empresa: string | null
           filiais: number | null
           filiais_nomes: string | null
           patrimonio: string | null
@@ -1704,10 +1708,13 @@ export type Database = {
       }
     }
     Functions: {
+      // F67 hand-fix (13/11/2026): as assinaturas com p_empresa (0189–0191; a contração 0193 derrubou as antigas)
+      // escritas à mão antes do apply; a geração do MCP de produção, depois da contração, as substitui.
       apagar_ativo: {
         Args: {
           p_ativo: string
           p_confirmacao: string
+          p_empresa: string
           p_justificativa: string
         }
         Returns: Json
@@ -1717,19 +1724,33 @@ export type Database = {
           p_ativos: string[]
           p_backup_path?: string
           p_confirmacao: string
+          p_empresa: string
           p_justificativa: string
         }
         Returns: Json
       }
       apagar_item: {
-        Args: { p_confirmacao: string; p_item: number; p_justificativa: string }
+        Args: {
+          p_confirmacao: string
+          p_empresa: string
+          p_item: number
+          p_justificativa: string
+        }
         Returns: Json
       }
       apagar_movimentacao: {
-        Args: { p_confirmacao: string; p_justificativa: string; p_mov: string }
+        Args: {
+          p_confirmacao: string
+          p_empresa: string
+          p_justificativa: string
+          p_mov: string
+        }
         Returns: Json
       }
-      apagar_usuario: { Args: { p_alvo: string }; Returns: undefined }
+      apagar_usuario: {
+        Args: { p_alvo: string; p_empresa: string }
+        Returns: undefined
+      }
       chave_identidade_ativo: {
         Args: { p_patrimonio: string; p_service_tag: string }
         Returns: string
@@ -1801,6 +1822,7 @@ export type Database = {
       definir_papel_usuario: {
         Args: {
           p_alvo: string
+          p_empresa: string
           p_papel: Database["public"]["Enums"]["papel_usuario"]
         }
         Returns: undefined
@@ -1816,11 +1838,11 @@ export type Database = {
         Returns: undefined
       }
       definir_status_usuario: {
-        Args: { p_alvo: string; p_ativo: boolean }
+        Args: { p_alvo: string; p_ativo: boolean; p_empresa: string }
         Returns: undefined
       }
       definir_vinculos_usuario: {
-        Args: { p_alvo: string; p_filiais: number[] }
+        Args: { p_alvo: string; p_empresa: string; p_filiais: number[] }
         Returns: undefined
       }
       desfazer_confirmacao_termo_com_anotacao: {
@@ -1854,14 +1876,21 @@ export type Database = {
       }
       digest_selecao_conflito: { Args: { p_ativos: string[] }; Returns: string }
       e_admin: { Args: never; Returns: boolean }
-      e_dev: { Args: never; Returns: boolean }
+      // F67 hand-fix (13/11/2026): as cinco funções de cargo POR EMPRESA e as duas de filial (0185); e_dev() saiu (0193).
+      e_admin_na: { Args: { p_empresa: string }; Returns: boolean }
+      e_dev_na: { Args: { p_empresa: string }; Returns: boolean }
       // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
       e_plataforma: { Args: never; Returns: boolean }
+      empresa_da_filial: { Args: { p_filial: number }; Returns: string }
       empresa_legada: { Args: never; Returns: string }
+      empresas_com_modelo_de_termo: { Args: never; Returns: string[] }
       empresas_de_admin: { Args: never; Returns: string[] }
       empresas_de_escrita: { Args: never; Returns: string[] }
       empresas_do_membro: { Args: never; Returns: string[] }
-      encerrar_sessoes_usuario: { Args: { p_alvo: string }; Returns: number }
+      encerrar_sessoes_usuario: {
+        Args: { p_alvo: string; p_empresa: string }
+        Returns: number
+      }
       estornar_movimentacao_com_itens: {
         Args: {
           p_criado_por: string
@@ -1876,17 +1905,18 @@ export type Database = {
         Returns: boolean
       }
       exigir_ativos_da_empresa: {
-        Args: { p_ids: string[] }
+        Args: { p_empresa: string; p_ids: string[] }
         Returns: undefined
       }
       exigir_dev_para_destruir: {
-        Args: { p_justificativa: string }
+        Args: { p_empresa: string; p_justificativa: string }
         Returns: undefined
       }
       exigir_gestao_de: {
         Args: {
           p_alvo: string
-          p_papel_pedido?: Database["public"]["Enums"]["papel_usuario"]
+          p_empresa: string
+          p_papel_pedido: Database["public"]["Enums"]["papel_usuario"]
         }
         Returns: undefined
       }
@@ -1898,9 +1928,14 @@ export type Database = {
         Args: { p_escopo?: string; p_excluindo: string }
         Returns: boolean
       }
+      filial_da_empresa: {
+        Args: { p_empresa: string; p_filial: number }
+        Returns: boolean
+      }
       forcar_estado_ativo: {
         Args: {
           p_ativo: string
+          p_empresa: string
           p_justificativa: string
           p_status: Database["public"]["Enums"]["status_ativo"]
         }
@@ -1908,6 +1943,7 @@ export type Database = {
       }
       forcar_saldo_item: {
         Args: {
+          p_empresa: string
           p_filial: number
           p_item: number
           p_justificativa: string
@@ -1975,6 +2011,7 @@ export type Database = {
           p_backup_path: string
           p_contagens: Json
           p_correcoes?: Json
+          p_empresa: string
           p_plano: Json
         }
         Returns: Json
@@ -1991,7 +2028,10 @@ export type Database = {
           versao: string
         }[]
       }
-      mesmo_escopo_de_gestao: { Args: { p_alvo: string }; Returns: boolean }
+      mesmo_escopo_de_gestao: {
+        Args: { p_alvo: string; p_empresa: string }
+        Returns: boolean
+      }
       mov_da_carga_import: { Args: { p_observacao: string }; Returns: boolean }
       movimentacao_abrir_pendencias_item: {
         Args: {
@@ -2035,13 +2075,22 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["papel_usuario"]
       }
+      papel_na_empresa: {
+        Args: { p_empresa: string }
+        Returns: Database["public"]["Enums"]["papel_usuario"]
+      }
       pode_escrever: { Args: never; Returns: boolean }
       pode_escrever_arquivo_termo: {
         Args: { p_nome: string }
         Returns: boolean
       }
       pode_escrever_filial: { Args: { fid: number }; Returns: boolean }
+      pode_escrever_na: { Args: { p_empresa: string }; Returns: boolean }
       pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
+      pode_escrever_unidade: {
+        Args: { p_empresa: string; p_filial: number }
+        Returns: boolean
+      }
       pode_ler_arquivo_termo: { Args: { p_nome: string }; Returns: boolean }
       prefixo_backup_conflito: { Args: never; Returns: string }
       prefixo_backup_import: { Args: { p_filial: number }; Returns: string }
@@ -2050,7 +2099,7 @@ export type Database = {
         Returns: string
       }
       previa_reset: {
-        Args: { p_bloco: string; p_filial: number }
+        Args: { p_bloco: string; p_empresa: string; p_filial: number }
         Returns: Json
       }
       reabrir_pendencias_item_com_estornos: {
@@ -2160,6 +2209,7 @@ export type Database = {
           p_backup_path: string
           p_confirmacao: string
           p_contagens: Json
+          p_empresa: string
           p_filial: number
           p_justificativa: string
         }
@@ -2174,6 +2224,7 @@ export type Database = {
           p_backup_path: string
           p_confirmacao: string
           p_contagens: Json
+          p_empresa: string
           p_filial: number
           p_justificativa: string
         }
@@ -2189,7 +2240,10 @@ export type Database = {
         }
         Returns: Json
       }
-      rotulo_alcance_reset: { Args: { p_filial: number }; Returns: string }
+      rotulo_alcance_reset: {
+        Args: { p_bloco: string; p_empresa: string; p_filial: number }
+        Returns: string
+      }
       rotulo_de_ambiente: { Args: never; Returns: string }
       status_apos_movimentacao: {
         Args: {

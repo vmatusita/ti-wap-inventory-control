@@ -392,7 +392,7 @@ begin
                          'categoria','notebook','estadoAlvo','em_estoque')
     )
   );
-  v_result := public.importar_ativos_substituir(
+  v_result := public.importar_ativos_substituir(public.empresa_legada(),
     p_plano_a,
     v_prefixo_a || 'existe.json',
     jsonb_build_object('ativos',0,'movimentacoes',0,'anotacoes',0,'termos',0)   -- filial nova = 0,0,0,0
@@ -447,7 +447,7 @@ begin
   -- ---------------------------------------------------------------
   p_plano_a2 := p_plano_a || jsonb_build_object('arquivoHash', 'ZZF19HASHA2');
   begin
-    v_result := public.importar_ativos_substituir(p_plano_a2, v_prefixo_a || 'existe.json', null::jsonb);
+    v_result := public.importar_ativos_substituir(public.empresa_legada(), p_plano_a2, v_prefixo_a || 'existe.json', null::jsonb);
     v_falhas := v_falhas + 1; raise warning '✗ 2 contagens NULL: NÃO falhou (deveria)';
   exception when others then
     if sqlerrm like '%contagens%' or sqlerrm like '%preview%' then
@@ -462,7 +462,7 @@ begin
   --   destrutivo exige backup do acervo da filial antes do delete).
   -- ---------------------------------------------------------------
   begin
-    v_result := public.importar_ativos_substituir(
+    v_result := public.importar_ativos_substituir(public.empresa_legada(),
       p_plano_a, '',
       jsonb_build_object('ativos',2,'movimentacoes',2,'anotacoes',0,'termos',0)
     );
@@ -499,7 +499,7 @@ begin
                          'categoria','notebook','estadoAlvo','em_estoque')
     )
   );
-  v_result := public.importar_ativos_substituir(
+  v_result := public.importar_ativos_substituir(public.empresa_legada(),
     p_plano_b,
     v_prefixo_b || 'existe.json',
     jsonb_build_object('ativos',1,'movimentacoes',0,'anotacoes',0,'termos',0)   -- reflete o vivo (1 pré-existente, 0 movs)
@@ -676,7 +676,7 @@ begin
   );
   set constraints all immediate;
   begin
-    v_result5 := public.importar_ativos_substituir(
+    v_result5 := public.importar_ativos_substituir(public.empresa_legada(),
       p_plano_d,
       v_prefixo_d || 'existe.json',
       jsonb_build_object(

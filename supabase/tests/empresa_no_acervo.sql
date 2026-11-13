@@ -60,7 +60,11 @@ declare
   -- empresa dela (junção, não recorte).
   k_leitura_tenant_nomes constant text[] := array['guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
                                                   'rel_por_motivo_filiais', 'rel_resumo_filiais',
-                                                  'colaboradores_uso_efetivo'];
+                                                  'colaboradores_uso_efetivo',
+                                                  'resetar_acervo', 'resetar_itens', 'previa_reset', 'rotulo_alcance_reset',
+                                                  'apagar_ativo', 'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo',
+                                                  'forcar_saldo_item', 'apagar_ativos_conflito_filiais',
+                                                  'exigir_ativos_da_empresa', 'termo_exige_modelo_da_empresa'];
   k_autor   constant uuid := '63000000-0000-4000-8000-000000000001';
   -- uma empresa que NÃO existe (o v4 fictício) — o alvo da FK
   k_fantasma constant uuid := '63000000-0000-4000-8000-0000000000f0';
@@ -191,9 +195,15 @@ begin
         when 'termos_gerados' then
           -- movimentação e ativo PRÓPRIOS (os arrays não têm FK, fato 4): com os do termo do bloco 1, o
           -- unique do termo recusava antes da FK (23505 — medido no CI, run 35867455348).
+          -- F67 (13/11/2026): a TRAVA DO TERMO (0192, BEFORE INSERT) recusa a empresa sem modelo próprio ANTES da
+          -- FK (42501). Aqui se prova a FK, então a trava sai do caminho NESTA subtransação: a recusa da FK desfaz
+          -- o savepoint do bloco, e com ele o `disable`; se o insert passasse, o `enable` logo abaixo a devolve. A
+          -- recusa da trava em si é supabase/tests/termo_bloqueado.sql.
+          execute 'alter table public.termos_gerados disable trigger termo_exige_modelo_da_empresa';
           insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por, empresa_id)
           values (gen_random_uuid(), 'responsabilidade_notebook', array[gen_random_uuid()], array[v_ativo2], 'Fulano ZZF63', '{}'::jsonb,
                   'f63-fantasma.docx', k_autor, k_fantasma);
+          execute 'alter table public.termos_gerados enable trigger termo_exige_modelo_da_empresa';
       end case;
       v_ruins := v_ruins + 1; v_rot := v_rot || ' ' || v_txt || '(passou)';
     exception

@@ -186,6 +186,15 @@
     "0181_comprimento_cadastros_do_acervo.sql": "bc98520380fd420dd22b843c89ca1e6c9df60a33483345d07459377b437bef76",
     "0182_comprimento_movimento_do_acervo.sql": "d275ba1302fa721756dfe990e2c44fb1da882c41443beb3303cdf81cdc98f907",
     "0183_comprimento_vocabulario.sql": "36d449d7e56e37b45021e40d6996cc3c750f7ed5dd842640cd8ad5f470279ad9",
-    "0184_comprimento_registros.sql": "3061b992cd461b5e805d7a40336fe8eb87199ed3db6a4e6591aea380be16601c"
+    "0184_comprimento_registros.sql": "3061b992cd461b5e805d7a40336fe8eb87199ed3db6a4e6591aea380be16601c",
+    "0185_cargo_por_empresa.sql": "db96c54ba9af52a687b330aed8429779e7b7ffd09daa2ce98bde183a3223e0dc",
+    "0186_consumidores_por_empresa.sql": "5c0147b8a28f13dac91f38ffefc16cf2d41868c0f96eafb1cb571bb35f0bc12c",
+    "0187_policies_sem_par_por_empresa.sql": "29dc759c81fc152cc22461bdf2e562419b7560e3648c54ae1c15205c8c848052",
+    "0188_piso_cargo_mais_forte.sql": "4bf433fc88bb5cb22793ad060ede38fd2afa3b11deabb659786f9abe06e787bc",
+    "0189_gestao_de_contas_por_empresa.sql": "1adc580512bd33e9e8f7605145429d2705b9c27845e29b8cde367feb597390a2",
+    "0190_destrutivas_por_empresa.sql": "ba84a766a36eb0dbd22847151c0b3361d874c0e278e513970c07a5f7182eeeb1",
+    "0191_mesa_por_empresa.sql": "63032300f00877ab57de72c6ab711e0bb2ca21be67f9dc90187d38385eeb23b4",
+    "0192_termo_por_empresa.sql": "a966265415a6ef7893c9dce8b382664cc0b101af32e74b954ed8f2812b2c5da9",
+    "0193_contracao_assinaturas_antigas.sql": "a7e750328fecbf3d946eadff0560e63c594b2cb79c5218a57b16d019052cc740"
   }
 }

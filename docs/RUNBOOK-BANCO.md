@@ -1918,3 +1918,88 @@ backup), e a restauração se repete. Nunca cortar o valor do backup.
 - **Depois do rollback**, a defesa contra o texto longo volta a ser só o Zod. Nenhum dado se perde.
 - **Entre fases:** o da F66B vem ANTES dos da F65, F64, F63 e F62 (os ensaios da F65, F64 e F63 comparam uma impressão
   que lê toda constraint das tabelas — medido, reprovam sem ele); o da F66 não depende dele.
+
+## Anexo F67 — trocar a ASSINATURA sem trocar o NOME (13/11/2026)
+
+A F67 deu `p_empresa uuid` como 1º argumento a 20 funções que o app chama (as cinco de conta e as duas auxiliares, as oito
+da Zona destrutiva, a prévia e as duas auxiliares, a mesa e a guarda dela, o import) **sem trocar o nome** — a regra é a
+R-ACC-127 da MATRIZ, e o desenho é a decisão 13/11-2 do Johnny: expandir e contrair, zero janela. É a receita "A janela
+do `drop`" (F60, acima) com uma diferença que muda a medição: **a antiga e a nova têm o MESMO nome**.
+
+### A receita: expansão → deploy → a janela → contração
+
+1. **A expansão** (`0185`–`0192`, um lote por família): a forma nova nasce AO LADO da antiga (`create function` com a
+   assinatura nova — uma sobrecarga, viva só nos bancos e só até a contração). A antiga não muda de comportamento: na F67 só
+   ganhou a chave de advisory por empresa (as duas de reset e a mesa — as duas famílias não podem se cruzar na janela),
+   declarado. **Nenhuma sobrecarga pode ter default que colapse a aridade** (`exigir_gestao_de` nova nasceu sem default
+   por isso): `chamarRpc` e o PostgREST resolvem pelo CONJUNTO de argumentos nomeados, e duas formas que aceitem o mesmo
+   conjunto dão 300 (ambíguo) na cara de quem opera.
+2. **Antes do primeiro lote**, nos dois bancos: o conta a conta "antes" (`scripts/perf/conta-a-conta.mjs gerar --fase
+   f67-antes`) e, em produção, os dois números do alarme #84. Depois de CADA lote: o md5 do `prosrc` de cada função tocada
+   = o do CI; as antigas byte a byte (salvo a chave de advisory declarada); as policies = o CI; o conta a conta
+   `f67-depois` (0 divergência).
+3. **Produção recebe só a expansão ANTES do merge** (dentro de 24 h do commit das migrations); o app novo vai ao ar pelo
+   merge; o ensaio recebe a cadeia inteira (lá a contração não espera deploy).
+4. **A janela do `drop`**, como a da F60 (passos 1–7), com a leitura T0/T1 trocada — o nome não separa a antiga da nova; o
+   **argumento nomeado** separa. O PostgREST chama `"public"."apagar_ativo"("p_ativo" := …)` na forma antiga e
+   `"public"."apagar_ativo"("p_empresa" := …, …)` na nova:
+
+   ```sql
+   select jsonb_build_object(
+     'agora',       now(),
+     'dealloc',     (select dealloc from pg_stat_statements_info),
+     'stats_reset', (select stats_reset from pg_stat_statements_info),
+     'por_papel', coalesce((
+       select jsonb_agg(x order by x.nome, x.forma, x.papel) from (
+         select n.nome,
+                case when s.query ~ 'p_empresa' then 'nova' else 'antiga' end as forma,
+                r.rolname as papel, sum(s.calls) as chamadas, count(*) as formas_de_statement
+           from pg_stat_statements s
+           join pg_roles r on r.oid = s.userid
+           cross join (values
+             ('apagar_usuario'), ('definir_papel_usuario'), ('definir_status_usuario'), ('definir_vinculos_usuario'),
+             ('encerrar_sessoes_usuario'), ('apagar_ativo'), ('apagar_item'), ('apagar_movimentacao'),
+             ('forcar_estado_ativo'), ('forcar_saldo_item'), ('previa_reset'), ('resetar_acervo'), ('resetar_itens'),
+             ('apagar_ativos_conflito_filiais'), ('importar_ativos_substituir'), ('e_dev')
+           ) as n(nome)
+          where s.query ~ ('"' || n.nome || '"\s*\(')
+            and r.rolname in ('authenticated', 'service_role', 'anon')
+          group by 1, 2, 3
+       ) x), '[]'::jsonb)
+   ) as janela;
+   ```
+
+   (as auxiliares `exigir_gestao_de`, `mesmo_escopo_de_gestao`, `exigir_dev_para_destruir`, `rotulo_alcance_reset` e
+   `exigir_ativos_da_empresa` não são alcançáveis pela API — fechadas nos quatro papéis — e não entram na janela; quem as
+   chama são as RPCs). **O critério** é o (a)–(d) da F60 para a forma `antiga`: Δ = 0 em `authenticated`, `service_role`
+   e `anon`, `dealloc` e `stats_reset` iguais. **Função rara**: as destrutivas, o import e a gestão de contas quase nunca
+   são chamadas — o Δ da forma `nova` pode sair 0 numa janela sem uso, e isso é declarado, não reprova; a prova de que
+   ninguém chama a antiga é ENTÃO a estática, rodada antes do T1, e as duas partes têm de valer:
+   - nenhuma chamada pela API do Supabase fora da porta tipada (que exige `p_empresa` pelo `database.ts`):
+     ```bash
+     git grep -nE "\.rpc\(\s*['\"](apagar_usuario|definir_(papel|status|vinculos)_usuario|encerrar_sessoes_usuario|apagar_(ativo|item|movimentacao)|forcar_(estado_ativo|saldo_item)|previa_reset|resetar_(acervo|itens)|apagar_ativos_conflito_filiais|importar_ativos_substituir|e_dev)['\"]" -- 'src/**' 'scripts/**' ':!**/*.test.*'
+     ```
+     tem de sair VAZIO;
+   - `npx vitest run src/lib/auth/empresa-legada-catraca.test.ts` verde — toda chamada pela porta de cada uma dessas RPCs
+     passa `p_empresa`; e o SHA no ar (`/api/saude`) = o do merge.
+5. **A contração** (`0193`): `drop function` das antigas e de `e_dev()`, **sem** `if exists` e **sem** `cascade`;
+   `notify pgrst, 'reload schema'`. Depois: a prova de ausência (`to_regprocedure` nulo nas 21), o conta a conta, o smoke,
+   o conferidor de formas, os advisors e a paridade ensaio × produção (agora iguais).
+
+### O rollback da F67 — os dois estados
+
+- **Quando:** o conta a conta deu divergência; o smoke, o conferidor ou um advisor novo que cite objeto da fase reprovou.
+  Em produção, **imediato**, antes do diagnóstico, sem merge.
+- **O arquivo:** `supabase/rollback/F67-desfaz.sql` — `0193` → `0185`, GERADO das migrations (os corpos e os comentários de
+  antes da 0185, byte a byte; as nove policies pelo replay da trava de mesa) e da ACL da cadeia até a 0184. **Idempotente
+  nos DOIS estados** em que produção pode estar: só a expansão (as antigas existem — `create or replace` lhes devolve o
+  corpo de antes) e expansão + contração (as antigas não existem — `create or replace` as recria com a ACL). As duas views
+  da mesa saem e voltam (`create or replace view` não tira coluna), com a ACL guardada antes do `drop` e devolvida grantee
+  a grantee. Num banco vivo: o `execute_sql` com o conteúdo EXATO do arquivo, uma transação. O ledger fica.
+- **Ensaio:** `supabase/tests/f67_rollback.sql` no CI — o contraído, o mesmo de novo, e o só-expansão (reaplicando as
+  oito da expansão em cima do primeiro rollback) contra a impressão do CI antes da 0185; `rollback-f67.test.ts` na mesa.
+- **Depois do rollback**, a ponte volta: o cargo de todo mundo volta a vir da WAP. Com uma segunda empresa COM dado
+  (F73), não rode: o cargo da B passaria a vir da WAP.
+- **Entre fases:** o da F67 vem ANTES dos da F66, F65, F64, F63 e F62 (os ensaios deles o rodam primeiro); o da F66B não
+  depende dele (mede só os CHECK de comprimento).
+- **"Reverter o app"** segue a regra da F60: nunca `git revert` do merge inteiro.

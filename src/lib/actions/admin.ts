@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAdmin } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import type { DbClient } from '@/lib/auth/acesso'
 import { PAPEL_ROTULO, eDev } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
@@ -360,6 +361,7 @@ async function aplicarCargoEVinculos(
   filiais: readonly number[],
 ): Promise<GravacaoCargo> {
   const { error: erroPapel } = await chamarRpc(supabase, 'definir_papel_usuario', {
+    p_empresa: empresaDaOperacao(),
     p_alvo: usuarioId,
     p_papel: papel,
   })
@@ -380,6 +382,7 @@ async function aplicarCargoEVinculos(
   // coluna "Filiais de escrita" passaria a exibir vínculo que não vale nada — e um dia
   // alguém acreditaria nela.
   const { error: erroVinculos } = await chamarRpc(supabase, 'definir_vinculos_usuario', {
+    p_empresa: empresaDaOperacao(),
     p_alvo: usuarioId,
     p_filiais: [...filiais],
   })
@@ -403,7 +406,7 @@ async function carregarAlvo(
   try {
     const [estado, adminsAtivosIds] = await Promise.all([
       getEstadoUsuario(usuarioId),
-      idsDeAdminsAtivos(),
+      idsDeAdminsAtivos(empresaDaOperacao()),
     ])
     if (!estado) return { erro: 'Usuário não encontrado. Atualize a página e tente de novo.' }
     return { estado, adminsAtivosIds }
@@ -543,6 +546,7 @@ export async function definirStatusUsuario(input: {
   // F22: pela RPC (client de SESSÃO), não mais pelo service role — ver o comentário longo em
   // `aplicarCargoEVinculos`. É o que faz a proteção do dev valer também aqui, no banco.
   const { error: erroStatus } = await chamarRpc(supabase, 'definir_status_usuario', {
+    p_empresa: empresaDaOperacao(),
     p_alvo: usuarioId,
     p_ativo: ativo,
   })

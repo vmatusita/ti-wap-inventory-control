@@ -1,0 +1,6 @@
+count=168 max=20261112172039
+20261112172039 comprimento_registros
+20261112171910 comprimento_vocabulario
+20261112171740 comprimento_movimento_do_acervo
+20261112171602 comprimento_cadastros_do_acervo
+20261019154231 colaboradores_uso_efetivo

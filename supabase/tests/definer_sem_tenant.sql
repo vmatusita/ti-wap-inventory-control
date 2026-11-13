@@ -99,9 +99,12 @@ declare
   -- migrations 0001→0132 (não por suposição de nome).
   -- -----------------------------------------------------------------------
   k_escopo_ok text[] := array[
-    -- Ela MESMA é uma das seis primitivas de escopo (0072): decide direto por
-    -- `papel_atual()` e por `operador_filiais`, sem delegar a mais ninguém — é a base
-    -- que as outras 17 chamam (direta ou indiretamente).
+    -- F67 (0185): as CINCO PRIMITIVAS POR EMPRESA — a base de `k_primitivas_por_empresa` (abaixo). Recebem a empresa
+    -- (e a filial) do cliente e respondem SÓ sobre quem chama naquela empresa: a empresa é testada ANTES do cargo e o
+    -- argumento nulo fecha. Toda outra função desta lista tem de chamar uma delas (asserção 4).
+    'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade',
+    -- Desde a F67 (0186) ela DELEGA a `pode_escrever_unidade(<empresa da filial>, fid)` — responde pela empresa da
+    -- filial; antes decidia por `papel_atual()` (a ponte da F62) e dava `true` a dev/admin em qualquer filial.
     'pode_escrever_filial',
     -- Gestão de conta (0074/0132): as CINCO citam `exigir_gestao_de(p_alvo, …)` no corpo
     -- — UMA condição protege as cinco, porque as cinco passam por ali
@@ -133,24 +136,37 @@ declare
   k_escopo_excecao          text[] := array[
     'estorno_item_coerente', 'termo_ancora_coerente', 'pode_ler_arquivo_termo'
   ];
-  k_escopo_excecao_migracao text[] := array['0068', '0069', '0129'];
+  k_escopo_excecao_migracao text[] := array['0068', '0069', '0186'];
   k_escopo_excecao_motivo   text[] := array[
     --   · estorno_item_coerente (0068) — recebe id do cliente e é alcançável, mas SOZINHA
     --     não protege nada: a autorização real está ANDada ao lado, na MESMA expressão da
-    --     policy (`pode_escrever_filial(filial_id) and estorno_item_coerente(p_estorna_id,
-    --     p_filial, p_item)`). Reprová-la seria reprovar código seguro.
-    'recebe id do cliente e é alcançável por authenticated, mas SOZINHA não protege nada: a autorização real está ANDada ao lado, na MESMA expressão da policy (pode_escrever_filial(filial_id) and estorno_item_coerente(p_estorna_id, p_filial, p_item)). Reprová-la seria reprovar código seguro.',
+    --     policy (desde a F66, a forma de pares sobre `unidades_de_escrita()` em conjunção
+    --     com o recorte de empresa). F67: e a EMPRESA dos ids é garantida pela FK composta
+    --     da F65 (o lançamento estornado é da empresa do estorno). Reprová-la seria reprovar
+    --     código seguro.
+    'recebe id do cliente e é alcançável por authenticated, mas SOZINHA não protege nada: a autorização real está ANDada ao lado, na MESMA expressão da policy (os pares de unidades_de_escrita() e o recorte de empresa da F66), e a empresa do lançamento estornado é a do estorno pela FK composta da F65 (F67). Reprová-la seria reprovar código seguro.',
     --   · termo_ancora_coerente (0069) — idem: recebe uuid[] duas vezes e é alcançável,
     --     mas a autorização real está ANDada ao lado, na MESMA expressão da policy, junto
-    --     com pode_escrever_filial()/pode_escrever_termo(). Sozinha, ela só confere
-    --     COERÊNCIA de dados (o ativo pertence à movimentação), não CARGO nem FILIAL.
-    'idem estorno_item_coerente: recebe uuid[] duas vezes e é alcançável, mas a autorização real está ANDada ao lado, na MESMA expressão da policy, junto com pode_escrever_filial()/pode_escrever_termo(). Sozinha, ela só confere COERÊNCIA de dados, nunca CARGO nem FILIAL.',
-    --   · pode_ler_arquivo_termo (0129) — recebe p_nome text e é alcançável, mas por
-    --     desenho DOCUMENTADO ignora o parâmetro: o corpo inteiro é
-    --     "select papel_atual() is not null". Hoje isso é "todo logado ativo lê todo
-    --     termo" — intencional até a F67 fechar por join, documentado no comentário da
-    --     própria 0129.
-    'recebe p_nome text e é alcançável, mas por desenho DOCUMENTADO ignora o parâmetro: o corpo inteiro é "select papel_atual() is not null". Hoje isso é "todo logado ativo lê todo termo" — intencional até a F67 fechar por join, documentado no comentário da própria 0129.'
+    --     com pode_escrever_termo() e o recorte de empresa. Sozinha, ela só confere
+    --     COERÊNCIA de dados (o ativo pertence à movimentação). F67: a empresa dos ids é a
+    --     do termo pelo gatilho `termos_gerados_ids_da_empresa` (0173).
+    'idem estorno_item_coerente: recebe uuid[] duas vezes e é alcançável, mas a autorização real está ANDada ao lado, na MESMA expressão da policy, junto com pode_escrever_termo() e o recorte de empresa; a empresa dos ids é a do termo pelo gatilho termos_gerados_ids_da_empresa (0173, F67). Sozinha, ela só confere COERÊNCIA de dados, nunca CARGO nem FILIAL.',
+    --   · pode_ler_arquivo_termo (0186, F67; nasceu na 0129) — recebe p_nome text e é
+    --     alcançável, mas por desenho DOCUMENTADO ignora o parâmetro: desde a F67 o corpo é
+    --     "papel_na_empresa(empresa_legada()) is not null" — todo membro ativo da WAP lê
+    --     todo termo, a legada EXPLÍCITA até a F67B fechar por join com termos_gerados.
+    'recebe p_nome text e é alcançável, mas por desenho DOCUMENTADO ignora o parâmetro: desde a F67 o corpo é "papel_na_empresa(empresa_legada()) is not null" — todo membro ativo da empresa legada lê todo termo, a legada EXPLÍCITA até a F67B fechar pelo join com termos_gerados.'
+  ];
+
+  -- -----------------------------------------------------------------------
+  -- k_primitivas_por_empresa — F67 (13/11/2026). A BASE do fecho da asserção 4: as funções
+  -- que respondem pelo cargo NUMA EMPRESA (0185). Conferidas por NOME INTEIRO na chamada
+  -- (`\m<nome>\s*\(`), nunca por prefixo: `e_admin_na_qualquer(` não casa `e_admin_na`. O
+  -- cargo SEM empresa (`papel_atual()`, `e_admin()`, `e_dev()`, `pode_escrever()`) NÃO
+  -- está aqui — ele é só piso de policy desde a F67.
+  -- -----------------------------------------------------------------------
+  k_primitivas_por_empresa text[] := array[
+    'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade'
   ];
 begin
   -- ---------------------------------------------------------------
@@ -300,6 +316,89 @@ begin
   else
     v_falhas := v_falhas + 1;
     raise warning '✗ 3 a prova do prefixo mudou de forma inesperada (RPCs citam exigir_=%, pode_escrever_termo NÃO cita exigir_=%) — releia o corpo das cinco RPCs de conta e de pode_escrever_termo antes de mexer nesta asserção', v_bool, v_bool2;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 4 — F67 (13/11/2026): toda função de `k_escopo_ok` confere a empresa por uma primitiva
+  -- POR EMPRESA — chama uma de `k_primitivas_por_empresa` no CORPO (o código, sem
+  -- comentário nem texto: `pg_temp.sql_so_codigo`), por NOME INTEIRO, ou DELEGA, também
+  -- por nome inteiro, a uma função que, transitivamente, chama (o fecho calculado no
+  -- catálogo, por recursão). Até a F67 a classificação era só nominal: `k_escopo_ok` dizia
+  -- "se defende sozinha" sem que nada conferisse o corpo — e as seis primitivas de então
+  -- (`e_admin`, `e_dev`, `pode_escrever_filial`…) não eram por empresa. O cargo sem empresa
+  -- não conta: ele não está na base do fecho.
+  --
+  -- ⚠ É POR NOME de função (o catálogo do CI termina contraído: uma assinatura por nome).
+  -- Nos bancos vivos, entre a expansão e a contração, a antiga e a nova dividem o nome — a
+  -- trava se lê no CI.
+  -- ---------------------------------------------------------------
+  with recursive fn as (
+    select p.proname::text collate "default" as nome, pg_temp.sql_so_codigo(p.prosrc) as codigo
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f'
+  ),
+  ok(nome) as (
+    select unnest(k_primitivas_por_empresa)
+    union
+    select f.nome from fn f join ok o on f.codigo ~ ('\m' || o.nome || '\s*\(')
+  )
+  select count(*), coalesce(string_agg(e.nome, ', ' order by e.nome), '')
+    into v_cnt, v_lista
+    from unnest(k_escopo_ok) as e(nome)
+   where not exists (select 1 from ok where ok.nome = e.nome);
+  if pg_temp.assert_zero_de(
+       '4 toda função de k_escopo_ok confere a empresa por uma primitiva POR EMPRESA (no corpo, ou por delegação, por nome inteiro)' ||
+       case when v_cnt > 0 then ' — sem primitiva por empresa: ' || v_lista else '' end,
+       v_cnt, array_length(k_escopo_ok, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- SABOTAGEM C1 e C2 — a asserção 4 SABE reprovar (F67). Duas `security definer`
+  -- fictícias, alcançáveis e com `uuid`, CLASSIFICADAS como "ok" numa cópia local da lista
+  -- (o erro que a asserção existe para pegar: classificar sem conferir o corpo):
+  --   C1 chama SÓ o cargo sem empresa (`e_admin()`);
+  --   C2 chama uma função cujo nome só COMEÇA como uma primitiva (`e_admin_na_falso(`).
+  -- A MESMA consulta da 4, aplicada à cópia, tem de acusar as DUAS. Nascem e morrem neste
+  -- begin/rollback.
+  -- ---------------------------------------------------------------
+  execute
+    'create function public._f67_sabotagem_so_piso(p_alvo uuid) ' ||
+    'returns boolean language sql stable security definer set search_path = public ' ||
+    'as $sabo_c1$ select public.e_admin() $sabo_c1$';
+  execute
+    'create function public.e_admin_na_falso(p_empresa uuid) ' ||
+    'returns boolean language sql stable security definer set search_path = public ' ||
+    'as $sabo_c2a$ select true $sabo_c2a$';
+  execute
+    'create function public._f67_sabotagem_prefixo(p_alvo uuid) ' ||
+    'returns boolean language sql stable security definer set search_path = public ' ||
+    'as $sabo_c2$ select public.e_admin_na_falso(p_alvo) $sabo_c2$';
+  execute 'grant execute on function public._f67_sabotagem_so_piso(uuid) to authenticated';
+  execute 'grant execute on function public._f67_sabotagem_prefixo(uuid) to authenticated';
+
+  with recursive fn as (
+    select p.proname::text collate "default" as nome, pg_temp.sql_so_codigo(p.prosrc) as codigo
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f'
+  ),
+  ok(nome) as (
+    select unnest(k_primitivas_por_empresa)
+    union
+    select f.nome from fn f join ok o on f.codigo ~ ('\m' || o.nome || '\s*\(')
+  )
+  select count(*), coalesce(string_agg(e.nome, ', ' order by e.nome), '')
+    into v_cnt, v_lista
+    from unnest(k_escopo_ok || array['_f67_sabotagem_so_piso', '_f67_sabotagem_prefixo']) as e(nome)
+   where not exists (select 1 from ok where ok.nome = e.nome);
+  if v_cnt = 2 and v_lista = '_f67_sabotagem_prefixo, _f67_sabotagem_so_piso' then
+    v_ok := v_ok + 1;
+    raise notice '✓ sabotagem C1 e C2 a asserção 4 ACUSA a função que só chama o cargo sem empresa e a que chama um nome que só COMEÇA como uma primitiva (%)', v_lista;
+  else
+    v_falhas := v_falhas + 1;
+    raise warning '✗ sabotagem C1 e C2 a asserção 4 não acusou as duas fictícias (contagem=%, acusadas: %) — a trava aceita piso ou prefixo', v_cnt, v_lista;
   end if;
 
   -- ---------------------------------------------------------------

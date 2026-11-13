@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { comandosDoTexto, semComentarios as semComentariosSql } from '../../../scripts/db/classificar-migration.mjs'
-import { definicoesDeFuncao } from '../../../scripts/db/corpo-vigente.mjs'
+import { definicoesDeFuncao, derrubadaDepois, listarMigrations } from '../../../scripts/db/corpo-vigente.mjs'
 import { semComentarios } from '@/lib/layout/texto-fonte'
 
 // =============================================================================
@@ -335,6 +335,13 @@ const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> =
     ],
     motivo: 'F65 (decisão 5): o alvo do ON CONFLICT da consolidação (o unique por empresa da 0172/0174)',
   },
+  // F67 (13/11/2026) — a identidade do ativo é POR EMPRESA desde a F65 (a nota F66 da ficha): as recusas de cadastro
+  // manual e o import procuram o par só nas unidades DA EMPRESA do cadastro. É a leitura de `filiais` (a tabela que
+  // DEFINE a empresa da unidade), não recorte de acervo — quem recorta o que cada um lê continua sendo a RLS.
+  'src/lib/escopo/empresa-da-filial.ts': {
+    trechos: [".from('filiais').select('id').eq('empresa_id"],
+    motivo: 'F67: as unidades da empresa do cadastro (unidadesDaMesmaEmpresa) — a identidade do ativo por empresa',
+  },
 }
 
 describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/**', () => {
@@ -395,11 +402,17 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   const oito = lotes()
   const excecoes = leituraIntegridade()
   const DIR = join(RAIZ, 'supabase', 'migrations')
-  // O corpo vigente: a ÚLTIMA definição de cada (nome, tipos) na ordem de aplicação.
+  // O corpo vigente: a ÚLTIMA definição de cada (nome, tipos) na ordem de aplicação — e nenhuma que um `drop function`
+  // POSTERIOR derrubou (F67: a contração 0193 derruba as assinaturas antigas que a expansão recriou ao lado das novas).
   const vigentes = new Map<string, { arquivo: string; texto: string }>()
+  const cadeia = listarMigrations(RAIZ)
   for (const arquivo of readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort()) {
     const sql = semComentariosSql(readFileSync(join(DIR, arquivo), 'utf8').replace(/\r\n/g, '\n'))
-    for (const d of definicoesDeFuncao(sql)) vigentes.set(`${d.esquema}.${d.nome}(${d.tipos.join(',')})`, { arquivo, texto: d.texto })
+    for (const d of definicoesDeFuncao(sql)) {
+      const chave = `${d.esquema}.${d.nome}(${d.tipos.join(',')})`
+      if (derrubadaDepois(d.nome, d.tipos, cadeia.indexOf(arquivo), RAIZ)) vigentes.delete(chave)
+      else vigentes.set(chave, { arquivo, texto: d.texto })
+    }
   }
   // O apelido é lido por LOOKAHEAD (2ª rodada da revisão adversarial): consumido, ele engolia a palavra
   // seguinte — em `select count(*) into v_n from public.ativos a`, o "apelido" de `v_n` era o `from`, e
@@ -551,12 +564,25 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   })
 
   it('as exceções de k_leitura_tenant (as três da F65, as duas rel_* da F66, o uso efetivo da v1.71.2) são função vigente, LEEM, e provam a origem no comando', () => {
+    // F67 (13/11/2026): + as doze do recorte da `security definer` (PLAN-F67, decisão 5) — catalogo_policies.sql.
     expect([...LEITURA_TENANT.keys()].sort()).toEqual([
+      'apagar_ativo',
+      'apagar_ativos_conflito_filiais',
+      'apagar_item',
+      'apagar_movimentacao',
       'colaboradores_uso_efetivo',
+      'exigir_ativos_da_empresa',
+      'forcar_estado_ativo',
+      'forcar_saldo_item',
       'guarda_empresa',
+      'previa_reset',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',
+      'resetar_acervo',
+      'resetar_itens',
+      'rotulo_alcance_reset',
       'termo_da_empresa',
+      'termo_exige_modelo_da_empresa',
       'vocabulario_unidades_guarda',
     ])
     for (const [nome, tabelas] of LEITURA_TENANT) {

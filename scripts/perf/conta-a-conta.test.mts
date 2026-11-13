@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { comandoConta, FASES, involucroDoCanal, lerPayload, validarComando, veredito } from './conta-a-conta.mjs'
+import {
+  comandoConta,
+  comandoContaF67,
+  FASES,
+  FASES_F67,
+  involucroDoCanal,
+  lerPayload,
+  validarComando,
+  validarComandoF67,
+  veredito,
+} from './conta-a-conta.mjs'
 import { validarComando as validarMedicao } from './medir-rls.mjs'
 import { blocoMesmoNome, lerCorposMesmoNome, validarBloco as validarEquivalencia } from './equivalencia-rel.mjs'
 
@@ -131,5 +141,85 @@ describe('4. a leitura da resposta e o veredito', () => {
   it('a corrida não aprova nem reprova; qualquer divergência reprova', () => {
     expect(veredito(p)).toEqual({ total: 0, zero: true, corrida: 1 })
     expect(veredito({ ...p, divergencias: { ...p.divergencias, leitura_x_piso: 2 } })).toEqual({ total: 2, zero: false, corrida: 1 })
+  })
+})
+
+// =============================================================================
+// F67 (13/11/2026) — o bloco do CARGO POR EMPRESA (PLAN-F67, decisão 15): as funções reais × o oráculo da regra de antes
+// =============================================================================
+describe('5. o bloco da F67 (f67-antes | f67-depois), contra o modelo fechado', () => {
+  const ANTES = comandoContaF67({ alvo: 'producao', fase: 'f67-antes' })
+  const DEPOIS = comandoContaF67({ alvo: 'producao', fase: 'f67-depois' })
+  const SABOTADO = comandoContaF67({ alvo: 'ensaio', fase: 'f67-depois', sabotar: true })
+
+  it('só f67-antes|f67-depois, e a sabotagem I só no ensaio E no depois (a forma por empresa só existe depois)', () => {
+    expect(FASES_F67).toEqual(['f67-antes', 'f67-depois'])
+    expect(() => comandoContaF67({ alvo: 'ensaio', fase: 'emulada' })).toThrow(/não existe/)
+    expect(() => comandoContaF67({ alvo: 'producao', fase: 'f67-depois', sabotar: true })).toThrow(/só no ensaio/)
+    expect(() => comandoContaF67({ alvo: 'ensaio', fase: 'f67-antes', sabotar: true })).toThrow(/só existe no depois/)
+  })
+
+  it('os comandos do modelo passam (as duas fases, os dois alvos, e a sabotagem do ensaio)', () => {
+    for (const c of [ANTES, DEPOIS, SABOTADO, comandoContaF67({ alvo: 'ensaio', fase: 'f67-antes' })]) {
+      expect(validarComandoF67(c)).toBe(c)
+    }
+  })
+
+  it('o BANCO confere o alvo, a sabotagem fora do ensaio e o fim em raise exception (nunca se confirma)', () => {
+    expect(DEPOIS).toContain("raise exception 'F67_ALVO_RECUSADO")
+    expect(DEPOIS).toContain("raise exception 'F67_SABOTAGEM_FORA_DO_ENSAIO")
+    expect(DEPOIS.trim()).toMatch(/raise exception 'F67_CONTA %', jsonb_build_object\([\s\S]*\);\s*end \$f67\$;$/)
+    expect(DEPOIS).toMatch(/begin\s+perform set_config\('transaction_read_only', 'on', true\);/)
+  })
+
+  it('o oráculo é a regra de ANTES (a membership ativa na legada, a conta viva, o vínculo na legada) — escrito no bloco', () => {
+    expect(DEPOIS).toContain('m.profile_id = v_uid and m.empresa_id = v_emp and m.ativo and p.excluido_em is null')
+    expect(DEPOIS).toContain('vf.filial_id = v_fid')
+    // no antes, as funções de hoje; no depois, as formas por empresa com a WAP, o piso, a unidade e as guardas novas
+    expect(ANTES).toContain('perform public.exigir_gestao_de(v_alvo_g, null::public.papel_usuario);')
+    expect(DEPOIS).toContain('perform public.exigir_gestao_de(v_emp, v_alvo_g, null::public.papel_usuario);')
+    expect(DEPOIS).toContain('public.pode_escrever_unidade(v_emp, v_fid)')
+    // a sabotagem I: o cargo POR EMPRESA perguntado com uma empresa que não existe — só o alvo e a chave mudam
+    const desfeita = SABOTADO.replace('v_sabotar  constant boolean := true;', 'v_sabotar  constant boolean := false;').replace(
+      "v_alvo     constant text    := 'ensaio';",
+      "v_alvo     constant text    := 'producao';",
+    )
+    expect(desfeita).toBe(DEPOIS)
+  })
+
+  it('nenhum id, nome ou e-mail sai no payload — só contagens, a fase e a versão do servidor', () => {
+    const payload = /jsonb_build_object\(\s*'_canal'[\s\S]*\);\s*end \$f67\$;/.exec(DEPOIS)![0]
+    expect(payload).not.toMatch(/v_uid|v_alvo_g|v_oraculo|v_pap_alvo|email|nome/)
+  })
+
+  it.each([
+    ['um execute', (s: string) => s.replace('v_membros := v_membros + 1;', "v_membros := v_membros + 1; execute 'select 1';")],
+    ['uma função fora da lista', (s: string) => s.replace('v_membros := v_membros + 1;', 'v_membros := v_membros + 1; perform public.apagar_usuario(v_emp, v_uid);')],
+    ['troca de papel', (s: string) => s.replace("perform set_config('transaction_read_only', 'on', true);", "perform set_config('transaction_read_only', 'on', true);\n  perform set_config('role', 'service_role', true);")],
+    ['sem o transaction_read_only', (s: string) => s.replace("perform set_config('transaction_read_only', 'on', true);", '')],
+    ['um segundo bloco', (s: string) => `${s}\ndo $f67$ begin null; end $f67$;`],
+    ['uma linha a mais que o modelo não gera', (s: string) => s.replace('v_pares := v_pares + 1;', 'v_pares := v_pares + 2;')],
+  ])('recusa %s', (_nome, mexer) => {
+    expect(() => validarComandoF67(mexer(DEPOIS))).toThrow(/RECUSADO/)
+  })
+
+  it('o invólucro do canal serve ao bloco da F67 com o validador DELE (e o da F66 o recusa)', () => {
+    expect(involucroDoCanal(DEPOIS, validarComandoF67)).toContain(`execute $bloco$${DEPOIS.trim()}$bloco$;`)
+    expect(() => involucroDoCanal(DEPOIS, validarComando)).toThrow(/RECUSADO/)
+    expect(() => validarComandoF67(EMULADA)).toThrow(/RECUSADO/)
+  })
+
+  it('lê o payload F67_CONTA e soma TODA classe que ele declara (sem corrida)', () => {
+    const p67 = {
+      alvo: 'producao', fase: 'f67-depois', sabotar: false, memberships: 7, pares: 35, gestoes: 14,
+      divergencias: { cargo: 0, derivadas: 0, piso: 0, escrita_filial: 0, escrita_unidade: 0, gestao: 0, zona: 0, ultimo_admin: 0 },
+    }
+    const lido = lerPayload(`ERROR:  P0001: F67_CONTA ${JSON.stringify({ _canal: '..', ...p67 })}\nCONTEXT:  …`)
+    expect(lido._canal).toBeUndefined()
+    expect(veredito(lido)).toEqual({ total: 0, zero: true, corrida: 0 })
+    expect(veredito({ ...lido, divergencias: { ...lido.divergencias, cargo: 6 } })).toEqual({ total: 6, zero: false, corrida: 0 })
+    expect(lerPayload('ERROR:  P0001: F67_ALVO_RECUSADO alvo=producao rotulo=desenvolvimento\nCONTEXT')).toEqual({
+      recusa: 'F67_ALVO_RECUSADO alvo=producao rotulo=desenvolvimento',
+    })
   })
 })

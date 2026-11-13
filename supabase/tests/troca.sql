@@ -204,7 +204,7 @@ begin
   insert into storage.objects (bucket_id, name, owner)
     values ('backups-import', public.prefixo_backup_import(v_ft) || 'existe.json', v_prof);
 
-  perform public.importar_ativos_substituir(
+  perform public.importar_ativos_substituir(public.empresa_legada(),
     jsonb_build_object(
       'filialId', v_ft::text, 'totalLinhasDados', 3, 'arquivoHash', 'hash-teste-f15',
       'confirmacao', 'Filial Teste F15',

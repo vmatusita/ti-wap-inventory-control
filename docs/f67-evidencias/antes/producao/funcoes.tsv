@@ -1,0 +1,106 @@
+apagar_ativo	p_ativo uuid, p_confirmacao text, p_justificativa text	true	1433ac8da1	9d0c81a313	0	1	0	0
+apagar_ativos_conflito_filiais	p_ativos uuid[], p_confirmacao text, p_justificativa text, p_backup_path text	true	717a8e3979	8c3ba5baa1	0	1	0	0
+apagar_item	p_item smallint, p_confirmacao text, p_justificativa text	true	6ee27bacf8	4f607526fd	0	1	0	0
+apagar_movimentacao	p_mov uuid, p_confirmacao text, p_justificativa text	true	b81e8e6e7b	b9a1b17210	0	1	0	0
+apagar_usuario	p_alvo uuid	true	dccc68034f	aaba9245ed	0	1	0	0
+aplicar_movimentacao		true	aecfe7ccbc	9aee05ce25	0	0	1	0
+chave_identidade_ativo	p_patrimonio text, p_service_tag text	false	132210e94a	67503d616e	0	1	1	0
+checagens_integridade_nucleo		true	e26dec8069	2236133a32	0	0	0	0
+checagens_integridade_resumo		true	9ad039098e	040d5c5ac2	0	1	0	0
+colaborador_chave	p_nome text	false	49effffa79	5dda3c60cf	0	1	1	0
+colaboradores_uso_efetivo		false	b406f6cddc	32ba083af1	0	1	1	0
+confirmar_assinatura_lote_com_anotacoes	p_ativo_ids uuid[], p_data date, p_texto_anotacao text	false	e3cdfc6b55	f0bc5c47ef	0	1	0	0
+confirmar_assinatura_termo_com_anotacao	p_ativo_id uuid, p_data date, p_texto_anotacao text	false	810167707a	2405f9ee4f	0	1	0	0
+corrigir_patrimonio_com_anotacao	p_ativo_id uuid, p_patrimonio text, p_pendencia text, p_alterar_pendencia boolean, p_texto_anotacao text	false	db7d17ebb1	7c15984bcc	0	1	0	0
+criar_compra_lote	p_itens jsonb, p_criado_por uuid	false	f07ebf9a71	58533fd3d3	0	1	0	0
+criar_movimentacao_com_itens	p_movimentacoes jsonb, p_itens jsonb, p_criado_por uuid	false	046ecfc854	7007e3f997	0	1	0	0
+definir_papel_usuario	p_alvo uuid, p_papel papel_usuario	true	160ff6d081	b30edda4b2	0	1	0	0
+definir_service_tag_com_anotacao	p_ativo_id uuid, p_service_tag text, p_pendencia text, p_alterar_pendencia boolean, p_texto_anotacao text	false	8bc05bebc2	19169f8d59	0	1	0	0
+definir_status_usuario	p_alvo uuid, p_ativo boolean	true	712cb89d32	8f71e87d9d	0	1	0	0
+definir_vinculos_usuario	p_alvo uuid, p_filiais smallint[]	true	04d3b2170c	c39d1827cc	0	1	0	0
+desfazer_confirmacao_termo_com_anotacao	p_ativo_id uuid, p_destino termo_status, p_texto_anotacao text	false	d0fbb062e9	86b6e583d6	0	1	0	0
+dev_checagens_integridade		true	5907bcbf34	835b927669	0	1	0	0
+devolver_ao_fornecedor	p_ativo_id uuid, p_mov jsonb, p_substituto jsonb, p_criado_por uuid	false	a16c25ac3a	a7641d50a1	0	1	0	0
+digest_selecao_conflito	p_ativos uuid[]	false	654173747f	3aa171cbb5	0	0	0	0
+e_admin		true	29f6697fe0	1feb7e4dbf	0	1	1	0
+e_dev		true	05314d68ef	9b101fb0a1	0	1	1	0
+e_plataforma		true	43ff329f39	ce7ea0f8d2	0	1	0	0
+empresa_legada		false	227e56653e	13f6f851d4	0	1	1	0
+empresas_de_admin		true	a722d0d70a	89e817c8b1	0	1	1	0
+empresas_de_escrita		true	c96f45fb79	48d66897d3	0	1	1	0
+empresas_do_membro		true	ed335359d3	6b990112d6	0	1	1	0
+encerrar_sessoes_usuario	p_alvo uuid	true	abcbaa9bdb	4c5b9a796e	0	1	0	0
+estornar_movimentacao_com_itens	p_movimentacao_id uuid, p_observacao text, p_estornos jsonb, p_criado_por uuid	false	bada9395db	1fe7895feb	0	1	0	0
+estorno_item_coerente	p_estorna_id uuid, p_filial smallint, p_item smallint	true	30de109a96	a184f20d8f	0	1	1	0
+exigir_ativos_da_empresa	p_ids uuid[]	true	ac0ed4d93a	bb0c5af22e	0	0	0	0
+exigir_dev_para_destruir	p_justificativa text	true	9994486d8a	9cf6c56579	0	0	0	0
+exigir_gestao_de	p_alvo uuid, p_papel_pedido papel_usuario	true	30b0ca4bd5	8ea27cb3f5	0	0	0	0
+exigir_identidade_livre_na_filial	p_ativo uuid, p_filial smallint, p_acao text	true	0b4ae48ded	18e2f97088	0	0	0	0
+existe_outro_admin_ativo	p_excluindo uuid, p_escopo uuid	true	4b0801af13	4f2e90309f	0	0	0	0
+forcar_estado_ativo	p_ativo uuid, p_status status_ativo, p_justificativa text	true	c199abcf2d	b23d44018b	0	1	0	0
+forcar_saldo_item	p_item smallint, p_filial smallint, p_saldo_alvo integer, p_justificativa text	true	e0a6906de4	ce7bbf56e5	0	1	0	0
+guarda_acervo		true	139652d543	0829c62705	0	0	0	0
+guarda_empresa		false	67f660c84f	397fedcd90	0	0	0	0
+handle_new_user		true	6d76650468	9485d76478	0	0	1	0
+hoje_brt		false	5e07a408e8	63ecc62b26	0	1	1	0
+import_apagar_acervo_filial	p_filial smallint	true	043a3a36b7	4cab3c3360	0	0	0	0
+import_conferir_resultado	p_plano jsonb, p_filial smallint, p_criados integer, p_total integer	true	d2cba12f98	df5541847f	0	0	0	0
+import_contar_conflitos	p_filial smallint	true	09190f242c	8235d35257	0	0	0	0
+import_criar_ativos	p_elemento jsonb, p_filial smallint	true	5e2e8af968	0826870f45	0	0	0	0
+import_gravar_trilha	p_plano jsonb, p_filial smallint, p_backup_path text, p_correcoes jsonb, p_uid uuid, p_criados integer, p_movs integer, p_anotacoes integer, p_termos integer, p_conflitos integer	true	3587aa2557	07a93ac171	0	0	0	0
+import_lancar_movimentacoes	p_ativo uuid, p_elemento jsonb, p_filial smallint, p_uid uuid, p_data_import date, p_obs_marcador text	true	1e15108969	3201ca515f	0	0	0	0
+import_revalidar_contagens	p_contagens jsonb, p_filial smallint	true	19527a0374	9aebea7cbe	0	0	0	0
+import_validar_plano	p_plano jsonb, p_backup_path text, p_correcoes jsonb, p_filial smallint	true	2ae47b8d14	c9cb6445ed	0	0	0	0
+importar_ativos_substituir	p_plano jsonb, p_backup_path text, p_contagens jsonb, p_correcoes jsonb	true	07927879fd	3b8b170499	0	1	0	0
+item_chave	p_nome text	false	49effffa79	1ddab3401a	0	1	1	0
+kit_motivo_da_empresa		false	6f079b4c53	f35326c007	0	0	1	0
+lancar_itens_lote	p_linhas jsonb, p_criado_por uuid	false	3df9cc3a5a	283aaf6b46	0	1	0	0
+ledger_de_migracoes		true	822c6689e8	fa45fa97b6	0	1	0	0
+membros_guarda_dev		true	70c7ac5831	bf652a6c88	0	0	0	0
+mesmo_escopo_de_gestao	p_alvo uuid	true	1d30710a0e	527db1a47d	0	0	0	0
+mov_da_carga_import	p_observacao text	false	d45d927de0	620e06455c	0	1	1	0
+movimentacao_abrir_pendencias_item	p_mov movimentacoes, p_ativo ativos	true	b9950cd21a	c3b194ce2a	0	0	0	0
+movimentacao_desfazer_pendencias_item	p_movimentacao_estornada uuid	true	35a1201617	1498f60333	0	0	0	0
+movimentacao_detentor_sincronizado	p_status status_ativo, p_tipo tipo_movimentacao, p_informado text, p_atual text	true	41213c2b97	c6e3284daf	0	0	0	0
+movimentacao_estornar	p_mov movimentacoes, p_ativo ativos	true	baa026695d	ae9eb72796	0	0	0	0
+movimentacao_pendencia_de_termo_restaurada	p_snapshot jsonb, p_atual text	true	ff66ea0bc3	fdcbd8c38c	0	0	0	0
+movimentacao_transicionar	p_mov movimentacoes, p_ativo ativos	true	bc8bf35008	3a3cf85b3e	0	0	0	0
+operador_filiais_deriva_membership		true	3d9a5e6145	57a4c8d766	0	0	0	0
+papel_atual		true	4779b3464a	87cd703e19	0	1	1	0
+pode_escrever		true	16ce537bed	ee658cd67a	0	1	1	0
+pode_escrever_arquivo_termo	p_nome text	true	c0975ef700	2f070bfc4a	0	1	1	0
+pode_escrever_filial	fid smallint	true	f835d2bf11	4457c78be9	0	1	1	0
+pode_escrever_termo	p_ativo_ids uuid[]	true	c078261190	7d56a7208f	0	1	1	0
+pode_ler_arquivo_termo	p_nome text	true	108d210868	971989278b	0	1	1	0
+prefixo_backup_conflito		false	cc4dc4e134	37bbf6e51a	0	0	0	0
+prefixo_backup_import	p_filial smallint	false	c60465b652	ec4b12c6dc	0	0	0	0
+prefixo_backup_reset	p_bloco text, p_filial smallint	false	28b39bfdb9	13a7a88681	0	0	0	0
+previa_reset	p_bloco text, p_filial smallint	true	ad4862eb33	f59638274c	0	1	0	0
+profiles_guarda_dev		true	1360e89fdb	bcec002737	0	0	0	0
+reabrir_pendencias_item_com_estornos	p_ids uuid[], p_justificativa text, p_estornos jsonb, p_criado_por uuid	false	127a7ac9ba	10fc6e788a	0	1	0	0
+registrar_tentativa_senha	p_ip text, p_max integer, p_janela_seg integer	true	ee0d1c2183	b36f2ecf3f	0	0	1	0
+rel_contagem_status_filiais	p_filiais smallint[]	false	eb01c1241e	05fb9e57e7	0	1	1	0
+rel_estoque_asof_filiais	p_filiais smallint[], p_data date	false	16f7673a81	02b3b7a584	0	1	1	0
+rel_frescor_itens_filiais	p_filiais smallint[], p_ate date	false	2aebd9556b	b4d6a23bd4	0	1	1	0
+rel_mov_itens_filiais	p_filiais smallint[], p_de date, p_ate date	false	0c35ff02ca	ff98f8c9b2	0	1	1	0
+rel_mov_por_mes_filiais	p_filiais smallint[], p_de date, p_ate date	false	edd5bf1076	9c0c8cd670	0	1	1	0
+rel_por_motivo_filiais	p_filiais smallint[], p_de date, p_ate date	false	c8ecce6f3b	f3898d6889	0	1	1	0
+rel_resumo_filiais	p_filiais smallint[], p_de date, p_ate date	false	ae0911e407	8d8a38ee1c	0	1	1	0
+rel_saldo_colaborador	p_colaborador uuid	false	843aed2c42	c1e0b30eb6	0	1	1	0
+rel_saldo_itens_filiais	p_filiais smallint[], p_ate date	false	c1c9d0e9bc	0458ebb584	0	1	1	0
+resetar_acervo	p_filial smallint, p_confirmacao text, p_justificativa text, p_backup_path text, p_contagens jsonb	true	c352a4d002	ed688db1b1	0	1	0	0
+resetar_dados_ficticios	p_confirmacao text	true	33ee07832e	a006ce5477	0	0	1	0
+resetar_itens	p_filial smallint, p_confirmacao text, p_justificativa text, p_backup_path text, p_contagens jsonb	true	e024d6f110	93c04a94f6	0	1	0	0
+resolver_pendencias_item_com_lancamentos	p_ids uuid[], p_desfecho text, p_observacao text, p_lancamentos jsonb, p_criado_por uuid	false	a1b8a8bd76	e74ea3cf54	0	1	0	0
+rotulo_alcance_reset	p_filial smallint	true	9cc2a30c73	dd23c0060d	0	0	0	0
+rotulo_de_ambiente		true	b5498cc2d5	840a08a410	0	0	1	0
+status_apos_movimentacao	p_status status_ativo, p_tipo tipo_movimentacao	false	087e5dc518	69a73abfcf	0	1	1	0
+status_tem_detentor	p status_ativo	false	46c44aa455	551c37d163	0	1	1	0
+termo_ancora_coerente	p_movimentacao_ids uuid[], p_ativo_ids uuid[]	true	62d7d2934a	52a758a524	0	1	1	0
+termo_da_empresa		false	e16755921b	4d070033e6	0	0	0	0
+transferir_item	p_origem smallint, p_destino smallint, p_itens jsonb, p_data date, p_chamado text, p_obs_origem text, p_obs_destino text, p_criado_por uuid	false	7a0ad14668	da0a511f3f	0	1	0	0
+ultima_migracao_aplicada		true	55f9395fa3	7c636172d7	0	1	1	0
+unidades_de_escrita		true	f5e8f227e5	8c9300ce5d	0	1	1	0
+valida_lancamento_item		false	be4be02fe9	77b7b39491	0	1	1	0
+vocabulario_chave	p_texto text	false	1e28507fad	d2a3a4da69	0	1	1	0
+vocabulario_unidades_guarda		false	cbe9b7a31f	1f6740783b	0	0	1	0

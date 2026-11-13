@@ -225,12 +225,12 @@ begin
 
   -- 1z. o cargo resolve, e as três funções concordam
   select public.papel_atual()::text into v_papel;
-  if v_papel = 'dev' and public.e_dev() and public.e_admin() and public.pode_escrever() then
-    v_ok := v_ok + 1; raise notice '✓ 1z papel_atual()=dev e e_dev()/e_admin()/pode_escrever() = true';
+  if v_papel = 'dev' and public.e_dev_na(public.empresa_legada()) and public.e_admin() and public.pode_escrever() then
+    v_ok := v_ok + 1; raise notice '✓ 1z papel_atual()=dev e e_dev_na(legada)/e_admin()/pode_escrever() = true';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1z; ';
     raise warning '✗ 1z papel=% e_dev=% e_admin=% pode_escrever=%',
-      v_papel, public.e_dev(), public.e_admin(), public.pode_escrever();
+      v_papel, public.e_dev_na(public.empresa_legada()), public.e_admin(), public.pode_escrever();
   end if;
 
   -- 1a. catálogo de admin (policy e_admin) — o ganho da redefinição
@@ -273,7 +273,7 @@ begin
   -- de gritar é o teste, não aplaudir. Fortalecer não é afrouxar: tudo que 1d reprovava
   -- antes (a mensagem com "administradores") continua reprovando, sem exceção.
   begin
-    perform public.importar_ativos_substituir('{}'::jsonb, 'f22/x.csv', '{}'::jsonb, '[]'::jsonb);
+    perform public.importar_ativos_substituir(public.empresa_legada(), '{}'::jsonb, 'f22/x.csv', '{}'::jsonb, '[]'::jsonb);
     v_ok := v_ok + 1; raise notice '✓ 1d dev passou pela guarda de cargo da RPC de import';
   exception when others then
     if sqlstate in ('42883', '42P01') then
@@ -341,7 +341,7 @@ begin
 
   -- 2a. admin NÃO promove ninguém a dev
   begin
-    perform public.definir_papel_usuario(k_operador, 'dev');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_operador, 'dev');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2a_ADMIN_PROMOVEU_DEV; ';
     raise warning '✗ 2a ADMIN CONCEDEU o cargo dev (deveria ser recusado)';
   exception when others then
@@ -350,7 +350,7 @@ begin
 
   -- 2b. admin NÃO rebaixa um dev
   begin
-    perform public.definir_papel_usuario(k_dev, 'consulta');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_dev, 'consulta');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2b_ADMIN_REBAIXOU_DEV; ';
     raise warning '✗ 2b ADMIN REBAIXOU um dev (deveria ser recusado)';
   exception when others then
@@ -359,7 +359,7 @@ begin
 
   -- 2c. admin NÃO desativa um dev
   begin
-    perform public.definir_status_usuario(k_dev, false);
+    perform public.definir_status_usuario(public.empresa_legada(), k_dev, false);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2c_ADMIN_DESATIVOU_DEV; ';
     raise warning '✗ 2c ADMIN DESATIVOU um dev (deveria ser recusado)';
   exception when others then
@@ -368,7 +368,7 @@ begin
 
   -- 2d. admin NÃO apaga um dev
   begin
-    perform public.apagar_usuario(k_dev);
+    perform public.apagar_usuario(public.empresa_legada(), k_dev);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2d_ADMIN_APAGOU_DEV; ';
     raise warning '✗ 2d ADMIN APAGOU um dev (deveria ser recusado)';
   exception when others then
@@ -377,7 +377,7 @@ begin
 
   -- 2e. admin NÃO mexe nos vínculos de um dev
   begin
-    perform public.definir_vinculos_usuario(k_dev, array[v_f1]::smallint[]);
+    perform public.definir_vinculos_usuario(public.empresa_legada(), k_dev, array[v_f1]::smallint[]);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2e_ADMIN_MEXEU_VINCULO_DEV; ';
     raise warning '✗ 2e ADMIN alterou os vínculos de um dev (deveria ser recusado)';
   exception when others then
@@ -386,7 +386,7 @@ begin
 
   -- 2f. admin NÃO encerra sessões (nem de um dev, nem de ninguém — a ação é privativa do dev)
   begin
-    perform public.encerrar_sessoes_usuario(k_operador);
+    perform public.encerrar_sessoes_usuario(public.empresa_legada(), k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2f_ADMIN_ENCERROU_SESSAO; ';
     raise warning '✗ 2f ADMIN encerrou sessões (deveria ser privativo do dev)';
   exception when others then
@@ -395,7 +395,7 @@ begin
 
   -- 2f-bis. admin NÃO apaga NINGUÉM (apagar é privativo do dev, mesmo com alvo comum)
   begin
-    perform public.apagar_usuario(k_operador);
+    perform public.apagar_usuario(public.empresa_legada(), k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2f-bis_ADMIN_APAGOU; ';
     raise warning '✗ 2f-bis ADMIN apagou um usuário comum (deveria ser privativo do dev)';
   exception when others then
@@ -420,7 +420,7 @@ begin
   -- 2g-bis. E o admin CONTINUA podendo o que sempre pôde (par positivo — sem ele, uma guarda
   --         que fechasse para TODOS passaria em 2a..2f sem ninguém perceber).
   begin
-    perform public.definir_papel_usuario(k_alvo, 'operador');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_alvo, 'operador');
     select m.papel::text into v_papel from public.membros m
      where m.profile_id = k_alvo and m.empresa_id = public.empresa_legada();
     if v_papel = 'operador' then
@@ -598,7 +598,7 @@ begin
   -- assinatura inexistente LEVANTA exceção em vez de devolver false: citar a antiga aqui
   -- não deixava a asserção vermelha, ABORTAVA o roteiro inteiro.
   if not has_function_privilege('authenticated', 'public.existe_outro_admin_ativo(uuid, uuid)', 'execute')
-     and not has_function_privilege('authenticated', 'public.exigir_gestao_de(uuid, public.papel_usuario)', 'execute') then
+     and not has_function_privilege('authenticated', 'public.exigir_gestao_de(uuid, uuid, public.papel_usuario)', 'execute') then
     v_ok := v_ok + 1; raise notice '✓ 5e as auxiliares de gestão não são executáveis por authenticated';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5e_AUXILIAR_EXPOSTA; ';
@@ -614,7 +614,7 @@ begin
 
   -- 3a. dev CONCEDE o cargo dev
   begin
-    perform public.definir_papel_usuario(k_operador, 'dev');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_operador, 'dev');
     select m.papel::text into v_papel from public.membros m
      where m.profile_id = k_operador and m.empresa_id = public.empresa_legada();
     if v_papel = 'dev' then
@@ -630,7 +630,7 @@ begin
 
   -- 3b. dev REBAIXA outro dev (o que acabou de promover volta a operador)
   begin
-    perform public.definir_papel_usuario(k_operador, 'operador');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_operador, 'operador');
     select m.papel::text into v_papel from public.membros m
      where m.profile_id = k_operador and m.empresa_id = public.empresa_legada();
     if v_papel = 'operador' then
@@ -646,12 +646,12 @@ begin
 
   -- 3c. dev DESATIVA um não-dev
   begin
-    perform public.definir_status_usuario(k_consulta, false);
+    perform public.definir_status_usuario(public.empresa_legada(), k_consulta, false);
     select m.ativo into v_bool from public.membros m
      where m.profile_id = k_consulta and m.empresa_id = public.empresa_legada();
     if v_bool = false then
       v_ok := v_ok + 1; raise notice '✓ 3c dev DESATIVA um usuário';
-      perform public.definir_status_usuario(k_consulta, true);   -- devolve, para não afetar o resto
+      perform public.definir_status_usuario(public.empresa_legada(), k_consulta, true);   -- devolve, para não afetar o resto
     else
       v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c_NAO_GRAVOU; ';
       raise warning '✗ 3c desativação não gravou (ativo = %)', v_bool;
@@ -707,7 +707,7 @@ begin
 
   v_n := -1;   -- sentinela: distingue "a RPC nem rodou" de "a RPC devolveu 0"
   begin
-    select public.encerrar_sessoes_usuario(k_operador) into v_n;
+    select public.encerrar_sessoes_usuario(public.empresa_legada(), k_operador) into v_n;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3d; ';
     raise warning '✗ 3d dev recusado ao encerrar sessões (%) %', sqlstate, sqlerrm;
@@ -738,7 +738,7 @@ begin
   -- =========================================================================
   -- 5a. dev não muda o PRÓPRIO cargo
   begin
-    perform public.definir_papel_usuario(k_dev, 'admin');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_dev, 'admin');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5a_AUTO_REBAIXOU; ';
     raise warning '✗ 5a dev mudou o próprio cargo (deveria ser recusado)';
   exception when others then
@@ -747,7 +747,7 @@ begin
 
   -- 5b. dev não se desativa
   begin
-    perform public.definir_status_usuario(k_dev, false);
+    perform public.definir_status_usuario(public.empresa_legada(), k_dev, false);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5b_AUTO_DESATIVOU; ';
     raise warning '✗ 5b dev desativou a si mesmo (deveria ser recusado)';
   exception when others then
@@ -756,7 +756,7 @@ begin
 
   -- 5c. dev não se apaga
   begin
-    perform public.apagar_usuario(k_dev);
+    perform public.apagar_usuario(public.empresa_legada(), k_dev);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c_AUTO_APAGOU; ';
     raise warning '✗ 5c dev apagou a si mesmo (deveria ser recusado)';
   exception when others then
@@ -770,7 +770,7 @@ begin
   -- =========================================================================
   -- 6a. o dev apaga a vítima (que TEM histórico — movimentação e anotação)
   begin
-    perform public.apagar_usuario(k_vitima);
+    perform public.apagar_usuario(public.empresa_legada(), k_vitima);
     v_ok := v_ok + 1; raise notice '✓ 6a dev APAGA um usuário com histórico';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6a_NAO_APAGOU; ';
@@ -888,16 +888,16 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
 
-  if not public.e_dev() and not public.e_admin() and public.pode_escrever() then
+  if not public.e_dev_na(public.empresa_legada()) and not public.e_admin() and public.pode_escrever() then
     v_ok := v_ok + 1; raise notice '✓ 4a operador: e_dev=false, e_admin=false, pode_escrever=true';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4a; ';
     raise warning '✗ 4a operador com e_dev=% e_admin=% pode_escrever=%',
-      public.e_dev(), public.e_admin(), public.pode_escrever();
+      public.e_dev_na(public.empresa_legada()), public.e_admin(), public.pode_escrever();
   end if;
 
   begin
-    perform public.definir_papel_usuario(k_consulta, 'admin');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_consulta, 'admin');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4b_OPERADOR_MUDOU_CARGO; ';
     raise warning '✗ 4b OPERADOR mudou o cargo de alguém (deveria ser recusado)';
   exception when others then
@@ -905,7 +905,7 @@ begin
   end;
 
   begin
-    perform public.apagar_usuario(k_consulta);
+    perform public.apagar_usuario(public.empresa_legada(), k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4c_OPERADOR_APAGOU; ';
     raise warning '✗ 4c OPERADOR apagou um usuário (deveria ser recusado)';
   exception when others then
@@ -918,16 +918,16 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_consulta, 'role', 'authenticated')::text, true);
 
-  if not public.e_dev() and not public.e_admin() and not public.pode_escrever() then
+  if not public.e_dev_na(public.empresa_legada()) and not public.e_admin() and not public.pode_escrever() then
     v_ok := v_ok + 1; raise notice '✓ 4d consulta: e_dev/e_admin/pode_escrever todos false';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4d; ';
     raise warning '✗ 4d consulta com e_dev=% e_admin=% pode_escrever=%',
-      public.e_dev(), public.e_admin(), public.pode_escrever();
+      public.e_dev_na(public.empresa_legada()), public.e_admin(), public.pode_escrever();
   end if;
 
   begin
-    perform public.definir_status_usuario(k_operador, false);
+    perform public.definir_status_usuario(public.empresa_legada(), k_operador, false);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e_CONSULTA_DESATIVOU; ';
     raise warning '✗ 4e CONSULTA desativou alguém (deveria ser recusado)';
   exception when others then
@@ -974,7 +974,7 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    perform public.definir_papel_usuario(k_alvo, 'dev');
+    perform public.definir_papel_usuario(public.empresa_legada(), k_alvo, 'dev');
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b_FIXTURE; ';
     raise warning '✗ 8b o dev não conseguiu promover o alvo (%) %', sqlstate, sqlerrm;
@@ -982,7 +982,7 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
   begin
-    perform public.definir_status_usuario(k_alvo, false);
+    perform public.definir_status_usuario(public.empresa_legada(), k_alvo, false);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b_ADMIN_DESATIVOU_DEV_NOVO; ';
     raise warning '✗ 8b ADMIN desativou um dev promovido depois da F62 (a guarda leu o cargo congelado)';
   exception when others then
@@ -1082,9 +1082,9 @@ begin
     -- asserção VERDE, e o injetor a reportou como "NÃO detectada". Uma prova de presença
     -- que casa com a documentação da coisa, em vez da coisa, não prova presença nenhuma.
     begin
-      select pg_get_functiondef('public.exigir_gestao_de(uuid, public.papel_usuario)'::regprocedure)
+      select pg_get_functiondef('public.exigir_gestao_de(uuid, uuid, public.papel_usuario)'::regprocedure)
         into v_corpo;
-      if v_corpo like '%not public.mesmo_escopo_de_gestao(p_alvo)%' then
+      if v_corpo like '%not public.mesmo_escopo_de_gestao(p_empresa, p_alvo)%' then
         v_ok := v_ok + 1; raise notice '✓ 7c exigir_gestao_de CITA mesmo_escopo_de_gestao no corpo (prova de presença)';
       else
         v_falhas := v_falhas + 1; v_msgs := v_msgs || '7c_GUARDA_SUMIU; ';
@@ -1100,11 +1100,11 @@ begin
     -- deixou alguma delas para trás.
     v_faltando := '';
     foreach v_rpc in array array[
-      'public.definir_papel_usuario(uuid, public.papel_usuario)',
-      'public.definir_status_usuario(uuid, boolean)',
-      'public.definir_vinculos_usuario(uuid, smallint[])',
-      'public.apagar_usuario(uuid)',
-      'public.encerrar_sessoes_usuario(uuid)'
+      'public.definir_papel_usuario(uuid, uuid, public.papel_usuario)',
+      'public.definir_status_usuario(uuid, uuid, boolean)',
+      'public.definir_vinculos_usuario(uuid, uuid, smallint[])',
+      'public.apagar_usuario(uuid, uuid)',
+      'public.encerrar_sessoes_usuario(uuid, uuid)'
     ]
     loop
       begin
@@ -1149,7 +1149,7 @@ begin
     -- 7a. mesmo_escopo_de_gestao EXISTE e devolve TRUE para um alvo real — o par positivo
     -- (ACEITA O LEGÍTIMO) que prova que a fechadura no-op não passou a recusar ninguém.
     begin
-      select public.mesmo_escopo_de_gestao(k_operador) into v_bool;
+      select public.mesmo_escopo_de_gestao(public.empresa_legada(), k_operador) into v_bool;
       if v_bool = true then
         v_ok := v_ok + 1; raise notice '✓ 7a mesmo_escopo_de_gestao(alvo real) = true — aceita o legítimo';
       else
@@ -1164,10 +1164,10 @@ begin
     -- 7b. mesmo_escopo_de_gestao FECHADA nos quatro papéis — mesma forma da 5e (que já prova
     -- isto para exigir_gestao_de/existe_outro_admin_ativo), agora para a função nova da 0132.
     begin
-      if not has_function_privilege('public', 'public.mesmo_escopo_de_gestao(uuid)', 'execute')
-         and not has_function_privilege('anon', 'public.mesmo_escopo_de_gestao(uuid)', 'execute')
-         and not has_function_privilege('authenticated', 'public.mesmo_escopo_de_gestao(uuid)', 'execute')
-         and not has_function_privilege('service_role', 'public.mesmo_escopo_de_gestao(uuid)', 'execute') then
+      if not has_function_privilege('public', 'public.mesmo_escopo_de_gestao(uuid, uuid)', 'execute')
+         and not has_function_privilege('anon', 'public.mesmo_escopo_de_gestao(uuid, uuid)', 'execute')
+         and not has_function_privilege('authenticated', 'public.mesmo_escopo_de_gestao(uuid, uuid)', 'execute')
+         and not has_function_privilege('service_role', 'public.mesmo_escopo_de_gestao(uuid, uuid)', 'execute') then
         v_ok := v_ok + 1; raise notice '✓ 7b mesmo_escopo_de_gestao fechada nos quatro papéis (public/anon/authenticated/service_role)';
       else
         v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b_ABERTA; ';
@@ -1207,7 +1207,7 @@ begin
     perform set_config('request.jwt.claims',
       json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
     begin
-      perform public.definir_vinculos_usuario(k_operador, array[v_f2]::smallint[]);
+      perform public.definir_vinculos_usuario(public.empresa_legada(), k_operador, array[v_f2]::smallint[]);
       v_ok := v_ok + 1; raise notice '✓ 7j admin CHAMA definir_vinculos_usuario sobre um operador sem levantar exceção';
     exception when others then
       v_falhas := v_falhas + 1; v_msgs := v_msgs || '7j; ';

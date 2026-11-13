@@ -24,7 +24,8 @@
 //
 //   1. `auth.getUser()`   — o que `idOperador()` faz. Valida o JWT no servidor
 //      de Auth (não é decode local: é uma chamada de rede a /auth/v1/user).
-//   2. `rpc('papel_atual')` — o que `lerPapel()` faz. Uma chamada a /rest/v1/rpc.
+//   2. `rpc('papel_na_empresa', { p_empresa })` — o que `lerPapel()` faz desde a F67 (o cargo NA EMPRESA da
+//      operação, a legada explícita até a F70; antes, `papel_atual()`). Uma chamada a /rest/v1/rpc.
 //   3. O PAR, em sequência — o custo total que a guarda acrescenta na PRIMEIRA
 //      chamada de um request. É este o número da fase.
 //
@@ -68,6 +69,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspect } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
+
+// F67: o cargo de navegação é perguntado NA EMPRESA da operação — a legada explícita (o literal de
+// public.empresa_legada(), 0152; o espelho TS é src/lib/auth/empresa-legada.ts) até a F70.
+const EMPRESA_LEGADA = '00000000-0000-4000-a000-000000000001'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const RAIZ = join(AQUI, '..', '..')
@@ -226,23 +231,23 @@ async function main() {
         }),
     },
     {
-      nome: "rpc('papel_atual')",
+      nome: "rpc('papel_na_empresa')",
       papel: 'o que `lerPapel()` faz — lê o cargo vigente no Postgres',
       executar: () =>
         cronometrar(async () => {
-          const { data, error } = await supabase.rpc('papel_atual')
+          const { data, error } = await supabase.rpc('papel_na_empresa', { p_empresa: EMPRESA_LEGADA })
           // O CARGO em si não é gravado: só se veio preenchido.
           return { ok: !error, papel_presente: data !== null && data !== undefined, erro: error ? error.message : null }
         }),
     },
     {
-      nome: 'o PAR (getUser + papel_atual)',
+      nome: 'o PAR (getUser + papel_na_empresa)',
       papel: 'o custo TOTAL que `exigirPapel` acrescenta na 1ª chamada de um request',
       executar: () =>
         cronometrar(async () => {
           const { data: u, error: eu } = await supabase.auth.getUser()
           if (eu || !u?.user) return { ok: false, erro: eu ? eu.message : 'sem usuário' }
-          const { data: p, error: ep } = await supabase.rpc('papel_atual')
+          const { data: p, error: ep } = await supabase.rpc('papel_na_empresa', { p_empresa: EMPRESA_LEGADA })
           return {
             ok: !ep,
             papel_presente: p !== null && p !== undefined,

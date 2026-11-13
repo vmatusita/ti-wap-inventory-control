@@ -122,19 +122,34 @@ declare
     'vocabulario_unidades_guarda:filiais,unidades_apelidos',
     'rel_por_motivo_filiais:movimentacoes,motivos',
     'rel_resumo_filiais:movimentacoes,motivos,ativos',
-    'colaboradores_uso_efetivo:colaboradores,movimentacoes,lancamentos_item,ativos'
+    'colaboradores_uso_efetivo:colaboradores,movimentacoes,lancamentos_item,ativos',
+    'resetar_acervo:ativos,movimentacoes,anotacoes,pendencias_item,termos_gerados,eventos_admin',
+    'resetar_itens:lancamentos_item,eventos_admin',
+    'previa_reset:ativos,movimentacoes,anotacoes,pendencias_item,termos_gerados,lancamentos_item',
+    'rotulo_alcance_reset:ativos,lancamentos_item',
+    'apagar_ativo:ativos,eventos_admin',
+    'apagar_item:itens,eventos_admin',
+    'apagar_movimentacao:movimentacoes,eventos_admin',
+    'forcar_estado_ativo:ativos,movimentacoes,eventos_admin',
+    'forcar_saldo_item:itens,lancamentos_item,eventos_admin',
+    'apagar_ativos_conflito_filiais:ativos,eventos_admin',
+    'exigir_ativos_da_empresa:ativos',
+    'termo_exige_modelo_da_empresa:termos_gerados'
   ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
-  -- arquivo da migration que o define por último (todas ANTES da 0162) — o texto que o CI aplica.
+  -- arquivo da migration que o define por último (todas ANTES da 0162 até a F67) — o texto que o CI aplica.
+  -- F67 (13/11/2026): os OITO da Zona e da mesa foram recriados com `p_empresa` (0190/0191) — a contração
+  -- (0193) derrubou as assinaturas antigas, e o md5 passa aos corpos NOVOS, calculado do arquivo do mesmo
+  -- jeito (os dois de antes — import_gravar_trilha e registrar_tentativa_senha — conferem o método: iguais).
   k_escritores constant text[] := array[
-    'apagar_ativo:1433ac8da1e8b4aee4ed35dd0af6e2ce',
-    'apagar_ativos_conflito_filiais:717a8e39790d849194cde9262914b422',
-    'apagar_item:6ee27bacf8d19efe9e48c8303a53b7c6',
-    'apagar_movimentacao:1ec28fd2c657a431d29130994808abfc',
-    'forcar_estado_ativo:c199abcf2d4ea5e5055d4eb14b5a9eb0',
-    'forcar_saldo_item:e0a6906de4b9182896bc08a7ce1bd194',
-    'resetar_acervo:bdf3e76da07436f6b947beab6c6158a9',
-    'resetar_itens:e024d6f11030552fecdaee4a1da062fe',
+    'apagar_ativo:a304f7c2fc172b4ba26fd0de8ec93beb',
+    'apagar_ativos_conflito_filiais:20993de7072a0cf1c810e989a7602d5f',
+    'apagar_item:5aec271f465640a48255ec5aa07d880a',
+    'apagar_movimentacao:d20444cdc0a8f8e662536de212cfdafd',
+    'forcar_estado_ativo:7d5c17dd2dfda587ef2d8bdfa6458f5f',
+    'forcar_saldo_item:dcb2ff4992b06446c458e750dbe8a51b',
+    'resetar_acervo:f4104fca23af6af7c35b8f9c5a9cea27',
+    'resetar_itens:6ca919b50b9946595fb63d72f362e8f5',
     'import_gravar_trilha:3587aa25577ed90ecb516c41e0dd11b2',
     'registrar_tentativa_senha:ee0d1c21835858c0dd04eb5a017eabe7'];
   k_autor    constant uuid := '64000000-0000-4000-8000-0000000000a1';
@@ -403,17 +418,20 @@ begin
          coalesce(string_agg(e.nome, ', ') filter (where v.proname is null or v.md5 <> e.md5 or v.assinaturas <> 1), '')
     into v_ruins, v_rot
     from esperado e left join vivo v on v.proname = e.nome;
-  if pg_temp.assert_zero_de('5a o corpo das 9 funções que escrevem nas onze e de registrar_tentativa_senha é o das migrations de ANTES da F64 (md5 do prosrc, uma assinatura cada)' ||
+  if pg_temp.assert_zero_de('5a o corpo das 9 funções que escrevem nas onze e de registrar_tentativa_senha é o das migrations (as oito da Zona e da mesa, o da F67; os dois outros, o de ANTES da F64) (md5 do prosrc, uma assinatura cada)' ||
        case when v_ruins > 0 then ' — mudou: ' || v_rot else '' end, v_ruins, 10) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
-  select count(*) filter (where p.prosrc ~ '\mempresa_id\M'),
-         coalesce(string_agg(p.proname, ', ') filter (where p.prosrc ~ '\mempresa_id\M'), '')
+  -- F67 (13/11/2026): a F67 chegou. Os OITO da Zona e da mesa gravam a empresa ALVO EXPLÍCITA na trilha
+  -- (`eventos_admin.empresa_id`, decisão 1 do Johnny de 13/11) e TÊM de citar a coluna; os dois outros
+  -- (import_gravar_trilha, registrar_tentativa_senha) continuam pelo default — a F67C os passa a informar.
+  select count(*) filter (where (p.prosrc ~ '\mempresa_id\M') <> (p.proname not in ('import_gravar_trilha', 'registrar_tentativa_senha'))),
+         coalesce(string_agg(p.proname, ', ') filter (where (p.prosrc ~ '\mempresa_id\M') <> (p.proname not in ('import_gravar_trilha', 'registrar_tentativa_senha'))), '')
     into v_ruins, v_rot
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname in (select split_part(e, ':', 1) from unnest(k_escritores) as e);
-  if pg_temp.assert_zero_de('5b nenhum dos dez cita empresa_id — quem preenche a coluna é o default (até a F67)' ||
+  if pg_temp.assert_zero_de('5b os oito da Zona e da mesa citam empresa_id (a trilha com a empresa alvo, F67) e os dois outros não (o default, até a F67C)' ||
        case when v_ruins > 0 then ' — cita: ' || v_rot else '' end, v_ruins, 10) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 

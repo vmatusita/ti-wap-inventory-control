@@ -23,6 +23,18 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.73.0',
+    data: '2026-11-13',
+    fase: 'F67',
+    titulo: 'Apagar, importar, resolver conflito e gerir contas passaram a valer só dentro da empresa de quem faz',
+    mudancas: [
+      'Na Zona destrutiva (área Desenvolvedor), apagar tudo agora pede para digitar a quantidade do que vai sumir — por exemplo "RESETAR TUDO — 120 ATIVOS", ou "… LANÇAMENTOS" nos itens —, com o número que a prévia mostra. A frase antiga, sem o número, é recusada e nada é apagado.',
+      'Apagar, forçar estado ou saldo, importar a planilha, resolver um conflito entre filiais e mudar o cargo, o acesso, as filiais ou as sessões de uma pessoa passaram a valer só dentro da empresa de quem faz. Para a WAP, o dia a dia é o mesmo: ninguém ganhou nem perdeu acesso, e as telas não mudaram.',
+      'O mesmo patrimônio cadastrado em duas empresas diferentes deixou de ser tratado como conflito: a mesa de conflitos (Pendências), a importação e o cadastro de equipamento só comparam filiais da mesma empresa.',
+      'O sistema recusa emitir termo de responsabilidade para empresa que ainda não tem modelo próprio, com a mensagem "A emissão de termo ainda não está disponível para esta empresa." Para a WAP, os termos saem como sempre.',
+    ],
+  },
+  {
     versao: '1.72.0',
     data: '2026-11-12',
     fase: 'F66B',
