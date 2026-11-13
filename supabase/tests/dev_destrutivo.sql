@@ -287,8 +287,8 @@ begin
   --     são usadas de DENTRO das ferramentas, onde o usuário efetivo é o DONO e o privilégio
   --     continua valendo. Se um `grant` distraído as devolver, é esta asserção que grita; e o
   --     contrário também é medido: revogar demais fecharia uma ferramenta da tela.
-  if not has_function_privilege('authenticated', 'public.exigir_dev_para_destruir(text)', 'execute')
-     and not has_function_privilege('authenticated', 'public.rotulo_alcance_reset(smallint)', 'execute') then
+  if not has_function_privilege('authenticated', 'public.exigir_dev_para_destruir(uuid, text)', 'execute')
+     and not has_function_privilege('authenticated', 'public.rotulo_alcance_reset(uuid, smallint, text)', 'execute') then
     select count(*) into v_n
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
@@ -305,8 +305,8 @@ begin
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1c_AUXILIAR_EXPOSTA; ';
     raise warning '✗ 1c uma auxiliar voltou a ser executável por authenticated (exigir_dev_para_destruir=%, rotulo_alcance_reset=%)',
-      has_function_privilege('authenticated', 'public.exigir_dev_para_destruir(text)', 'execute'),
-      has_function_privilege('authenticated', 'public.rotulo_alcance_reset(smallint)', 'execute');
+      has_function_privilege('authenticated', 'public.exigir_dev_para_destruir(uuid, text)', 'execute'),
+      has_function_privilege('authenticated', 'public.rotulo_alcance_reset(uuid, smallint, text)', 'execute');
   end if;
 
   -- 1c-bis. A outra metade da 0087: a função de checagens perdeu o `execute` do service_role
@@ -327,13 +327,13 @@ begin
   -- chega a olhar o resto. Se algum dia a ordem mudar, esta varredura acusa — porque a
   -- mensagem deixaria de ser a da guarda de cargo.
   v_chamada := array[
-    format('select public.apagar_ativo(%L::uuid, %L, %L)', v_at_x, 'x', 'justificativa ficticia do roteiro'),
-    format('select public.apagar_movimentacao(%L::uuid, %L, %L)', v_mov_x, 'x', 'justificativa ficticia do roteiro'),
-    format('select public.apagar_item(%s::smallint, %L, %L)', v_item_cad, 'x', 'justificativa ficticia do roteiro'),
-    format('select public.resetar_acervo(%s::smallint, %L, %L, %L, %L::jsonb)', v_f1, 'x', 'justificativa ficticia do roteiro', v_backup, '{}'),
-    format('select public.resetar_itens(%s::smallint, %L, %L, %L, %L::jsonb)', v_f1, 'x', 'justificativa ficticia do roteiro', v_backup, '{}'),
-    format('select public.forcar_estado_ativo(%L::uuid, %L::public.status_ativo, %L)', v_at_x, 'em_estoque', 'justificativa ficticia do roteiro'),
-    format('select public.forcar_saldo_item(%s::smallint, %s::smallint, 0, %L)', v_item_cad, v_f1, 'justificativa ficticia do roteiro')
+    format('select public.apagar_ativo(public.empresa_legada(), %L::uuid, %L, %L)', v_at_x, 'x', 'justificativa ficticia do roteiro'),
+    format('select public.apagar_movimentacao(public.empresa_legada(), %L::uuid, %L, %L)', v_mov_x, 'x', 'justificativa ficticia do roteiro'),
+    format('select public.apagar_item(public.empresa_legada(), %s::smallint, %L, %L)', v_item_cad, 'x', 'justificativa ficticia do roteiro'),
+    format('select public.resetar_acervo(public.empresa_legada(), %s::smallint, %L, %L, %L, %L::jsonb)', v_f1, 'x', 'justificativa ficticia do roteiro', v_backup, '{}'),
+    format('select public.resetar_itens(public.empresa_legada(), %s::smallint, %L, %L, %L, %L::jsonb)', v_f1, 'x', 'justificativa ficticia do roteiro', v_backup, '{}'),
+    format('select public.forcar_estado_ativo(public.empresa_legada(), %L::uuid, %L::public.status_ativo, %L)', v_at_x, 'em_estoque', 'justificativa ficticia do roteiro'),
+    format('select public.forcar_saldo_item(public.empresa_legada(), %s::smallint, %s::smallint, 0, %L)', v_item_cad, v_f1, 'justificativa ficticia do roteiro')
   ];
   v_cargos_uid := array[k_admin, k_operador, k_consulta];
 
@@ -728,7 +728,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    select public.apagar_ativo(v_at_a, 'WAP0009301', 'justificativa ficticia do roteiro F23') into v_j;
+    select public.apagar_ativo(public.empresa_legada(), v_at_a, 'WAP0009301', 'justificativa ficticia do roteiro F23') into v_j;
     v_ok := v_ok + 1; raise notice '✓ 3a dev APAGA o ativo com rastro inteiro: %', v_j::text;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3a_NAO_APAGOU; ';
@@ -816,7 +816,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    perform public.apagar_ativo(v_at_c, 'WAP0009303', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_ativo(public.empresa_legada(), v_at_c, 'WAP0009303', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3h_TERMO_MISTO_PASSOU; ';
     raise warning '✗ 3h apagou um ativo que está em termo de lote com OUTRO ativo';
   exception when others then
@@ -906,7 +906,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
   begin
-    select public.apagar_movimentacao(v_mov_e2, 'WAP0009401', 'justificativa ficticia do roteiro F23') into v_j;
+    select public.apagar_movimentacao(public.empresa_legada(), v_mov_e2, 'WAP0009401', 'justificativa ficticia do roteiro F23') into v_j;
     select status, colaborador_atual into v_st, v_txt from public.ativos where id = v_at_e;
     select count(*) into v_n from public.movimentacoes where id = v_mov_e2;
     if v_st = 'em_estoque' and v_txt is null and v_n = 0 then
@@ -921,7 +921,7 @@ begin
   end;
 
   begin
-    perform public.apagar_movimentacao(v_mov_f2, 'WAP0009402', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_f2, 'WAP0009402', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4b_MEIO_PASSOU; ';
     raise warning '✗ 4b apagou uma movimentação do MEIO';
   exception when others then
@@ -934,7 +934,7 @@ begin
   end;
 
   begin
-    perform public.apagar_movimentacao(v_mov_g1, 'WAP0009403', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_g1, 'WAP0009403', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4c_UNICA_PASSOU; ';
     raise warning '✗ 4c apagou a ÚNICA movimentação do ativo';
   exception when others then
@@ -947,7 +947,7 @@ begin
   end;
 
   begin
-    perform public.apagar_movimentacao(v_mov_h2, 'WAP0009404', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_h2, 'WAP0009404', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4d_TERMO_PASSOU; ';
     raise warning '✗ 4d apagou uma movimentação citada por um termo';
   exception when others then
@@ -960,7 +960,7 @@ begin
   end;
 
   begin
-    perform public.apagar_movimentacao(v_mov_i2, 'WAP0009405', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_i2, 'WAP0009405', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e1_ESTORNADA_PASSOU; ';
     raise warning '✗ 4e a movimentação ESTORNADA foi apagada';
   exception when others then
@@ -997,7 +997,7 @@ begin
     into v_txt from public.ativos where id = v_at_i;
 
   begin
-    perform public.apagar_movimentacao(v_mov_i3, 'WAP0009405', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_i3, 'WAP0009405', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e2_ESTORNO_APAGADO; ';
     raise warning '✗ 4e-bis o ESTORNO foi apagado — as pendências do estorno-strip ficariam perdidas';
   exception when others then
@@ -1026,7 +1026,7 @@ begin
   -- (created_at, id) é a SAÍDA (de 3000 dias atrás). As duas asserções abaixo dizem qual linha
   -- a RPC considera "a última", e não só que ela recusou alguma coisa.
   begin
-    perform public.apagar_movimentacao(v_mov_j1, 'WAP0009406', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_j1, 'WAP0009406', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4f_ORDEM_POR_DATA; ';
     raise warning '✗ 4f a RPC aceitou apagar a compra (a mais nova por DATA)';
   exception when others then
@@ -1040,7 +1040,7 @@ begin
   end;
 
   begin
-    perform public.apagar_movimentacao(v_mov_j2, 'WAP0009406', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_j2, 'WAP0009406', 'justificativa ficticia do roteiro F23');
     select count(*) into v_n from public.movimentacoes where id = v_mov_j2;
     select status into v_st from public.ativos where id = v_at_j;
     if v_n = 0 and v_st = 'em_estoque' then
@@ -1061,7 +1061,7 @@ begin
   --     mensagem própria, e é por ela que a asserção pergunta — "deu erro" não é "recusou pelo
   --     empate".
   begin
-    perform public.apagar_movimentacao(v_mov_z2, 'WAP0009407', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_z2, 'WAP0009407', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4g_EMPATE_PASSOU; ';
     raise warning '✗ 4g apagou uma movimentação de um par com created_at IDÊNTICO';
   exception when others then
@@ -1074,7 +1074,7 @@ begin
   end;
 
   begin
-    perform public.apagar_movimentacao(v_mov_z1, 'WAP0009407', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_z1, 'WAP0009407', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4g-bis_EMPATE_PASSOU; ';
     raise warning '✗ 4g-bis a COMPRA do par empatado foi apagada — a decisão ainda depende do uuid';
   exception when others then
@@ -1097,7 +1097,7 @@ begin
   returning id into v_mov_z3;
 
   begin
-    perform public.apagar_movimentacao(v_mov_z3, 'WAP0009407', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_movimentacao(public.empresa_legada(), v_mov_z3, 'WAP0009407', 'justificativa ficticia do roteiro F23');
     select count(*) into v_n from public.movimentacoes where ativo_id = v_at_z;
     select status into v_st from public.ativos where id = v_at_z;
     if v_n = 2 and v_st = 'em_estoque' then
@@ -1126,7 +1126,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    select public.apagar_item(v_item5, 'F23 Mouse Ficticio', 'justificativa ficticia do roteiro F23') into v_j;
+    select public.apagar_item(public.empresa_legada(), v_item5, 'F23 Mouse Ficticio', 'justificativa ficticia do roteiro F23') into v_j;
     v_ok := v_ok + 1; raise notice '✓ 5a dev APAGA um item do catálogo COM lançamentos: %', v_j::text;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5a_FALHOU; ';
@@ -1162,7 +1162,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    select public.forcar_estado_ativo(v_at_k, 'descartado'::public.status_ativo, 'justificativa ficticia do roteiro F23') into v_j;
+    select public.forcar_estado_ativo(public.empresa_legada(), v_at_k, 'descartado'::public.status_ativo, 'justificativa ficticia do roteiro F23') into v_j;
     v_ok := v_ok + 1; raise notice '✓ 9a dev FORÇA o estado de um ativo: %', v_j::text;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '9a_FALHOU; ';
@@ -1228,7 +1228,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    perform public.forcar_estado_ativo(v_at_l, 'emprestado'::public.status_ativo, 'justificativa ficticia do roteiro F23');
+    perform public.forcar_estado_ativo(public.empresa_legada(), v_at_l, 'emprestado'::public.status_ativo, 'justificativa ficticia do roteiro F23');
     select status, colaborador_atual into v_st, v_txt from public.ativos where id = v_at_l;
     if v_st = 'emprestado' and v_txt = 'Beltrano de Teste' then
       v_ok := v_ok + 1; raise notice '✓ 9f em estado NÃO terminal o detentor é preservado';
@@ -1252,7 +1252,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    select public.forcar_saldo_item(v_item10, v_f1, 12, 'justificativa ficticia do roteiro F23') into v_j;
+    select public.forcar_saldo_item(public.empresa_legada(), v_item10, v_f1, 12, 'justificativa ficticia do roteiro F23') into v_j;
     select total into v_s1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item10;
     if v_s1 = 12 and (v_j->>'delta')::int = 9 then
       v_ok := v_ok + 1; raise notice '✓ 10a forçar o saldo de 3 para 12 grava o lançamento de delta 9';
@@ -1266,7 +1266,7 @@ begin
   end;
 
   begin
-    perform public.forcar_saldo_item(v_item10, v_f1, 5, 'justificativa ficticia do roteiro F23');
+    perform public.forcar_saldo_item(public.empresa_legada(), v_item10, v_f1, 5, 'justificativa ficticia do roteiro F23');
     select total into v_s1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item10;
     select count(*) into v_n from public.lancamentos_item where item_id = v_item10 and forcado and tipo = 'ajuste';
     if v_s1 = 5 and v_n = 2 then
@@ -1321,7 +1321,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
   begin
-    perform public.apagar_ativo(v_at_b, 'WAP0000000', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_ativo(public.empresa_legada(), v_at_b, 'WAP0000000', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12a_CONFIRMACAO; ';
     raise warning '✗ 12a apagar_ativo aceitou uma confirmação errada';
   exception when others then
@@ -1335,7 +1335,7 @@ begin
 
   -- justificativa curta COM a confirmação certa, para isolar a guarda que se quer medir
   begin
-    perform public.apagar_ativo(v_at_b, 'WAP0009302', 'curta');
+    perform public.apagar_ativo(public.empresa_legada(), v_at_b, 'WAP0009302', 'curta');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12b_JUSTIFICATIVA; ';
     raise warning '✗ 12b apagar_ativo aceitou justificativa de 5 caracteres';
   exception when others then
@@ -1348,7 +1348,7 @@ begin
   end;
 
   begin
-    perform public.apagar_item(v_item10, 'nome que nao e o do item', 'justificativa ficticia do roteiro F23');
+    perform public.apagar_item(public.empresa_legada(), v_item10, 'nome que nao e o do item', 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12c_CONFIRMACAO_ITEM; ';
     raise warning '✗ 12c apagar_item aceitou um nome errado';
   exception when others then
@@ -1361,7 +1361,7 @@ begin
   end;
 
   begin
-    perform public.resetar_acervo(v_f2, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_f2, '{}'::jsonb);
+    perform public.resetar_acervo(public.empresa_legada(), v_f2, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_f2, '{}'::jsonb);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12d_CONFIRMACAO_RESET; ';
     raise warning '✗ 12d o reset por filial aceitou a frase do reset GLOBAL';
   exception when others then
@@ -1374,7 +1374,7 @@ begin
   end;
 
   begin
-    perform public.forcar_estado_ativo(v_at_l, 'em_estoque'::public.status_ativo, 'curta');
+    perform public.forcar_estado_ativo(public.empresa_legada(), v_at_l, 'em_estoque'::public.status_ativo, 'curta');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '12e_JUSTIFICATIVA_FORCAR; ';
     raise warning '✗ 12e forcar_estado_ativo aceitou justificativa de 5 caracteres';
   exception when others then
@@ -1402,7 +1402,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    perform public.forcar_saldo_item(v_item13, v_f1, 0, 'justificativa ficticia do roteiro F23');
+    perform public.forcar_saldo_item(public.empresa_legada(), v_item13, v_f1, 0, 'justificativa ficticia do roteiro F23');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '13a_NAO_ESTOUROU; ';
     raise warning '✗ 13a o cenário não estourou — a asserção da janela não pôde ser medida';
   exception when others then
@@ -1454,7 +1454,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23',
+    perform public.resetar_acervo(public.empresa_legada(), v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23',
                                   'reset/acervo/filial-' || v_f2::text || '/este-backup-nao-existe.json', v_ct);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8a_SEM_BACKUP; ';
     raise warning '✗ 8a o reset aceitou um backup que não existe no bucket';
@@ -1476,7 +1476,7 @@ begin
 
   -- contagens divergentes → 40001: fecha a janela TOCTOU entre a prévia/backup e o delete
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup_f2, jsonb_set(v_ct, '{ativos}', to_jsonb(v_c1 + 7)));
+    perform public.resetar_acervo(public.empresa_legada(), v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup_f2, jsonb_set(v_ct, '{ativos}', to_jsonb(v_c1 + 7)));
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8b_CONTAGENS; ';
     raise warning '✗ 8b o reset aceitou contagens que não batem';
   exception when others then
@@ -1489,7 +1489,7 @@ begin
   end;
 
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup_f2, null::jsonb);
+    perform public.resetar_acervo(public.empresa_legada(), v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup_f2, null::jsonb);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8c_SEM_CONTAGENS; ';
     raise warning '✗ 8c o reset aceitou p_contagens nulo';
   exception when others then
@@ -1508,7 +1508,7 @@ begin
   --     um caminho inventado, é um backup legítimo do recorte ERRADO. Sem esta asserção, a
   --     0089 seria indistinguível da guarda que ela substituiu.
   begin
-    perform public.resetar_acervo(v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup, v_ct);
+    perform public.resetar_acervo(public.empresa_legada(), v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23', v_backup, v_ct);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8d_BACKUP_DE_OUTRO_RECORTE; ';
     raise warning '✗ 8d o reset da filial % aceitou o backup da filial %', v_nome_f2, v_nome_f1;
   exception when others then
@@ -1558,7 +1558,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    select public.resetar_acervo(v_f1, v_nome_f1, 'justificativa ficticia do roteiro F23', v_backup, v_ct) into v_j;
+    select public.resetar_acervo(public.empresa_legada(), v_f1, v_nome_f1, 'justificativa ficticia do roteiro F23', v_backup, v_ct) into v_j;
     v_ok := v_ok + 1; raise notice '✓ 6a dev RESETA o acervo da filial %: %', v_nome_f1, v_j::text;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6a_FALHOU; ';
@@ -1626,28 +1626,44 @@ begin
                                   movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, criado_por)
   values (v_f2, 'substituir', 'hash-ficticio-f23', 0, 0, 0, 0, 0, 'f23/backup.csv', '[]'::jsonb, k_admin);
 
-  select count(*)::int into v_c1 from public.ativos;
-  select count(*)::int into v_c2 from public.movimentacoes;
-  select count(*)::int into v_c3 from public.anotacoes;
-  select count(*)::int into v_c4 from public.pendencias_item;
-  select count(*)::int into v_c5 from public.termos_gerados;
+  -- F67 (13/11/2026; PLAN-F67, decisão 5): o "tudo" é todas as filiais DESTA empresa — as contagens da revalidação e a
+  -- quantidade da frase são as da empresa legada (no CI, o acervo inteiro é dela).
+  select count(*)::int into v_c1 from public.ativos where empresa_id = public.empresa_legada();
+  select count(*)::int into v_c2 from public.movimentacoes where empresa_id = public.empresa_legada();
+  select count(*)::int into v_c3 from public.anotacoes where empresa_id = public.empresa_legada();
+  select count(*)::int into v_c4 from public.pendencias_item where empresa_id = public.empresa_legada();
+  select count(*)::int into v_c5 from public.termos_gerados where empresa_id = public.empresa_legada();
   v_ct := jsonb_build_object('ativos', v_c1, 'movimentacoes', v_c2, 'anotacoes', v_c3, 'pendencias_item', v_c4, 'termos', v_c5);
-  select count(*)::int into v_n from public.lancamentos_item;
+  select count(*)::int into v_n from public.lancamentos_item where empresa_id = public.empresa_legada();
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
 
+  -- 7a-frase. A frase SEM a quantidade (a de antes da F67) não confere mais — e a recusa vem antes de qualquer escrita.
   begin
-    select public.resetar_acervo(null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_glob, v_ct) into v_j;
-    v_ok := v_ok + 1; raise notice '✓ 7a dev RESETA o acervo INTEIRO com a frase RESETAR TUDO: %', v_j::text;
+    perform public.resetar_acervo(public.empresa_legada(), null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_glob, v_ct);
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a-frase_ACEITOU; ';
+    raise warning '✗ 7a-frase o "tudo" aceitou a frase SEM a quantidade (RESETAR TUDO)';
+  exception when others then
+    if sqlstate = '22023' and sqlerrm like '%RESETAR TUDO — ' || v_c1 || ' ATIVOS%' then
+      v_ok := v_ok + 1; raise notice '✓ 7a-frase o "tudo" recusa a frase sem a quantidade e pede RESETAR TUDO — % ATIVOS (22023)', v_c1;
+    else
+      v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a-frase_MOTIVO_ERRADO; ';
+      raise warning '✗ 7a-frase recusa por outro motivo (%): %', sqlstate, sqlerrm;
+    end if;
+  end;
+
+  begin
+    select public.resetar_acervo(public.empresa_legada(), null::smallint, 'RESETAR TUDO — ' || v_c1 || ' ATIVOS', 'justificativa ficticia do roteiro F23', v_backup_glob, v_ct) into v_j;
+    v_ok := v_ok + 1; raise notice '✓ 7a dev RESETA o acervo INTEIRO DA EMPRESA com a frase RESETAR TUDO — % ATIVOS: %', v_c1, v_j::text;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7a_FALHOU; ';
     raise warning '✗ 7a resetar_acervo global falhou (%): %', sqlstate, sqlerrm;
   end;
 
   begin
-    perform public.resetar_itens(null::smallint, 'RESETAR TUDO', 'justificativa ficticia do roteiro F23', v_backup_itens, jsonb_build_object('lancamentos', v_n));
-    v_ok := v_ok + 1; raise notice '✓ 7b dev RESETA os lançamentos de itens de todas as filiais';
+    perform public.resetar_itens(public.empresa_legada(), null::smallint, 'RESETAR TUDO — ' || v_n || ' LANÇAMENTOS', 'justificativa ficticia do roteiro F23', v_backup_itens, jsonb_build_object('lancamentos', v_n));
+    v_ok := v_ok + 1; raise notice '✓ 7b dev RESETA os lançamentos de itens de todas as filiais DA EMPRESA (RESETAR TUDO — % LANÇAMENTOS)', v_n;
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b_FALHOU; ';
     raise warning '✗ 7b resetar_itens global falhou (%): %', sqlstate, sqlerrm;
@@ -1655,11 +1671,14 @@ begin
 
   reset role;
 
-  select (select count(*) from public.ativos) + (select count(*) from public.movimentacoes)
-       + (select count(*) from public.anotacoes) + (select count(*) from public.pendencias_item)
-       + (select count(*) from public.termos_gerados) + (select count(*) from public.lancamentos_item) into v_n;
+  select (select count(*) from public.ativos where empresa_id = public.empresa_legada())
+       + (select count(*) from public.movimentacoes where empresa_id = public.empresa_legada())
+       + (select count(*) from public.anotacoes where empresa_id = public.empresa_legada())
+       + (select count(*) from public.pendencias_item where empresa_id = public.empresa_legada())
+       + (select count(*) from public.termos_gerados where empresa_id = public.empresa_legada())
+       + (select count(*) from public.lancamentos_item where empresa_id = public.empresa_legada()) into v_n;
   if v_n = 0 then
-    v_ok := v_ok + 1; raise notice '✓ 7c o reset global zerou o acervo inteiro';
+    v_ok := v_ok + 1; raise notice '✓ 7c o "tudo" zerou o acervo inteiro da empresa';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7c_SOBROU_ACERVO; ';
     raise warning '✗ 7c sobraram % linha(s) de acervo', v_n;
@@ -1701,8 +1720,11 @@ begin
 
   -- Cada bloco tem de ter registrado o backup DELE (a 0089 deu caminhos distintos ao acervo e
   -- aos itens): contar as duas linhas com o mesmo caminho não provaria mais nada.
+  -- F67: a trilha do "tudo" grava a empresa (eventos_admin.empresa_id), o alcance 'empresa' e, no alvo, a frase com a
+  -- quantidade que foi digitada.
   select count(*) into v_n from public.eventos_admin
-   where alvo = 'RESETAR TUDO' and detalhe->>'alcance' = 'global'
+   where alvo like 'RESETAR TUDO — %' and detalhe->>'alcance' = 'empresa'
+     and empresa_id = public.empresa_legada()
      and ((acao = 'acervo_resetado' and detalhe->>'backup_path' = v_backup_glob)
        or (acao = 'itens_resetados' and detalhe->>'backup_path' = v_backup_itens));
   if v_n = 2 then

@@ -391,7 +391,7 @@ begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
   begin
-    select public.forcar_estado_ativo(a, 'defasado'::public.status_ativo,
+    select public.forcar_estado_ativo(public.empresa_legada(), a, 'defasado'::public.status_ativo,
       'justificativa ficticia do roteiro F36') into v_j;
   exception when others then
     v_j := jsonb_build_object('erro', sqlerrm);

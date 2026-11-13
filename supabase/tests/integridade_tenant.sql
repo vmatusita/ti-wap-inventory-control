@@ -112,7 +112,10 @@ declare
   -- constante de antes, `b3c0d790…` (a F65: fora das três), dá lugar à do conjunto fora das CINCO, medida no CI na
   -- cadeia até a 0174 (run 36010011561, push 1 da F66, 100 funções; docs/f66-evidencias/B-travas/). É o mesmo fato: a
   -- L4 estava verde na 0174 contra `b3c0d790…`, e um subconjunto de um conjunto igual é igual. (A mesa PGlite: 54002b61….)
-  k_funcoes_pre_0165 constant text := '3a2a800078ad78118817492277d3e6d8';
+  -- F67 (13/11/2026): o conjunto encolhe de novo — fora as 41 que a F67 cria, recria ou derruba (lista no L4, abaixo). A
+  -- constante de antes, `3a2a8000…`, dá lugar à do conjunto fora delas, medida no CI na cadeia até a 0184 (run
+  -- 43441883622, o push das travas da F67, 70 funções; docs/f67-evidencias/B-travas/). Mesmo fato, mesmo raciocínio da F66.
+  k_funcoes_pre_0165 constant text := '5247f1636bfa26cab2363dcd45adbbc6';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() da 0139 (o dos dois bancos antes da F65).
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
 begin

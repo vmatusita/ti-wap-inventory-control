@@ -107,6 +107,11 @@ savepoint s_rollback;
 -- F66 (24/09/2026): e a F66 antes de todas — as policies dela citam `empresa_id` e as funções de conjunto da F62.
 -- F66B (12/11/2026): e a F66B antes da F66 — pela ordem inversa ENTRE fases (regra 10 da §4). Medido, este roteiro
 -- passaria sem ela (a impressão dele não lê CHECK das tabelas de negócio); entra pela ordem, não pela necessidade.
+-- F67 (13/11/2026): e a F67 antes de todas — as policies e as funções dela citam `empresa_legada()` e as funções de
+-- conjunto que os rollbacks da F62 em diante derrubam, e a 0187 reescreve nove policies que as impressões de antes
+-- destes roteiros comparam (medido na mesa: f63/f65/f66 reprovam o rb3 sem esta linha, e o da F62 nem roda). O que
+-- este roteiro prova não muda.
+\ir ../rollback/F67-desfaz.sql
 \ir ../rollback/F66B-desfaz.sql
 \ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql
@@ -125,6 +130,11 @@ rollback to savepoint s_rollback;
 -- ---------------------------------------------------------------------------
 -- F66B (12/11/2026): e a F66B antes da F66 — pela ordem inversa ENTRE fases (regra 10 da §4). Medido, este roteiro
 -- passaria sem ela (a impressão dele não lê CHECK das tabelas de negócio); entra pela ordem, não pela necessidade.
+-- F67 (13/11/2026): e a F67 antes de todas — as policies e as funções dela citam `empresa_legada()` e as funções de
+-- conjunto que os rollbacks da F62 em diante derrubam, e a 0187 reescreve nove policies que as impressões de antes
+-- destes roteiros comparam (medido na mesa: f63/f65/f66 reprovam o rb3 sem esta linha, e o da F62 nem roda). O que
+-- este roteiro prova não muda.
+\ir ../rollback/F67-desfaz.sql
 \ir ../rollback/F66B-desfaz.sql
 \ir ../rollback/F66-desfaz.sql
 \ir ../rollback/F65-desfaz.sql

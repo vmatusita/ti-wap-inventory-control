@@ -91,7 +91,7 @@ begin
   foreach v_sig in array array[
     'public.criar_compra_lote(jsonb, uuid)',
     'public.devolver_ao_fornecedor(uuid, jsonb, jsonb, uuid)',
-    'public.importar_ativos_substituir(jsonb, text, jsonb, jsonb)'
+    'public.importar_ativos_substituir(uuid, jsonb, text, jsonb, jsonb)'
   ]
   loop
     if to_regprocedure(v_sig) is null then
