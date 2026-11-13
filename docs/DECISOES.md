@@ -14051,3 +14051,18 @@ migrations `0185`–`0192` (a expansão, oito lotes) e `0193` (a contração); e
     +20 acima) e a paridade nas 11 classes — 9 idênticas, e `func`/`grant_func` de produção sem as 21 = o ensaio
     contraído, fingerprint por fingerprint (`paridade-expansao.json`). A mesa continua com 120 linhas e 59 grupos, igual
     à regra de antes. Nenhum gatilho de rollback disparou; o classificador não barrou nada.
+20. **O merge, o deploy e a janela** (13/11): o PR #94 entrou com os dois checks verdes, merge normal `05cba24`
+    (16:04:22 UTC); `/api/saude` `1.73.0` · `05cba24` às 16:05; smoke 0 falha. Tirei uma leitura PRÉ-deploy do
+    `pg_stat_statements` (13:05 −03) só como referência — ela mostra o acumulado das formas antigas desde o `stats_reset`
+    de julho (onze entradas, todas `authenticated`) — e o T0 depois do deploy (13:08:32). T1 às 13:40:00, 31 min 28 s
+    depois: os mesmos onze números, `dealloc` 5 = 5, `stats_reset` igual, nenhuma entrada de `service_role` ou `anon` →
+    **Δ = 0 das antigas**. As novas também tiveram Δ 0 (ninguém usou destrutiva, import ou gestão de contas na janela):
+    o Anexo F67 prevê isso para as raras, e a prova vira a ESTÁTICA, que passou em `61c9b75` e no `05cba24` no ar (o
+    `git grep` vazio e a catraca 19/19). Uma janela bastou.
+21. **A contração em produção** (~13:43 −03), com o texto exato: 0 das 21 vivas, 114 funções iguais às do ensaio, o
+    conta a conta 0 nas 8 classes, o smoke 109 OK · 0 falha, o conferidor 272 · 0 recusadas, o lint de segurança em 38
+    e a paridade nas **11 classes idênticas** ao ensaio, sem variante. O repouso intermediário (só a expansão) durou ~1h10.
+22. **A Parte B à mão** depois da contração (run `43466154928`): VERMELHA pelos MESMOS dois achados do #84
+    (`backup_orfao` 12, `detentor_em_estado_sem_dono` 1) — nem um a mais, a condição da decisão 13/11-3 —, a deriva com 0
+    pendente (a mais nova no ledger é a `0193`), e a sessão da conta `consulta` lendo o resumo (a decisão 14 vale para a
+    sonda agendada). A fase fecha aqui; a tag `v1.73.0` vai no merge do PR de documentação.

@@ -6,12 +6,13 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
-## 13/11/2026 — F67 · O cargo por empresa, as `security definer` e as destrutivas 🚧
+## 13/11/2026 — F67 · O cargo por empresa, as `security definer` e as destrutivas ✅
 
 Fase **F67** (**v1.73.0**) · **com migrations `0185`–`0192` (a expansão) e `0193` (a contração)** — funções, views, nove
-policies e um gatilho; nenhum dado de negócio muda. Expandir e contrair, zero janela: a forma nova nasce ao lado da
-antiga, o app novo vai ao ar, e a antiga sai depois da prova de zero chamadas em `pg_stat_statements` (RUNBOOK, Anexo
-F67) · sem dependência nova. PR #94. Plano em [`docs/PLAN-F67.md`](docs/PLAN-F67.md), ata em
+policies e um gatilho; nenhum dado de negócio muda. Expandir e contrair, zero janela: a expansão aplicada no ensaio e
+em produção ANTES do merge, lote a lote, com o texto exato e o conta a conta 0 nas 14 contas de produção; o app novo no
+ar pelo merge `05cba24`; a contração em produção só depois da janela de 31 min do `pg_stat_statements` com Δ = 0 das
+assinaturas antigas (RUNBOOK, Anexo F67), e o conta a conta 0 de novo · sem dependência nova. PR #94. Plano em [`docs/PLAN-F67.md`](docs/PLAN-F67.md), ata em
 [`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-13 · F67), relatório em [`docs/RELATORIO-F67.md`](docs/RELATORIO-F67.md).
 Storage e Realtime por empresa e o fim do default `empresa_legada()` ficaram para as duas fases seguintes, com ficha
 própria no plano (decisão do Johnny de 12/11).

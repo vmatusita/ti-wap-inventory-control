@@ -1,11 +1,12 @@
 # Relatório F67 — o cargo por empresa, as `security definer` e as destrutivas
 
-**v1.73.0** · migrations `0185`–`0192` (a EXPANSÃO) **aplicadas no ensaio e em produção** em 13/11/2026, e `0193` (a
-CONTRAÇÃO) aplicada no ensaio; em produção a contração é a última coisa da fase, depois do merge, do deploy e da janela
-do `pg_stat_statements` (§8) · SHA de código congelado **`051a5f8`** (CI `43448719684` verde: 61 roteiros, 1.248
-asserções, 0 ✗; injetor 170/170; `db:types:diff` 102 = 102) · código no
-[PR #94](https://github.com/vmatusita/ti-wap-inventory-control/pull/94) · plano [`PLAN-F67.md`](PLAN-F67.md) · ata
-`DECISOES.md` (2026-11-13 · F67) · evidência em [`f67-evidencias/`](f67-evidencias/).
+**v1.73.0 no ar** (`/api/saude`: `1.73.0` · `05cba24`, 13/11/2026 16:05 UTC) · migrations `0185`–`0192` (a EXPANSÃO)
+**aplicadas no ensaio e em produção** antes do merge, e `0193` (a CONTRAÇÃO) no ensaio e — depois do deploy e da janela
+do `pg_stat_statements` com Δ = 0 das antigas (§8) — **em produção** às ~13:43 de Brasília · SHA de código congelado
+**`051a5f8`** (CI `43448719684` verde: 61 roteiros, 1.248 asserções, 0 ✗; injetor 170/170; `db:types:diff` 102 = 102) ·
+código no [PR #94](https://github.com/vmatusita/ti-wap-inventory-control/pull/94), merge `05cba24` · plano
+[`PLAN-F67.md`](PLAN-F67.md) · ata `DECISOES.md` (2026-11-13 · F67) · evidência em [`f67-evidencias/`](f67-evidencias/) ·
+este fecho no PR de documentação, com a tag `v1.73.0` no merge dele.
 
 > A sexta fase da virada multiempresa. Até aqui o cargo de cada pessoa só existia na empresa legada (a WAP), pela ponte
 > da F62: com uma segunda empresa, o admin da B teria o cargo vindo da WAP, `pode_escrever_filial` diria "sim" a
@@ -18,32 +19,36 @@ asserções, 0 ✗; injetor 170/170; `db:types:diff` 102 = 102) · código no
 > recusando termo de empresa sem modelo próprio.
 >
 > Com uma empresa só, nada disso muda o que a WAP vê ou pode — e foi provado: o conta a conta deu **0 divergência** nas
-> 14 contas de produção, antes, no meio (depois da 0188, que troca o piso) e depois da expansão; o smoke 109 OK · 0
-> falha; o conferidor 272 pontos · 0 recusadas; a mesa com as mesmas 120 linhas e 59 grupos; o #84 nos mesmos 12 e 1.
+> 14 contas de produção, antes, no meio (depois da 0188, que troca o piso), depois da expansão e depois da contração;
+> o smoke 109 OK · 0 falha nas três rodadas; o conferidor 272 pontos · 0 recusadas; a mesa com as mesmas 120 linhas e
+> 59 grupos; a paridade ensaio × produção nas 11 classes; o #84 nos mesmos 12 e 1.
 
 ---
 
 # 1. O ROTEIRO DO JOHNNY — o que ficou com você, e por quê
 
-## 1.1 O estado agora, e o que ainda é desta run
+## 1.1 O que ficou com você — nada bloqueante
+
+A fase está no ar e conferida, inteira:
 
 | etapa | estado |
 |---|---|
 | expansão `0185`–`0192` no ensaio e em produção, com as provas | **feito** (§6) |
 | contração `0193` no ensaio | **feito** (§6) |
-| merge do PR #94 com os dois checks verdes | *(esta run — §16)* |
-| `/api/saude` com `1.73.0` e o commit do merge; o smoke | *(esta run — §16)* |
-| a janela do `drop` (T0, prova estática, ≥ 30 min, T1, Δ das antigas = 0) | *(esta run — §8)* |
-| a contração `0193` em produção, com as provas | *(esta run — §6)* |
-| a Parte B do `saude.yml` à mão, com os mesmos 12 e 1 | *(esta run — §10)* |
-| o PR de documentação com a tag `v1.73.0` | *(esta run)* |
+| merge do PR #94 com os dois checks verdes | **feito** — `05cba24`, 16:04:22 UTC (§16) |
+| `/api/saude` com `1.73.0` e o commit do merge; o smoke | **feito** — `1.73.0` · `05cba24`; smoke 109 OK · 0 falha (§16) |
+| a janela do `drop` (T0, prova estática, ≥ 30 min, T1, Δ das antigas = 0) | **feito** — T0 13:08, T1 13:40, Δ = 0 (§8) |
+| a contração `0193` em produção, com as provas | **feito** (§6, §7) |
+| a Parte B do `saude.yml` à mão, com os mesmos 12 e 1 | **feito** — os mesmos 12 e 1, deriva 0 pendente (§10) |
+| o PR de documentação com a tag `v1.73.0` | este PR |
 
-Nenhuma decisão sua pendente. Nenhum rollback foi necessário. O classificador de segurança não barrou nada.
+Para você: a conferência à mão do §1.3, só leitura. Nenhuma decisão sua pendente; nenhum rollback foi necessário; o
+classificador de segurança não barrou nada.
 
-## 1.2 Se a run parar antes da contração em produção — os comandos, na ordem
+## 1.2 A receita da contração (referência — ela já correu)
 
-O estado "só a expansão em produção" é um **repouso válido** (§15): as assinaturas antigas e as novas convivem, o app de
-antes e o de depois funcionam. Para fechar:
+Ficam aqui os passos que fecharam a fase, para a próxima vez que uma assinatura mudar sem trocar o nome (o Anexo F67 do
+`RUNBOOK-BANCO.md` é a fonte):
 
 1. Confirme que o deploy é o do merge: `GET https://ti-wap-inventory-control.vercel.app/api/saude` → `versao` `1.73.0` e o
    `commit` do merge do PR #94.
@@ -200,15 +205,17 @@ policies e as views = o antes, com as nove da 0187 e as duas da 0191 pelo depars
 | 0190 | 36 · 131 = 36 + 95 | 36 · 131 = 36 + 95 (o resto com o mesmo hash do ensaio) |
 | 0191 | 39 · 133 · a mesa 0/0 = a regra de antes | 39 · 133 · a mesa **120/59 = a regra de antes** |
 | 0192 | 41 · 135 · 4 gatilhos | 41 · 135 · 4 gatilhos · 0 termo fora da lista |
-| 0193 | **0 das 21 vivas** · 114 = 38 + 76 · nenhuma sobrecarga | *(depois da janela — §8)* |
+| 0193 | **0 das 21 vivas** · 114 = 38 + 76 · nenhuma sobrecarga | **0 das 21 vivas** · 114 = 38 + 76 · nenhuma sobrecarga · o ledger com os nove arquivos (depois da janela, §8) |
 
 Os advisors: desempenho igual ao antes nos dois; segurança, só `authenticated_security_definer_function_executable`
-34 → 54 na expansão (as 20 formas novas, com o grant da antiga) e **38** depois da contração (medido no ensaio); ERROR 0.
-A paridade nas 11 classes: 9 idênticas, e `func`/`grant_func` de produção sem as 21 = o ensaio contraído, fingerprint por
-fingerprint (`G-apply/paridade-expansao.json`).
+34 → 54 na expansão (as 20 formas novas, com o grant da antiga) e **38** depois da contração, nos dois bancos; ERROR 0.
+A paridade nas 11 classes: na expansão, 9 idênticas e `func`/`grant_func` de produção sem as 21 = o ensaio contraído
+(`G-apply/paridade-expansao.json`); depois da contração em produção, **as 11 idênticas, sem variante** (func 114
+`46836858…`, grant_func 114 `df460361…`).
 
-Detalhe por banco: [`G-apply/ensaio.md`](f67-evidencias/G-apply/ensaio.md) e
-[`G-apply/producao.md`](f67-evidencias/G-apply/producao.md).
+Detalhe por banco: [`G-apply/ensaio.md`](f67-evidencias/G-apply/ensaio.md),
+[`G-apply/producao.md`](f67-evidencias/G-apply/producao.md) e, da janela e da contração em produção,
+[`G-apply/janela.md`](f67-evidencias/G-apply/janela.md).
 
 # 7. O conta a conta, nos dois bancos
 
@@ -222,21 +229,35 @@ de antes, em oito classes: o cargo, as derivadas, o piso, a escrita por filial, 
 | `f67-antes` depois da 0188 | — | **0** |
 | `f67-depois` (expansão) | **0** | **0** nas 8 classes |
 | sabotagem I (`f67-depois`, só no ensaio) | **3** (classe `cargo`) — o instrumento enxerga | — (proibido fora do ensaio) |
-| `f67-depois` (contração) | **0** | *(depois da janela)* |
+| `f67-depois` (contração) | **0** | **0** nas 8 classes · 14 · 84 · 28 |
 
 Os JSON em [`conta-a-conta/`](f67-evidencias/conta-a-conta/).
 
 # 8. A janela do `drop`
 
-*(preenchido nesta run, depois do deploy: T0, a prova estática, a janela, T1, o Δ das antigas por papel.)*
+A receita do Anexo F67 (`pg_stat_statements` por papel, a forma separada pelo argumento nomeado `p_empresa`), com o app
+novo no ar (`/api/saude` `1.73.0` · `05cba24` desde 16:05 UTC e o smoke 109 OK · 0 falha antes do T0):
+
+| | quando (−03) | `dealloc` | `stats_reset` | as formas antigas (11 entradas, todas `authenticated`) | as novas |
+|---|---|---|---|---|---|
+| pré-deploy (referência) | 13:05:01 | 5 | 09/07 12:30 | 14 · 35 · 2 · 2 · 6 · 3 · 5 · 12 · 13 · 2 · 1 | nenhuma |
+| **T0** | 13:08:32 | 5 | 09/07 12:30 | os mesmos | nenhuma |
+| **T1** | 13:40:00 (31 min 28 s) | 5 | 09/07 12:30 | **os mesmos — Δ = 0** | nenhuma — Δ 0, declarado (funções raras) |
+
+- (a) Δ das antigas = 0 em `authenticated`; nenhuma entrada de `service_role` nem de `anon` · (c) `dealloc` igual ·
+  (d) `stats_reset` igual · (b) as novas com Δ 0 — previsto no Anexo para as raras, e então a prova é a ESTÁTICA: o
+  `git grep` do Anexo **vazio** em `61c9b75` e em `05cba24` (o SHA no ar), e a catraca `empresa-legada-catraca.test.ts`
+  19/19 nos dois.
+- **A contração em produção** veio logo depois do T1 (o registro em [`G-apply/janela.md`](f67-evidencias/G-apply/janela.md)).
+- A sabotagem J mostra o que a janela evita: no ensaio contraído, a assinatura antiga dá HTTP 404 `PGRST202`.
 
 # 9. O conferidor de formas e o smoke
 
 | | ensaio | produção |
 |---|---|---|
 | conferidor (expansão) | 248 pontos · 88.182 linhas · **0 recusadas** · 1 ponto sem célula (`itens.saldo-colaborador` — o ensaio não tem colaborador; o mesmo da F66) | **272 pontos · 112.172 linhas · 0 recusadas · 0 reprovados** |
-| conferidor (contração) | 248 · **0 recusadas** · o mesmo ponto | *(depois da contração)* |
-| smoke | — | **109 OK · 1 aviso · 0 falha** (o aviso de sempre: `kits_modelos` sem kit para provar a RLS do anon) |
+| conferidor (contração) | 248 · **0 recusadas** · o mesmo ponto | **272 · 112.172 · 0 recusadas · 0 reprovados** |
+| smoke | — | **109 OK · 1 aviso · 0 falha** nas três rodadas: depois da expansão (app de antes), depois do deploy (app novo) e depois da contração. O aviso é o de sempre: `kits_modelos` sem kit para provar a RLS do anon |
 
 # 10. O #84, antes e depois
 
@@ -244,7 +265,12 @@ Os JSON em [`conta-a-conta/`](f67-evidencias/conta-a-conta/).
 |---|---|---|---|
 | antes (Frente A, os dois bancos) | 12 | 1 | `arquivo_termo_orfao` 3, `conflito_entre_filiais` 59, o resto 0 |
 | produção, antes do 1º lote | **12** | **1** | iguais |
-| a Parte B à mão, depois da contração | *(nesta run)* | | |
+| a Parte B à mão, depois da contração (run `43466154928`, 16:46 UTC) | **12** | **1** | `conflito_entre_filiais` 59 (AVISO: abaixo da base 69, "pode descer" — não é achado); os outros iguais |
+
+O veredito da Parte B é VERMELHO pelos **mesmos dois** achados do #84, nem um a mais — a condição da ordem. A deriva:
+**0 pendente**, a mais nova no ledger é `0193_contracao_assinaturas_antigas.sql`. E a sessão da conta `consulta` abriu e
+leu o resumo de integridade (13 chaves): a guarda de `checagens_integridade_resumo` pela legada explícita (decisão 14)
+funciona para a sonda agendada.
 
 # 11. As sabotagens, com a saída real
 
@@ -302,33 +328,44 @@ percorre só as memberships ativas (a desativada não tem cargo nas duas regras)
 | 12 | as chaves advisory | ✅ D4 + a trava de mesa |
 | 13 | a trava do termo | ✅ T0–T6 |
 | 14 | `isolamento_tenant` nas duas direções, com o par simétrico | ✅ |
-| 15 | zero janela: contração só depois do deploy e de Δ = 0 | *(nesta run — §8)* |
-| 16 | nada mudou para a WAP | ✅ na expansão (conta a conta, smoke, conferidor); a contração e a Parte B *(nesta run)* |
-| 17 | byte a byte fora da tabela; advisors declarados; paridade 11 classes | ✅ na expansão (§6) |
+| 15 | zero janela: contração só depois do deploy e de Δ = 0 | ✅ §8 — T0 13:08, T1 13:40, Δ = 0, a prova estática vazia |
+| 16 | nada mudou para a WAP | ✅ conta a conta 0, smoke 0 falha e conferidor 0 recusadas depois da expansão E da contração; a Parte B no §10 |
+| 17 | byte a byte fora da tabela; advisors declarados; paridade 11 classes | ✅ §6 — as 11 idênticas depois da contração |
 | 18 | o rollback nos dois estados, no CI; F62–F66B medidos | ✅ (o da F66B não precisa do da F67 — ata, item 9) |
 | 19 | os roteiros adaptados listados, nenhuma asserção para passar | ✅ §2 |
 | 20 | o injetor: as mutações, o teto 163 → 170, a quarentena < ⅓ | ✅ |
 | 21 | `database.ts` só nas assinaturas; `db:types:diff` verde | ✅ |
 | 22 | os documentos | ✅ |
 | 23 | nenhuma dependência nova; os intocados intocados | ✅ |
-| 24 | `1.73.0`, CHANGELOG, registry; a tag | ✅ versão; a tag *(no PR de docs)* |
+| 24 | `1.73.0`, CHANGELOG, registry; a tag | ✅ — a tag anotada `v1.73.0` no merge deste PR de documentação |
 | 25 | as sabotagens A–K com saída real | ✅ §11 |
 | 26 | nenhum dado real; ninguém abriu o `.env.local` | ✅ (os scripts o carregam por `--env-file`, sem imprimir valor) |
 | 27 | este relatório | ✅ |
 
 # 15. O estado de repouso — e se o projeto parar aqui por dois meses
 
-- **Com a contração pendente** (só a expansão em produção): as duas formas convivem; o app novo chama só as novas, e as
-  antigas — que ninguém chama — continuam respondendo pela legada (os resets antigos e a mesa antiga já tomam a MESMA
-  chave advisory das novas, então não há corrida entre um app velho e um novo). O lint de segurança fica em 54. Nada
-  quebra; fechar é o §1.2.
-- **Com a contração feita**: o estado final da fase. O piso só existe pareado; toda RPC que destrói ou gere conta exige
-  `p_empresa`; a WAP é a única empresa, então tudo responde como antes.
-- Em qualquer dos dois: o rollback `F67-desfaz.sql` serve (é idempotente nos dois estados).
+O estado de hoje é o FINAL da fase (a contração feita nos dois bancos): o piso só existe pareado; toda RPC que destrói ou
+gere conta exige `p_empresa`; a WAP é a única empresa, então tudo responde como antes. Parado dois meses, nada envelhece:
+não há assinatura em transição, nem dado novo esperando forma, nem janela aberta. A F67B pode começar de qualquer ponto.
+
+O que valeria se a run tivesse parado entre a expansão e a contração (o repouso intermediário, que existiu por ~1h10 em
+produção, da 0185 às 12:33 à 0193 às 13:43): as duas formas convivem; o app chama só as novas, e as antigas continuam respondendo pela legada (os resets
+antigos e a mesa antiga tomam a MESMA chave advisory das novas, então um app velho e um novo não correm); o lint de
+segurança fica em 54; fechar é o §1.2. Nos dois estados, o rollback `F67-desfaz.sql` serve (idempotente nos dois).
 
 # 16. O merge, o deploy e a conferência pós-deploy
 
-*(preenchido nesta run: o merge do PR #94, `/api/saude`, o smoke pós-deploy, a contração em produção e a Parte B.)*
+| | |
+|---|---|
+| CI do último commit do PR (`61c9b75`, só docs) | `verificar` e `banco-sem-docker` verdes (run `43458125342`); o PR `CLEAN` |
+| merge | `gh pr merge 94 --merge` (normal, sem `--admin`) → **`05cba24`**, 16:04:22 UTC |
+| deploy | Vercel `success` às ~16:05; `/api/saude` → `{"versao":"1.73.0","commit":"05cba24","banco":"ok"}` |
+| smoke pós-deploy | **109 OK · 1 aviso · 0 falha** (`G-apply/smoke-producao-pos-deploy.txt`) |
+| a janela | T0 13:08:32, T1 13:40:00 (−03), Δ = 0 das antigas (§8) |
+| a contração em produção | a `0193` às ~13:43 (−03); a prova, o conta a conta, o smoke, o conferidor, os advisors e a paridade (§6, §7, §9) |
+| a Parte B | à mão (`gh workflow run saude.yml -f alvo=producao -f partes=b`), run `43466154928`: os mesmos 12 e 1, deriva 0 pendente (§10) |
+| local, no `61c9b75` | `npm run lint`, `typecheck`, `build` limpos; `npm run test` 271 arquivos · 8.589 testes |
+| o diff da fase | `git diff --stat v1.72.0 05cba24`: 131 arquivos; nada em `.github/workflows/**`, no `CLAUDE.md` da raiz, em `.env*`, em migration anterior à `0185`; o `package.json` só na versão; o lockfile intocado |
 
 # 17. O que este relatório NÃO prova
 
