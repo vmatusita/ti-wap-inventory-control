@@ -52,7 +52,11 @@ Detalhe completo na spec [§5](ESPECIFICACAO.md) e nas migrations `supabase/migr
 
 Decisão e trade-offs originais em [`ADR-001-rls-por-filial.md`](ADR-001-rls-por-filial.md);
 emendas do modelo vigente em [`ADR-002-papeis-e-permissoes.md`](ADR-002-papeis-e-permissoes.md)
-§13 (cargo `dev`), §14 (zona destrutiva) e §15 (o cargo por empresa, F62); regra na spec [§3](ESPECIFICACAO.md).
+§13 (cargo `dev`), §14 (zona destrutiva), §15 (o cargo por empresa, F62), §16 (o recorte nas policies, F66) e §17 (o
+cargo POR EMPRESA nas funções e nas destrutivas, F67); regra na spec [§3](ESPECIFICACAO.md).
+
+*(Emenda F67, 13/11/2026: desde a F67 a hierarquia é POR EMPRESA — `papel_na_empresa(p)` —, e o cargo "sem empresa"
+(`papel_atual()`) é só o PISO de policy, pareado com o recorte do mesmo cargo. As subseções abaixo foram atualizadas.)*
 
 ### 4.1 Login — quatro cargos em hierarquia estrita
 
@@ -72,8 +76,8 @@ hoje só a WAP); `profiles.papel`/`ativo` estão **congelados** (legado, rede de
   Membership desativada (`membros.ativo = false` desde a F62; antes `profiles.ativo`) **ou**
   perfil arquivado (`profiles.excluido_em`, migration `0073`) não lê nem escreve (migrations `0070`/`0073`). Desativar vale no
   **request seguinte**, para leitura E escrita.
-- **Escrita, por cargo:** dev e admin escrevem em todas as filiais e são os únicos que
-  alcançam `/admin/**` e o import de startup; operador escreve só nas filiais vinculadas
+- **Escrita, por cargo:** dev e admin escrevem em todas as filiais DA EMPRESA (F67: a empresa da filial é testada antes
+  do cargo) e são os únicos que alcançam `/admin/**` e o import de startup; operador escreve só nas filiais vinculadas
   (`operador_filiais` — desde a F62, o vínculo é da MEMBERSHIP: `membro_id`/`empresa_id`, com FKs
   compostas que recusam membership ou filial de outra empresa); consulta não escreve nada.
 - **Duas exceções, e só duas:** `colaboradores` (F37) e `itens` (F41) são os únicos cadastros
@@ -87,25 +91,27 @@ hoje só a WAP); `profiles.papel`/`ativo` estão **congelados** (legado, rede de
 
 ### 4.2 As funções do banco e o que cada uma decide
 
-- `papel_atual()` (`0061`/`0062`; a PONTE desde a `0158`) — cargo vigente de quem pede, ou `null`.
-  Continua sem parâmetro e responde pela membership na empresa legada (`empresa_legada()`, a
-  WAP): membership ativa e perfil não arquivado; com duas memberships, vale a da legada.
-- `e_admin()` (`0072`) — **nível administrador** = `admin` OU `dev`. É essa redefinição que faz
-  as ~20 policies de `/admin`, a guarda interna do import e as guardas do app herdarem o `dev`
-  **sem serem reescritas**.
-- `e_dev()` (`0072`) — só `dev`, sem herança.
-- `pode_escrever()` (`0072`) — "escreve algo no acervo (nas filiais que lhe couberem)";
-  substituiu cinco policies gateadas por lista literal `in ('admin','operador')`, que
-  redefinição de função nenhuma alcançava.
-- `pode_escrever_filial(fid)` (`0062`, dev tratado como admin desde `0072`) — reconfere
-  `papel_atual()` por dentro a cada chamada; desde a `0158` o vínculo do operador é o da
-  membership na empresa legada.
+- **O cargo POR EMPRESA (F67, `0185`)** — `papel_na_empresa(p_empresa)` é a fonte única do cargo de quem pede NAQUELA
+  empresa (empresa nula → `null`; membership ativa e conta viva; a plataforma, `e_plataforma()`, responde `dev` em toda
+  empresa que existe — "dev sou só eu", decisão 13/11-1). `e_admin_na(p)` (admin OU dev), `e_dev_na(p)` e
+  `pode_escrever_na(p)` derivam dela. `pode_escrever_unidade(p_empresa, p_filial)` testa **a empresa da filial antes do
+  cargo** e fecha com argumento nulo; é a primitiva das RPCs que escrevem por filial. É por estas que as `security definer`
+  decidem (a asserção 4 de `definer_sem_tenant.sql` exige uma delas no corpo).
+- `papel_atual()` (`0061`/`0062`; a ponte da `0158`; **o PISO desde a F67, `0188`**) — o cargo MAIS FORTE entre as
+  memberships ativas de quem pede, ou `null`. Só vale PAREADO numa policy com o recorte do mesmo cargo (a trava Qa/Qb de
+  `cargo_por_empresa.sql`): pareado, é "este cargo nesta empresa". Nenhum corpo de função o chama sozinho.
+- `e_admin()` (`0072`) — o piso de **nível administrador** (`admin` OU `dev`, pelo cargo mais forte); as policies de
+  `/admin` o pareiam com `empresas_de_admin()`.
+- `e_dev()` — **saiu na F67** (`0193`): sem consumidor depois da conversão; o dev por empresa é `e_dev_na(p)`.
+- `pode_escrever()` (`0072`) — o piso de escrita, pareado com `empresas_de_escrita()`.
+- `pode_escrever_filial(fid)` (`0062`; desde a F67 `0186`) — responde pela EMPRESA DA FILIAL: delega a
+  `pode_escrever_unidade(empresa_da_filial(fid), fid)`; filial que não existe (ou nula) fecha até para o admin.
 - **As quatro funções de conjunto da forma-alvo** — `empresas_do_membro()`, `empresas_de_escrita()`,
   `empresas_de_admin()`, `unidades_de_escrita()` (`0157`) — são chamadas pelas policies desde a F66 (`0175`–`0178`),
   içadas (`= any (array (select …))`, uma avaliação por statement); as seis policies de escrita por unidade trocaram
   `pode_escrever_filial(filial_id)` pelo par `(empresa_id, filial_id)` sobre `unidades_de_escrita()` (R-ACC-109).
-  **Sem consumidor ainda:** `e_plataforma()` (`0154`, sobre o retrato `plataforma_admins`; a `/dev` segue decidindo por
-  `e_dev()`).
+  `e_plataforma()` (`0154`, sobre o retrato `plataforma_admins`) é consumida desde a F67 por `papel_na_empresa` (a
+  plataforma é dev em toda empresa) e pelas RPCs de conta (agir sobre a conta que é de outra empresa).
 
 A regra mora **no Postgres** (essas funções + policies, migrations `0061`→`0078`) — o termo e
 o `.docx` também são matéria de filial (`0069`), guardado nas RPCs `security definer` que os
@@ -129,8 +135,11 @@ membership, onde o cargo mora agora.
 Cargo, status e vínculos são gravados por **cinco RPCs `security definer` chamadas com a
 sessão de quem clicou** — nunca o service role — (`definir_papel_usuario`,
 `definir_status_usuario`, `definir_vinculos_usuario`, `apagar_usuario`,
-`encerrar_sessoes_usuario`, migration `0074`); a guarda interna (`exigir_gestao_de`) exige
-`e_dev()` quando o alvo é dev ou o cargo pedido é dev, `e_admin()` no resto. **Ninguém age
+`encerrar_sessoes_usuario`, migration `0074`; **desde a F67, `0189`, com `p_empresa` como 1º argumento**); a guarda
+interna (`exigir_gestao_de(p_empresa, alvo, papel)`) recusa empresa nula, exige que o alvo seja membro DESTA empresa
+(antes da patente) e então `e_dev_na(p_empresa)` quando o alvo é dev ou o cargo pedido é dev, `e_admin_na(p_empresa)` no
+resto; apagar conta e encerrar sessões exigem o dev da empresa, e a conta que também é de OUTRA empresa só a plataforma
+alcança; a trava do último administrador conta POR EMPRESA. **Ninguém age
 sobre o próprio acesso** — nem o dev altera o próprio cargo por essa via. Toda ação
 administrativa (cargo alterado, status alterado, vínculos alterados, e-mail trocado, conta
 apagada, sessões encerradas) grava em `eventos_admin`.
@@ -146,19 +155,23 @@ apagada, sessões encerradas) grava em `eventos_admin`.
 10/09/2026) o SQL das doze mora num **núcleo** único, `checagens_integridade_nucleo()`
 (`security definer`, fechada por `revoke` de `public`/`anon`/`authenticated`/`service_role` —
 só alcançável pelas portas abaixo), e DUAS portas o expõem: `dev_checagens_integridade()`
-(guarda `e_dev()`, a tela `/dev`) e `checagens_integridade_resumo()` (guarda
-`papel_atual() is not null` — o piso de leitura, sem a coluna `amostra` — usada pelo smoke
+(guarda `e_dev_na(empresa_legada())` desde a F67, a tela `/dev`) e `checagens_integridade_resumo()` (guarda
+`papel_na_empresa(empresa_legada()) is not null` desde a F67 — todo logado ativo DA WAP, sem a coluna `amostra` — usada pelo smoke
 agendado do `saude.yml`, que roda com conta de cargo `consulta`). A decomposição existe porque
 o alarme agendado precisa das contagens sem ser dev, e um resumo que chamasse a função da
 `/dev` por dentro seria recusado: `security definer` troca o `current_user`, não o JWT que
-`e_dev()` lê. SQL **fixo** dentro das três; **console de SQL é proibido** (assunto do Supabase
+a guarda de cargo lê. SQL **fixo** dentro das três; **console de SQL é proibido** (assunto do Supabase
 Studio) e função que receba SQL como parâmetro é proibida — mesmo com a lista de consultas
 fechada no TypeScript, é execução arbitrária com os privilégios do dono da função.
 
 `/dev/destrutivo` ("Zona destrutiva", F23) acrescenta ferramentas destrutivas **nomeadas** —
-apagar ativo/movimentação/item, resetar acervo ou lançamentos (por filial ou global), forçar
+apagar ativo/movimentação/item, resetar acervo ou lançamentos (por filial ou "tudo"), forçar
 estado de ativo e saldo de item. Cada uma é uma RPC `security definer` com
-`exigir_dev_para_destruir()` por dentro (cargo dev + justificativa de 10+ caracteres),
+`exigir_dev_para_destruir(p_empresa, …)` por dentro (cargo dev DAQUELA empresa + justificativa de 10+ caracteres).
+**Desde a F67 (`0190`) toda ferramenta recebe `p_empresa` como 1º argumento**: a linha e a filial têm de ser da empresa
+(42501 *"Este registro pertence a outra empresa."* / *"Esta filial pertence a outra empresa."*); o "tudo" é toda filial
+DESTA empresa, com a confirmação `RESETAR TUDO — <N> ATIVOS` (ou `<N> LANÇAMENTOS`); a trilha grava a empresa ALVO. Nenhum
+alcance multi-empresa existe;
 confirmação digitada validada **na action E na RPC**, backup obrigatório (jsonb no evento
 registro a registro; JSON no bucket `backups-import` conferido pela RPC + contagens
 revalidadas para reset) e trilha gravada **dentro da própria transação** — se a trilha falhar,
@@ -182,7 +195,13 @@ opostas — deadlock). É all-or-nothing, exige confirmação com a quantidade (
 justificativa nas duas camadas, grava backup + trilha na mesma transação; acima de 25 ativos o
 backup vira arquivo sob `conflito/<digest dos ids>/` (`0100` — conferir só o prefixo aceitava o
 backup de outra exclusão). Apagar ativo **fora** de conflito continua só do dev, na Zona
-destrutiva.
+destrutiva. **Desde a F67 (`0191`) o conflito é DENTRO da empresa**: as views agrupam por (empresa da filial, chave) —
+o mesmo patrimônio em duas empresas não é conflito —, a RPC recebe `p_empresa`, recalcula o grupo dentro dela, recusa
+ativo de outra (`exigir_ativos_da_empresa`) e serializa por `(hashtext('conflito_filiais_apagar'), hashtext(empresa))`.
+
+**A trava do termo (F67, `0192`)**: o gatilho BEFORE INSERT `termo_exige_modelo_da_empresa` em `termos_gerados` recusa
+(42501) o termo de empresa que não está em `empresas_com_modelo_de_termo()` (hoje só a WAP: os sete modelos `.docx`
+carregam a identidade dela) — em qualquer caminho, inclusive o service role.
 
 ### 4.5 Visualizador — a outra porta
 

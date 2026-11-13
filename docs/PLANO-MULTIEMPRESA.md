@@ -1083,102 +1083,201 @@ do máximo de hoje; onde não há Zod, folga escrita e ata.
 
 ---
 
-### F67 — Escrita, definer, Storage e Realtime por tenant
+### F67 — O cargo por empresa, as `security definer` e as destrutivas
 
-**Objetivo.** Fechar tudo o que a RLS de leitura não alcança: a escrita, as ~37 funções que atravessam policy por construção, os dois buckets e o canal de tempo real.
+*(Ficha REESCRITA pela F67, 13/11/2026 — executada pela ordem [`prompts/F67-cargo-por-empresa-definer-e-destrutivas-ultracode.md`](prompts/F67-cargo-por-empresa-definer-e-destrutivas-ultracode.md),
+plano [`PLAN-F67.md`](PLAN-F67.md), migrations `0185`–`0193`, versão `1.73.0`. A ficha original ("Escrita, definer, Storage e
+Realtime por tenant") foi dividida pela decisão 12/11-2 do Johnny: **Storage e Realtime** foram para a [F67B](#f67b--storage-e-realtime-por-empresa)
+e **o fim do default `empresa_legada()`** para a [F67C](#f67c--o-fim-do-default-a-escrita-informa-a-empresa). As notas F63,
+F64, F65, F66 e F66B que estavam aqui foram redistribuídas — cada uma está no lugar novo, e o ponteiro fica abaixo.)*
+
+**Objetivo.** Tirar o cargo da PONTE (a membership na empresa legada) e pô-lo na empresa de verdade, em todo lugar onde o
+banco decide por cargo SEM passar pela RLS: as `security definer`, as RPCs destrutivas, a mesa de conflitos, o import e as
+cinco RPCs de conta. E tornar impossível, por construção, o conflito entre empresas e o termo emitido em nome de outra.
+
+**O que entrou (medido — PLAN-F67 §1 a §5).**
+
+- **O cargo por empresa, com nome próprio** (`0185`): `papel_na_empresa(p_empresa)` é a fonte única do cargo NAQUELA
+  empresa (empresa nula → NULL; a plataforma responde `dev` em toda empresa que existe — decisões 12/11-3 e 13/11-1, "dev
+  sou só eu"); `e_admin_na`, `e_dev_na`, `pode_escrever_na` derivam dela; `pode_escrever_unidade(p_empresa, p_filial)`
+  testa **a empresa da filial ANTES do cargo** (o admin da A que informa a filial da B é recusado) e devolve `false` para
+  argumento nulo; o ramo do admin não ganha `where f.ativo`. A ficha original dizia "`papel_atual()` ganha `p_empresa`" —
+  impossível sem `cascade` nas 60 policies que a citam, ou com uma sobrecarga ambígua: o nome próprio é a decisão 1.
+- **O piso** (`0188`): `papel_atual()` sem argumento passa a "o cargo MAIS FORTE entre as memberships ativas" e só existe
+  PAREADO numa policy com o recorte do mesmo cargo (a trava Qa/Qb de `cargo_por_empresa.sql`). Reverte a frase "nunca pelo
+  cargo mais forte" da `0158` (ADR-002 §17). `e_dev()` saiu na contração.
+- **Os consumidores sem par** (`0186`, `0187`): `pode_escrever_filial` responde pela empresa da filial; o resto pela
+  legada EXPLÍCITA, com destino escrito (Storage → F67B; `profiles` → F69; observabilidade → decisão 14; o backup da F6A →
+  permanente).
+- **A F52 por empresa**: `definer_sem_tenant.sql` exige a primitiva POR EMPRESA no corpo (ou a delegação a ela, calculada no
+  catálogo) — as guardas no-op ganharam corpo: `mesmo_escopo_de_gestao(p_empresa, alvo)` confere a membership,
+  `existe_outro_admin_ativo` conta por empresa (a plataforma conta onde é membro — a ficha dizia "fora do denominador":
+  divergência declarada pela 12/11-3), `exigir_ativos_da_empresa(p_empresa, ids)` recusa ativo de outra.
+- **As cinco RPCs de conta** (`0189`), as **oito da Zona destrutiva, a prévia e o import** (`0190`) e a **mesa** (`0191`)
+  com `p_empresa uuid` 1º, sem default: a linha, a filial e o alvo têm de ser da empresa (42501, frase pt-BR); o "tudo" do
+  reset é toda filial DESTA empresa, em todo comando, com a confirmação `RESETAR TUDO — <N> ATIVOS` / `<N> LANÇAMENTOS`
+  (`rotulo_alcance_reset` conta); a trilha grava a empresa ALVO; as chaves de advisory carregam a empresa.
+- **A mesa sem conflito entre empresas** (`0191`): as views agrupam por (empresa da filial, chave) — o par cruzado não é
+  grupo, o gêmeo alheio não autoriza a exclusão do próprio, e a mesa da A não exibe nem apaga o ativo da B.
+- **A trava do termo** (`0192`, decisão 7 do plano): `empresas_com_modelo_de_termo()` (a WAP) e o gatilho BEFORE INSERT em
+  `termos_gerados`, 42501 *"A emissão de termo ainda não está disponível para esta empresa."*, em qualquer caminho.
+- **O TS** passa a empresa a toda RPC por empresa: a da FILIAL quando a operação tem filial, senão a legada EXPLÍCITA
+  (`empresaDaOperacao()` — o ponto de injeção da F70), contada pela catraca `src/lib/auth/empresa-legada-catraca.test.ts`.
+  As recusas de cadastro manual e o import procuram o par só nas unidades da empresa do cadastro (a nota F66).
+- **A contração** (`0193`): as 20 assinaturas antigas e `e_dev()` saem, só depois do deploy e da janela com Δ = 0 em
+  `pg_stat_statements` (RUNBOOK, Anexo F67).
+
+**Ponteiros das notas que estavam aqui.** Nota F63 (tirar o default das oito; o orçamento de 18 funções, 9 pontos TS,
+scripts, `restaurar.mjs`, 27 roteiros; os três casos sem pai) → **F67C**. Nota F64 (o default das onze e de `filiais`;
+`eventos_admin` na origem) → **F67C** (as oito destrutivas que gravam a trilha JÁ gravam a empresa: feito aqui). Nota F65
+(a)–(d) (os leitores por chave natural, o `update motivos`, o vocabulário do import, o `max(versao)+1`) → **F67C**; (e)
+`idsDeAdminsAtivos` e (f) as travas advisory → **feitas aqui**. Nota F66 (a ponte, `paresEmOutrasFiliais`,
+`cadastrosComMesmaIdentidade`, a direção B, o `where` das views) → **feita aqui**; as policies de Storage e
+`pode_ler_arquivo_termo` → **F67B**. Nota F66B (decisões 2 e 3; toda coluna `text` nova nasce com teto) → as fichas F67B e
+F67C a herdam; a 3 está cumprida aqui e na nota da F69.
+
+**Não entrou** (com destino). Os dois buckets, `persistirTermo`, o Realtime → F67B. O default `empresa_legada()` de
+qualquer coluna e os escritores comuns → F67C. `profiles`, `handle_new_user` e a saída das contas dev de `membros` → F69.
+A porta pública → F68. A empresa da sessão → F70. O `CLAUDE.md` da raiz → F71. O piso → F72.
+
+**Entregas.** Migrations `0185`–`0193`; `src/lib/escopo/empresa-da-filial.ts`; `src/lib/actions/{admin,dev,dev-destrutivo,
+conflitos,importar,ativos,compras,devolucao-fornecedor}.ts`; `src/lib/auth/{acesso,empresa-legada}.ts`;
+`supabase/tests/{cargo_por_empresa,termo_bloqueado,conflito_entre_empresas,f67_rollback}.sql` (novos) e os estendidos
+(`definer_sem_tenant`, `catalogo_*`, `isolamento_tenant` 10k–10m, `cargo_equivalencia`, `cargo_dev`, `dev_destrutivo`,
+`conflito_filiais`, `import_*`); `supabase/rollback/F67-desfaz.sql`; `scripts/perf/conta-a-conta.mjs` (fases `f67-*`).
+
+**Pronto quando.** `isolamento_tenant.sql` prova nas duas direções que o admin da A não escreve em nada da B — nas tabelas,
+nas cinco RPCs de conta (10k), nas destrutivas (10l) — e que a trava do último administrador é por empresa (10m);
+`conflito_entre_empresas.sql` verde; emitir termo para a B é recusado (`termo_bloqueado.sql`); o conta a conta dá 0
+divergência nos dois bancos, antes e depois de cada lote; o injetor 170/170.
+
+**Trava.** `cargo_por_empresa.sql` (P: as formas; Q: o piso só pareado; D: as destrutivas por empresa), a asserção 4 de
+`definer_sem_tenant.sql`, `termo_bloqueado.sql`, `conflito_entre_empresas.sql`, a catraca TS da legada e as sete mutações
+da F67 no injetor.
+
+**Dependências.** F66, F66B.
+
+**Risco.** Alto — mexe em tudo que destrói e no cargo de todo mundo. Mitigação: expandir e contrair (a antiga fica até a
+prova de zero chamadas), o conta a conta contra um oráculo da regra de antes, ensaio antes, o rollback dos dois estados
+ensaiado no CI.
+
+**Reversão.** `supabase/rollback/F67-desfaz.sql` — idempotente nos dois estados (só a expansão; expansão + contração),
+antes dos rollbacks da F66 para trás (RUNBOOK, Anexo F67).
+
+---
+
+### F67B — Storage e Realtime por empresa
+
+*(Ficha escrita pela F67, 13/11/2026 — decisão 12/11-2 do Johnny. O texto vem da ficha F67 original, com o que a F67
+deixou explícito para cá.)*
+
+**Objetivo.** Fechar os dois buckets e o canal de tempo real por empresa — as superfícies que nenhuma auditoria de RLS de
+tabela examina.
 
 **Entra.**
 
-- **`pode_escrever_unidade(p_empresa uuid, p_filial smallint)`**, com duas propriedades deliberadas: **recebe a empresa junto** e confere que a filial é daquela empresa (senão um admin de A que passasse o id de uma filial de B seria aprovado pela checagem de papel — ele *é* admin em algum lugar); e devolve **`false` para argumento nulo** (fecha em vez de abrir). **O teste de empresa vem ANTES do teste de cargo** — se vier depois, o ramo `dev/admin` retorna `true` antes de alcançá-lo, que é o defeito de hoje. `create or replace` faz as dez policies herdarem sem serem reescritas (o mesmo truque da `0072`). *(Nota F59: herdar por `create or replace` mantém a chamada POR LINHA nas policies — as seis exceções de `pode_escrever_filial` não encolheriam. A doutrina resolve pela F66: as policies passam a `unidades_de_escrita()`; `pode_escrever_unidade` fica para o corpo das RPCs — emenda F59 da `MATRIZ-REGRAS.md`, nota de escopo (6).)* E o ramo do admin **não** ganha `where f.ativo`: `pode_escrever_filial` devolve `true` para admin em qualquer filial, inclusive desativada, e o sistema convive com filial desativada que ainda tem saldo (`itens.ts:302-309` diz isso por extenso).
-- **`papel_atual()` ganha `p_empresa uuid`**, e `e_admin`/`pode_escrever` acompanham. `e_dev()` se resolve por `e_plataforma()` **ou** dev-da-empresa — decisão em ata. Este é o commit em que o cargo por empresa (F62) sai da ponte e passa a valer de fato.
-- **As guardas no-op da F52 ganham corpo:** `mesmo_escopo_de_gestao` compara `empresa_id`; `existe_outro_admin_ativo` conta por escopo (com a conta de plataforma fora do denominador, porque ela vive em `plataforma_admins`); `exigir_ativos_da_empresa` deixa de ser identidade; o import e a mesa de conflitos recusam filial de outra empresa.
-- **`v_conflitos_filiais`/`_grupos`** ganham `where a.empresa_id = ...` nas CTEs `ident`/`grupos`. Hoje o `group by … having count(distinct filial_id) > 1` roda sobre `ativos` INTEIRA: duas empresas com numeração patrimonial parecida — caso comum — formam grupo de conflito entre si, e **o gêmeo alheio passa a autorizar a exclusão do próprio**. Antes da exclusão já há vazamento: a mesa exibe marca, modelo, hostname, `colaborador_atual` e `setor_atual` do ativo alheio. Advisory lock com duas chaves (`hashtext('conflito_apagar'), empresa`). **Conflito ENTRE empresas deve ser impossível por construção, não resolvido por mesa.**
-- **`p_empresa uuid NOT NULL` como primeiro parâmetro das RPCs destrutivas.** `resetar_acervo(p_filial => null)` deixa de significar "tudo": com N tenants, é uma RPC que apaga todos os clientes com uma frase de 12 caracteres digitável de memória. Alcance global sai do alcance de RPC, e a confirmação passa a carregar a quantidade (`RESETAR TUDO — <N> ATIVOS`, idioma do `APAGAR <N>`), com trava exigindo que `rotulo_alcance_reset` contenha `count(`.
-- **A TRAVA DO TERMO (decisão 7).** Enquanto os 7 modelos `.docx` carregarem a identidade da WAP como texto fixo — razão social e CNPJ da Fresnomaq nos 5 de responsabilidade, "para a empresa WAP" nos 2 de devolução, e "WAP" no cabeçalho de todos —, **emitir termo para empresa que não seja a WAP é gerar documento falso**. Esta fase põe a recusa **no banco**: `termos_gerados` ganha um CHECK/trigger que recusa insert cuja `empresa_id` não esteja numa lista de empresas com modelo próprio (hoje: só a WAP), com 42501 e mensagem própria — *"a emissão de termo ainda não está disponível para esta empresa"*. A UI correspondente entra na F70. **Sem essa trava, "adiar" vira "emitir errado em silêncio", que é o pior desfecho possível.**
-- **Storage.** Bucket `termos`: `pode_ler_arquivo_termo` (criada na F50 com a regra de hoje) passa a exigir que o `termos_gerados` correspondente seja da empresa da sessão — **pelo join, não pelo caminho**, o que dispensa mover um único objeto (mover os 67 objetos existentes exigiria reescrever `arquivo_path` por igualdade de string, e a janela em que o par path↔linha fica quebrado é exatamente a que desarma a proteção de escrita via o `coalesce(…, true)`). Bucket `backups-import`: prefixo `import/empresa-<id>/filial-<id>/` para objetos novos (os antigos continuam resolvendo, porque `import_logs.backup_path` guarda o literal); as 4 policies passam a exigir `(storage.foldername(name))[2] = any(array(select …))`, mantendo `e_admin()` — cinto e suspensórios, porque é o objeto de maior valor do sistema. Objetos legados ficam fora de todo prefixo, isto é, invisíveis: comportamento seguro, mas **decidido de propósito e escrito**.
-- **`persistirTermo` invertido** (linha antes do upload, com rollback correto no ramo de INSERT) e só então `coalesce(…, true)` vira `false` em `pode_escrever_arquivo_termo`. Os dois são um trabalho só, nesta ordem: hoje objeto que nenhuma linha referencia é gravável e apagável por qualquer `pode_escrever()`, e basta o par path↔linha divergir para o bucket inteiro ficar aberto. A limpeza de órfão migra para ferramenta nomeada na Zona destrutiva. Cuidado: `persistirTermo` reutiliza id existente (UPDATE) num dos ramos e apaga órfãos de variantes antigas — inverter é mais trabalho que trocar duas linhas.
-- **Realtime:** `filter: 'empresa_id=eq.<id>'` nas três assinaturas (o gancho existe desde a F50) **e** RLS na publication `supabase_realtime`. O filtro do cliente é ergonomia; a trava mora no Postgres. Sem isso, `postgres_changes` entrega o **payload da linha** ao navegador de todo cliente aberto de toda empresa, por um canal que nenhuma auditoria de RLS de tabela examina.
+- **Bucket `termos`.** `pode_ler_arquivo_termo` passa a exigir que o `termos_gerados` correspondente seja da empresa da
+  sessão — **pelo join, nunca pelo caminho**, o que dispensa mover um único objeto (mover os objetos existentes exigiria
+  reescrever `arquivo_path` por igualdade de string, e a janela em que o par path↔linha fica quebrado é exatamente a que
+  desarma a proteção de escrita via o `coalesce(…, true)`). Hoje ela ignora o parâmetro e responde pela legada EXPLÍCITA
+  (`papel_na_empresa(empresa_legada())`, F67) — a exceção nominal de `definer_sem_tenant.sql`, com motivo apontando para cá.
+- **Bucket `backups-import`.** O prefixo `import/empresa-<id>/filial-<id>/` para objetos novos (os antigos continuam
+  resolvendo, porque `import_logs.backup_path` guarda o literal — e o teto de 120 de `backup_path`, fato 27 da F67, cabe o
+  prefixo novo: conferir); as 4 policies passam a exigir `(storage.foldername(name))[2] = any(array(select …))`, mantendo o
+  cargo de administrador — cinto e suspensórios, porque é o objeto de maior valor do sistema. Objetos legados ficam fora
+  de todo prefixo, isto é, invisíveis: comportamento seguro, mas **decidido de propósito e escrito**.
+- **As policies de `storage.objects` que a F67 deixou na legada EXPLÍCITA** (decisão 3 da F67: `backups-import` ×4 com
+  `e_admin_na(empresa_legada())`, `termos` ×3 com `pode_escrever_na(empresa_legada())`) ganham a empresa do OBJETO.
+- **`persistirTermo` invertido** (a linha antes do upload, com rollback correto no ramo de INSERT) e só então
+  `coalesce(…, true)` vira `false` em `pode_escrever_arquivo_termo`. Os dois são um trabalho só, nesta ordem: hoje objeto
+  que nenhuma linha referencia é gravável e apagável por qualquer um que escreve, e basta o par path↔linha divergir para o
+  bucket inteiro ficar aberto. A limpeza de órfão migra para ferramenta NOMEADA na Zona destrutiva. Cuidado:
+  `persistirTermo` reutiliza id existente (UPDATE) num dos ramos e apaga órfãos de variantes antigas.
+- **Realtime:** `filter: 'empresa_id=eq.<id>'` nas três assinaturas (o gancho existe desde a F50) **e** RLS na publication
+  `supabase_realtime`. O filtro do cliente é ergonomia; a trava mora no Postgres. Sem isso, `postgres_changes` entrega o
+  payload da linha ao navegador de todo cliente aberto de toda empresa.
 
-- *(Nota F63, 23/09/2026 — **TIRAR O DEFAULT DAS OITO**, decisão do Johnny.)* A F63 deu `empresa_id` às oito tabelas do
-  acervo com `default public.empresa_legada()` e o manteve de propósito: é aqui, quando a escrita passa a receber a
-  empresa, que ele cai (`alter column empresa_id drop default`, uma migration por lote, com a trava 15b de
-  `catalogo_policies.sql` invertida no MESMO commit — hoje ela EXIGE o default). **O orçamento medido na F63** (o censo
-  de `PLAN-F63.md` §2), tudo o que passa a informar a empresa: **18 funções SQL** que inserem nas oito
-  (`criar_compra_lote`, `devolver_ao_fornecedor`, `import_criar_ativos`, `criar_movimentacao_com_itens`,
-  `estornar_movimentacao_com_itens`, `forcar_estado_ativo`, `import_lancar_movimentacoes`, `forcar_saldo_item`,
-  `lancar_itens_lote`, `reabrir_pendencias_item_com_estornos`, `resolver_pendencias_item_com_lancamentos`,
-  `transferir_item`, `movimentacao_abrir_pendencias_item`, `confirmar_assinatura_lote_com_anotacoes`,
-  `confirmar_assinatura_termo_com_anotacao`, `corrigir_patrimonio_com_anotacao`, `definir_service_tag_com_anotacao`,
-  `desfazer_confirmacao_termo_com_anotacao`); **9 pontos TS** (`itens.ts:448/572/711`, `ativos.ts:128`,
-  `pendencias.ts:442`, `termos.ts:532`, `colaboradores.ts:167/198/301`); os scripts (`seed.ts`, `import/carga.ts`,
-  `smoke/fixtures-passe2.ts`) e `db/restaurar.mjs` (um backup de antes da F63 não tem a chave — com o default fora, ele
-  precisa preencher); **27 roteiros** com 569 INSERTs nas oito; e os **quatro pontos do `INVENTARIO-LEITURAS.md`** que
-  diziam "precisa de `empresa_id` explícito — a F63 derruba o default" e passaram para cá: `criarColaboradorInline`,
-  `criarColaborador`, `consolidarColaboradores` e `estornarLancamento`. **Três casos não têm pai de onde tirar a
-  empresa** (`itens`, `termos_gerados`, colaborador sem filial): a fonte é a empresa de quem escreve, que só existe
-  depois desta fase dar a empresa à escrita.
-- *(Nota F64, 23/09/2026 — **TIRAR O DEFAULT DAS ONZE E O DE `filiais`**, decisão 1 do Johnny.)* A F64 deu `empresa_id`
-  às onze tabelas do lote 2 (`tipos_item`, `motivos`, `kits_modelos`, `senhas_acesso`, `eventos_admin`, `import_logs`,
-  `relatorios_gerados`, `import_prefixos_patrimonio`, `import_termos_categoria`, `import_termos_estado`,
-  `unidades_apelidos`) com o default `public.empresa_legada()`, e o manteve; é aqui que ele cai, junto com o das oito,
-  com a trava **15e** de `catalogo_policies.sql` invertida no MESMO commit (hoje ela EXIGE o default). **Vieram da F64
-  para cá:** (a) **`eventos_admin.empresa_id` preenchido NA ORIGEM** — o único escritor TS, `src/lib/auditoria-registro.ts:30`
-  (15 chamadas de `registrarEventoAdmin`: admin 5, dev 3, importar 3, senhas 2, unidades-apelidos 2), e as **8 funções
-  SQL** que gravam na trilha (`apagar_ativo`, `apagar_ativos_conflito_filiais`, `apagar_item`, `apagar_movimentacao`,
-  `forcar_estado_ativo`, `forcar_saldo_item`, `resetar_acervo`, `resetar_itens`); (b) **o fim do default de `filiais`**
-  (a nota F62 da ficha F64: a empresa passa a vir de quem cria a filial, `admin.ts:610`) e, com ele, a ponte de
-  `papel_atual()`/`EMPRESA_LEGADA_ID`. **O orçamento medido na F64** (`PLAN-F64.md` §2), tudo o que passa a informar a
-  empresa: `import_gravar_trilha` (`import_logs`); os INSERTs TS `tipos-item.ts:104`, `admin.ts:733` (motivos),
-  `kits.ts:64`, `senhas.ts:161`, `relatorios.ts:143`, `unidades-apelidos.ts:62`; os scripts `seed.ts:1525`,
-  `smoke/persona.ts:80`, `manutencao/gerar-errata-truncamento.ts`; e os roteiros que inserem nas onze (a tabela do fato 8
-  da ordem F64: 38 INSERTs em ~15 roteiros, mais 22 em `filiais` em 10). As três tabelas de termo e prefixo do import não
-  têm escritor fora de migration.
-- *(Nota F65, 23/09/2026 — **O QUE A INTEGRIDADE ESTRUTURAL DEIXOU PARA A ESCRITA**, medido em `PLAN-F65.md` §2.)* Com os
-  uniques por empresa, uma chave natural deixa de ser única no SISTEMA — tudo certo com uma empresa, errado com duas:
-  (a) **os leitores por chave natural sozinha** — `resolverFilialPorSlug` (`queries/relatorios/comum.ts:43`, já preparado
-  para o `PGRST116`), `actions/tipos-item.ts:67` (`slug`), `actions/itens.ts:656` e `actions/colaboradores.ts:116` /
-  `queries/colaboradores.ts:388` (`nome_chave`) — ganham a empresa de quem escreve; (b) **`actions/admin.ts:760-763`,
-  `update motivos … .eq('codigo')`** — com duas empresas, grava nas DUAS: o mais grave, escrita cruzada muda;
-  (c) **`lerVocabularioImport` e a RPC do import** leem termo/prefixo sozinhos, e as tabelas inteiras; (d) **o
-  `max(versao)+1` sem empresa** (`actions/relatorios.ts:139`, `lerUltimaVersao`) — o índice do snapshot já é por
-  empresa, a leitura da última versão não; (e) **`idsDeAdminsAtivos`** — a ata da F52 (`DECISOES.md`, "a divergência
-  fecha na F65") dizia que o TS ganharia o escopo aqui; ele é da mesma família das guardas no-op da F52, e vai com
-  elas; (f) **as travas advisory que esta fase reescreve** — `resetar_acervo`/`resetar_itens` (a sentinela `-1` do
-  "tudo") e `apagar_ativos_conflito_filiais` (`hashtext('conflito_apagar')`) — ganham a empresa na chave, e as 16 se
-  convertem na MESMA migration (`(bigint)` e `(int, int)` são espaços de lock diferentes). A F65 não tocou em nenhuma.
+**Não entra.** O default `empresa_legada()` (F67C). A empresa da sessão na tela (F70).
 
-- *(Nota F66, 24/09/2026 — o que a F66 deixou para cá.)* As POLICIES recortam desde a F66, em conjunção com o piso; mas
-  `e_admin()`, `pode_escrever()` e a ponte `papel_atual()` continuam respondendo pela empresa LEGADA, e as policies de
-  escrita as usam no piso — com uma segunda empresa real, o cargo da pessoa na B viria da WAP até esta fase. A releitura das
-  102 leituras "confia na RLS" (PLAN-F66 §4) deixou duas aqui: `paresEmOutrasFiliais` (`queries/import-logs.ts`) ganha
-  `where` pela empresa da filial do import, e `cadastrosComMesmaIdentidade` (`ativos/identidade.ts`) recusa só pela
-  empresa do cadastro. As policies de `storage.objects` e `pode_ler_arquivo_termo` não mudaram na F66. **A direção B da
-  bateria** (`isolamento_tenant.sql` 10c/10d) hoje neutraliza o piso dentro da transação para provar o recorte sozinho;
-  com a ponte por empresa, ela ganha a ESCRITA da direção B (que depende da ponte) e passa a rodar com as policies reais
-  — e o `where` explícito de `v_conflitos_filiais`/`_grupos` (acima) continua desta fase.
+**Entregas.** Migrations novas; `src/lib/actions/termos.ts` (`persistirTermo`); `src/lib/storage/caminho.ts`;
+`supabase/tests/{storage_por_empresa,realtime_escopo}.sql`.
 
-- *(Nota F66B, 12/11/2026 — **AS DECISÕES 2 E 3 DO JOHNNY SOBRE ESTA FICHA**, registradas pela F66B, que só as anota.)*
-  **(2) A F67 vai ser dividida em três fases:** a **F67** (cargo por empresa, `security definer`, RPCs destrutivas, mesa de
-  conflitos e trava do termo), a **F67B** (Storage e Realtime) e a **F67C** (o fim do default `empresa_legada()`: a escrita
-  passa a informar a empresa). Quem escreve as fichas novas, com o escopo de cada uma, é a própria F67, na conversa dela.
-  **(3) As duas contas dev continuam em `membros` por ora.** Na F67, `e_dev()` passa a ser "dev da empresa OU
-  `e_plataforma()`"; a saída das contas dev de `membros` vai para a **F69**, junto com a decisão de quanto a plataforma
-  enxerga. E o que a F66B deixa para cá: nenhum objeto (os CHECK de comprimento não dependem de `empresa_id` nem de
-  policy) — mas toda coluna `text` nova que a F67 criar numa das 20 nasce reprovada por `comprimento_por_coluna.sql` até
-  ganhar o teto na fonte única e o CHECK na migration (RUNBOOK, Anexo F66B).
+**Pronto quando.** O admin da A não lista nem baixa objeto da B em nenhum dos dois buckets; o admin da A **ainda apaga** o
+termo degenerado (`ativo_ids = '{}'`) da própria empresa — o teste que prova que a correção não recriou o lixo imortal que
+a `0069` documenta; `pode_ler_arquivo_termo` sai da lista de exceções de `definer_sem_tenant.sql`; o Realtime não entrega
+linha de outra empresa.
 
-**Entregas.** Migrations `0160`–`0165`, `src/lib/actions/{importar,conflitos,termos,dev-destrutivo}.ts`, `supabase/tests/{definer_escopo,storage_por_empresa,conflito_entre_empresas,realtime_escopo,termo_bloqueado}.sql`.
+**Trava.** `storage_por_empresa.sql`; `src/lib/storage/caminho.test.ts` (a função única que monta caminho nunca devolve
+string sem prefixo de empresa); a trava do `postgres_changes` exigindo `empresa_id=eq.` no filter; a catraca TS da legada
+perde as entradas de Storage.
 
-**Pronto quando.** `isolamento_tenant.sql` prova, nas duas direções, que admin de A não escreve em nada de B — em `ativos`, `movimentacoes`, `lancamentos_item`, `termos_gerados` e nas cinco RPCs de conta; admin de A não lista nem baixa objeto de B em nenhum dos dois buckets; admin de A **ainda apaga** o termo degenerado (`ativo_ids = '{}'`) da própria empresa — o teste que prova que a correção não recriou o lixo imortal que a `0069` documenta; emitir termo para a empresa B é recusado com 42501; `definer-escopo.test.ts` fica sem exceções.
+**Dependências.** F67.
 
-**Trava.** `definer_sem_tenant.sql` (a tabela-verdade da F52, agora exigindo escopo e não só classificação), `storage_por_empresa.sql`, `termo_bloqueado.sql`, `src/lib/storage/caminho.test.ts` (a função única que monta caminho nunca devolve string sem prefixo de tenant), e a trava do `postgres_changes` exigindo `empresa_id=eq.` no filter.
+**Risco.** Médio — objetos em produção. Mitigação: nenhum objeto se move (o join decide); os legados ficam invisíveis por
+decisão escrita; ensaio antes.
 
-**Dependências.** F66.
+**Reversão.** `alter policy` de volta; o `coalesce` de volta; o filtro do cliente sai.
 
-**Risco.** Alto — mexe em tudo que destrói. Mitigação: uma mutação por RPC no injetor; ensaio antes; cada função é `create or replace` reversível; cada recusa tem o par simétrico que **aceita** o legítimo.
+---
 
-**Reversão.** `create or replace` da definição anterior; `alter policy` de volta.
+### F67C — O fim do default (a escrita informa a empresa)
 
+*(Ficha escrita pela F67, 13/11/2026 — decisão 12/11-2 do Johnny. Ela recebe as notas F63, F64 e F65 que estavam na ficha
+F67, e o que a F67 deixou explícito para cá.)*
+
+**Objetivo.** Tirar o `default public.empresa_legada()` das colunas `empresa_id` — toda escrita passa a dizer a empresa, e
+nenhuma linha nasce "da WAP por omissão".
+
+**Entra.**
+
+- *(Nota F63, 23/09/2026 — movida da ficha F67.)* **Tirar o default das OITO** do acervo (`alter column empresa_id drop
+  default`, uma migration por lote, com a trava 15b de `catalogo_policies.sql` invertida no MESMO commit — hoje ela EXIGE o
+  default). **O orçamento medido na F63** (`PLAN-F63.md` §2), tudo o que passa a informar a empresa: **18 funções SQL** que
+  inserem nas oito (`criar_compra_lote`, `devolver_ao_fornecedor`, `import_criar_ativos`, `criar_movimentacao_com_itens`,
+  `estornar_movimentacao_com_itens`, `import_lancar_movimentacoes`, `lancar_itens_lote`,
+  `reabrir_pendencias_item_com_estornos`, `resolver_pendencias_item_com_lancamentos`, `transferir_item`,
+  `movimentacao_abrir_pendencias_item`, `confirmar_assinatura_lote_com_anotacoes`, `confirmar_assinatura_termo_com_anotacao`,
+  `corrigir_patrimonio_com_anotacao`, `definir_service_tag_com_anotacao`, `desfazer_confirmacao_termo_com_anotacao` — e
+  `forcar_estado_ativo`/`forcar_saldo_item`, que a F67 já fez gravar a empresa explícita: saem do orçamento); **9 pontos
+  TS** (`itens.ts:448/572/711`, `ativos.ts:128`, `pendencias.ts:442`, `termos.ts:532`, `colaboradores.ts:167/198/301`); os
+  scripts (`seed.ts`, `import/carga.ts`, `smoke/fixtures-passe2.ts`) e `db/restaurar.mjs` (um backup de antes da F63 não
+  tem a chave); **27 roteiros** com 569 INSERTs nas oito; e os **quatro pontos do `INVENTARIO-LEITURAS.md`**
+  (`criarColaboradorInline`, `criarColaborador`, `consolidarColaboradores`, `estornarLancamento`). **Três casos não têm pai
+  de onde tirar a empresa** (`itens`, `termos_gerados`, colaborador sem filial): a fonte é a empresa de quem escreve.
+- *(Nota F64, 23/09/2026 — movida da ficha F67.)* **Tirar o default das ONZE** do lote 2 e o de `filiais`, com a trava
+  **15e** invertida no MESMO commit. **`eventos_admin.empresa_id` preenchido NA ORIGEM**: o único escritor TS,
+  `src/lib/auditoria-registro.ts:30` (15 chamadas de `registrarEventoAdmin`), — as 8 funções SQL que gravam a trilha (as
+  destrutivas e a mesa) JÁ gravam a empresa explícita desde a F67, e saem do orçamento. **O fim do default de `filiais`**
+  (a empresa de quem cria a filial, `admin.ts:610`). O orçamento medido na F64 (`PLAN-F64.md` §2): `import_gravar_trilha`;
+  os INSERTs TS `tipos-item.ts:104`, `admin.ts:733`, `kits.ts:64`, `senhas.ts:161`, `relatorios.ts:143`,
+  `unidades-apelidos.ts:62`; os scripts `seed.ts:1525`, `smoke/persona.ts:80`, `manutencao/gerar-errata-truncamento.ts`; e
+  os roteiros que inserem nas onze (38 INSERTs em ~15 roteiros, mais 22 em `filiais` em 10).
+- *(Nota F65 (a)–(d), 23/09/2026 — movida da ficha F67.)* Com os uniques por empresa, uma chave natural deixa de ser
+  única no SISTEMA: (a) **os leitores por chave natural sozinha** — `resolverFilialPorSlug`
+  (`queries/relatorios/comum.ts:43`), `actions/tipos-item.ts:67` (`slug`), `actions/itens.ts:656` e
+  `actions/colaboradores.ts:116` / `queries/colaboradores.ts:388` (`nome_chave`) — ganham a empresa de quem escreve; (b)
+  **`actions/admin.ts`, `update motivos … .eq('codigo')`** — com duas empresas, grava nas DUAS: o mais grave; (c)
+  **`lerVocabularioImport` e a RPC do import** leem termo/prefixo sozinhos; (d) **o `max(versao)+1` sem empresa**
+  (`actions/relatorios.ts:139`, `lerUltimaVersao`).
+- **O que a F67 deixou explícito para cá:** a catraca TS da legada (`src/lib/auth/empresa-legada-catraca.test.ts`) — as
+  entradas que dependem da "empresa de quem escreve" — e as linhas da tabela-verdade do PLAN-F67 §2 com destino F67C.
+
+**Não entra.** A empresa ESCOLHIDA na tela (F70): a F67C usa a empresa de quem escreve resolvida no servidor; o seletor é
+da F70.
+
+**Entregas.** Migrations de `drop default` por lote; os escritores SQL e TS acima; `restaurar.mjs`; os roteiros.
+
+**Pronto quando.** Nenhuma coluna `empresa_id` das 20 tem default; as travas 15b/15e invertidas (EXIGEM a ausência); todo
+INSERT do app, dos scripts e das funções informa a empresa; um backup de antes da F63 restaura com a empresa preenchida.
+
+**Trava.** 15b e 15e de `catalogo_policies.sql`, invertidas; uma varredura de INSERT nas 20 sem `empresa_id` (SQL e TS).
+
+**Dependências.** F67 (a escrita já recebe a empresa nas RPCs), F67B.
+
+**Risco.** Alto em volume (centenas de INSERTs). Mitigação: um lote por família, o default sai por último em cada lote,
+ensaio antes.
+
+**Reversão.** `alter column … set default public.empresa_legada()`, por lote.
 
 ---
 
@@ -1235,6 +1334,16 @@ fase.)*
 - *(Nota F66B, 12/11/2026 — decisão 3 do Johnny.)* **A saída das duas contas dev de `membros` chega a esta fase**: até a
   F67 elas ficam em `membros` (na F67, `e_dev()` = dev da empresa OU `e_plataforma()`); aqui, com a identidade por empresa,
   elas saem de `membros` e a fase decide quanto a plataforma enxerga.
+- *(Nota F67, 13/11/2026 — o que a F67 deixou para cá.)* **A decisão 13/11-1 do Johnny, "dev sou só eu."**, é o insumo da
+  saída das contas dev de `membros`: o cargo dev é só dele (as duas contas são dele, uma por máquina) e a plataforma é
+  ele — na F67, `e_dev_na(p)` = membro dev ativo de `p` OU `e_plataforma()`, e a Zona destrutiva de qualquer empresa é dele
+  por desenho. Aqui a FORMA: dev = plataforma, fora de `membros` (e então a trava do último administrador por empresa —
+  `existe_outro_admin_ativo(p_excluindo, p_empresa)`, que hoje conta a plataforma onde ela é membro — decide se a
+  plataforma conta). **`handle_new_user`** continua criando a membership nova na LEGADA (a F67 não a tocou). **As linhas
+  com destino F69** da tabela-verdade do PLAN-F67 §2: a policy "leitura operador" de `profiles` (na legada EXPLÍCITA
+  desde a `0187`) e a lista de usuários/vínculos de `queries/admin.ts` (cinco leituras de `EMPRESA_LEGADA_ID`, contadas pela
+  catraca `empresa-legada-catraca.test.ts`). As cinco RPCs de conta JÁ recebem `p_empresa` (F67): a gestão por empresa
+  daqui é a da tela e do convite.
 
 **Não entra.** UI (F70).
 
@@ -1277,6 +1386,13 @@ fase.)*
   em `import_logs` — cada um medido com o `where empresa_id =` da consulta nova; o antigo só cai se nenhum consumidor sem o
   predicado (as `rel_*` por filial, as `security definer`) depender dele. E `getDiagnostico` (`queries/dev.ts`, `/dev`):
   decidir se conta pela empresa escolhida ou pela plataforma.
+- *(Nota F67, 13/11/2026 — a empresa da sessão substitui a legada EXPLÍCITA do TS.)* Desde a F67 toda RPC que decide por
+  cargo recebe `p_empresa`, e o TS a tira da FILIAL quando a operação tem filial (`empresaDaFilial`,
+  `src/lib/escopo/empresa-da-filial.ts`) ou de **`empresaDaOperacao()`** (`src/lib/auth/empresa-legada.ts`) — a legada
+  EXPLÍCITA, o ponto de injeção desta fase: aqui ela passa a devolver a empresa ESCOLHIDA (`contextoDoApp()`). Cada uso está
+  contado, arquivo a arquivo, com o destino escrito, pela catraca `src/lib/auth/empresa-legada-catraca.test.ts` (o cargo de
+  navegação, a gestão de contas, a mesa, o "tudo" e as linhas da Zona). A UI da trava do termo (decisão 7) tem a recusa do
+  banco pronta desde a `0192`: *"A emissão de termo ainda não está disponível para esta empresa."*
 
 **Não entra.** Decomposição dos componentes gigantes. Subdomínio. Reescrita da ajuda.
 
@@ -1306,6 +1422,17 @@ fase.)*
 - `docs/README.md` reclassificado: o que virou histórico, o que virou vivo, e os documentos de exploração (`PLANO-PRODUTO-MULTIEMPRESA.md`, `SYSTEM-DESIGN-ACERVO-2026-08-31.md`, `PLANO-ESPELHO-SHAREPOINT.md`) marcados como **superados por este plano**.
 - **`/versoes` e o registry decididos.** `src/lib/versoes/registry.ts` tem 964 linhas contando a história da implementação da WAP — *"o botão 'Ver as 5 filiais'"*, *"estoque em Linhares"* —, e `versoes/page.tsx:12` declara leitura livre para qualquer perfil ativo. Depois da revogação do piso, "qualquer perfil ativo" passa a significar **qualquer usuário de qualquer cliente**, lendo o roadmap do provedor e o vocabulário do cliente A. E a regra permanente 8 obriga cada uma destas 28 fases a escrever entrada nova nessa mesma página. Três saídas, e uma tem de ser escolhida: (a) `/versoes` vira página do provedor, visível só a `e_plataforma()`; (b) vira histórico por empresa, com as entradas marcadas; (c) as entradas passam a ser escritas em linguagem neutra de produto desde já. **Recomendação: (a) agora, (c) como disciplina daqui para a frente** — porque o cliente não precisa ler "empresa_id" e "RLS".
 - `docs/DECISOES.md` (8.565 linhas) ganha índice por fase — 28 atas novas chegam nele.
+- *(Nota F67, 13/11/2026 — as frases do `CLAUDE.md` da RAIZ que o cargo por empresa deixou desatualizadas; a F67 NÃO o
+  editou, por ordem.)* No "Modelo de acesso": (1) "quatro cargos em hierarquia estrita" — a hierarquia é POR EMPRESA desde
+  a F67 (`papel_na_empresa(p)`); (2) "dev/admin escrevem em todas as filiais" — em todas as filiais DA EMPRESA
+  (`pode_escrever_unidade` testa a empresa da filial antes do cargo); (3) "`e_admin()` = admin OU dev; `e_dev()` = só dev;
+  `pode_escrever()` = escreve algo no acervo" — `e_dev()` não existe mais; `e_admin()`/`pode_escrever()` são o PISO (o cargo
+  mais forte), só pareado numa policy; as formas que decidem são `e_admin_na`/`e_dev_na`/`pode_escrever_na`; (4) "Só o dev:
+  trocar e-mail, apagar conta, encerrar sessões" — o dev DAQUELA empresa (ou a plataforma), e a conta que é de outra
+  empresa também, só a plataforma; (5) "a mesa de conflitos entre filiais" — entre filiais DA MESMA empresa (o conflito
+  entre empresas é impossível desde a `0191`). Na regra 2: "a linha cujo par já existe em OUTRA filial … cadastro manual e
+  edição de ficha seguem recusando par de qualquer filial" — de qualquer filial DA EMPRESA do cadastro (a identidade do ativo
+  é por empresa). A ARQUITETURA §4 e o ADR-002 já estão em dia (§17).
 
 **Não entra.** Reescrever as ~5.900 linhas de conteúdo de `src/lib/ajuda/conteudo/`.
 
@@ -1535,7 +1662,9 @@ Perguntas que o plano não pode responder sozinho, agrupadas pelo momento em que
 | F64 | `empresa_id` no vocabulário e na infra (lote 2) | virada | aditiva |
 | F65 | Integridade estrutural do tenant | virada | constraints + índices |
 | F66 | As policies ganham o recorte, em conjunção | virada | 54 policies (inerte) |
-| F67 | Escrita, definer, Storage e Realtime por tenant | virada | funções + Storage |
+| F67 | O cargo por empresa, as security definer e as destrutivas | virada | funções + RPCs (expandir/contrair) |
+| F67B | Storage e Realtime por empresa | virada | Storage + publication |
+| F67C | O fim do default (a escrita informa a empresa) | virada | defaults + escritores |
 | F68 | A porta pública por empresa | virada | rotas + RPCs |
 | F69 | Identidade e governança de contas por empresa | virada | trigger + admin |
 | F70 | A camada de UI multiempresa | virada | código |

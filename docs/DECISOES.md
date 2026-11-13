@@ -13908,3 +13908,118 @@ em `docs/f66b-evidencias/` (`antes/`, `G-contagem/`, `depois/`, com o passo a pa
    fase. Fica no backlog do relatório (§12), com diagnóstico próprio antes de qualquer conserto.
 8. **Nenhuma escrita em produção além dos quatro `apply_migration`** (o `notify pgrst` só recarrega o schema). Nas
    evidências, só números, nomes de esquema, textos de constraint e hashes — nenhum valor de linha.
+
+## 2026-11-13 · F67 (v1.73.0) · o cargo por empresa, as `security definer` e as destrutivas
+
+**Contexto.** A ordem [`prompts/F67-cargo-por-empresa-definer-e-destrutivas-ultracode.md`](prompts/F67-cargo-por-empresa-definer-e-destrutivas-ultracode.md),
+no escopo estreito da decisão 12/11-2: o cargo sai da PONTE (`papel_atual()` = a membership na legada) e passa às formas
+POR EMPRESA; as `security definer` conferem a empresa no corpo; as destrutivas, a prévia, a mesa, o import e as cinco RPCs
+de conta recebem `p_empresa`; o conflito ENTRE empresas fica impossível; a emissão de termo para empresa sem modelo próprio
+é recusada pelo banco. Plano [`PLAN-F67.md`](PLAN-F67.md) (os 28 fatos remedidos, as tabelas-verdade, as vinte decisões);
+migrations `0185`–`0192` (a expansão, oito lotes) e `0193` (a contração); evidência em `docs/f67-evidencias/`.
+
+**As decisões do Johnny, registradas.**
+
+- **(12/11-2)** A F67 dividida em três: esta (cargo por empresa, definer, destrutivas, mesa, trava do termo), a **F67B**
+  (Storage e Realtime) e a **F67C** (o fim do default `empresa_legada()`). As fichas novas foram escritas por esta fase,
+  no `PLANO-MULTIEMPRESA.md`.
+- **(12/11-3)** As duas contas dev continuam em `membros` por ora; na F67, `e_dev` por empresa = dev membro ativo daquela
+  empresa OU `e_plataforma()`. A saída de `membros` é da F69.
+- **(13/11-1) "dev sou só eu."** A pergunta foi se a Zona destrutiva de uma empresa devia exigir ser dev DAQUELA empresa,
+  já que as duas contas dev estão em `plataforma_admins`. A resposta, literal: **"dev sou só eu."** O cargo dev é só do
+  Johnny (as duas contas são dele, uma por máquina) e a plataforma é ele; logo a 12/11-3 vale também para a Zona
+  destrutiva: o Johnny resetar, apagar ou forçar dado de qualquer empresa é o desenho, não o defeito, e a trilha grava a
+  empresa ALVO e o autor. A FORMA (dev = plataforma, fora de `membros`) é da F69.
+- **(13/11-2) Expandir e contrair, zero janela** (o molde da F60, com o nome mantido): a assinatura nova nasce ao lado da
+  antiga, o app novo vai ao ar, e a antiga sai na mesma run, depois da prova de que ninguém a chama.
+- **(13/11-3) O #84 travado.** A conferência exige os MESMOS dois achados de integridade (`backup_orfao` 12,
+  `detentor_em_estado_sem_dono` 1), remedidos no começo da run; nenhum conserto de dado; qualquer número maior reprova.
+
+**As vinte decisões da fase** (o texto inteiro está no §5 do plano; aqui, uma linha cada, como foram executadas):
+
+1. **As formas por empresa com NOME PRÓPRIO** — `papel_na_empresa`, `e_admin_na`, `e_dev_na`, `pode_escrever_na`,
+   `pode_escrever_unidade` (a ficha dizia "`papel_atual()` ganha `p_empresa`": impossível sem `cascade` nas 60 policies que
+   a citam, ou com uma sobrecarga ambígua). A empresa antes do cargo; nulo fecha.
+2. **O piso** `papel_atual()` = o cargo MAIS FORTE entre as memberships ativas (a ordem escrita, não a do enum). Reverte a
+   frase da `0158` ("nunca pelo cargo mais forte") — ela existia porque havia consumidor sem par; a trava Qa/Qb tirou o
+   último. `e_dev()` sai na contração.
+3. **Os consumidores sem par** passam à forma por empresa — com a empresa real onde ela existe, e com a legada EXPLÍCITA
+   onde o recorte é de fase futura (Storage → F67B; `profiles` → F69; observabilidade → decisão 14; o backup da F6A →
+   permanente). Nunca o piso sem par.
+4. **A trava da F52 por empresa** — a asserção 4 de `definer_sem_tenant.sql` (a primitiva por empresa no corpo, ou a
+   delegação a ela, calculada no catálogo).
+5. **As destrutivas** com `p_empresa uuid` 1º, sem default; a linha e a filial da empresa (42501); o "tudo" = toda filial
+   DESTA empresa, em todo comando; a confirmação `RESETAR TUDO — <N> ATIVOS` / `<N> LANÇAMENTOS`; a trilha com a empresa
+   alvo e `alcance = 'empresa'`. As doze funções que leem `empresa_id` para recortar entram em `k_leitura_tenant`.
+6. **Os lotes**: oito, um por família, com repouso válido entre eles.
+7. **Expandir e contrair**: o nome fica; a antiga, na expansão, só ganha a chave de advisory por empresa (as duas de reset
+   e a mesa — as famílias não se cruzam na janela); a contração em arquivo próprio.
+8. **As chaves advisory**: `import_substituir` e `conflito_filiais_apagar` em `(int, int)` com a empresa (`hashtext(
+   p_empresa::text)`) como sentinela do "tudo" e da mesa.
+9. **A mesa**: as views agrupam por (empresa da filial, chave), a coluna `empresa` no fim; a mesa recalcula o grupo DENTRO
+   da empresa e recusa ativo de outra.
+10. **O import**: `e_admin_na(p_empresa)`; a filial do plano é da empresa ANTES do lock e do backup.
+11. **A trava do termo**: `empresas_com_modelo_de_termo()` (a WAP) e o gatilho BEFORE INSERT, 42501.
+12. **A gestão de contas**: `exigir_gestao_de(p_empresa, alvo, papel)` sem default; o alvo membro DESTA empresa antes da
+    patente; apagar conta e encerrar sessões de quem é de outra empresa só pela plataforma; a trava do último
+    administrador conta por empresa (a plataforma conta onde é membro — a ficha dizia "fora do denominador": divergência
+    declarada, pela 12/11-3).
+13. **De onde o TS tira `p_empresa`**: da FILIAL quando há (`empresaDaFilial`), senão da legada EXPLÍCITA
+    (`empresaDaOperacao()`, o ponto de injeção da F70), contada pela catraca `empresa-legada-catraca.test.ts`.
+14. **A observabilidade** pela legada explícita (`papel_na_empresa`/`e_dev_na` de `empresa_legada()`).
+15. **O conta a conta** — fases `f67-antes`/`f67-depois` em `scripts/perf/conta-a-conta.mjs`, contra um oráculo da regra
+    de antes; a sabotagem I.
+16. **O injetor**: sete mutações novas; teto 163 → 170.
+17. **O rollback** (`F67-desfaz.sql`): um script, os dois estados.
+18. **`eventos_admin`** com a empresa explícita nas destrutivas recriadas; as duas de forçar inserem na empresa.
+19. **A distribuição das fichas**: a da Frente F, sem mudança de lugar.
+20. **As frases** (42501, pt-BR, sem valor de linha): *"Este registro pertence a outra empresa."*, *"Esta filial pertence a
+    outra empresa."*, *"Este usuário não pertence a esta empresa."*, *"Esta conta também pertence a outra empresa: só a
+    plataforma pode agir sobre ela."*, *"Informe a empresa da operação."*, *"A emissão de termo ainda não está disponível
+    para esta empresa."*
+
+**O que decidi durante a execução (desvios e achados, cada um com o porquê).**
+
+1. **A filial que não existe fecha até para o admin.** `pode_escrever_filial` passou a delegar a `pode_escrever_unidade`
+   (a empresa da filial antes do cargo): o ramo dev/admin, que antes devolvia `true` para QUALQUER filial (inclusive nula
+   ou inexistente), agora devolve `false` para filial sem empresa. Duas asserções que provavam o comportamento antigo
+   viraram a do recorte, declarado: `cargo_equivalencia.sql` célula 3 (na filial NULL o esperado é `false` para todos) e
+   `import_fora_da_unidade.sql` 5a/5a-bis (a inexistente fecha; a da WAP abre; o teste de empresa vem antes do ramo de
+   cargo, pelo corpo de `pode_escrever_unidade`). Nenhuma filial real muda de resposta (o conta a conta prova).
+2. **A grade de equivalência (F62) ganhou a grade da F67** sem perder célula: o corpo antigo × a forma por empresa na
+   legada E × o piso, para cada pessoa da grade (uma membership por pessoa: iguais). Na célula 5 (duas memberships), a
+   forma por empresa responde pela WAP como antes; o piso é o mais forte e a filial de B responde pelo cargo em B —
+   declarado no rótulo.
+3. **A identidade do ativo por empresa no TS** (a nota F66 da ficha): as recusas de cadastro manual e o import procuram o
+   par só nas unidades da empresa do cadastro (`unidadesDaMesmaEmpresa`). É a leitura de `filiais.empresa_id`, entrada
+   nominal na catraca da F63 (`empresa-acervo-sem-leitura.test.ts`), com motivo.
+4. **Duas asserções novas, nascidas das mutações**: `dev_destrutivo.sql` 7a-frase (o "tudo" recusa a frase sem a
+   quantidade, 22023) e `isolamento_tenant.sql` 10m (a trava do último administrador é por empresa — sem ela, a mutação
+   `f67-outro-admin-conta-todas-as-empresas` não tinha cenário).
+5. **A mutação do gatilho do termo muta o CORPO**, não `disable trigger`: a fixture da F65 (`pg_temp.f65_plantar`) desliga
+   e RELIGA o gatilho para plantar o termo da B, e desfazia a mutação (medido na mesa: "não detectada" sem nenhum ✗).
+6. **O rollback é GERADO, por um script que ficou fora do repositório**: ele lê as migrations (os corpos e os comentários
+   de antes da `0185`, byte a byte; as nove policies pelo replay da trava de mesa) e a ACL de cada assinatura na cadeia
+   até a 0184 numa mesa PGlite — e a PGlite não é dependência aprovada, então o gerador não entra (regra da stack). A
+   completude contra as migrations é provada no repositório (`rollback-f67.test.ts`), e o esquema inteiro pelo CI
+   (`f67_rollback.sql`, rb1–rb7, contra a impressão medida antes da 0185).
+7. **A ACL das duas views da mesa** é guardada antes do `drop view` e devolvida grantee a grantee, porque `create or
+   replace view` não tira coluna: o rollback não depende de saber a ACL de cada banco (o CI não tem as default
+   privileges do Supabase; os bancos vivos têm). Tentei medir a ACL viva das views pelo conector, e ele caiu ("Connection
+   closed", depois 500) — não insisti; a forma do rollback dispensa a medida.
+8. **As constantes do CI**: a impressão de antes da 0185 (funções `e5a98261…`/106, policies `df238578…`/62, views
+   `eb6a8509…`/9, gatilhos `faabdede…`/52) e o novo L4 de `integridade_tenant.sql` (`5247f163…`, 70 funções, o conjunto
+   fora das 41 que a F67 cria, recria ou derruba) foram medidos no push das travas (run `43441883622`, a cadeia até a
+   0184). Na mesa PGlite, só as policies medem outro md5 (`48cba67f…`) — diferença de ambiente; a mesa bate com ela mesma.
+9. **O rollback da F66B não roda o da F67 antes**: ele mede só os CHECK de comprimento das 20, que a F67 não toca, e
+   passa sem (medido na mesa). Os da F62 a F66 rodam (a F67 reescreve nove policies e cita as funções de conjunto).
+10. **`corpo-vigente.mjs` respeita o `drop`**: pedida por nome, uma assinatura derrubada por um `drop function` posterior
+    não é vigente; a nova `derrubadaDepois` serve às varreduras que montam o mapa assinatura → última definição.
+11. **A classe da `0193`**: o plano a listava como DESTRUTIVA; o classificador da F63 a calcula ADITIVA (`drop function`
+    não toca dado) e o cabeçalho a declara assim — o plano foi corrigido.
+12. **`database.ts` com hand-fix datado** (as assinaturas novas e a contagem 102 funções do gate), até a geração do MCP
+    de produção depois da contração.
+13. **Os commits na ordem da ordem**: as travas vermelhas (`cc089db`, CI vermelho pelos motivos certos — evidência em
+    `docs/f67-evidencias/B-travas/`), as oito migrations da expansão (uma por commit, com o `db:lock` e as entradas da
+    trava da F38 de cada uma), o TS, os roteiros e o rollback, o injetor, a contração e o conta a conta. No CI do
+    `e329086`: os 61 roteiros sem falha, o injetor 170/170, o gate de tipos 102 = 102.

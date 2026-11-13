@@ -404,7 +404,7 @@ default (com default, `exigir_gestao_de(p_alvo, null)` dos corpos antigos ficari
 | 7 | `0191_mesa_por_empresa.sql` | expansão | as duas views particionadas, `exigir_ativos_da_empresa` e `apagar_ativos_conflito_filiais` novas; a mesa ANTIGA com a chave convertida | ADITIVA |
 | 8 | `0192_termo_por_empresa.sql` | expansão | `empresas_com_modelo_de_termo()` + o gatilho do termo | ADITIVA |
 | — | **a fronteira** | | **expansão (0185–0192) \| contração (0193)** | |
-| 9 | `0193_contracao_assinaturas_antigas.sql` | contração | `drop function` (sem `if exists`, sem `cascade`) das 20 antigas + `e_dev()`; `notify pgrst` | DESTRUTIVA (de função; nenhum dado) |
+| 9 | `0193_contracao_assinaturas_antigas.sql` | contração | `drop function` (sem `if exists`, sem `cascade`) das 20 antigas + `e_dev()`; `notify pgrst` | ADITIVA — o classificador da F63 calcula ADITIVA (`drop function` não toca dado) e o cabeçalho a declara assim; este plano dizia DESTRUTIVA (corrigido em 13/11, ata da F67, item 11) |
 
 **Por que esta ordem.** As primitivas primeiro (nada as chama); depois os consumidores sem par (para que, quando o piso
 mudar, nenhum consumidor dependa dele sem recorte); o piso só depois deles; a gestão, as destrutivas e a mesa (que usam as
