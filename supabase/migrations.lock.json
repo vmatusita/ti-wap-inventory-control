@@ -186,6 +186,7 @@
     "0181_comprimento_cadastros_do_acervo.sql": "bc98520380fd420dd22b843c89ca1e6c9df60a33483345d07459377b437bef76",
     "0182_comprimento_movimento_do_acervo.sql": "d275ba1302fa721756dfe990e2c44fb1da882c41443beb3303cdf81cdc98f907",
     "0183_comprimento_vocabulario.sql": "36d449d7e56e37b45021e40d6996cc3c750f7ed5dd842640cd8ad5f470279ad9",
-    "0184_comprimento_registros.sql": "3061b992cd461b5e805d7a40336fe8eb87199ed3db6a4e6591aea380be16601c"
+    "0184_comprimento_registros.sql": "3061b992cd461b5e805d7a40336fe8eb87199ed3db6a4e6591aea380be16601c",
+    "0185_cargo_por_empresa.sql": "db96c54ba9af52a687b330aed8429779e7b7ffd09daa2ce98bde183a3223e0dc"
   }
 }

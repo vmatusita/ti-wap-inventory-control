@@ -263,6 +263,14 @@ const DA_F38 = [
   '0182',
   '0183',
   '0184',
+  // F67 — o cargo POR EMPRESA (docs/PLAN-F67.md §6). A `0185` CRIA as sete funções de cargo por empresa e de unidade
+  // (nome novo); a `0186` RECRIA os sete consumidores sem par (o cargo da empresa real, ou a legada EXPLÍCITA); a `0187`
+  // só faz `alter policy`; a `0188` RECRIA `papel_atual` (o piso: o cargo mais forte); a `0189` cria as formas por
+  // empresa da gestão de contas ao lado das antigas; a `0190`, as destrutivas, a prévia e o import (e RECRIA as duas
+  // antigas de reset com a chave de advisory por empresa); a `0191`, a mesa (idem); a `0192` cria a trava do termo; a
+  // `0193` (a contração) só derruba as 21 assinaturas antigas e `e_dev()`. Nenhuma é intocável; todas entram nas
+  // exceções nominais abaixo para que as listas sejam EXAUSTIVAS, como a da 0143. Nenhuma escreve no acervo no apply.
+  '0185',
 ]
 
 /**
@@ -639,6 +647,19 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // (PLAN-F66, decisão 9). O diff do `prosrc` contra a 0143 é UMA condição por função; a equivalência antes × depois
     // (0 célula) e o md5 do corpo nos dois bancos estão em docs/f66-evidencias/.
     '0179': ['rel_por_motivo_filiais', 'rel_resumo_filiais'],
+    // 13/11/2026 — F67 (docs/PLAN-F67.md §6). Nenhuma intocável; as listas são EXAUSTIVAS sobre o que cada migration
+    // define. Criadas (nome ou assinatura nova, ao lado da antiga) e recriadas (mesma assinatura, corpo novo) juntas:
+    // a prova de cada corpo é o roteiro da fase (cargo_por_empresa, dev_destrutivo, conflito_entre_empresas,
+    // termo_bloqueado) e a conta a conta antes × depois nos dois bancos (docs/f67-evidencias/).
+    '0185': [
+      'papel_na_empresa',
+      'e_admin_na',
+      'e_dev_na',
+      'pode_escrever_na',
+      'empresa_da_filial',
+      'filial_da_empresa',
+      'pode_escrever_unidade',
+    ],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
