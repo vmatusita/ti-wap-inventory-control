@@ -1516,6 +1516,20 @@ begin
        case when v_ruins > 0 then ' — fora:' || v_rotulos else '' end, v_ruins, 19) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
+  -- 10m — F67: A TRAVA DO ÚLTIMO ADMINISTRADOR É POR EMPRESA. O admin da B é o ÚNICO de nível administrador da B — a A
+  -- ter administradores (o admin, o dev e o consultor da A) não o torna rebaixável. Contada em todas as empresas, a trava
+  -- deixaria rebaixar o último admin da B e trancaria /admin para ela. O par: na A sobra outro, e a resposta é sim.
+  v_ruins := 0; v_rotulos := '';
+  if public.existe_outro_admin_ativo(k_admin_b, v_emp_b) is distinct from false then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' B-contou-outra-empresa';
+  end if;
+  if public.existe_outro_admin_ativo(k_admin_a, v_emp_a) is distinct from true then
+    v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' A-sem-o-par';
+  end if;
+  if pg_temp.assert_zero_de('10m a trava do último administrador é POR EMPRESA: o admin só da B é o último da B, ainda que a A tenha administradores; na A, sobra outro' ||
+       case when v_ruins > 0 then ' — fora:' || v_rotulos else '' end, v_ruins, 2) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
   -- 10l — F67: AS DESTRUTIVAS. O dev só da A (membro dev da A, SEM plataforma) não destrói nada da B — nem informando a
   -- empresa B (não é dev lá), nem informando a A com a linha ou a filial da B (registro/filial de outra empresa). A
   -- plataforma ("dev sou só eu", 13/11-1) destrói na B, e a trilha grava a empresa ALVO.

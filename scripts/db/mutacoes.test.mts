@@ -335,7 +335,13 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // char_length por octet_length (C2), o teto sobe sem a fonte (C4), uma coluna nova nasce sem teto (C1), a RPC do
     // import chamada por fora grava sem o CHECK (I1/I2) e a chave derivada fica com o teto da origem (K2). 156 + 7 = 163,
     // sem folga: a próxima entrega que precisar de mais sobe o número e escreve por quê.
-    expect(MUTACOES.length).toBeLessThanOrEqual(163)
+    // ⚠ O TETO SUBIU DE 163 PARA 170 NA F67 (13/11/2026; PLAN-F67, decisão 16). A fase põe o cargo POR EMPRESA no corpo
+    // das funções e escreveu UMA MUTAÇÃO POR CLASSE DE TRAVA que nenhum teste de mesa derruba: a ordem empresa-antes-de-
+    // cargo invertida em pode_escrever_unidade (P4), o piso num corpo (Qa/P5), a recusa de registro de outra empresa
+    // removida de apagar_ativo (10l), a partição da view da mesa removida (C1), a sentinela do "tudo" sem empresa (D4), o
+    // gatilho do termo desligado (T1) e a trava do último administrador contando todas as empresas (10m). 163 + 7 = 170,
+    // sem folga: a próxima entrega que precisar de mais sobe o número e escreve por quê.
+    expect(MUTACOES.length).toBeLessThanOrEqual(170)
   })
 
   it('os `id` são únicos', () => {
