@@ -118,8 +118,9 @@ As 18 do plano (§4 de [`PLAN-F67B.md`](PLAN-F67B.md)) e as três achadas na exe
 [`G-apply/ensaio.md`](f67b-evidencias/G-apply/ensaio.md). Uma migration por `apply_migration`, o texto EXATO do arquivo,
 e a prova de EXATIDÃO depois de cada uma (o md5 de cada corpo de função calculado do arquivo contra `md5(prosrc)`; o de
 cada `comment on function` contra `obj_description` — só `(objeto, ok)` volta do banco): **todas ok**. Depois da cadeia:
-117 funções (70 definer), 62 policies, as 13 checagens iguais ao "antes", o conferidor de formas sem recusa e os advisors
-com só a ferramenta nova a mais (declarada).
+117 funções (70 definer), 62 policies, as 13 checagens iguais ao "antes", o conferidor de formas com 0 recusadas (e o
+"não provado" conhecido de `itens.saldo-colaborador`: o ensaio não tem colaborador) e os advisors com só a ferramenta
+nova a mais (declarada).
 
 ## 6.2 Produção — a expansão, antes do merge
 
