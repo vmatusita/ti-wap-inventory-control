@@ -1,0 +1,27 @@
+# F67C — o "antes" no ENSAIO (sgmvldiizsrjbxzzpmhh, PG 17.11), 16/11/2026 ~17:03 BRT, pelo MCP execute_sql (so leitura),
+# antes de qualquer apply da fase. Fato 5: o execute_sql do Claude Code respondeu nos DOIS bancos na primeira tentativa.
+ledger: 196 entradas; ultima 20261116124123 contracao_backups_por_empresa (= a 0199)
+empresas=1 | filiais=6 | membros ativos=3 | plataforma_admins=0
+funcoes public: 117 (70 security definer); md5 do TSV (mesmo formato de producao/funcoes.tsv) 13db2199895b9a79f91b012822b322a5
+  = PRODUCAO (o catalogo de funcoes e byte a byte o mesmo nos dois bancos); md5(nome,args,md5(prosrc)) 66fa1403544e42efb58a30a6bcaac1a4
+policies public+storage: 62; md5 do TSV cee318f577345f75dc06b99874b8a867 = PRODUCAO
+gatilhos nao internos em public: 53
+
+# As 22 colunas empresa_id: identicas a producao — 22 not null; 20 com default empresa_legada() (pg_depend -> empresa_legada);
+# membros e operador_filiais sem default.
+# Linhas fora da legada nas 20: 0 em todas.
+
+# As 13 checagens (checagens_integridade_nucleo(), so chave/total):
+# operador_sem_filial 1; as outras doze 0 (arquivo_termo_orfao, ativo_filial_inativa, backup_orfao, conflito_entre_filiais,
+# conta_sem_perfil, detentor_em_estado_sem_dono, kit_motivo_orfao, patrimonio_duplicado, pendencia_de_estornada,
+# perfil_sem_conta, reserva_aberta, termo_sem_arquivo) — fato 4 confirmado.
+
+# pg_stat_statements: track=top, max=5000, save=on, stats_reset=2026-09-08 14:37:28 -03. Formas de INSERT de topo nas 20,
+# por papel (so numero): authenticated 3 formas SEM / 3 chamadas; service_role 1 forma SEM / 9 chamadas;
+# postgres 16 COM / 16, 216 SEM / 413, 1 sem lista / 1 (migrations, roteiros de ensaio). O ensaio nao tem app no ar.
+
+# Advisors (contados por nivel e nome)
+# SECURITY: INFO rls_enabled_no_policy 6; WARN authenticated_security_definer_function_executable 39;
+#           WARN auth_leaked_password_protection 1; ERROR 0
+# PERFORMANCE: INFO unindexed_foreign_keys 39; INFO no_primary_key 1; INFO unused_index 43;
+#              WARN multiple_permissive_policies 1 (pendencias_item UPDATE authenticated); ERROR 0

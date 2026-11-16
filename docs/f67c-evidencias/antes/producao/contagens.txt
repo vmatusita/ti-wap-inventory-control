@@ -1,0 +1,44 @@
+# F67C — o "antes" em PRODUCAO (pbtjcalbmepmrqzprusb, PG 17.6), 16/11/2026 ~17:03 BRT, pelo MCP execute_sql (so leitura),
+# ANTES de qualquer apply da fase. So contagem, nome de objeto de esquema, texto de esquema, configuracao e hash.
+
+ledger: 183 entradas; ultima 20261116134338 contracao_backups_por_empresa (= a 0199)
+empresas=1 | filiais=6 | membros ativos=14 | plataforma_admins=2
+funcoes public: 117 (70 security definer) — funcoes.tsv: nome, args, prosecdef, md5(prosrc), md5(pg_get_functiondef)[:10],
+  EXECUTE anon/authenticated/service_role/PUBLIC; md5 do TSV (sem quebra final) 13db2199895b9a79f91b012822b322a5 — calculado
+  NO BANCO e conferido contra a transcricao (OK)
+policies public+storage: 62 (8 em storage.objects) — policies.tsv: schema, tabela, nome, cmd, roles, permissive,
+  md5(qual), md5(with_check); md5 do TSV cee318f577345f75dc06b99874b8a867 — idem (OK)
+gatilhos nao internos em public: 53
+
+# As 22 colunas empresa_id de public (pg_attribute + pg_attrdef + pg_depend)
+# tabela | not null | default | funcao da qual o default depende (pg_depend)
+anotacoes                  t  empresa_legada()  empresa_legada
+ativos                     t  empresa_legada()  empresa_legada
+colaboradores              t  empresa_legada()  empresa_legada
+eventos_admin              t  empresa_legada()  empresa_legada
+filiais                    t  empresa_legada()  empresa_legada
+import_logs                t  empresa_legada()  empresa_legada
+import_prefixos_patrimonio t  empresa_legada()  empresa_legada
+import_termos_categoria    t  empresa_legada()  empresa_legada
+import_termos_estado       t  empresa_legada()  empresa_legada
+itens                      t  empresa_legada()  empresa_legada
+kits_modelos               t  empresa_legada()  empresa_legada
+lancamentos_item           t  empresa_legada()  empresa_legada
+membros                    t  (sem default)     -
+motivos                    t  empresa_legada()  empresa_legada
+movimentacoes              t  empresa_legada()  empresa_legada
+operador_filiais           t  (sem default)     -
+pendencias_item            t  empresa_legada()  empresa_legada
+relatorios_gerados         t  empresa_legada()  empresa_legada
+senhas_acesso              t  empresa_legada()  empresa_legada
+termos_gerados             t  empresa_legada()  empresa_legada
+tipos_item                 t  empresa_legada()  empresa_legada
+unidades_apelidos          t  empresa_legada()  empresa_legada
+=> 22 colunas; 20 com o default (so a chamada de public.empresa_legada()); 22 not null.
+
+# Linhas FORA da empresa legada (empresa_id <> public.empresa_legada()), nas 20 — so contagem
+anotacoes 0 | ativos 0 | colaboradores 0 | eventos_admin 0 | filiais 0 | import_logs 0 | import_prefixos_patrimonio 0
+import_termos_categoria 0 | import_termos_estado 0 | itens 0 | kits_modelos 0 | lancamentos_item 0 | motivos 0
+movimentacoes 0 | pendencias_item 0 | relatorios_gerados 0 | senhas_acesso 0 | termos_gerados 0 | tipos_item 0
+unidades_apelidos 0
+=> 0 nas 20.
