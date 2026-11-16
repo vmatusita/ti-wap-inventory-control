@@ -2263,8 +2263,10 @@ begin
   -- (docs oficiais, "Postgres Changes" e "Realtime Authorization"; PLAN-F67B, decisão 13). Então a trava de verdade é:
   -- toda tabela da publication tem RLS, a coluna da empresa e uma policy de SELECT com o RECORTE de empresa da F66 na
   -- conjunção de cima — lida pela FORMA (as árvores do laço do recorte acima, nunca por md5). E a ressalva da doc:
-  -- "RLS policies are not applied to DELETE" — com replica identity FULL, o DELETE levaria a linha velha INTEIRA a todo
-  -- assinante; com a default, só a chave. Por isso a replica identity também é travada (9e).
+  -- "RLS policies are not applied to DELETE": o evento de DELETE vai a todo assinante da tabela. Com a RLS ligada, a doc
+  -- garante que o `old` leva só a chave primária, mesmo com replica identity FULL; com FULL e a RLS DESLIGADA, levaria a
+  -- linha velha INTEIRA. A RLS ligada é de outro roteiro (seguranca_catalogo.sql) — por isso a replica identity também é
+  -- travada aqui, na forma conservadora (9e): defesa em profundidade, para que só a chave viaje em qualquer caso.
   -- A lista do TS (`TABELAS_ASSINADAS`) é conferida contra `k_realtime` na mesa (assinatura-realtime.test.ts).
   -- ---------------------------------------------------------------
   -- 9c — toda tabela da publication tem a coluna `empresa_id` e ao menos uma policy PERMISSIVA de SELECT. (A RLS LIGADA
@@ -2320,8 +2322,9 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
-  -- 9e — nenhuma tabela da publication tem replica identity FULL (o DELETE não passa pela RLS: com FULL, a linha velha
-  --      inteira iria a todo assinante de toda empresa).
+  -- 9e — nenhuma tabela da publication tem replica identity FULL (o DELETE não passa pela RLS: com FULL e a RLS
+  --      desligada, a linha velha inteira iria a todo assinante de toda empresa; com a RLS ligada, só a chave — a trava
+  --      não depende do outro roteiro).
   select count(*), coalesce(string_agg(t.tablename, ', ' order by t.tablename), '')
     into v_cnt, v_lista
     from pg_publication_tables t

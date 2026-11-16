@@ -22,3 +22,7 @@ DETECTADA     f52-backup-do-import-aceita-qualquer-prefixo → import_fora_da_un
 DETECTADA     rls-termo-perde-as-invariantes-da-ancora → papeis_rls.sql (espera ✗ 2i-bis-3) · sonda=false · caiu [2i-bis-3, TOTAL] · efeito colateral: TOTAL · FIM 77/1
 DETECTADA     f67-sentinela-do-tudo-sem-empresa → cargo_por_empresa.sql (espera ✗ D4) · sonda=true · caiu [D4] · FIM 15/1
 DETECTADA     rls-bucket-de-backup-visivel-a-quem-escreve → papeis_rls.sql (espera ✗ 6e) · sonda=false · caiu [6e, TOTAL] · efeito colateral: TOTAL · FIM 77/1
+
+# Revisão adversarial (16/11/2026): as duas que faltavam — a 9d (o SELECT da publication sem o recorte) e a 9c (sem policy de SELECT):
+DETECTADA     f67b-realtime-select-sem-recorte → catalogo_policies.sql (espera ✗ 9d) · sonda=true · caiu [16a, 9d] · efeito colateral: 16a · FIM 46/2
+DETECTADA     f67b-realtime-tabela-sem-select → catalogo_policies.sql (espera ✗ 9c) · sonda=true · caiu [2, 3, 6a, 10b, 9c] · efeito colateral: 2, 3, 6a, 10b · FIM 46/5

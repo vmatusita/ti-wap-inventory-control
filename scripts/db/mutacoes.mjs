@@ -3879,9 +3879,43 @@ const F67B_STORAGE = [
     classe: 'superficie-publica',
     derruba: ['9e'],
     porque:
-      'Uma tabela da publication do Realtime passa a replica identity FULL: o DELETE entrega a linha ANTIGA inteira a todo assinante, e o DELETE não passa pela RLS no Realtime — o filtro de empresa do cliente não segura nada. A trava de catálogo 9e existe para que isso nunca entre em silêncio.',
+      'Uma tabela da publication do Realtime passa a replica identity FULL. O DELETE não passa pela RLS no Realtime (o evento vai a todo assinante); com a RLS ligada a doc garante que o old leva só a chave primária, mas com FULL e a RLS desligada (a RLS ligada é de outro roteiro) iria a linha antiga inteira — o filtro de empresa do cliente não segura nada. A 9e trava a forma conservadora para que isso nunca entre em silêncio.',
     sql: 'alter table public.anotacoes replica identity full;',
     prova: { sql: "select relreplident = 'f' from pg_class where oid = 'public.anotacoes'::regclass", espera: 't' },
+  },
+  // As duas abaixo vieram da REVISÃO ADVERSARIAL da F67B (16/11/2026): a 9c e a 9d não tinham mutação, e a ordem lista
+  // "uma tabela da publication sem o recorte" entre as candidatas.
+  {
+    id: 'f67b-realtime-select-sem-recorte',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['9d'],
+    porque:
+      'A policy de SELECT de uma tabela da publication do Realtime perde o recorte de empresa e fica só com o piso: todo logado de qualquer empresa passa a receber, pelo postgres_changes, o INSERT de anotações de todas — o filtro de empresa do cliente é ruído, e é esta policy que o Realtime confere por assinante.',
+    sql: `alter policy "leitura operador" on public.anotacoes
+  using ((select public.papel_atual()) is not null);`,
+    prova: {
+      sql: `select coalesce(qual, '') not like '%empresas_do_membro%'
+              from pg_policies
+             where schemaname = 'public' and tablename = 'anotacoes' and policyname = 'leitura operador'`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.anotacoes' }],
+  },
+  {
+    id: 'f67b-realtime-tabela-sem-select',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'recorte-esquecido',
+    derruba: ['9c'],
+    porque:
+      'Uma tabela da publication do Realtime fica sem policy de SELECT: com a RLS ligada ninguém recebe nada (o selo "ao vivo" mente em silêncio), e com a RLS desligada todos recebem tudo. A 9c exige a policy em toda tabela publicada, para que a decisão por assinante exista.',
+    sql: 'drop policy "leitura operador" on public.anotacoes;',
+    prova: {
+      sql: `select not exists (select 1 from pg_policies
+                              where schemaname = 'public' and tablename = 'anotacoes' and policyname = 'leitura operador')`,
+      espera: 't',
+    },
+    policies: [{ nome: 'leitura operador', tabela: 'public.anotacoes' }],
   },
 ]
 

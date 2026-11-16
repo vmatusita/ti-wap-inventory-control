@@ -349,7 +349,10 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // admin (D2), a ferramenta de órfão sem a guarda da plataforma (O1) e sem a idade mínima (O3/O4), a 12ª reconhecendo
     // cópia sem trilha (F3), a gravação sem a empresa do caminho (B6) e a replica identity FULL na publication (9e).
     // 170 + 12 = 182, sem folga.
-    expect(MUTACOES.length).toBeLessThanOrEqual(182)
+    // ⚠ E DE 182 PARA 184 NA REVISÃO ADVERSARIAL DA MESMA F67B (16/11/2026): o revisor achou que a 9c e a 9d da
+    // publication do Realtime não tinham mutação (a ordem lista "uma tabela da publication sem o recorte"); entraram
+    // `f67b-realtime-select-sem-recorte` (9d) e `f67b-realtime-tabela-sem-select` (9c), medidas DETECTADAS na mesa.
+    expect(MUTACOES.length).toBeLessThanOrEqual(184)
   })
 
   it('os `id` são únicos', () => {
