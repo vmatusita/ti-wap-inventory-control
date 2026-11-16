@@ -169,6 +169,22 @@ describe('todo arquivo que usa service role está declarado, com motivo e guarda
     ).toBeDefined()
   })
 
+  it('F67B (16/11-2): importar.ts invoca o service role UMA vez só — e é no passo dos .docx, depois da RPC', () => {
+    // A decisão do Johnny abre o client administrativo no import SÓ para copiar e remover os `.docx` que a RPC acabou de
+    // apagar. Declarar o arquivo não basta: uma segunda invocação (no backup, na RPC, no descarte) passaria pela
+    // declaração. A trava é a contagem exata e o ponto de uso.
+    const a = ARQUIVOS_COM_INVOCACAO.find((x) => x.arquivo === 'src/lib/actions/importar.ts')
+    expect(a?.n, 'importar.ts: o service role saiu do passo dos .docx ou ganhou outro uso').toBe(1)
+    const fonte = limpar(readFileSync(join(RAIZ, 'src', 'lib', 'actions', 'importar.ts'), 'utf8'), true)
+    expect(fonte).toMatch(/copiarEntaoRemoverTermos\(\s*createAdminClient\(\)/)
+    // as posições no texto CRU (o `limpar` apaga os literais, e o nome da RPC é um literal)
+    const cru = readFileSync(join(RAIZ, 'src', 'lib', 'actions', 'importar.ts'), 'utf8')
+    const iRpc = cru.indexOf("chamarRpc(client, 'importar_ativos_substituir'")
+    const iAdmin = cru.search(/copiarEntaoRemoverTermos\(\s*createAdminClient\(\)/)
+    expect(iRpc, 'a RPC do import não foi achada').toBeGreaterThan(-1)
+    expect(iAdmin, 'o service role aparece ANTES da RPC').toBeGreaterThan(iRpc)
+  })
+
   it('nenhuma declaração é órfã (o arquivo existe e ainda invoca)', () => {
     const reais = new Set(ARQUIVOS_COM_INVOCACAO.map((x) => x.arquivo))
     for (const arquivo of Object.keys(DECLARADOS)) {

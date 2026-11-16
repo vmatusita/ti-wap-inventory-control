@@ -142,10 +142,14 @@ do $$
 declare
   -- A impressão na cadeia até a 0193 (ordenada por parte: comentarios, funcoes, gatilhos, policies, views). Medida na mesa
   -- PGlite em 16/11/2026 (docs/f67b-evidencias/E-rollback/): a impressão da base 0193 = a de depois do rollback, parte a
-  -- parte. A régua é o CI: a parte que lá medir outro md5 (as policies, como na F67) é trocada pela linha (medição).
+  -- parte. A régua é o CI: as quatro partes de comentarios/funcoes/gatilhos/views mediram no CI o MESMO md5 da mesa (run
+  -- 43892474619, push f4471f0); as POLICIES medem outro md5 no CI para a mesma cadeia (diferença de deparse do ambiente,
+  -- como na F67: mesa f3d8c68d…, CI 23f75895…). O valor do CI é o de depois do rollback, e ele é o da 0193 por duas provas
+  -- independentes: na mesa, base 0193 = depois do rollback, parte a parte; e no CI, o f67_rollback.sql (que roda ESTE
+  -- rollback e depois o da F67) chega à impressão do CI antes da 0185 — policies inclusive (docs/f67b-evidencias/C-ci/).
   k_antes constant text :=
     'comentarios:c6632ecf0ae248192a4da12b3948e637:115|funcoes:0a2a3c3e7c8a71d014b7f3b01ba3bdf3:114|'
-    || 'gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53|policies:f3d8c68dc9e82a282b657eafa616562e:62|'
+    || 'gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53|policies:23f75895fe22ee72d63cbdc5966036d4:62|'
     || 'views:a38b7bf1527d5cb13f776b5e8af0b2b4:9';
   v_depois  text := current_setting('f67brb.depois');
   v_de_novo text := current_setting('f67brb.de_novo');

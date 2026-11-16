@@ -115,7 +115,12 @@ declare
   -- F67 (13/11/2026): o conjunto encolhe de novo — fora as 41 que a F67 cria, recria ou derruba (lista no L4, abaixo). A
   -- constante de antes, `3a2a8000…`, dá lugar à do conjunto fora delas, medida no CI na cadeia até a 0184 (run
   -- 43441883622, o push das travas da F67, 70 funções; docs/f67-evidencias/B-travas/). Mesmo fato, mesmo raciocínio da F66.
-  k_funcoes_pre_0165 constant text := '5247f1636bfa26cab2363dcd45adbbc6';
+  -- F67B (16/11/2026): o conjunto encolhe de novo — fora as 14 que a F67B cria ou recria (a lista no L4). A constante de
+  -- antes, `5247f163…`, dá lugar à do conjunto fora delas, medida no CI na cadeia inteira (run 43892474619, push
+  -- f4471f0, 64 funções; docs/f67b-evidencias/C-ci/). Que a F67B não tocou NENHUMA das 64 está provado na mesa: o L4 da
+  -- base PGlite até a 0193 e o da base até a 0199 dão o MESMO md5 (3fa0c72a…, 64 funções) — o valor do CI é o mesmo
+  -- conjunto, no ambiente que é a régua.
+  k_funcoes_pre_0165 constant text := '84f64e0b50d37a4c4d4ea30f0d2b3ca1';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() da 0139 (o dos dois bancos antes da F65).
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
 begin
