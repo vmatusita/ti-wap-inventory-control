@@ -1,0 +1,21 @@
+# Mesa PGlite 0.3.14 (PG 17.5 WASM), 16/11/2026 — o rollback da F67B (supabase/rollback/F67B-desfaz.sql)
+# 1) a impressão da base montada até a 0193 (pg/impressao-0193.mjs, o mesmo SQL de pg_temp.f67b_impressao):
+0193: comentarios:c6632ecf0ae248192a4da12b3948e637:115|funcoes:0a2a3c3e7c8a71d014b7f3b01ba3bdf3:114|gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53|policies:f3d8c68dc9e82a282b657eafa616562e:62|views:a38b7bf1527d5cb13f776b5e8af0b2b4:9
+# 2) os roteiros de rollback na base 0199 (a cadeia inteira), com o F67B-desfaz antes do F67-desfaz:
+  f67_rollback | WARNING:  ✗ rb2 as policies de public e de storage depois do rollback são as do CI antes da 0185 — policies:5cd099ab688ed247ede5d85e4c1c92d7:62, esperado policies:df2385787c2c4137c144786d21a7ca86:62: 1 de 1 fora da regra
+  f67_rollback | WARNING:  ✗ rb6 o só-expansão (0185–0192 reaplicadas, sem a contração): o rollback devolve o esquema do CI antes da 0185 — funcoes:e5a982611889d7d2a1059069e4b701bc:106|gatilhos:faabdedeccadc5ee111e827b75da9976:52|policies:5cd099ab688ed247ede5d85e4c1c92d7:62|views:eb6a8509379eb9b77bfb59d4e7e5eb2f:9: 1 de 1 fora da regra
+  f67_rollback | NOTICE:  FIM f67_rollback: 7 asserções, 2 falhas
+==== RESUMO ====
+  ✗ f67_rollback — 7 asserções, 2 falhas · 2 ✗
+  7 roteiro(s), 41 asserções; 1 reprovado(s)
+
+# 3) controle: o f67_rollback na base 0193 (SEM nenhuma migration da F67B) — o md5 das policies é o MESMO 5cd099ab… da linha
+#    acima: a divergência do rb2/rb6 é do ambiente PGlite (a régua é o CI, df2385…), não da F67B.
+  f67_rollback | WARNING:  ✗ rb2 as policies de public e de storage depois do rollback são as do CI antes da 0185 — policies:5cd099ab688ed247ede5d85e4c1c92d7:62, esperado policies:df2385787c2c413
+  f67_rollback | WARNING:  ✗ rb6 o só-expansão (0185–0192 reaplicadas, sem a contração): o rollback devolve o esquema do CI antes da 0185 — funcoes:e5a982611889d7d2a1059069e4b701bc:106|gatil
+  f67_rollback | NOTICE:  FIM f67_rollback: 7 asserções, 2 falhas
+  ✗ f67_rollback — 7 asserções, 2 falhas · 2 ✗
+
+# 4) controle: o f67_rollback na base 0199 SEM a linha do F67B-desfaz (a run de antes deste commit, pg/todos-0199.txt):
+#    rb1 reprova (funcoes:e5efc4fb…:110 — as funções da F67B ficam de pé) — é o que a linha nova conserta.
+  f67_rollback | WARNING:  ✗ rb1 as funções de public depois do rollback são as do CI antes da 0185 (corpo, definer, search_path e EXECUTE) — funcoes:e5efc4fb00313a20c9a38a5614734123:110, esper

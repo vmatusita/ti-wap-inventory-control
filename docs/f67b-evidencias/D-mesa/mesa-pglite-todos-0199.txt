@@ -1,0 +1,84 @@
+# Mesa PGlite 0.3.14 (PG 17.5 WASM), 16/11/2026 — TODOS os roteiros de supabase/tests na cadeia inteira (0001–0199).
+# As cinco reprovações são de AMBIENTE, conhecidas desde a F64/F67 (memória 'mesa-pglite-roda-a-cadeia'): o fuso (sem ICU/TZ),
+# as travas advisory (pg_locks não as mostra no WASM: f38 3d, transferencia_item 3a), o L4 de integridade_tenant (constante
+# medida no CI) e o md5 das POLICIES do f67_rollback (rb2/rb6 — o controle na base 0193, sem a F67B, dá o mesmo md5:
+# docs/f67b-evidencias/E-rollback/mesa-pglite-rollbacks.txt). A régua é o CI.
+  f38_itens_com_ativo | WARNING:  ✗ 3d esperava ao menos 2 travas advisory dos itens, obtido 0
+  f38_itens_com_ativo | WARNING:  ✗ TOTAL f38_itens_com_ativo: 1 falha(s) — 3d; 
+  f38_itens_com_ativo | NOTICE:  FIM f38_itens_com_ativo: 51 asserções, 1 falhas
+  f67_rollback | WARNING:  ✗ rb2 as policies de public e de storage depois do rollback são as do CI antes da 0185 — policies:5cd099ab688ed247ede5d85e4c1c92d7:62, esperado policies:df2385787c2c4137c144786d21a7ca86:62: 1 de 1 fora da regra
+  f67_rollback | WARNING:  ✗ rb6 o só-expansão (0185–0192 reaplicadas, sem a contração): o rollback devolve o esquema do CI antes da 0185 — funcoes:e5a982611889d7d2a1059069e4b701bc:106|gatilhos:faabdedeccadc5ee111e827b75da9976:52|policies:5cd099ab688ed247ede5d85e4c1c92d7:62|views:eb6a8509379eb9b77bfb59d4e7e5eb2f:9: 1 de 1 fora da regra
+  f67_rollback | NOTICE:  FIM f67_rollback: 7 asserções, 2 falhas
+  fuso_do_negocio | WARNING:  ✗ 1. a sessão roda em GMT — esperado America/Sao_Paulo. A migration 0124 foi revertida ou este banco nasceu depois dela sem reaplicá-la.
+  fuso_do_negocio | WARNING:  ✗ 4. date → timestamptz ancorou em 2026-11-16 00:00:00+00 — deveria ser 00:00 -03
+  fuso_do_negocio | NOTICE:  FIM fuso_do_negocio: 5 asserções, 2 falhas
+  integridade_tenant | WARNING:  ✗ L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI) — 3fa0c72a9bbfe24567251a7084598b3b, esperado 5247f1636bfa26cab2363dcd45adbbc6: 1 de 1 fora da regra
+  integridade_tenant | NOTICE:  FIM integridade_tenant: 24 asserções, 1 falhas
+  transferencia_item | WARNING:  ✗ 3a esperava 4 travas advisory, obtido 0
+  transferencia_item | WARNING:  ✗ TOTAL transferencia_item: 1 falha(s) — 3a; 
+  transferencia_item | NOTICE:  FIM transferencia_item: 18 asserções, 1 falhas
+==== RESUMO ====
+  ✓ asof_desempate — 21 asserções, 0 falhas
+  ✓ asserts_ferramenta — 7 asserções, 0 falhas
+  ✓ cargo_dev — 71 asserções, 0 falhas
+  ✓ cargo_em_membros — 5 asserções, 0 falhas
+  ✓ cargo_equivalencia — 7 asserções, 0 falhas
+  ✓ cargo_por_empresa — 15 asserções, 0 falhas
+  ✓ catalogo_policies — 46 asserções, 0 falhas
+  ✓ catalogo_secdef — 16 asserções, 0 falhas
+  ✓ colaborador_estorno — 19 asserções, 0 falhas
+  ✓ colaborador_uso_efetivo — 11 asserções, 0 falhas
+  ✓ comprimento_comportamento — 28 asserções, 0 falhas
+  ✓ comprimento_por_coluna — 17 asserções, 0 falhas
+  ✓ conflito_entre_empresas — 8 asserções, 0 falhas
+  ✓ conflito_filiais — 51 asserções, 0 falhas
+  ✓ definer_sem_tenant — 9 asserções, 0 falhas
+  ✓ dev_destrutivo — 109 asserções, 0 falhas
+  ✓ dominios_login — 16 asserções, 0 falhas
+  ✓ empresa_no_acervo — 22 asserções, 0 falhas
+  ✓ empresa_no_vocabulario — 15 asserções, 0 falhas
+  ✓ escrita_atomica_ativos_anotacao — 16 asserções, 0 falhas
+  ✓ f34_triagem_reserva — 21 asserções, 0 falhas
+  ✓ f36_detentor — 18 asserções, 0 falhas
+  ✓ f37_colaboradores_tipos — 26 asserções, 0 falhas
+  ✗ f38_itens_com_ativo — 51 asserções, 1 falhas · 2 ✗
+  ✓ f41_regularizacao — 26 asserções, 0 falhas
+  ✓ f60_recorte — 17 asserções, 0 falhas
+  ✓ f62_rollback — 4 asserções, 0 falhas
+  ✓ f63_rollback — 5 asserções, 0 falhas
+  ✓ f64_rollback — 5 asserções, 0 falhas
+  ✓ f65_rollback — 5 asserções, 0 falhas
+  ✓ f66_rollback — 6 asserções, 0 falhas
+  ✓ f66b_rollback — 5 asserções, 0 falhas
+  ✗ f67_rollback — 7 asserções, 2 falhas · 2 ✗
+  ✓ f67b_rollback — 9 asserções, 0 falhas
+  ✓ forma_multiempresa — 8 asserções, 0 falhas
+  ✗ fuso_do_negocio — 5 asserções, 2 falhas · 2 ✗
+  ✓ import_fora_da_unidade — 14 asserções, 0 falhas
+  ✓ import_substituir — 32 asserções, 0 falhas
+  ✓ imutabilidade_tenant — 9 asserções, 0 falhas
+  ✓ integridade_alarme — 40 asserções, 0 falhas
+  ✗ integridade_tenant — 24 asserções, 1 falhas · 1 ✗
+  ✓ isolamento_tenant — 48 asserções, 0 falhas
+  ✓ itens_extra — 4 asserções, 0 falhas
+  ✓ itens_quantidade — 14 asserções, 0 falhas
+  ✓ kit_motivo_da_empresa — 14 asserções, 0 falhas
+  ✓ ledger_de_migracoes — 6 asserções, 0 falhas
+  ✓ manutencao_fornecedor — 19 asserções, 0 falhas
+  ✓ maquina_estados — 14 asserções, 0 falhas
+  ✓ movimentacao_grade — 45 asserções, 0 falhas
+  ✓ papeis_rls — 77 asserções, 0 falhas
+  ✓ pendencias_import_termo — 5 asserções, 0 falhas
+  ✓ pendencias_item — 15 asserções, 0 falhas
+  ✓ reabrir_pendencia_item — 4 asserções, 0 falhas
+  ✓ restauracao — 19 asserções, 0 falhas
+  ✓ seguranca_catalogo — 8 asserções, 0 falhas
+  ✓ storage_por_empresa — 36 asserções, 0 falhas
+  ✓ storage_termo — 15 asserções, 0 falhas
+  ✓ termo_bloqueado — 7 asserções, 0 falhas
+  ✗ transferencia_item — 18 asserções, 1 falhas · 2 ✗
+  ✓ transicoes_extra — 13 asserções, 0 falhas
+  ✓ troca — 13 asserções, 0 falhas
+  ✓ unicidade_por_empresa — 3 asserções, 0 falhas
+  ✓ vocabulario_import — 56 asserções, 0 falhas
+  63 roteiro(s), 1299 asserções; 5 reprovado(s)

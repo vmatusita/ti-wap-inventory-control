@@ -223,6 +223,18 @@ describe('7. o prefixo das cópias de .docx é o mesmo que o app grava', () => {
       'reset/acervo/global/2026-09-09T14-05-33-102Z/termos/',
     )
   })
+
+  it('F67B: é agnóstico de forma — o backup NOVO, com a empresa no 2º segmento, dá o mesmo prefixo que o app grava', () => {
+    // Espelha `prefixoDasCopias(raizDoBackupEmArquivo(...))` de `src/lib/storage/caminho.ts` na forma nova. Um backup
+    // antigo continua restaurável (acima); um novo também, sem nenhuma mudança no restaurador.
+    const emp = '00000000-0000-4000-a000-000000000001'
+    expect(prefixoDasCopias(`import/empresa-${emp}/filial-3/2026-11-16T14-05-33-102Z.json`)).toBe(
+      `import/empresa-${emp}/filial-3/2026-11-16T14-05-33-102Z/termos/`,
+    )
+    expect(prefixoDasCopias(`reset/empresa-${emp}/acervo/tudo/2026-11-16T14-05-33-102Z.json`)).toBe(
+      `reset/empresa-${emp}/acervo/tudo/2026-11-16T14-05-33-102Z/termos/`,
+    )
+  })
 })
 
 describe('8. o gerador de literais não quebra com o que o acervo tem de verdade', () => {

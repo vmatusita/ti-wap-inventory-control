@@ -103,8 +103,10 @@ begin
   insert into public.filiais (slug, nome) values ('zzf52-teste-a', 'F52 Teste A') returning id into v_f1;
   insert into public.filiais (slug, nome) values ('zzf52-teste-b', 'F52 Teste B') returning id into v_f2;
 
-  v_prefixo1 := public.prefixo_backup_import(v_f1);
-  v_prefixo2 := public.prefixo_backup_import(v_f2);
+  -- F67B (16/11/2026): o backup do import passou à forma NOVA, com a empresa no 2º segmento
+  -- (import/empresa-<uuid>/filial-<id>/, prefixo_backup_import(uuid, smallint) da 0194); a antiga saiu na 0199.
+  v_prefixo1 := public.prefixo_backup_import(public.empresa_da_filial(v_f1), v_f1);
+  v_prefixo2 := public.prefixo_backup_import(public.empresa_da_filial(v_f2), v_f2);
 
   -- Um backup "existente" no bucket para cada filial — o par positivo das cascatas
   -- 2/3/4 precisa de um caminho que exista de verdade em storage.objects.
@@ -121,11 +123,15 @@ begin
   -- `integer` para `smallint` no Postgres é de ATRIBUIÇÃO, não implícita — um literal
   -- `1` cru resolve para "function public.prefixo_backup_import(integer) does not exist"
   -- e ABORTA o roteiro, em vez de deixar a asserção vermelha.
-  if public.prefixo_backup_import(1::smallint) = 'import/filial-1/' then
-    v_ok := v_ok + 1; raise notice '✓ 1a prefixo_backup_import(1) = "import/filial-1/"';
+  -- F67B (16/11/2026): a forma NOVA, com a empresa no 2º segmento — o mesmo fato (concatenação pura, sem depender de
+  -- a filial nem a empresa existirem), na assinatura nova (uuid, smallint) da 0194.
+  if public.prefixo_backup_import('00000000-0000-4000-a000-000000000001'::uuid, 1::smallint)
+     = 'import/empresa-00000000-0000-4000-a000-000000000001/filial-1/' then
+    v_ok := v_ok + 1; raise notice '✓ 1a prefixo_backup_import(<empresa>, 1) = "import/empresa-<empresa>/filial-1/"';
   else
     v_falhas := v_falhas + 1;
-    raise warning '✗ 1a prefixo_backup_import(1): esperado "import/filial-1/", obtido "%"', public.prefixo_backup_import(1::smallint);
+    raise warning '✗ 1a prefixo_backup_import(<empresa>, 1): esperado "import/empresa-<empresa>/filial-1/", obtido "%"',
+      public.prefixo_backup_import('00000000-0000-4000-a000-000000000001'::uuid, 1::smallint);
   end if;
 
   -- 1b — fechada nos quatro papéis, pelo ACL real (não pela intenção do comentário).
@@ -141,7 +147,7 @@ begin
 
   select count(*) into v_abertas
     from (values ('anon'),('authenticated'),('service_role')) r(rolname)
-   where has_function_privilege(r.rolname, 'public.prefixo_backup_import(smallint)', 'execute');
+   where has_function_privilege(r.rolname, 'public.prefixo_backup_import(uuid,smallint)', 'execute');
 
   select v_abertas + count(*) into v_abertas
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace

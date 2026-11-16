@@ -176,6 +176,11 @@ declare
   --   · apagar_ativos_conflito_filiais (0191) — o grupo recalculado DENTRO da empresa; a trilha com a empresa;
   --   · exigir_ativos_da_empresa (0191)       — a guarda de pertencimento da mesa (era no-op da F52);
   --   · termo_exige_modelo_da_empresa (0192)  — o gatilho da trava do termo lê `new.empresa_id` (só `termos_gerados`).
+  -- F67B (16/11/2026) — DUAS, a mesma classe da F67 (o recorte da `security definer`, docs/PLAN-F67B.md decisões 4 e 5):
+  -- o arquivo `.docx` do bucket `termos` é decidido pela LINHA de `termos_gerados` que o referencia, na empresa DELA.
+  --   · pode_ler_arquivo_termo (0198)      — lê `t.empresa_id` da linha para perguntar o cargo NAQUELA empresa;
+  --   · pode_escrever_arquivo_termo (0197) — lê `t.empresa_id` da linha para decidir o degenerado pela empresa dela.
+  -- Cada uma só de `termos_gerados`, no comando que acha a linha pelo `arquivo_path`.
   k_leitura_tenant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
@@ -194,7 +199,9 @@ declare
     'forcar_saldo_item:itens,lancamentos_item,eventos_admin',
     'apagar_ativos_conflito_filiais:ativos,eventos_admin',
     'exigir_ativos_da_empresa:ativos',
-    'termo_exige_modelo_da_empresa:termos_gerados'
+    'termo_exige_modelo_da_empresa:termos_gerados',
+    'pode_ler_arquivo_termo:termos_gerados',
+    'pode_escrever_arquivo_termo:termos_gerados'
   ];
 
   -- =======================================================================
@@ -395,7 +402,9 @@ declare
   -- oposto do que a 0129 fez.
   k_funcoes_acesso text[] := array[
     'papel_atual', 'e_admin', 'e_dev', 'pode_escrever', 'pode_escrever_filial',
-    'pode_escrever_termo', 'pode_escrever_arquivo_termo', 'pode_ler_arquivo_termo'
+    'pode_escrever_termo', 'pode_escrever_arquivo_termo', 'pode_ler_arquivo_termo',
+    -- F67B (16/11/2026): o backup pela EMPRESA DO CAMINHO (a 0199) — o nome por extenso, não por acaso de substring
+    'empresas_de_admin', 'empresa_do_caminho_backup', 'caminho_backup_legado'
   ];
 
   -- =======================================================================
@@ -483,10 +492,15 @@ declare
     'public.termos_gerados / operador insere / array_length', -- 0069 · motivo: built-in imutável sobre o próprio array, que recusa termo sem ativo, de custo desprezível · destino: permanente
     'public.termos_gerados / operador insere / pode_escrever_termo', -- 0069 · motivo: o termo decide pelos próprios ativo_ids, e emitir exige escrever na filial de todos eles · destino: permanente
     'public.termos_gerados / operador insere / termo_ancora_coerente', -- 0069 · motivo: coerência das âncoras do próprio termo, as movimentações batem com os ativos dele · destino: permanente
-    'storage.objects / termos apaga operador / pode_escrever_arquivo_termo', -- 0072 · motivo: o arquivo decide pelo próprio name, que aponta o termo dono do .docx · destino: permanente (revista na F67)
-    'storage.objects / termos atualiza operador / pode_escrever_arquivo_termo', -- 0072 · motivo: o arquivo decide pelo próprio name, que aponta o termo dono do .docx · destino: permanente (revista na F67)
-    'storage.objects / termos insere operador / pode_escrever_arquivo_termo', -- 0072 · motivo: o arquivo decide pelo próprio name, que aponta o termo dono do .docx · destino: permanente (revista na F67)
-    'storage.objects / termos leitura operador / pode_ler_arquivo_termo' -- 0129 · motivo: o falso içamento, o select em volta não iça e a função recebe o name da linha · destino: F67 (reescreve as policies de Storage)
+    'storage.objects / backups-import apaga operador / empresa_do_caminho_backup', -- 0199 · motivo: o backup decide pelo próprio name, que carrega a empresa dona no 2º segmento · destino: permanente (F67B)
+    'storage.objects / backups-import atualiza operador / empresa_do_caminho_backup', -- 0199 · motivo: o backup decide pelo próprio name, que carrega a empresa dona no 2º segmento · destino: permanente (F67B)
+    'storage.objects / backups-import insere operador / empresa_do_caminho_backup', -- 0199 · motivo: o backup decide pelo próprio name, que carrega a empresa dona no 2º segmento · destino: permanente (F67B)
+    'storage.objects / backups-import leitura operador / caminho_backup_legado', -- 0199 · motivo: a cláusula legada fechada da decisão 16/11-1, a forma antiga pelo próprio name, só leitura e só o admin da WAP · destino: permanente (F67B)
+    'storage.objects / backups-import leitura operador / empresa_do_caminho_backup', -- 0199 · motivo: o backup decide pelo próprio name, que carrega a empresa dona no 2º segmento · destino: permanente (F67B)
+    'storage.objects / termos apaga operador / pode_escrever_arquivo_termo', -- 0072 · motivo: o arquivo decide pelo próprio name, que aponta a linha dona do .docx · destino: permanente (revista na F67B: a linha, nunca o caminho)
+    'storage.objects / termos atualiza operador / pode_escrever_arquivo_termo', -- 0072 · motivo: o arquivo decide pelo próprio name, que aponta a linha dona do .docx · destino: permanente (revista na F67B: a linha, nunca o caminho)
+    'storage.objects / termos insere operador / pode_escrever_arquivo_termo', -- 0072 · motivo: o arquivo decide pelo próprio name, que aponta a linha dona do .docx · destino: permanente (revista na F67B: a linha, nunca o caminho)
+    'storage.objects / termos leitura operador / pode_ler_arquivo_termo' -- 0129 · motivo: o falso içamento, o select em volta não iça e a função recebe o name da linha; desde a F67B ela lê pelo join com a linha dona · destino: permanente (F67B)
   ];
 
   -- A GUARDA DO ANALISADOR DE ÁRVORE (10d): o que cada árvore SINTÉTICA tem de
@@ -2253,9 +2267,10 @@ begin
   -- assinante; com a default, só a chave. Por isso a replica identity também é travada (9e).
   -- A lista do TS (`TABELAS_ASSINADAS`) é conferida contra `k_realtime` na mesa (assinatura-realtime.test.ts).
   -- ---------------------------------------------------------------
-  -- 9c — toda tabela da publication tem RLS LIGADA, a coluna `empresa_id` e ao menos uma policy PERMISSIVA de SELECT.
+  -- 9c — toda tabela da publication tem a coluna `empresa_id` e ao menos uma policy PERMISSIVA de SELECT. (A RLS LIGADA
+  --      em toda tabela de `public` — as da publication inclusive — é o fato de seguranca_catalogo.sql, F48 Decisão 2:
+  --      não se duplica aqui.)
   select count(*), coalesce(string_agg(t.tablename || ' (' || concat_ws(', ',
-           case when not c.relrowsecurity then 'sem RLS' end,
            case when not exists (select 1 from pg_attribute att where att.attrelid = c.oid
                                    and att.attname = 'empresa_id' and not att.attisdropped) then 'sem empresa_id' end,
            case when not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polcmd in ('r', '*')
@@ -2264,13 +2279,12 @@ begin
     from pg_publication_tables t
     join pg_class c on c.oid = (quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))::regclass
    where t.pubname = 'supabase_realtime'
-     and (not c.relrowsecurity
-          or not exists (select 1 from pg_attribute att where att.attrelid = c.oid
-                           and att.attname = 'empresa_id' and not att.attisdropped)
+     and (not exists (select 1 from pg_attribute att where att.attrelid = c.oid
+                        and att.attname = 'empresa_id' and not att.attisdropped)
           or not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polcmd in ('r', '*') and p.polpermissive));
   select count(*) into v_univ from pg_publication_tables t where t.pubname = 'supabase_realtime';
   if pg_temp.assert_zero_de(
-       '9c toda tabela da publication do Realtime tem RLS ligada, empresa_id e policy de SELECT' ||
+       '9c toda tabela da publication do Realtime tem empresa_id e policy de SELECT (a RLS ligada é de seguranca_catalogo.sql)' ||
        case when v_cnt > 0 then ' — falta: ' || v_lista else '' end,
        v_cnt, greatest(v_univ, 1)) then
     v_ok := v_ok + 1;

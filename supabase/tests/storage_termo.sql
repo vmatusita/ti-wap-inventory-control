@@ -8,10 +8,17 @@
 --
 -- ⚠ O QUE ELE PROVA, E O QUE NÃO PROVA
 -- Ele prova a leitura por CARGO, contra o Postgres do CI, com dado 100% sintético.
--- Ele NÃO prova nada sobre os objetos reais de produção (não há objeto real aqui) e
--- não diz nada sobre depois da virada multiempresa — a função hoje nem consulta o
--- `p_nome` que recebe; ela existe para que a F67 possa fechar pelo JOIN com
--- `termos_gerados` sem mover objeto nenhum.
+-- Ele NÃO prova nada sobre os objetos reais de produção (não há objeto real aqui).
+--
+-- ⚠ F67B (16/11/2026) — A LEITURA PASSOU A SER PELO DONO, A LINHA. A função existia para
+-- isto: desde a 0198 `pode_ler_arquivo_termo(name)` decide pelo JOIN com `termos_gerados`
+-- (membro ativo da empresa da linha que referencia o nome), sem mover objeto nenhum. Três
+-- asserções deste roteiro provavam a regra de antes ("todo logado ativo lê o bucket inteiro",
+-- inclusive objeto que nenhuma linha referencia) e foram reescritas DECLARADAMENTE para a regra
+-- nova (docs/PLAN-F67B.md §7): 1a–1c leem os objetos que TÊM linha (a fixture agora planta as
+-- linhas); 1d prova que o objeto SEM linha não é lido por ninguém; 3a passou de "a função devolve
+-- true para nome inexistente" a "devolve FALSE" — o que provava a abertura agora prova o fecho; e
+-- 3c é o positivo do join. O isolamento entre EMPRESAS mora em storage_por_empresa.sql.
 --
 -- POR QUE A PROVA É POR CARGO, E NÃO "o mesmo conjunto antes e depois"
 -- Um roteiro roda contra UM banco, num instante. "Antes e depois" exigiria rodar
@@ -54,6 +61,20 @@ grant select, insert, update, delete on storage.objects to authenticated;
 -- se alguma linha atravessa. É a mesma disciplina do grant de `authenticated` acima.
 grant select on storage.objects to anon;
 
+-- F67B: lê UM objeto como a pessoa (papel authenticated, as claims dela) e devolve se o viu.
+create or replace function pg_temp.f50_le_sem_linha(p_uid uuid, p_nome text) returns boolean
+language plpgsql as $fn$
+declare
+  v_n bigint;
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', 'authenticated')::text, true);
+  execute 'set local role authenticated';
+  select count(*) into v_n from storage.objects where bucket_id = 'termos' and name = p_nome;
+  execute 'reset role';
+  return v_n > 0;
+end;
+$fn$;
+
 do $$
 declare
   -- identidades fictícias (uuid fixo, hex válido — o prefixo f50a marca a fase)
@@ -63,8 +84,11 @@ declare
   k_inativo   uuid := '00000000-f50a-4000-8000-0000000000d4';
   v_f1        smallint;
   v_bucket    text := 'termos';
-  v_obj_a     text := 'f50/termo-fixture-a.docx';
-  v_obj_b     text := 'f50/termo-fixture-b.docx';
+  v_obj_a     text;   -- F67B: o .docx de uma linha de termos_gerados (o nome é <id da linha>.docx)
+  v_obj_b     text;   -- idem, uma segunda linha
+  v_obj_sem   text := gen_random_uuid()::text || '.docx';   -- F67B: um .docx que NENHUMA linha referencia
+  v_fx        jsonb;
+  v_termo_b   uuid := gen_random_uuid();
   v_n         bigint;
   v_univ      bigint;
   v_ok        int := 0;
@@ -119,6 +143,16 @@ begin
 
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
+  -- F67B: as LINHAS donas dos dois objetos (a leitura é pela linha desde a 0198) — o acervo mínimo da
+  -- legada (f65_plantar: filial, ativo, movimentação e um termo), e uma segunda linha da mesma
+  -- movimentação, de outro tipo (a chave única é (tipo, movimentacao_ids)).
+  v_fx := pg_temp.f65_plantar(public.empresa_legada(), 'f50-termo', k_admin, 'ZZT');
+  v_obj_a := (v_fx->>'termos_gerados') || '.docx';
+  v_obj_b := v_termo_b::text || '.docx';
+  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por, empresa_id)
+  values (v_termo_b, 'responsabilidade_desktop', array[(v_fx->>'movimentacoes')::uuid], array[(v_fx->>'ativos')::uuid],
+          'Fulano F50', '{}'::jsonb, v_obj_b, k_admin, public.empresa_legada());
+
   -- DOIS objetos sintéticos no bucket. Dois, e não um: com um só, "viu 1" e "viu
   -- tudo" coincidiriam, e nenhuma asserção conseguiria distinguir "lê o bucket" de
   -- "lê aquele arquivo".
@@ -128,9 +162,11 @@ begin
 
   insert into storage.objects (bucket_id, name, owner) values
     (v_bucket, v_obj_a, k_admin),
-    (v_bucket, v_obj_b, k_admin);
+    (v_bucket, v_obj_b, k_admin),
+    (v_bucket, v_obj_sem, k_admin);
 
-  select count(*) into v_univ from storage.objects where bucket_id = v_bucket;
+  -- o universo das asserções 1a–1c: os dois objetos COM linha
+  select count(*) into v_univ from storage.objects where bucket_id = v_bucket and name in (v_obj_a, v_obj_b);
   if pg_temp.assert_zero_de(
        '0b a fixture montou os dois objetos do bucket `termos`',
        case when v_univ >= 2 then 0 else 1 end, 1) then
@@ -162,7 +198,7 @@ begin
 
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
-  select count(*) into v_n from storage.objects where bucket_id = v_bucket;
+  select count(*) into v_n from storage.objects where bucket_id = v_bucket and name in (v_obj_a, v_obj_b);
   if pg_temp.assert_zero_de(
        '1a admin lê os dois objetos do bucket `termos`', v_univ - v_n, v_univ) then
     v_ok := v_ok + 1;
@@ -172,7 +208,7 @@ begin
 
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
-  select count(*) into v_n from storage.objects where bucket_id = v_bucket;
+  select count(*) into v_n from storage.objects where bucket_id = v_bucket and name in (v_obj_a, v_obj_b);
   if pg_temp.assert_zero_de(
        '1b operador lê os dois objetos do bucket `termos`', v_univ - v_n, v_univ) then
     v_ok := v_ok + 1;
@@ -185,7 +221,7 @@ begin
   -- perder acesso, e a UI não daria erro — o link só pararia de abrir.
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_consulta, 'role', 'authenticated')::text, true);
-  select count(*) into v_n from storage.objects where bucket_id = v_bucket;
+  select count(*) into v_n from storage.objects where bucket_id = v_bucket and name in (v_obj_a, v_obj_b);
   if pg_temp.assert_zero_de(
        '1c consulta lê os dois objetos do bucket `termos` (a 0066 exige)',
        v_univ - v_n, v_univ) then
@@ -193,6 +229,23 @@ begin
   else
     v_falhas := v_falhas + 1;
   end if;
+
+  -- F67B: o objeto SEM linha não é lido por NENHUM dos três (o dono é a linha; o "lê o bucket
+  -- inteiro" de antes deixava o .docx órfão legível a qualquer logado).
+  reset role;
+  v_n := 0;
+  for v_existe in
+    select pg_temp.f50_le_sem_linha(x, v_obj_sem) from unnest(array[k_admin, k_operador, k_consulta]) as x
+  loop
+    if v_existe then v_n := v_n + 1; end if;
+  end loop;
+  if pg_temp.assert_zero_de(
+       '1d nenhum dos três lê o objeto SEM linha (F67B: o dono do .docx é a linha de termos_gerados)', v_n, 3) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+  set local role authenticated;
 
   -- =========================================================================
   -- 2 — QUEM NÃO LIA CONTINUA SEM LER
@@ -227,17 +280,26 @@ begin
   -- =========================================================================
   -- 3 — A FUNÇÃO responde o mesmo que a policy, e SEM o `coalesce(…, true)`
   -- =========================================================================
-  -- A irmã de escrita devolve `true` para nome que nenhuma linha de `termos_gerados`
-  -- referencia — é o fallback que cobre a janela upload→insert. A de leitura NÃO pode
-  -- herdar isso: aqui o nome inexistente é o objeto ÓRFÃO, e órfão legível por regra
-  -- é o furo de volta. As duas asserções abaixo provam que a decisão está no código,
-  -- e não só no comentário.
+  -- F67B: a regra é a LINHA. Nome que nenhuma linha de `termos_gerados` referencia é o objeto
+  -- ÓRFÃO, e órfão legível por regra é o furo — desde a 0198 a função devolve FALSE para ele
+  -- (a 3a provava, até a F67, que ela devolvia true por ignorar o nome: era a abertura que a
+  -- F67B fecha; e a irmã de escrita também fechou o coalesce em false na 0198). As asserções
+  -- abaixo provam que a decisão está no código.
   set local role authenticated;
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_consulta, 'role', 'authenticated')::text, true);
   select public.pode_ler_arquivo_termo('f50/nome-que-nao-existe.docx') into v_existe;
   if pg_temp.assert_zero_de(
-       '3a logado ATIVO: a função devolve true (a regra é a sessão, não o arquivo)',
+       '3a logado ATIVO: a função devolve FALSE para nome que nenhuma linha referencia (F67B: a regra é a linha, não a sessão)',
+       case when v_existe then 1 else 0 end, 1) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  select public.pode_ler_arquivo_termo(v_obj_a) into v_existe;
+  if pg_temp.assert_zero_de(
+       '3c logado ATIVO da empresa da linha: a função devolve true para o .docx que a linha referencia (o join)',
        case when v_existe then 0 else 1 end, 1) then
     v_ok := v_ok + 1;
   else

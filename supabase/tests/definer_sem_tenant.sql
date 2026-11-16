@@ -138,9 +138,9 @@ declare
   -- o próprio arquivo `.sql`).
   -- -----------------------------------------------------------------------
   k_escopo_excecao          text[] := array[
-    'estorno_item_coerente', 'termo_ancora_coerente'
+    'estorno_item_coerente', 'termo_ancora_coerente', 'registrar_limpeza_termos_sem_linha'
   ];
-  k_escopo_excecao_migracao text[] := array['0068', '0069'];
+  k_escopo_excecao_migracao text[] := array['0068', '0069', '0196'];
   k_escopo_excecao_motivo   text[] := array[
     --   · estorno_item_coerente (0068) — recebe id do cliente e é alcançável, mas SOZINHA
     --     não protege nada: a autorização real está ANDada ao lado, na MESMA expressão da
@@ -154,7 +154,14 @@ declare
     --     com pode_escrever_termo() e o recorte de empresa. Sozinha, ela só confere
     --     COERÊNCIA de dados (o ativo pertence à movimentação). F67: a empresa dos ids é a
     --     do termo pelo gatilho `termos_gerados_ids_da_empresa` (0173).
-    'idem estorno_item_coerente: recebe uuid[] duas vezes e é alcançável, mas a autorização real está ANDada ao lado, na MESMA expressão da policy, junto com pode_escrever_termo() e o recorte de empresa; a empresa dos ids é a do termo pelo gatilho termos_gerados_ids_da_empresa (0173, F67). Sozinha, ela só confere COERÊNCIA de dados, nunca CARGO nem FILIAL.'
+    'idem estorno_item_coerente: recebe uuid[] duas vezes e é alcançável, mas a autorização real está ANDada ao lado, na MESMA expressão da policy, junto com pode_escrever_termo() e o recorte de empresa; a empresa dos ids é a do termo pelo gatilho termos_gerados_ids_da_empresa (0173, F67). Sozinha, ela só confere COERÊNCIA de dados, nunca CARGO nem FILIAL.',
+    --   · registrar_limpeza_termos_sem_linha (0196, F67B) — recebe text (a raiz da cópia, a
+    --     confirmação, a justificativa) e é alcançável, mas o objeto que ela trata NÃO TEM
+    --     EMPRESA: um .docx sem linha de termos_gerados não pertence a ninguém. A guarda é a
+    --     PLATAFORMA (e_plataforma(), decisão 13/11-1 "dev sou só eu"), não uma primitiva por
+    --     empresa; a raiz é conferida por forma fechada (orfao/<carimbo>) e a lista é medida no
+    --     banco, nunca vinda do cliente.
+    'recebe text (a raiz, a confirmação, a justificativa) e é alcançável, mas o objeto que trata NÃO TEM EMPRESA: um .docx sem linha de termos_gerados não pertence a ninguém. A guarda é a PLATAFORMA (e_plataforma(), decisão 13/11-1 do Johnny), não uma primitiva por empresa; a raiz é conferida por forma fechada e a lista dos arquivos é medida no banco, nunca vinda do cliente (F67B).'
     --   · pode_ler_arquivo_termo (0186) SAIU daqui na F67B (16/11/2026): era a exceção que
     --     ignorava o nome ("papel_na_empresa(empresa_legada()) is not null"); agora decide
     --     pelo JOIN com termos_gerados e está em k_escopo_ok — e a 4b recusa a legada no corpo.

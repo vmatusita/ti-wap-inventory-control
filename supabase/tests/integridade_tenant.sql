@@ -539,6 +539,10 @@ begin
   -- (`e_dev`), nominalmente (RECRIACOES_AUTORIZADAS de migrations-f38.test.ts, 0185–0193). O conjunto encolhe e a
   -- constante é a dele, medida no CI na cadeia até a 0184 (o push das travas da F67 — docs/f67-evidencias/B-travas/): o
   -- fato provado é o mesmo, "o resto ficou byte a byte".
+  -- F67B (16/11/2026): e as NOVE que a F67B cria, recria ou derruba por nome (0194–0199; RECRIACOES_AUTORIZADAS e
+  -- REMOCOES_AUTORIZADAS de migrations-f38.test.ts) — os montadores de caminho, as duas primitivas da forma, o núcleo da
+  -- 12ª, a validação do import, a escrita do .docx e a ferramenta de órfão. O conjunto encolhe e a constante é a dele,
+  -- medida no CI (o 1º push com as migrations — docs/f67b-evidencias/B-travas/): o mesmo fato, "o resto byte a byte".
   select md5(string_agg(p.oid::regprocedure::text || ':' || md5(p.prosrc), E'\n' order by p.oid::regprocedure::text))
     into v_m0
     from pg_proc p
@@ -556,7 +560,11 @@ begin
                            'rotulo_alcance_reset', 'previa_reset', 'resetar_acervo', 'resetar_itens', 'apagar_ativo',
                            'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo', 'forcar_saldo_item',
                            'importar_ativos_substituir', 'exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais',
-                           'empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa');
+                           'empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa',
+                           'empresa_do_caminho_backup', 'caminho_backup_legado', 'prefixo_backup_import',
+                           'prefixo_backup_reset', 'prefixo_backup_conflito', 'import_validar_plano',
+                           'checagens_integridade_nucleo', 'registrar_limpeza_termos_sem_linha',
+                           'pode_escrever_arquivo_termo');
   raise notice '(medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: % (% funções)', v_m0,
     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
         and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
@@ -572,7 +580,11 @@ begin
                            'rotulo_alcance_reset', 'previa_reset', 'resetar_acervo', 'resetar_itens', 'apagar_ativo',
                            'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo', 'forcar_saldo_item',
                            'importar_ativos_substituir', 'exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais',
-                           'empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa'));
+                           'empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa',
+                           'empresa_do_caminho_backup', 'caminho_backup_legado', 'prefixo_backup_import',
+                           'prefixo_backup_reset', 'prefixo_backup_conflito', 'import_validar_plano',
+                           'checagens_integridade_nucleo', 'registrar_limpeza_termos_sem_linha',
+                           'pode_escrever_arquivo_termo'));
   if pg_temp.assert_zero_de(
        'L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,

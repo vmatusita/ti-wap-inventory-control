@@ -125,6 +125,7 @@ declare
   v_ativo_f2  uuid;
   v_mov_vit   uuid;
   v_anot_vit  uuid;
+  v_termo_1h  uuid := gen_random_uuid();   -- F67B: a LINHA dona do .docx da 1h (o dono do arquivo é a linha)
   v_ok        int  := 0;
   v_falhas    int  := 0;
   v_msgs      text := '';
@@ -205,6 +206,12 @@ begin
   insert into public.anotacoes (ativo_id, texto, criado_por)
   values (v_ativo_f2, 'anotacao ficticia da vitima', k_vitima)
   returning id into v_anot_vit;
+  -- F67B (16/11/2026): a linha de termos_gerados que a 1h precisa — desde a 0198 o .docx só é gravável se uma LINHA o
+  -- referencia (o persistirTermo grava a linha ANTES do upload). A 1h continua provando o mesmo fato: o dev escreve o
+  -- arquivo do termo que ele pode escrever (a linha passa pela empresa e pela filial do ativo).
+  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+  values (v_termo_1h, 'responsabilidade_notebook', array[v_mov_vit], array[v_ativo_f1], 'Sicrano de Teste', '{}'::jsonb,
+          v_termo_1h::text || '.docx', k_vitima);
 
   -- Fixtures das tabelas fechadas (num banco NOVO elas nascem vazias, e "ver 0 linhas de
   -- tabela vazia" não prova policy nenhuma).
@@ -321,9 +328,10 @@ begin
 
   -- 1h. o .docx do termo (storage). Sem isto o termo do dev ficaria pela METADE: a linha em
   --     termos_gerados passa (deriva de e_admin), o arquivo não.
+  --     F67B: o nome é o da LINHA plantada acima — o objeto sem linha é recusado a todos desde a 0198.
   begin
     insert into storage.objects (bucket_id, name, owner)
-    values ('termos', gen_random_uuid()::text || '.docx', k_dev);
+    values ('termos', v_termo_1h::text || '.docx', k_dev);
     v_ok := v_ok + 1; raise notice '✓ 1h dev GRAVA no bucket termos (policy pode_escrever)';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1h_LISTA_LITERAL_STORAGE; ';

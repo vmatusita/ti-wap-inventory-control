@@ -176,10 +176,10 @@ declare
   -- por `prefixo_backup_reset()`, de propósito: se o roteiro derivasse o caminho da MESMA
   -- função que a RPC usa para validar, os dois lados concordariam mesmo que o formato mudasse
   -- — e o contrato deixaria de estar preso a lugar nenhum.
-  v_backup       text;   -- reset/acervo/filial-<f1>/  → o reset por filial da §6
-  v_backup_f2    text;   -- reset/acervo/filial-<f2>/  → as recusas da §8
-  v_backup_glob  text;   -- reset/acervo/global/       → o reset global da §7
-  v_backup_itens text;   -- reset/itens/global/        → o reset de itens da §7
+  v_backup       text;   -- reset/empresa-<uuid>/acervo/filial-<f1>/  → o reset por filial da §6
+  v_backup_f2    text;   -- reset/empresa-<uuid>/acervo/filial-<f2>/  → as recusas da §8
+  v_backup_glob  text;   -- reset/empresa-<uuid>/acervo/tudo/         → o reset global da §7
+  v_backup_itens text;   -- reset/empresa-<uuid>/itens/tudo/          → o reset de itens da §7
   v_cargos_uid  uuid[];
   v_cargos_nome text[] := array['admin', 'operador', 'consulta'];
   v_rpc_nome    text[] := array['apagar_ativo', 'apagar_movimentacao', 'apagar_item',
@@ -235,10 +235,12 @@ begin
 
   -- Os BACKUPS que as RPCs de reset exigem: um por recorte, cada um sob o seu prefixo, todos
   -- existindo de verdade no bucket privado.
-  v_backup       := 'reset/acervo/filial-' || v_f1::text || '/backup-ficticio-do-roteiro.json';
-  v_backup_f2    := 'reset/acervo/filial-' || v_f2::text || '/backup-ficticio-do-roteiro.json';
-  v_backup_glob  := 'reset/acervo/global/backup-ficticio-do-roteiro.json';
-  v_backup_itens := 'reset/itens/global/backup-ficticio-do-roteiro.json';
+  -- F67B (16/11/2026): a forma NOVA — reset/empresa-<uuid>/<bloco>/<tudo|filial-N>/ (o "tudo" deixou de ser "global":
+  -- desde a F67 ele é a EMPRESA). Continua montada à mão, de propósito (o motivo acima); a antiga saiu na 0199.
+  v_backup       := 'reset/empresa-' || public.empresa_legada()::text || '/acervo/filial-' || v_f1::text || '/backup-ficticio-do-roteiro.json';
+  v_backup_f2    := 'reset/empresa-' || public.empresa_legada()::text || '/acervo/filial-' || v_f2::text || '/backup-ficticio-do-roteiro.json';
+  v_backup_glob  := 'reset/empresa-' || public.empresa_legada()::text || '/acervo/tudo/backup-ficticio-do-roteiro.json';
+  v_backup_itens := 'reset/empresa-' || public.empresa_legada()::text || '/itens/tudo/backup-ficticio-do-roteiro.json';
   insert into storage.objects (bucket_id, name, owner)
   values ('backups-import', v_backup,       k_dev),
          ('backups-import', v_backup_f2,    k_dev),
@@ -1455,7 +1457,7 @@ begin
 
   begin
     perform public.resetar_acervo(public.empresa_legada(), v_f2, v_nome_f2, 'justificativa ficticia do roteiro F23',
-                                  'reset/acervo/filial-' || v_f2::text || '/este-backup-nao-existe.json', v_ct);
+                                  'reset/empresa-' || public.empresa_legada()::text || '/acervo/filial-' || v_f2::text || '/este-backup-nao-existe.json', v_ct);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '8a_SEM_BACKUP; ';
     raise warning '✗ 8a o reset aceitou um backup que não existe no bucket';
   exception when others then
