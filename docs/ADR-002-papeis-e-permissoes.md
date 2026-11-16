@@ -490,3 +490,75 @@ da WAP (a policy de antes).
 - **A empresa da sessão** — no filtro do tempo real, na mesa, na fechadura de `urlBackup`. F70.
 - **Retenção dos backups antigos** e das variantes superadas de termo. Decisão de produto, fora.
 - **Executar a ferramenta de órfão em produção.** Entregue, não executada.
+
+## 19. Emenda — O fim do default: a escrita informa a empresa (F67C — 16/11/2026)
+
+Status: **Aceita** (execução: `docs/prompts/F67C-fim-do-default-ultracode.md`; plano `docs/PLAN-F67C.md`; regras
+R-ACC-137 a R-ACC-143 da `MATRIZ-REGRAS.md`).
+
+### 19.1 Contexto
+
+Desde a F62–F64 as 20 tabelas de negócio tinham `empresa_id uuid not null default public.empresa_legada()`: toda linha que
+alguém criasse sem dizer a empresa nascia DA WAP por omissão. Com uma empresa só isso era invisível; com duas, o defeito
+mais silencioso possível — a movimentação numa filial da B, por um caminho que esqueceu a empresa, era recusada pela FK
+composta (`23503`) com a causa escondida; um item, um motivo, um tipo, um colaborador sem filial ou uma linha da trilha de
+Auditoria criados pela B nasciam da WAP SEM ERRO NENHUM, porque não têm pai que os confira. E o compilador não ajudava: o
+gerador de tipos lê "not null com default" como opcional no `Insert`.
+
+### 19.2 Decisão
+
+1. **Toda escrita diz a empresa; o default sai por último.** Expandir (os escritores passam a mandar) e contrair (o
+   default sai), por lote — acervo, vocabulário e registros, `filiais` — e o drop só depois do deploy do app que manda a
+   empresa e de uma janela por FORMA de INSERT em `pg_stat_statements` (decisões 16/11-3 e 13/11-2 do Johnny).
+2. **A empresa vem do PAI, não de um parâmetro.** Nas 17 funções SQL que inseriam sem a coluna, a empresa de cada linha é a
+   da FILIAL que a própria linha grava, pela ponte única `empresa_da_filial(smallint)` (a anotação, a da filial do ativo;
+   o substituto da devolução, a do antigo). Mesma assinatura: a troca de corpo é atômica e o app no ar nem percebe. Um
+   `p_empresa` novo seria um valor que só pode DIVERGIR do pai — um modo de falha a mais —, e mudaria 17 assinaturas. A
+   única assinatura nova é a da ferramenta de órfão (uma trilha de plataforma sem pai: a empresa da operação). No app, a
+   da filial da operação (`empresaDaFilial`) quando há filial; a da operação (`empresaDaOperacao()`, a legada EXPLÍCITA até
+   a F70) quando não há; o colaborador criado dentro de uma movimentação, a da filial DELA (com a filial na B, a FK
+   composta da movimentação recusaria o colaborador da WAP); o termo, a dos ativos; a trilha, a empresa ALVO.
+3. **Descartado: um gatilho BEFORE INSERT que derivasse a empresa do pai quando ela viesse nula.** Seria o default
+   disfarçado — a linha continuaria nascendo "por omissão", só que de outro lugar —; o tipo gerado exigiria a coluna no
+   `Insert` de qualquer jeito; e ele somaria um gatilho às 20, na ordem alfabética que `termo_da_empresa`,
+   `termo_exige_modelo_da_empresa` e `kit_motivo_da_empresa` já disputam (todos leem `new.empresa_id`).
+4. **O tipo é a trava do app**: `empresa_id` obrigatório no `Insert` das 20 — um INSERT sem a empresa deixa de COMPILAR —, e
+   uma trava de mesa reprova a volta do `?` (o gate de deriva compara conjuntos, não opcionalidade).
+5. **Escrever a coluna não é lê-la.** A régua "ninguém lê `empresa_id`" (F63/F64) contava a lista de colunas do INSERT como
+   leitura; desde a F67C toda escrita a cita por obrigação. A régua mudou de natureza: a lista de colunas do INSERT e o
+   alvo do `ON CONFLICT` saem antes do predicado; ler para recortar continua nominal (os leitores por chave natural da
+   nota F65 entraram como exceções nominais, com motivo).
+
+### 19.3 Como funciona por baixo
+
+**A expansão** (`0200`–`0204`): as 17 funções recriadas com a coluna na lista e a ponte no valor; a assinatura nova da
+ferramenta de órfão ao lado da antiga. **A contração** (`0205`–`0207`): `alter column empresa_id drop default` nas 20, uma
+tabela por comando, e a assinatura antiga da ferramenta fora. **As travas**: 15b/15c/15e de `catalogo_policies.sql`
+EXIGEM a ausência; a 15l (derivada do catálogo) reprova `empresa_id` com default em qualquer tabela de `public`, inclusive
+futura; a 15m reprova INSERT numa das 20 sem a coluna no corpo de qualquer função; `escrita-com-empresa.test.ts` faz o
+mesmo no disco e em `src/**`/`scripts/**`; `empresa-obrigatoria-no-insert.test.ts` trava o tipo.
+
+**A prova**: `supabase/tests/escrita_por_empresa.sql` (cada uma das 17 funções e o import, chamados por um membro da B,
+gravam a B, e o par na A grava a A; o INSERT sem a coluna é `23502` nas 20; o com a empresa errada, `23503` ou `42501`; o
+`update motivos` com duas empresas de mesmo código alcança uma); a cadeia inteira do CI com o default fora; o injetor; e,
+em produção, a janela por forma e a vigília dos `23502` depois de cada drop.
+
+**Rollback**: `supabase/rollback/F67C-desfaz.sql`, GERADO, idempotente nos dois estados — o `set default` primeiro, que
+sozinho já devolve o comportamento de antes; roda ANTES do da F67B.
+
+### 19.4 Consequências
+
+- **Positivas:** nenhuma linha nasce de uma empresa "por omissão"; o escritor esquecido é barulhento (`23502`, com a frase
+  pt-BR) em vez de calado; o import de uma empresa que não é a WAP passa a gravar a empresa dela; o `update motivos` não
+  alcança a outra empresa; o restaurador preenche a empresa da filial num backup de antes da F63.
+- **Negativas / custo:** uma ida a mais ao banco (a ponte) por escrita com filial no app; a trilha de Auditoria continua
+  sem propagar a falha (F21) — por isso a causa nomeada no log e a vigília; o colaborador de um lote multi-filial e os
+  escritores sem pai ainda gravam a empresa da OPERAÇÃO (a legada explícita) até a F70.
+
+### 19.5 O que **não** foi criado, de propósito
+
+- **A empresa da sessão** (o seletor) — cada `empresaDaOperacao()` desta emenda é ponto de injeção da F70, contado pela
+  catraca. **O vocabulário inicial de uma empresa nova** (sem ele o import dela não acha termo nem prefixo) — F70.
+- **A senha de visualização por empresa** — aqui `senhas_acesso` só grava a empresa da operação; F68.
+- **O seed com duas empresas** — backlog (decisão 16/11-4).
+- **Recortar a view `v_colaboradores_textos`** (consolidar colaboradores) e os primos dos leitores por slug — F70.

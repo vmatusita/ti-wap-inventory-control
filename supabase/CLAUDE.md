@@ -34,7 +34,8 @@ mesmo commit — já está na raiz. Aqui, o detalhe de cada subpasta.
   <não-volátil>`, sem `update`, com `lock_timeout` por `set`/`reset`.
 - **`supabase/rollback/`** guarda os rollbacks de fase (fora do ledger e da trava de hash), cada um ensaiado no CI por um
   roteiro `f<N>_rollback.sql`. O de uma fase pressupõe o das fases posteriores (o da F62 roda o da F64 e o da F63
-  antes; o da F63, o da F64). Desde a F67B, o `F67B-desfaz.sql` roda IMEDIATAMENTE antes de todo `F67-desfaz.sql` dos roteiros (as policies do Storage
+  antes; o da F63, o da F64). Desde a F67C, o `F67C-desfaz.sql` roda antes do primeiro `F67B-desfaz.sql` de cada roteiro
+  de rollback (o `set default` das 20 primeiro). Desde a F67B, o `F67B-desfaz.sql` roda IMEDIATAMENTE antes de todo `F67-desfaz.sql` dos roteiros (as policies do Storage
   da F67B citam `e_admin_na()`/`empresas_de_admin()`, que o da F67 derruba). Desde a F67, o `F67-desfaz.sql` roda antes dos da F66 para trás, e é idempotente nos DOIS
   estados de produção (só a expansão; expansão + contração) — ele é GERADO das migrations, nunca transcrito
   (`rollback-f67.test.ts` confere a completude).
@@ -42,6 +43,12 @@ mesmo commit — já está na raiz. Aqui, o detalhe de cada subpasta.
   `supabase db push`, `migration repair` ou `db reset --linked` contra produção ou ensaio: o ledger não
   casa com os arquivos por construção, e quem confere o banco é a sonda de efeito, não o ledger
   (`docs/ADR-003-metodo-de-migration.md`).
+
+- **Nenhuma `empresa_id` tem default (F67C, `0205`–`0207`).** Toda escrita numa das 20 tabelas de negócio DIZ a
+  empresa — a 15l de `catalogo_policies.sql` reprova default em qualquer `empresa_id` de `public` (inclusive tabela
+  nova), a 15m reprova INSERT numa das 20 sem a coluna no corpo de qualquer função. Função nova que grava no acervo tira a
+  empresa do PAI pela ponte `public.empresa_da_filial(<a filial da linha>)` — sem parâmetro novo, sem ler `empresa_id`
+  no corpo. Escrever a coluna não conta como lê-la (`pg_temp.sem_lista_de_escrita`, `tests/_asserts.sql`).
 
 ## `ci/` — o bootstrap do job `banco-sem-docker`
 
@@ -58,6 +65,9 @@ deveria ter falhado).
 
 Roteiros SQL auto-verificáveis. Rodados por `scripts/db/rodar-roteiros.sh` — ver
 `scripts/db/CLAUDE.md` para o motor (injetor de mutações, gate de deriva de tipos).
+
+**Toda fixture numa das 20 diz a empresa (F67C):** sem o default, o INSERT sem `empresa_id` dá `23502`. Num roteiro de
+empresa só, `public.empresa_legada()` explícito; num que cria outra empresa, a variável da empresa do pai da fixture.
 
 ## O Storage por empresa (F67B, `0194`–`0199`)
 

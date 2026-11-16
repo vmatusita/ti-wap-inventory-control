@@ -32,3 +32,8 @@ a linha primeiro e o upload (`upsert: false`) depois — upload falhou → a lin
 existe) e só a linha cujo arquivo saiu de fato. As recusas do Storage chegam pela API (403 / "Object not found"), não por
 SQLSTATE: `traduzirErroStorage` (`src/lib/supabase/erros-do-banco.ts`) no ponto de chamada. Prova:
 `persistir.test.ts` (a ordem e o rollback com o client simulado) e `supabase/tests/storage_por_empresa.sql` (bloco T).
+
+**Desde a F67C a LINHA diz a empresa** (o default `empresa_legada()` saiu): `persistirTermo` recebe a empresa dos ATIVOS
+do termo — resolvida em `src/lib/actions/termos.ts` pela filial de um deles (`empresaDaFilial`; o gatilho
+`termo_da_empresa` confere TODOS) — e a grava SÓ no INSERT. O UPDATE da regeração nunca reescreve a empresa (`linha` não
+a leva; `guarda_empresa` recusaria a troca).

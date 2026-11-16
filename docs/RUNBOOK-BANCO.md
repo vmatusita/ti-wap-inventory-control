@@ -2086,3 +2086,68 @@ então o remove de `termos`. **Rodar só DEPOIS da contração** (antes dela, o 
   qualquer nome do bucket: o app funciona. Para voltar o app também, a regra da F60 (nunca `git revert` do merge inteiro).
 - **Entre fases:** o da F67B vem ANTES do da F67 (as policies do Storage dela citam `e_admin_na()` e
   `empresas_de_admin()`, que o da F67 derruba) — e, por ele, antes dos da F66 para trás.
+
+## Anexo F67C — tirar um DEFAULT com o app no ar (16/11/2026)
+
+A F67C tirou o `default public.empresa_legada()` das 20 colunas `empresa_id` (`k_negocio`): toda linha passa a nascer com a
+empresa DITA por quem escreve, e o escritor que esquecer leva `23502` em vez de gravar a WAP calado. As regras são as
+R-ACC-137 a R-ACC-143 da MATRIZ; o porquê, o ADR-002 §19. É a receita expandir → deploy → janela → contrair, com duas
+diferenças que mudam tudo: **(1) quem quebra com o drop é o ESCRITOR, não o leitor** — e o escritor esquecido pode ser o
+app, uma função SQL, um script, um roteiro ou o `restaurar.mjs`; **(2) a reversão é tão barata quanto a ida** (`set
+default` é metadado, como o `drop`).
+
+### A receita: escritores primeiro → deploy → a janela por forma → o drop por lote → a vigília
+
+1. **Os escritores dizem a empresa (a expansão)**, nesta ordem, cada um com a sua trava:
+   - **as funções SQL** que inserem numa das 20 (`0200`–`0204`): `create or replace` com a MESMA assinatura — a troca de
+     corpo é atômica, o app velho e o novo chamam a mesma função, e `pg_stat_statements.track = top` não vê o INSERT de
+     dentro dela (nenhuma janela para elas). A empresa é a da FILIAL que a própria linha grava, pela ponte única
+     `public.empresa_da_filial(smallint)` — nenhuma passa a LER `empresa_id`. Trava: a 15m de `catalogo_policies.sql`
+     (catálogo) e `escrita-com-empresa.test.ts` (disco), sem lista de exceção;
+   - **o app**: `empresa_id` OBRIGATÓRIO no `Insert` das 20 do `database.ts` (o `typecheck` é a trava;
+     `empresa-obrigatoria-no-insert.test.ts` reprova o `?` de volta numa regeneração), cada escritor pela fonte da
+     tabela-verdade (PLAN-F67C §2.2), a trilha (`registrarEventoAdmin`) com a empresa ALVO obrigatória;
+   - **os scripts e o `restaurar.mjs`** (a varredura TS de `escrita-com-empresa.test.ts` cobre `scripts/**`, que o tipo
+     não alcança); **os roteiros** do CI (o valor explícito é o que o default dava).
+   Em PRODUÇÃO, só as funções vão ANTES do merge (o app no ar nem percebe); o app vai pelo merge.
+2. **O deploy**, conferido: `/api/saude` com a versão e o commit do merge; o smoke com 0 falha. **Recarregue as abas.**
+3. **A janela por FORMA** (`docs/f67c-evidencias/antes/formas-insert.sql`, só número): T0 logo depois do deploy, T1 depois.
+   O PostgREST monta a lista de colunas do INSERT a partir das chaves do payload — o escritor que passou a mandar a
+   empresa gera uma forma NOVA, COM a coluna; a forma velha, SEM, para de receber chamada. **O critério:** Δ = 0 nas
+   formas SEM `empresa_id` dos papéis do app (`authenticated`, `service_role`) entre o fim do deploy e o T1 (`postgres` —
+   migrations, scripts, `create function` — fica fora, declarado). **Com a Skew Protection da Vercel ligada** (medida na
+   F67C pelo `data-dpl-id` do HTML público; o teto padrão do Pro é 12 h), uma aba aberta antes do deploy pode chamar a
+   Server Action do deployment VELHO até o teto: a janela cobre o teto, ou a contração fica PENDENTE (repouso válido —
+   as tabelas com default convivem com o app que manda a empresa). Δ 0 por AUSÊNCIA nos escritores raros (filial,
+   motivo, tipo, kit, senha, apelido, vocabulário) é o esperado: declare, apoiado na prova ESTÁTICA (a varredura TS de
+   escrita e o tipo verdes no SHA no ar). Persistiu chamada nova numa forma SEM: alguém ainda grava pelo app velho —
+   descubra pela forma e pela tabela, NÃO contraia.
+4. **O drop, lote a lote** (`0205` acervo → `0206` vocabulário e registros, com a assinatura antiga da ferramenta de
+   órfão → `0207` filiais): `alter table … alter column empresa_id drop default`, uma tabela por comando, `lock_timeout`
+   de 2 s por `set`/`reset` (ACCESS EXCLUSIVE por instantes, sem reescrita — doc PG 17); sem `if exists`, sem `cascade`.
+   O lock não veio: tente de novo, no máximo três vezes em 30 min; não suba o timeout nem mate sessão.
+5. **A vigília**, depois de CADA lote (≥ 5 min) e por ≥ 30 min depois do último: os `23502` em `empresa_id` nos logs do
+   Postgres — `query_logs` com `source = 'postgres_logs'` e `log_attributes['parsed.sql_state_code'] = '23502'`,
+   projetando SÓ o timestamp e o código e contando no cliente (a mensagem do `23502` traz no `DETAIL` os VALORES da
+   linha: `event_message` nunca sai do filtro) — e as falhas de `auditoria.registro-evento` nos logs de runtime da Vercel
+   (só contagem). **Qualquer número > 0 = `set default` daquele lote IMEDIATAMENTE** (o bloco do lote em
+   `supabase/rollback/F67C-desfaz.sql`), antes do diagnóstico; a correção do escritor esquecido vai por PR novo, e o drop
+   daquele lote fica PENDENTE.
+
+### O rollback da F67C — os dois estados
+
+- **Quando:** um `23502` em `empresa_id` (a vigília ou a tela de alguém); o smoke ou o conferidor reprovaram; um advisor
+  novo que cite objeto da fase. Em produção, **imediato**, antes do diagnóstico.
+- **O arquivo:** `supabase/rollback/F67C-desfaz.sql`, `0207` → `0200`, GERADO das migrations. **O PRIMEIRO passo é o
+  `set default public.empresa_legada()` nas 20** (`filiais` → as onze → as oito) — sozinho ele já devolve o comportamento
+  de antes. Depois, a assinatura antiga da ferramenta de órfão volta (corpo, comentário e ACL da `0196`) e a nova sai; as
+  17 funções voltam ao corpo de antes da `0200`. Idempotente nos dois estados (só a expansão; expansão + contração). Num
+  banco vivo: o `execute_sql` com o conteúdo EXATO do arquivo — ou SÓ o bloco dos defaults do lote, se a vigília pedir —,
+  uma transação. O ledger fica. **Nenhum dado se perde**: toda linha já tem a empresa; o default devolvido não muda linha.
+- **Ensaio:** `supabase/tests/f67c_rollback.sql` no CI (a impressão das funções com a ACL, das policies, das views, dos
+  gatilhos, dos comentários E dos defaults das colunas volta à da cadeia até a `0199`, nos dois estados; de novo, igual);
+  `rollback-f67c.test.ts` na mesa (a completude contra as migrations).
+- **Depois do rollback**, os escritores novos continuam mandando a empresa — inofensivo com o default de volta. O
+  `transferir_item` volta ao texto do ARQUIVO `0104` (o vivo de antes diferia dele só nos comentários — medido na F67C).
+- **Entre fases:** o da F67C vem ANTES do da F67B (e, por ele, dos de antes): os roteiros de rollback das fases
+  anteriores rodam a cadeia inteira e medem a impressão contra a de antes deles.

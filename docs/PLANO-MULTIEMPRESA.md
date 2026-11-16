@@ -1202,7 +1202,9 @@ tabela examina.
 
 **Pronto quando — o estado.** Na mesa e no CI: o admin da A não lê nem grava objeto da B em nenhum dos dois buckets, nos
 dois sentidos; o admin da A ainda apaga o degenerado da A; `pode_ler_arquivo_termo` saiu das exceções; o filtro sempre.
-**Falta** o apply (ensaio → produção) com o conta a conta 0 antes da contração e só as divergências declaradas depois.
+**No ar desde 16/11/2026** (a expansão antes do merge `d11daea`, a contração depois da janela por objetos — o conta a
+conta 0 antes da contração e só as três divergências declaradas depois; `RELATORIO-F67B.md` §6). *(Corrigido pela F67C,
+16/11/2026: esta linha ainda dizia "Falta o apply (ensaio → produção)" — fato 32 da ordem F67C.)*
 
 **Trava.** `storage_por_empresa.sql` (T, D, B, E, F, O, L); `caminho.test.ts`; `persistir.test.ts`;
 `assinatura-realtime.test.ts`; o §9 de `catalogo_policies.sql`; doze mutações; `f67b_rollback.sql` +
@@ -1214,11 +1216,67 @@ dois sentidos; o admin da A ainda apaga o degenerado da A; `pode_ler_arquivo_ter
 
 ### F67C — O fim do default (a escrita informa a empresa)
 
-*(Ficha escrita pela F67, 13/11/2026 — decisão 12/11-2 do Johnny. Ela recebe as notas F63, F64 e F65 que estavam na ficha
-F67, e o que a F67 deixou explícito para cá.)*
+*(Ficha REESCRITA pela F67C, 16/11/2026 — executada pela ordem [`prompts/F67C-fim-do-default-ultracode.md`](prompts/F67C-fim-do-default-ultracode.md),
+plano [`PLAN-F67C.md`](PLAN-F67C.md), migrations `0200`–`0204` (a expansão) e `0205`–`0207` (a contração), versão
+`1.75.0`, relatório [`RELATORIO-F67C.md`](RELATORIO-F67C.md). A ficha original foi escrita pela F67 (13/11/2026, decisão
+12/11-2 do Johnny) e está preservada abaixo como "ficha de origem"; as decisões 16/11-3 — uma run, em lotes por família —
+e 16/11-4 — o seed só diz a empresa de hoje — a mudaram.)*
 
 **Objetivo.** Tirar o `default public.empresa_legada()` das colunas `empresa_id` — toda escrita passa a dizer a empresa, e
 nenhuma linha nasce "da WAP por omissão".
+
+**O que entrou (medido — PLAN-F67C §1 a §7).**
+
+- **As 18 funções SQL** que inseriam numa das 20 sem a coluna (29 INSERTs — a ficha de origem contava 16, sem a
+  `import_gravar_trilha` da F64 e a `registrar_limpeza_termos_sem_linha` que a F67B criou): 17 recriadas com a MESMA
+  assinatura gravando a empresa da FILIAL da própria linha pela ponte única `empresa_da_filial` (`0200`–`0204`; nenhuma
+  passou a LER `empresa_id`), e a ferramenta de órfão com uma assinatura nova `(p_empresa uuid, …)` — a da operação — ao
+  lado da antiga, que caiu na contração.
+- **Os 17 escritores do app** (a ficha de origem dizia 9 pontos e citava `termos.ts:532`, que a F67B levou para
+  `src/lib/termos/persistir.ts`), cada um pela fonte da tabela-verdade (§2.2 do plano); **a trilha** (`registrarEventoAdmin`,
+  15 chamadas) com a empresa ALVO obrigatória; **o tipo como trava** (`empresa_id` obrigatório no `Insert` das 20; uma
+  trava de mesa reprova o `?` de volta — o gate de deriva não vê opcionalidade).
+- **Os 16 INSERTs dos scripts + 3 SQL do instrumento `medir-itens.mjs`** (a ficha de origem não os contava) e o
+  `restaurar.mjs` (a linha de backup sem a chave restaura com a empresa da filial dela no destino).
+- **Os 703 INSERTs dos roteiros em 35 arquivos** (a ficha de origem dizia 569 + 38 + 22; os roteiros cresceram) — o valor
+  explícito é o que o default dava (`public.empresa_legada()`), e nenhuma asserção de fixture mudou (986 = 986); as travas
+  invertidas de propósito (15b/15c/15e, 1a de `empresa_no_acervo` e de `empresa_no_vocabulario`, 5b, 8a de `restauracao`)
+  estão declaradas.
+- **Os leitores por chave natural** (nota F65 (a)–(d)): `resolverFilialPorSlug`, os homônimos de tipo/item/colaborador, as
+  leituras por `nome_chave` do campo, o vocabulário do import (só no TS — a RPC não o lê, medido), a última versão do
+  relatório; e o `update motivos` com a empresa. Fora: a view `v_colaboradores_textos` (sem empresa — F70).
+- **A régua "ninguém lê" mudou de natureza** (escrever não é ler; ler continua nominal), sem afrouxar a leitura (sabotagem G).
+- **As travas novas**: a 15l (nenhuma `empresa_id` de `public` com default, derivada do catálogo), a 15m (todo INSERT
+  numa das 20 tem a coluna), a varredura de escrita no disco/TS/scripts, a trava do tipo, a da trilha; o roteiro
+  `escrita_por_empresa.sql` (a escrita da B nasce da B, nas 17 funções e no import; `23502` sem a coluna; a empresa
+  errada recusada; o motivo nas duas); quatro mutações novas (184 → 188) e duas que mudaram de sentido.
+- **A janela por FORMA** em `pg_stat_statements` (só número; o PostgREST põe na lista só as chaves do payload), a **Skew
+  Protection medida ligada** e a **vigília** dos `23502` depois de cada drop — o que a ficha de origem não tinha.
+
+**Pronto quando — o estado.** Ver o topo de [`RELATORIO-F67C.md`](RELATORIO-F67C.md) (o apply, a janela, a contração e a
+vigília em produção, ou o que ficou pendente com o comando).
+
+**Trava.** 15b/15c/15e (invertidas), 15l e 15m de `catalogo_policies.sql`; `escrita-com-empresa.test.ts`;
+`empresa-obrigatoria-no-insert.test.ts`; `escrita_por_empresa.sql`; `f67c_rollback.sql` + `rollback-f67c.test.ts`.
+
+**Reversão.** `supabase/rollback/F67C-desfaz.sql` (os dois estados; o `set default` primeiro, por lote), ANTES do da F67B
+— RUNBOOK, Anexo F67C.
+
+**Notas para as fases seguintes.**
+
+- *(Nota F67C → F68.)* `senhas_acesso` grava a empresa da OPERAÇÃO (`empresaDaOperacao()`) até a porta pública dizer a
+  da senha; `resolverFilialPorSlug` no visualizador por senha usa a da operação até lá.
+- *(Nota F67C → F70.)* Cada `empresaDaOperacao()` que a F67C acrescentou (os escritores sem pai, os leitores sem filial,
+  o colaborador de lote multi-filial, o consolidado) vira a empresa da SESSÃO — todos contados pela catraca
+  `empresa-legada-catraca.test.ts`, com destino. **O vocabulário inicial de uma empresa nova** (termos de categoria e de
+  estado, prefixos de patrimônio): sem ele, o import dela não encontra termo nem prefixo. A view `v_colaboradores_textos`
+  por empresa.
+- *(Nota F67C → F71.)* O `CLAUDE.md` da RAIZ ainda não fala do fim do default (a regra de acesso, o mapa) — esta fase não
+  o edita; a F71 o alcança.
+
+---
+
+*Ficha de origem (F67, 13/11/2026), preservada:*
 
 **Entra.**
 
@@ -1679,7 +1737,7 @@ Perguntas que o plano não pode responder sozinho, agrupadas pelo momento em que
 | F66 | As policies ganham o recorte, em conjunção | virada | 54 policies (inerte) |
 | F67 | O cargo por empresa, as security definer e as destrutivas | virada | funções + RPCs (expandir/contrair) |
 | F67B | Storage e Realtime por empresa | virada | Storage + publication |
-| F67C | O fim do default (a escrita informa a empresa) | virada | defaults + escritores |
+| F67C | O fim do default (a escrita informa a empresa) | virada | 17 funções + 20 defaults (expandir/contrair) + 17 escritores do app + 703 INSERTs de roteiro |
 | F68 | A porta pública por empresa | virada | rotas + RPCs |
 | F69 | Identidade e governança de contas por empresa | virada | trigger + admin |
 | F70 | A camada de UI multiempresa | virada | código |

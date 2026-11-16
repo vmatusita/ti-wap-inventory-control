@@ -32,6 +32,13 @@ Cadastro de pessoa **não é matéria de filial** — `filial_id` é atributo, n
 (ver regra de acesso na raiz e `docs/ARQUITETURA.md` §4.1): `exigirEscritaEm` não entra nesse
 caminho, só `exigirPapel(…, 'operador')`.
 
+**A empresa do cadastro (F67C, o fim do default).** A linha nasce com a empresa DITA, nunca por omissão: o colaborador
+criado DENTRO de uma movimentação (`criarColaboradorInline`) nasce na empresa da FILIAL dela (`empresaDaFilial` do
+`filial_id` do campo — com a filial na B, a FK composta da movimentação recusaria um colaborador da WAP); sem filial (o
+lote de várias filiais, o cadastro sem filial), na da operação (`empresaDaOperacao()`, a legada explícita até a F70); a
+consolidação, na da filial de cada grupo. A busca do homônimo (`nome_chave`) recorta pela MESMA empresa — a chave é única
+POR EMPRESA desde a F65. Limite declarado: a view `v_colaboradores_textos` (a consolidação) não tem empresa (F70).
+
 ## `uso.ts` — o selo "Sem uso" (v1.71.2)
 
 O texto do porquê ("nunca usado" / "N registros, todos estornados") e o filtro "Uso" da tabela de
