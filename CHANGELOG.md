@@ -6,6 +6,29 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 16/11/2026 — F67C · O fim do default: a escrita informa a empresa ✅
+
+Fase **F67C** (**v1.75.0**) · **com migrations `0200`–`0204` (a expansão) e `0205`–`0207` (a contração)** — funções e os
+defaults de 20 colunas; **nenhum dado de negócio muda e nenhuma policy muda** · sem dependência nova. Toda linha que
+alguém cria passa a dizer a empresa, e só então o `default public.empresa_legada()` sai das 20 colunas `empresa_id`:
+expandir e contrair, zero janela — a contração só depois do deploy e de uma janela por FORMA de INSERT, com a vigília dos
+erros de empresa depois de cada lote. O estado do rollout está no topo do relatório. Plano em
+[`docs/PLAN-F67C.md`](docs/PLAN-F67C.md), ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-16 · F67C), relatório em
+[`docs/RELATORIO-F67C.md`](docs/RELATORIO-F67C.md).
+
+- 🏷️ **A escrita diz a empresa.** As 17 funções do banco que inseriam sem ela passam a gravar a empresa da filial da própria
+  linha (mesma assinatura); os 17 escritores do app, pela filial da operação ou pela operação; o colaborador criado na
+  movimentação, pela filial dela; o termo, pela dos ativos; a Auditoria, pela empresa ALVO. `empresa_id` é obrigatório no
+  `Insert` do `database.ts` — um INSERT sem empresa deixa de compilar.
+- 🔎 **Os leitores por chave natural recortam pela empresa**: o slug da filial, os homônimos de tipo, item e colaborador, o
+  vocabulário do import, a última versão do relatório — e a edição de motivo alcança só o motivo da empresa.
+- 🧰 **Os scripts e o restaurador**: o seed e a carga dizem a empresa das filiais; um backup de antes da F63 restaura com
+  a empresa da filial de cada linha.
+- 🔒 **Provas:** as travas 15b/15c/15e invertidas e a 15l (nenhuma `empresa_id` com default, inclusive em tabela futura),
+  a 15m e a varredura de escrita (todo INSERT diz a empresa — banco, app e scripts), a trava do tipo, o roteiro
+  `escrita_por_empresa.sql` (a escrita de uma segunda empresa fictícia nasce dela), os 703 INSERTs de 35 roteiros
+  adaptados sem mudar asserção, quatro mutações novas no injetor e o rollback gerado ensaiado nos dois estados.
+
 ## 16/11/2026 — F67B · Storage e Realtime por empresa ✅
 
 Fase **F67B** (**v1.74.0**) · **com migrations `0194`–`0197` (a expansão) e `0198`–`0199` (a contração)** — funções,
