@@ -49,6 +49,9 @@ mudaram nada. **Não procurei token, não abri o `.env.local`, não li o Gerenci
 ABERTO e SEM merge, e o caminho B no topo do relatório — reconferindo o ensaio ao longo da run (§9).
 
 **Reconferências** (só `select 1` pelo `execute_sql`, nenhuma escrita): 5ª, depois do TS e do rollback — `28P01` de novo.
+**6ª, depois da revisão adversarial — AUTENTICOU.** O bloqueio era transitório: a run seguiu o caminho (a) da ordem — o
+"antes" do ensaio, a cadeia inteira no ensaio, a expansão em produção antes do merge, o merge, a janela por objetos e a
+contração em produção (`RELATORIO-F67B.md` §6; `f67b-evidencias/G-apply/`).
 
 ---
 
@@ -413,11 +416,14 @@ vermelhas, um com a fase inteira.
 
 ## 9. O SHA de código congelado
 
-Registrado aqui quando a revisão adversarial terminar: o último commit que toca `src/**`, `scripts/**` ou `supabase/**`.
+**`5d944fd`** — o último commit que toca `src/**`, `scripts/**` ou `supabase/**`, depois da revisão adversarial (as duas
+mutações que ela pediu) e da re-revisão do delta `2e6c554..5d944fd` ("nenhum problema"). O que veio depois no PR #96 é só
+documento e evidência; o merge é `d11daea`.
 
 ## 10. O que este plano NÃO promete
 
-- O apply em banco vivo, enquanto o ensaio responder `28P01` (§0.2): a ordem proíbe produção sem ensaio.
+- O apply em banco vivo, enquanto o ensaio responder `28P01` (§0.2): a ordem proíbe produção sem ensaio. *(Na execução,
+  o ensaio voltou na 6ª reconferência, e o apply correu — §0.2.)*
 - Que o Realtime entrega só a linha da empresa a um assinante REAL de outra empresa (não há segunda empresa nos bancos
   vivos): provado pela doc oficial, pelo catálogo e pela RLS de SELECT no CI.
 - Que a ferramenta de órfão funciona em produção: entregue, provada no CI e na mesa, NÃO executada.

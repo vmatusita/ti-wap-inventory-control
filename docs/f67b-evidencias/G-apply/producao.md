@@ -36,3 +36,11 @@ o de sempre (`kits_modelos` sem kit cadastrado — a RLS não se comprova com 0 
 `registrar_limpeza_termos_sem_linha` (a ferramenta nova, declarada: a guarda é `e_plataforma()` dentro dela) + a
 assinatura nova `pode_escrever_termo(uuid, uuid[])` (a antiga `pode_escrever_termo(uuid[])` sai na 0198 — volta a 39,
 o número do ensaio depois da cadeia inteira). ERROR: 0.
+
+## O merge, a janela e a contração
+
+O merge do PR #96 (`d11daea`, 16:06:14 UTC), o deploy (`/api/saude` `1.74.0` · `d11daea`), a janela por objetos
+(T0 16:07:40 UTC, T1 16:41:19 UTC: nenhum objeto novo em bucket nenhum) e a contração `0198` → `0199` com as provas
+depois: [`janela.md`](janela.md). Em uma linha: as duas exatas; 117 funções, 70 definer, 62 policies (= o ensaio); o
+conta a conta contraído com **só as três declaradas**, exatamente no esperado (42 · 81 · 348); as 13 checagens na linha
+travada; smoke 0 falha; conferidor 0 recusadas; advisors 39 (= o ensaio); a paridade das 11 classes idêntica ao ensaio.

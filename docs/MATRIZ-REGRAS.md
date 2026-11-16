@@ -1419,9 +1419,10 @@ plano [`PLAN-F67B.md`](PLAN-F67B.md); relatório [`RELATORIO-F67B.md`](RELATORIO
 | R-ACC-135 | **Toda assinatura de tempo real leva o filtro da empresa, e a segurança é a RLS de SELECT da tabela.** `opcoesDaAssinatura(tabela, empresaId)` emite `filter: 'empresa_id=eq.<uuid>'` com a empresa vinda do Server Component por prop (uuid validado; vazio ou malformado lança). Toda tabela da publication `supabase_realtime` tem `empresa_id`, policy de SELECT com o recorte de empresa e replica identity NÃO-`full` (o DELETE não passa pela RLS). | decisão 13 do PLAN-F67B | `src/lib/relatorios/assinatura-realtime.ts`; `src/components/relatorios/realtime-refresh.tsx`; as três páginas | `assinatura-realtime.test.ts`; 9a–9e de `catalogo_policies.sql`; mutações `f67b-realtime-replica-identity-full`, `f67b-realtime-select-sem-recorte`, `f67b-realtime-tabela-sem-select` | CONFORME na mesa e no CI |
 | R-ACC-136 | **A 12ª checagem reconhece as DUAS formas, e a raiz da ferramenta de órfão.** Backup e cópia na forma nova com trilha, na forma antiga com trilha, e `orfao/<carimbo>/termos/` pela trilha `termos_sem_linha_limpos` não contam como órfão; sem trilha, conta, nas duas formas. | decisão 9 do PLAN-F67B | `0196` (`checagens_integridade_nucleo`) | F1–F3 de `storage_por_empresa.sql`; mutação `f67b-12a-copia-nova-sem-trilha` | CONFORME na mesa e no CI |
 
-> **Nota de escopo — o que a emenda F67B NÃO afirma.** (1) **Que está em produção**: o ensaio recusou com `28P01` a run
-> inteira, e nada vai a produção sem ele — as regras são CONFORME na mesa e no CI, e o caminho B está no topo do
-> relatório. (2) **Que a ferramenta de órfão rodou**: entregue, não executada. (3) **Que a linha nova de outra empresa
+> **Nota de escopo — o que a emenda F67B NÃO afirma.** (1) **Que uma segunda empresa real foi exercitada**: as regras
+> são CONFORME na mesa e no CI (duas empresas fictícias) e estão em produção desde 16/11/2026 (a expansão antes do merge
+> `d11daea`, a contração depois da janela por objetos), com o conta a conta provando que nada mudou para a WAP além das
+> três divergências declaradas — mas os bancos vivos têm uma empresa só. (2) **Que a ferramenta de órfão rodou**: entregue, não executada. (3) **Que a linha nova de outra empresa
 > recebe a empresa certa** (F67C: o default `empresa_legada()` continua). (4) **A empresa da sessão** (F70: o filtro do
 > tempo real e a mesa ainda vêm de `empresaDaOperacao()`). (5) **O destino dos backups antigos** (a cláusula legada
 > os mantém legíveis à WAP indefinidamente; apagá-los é decisão de retenção, fora).

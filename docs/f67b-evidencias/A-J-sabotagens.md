@@ -2,7 +2,8 @@
 
 Mesa PGlite 0.3.14 (PG 17.5 em WASM) na cadeia 0001–0199 para as de SQL — a sabotagem é aplicada ANTES do roteiro, num
 banco descartável; a régua de cada mutação permanente é o injetor no CI. Mesa Vitest para as de TS — o arquivo é editado,
-o teste roda e o arquivo volta (conferido por md5). Nenhum banco vivo foi tocado; nenhum valor real aparece aqui.
+o teste roda e o arquivo volta (conferido por md5). Nenhum banco vivo foi tocado, fora a I (no ENSAIO, só leitura:
+`transaction_read_only = on` e o bloco termina em `raise exception`); nenhum valor real aparece aqui.
 Controle (sem sabotagem): `storage_por_empresa` 36/0, `catalogo_policies` 46/0, `definer_sem_tenant` verde.
 
 ### A — `pode_ler_arquivo_termo` volta a ignorar o nome (o consulta da A lê o `.docx` da B)
@@ -130,11 +131,20 @@ AssertionError: importar.ts: o service role saiu do passo dos .docx ou ganhou ou
 
 ### I — "nada mudou" (o conta a conta)
 
-**Bloqueada nesta run pelo ensaio (`28P01`, PLAN §0.2).** A metade de produção existe: o conta a conta "antes" de
-produção, com 0 divergência, 14 memberships e 26.824 avaliações (`docs/f67b-evidencias/conta-a-conta/producao-f67b-antes.json`).
-A prova de que o bloco SABE achar divergência (uma função sabotada dentro do próprio bloco, no ensaio) depende do ensaio;
-na mesa, `scripts/perf/conta-a-conta.test.mts` §6 prova o validador e o veredito com payloads sintéticos (divergência
-declarada × não declarada). O "depois" é o portão do apply — caminho B do relatório.
+**Feita no ensaio, depois de o conector voltar a autenticar** (a 6ª tentativa; as cinco primeiras, `28P01`). O bloco do
+`f67b-depois` com `v_sabotar = true` — o ORÁCULO invertido para a 1ª membership, dentro do próprio bloco (o bloco
+recusa a sabotagem fora do ensaio: `F67B_SABOTAGEM_FORA_DO_ENSAIO`), depois da expansão (0194–0197):
+
+```
+conta-a-conta/ensaio-f67b-depois-sabotada.json
+  memberships 3 · avaliações 84 · objetos termos 2 (0 sem linha), backups 4 (4 na forma antiga)
+  divergencias: leitura_termo_com_linha 2, todas as outras 0
+  veredito: total 2 — NÃO declaradas 2  → VERMELHO
+```
+
+O mesmo bloco SEM a sabotagem, no mesmo estado: **0 divergência** (`ensaio-f67b-depois.json`). O bloco sabe achar
+divergência; o 0 dele é medida, não silêncio. Na mesa, `scripts/perf/conta-a-conta.test.mts` §6 prova o validador e o
+veredito com payloads sintéticos (divergência declarada × não declarada).
 
 ### J — o rollback
 
