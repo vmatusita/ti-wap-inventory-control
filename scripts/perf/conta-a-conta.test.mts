@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest'
 import {
   comandoConta,
   comandoContaF67,
+  comandoContaF67B,
+  DECLARADAS_F67B,
   FASES,
   FASES_F67,
+  FASES_F67B,
   involucroDoCanal,
   lerPayload,
   validarComando,
   validarComandoF67,
+  validarComandoF67B,
   veredito,
+  vereditoF67B,
 } from './conta-a-conta.mjs'
 import { validarComando as validarMedicao } from './medir-rls.mjs'
 import { blocoMesmoNome, lerCorposMesmoNome, validarBloco as validarEquivalencia } from './equivalencia-rel.mjs'
@@ -220,6 +225,102 @@ describe('5. o bloco da F67 (f67-antes | f67-depois), contra o modelo fechado', 
     expect(veredito({ ...lido, divergencias: { ...lido.divergencias, cargo: 6 } })).toEqual({ total: 6, zero: false, corrida: 0 })
     expect(lerPayload('ERROR:  P0001: F67_ALVO_RECUSADO alvo=producao rotulo=desenvolvimento\nCONTEXT')).toEqual({
       recusa: 'F67_ALVO_RECUSADO alvo=producao rotulo=desenvolvimento',
+    })
+  })
+})
+
+describe('6. o bloco da F67B (f67b-antes | f67b-depois | f67b-contraida), contra o modelo fechado', () => {
+  const ANTES = comandoContaF67B({ alvo: 'producao', fase: 'f67b-antes' })
+  const CONTRAIDA = comandoContaF67B({ alvo: 'producao', fase: 'f67b-contraida' })
+  const SABOTADO = comandoContaF67B({ alvo: 'ensaio', fase: 'f67b-depois', sabotar: true })
+
+  it('só as três fases da F67B, e a sabotagem I só no ensaio', () => {
+    expect(FASES_F67B).toEqual(['f67b-antes', 'f67b-depois', 'f67b-contraida'])
+    expect(DECLARADAS_F67B).toEqual(['leitura_termo_sem_linha', 'escrita_termo_sem_linha', 'escrita_backup_forma_antiga'])
+    expect(() => comandoContaF67B({ alvo: 'ensaio', fase: 'f67-depois' })).toThrow(/não existe/)
+    expect(() => comandoContaF67B({ alvo: 'producao', fase: 'f67b-antes', sabotar: true })).toThrow(/só no ensaio/)
+  })
+
+  it('os comandos do modelo passam (as três fases, os dois alvos, e a sabotagem do ensaio)', () => {
+    for (const fase of FASES_F67B) {
+      for (const alvo of ['ensaio', 'producao']) {
+        const c = comandoContaF67B({ alvo, fase })
+        expect(validarComandoF67B(c)).toBe(c)
+      }
+    }
+    expect(validarComandoF67B(SABOTADO)).toBe(SABOTADO)
+  })
+
+  it('o BANCO confere o alvo, a sabotagem fora do ensaio, o papel troca duas vezes e o fim é raise exception', () => {
+    expect(ANTES).toContain("raise exception 'F67B_ALVO_RECUSADO")
+    expect(ANTES).toContain("raise exception 'F67B_SABOTAGEM_FORA_DO_ENSAIO")
+    expect(ANTES.trim()).toMatch(/raise exception 'F67B_CONTA %', jsonb_build_object\([\s\S]*\);\s*end \$f67b\$;$/)
+    expect(ANTES).toMatch(/begin\s+perform set_config\('transaction_read_only', 'on', true\);/)
+    expect(ANTES).toContain("perform set_config('role', 'authenticated', true);")
+    expect(ANTES).toContain("perform set_config('role', 'none', true);")
+  })
+
+  it('o lado VIVO é a RLS de verdade (leitura como authenticated; escrita pelo predicado de pg_policy); o oráculo, as tabelas-base', () => {
+    expect(ANTES).toContain('pg_get_expr(p.polwithcheck, p.polrelid)')
+    expect(ANTES).toContain("p.polrelid = 'storage.objects'::regclass and p.polcmd = v_cmd and p.polpermissive")
+    expect(ANTES).toContain("p.polrelid = 'public.termos_gerados'::regclass and p.polcmd = v_cmd and p.polpermissive")
+    expect(ANTES).toContain('m.profile_id = v_uid and m.empresa_id = v_emp and m.ativo and p.excluido_em is null')
+    // nenhuma função que a F67B recria entra no oráculo
+    for (const fn of ['pode_ler_arquivo_termo', 'pode_escrever_arquivo_termo', 'pode_escrever_termo', 'empresa_do_caminho_backup', 'caminho_backup_legado', 'prefixo_backup_']) {
+      expect(ANTES).not.toContain(fn)
+    }
+    // a sabotagem I: só o alvo e a chave mudam
+    const desfeita = SABOTADO.replace('v_sabotar  constant boolean := true;', 'v_sabotar  constant boolean := false;').replace(
+      "v_alvo     constant text    := 'ensaio';",
+      "v_alvo     constant text    := 'producao';",
+    )
+    expect(desfeita).toBe(comandoContaF67B({ alvo: 'producao', fase: 'f67b-depois' }))
+  })
+
+  it('nenhum id, nome de objeto ou e-mail sai no payload — só contagens', () => {
+    const payload = /jsonb_build_object\(\s*'_canal'[\s\S]*\);\s*end \$f67b\$;/.exec(CONTRAIDA)![0]
+    // as listas de nomes só saem como TAMANHO (cardinality); fora disso, nenhuma referência a elas, a id ou a nome
+    expect(payload).toContain('cardinality(v_sem)')
+    const semTamanhos = payload.replace(/cardinality\(v_(sem|antiga|nova)\)/g, '')
+    expect(semTamanhos).not.toMatch(/v_uid|v_papel|v_sem\b|v_antiga\b|v_nova\b|v_filiais|email|\bname\b/)
+  })
+
+  it.each([
+    ['um execute fora dos dois do modelo', (s: string) => s.replace('v_membros := v_membros + 1;', "v_membros := v_membros + 1; execute 'select 1';")],
+    ['uma função fora da lista', (s: string) => s.replace('v_membros := v_membros + 1;', 'v_membros := v_membros + 1; perform public.apagar_usuario(v_emp, v_uid);')],
+    ['um delete num literal', (s: string) => s.replace("o.bucket_id = 'termos'", "o.bucket_id = 'delete from termos'")],
+    ['o papel para service_role', (s: string) => s.replace("perform set_config('role', 'authenticated', true);", "perform set_config('role', 'service_role', true);")],
+    ['sem o transaction_read_only', (s: string) => s.replace("perform set_config('transaction_read_only', 'on', true);", '')],
+    ['um segundo bloco', (s: string) => `${s}\ndo $f67b$ begin null; end $f67b$;`],
+    ['uma linha a mais que o modelo não gera', (s: string) => s.replace('v_membros := v_membros + 1;', 'v_membros := v_membros + 2;')],
+  ])('recusa %s', (_nome, mexer) => {
+    expect(() => validarComandoF67B(mexer(ANTES))).toThrow(/RECUSADO/)
+  })
+
+  it('o invólucro do canal serve ao bloco da F67B com o validador DELE (e os outros o recusam)', () => {
+    expect(involucroDoCanal(ANTES, validarComandoF67B)).toContain(`execute $bloco$${ANTES.trim()}$bloco$;`)
+    expect(() => involucroDoCanal(ANTES, validarComandoF67)).toThrow(/RECUSADO/)
+    expect(() => validarComandoF67B(EMULADA)).toThrow(/RECUSADO/)
+  })
+
+  it('lê F67B_CONTA (marcador de 11 caracteres) e o veredito: antes/depois tudo zero; contraída, as declaradas = o esperado', () => {
+    const div = {
+      leitura_termo_com_linha: 0, leitura_termo_sem_linha: 42, escrita_termo_com_linha: 0, escrita_termo_sem_linha: 81,
+      leitura_backup_forma_antiga: 0, leitura_backup_forma_nova: 0, leitura_backup_fora_de_forma: 0,
+      escrita_backup_forma_antiga: 348, escrita_backup_forma_nova: 0, escrita_backup_fora_de_forma: 0, escrita_linha_termo: 0,
+    }
+    const esp = { leitura_termo_sem_linha: 42, escrita_termo_sem_linha: 81, escrita_backup_forma_antiga: 348 }
+    const base = { alvo: 'producao', fase: 'f67b-contraida', sabotar: false, memberships: 14, divergencias: div, declaradas_esperadas: esp }
+    const lido = lerPayload(`ERROR:  P0001: F67B_CONTA ${JSON.stringify({ _canal: '..', ...base })}\nCONTEXT:  …`)
+    expect(lido._canal).toBeUndefined()
+    expect(vereditoF67B(lido).total).toBe(0)
+    // uma a mais numa declarada, ou qualquer uma fora delas, reprova
+    expect(vereditoF67B({ ...lido, divergencias: { ...div, escrita_termo_sem_linha: 82 } }).total).toBe(1)
+    expect(vereditoF67B({ ...lido, divergencias: { ...div, escrita_linha_termo: 2 } }).total).toBe(2)
+    // antes da contração, as declaradas NÃO são permitidas
+    expect(vereditoF67B({ ...lido, fase: 'f67b-depois' }).total).toBe(42 + 81 + 348)
+    expect(lerPayload('ERROR:  P0001: F67B_ALVO_RECUSADO alvo=producao rotulo=desenvolvimento\nCONTEXT')).toEqual({
+      recusa: 'F67B_ALVO_RECUSADO alvo=producao rotulo=desenvolvimento',
     })
   })
 })
