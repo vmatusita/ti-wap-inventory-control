@@ -303,6 +303,7 @@ const DA_F38 = [
   '0200',
   '0201',
   '0202',
+  '0203',
 ]
 
 /**
@@ -768,6 +769,10 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'reabrir_pendencias_item_com_estornos',
       'resolver_pendencias_item_com_lancamentos',
       'transferir_item',
+    ],
+    '0203': [
+      'import_criar_ativos',
+      'import_lancar_movimentacoes',
     ],
   }
 

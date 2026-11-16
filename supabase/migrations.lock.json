@@ -204,6 +204,7 @@
     "0199_contracao_backups_por_empresa.sql": "76dc22fdab3759ad78e4322a901d770216780a29dd50f72131333167635f7d69",
     "0200_escrita_empresa_anotacoes.sql": "cc10015f79e1dcb6da98ce0cdf1b3ce106ba881fc2685702b93f9476ff3ad675",
     "0201_escrita_empresa_movimentacoes.sql": "091b609c85dfd916962971da1789d508866e1a4b9f2a5e9735e18cfaa3b73f01",
-    "0202_escrita_empresa_itens.sql": "e6b67b41443af43b2c90616bcd537a8b8f24b8577b32992191043b05cfd439f5"
+    "0202_escrita_empresa_itens.sql": "e6b67b41443af43b2c90616bcd537a8b8f24b8577b32992191043b05cfd439f5",
+    "0203_escrita_empresa_import.sql": "91a596859b0ab5ff4911f2db9af1c9ddb4b367e151d9668691ce1253f4918239"
   }
 }
