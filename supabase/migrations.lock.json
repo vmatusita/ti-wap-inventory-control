@@ -200,6 +200,7 @@
     "0195_backups_import_por_empresa_expansao.sql": "305462a75f039eb1f6a75e11eb27f7eb9968313199c063c1c6c7986c34be4561",
     "0196_backup_orfao_duas_formas.sql": "2088fe54ffd8a172ee11a2dac320c50e49d68346723f637fcea7db3a0c242037",
     "0197_termo_pela_empresa_da_linha.sql": "7e9010d2921a9cbd9c1f74af5cec25c4b8bc68e5b157124a7c2592cdf92378a4",
-    "0198_contracao_termos_pela_linha.sql": "acd161250e7d443f565bb98d5ebc1502ad9e9b36cbfc743d74f2eb706ceb7421"
+    "0198_contracao_termos_pela_linha.sql": "acd161250e7d443f565bb98d5ebc1502ad9e9b36cbfc743d74f2eb706ceb7421",
+    "0199_contracao_backups_por_empresa.sql": "76dc22fdab3759ad78e4322a901d770216780a29dd50f72131333167635f7d69"
   }
 }
