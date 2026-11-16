@@ -422,3 +422,71 @@ A §15 pôs o cargo na membership e deixou a PONTE: `papel_atual()` respondia pe
 - **A identidade por empresa** (`handle_new_user`, `profiles`, as contas dev fora de `membros`). F69.
 - **A empresa da sessão na tela.** F70.
 - **Trava nova sobre conceder o cargo dev.** A forma é da F69 (a decisão 13/11-1 está só registrada).
+
+## 18. Emenda — Storage e Realtime por empresa (F67B — 16/11/2026)
+
+Status: **Aceita** (execução: `docs/prompts/F67B-storage-e-realtime-por-empresa-ultracode.md`; plano `docs/PLAN-F67B.md`;
+regras R-ACC-131 a R-ACC-136 da `MATRIZ-REGRAS.md`).
+
+### 18.1 Contexto
+
+Até a F67 os dois buckets respondiam pela empresa legada: o `.docx` do termo por `pode_escrever_na(empresa_legada())` e um
+`coalesce(…, true)` que deixava gravar o nome que nenhuma linha referenciava; o backup do import, do reset e da mesa por
+`e_admin_na(empresa_legada())` sobre o bucket inteiro — o admin de uma segunda empresa leria o dump do acervo da primeira
+(nome de colaborador, patrimônio, termo assinado), e o admin da WAP leria o da segunda. As três assinaturas de tempo real
+não levavam filtro nenhum. A F67 tirou a ponte do cargo; o Storage e o Realtime ficaram para esta emenda (decisão 12/11-2).
+
+### 18.2 Decisão
+
+1. **O `.docx` é da LINHA** que o referencia: lê quem é membro ativo da empresa dela, escreve quem pode escrever a linha,
+   e um nome sem linha não é gravável nem legível pela sessão. Daí a inversão do `persistirTermo` — a linha antes do
+   arquivo, com o rollback de cada ramo.
+2. **O backup é da EMPRESA DO CAMINHO**: `<família>/empresa-<uuid>/…`, uma forma ancorada por família, lida por
+   `empresa_do_caminho_backup`; quem pede tem de administrar aquela empresa. O caminho nasce numa função única do TS
+   (`src/lib/storage/caminho.ts`), espelhada em SQL.
+3. **Os backups antigos** (sem empresa) ficam legíveis só pelo admin da WAP, por uma cláusula FECHADA pela lista das
+   formas antigas, e nunca graváveis (decisão 16/11-1 do Johnny).
+4. **O service role toca arquivo só depois da RPC e só na lista que ela devolveu** — inclusive no import (16/11-2).
+5. **Os `.docx` sem registro** saem só pela ferramenta nomeada da Zona destrutiva (só a plataforma, com idade mínima de
+   1 hora, trilha antes da cópia).
+6. **O Realtime** leva `filter: 'empresa_id=eq.<id>'` com a empresa vinda do servidor; a segurança continua sendo a RLS de
+   SELECT de cada tabela, conferida por assinante, e a publication tem trava de catálogo (RLS, empresa, recorte, replica
+   identity não-`full`).
+7. **Expandir e contrair, zero janela** — a janela por CONTAGEM DE OBJETOS: nenhum objeto novo numa forma antiga depois do
+   deploy.
+
+### 18.3 Como funciona por baixo
+
+**A expansão** (`0194`–`0197`): as funções do caminho (`empresa_do_caminho_backup`, `caminho_backup_legado`, os
+`prefixo_backup_*(uuid, …)`); as policies de `backups-import` aceitando as duas formas; as quatro RPCs que conferem o
+caminho aceitando as duas; a 12ª checagem reconhecendo as duas e a raiz `orfao/`; `pode_escrever_termo(empresa_id,
+ativo_ids)` e as policies de `termos_gerados` por ela. **A contração** (`0198`–`0199`): a leitura do termo pelo join e o
+`coalesce(…, false)`; as policies de `backups-import` na forma final; as RPCs só a forma nova; as assinaturas antigas fora.
+
+**O TS**: `persistirTermo` em `src/lib/termos/persistir.ts`; os três escritores de backup pela função única; o import com
+o client administrativo só no passo dos `.docx`; `traduzirErroStorage` para as recusas do Storage (que chegam pela API,
+não por SQLSTATE); o Realtime com a empresa por prop (`empresaDaOperacao()` nas três páginas, contadas pela catraca até a
+F70).
+
+**A prova**: `supabase/tests/storage_por_empresa.sql` (duas empresas fictícias, as policies REAIS, os dois sentidos),
+`catalogo_policies.sql` §9, `persistir.test.ts`, `caminho.test.ts`, doze mutações do injetor, e o conta a conta
+(`scripts/perf/conta-a-conta.mjs`, fases `f67b-*`) com as duas divergências declaradas.
+
+**Rollback**: `supabase/rollback/F67B-desfaz.sql`, GERADO, idempotente nos dois estados; roda ANTES do da F67. Nenhum
+objeto de Storage se move: um backup gravado na forma nova fica no bucket, alcançável só pelo service role e pelo admin
+da WAP (a policy de antes).
+
+### 18.4 Consequências
+
+- **Positivas:** o admin da B não lê nem grava o backup ou o `.docx` da A, nos dois sentidos — provado com as policies
+  reais; o arquivo sem dono deixa de nascer (a linha vem antes); a faxina do que sobrou tem ferramenta, trilha e cópia.
+- **Negativas / custo:** um `.docx` cuja linha a RPC apagou só é alcançável pelo service role (o client administrativo
+  entra no import, declarado); os backups antigos ficam legíveis à WAP indefinidamente; o filtro do tempo real ainda usa
+  a empresa da operação (F70).
+
+### 18.5 O que **não** foi criado, de propósito
+
+- **A empresa na escrita comum** (o fim do default `empresa_legada()`). F67C.
+- **A empresa da sessão** — no filtro do tempo real, na mesa, na fechadura de `urlBackup`. F70.
+- **Retenção dos backups antigos** e das variantes superadas de termo. Decisão de produto, fora.
+- **Executar a ferramenta de órfão em produção.** Entregue, não executada.

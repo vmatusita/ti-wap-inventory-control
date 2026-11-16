@@ -1393,3 +1393,35 @@ default); (12/11-3) as contas dev ficam em `membros` por ora, e `e_dev` por empr
 > (F67C): o default `empresa_legada()` continua em toda coluna, e os escritores comuns não mudaram. (3) **A empresa da
 > sessão** (F70): o TS pergunta pela legada EXPLÍCITA onde a operação não tem filial. (4) **Que a plataforma está fora de
 > `membros`** (F69). (5) **Que o piso saiu** (F72).
+
+## Emenda F67B (16/11/2026) — Storage e Realtime por empresa
+
+A fase em que os dois buckets e as três assinaturas de tempo real deixam de responder pela empresa legada. Quatro
+migrations de expansão (`0194`–`0197`) e duas de contração (`0198`–`0199`), no molde expandir → deploy → janela →
+contrair, com a janela medida por CONTAGEM DE OBJETOS na forma antiga depois do deploy (RUNBOOK, Anexo F67B). **Nenhum
+dado de negócio e nenhum objeto de Storage muda**: funções, policies e o comment de uma coluna. Para a WAP, ninguém ganha
+nem perde acesso — o conta a conta (`scripts/perf/conta-a-conta.mjs`, fases `f67b-*`) declara só as duas divergências da
+contração (os `.docx` sem linha e a escrita nos backups antigos).
+
+**As decisões do Johnny:** (16/11-1) os backups ANTIGOS, sem empresa no caminho, ficam legíveis só pelo admin da WAP, por
+uma cláusula FECHADA pela lista das formas antigas, e nunca graváveis; (16/11-2) o import usa o client administrativo SÓ
+para copiar e remover os `.docx` depois da RPC.
+
+**Seis regras novas** (R-ACC-131 a R-ACC-136), abaixo. Ata em [`docs/DECISOES.md`](DECISOES.md) (2026-11-16 · F67B);
+plano [`PLAN-F67B.md`](PLAN-F67B.md); relatório [`RELATORIO-F67B.md`](RELATORIO-F67B.md); ADR-002 §18.
+
+| ID | Regra | Fonte | Onde vive (conferido) | Prova | Veredito |
+|---|---|---|---|---|---|
+| R-ACC-131 | **O `.docx` do bucket `termos` é decidido pela LINHA de `termos_gerados` que o referencia.** Lê quem é membro ativo da empresa da linha (`pode_ler_arquivo_termo`, pelo join); escreve quem pode escrever aquela linha (`pode_escrever_arquivo_termo` → `pode_escrever_termo(empresa_id, ativo_ids)`); o termo DEGENERADO (sem ativo) é do admin da empresa DELA; um nome que nenhuma linha referencia não é lido nem gravado por sessão nenhuma (`coalesce(…, false)`). Por isso a LINHA nasce antes do arquivo (`persistirTermo`), com o rollback de cada ramo. | decisões 4–6 do PLAN-F67B | `0197`, `0198`; `src/lib/termos/persistir.ts` | T1–T8 e D1–D4 de `storage_por_empresa.sql`; `storage_termo.sql` 1a–3c; `persistir.test.ts`; mutações `f67b-termo-lido-sem-membership`, `f67b-termo-sem-linha-gravavel`, `f67b-degenerado-de-qualquer-admin` | CONFORME na mesa e no CI |
+| R-ACC-132 | **O backup é decidido pela EMPRESA DO CAMINHO.** Todo objeto novo do bucket `backups-import` nasce em `<família>/empresa-<uuid>/…` (import, reset, conflito, cópias do apagar ativo), montado SÓ por `src/lib/storage/caminho.ts` (espelho SQL: os `prefixo_backup_*(uuid, …)`); as quatro policies exigem que a empresa do caminho (`empresa_do_caminho_backup`, só nas formas ancoradas) seja uma que quem pede administra (`empresas_de_admin()`); as RPCs conferem a forma nova. As formas ANTIGAS (a lista FECHADA `caminho_backup_legado`) só o admin da WAP lê, e ninguém grava. | decisões 1–3 e 8 do PLAN-F67B · 16/11-1 | `0194`, `0195`, `0199`; `src/lib/actions/{importar,dev-destrutivo,conflitos}.ts` | B1–B9, E1–E3 e L1–L3 de `storage_por_empresa.sql`; `caminho.test.ts` §3–§4; mutações `f67b-backup-lido-pela-legada-de-novo`, `f67b-clausula-legada-sem-lista-fechada`, `f67b-backup-novo-na-forma-antiga`, `f67b-empresa-do-caminho-sem-a-forma`, `f67b-backup-sem-empresa-gravavel-pela-plataforma` | CONFORME na mesa e no CI |
+| R-ACC-133 | **O service role toca arquivo SÓ depois da RPC e SÓ na lista que ela devolveu.** Copiar e remover o `.docx` cuja linha a RPC acabou de apagar (import, reset, apagar ativo, conflito, a ferramenta de órfão) é do client administrativo — sem linha, nenhuma sessão alcança o arquivo —, pela porta única que não remove o que não copiou. Todo o resto (a RPC, o backup, o descarte do backup recusado) segue na sessão. | decisão 7 do PLAN-F67B · 16/11-2 | `src/lib/actions/{importar,dev-destrutivo,conflitos}.ts`; `src/lib/storage/copiar-antes-de-remover.ts` | `superficie-admin.test.ts` (o import declarado); `backup-completude.test.ts` | CONFORME na mesa |
+| R-ACC-134 | **O `.docx` sem registro sai só pela ferramenta NOMEADA.** `registrar_limpeza_termos_sem_linha` (SQL fixo, `security definer`): só a plataforma; justificativa; raiz `orfao/<carimbo>`; a lista dos sem linha há MAIS DE 1 HORA medida agora; a confirmação `LIMPAR <N> ARQUIVOS DE TERMO`; a trilha `termos_sem_linha_limpos` gravada ANTES da cópia (a 12ª reconhece a cópia por ela). A action copia e remove só a lista devolvida. | decisões 9 e 19 do PLAN-F67B | `0196`; `limparTermosSemLinha` em `src/lib/actions/dev-destrutivo.ts`; o card da Zona destrutiva | O1–O4 de `storage_por_empresa.sql`; mutações `f67b-orfao-sem-guarda-de-plataforma`, `f67b-orfao-lista-o-recem-nascido` | CONFORME na mesa e no CI; **entregue, não executada** |
+| R-ACC-135 | **Toda assinatura de tempo real leva o filtro da empresa, e a segurança é a RLS de SELECT da tabela.** `opcoesDaAssinatura(tabela, empresaId)` emite `filter: 'empresa_id=eq.<uuid>'` com a empresa vinda do Server Component por prop (uuid validado; vazio ou malformado lança). Toda tabela da publication `supabase_realtime` tem `empresa_id`, policy de SELECT com o recorte de empresa e replica identity NÃO-`full` (o DELETE não passa pela RLS). | decisão 13 do PLAN-F67B | `src/lib/relatorios/assinatura-realtime.ts`; `src/components/relatorios/realtime-refresh.tsx`; as três páginas | `assinatura-realtime.test.ts`; 9a–9e de `catalogo_policies.sql`; mutação `f67b-realtime-replica-identity-full` | CONFORME na mesa e no CI |
+| R-ACC-136 | **A 12ª checagem reconhece as DUAS formas, e a raiz da ferramenta de órfão.** Backup e cópia na forma nova com trilha, na forma antiga com trilha, e `orfao/<carimbo>/termos/` pela trilha `termos_sem_linha_limpos` não contam como órfão; sem trilha, conta, nas duas formas. | decisão 9 do PLAN-F67B | `0196` (`checagens_integridade_nucleo`) | F1–F3 de `storage_por_empresa.sql`; mutação `f67b-12a-copia-nova-sem-trilha` | CONFORME na mesa e no CI |
+
+> **Nota de escopo — o que a emenda F67B NÃO afirma.** (1) **Que está em produção**: o ensaio recusou com `28P01` a run
+> inteira, e nada vai a produção sem ele — as regras são CONFORME na mesa e no CI, e o caminho B está no topo do
+> relatório. (2) **Que a ferramenta de órfão rodou**: entregue, não executada. (3) **Que a linha nova de outra empresa
+> recebe a empresa certa** (F67C: o default `empresa_legada()` continua). (4) **A empresa da sessão** (F70: o filtro do
+> tempo real e a mesa ainda vêm de `empresaDaOperacao()`). (5) **O destino dos backups antigos** (a cláusula legada
+> os mantém legíveis à WAP indefinidamente; apagá-los é decisão de retenção, fora).

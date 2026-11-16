@@ -34,7 +34,8 @@ mesmo commit — já está na raiz. Aqui, o detalhe de cada subpasta.
   <não-volátil>`, sem `update`, com `lock_timeout` por `set`/`reset`.
 - **`supabase/rollback/`** guarda os rollbacks de fase (fora do ledger e da trava de hash), cada um ensaiado no CI por um
   roteiro `f<N>_rollback.sql`. O de uma fase pressupõe o das fases posteriores (o da F62 roda o da F64 e o da F63
-  antes; o da F63, o da F64). Desde a F67, o `F67-desfaz.sql` roda antes dos da F66 para trás, e é idempotente nos DOIS
+  antes; o da F63, o da F64). Desde a F67B, o `F67B-desfaz.sql` roda IMEDIATAMENTE antes de todo `F67-desfaz.sql` dos roteiros (as policies do Storage
+  da F67B citam `e_admin_na()`/`empresas_de_admin()`, que o da F67 derruba). Desde a F67, o `F67-desfaz.sql` roda antes dos da F66 para trás, e é idempotente nos DOIS
   estados de produção (só a expansão; expansão + contração) — ele é GERADO das migrations, nunca transcrito
   (`rollback-f67.test.ts` confere a completude).
 - **Apply:** pelo conector ou pela Management API, ensaio primeiro (`docs/RUNBOOK-BANCO.md`). **Nunca**
@@ -57,3 +58,16 @@ deveria ter falhado).
 
 Roteiros SQL auto-verificáveis. Rodados por `scripts/db/rodar-roteiros.sh` — ver
 `scripts/db/CLAUDE.md` para o motor (injetor de mutações, gate de deriva de tipos).
+
+## O Storage por empresa (F67B, `0194`–`0199`)
+
+- **`termos`** decide pela LINHA de `termos_gerados` (`pode_ler_arquivo_termo`: membro ativo da empresa dela;
+  `pode_escrever_arquivo_termo` → `pode_escrever_termo(empresa_id, ativo_ids)`, `coalesce(…, false)`). Objeto sem linha
+  não é alcançável pela sessão: a faxina é a ferramenta nomeada `registrar_limpeza_termos_sem_linha` (só a plataforma,
+  só arquivos sem linha há mais de 1 hora) + a Server Action que copia e remove com o service role.
+- **`backups-import`** decide pela EMPRESA DO CAMINHO (`<família>/empresa-<uuid>/…`, `empresa_do_caminho_backup`) e
+  `empresas_de_admin()`. As formas ANTIGAS ficam legíveis só pelo admin da WAP, pela cláusula FECHADA
+  `caminho_backup_legado` (decisão 16/11-1) — nunca graváveis. Caminho novo nasce SÓ por `src/lib/storage/caminho.ts`
+  (o espelho SQL são os `prefixo_backup_*(uuid, …)`); `caminho.test.ts` varre quem monta caminho por fora.
+- A trava de catálogo é `supabase/tests/storage_por_empresa.sql` (blocos T, D, B, E, F, O, L); a da publication do
+  Realtime é o §9 de `catalogo_policies.sql` (9c–9e).

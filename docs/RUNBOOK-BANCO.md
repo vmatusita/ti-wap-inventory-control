@@ -2003,3 +2003,86 @@ do `drop`" (F60, acima) com uma diferença que muda a medição: **a antiga e a 
 - **Entre fases:** o da F67 vem ANTES dos da F66, F65, F64, F63 e F62 (os ensaios deles o rodam primeiro); o da F66B não
   depende dele (mede só os CHECK de comprimento).
 - **"Reverter o app"** segue a regra da F60: nunca `git revert` do merge inteiro.
+
+## Anexo F67B — Storage e Realtime por empresa, sem mover objeto (16/11/2026)
+
+A F67B trocou o dono dos dois buckets: o `.docx` de `termos` passou a ser da LINHA de `termos_gerados` que o referencia, e
+o backup de `backups-import` passou a ser da EMPRESA DO CAMINHO (`<família>/empresa-<uuid>/…`). As regras são as
+R-ACC-131 a R-ACC-136 da MATRIZ; o porquê, o ADR-002 §18. **Nenhum objeto de Storage se move, se copia ou se apaga** no
+apply nem no rollback: só funções, policies e um comment. É a receita do Anexo F67 (expansão → deploy → janela →
+contração) com a janela medida em OBJETOS, não em chamadas.
+
+### A receita: expansão → deploy → a janela por objetos → contração
+
+1. **Antes do primeiro lote**, nos dois bancos: o conta a conta "antes" (`scripts/perf/conta-a-conta.mjs gerar --fase
+   f67b-antes` → `executar` → `veredito`): por membership ativa, quantos objetos de cada classe ela LÊ (a RLS real) e
+   quantos cada policy de escrita deixaria gravar/apagar. Só contagens por posição e o md5 do conjunto de memberships.
+2. **A expansão** (`0194`–`0197`, um commit e um apply por migration; `lock_timeout` de 2 s): as funções do caminho, as
+   policies de `backups-import` aceitando as duas formas, as quatro RPCs aceitando as duas, a 12ª nas duas formas e a
+   ferramenta de órfão, `pode_escrever_termo(empresa_id, ativo_ids)`. **O app no ar continua funcionando** (o teste da
+   fronteira): ele grava na forma antiga, e a forma antiga ainda é aceita. Depois de CADA lote: o md5 do `prosrc` das
+   tocadas = o do CI; as policies = o CI; o conta a conta `f67b-depois` com **0 divergência**.
+3. **Produção recebe só a expansão ANTES do merge**; o app novo vai ao ar pelo merge — e passa a gravar SÓ a forma nova.
+4. **A janela por objetos** (T0 logo depois do deploy, T1 ≥ 30 min depois; até três janelas em 2 h): a contagem, por
+   bucket e por forma (antiga/nova/fora), dos objetos com `created_at` depois do deploy — **só números**, nunca nome:
+
+   ```sql
+   select jsonb_build_object(
+     'agora', now(),
+     'por_forma', coalesce((
+       select jsonb_agg(x order by x.bucket, x.forma) from (
+         select o.bucket_id as bucket,
+                case when o.bucket_id = 'backups-import' and public.empresa_do_caminho_backup(o.name) is not null then 'nova'
+                     when o.bucket_id = 'backups-import' and public.caminho_backup_legado(o.name) then 'antiga'
+                     when o.bucket_id = 'backups-import' and o.name ~ '^orfao/' then 'orfao'
+                     when o.bucket_id = 'termos' and exists (select 1 from public.termos_gerados t where t.arquivo_path = o.name) then 'com_linha'
+                     when o.bucket_id = 'termos' then 'sem_linha'
+                     else 'fora' end as forma,
+                count(*) as objetos
+           from storage.objects o
+          where o.bucket_id in ('termos', 'backups-import')
+            and o.created_at > :'deploy'::timestamptz
+          group by 1, 2
+       ) x), '[]'::jsonb)
+   ) as janela;
+   ```
+
+   **O critério:** nenhum objeto NOVO na forma `antiga` de `backups-import` e nenhum `sem_linha` novo em `termos` entre o
+   deploy e o T1 (o app velho não está mais gravando). Δ = 0 na forma `nova` numa janela sem uso é declarado, não reprova
+   (import, reset e mesa são raros); a prova estática é então:
+   ```bash
+   git grep -nE '(import|reset|conflito|ativo)/(filial-|acervo|itens|[0-9a-f]{32}|\$\{)' -- 'src/**' 'scripts/**' ':!**/*.test.*'
+   ```
+   só pode citar `src/lib/storage/caminho.ts` e as entradas nominais de `caminho.test.ts` §4 (que a mesa já confere), e o
+   SHA no ar (`/api/saude`) = o do merge. Persistiu um objeto novo na forma antiga → a contração fica PENDENTE (o repouso
+   é válido: as duas formas convivem) e a causa é investigada.
+5. **A contração** (`0198`, depois `0199`): a leitura do termo pelo join e o `coalesce(…, false)`; as policies e as RPCs só
+   na forma nova; as assinaturas antigas fora. Depois: o conta a conta `f67b-contraida` com **só as divergências
+   declaradas** (os `.docx` sem linha deixam de ser lidos e gravados; a escrita nos backups antigos fecha — a leitura do
+   admin da WAP fica), o smoke, o conferidor de formas e os advisors.
+
+### Os `.docx` sem registro — a ferramenta nomeada
+
+Na Zona destrutiva (só a plataforma), o card "Arquivos de termo sem registro": a contagem da 8ª checagem, a frase
+`LIMPAR <N> ARQUIVOS DE TERMO` e a justificativa. A RPC `registrar_limpeza_termos_sem_linha` grava a trilha e devolve a
+lista (só os sem linha há MAIS DE 1 HORA); a action copia cada um para `orfao/<carimbo>/termos/` em `backups-import` e só
+então o remove de `termos`. **Rodar só DEPOIS da contração** (antes dela, o código velho ainda sobe arquivo antes da linha
+— a idade mínima protege, mas a contagem da tela mistura os dois). O que não copiar fica, e a 8ª continua contando.
+
+### O rollback da F67B — os dois estados
+
+- **Quando:** o conta a conta deu divergência fora das declaradas; o smoke, o conferidor ou um advisor novo que cite objeto
+  da fase reprovou. Em produção, **imediato**, antes do diagnóstico, sem merge.
+- **O arquivo:** `supabase/rollback/F67B-desfaz.sql` — `0199` → `0194`, GERADO das migrations (os corpos, os comentários e
+  o texto das dez policies de antes da `0194`, byte a byte) e da ACL da cadeia até a `0193`. Idempotente nos dois estados
+  (só a expansão; expansão + contração). Num banco vivo: o `execute_sql` com o conteúdo EXATO do arquivo, uma transação.
+  O ledger fica. **Nenhum objeto se move**: um backup já gravado na forma nova fica no bucket; com a policy de antes, só o
+  admin da WAP (e o service role) o alcança. Restaurar a partir dele continua possível (`scripts/db/restaurar.mjs` é
+  agnóstico de forma).
+- **Ensaio:** `supabase/tests/f67b_rollback.sql` no CI — o contraído, o mesmo de novo, e o só-expansão contra a impressão
+  da cadeia até a `0193` (funções com a ACL, policies, views, gatilhos e comentários), o ledger intacto e nenhum objeto de
+  Storage tocado; `rollback-f67b.test.ts` na mesa.
+- **Depois do rollback**, o app novo continua gravando na forma nova — e a policy de antes deixa o admin da WAP gravar em
+  qualquer nome do bucket: o app funciona. Para voltar o app também, a regra da F60 (nunca `git revert` do merge inteiro).
+- **Entre fases:** o da F67B vem ANTES do da F67 (as policies do Storage dela citam `e_admin_na()` e
+  `empresas_de_admin()`, que o da F67 derruba) — e, por ele, antes dos da F66 para trás.

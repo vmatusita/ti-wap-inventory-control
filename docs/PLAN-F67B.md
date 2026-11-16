@@ -48,6 +48,8 @@ mudaram nada. **Não procurei token, não abri o `.env.local`, não li o Gerenci
 ("Bloqueios"): **nada vai a produção sem o ensaio antes**. A run entrega tudo o que não depende de banco vivo, com o PR
 ABERTO e SEM merge, e o caminho B no topo do relatório — reconferindo o ensaio ao longo da run (§9).
 
+**Reconferências** (só `select 1` pelo `execute_sql`, nenhuma escrita): 5ª, depois do TS e do rollback — `28P01` de novo.
+
 ---
 
 ## 1. Os 33 fatos, remedidos
@@ -215,7 +217,7 @@ Broadcast nem Presence (nada muda).
 
 ---
 
-## 4. O desenho — as dezoito decisões
+## 4. O desenho — as dezoito decisões (e três achadas na execução: 19–21)
 
 1. **A forma do caminho:** família 1º, `empresa-<uuid>` 2º, nas quatro famílias (§2.4); o `global` do reset vira `tudo`
    (o "tudo" é a empresa desde a F67). Função única TS `src/lib/storage/caminho.ts` (uma por família, empresa
@@ -302,6 +304,10 @@ Broadcast nem Presence (nada muda).
     Qualquer outra é bloqueio. A sabotagem I prova que o bloco acha divergência.
 16. **O injetor:** uma mutação por classe de trava nova que nenhum teste de mesa derruba — as sete candidatas da ordem
     mais "a escrita volta a aceitar a forma antiga" e "o degenerado aberto a qualquer admin" (§7). Teto **170 → 179**.
+    *(Medido na execução: **12** mutações, teto **170 → 182** no número exato — a idade mínima da ferramenta de órfão
+    (decisão 19), a 12ª reconhecendo cópia sem trilha e a gravação sem a empresa do caminho entraram, cada uma medida
+    DETECTADA na mesa PGlite antes do push: `docs/f67b-evidencias/E-mutacoes/`. As mutações ANTIGAS que miravam os corpos
+    que a 0195/0199 recriam com `create or replace` passaram a `mutarFuncao`, com o trecho da forma nova.)*
 17. **O rollback:** `supabase/rollback/F67B-desfaz.sql`, GERADO das migrations (os corpos e as policies de antes da
     `0194`, byte a byte), idempotente nos dois estados (só expansão; expansão + contração). Ordem: primeiro devolve a
     aceitação da forma antiga e o `coalesce(…, true)` (o que a contração tirou), depois o resto. Depois do rollback a forma
@@ -310,8 +316,24 @@ Broadcast nem Presence (nada muda).
 18. **As frases:** as recusas novas do Storage chegam pela API dele (403 *"new row violates row-level security policy"* no
     upload; objeto invisível = *"Object not found"* no `createSignedUrl`), não por SQLSTATE: traduzidas no ponto de
     chamada por `traduzirErroStorage` (`erros-do-banco.ts`), uma frase por classe, sem caminho nem valor de linha: *"Este
-    arquivo é de outra empresa ou não existe mais."* (leitura), *"Você não pode gravar este arquivo: ele não pertence a
-    um registro da sua empresa."* (escrita). As RPCs mantêm as frases de hoje (o prefixo esperado, da própria empresa).
+    arquivo é de outra empresa ou não existe mais."* (leitura), *"Você não pode gravar este arquivo: ele é de outra
+    empresa ou de um registro que você não pode alterar."* (escrita — a frase serve aos dois buckets; a do plano falava
+    só de "registro", e o backup não tem registro). As RPCs mantêm as frases de hoje (o prefixo esperado, da própria
+    empresa).
+19. **A idade mínima da ferramenta de órfão** *(achada na execução, 16/11)*: a lista de `registrar_limpeza_termos_sem_linha`
+    só leva `.docx` sem linha há **mais de 1 hora** (`o.created_at < now() - interval '1 hour'`). Sem isso, durante a
+    janela entre a expansão e o deploy o código anterior à F67B sobe o arquivo ANTES da linha, e um termo no meio da
+    gravação entraria na lista — copiado e removido segundos antes de a linha dele nascer. A `0196` foi corrigida ANTES de
+    qualquer apply (nenhum banco vivo a tem; o lock regravado no commit da correção, registrado na ata). Provado por O4 e
+    pela mutação `f67b-orfao-lista-o-recem-nascido`. A tela mostra a contagem da 8ª checagem; se ela diferir da de 1 hora,
+    o banco recusa e a mensagem diz o número de agora (nada é apagado).
+20. **O verbo novo na trilha** *(achado na execução)*: `termos_sem_linha_limpos` entra em `ACOES_ADMIN`/`ACAO_ROTULO`
+    (`src/lib/auditoria.ts`) e em `ACOES_DESTRUTIVAS`, e o comment de `eventos_admin.acao` é REEMITIDO por inteiro na
+    `0196` (o teste "o comment lista os mesmos verbos" o exige; o rollback devolve o da `0139`).
+21. **O painel da ferramenta** *(achado na execução)*: um card "Arquivos de termo sem registro" na Zona destrutiva, com a
+    contagem da 8ª checagem lida no servidor e o `DialogoDestrutivo` de sempre (frase `LIMPAR <N> ARQUIVOS DE TERMO`,
+    justificativa). A Server Action `limparTermosSemLinha` chama a RPC e copia/remove só a lista devolvida, com o client
+    administrativo (declarado em `superficie-admin.test.ts`).
 
 ---
 
@@ -357,7 +379,7 @@ cada `\ir ../rollback/F67-desfaz.sql`.
 | 12ª nas duas formas (`storage_por_empresa.sql`, bloco D) | vermelho | backup novo + trilha não conta; antigo + trilha não conta; sem trilha conta, nas duas |
 | `persistir.test.ts` (novo) | vermelho | a ordem e o rollback nos dois ramos e nas falhas, com o client simulado |
 | `superficie-admin.test.ts` | vermelho até o import declarar | o client administrativo só no passo dos `.docx` |
-| injetor | — | nove mutações novas (§4, 16) |
+| injetor | — | doze mutações novas (§4, 16), medidas DETECTADAS na mesa |
 | `f67b_rollback.sql` (novo) + `rollback-f67b.test.ts` | — | os dois estados contra a impressão do CI antes da `0194` |
 
 As sabotagens A a J da ordem saem do CI (roteiros e injetor) e da mesa; a I (conta a conta sabotado) e a J (rollback em
