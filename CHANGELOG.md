@@ -6,12 +6,14 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
-## 16/11/2026 — F67B · Storage e Realtime por empresa 🚧
+## 16/11/2026 — F67B · Storage e Realtime por empresa ✅
 
 Fase **F67B** (**v1.74.0**) · **com migrations `0194`–`0197` (a expansão) e `0198`–`0199` (a contração)** — funções,
 policies e o comment de uma coluna; **nenhum dado de negócio e nenhum objeto de Storage muda** · sem dependência nova.
-**🚧 O apply está PENDENTE**: o ensaio recusou toda conexão da run (`28P01`), e nada vai a produção sem ele — o código
-está pronto e provado na mesa e no CI, com o PR aberto e SEM merge, e o caminho B no topo do relatório. Plano em
+Expandir e contrair, zero janela: a cadeia inteira no ensaio; a expansão em produção ANTES do merge, lote a lote, com o
+texto exato e o conta a conta 0 nas 14 contas; o app novo no ar pelo merge `d11daea`; a contração em produção só depois
+da janela por OBJETOS (nenhum backup novo na forma antiga, nenhum `.docx` novo sem registro), com o conta a conta mostrando
+só as três divergências declaradas. PR #96. Plano em
 [`docs/PLAN-F67B.md`](docs/PLAN-F67B.md), ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-16 · F67B), relatório em
 [`docs/RELATORIO-F67B.md`](docs/RELATORIO-F67B.md).
 
@@ -27,8 +29,8 @@ está pronto e provado na mesa e no CI, com o PR aberto e SEM merge, e o caminho
 - 📡 **Tempo real por empresa.** As três assinaturas levam `filter: 'empresa_id=eq.<id>'`, com a empresa vinda do servidor;
   a publication tem trava de catálogo (RLS, recorte, replica identity).
 - 🔒 **Provas:** `storage_por_empresa.sql` (duas empresas fictícias, as policies reais, os dois sentidos), catorze mutações
-  novas no injetor, o rollback gerado (`F67B-desfaz.sql`) ensaiado nos dois estados, e o conta a conta "antes" de
-  produção (0 divergência).
+  novas no injetor, o rollback gerado (`F67B-desfaz.sql`) ensaiado nos dois estados, e o conta a conta nos dois bancos
+  em cada etapa (antes, depois de cada lote, sabotado no ensaio, contraído).
 
 ## 13/11/2026 — F67 · O cargo por empresa, as `security definer` e as destrutivas ✅
 

@@ -1,0 +1,10 @@
+# CI do push 5d944fd (o SHA de código congelado da F67B, depois da revisão adversarial), run 43896689694
+# Os dois JOBS conferidos (não só o run — a memória "CI concluído com job rodando"): ambos completed success.
+verificar ........ success
+  Test Files 274 passed (274)
+  Tests      8775 passed (8775)
+banco-sem-docker . success
+  63 roteiro(s), 1299 asserções no total
+  injetor: mutações ativas 184 · em quarentena 2 (declaradas, NÃO executadas)
+  controle verde: 32 roteiro(s), nenhum ✗
+  "Lote inteiro detectado pelo cenário nomeado." (as 14 da F67B entre elas, com a 9c e a 9d da revisão)

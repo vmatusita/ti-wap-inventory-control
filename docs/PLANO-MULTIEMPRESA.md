@@ -1170,8 +1170,9 @@ antes dos rollbacks da F66 para trás (RUNBOOK, Anexo F67).
 
 *(Ficha REESCRITA pela F67B, 16/11/2026 — executada pela ordem [`prompts/F67B-storage-e-realtime-por-empresa-ultracode.md`](prompts/F67B-storage-e-realtime-por-empresa-ultracode.md),
 plano [`PLAN-F67B.md`](PLAN-F67B.md), migrations `0194`–`0199`, versão `1.74.0`, relatório [`RELATORIO-F67B.md`](RELATORIO-F67B.md).
-A ficha original foi escrita pela F67 (decisão 12/11-2 do Johnny). **⚠ O apply em banco vivo está PENDENTE**: o ensaio
-recusou toda conexão da run (`28P01`), e nada vai a produção sem ele — o caminho B está no topo do relatório.)*
+A ficha original foi escrita pela F67 (decisão 12/11-2 do Johnny). **No ar desde 16/11/2026**: o ensaio, que recusou as
+cinco primeiras conexões da run (`28P01`), voltou na sexta; a expansão foi a produção antes do merge `d11daea`, a
+contração depois da janela por objetos — o conta a conta em cada etapa.)*
 
 **Objetivo.** Fechar os dois buckets e o canal de tempo real por empresa — as superfícies que nenhuma auditoria de RLS de
 tabela examina.

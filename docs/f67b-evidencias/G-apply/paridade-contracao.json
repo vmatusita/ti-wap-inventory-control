@@ -1,0 +1,33 @@
+{
+  "rotulo": "f67b-paridade-contracao",
+  "instrumento": "supabase/ci/impressao-schema.sql (a sonda de paridade do RUNBOOK-BANCO, 11 classes), só leitura, pelo execute_sql do MCP",
+  "medido_em": "2026-11-16 (ensaio: a cadeia inteira 0194–0199; produção: depois da 0199, ~16:46 UTC)",
+  "veredito": "IDÊNTICAS nas 11 classes, sem variante",
+  "ensaio": {
+    "coluna":         { "objetos": 352, "fp": "c93899b1d44c6a079dfb9dc82009d88a" },
+    "constraint":     { "objetos": 209, "fp": "0b0ead9c960e8a74a2a7dd7f75fa5ba8" },
+    "enum":           { "objetos": 7,   "fp": "34837fbf7cb50082e461fd8cdad47532" },
+    "func":           { "objetos": 117, "fp": "eb8a19213c77e91a411166d2b894261e" },
+    "grant_func":     { "objetos": 117, "fp": "3cf7a2df17cd0010d8eddc2fc113fe5c" },
+    "indice":         { "objetos": 105, "fp": "e810d3b29e6b6ca41b6ff5f2136ad7e0" },
+    "policy":         { "objetos": 54,  "fp": "018508af854a3310e5ab5ee4d8f2f253" },
+    "policy_storage": { "objetos": 8,   "fp": "c4d1809a7cab3156626239dcbdaab6ee" },
+    "rls_flag":       { "objetos": 28,  "fp": "0b95c89a31d36e88406a1617fa270523" },
+    "trigger":        { "objetos": 53,  "fp": "eda8b0a715458abbbc12b8f0baa1f56c" },
+    "view":           { "objetos": 9,   "fp": "48be647d2f2db5f067813f5c0ccf11f4" }
+  },
+  "producao": {
+    "coluna":         { "objetos": 352, "fp": "c93899b1d44c6a079dfb9dc82009d88a" },
+    "constraint":     { "objetos": 209, "fp": "0b0ead9c960e8a74a2a7dd7f75fa5ba8" },
+    "enum":           { "objetos": 7,   "fp": "34837fbf7cb50082e461fd8cdad47532" },
+    "func":           { "objetos": 117, "fp": "eb8a19213c77e91a411166d2b894261e" },
+    "grant_func":     { "objetos": 117, "fp": "3cf7a2df17cd0010d8eddc2fc113fe5c" },
+    "indice":         { "objetos": 105, "fp": "e810d3b29e6b6ca41b6ff5f2136ad7e0" },
+    "policy":         { "objetos": 54,  "fp": "018508af854a3310e5ab5ee4d8f2f253" },
+    "policy_storage": { "objetos": 8,   "fp": "c4d1809a7cab3156626239dcbdaab6ee" },
+    "rls_flag":       { "objetos": 28,  "fp": "0b95c89a31d36e88406a1617fa270523" },
+    "trigger":        { "objetos": 53,  "fp": "eda8b0a715458abbbc12b8f0baa1f56c" },
+    "view":           { "objetos": 9,   "fp": "48be647d2f2db5f067813f5c0ccf11f4" }
+  },
+  "contra_a_f67": "coluna, constraint, enum, indice, rls_flag, trigger e view = os da paridade da F67 (paridade-expansao.json da F67): a F67B não tocou tabela, coluna, índice, gatilho nem view. func/grant_func 114 → 117, policy e policy_storage com o fingerprint novo (o texto das 10 reescritas; a contagem 54 + 8 igual)."
+}

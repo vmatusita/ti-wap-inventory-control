@@ -14074,7 +14074,8 @@ o bucket `termos` pela linha de `termos_gerados`, o bucket `backups-import` pela
 invertido, a ferramenta nomeada de órfão, o filtro de empresa nas três assinaturas de tempo real, e nada mudando para a
 WAP. Plano [`PLAN-F67B.md`](PLAN-F67B.md) (os 33 fatos remedidos, as tabelas-verdade, as decisões); migrations
 `0194`–`0197` (a expansão) e `0198`–`0199` (a contração); evidência em `docs/f67b-evidencias/`; relatório
-[`RELATORIO-F67B.md`](RELATORIO-F67B.md) — com o **caminho B no topo**.
+[`RELATORIO-F67B.md`](RELATORIO-F67B.md) — escrito com o **caminho B no topo** e reescrito para o caminho (a) quando o
+ensaio voltou (a ata seguinte, "pós-deploy").
 
 **As decisões do Johnny, registradas.**
 
@@ -14110,3 +14111,35 @@ topo do relatório. Produção foi lida (só leitura: o "antes", o conta a conta
 
 **Reversível?** Sim, nada foi aplicado em banco vivo. Depois do apply: `supabase/rollback/F67B-desfaz.sql` (os dois
 estados; nenhum objeto de Storage se move), antes do da F67 — RUNBOOK, Anexo F67B.
+
+## 2026-11-16 · F67B (v1.74.0, pós-deploy) · o ensaio voltou e o rollout correu inteiro
+
+**Contexto.** Na 6ª reconferência da run, depois da revisão adversarial e do SHA congelado (`5d944fd`), o conector
+autenticou no ensaio: o bloqueio do `28P01` era transitório. A mesma sessão seguiu o caminho (a) da ordem, sem pedir
+nada a ninguém (o modo autônomo do `CLAUDE.md`). Evidência em `docs/f67b-evidencias/` (`antes/ensaio/`, `G-apply/`,
+`conta-a-conta/`); o relatório foi reescrito para o caminho (a).
+
+1. **O "antes" do ensaio** (só leitura) e o conta a conta `f67b-antes` do ensaio: 0 divergência.
+2. **A cadeia inteira no ensaio**, `0194` → `0199`, uma por `apply_migration` com o texto exato e a prova de exatidão
+   (md5 de cada corpo contra `prosrc`, de cada comentário contra `obj_description`): todas ok. O conta a conta 0 depois
+   da expansão; **a sabotagem I** (o oráculo invertido no próprio bloco) deu 2 não declaradas — o bloco acha divergência;
+   o contraído, só a declarada (12 = 12). **Erro meu, registrado:** na primeira exatidão da `0194` copiei dois md5
+   esperados de uma saída truncada e completei à mão; refeito com o valor inteiro, ok. Daí em diante a consulta sai
+   inteira do script.
+3. **A expansão em produção ANTES do merge**, `0194` → `0197`, cada uma exata e com o conta a conta `f67b-depois` 0 depois
+   (14 contas, 26.824 avaliações); conferidor 0 recusadas, smoke 0 falha, advisors 40 (as duas funções novas, a antiga
+   saindo na `0198`).
+4. **O merge e o deploy.** `gh pr ready 96` e `gh pr merge 96 --merge`, sem `--admin`, os dois jobs verdes no `58f438c`
+   → `d11daea` (16:06:14 UTC); `/api/saude` `1.74.0` · `d11daea` às 16:07; smoke 0 falha.
+5. **A janela por OBJETOS** (decisão 11 do plano, o passo 4 do Anexo): T0 16:07:40 UTC, T1 16:41:19 UTC — **nenhum objeto
+   novo** em bucket nenhum (0 na forma antiga, 0 `.docx` sem linha). O Δ 0 na forma nova é declarado (nenhum uso raro na
+   janela), apoiado na prova estática no SHA no ar. Uma janela bastou.
+6. **A contração em produção**, `0198` e `0199`, exatas. Depois: 117 funções, 70 definer, 62 policies; o conta a conta
+   contraído com **só as três declaradas**, exatamente no esperado (42 · 81 · 348) e a leitura dos backups antigos pelo
+   admin da WAP intacta; as 13 checagens na linha travada; smoke 0 falha; conferidor 0 recusadas; advisors 39 (= o
+   ensaio); **a paridade das 11 classes idêntica entre ensaio e produção**.
+7. **A Parte B à mão** (run `43911699512`): VERMELHA pelos mesmos dois achados do #84 (12 e 1) da última Parte B antes do
+   apply, nem um a mais; deriva 0 pendente, a `0199` no ledger. Não reprova a fase (a mesma leitura da F66B e da F67).
+8. **Nenhuma escrita em produção além dos seis `apply_migration`**; nenhum objeto de Storage gravado, copiado, movido ou
+   apagado; a ferramenta de órfão NÃO foi chamada (a limpeza dos 3 `.docx` sem linha é decisão do Johnny). A tag
+   `v1.74.0` vai no merge do PR de documentação.
