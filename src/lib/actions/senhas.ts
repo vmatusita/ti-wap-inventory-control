@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { registrarFalha } from '@/lib/observabilidade'
 import { type ActionResult } from '@/lib/actions/erros'
 import { criarSenhaSchema } from '@/lib/validators/senha'
@@ -167,10 +168,14 @@ export async function criarSenhaAcesso(input: {
 
   const admin = createAdminClient()
   const hash = await hashSenha(parsed.data.senha)
+  // F67C: a senha de visualização não tem filial de onde tirar a empresa — é a da OPERAÇÃO (a legada explícita). Destino F68:
+  // a empresa da senha vira escolha de quem a cria, e o visualizador passa a entrar pela empresa dela.
+  const empresa = empresaDaOperacao()
   const { error } = await admin.from('senhas_acesso').insert({
     rotulo: parsed.data.rotulo,
     hash,
     criado_por: aut.uid,
+    empresa_id: empresa,
   })
   if (error) return { ok: false, erro: 'Não foi possível criar a senha.' }
 
@@ -178,6 +183,7 @@ export async function criarSenhaAcesso(input: {
   // JAMAIS entram em `detalhe` — `eventos_admin` é legível por todo admin.
   await registrarEventoAdmin({
     acao: 'senha_criada',
+    empresa, // F68: a da senha
     autor: aut.uid,
     alvo: parsed.data.rotulo,
   })
@@ -269,6 +275,7 @@ export async function definirStatusSenha(
 
   await registrarEventoAdmin({
     acao: ativa ? 'senha_reativada' : 'senha_revogada',
+    empresa: empresaDaOperacao(), // F68: a da senha
     autor: aut.uid,
     alvo: data.rotulo,
   })

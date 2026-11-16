@@ -15,6 +15,8 @@ import {
 } from '@/lib/validators/colaborador'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
+import { empresaDaFilial, empresasDasFiliais } from '@/lib/escopo/empresa-da-filial'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import {
   lancamentosSemVinculo,
   saldoDoColaborador,
@@ -110,9 +112,18 @@ export async function criarColaboradorInline(input: {
   // são o mesmo). Busca por chave, não por `ilike`: o nome é texto livre, e um `%`
   // digitado pelo operador viraria curinga.
   const chave = chaveColaborador(parsed.data.nome)
+
+  // F67C (PLAN-F67C §2.2 e §3): a pessoa nasce na empresa da FILIAL da movimentação (o `filial_id` do campo); sem filial
+  // (lote multi-filial) é a da OPERAÇÃO (destino F70). A MESMA empresa recorta a busca do homônimo — `nome_chave` é
+  // único POR EMPRESA desde a F65, e o homônimo da outra empresa não é este.
+  const empresa =
+    parsed.data.filial_id == null ? empresaDaOperacao() : await empresaDaFilial(supabase, parsed.data.filial_id)
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const { data: existente, error: erroBusca } = await supabase
     .from('colaboradores')
     .select('id, nome, ativo')
+    .eq('empresa_id', empresa)
     .eq('nome_chave', chave)
     .maybeSingle()
   if (erroBusca) {
@@ -168,6 +179,7 @@ export async function criarColaboradorInline(input: {
       nome: parsed.data.nome,
       filial_id: parsed.data.filial_id,
       criado_por: aut.uid,
+      empresa_id: empresa,
     })
     .select('id, nome')
     .single()
@@ -193,9 +205,14 @@ export async function criarColaborador(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
+  // F67C: filial → a empresa da filial; sem filial → a da operação (destino F70).
+  const empresa =
+    parsed.data.filial_id == null ? empresaDaOperacao() : await empresaDaFilial(supabase, parsed.data.filial_id)
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const { data, error } = await supabase
     .from('colaboradores')
-    .insert({ ...parsed.data, criado_por: aut.uid })
+    .insert({ ...parsed.data, criado_por: aut.uid, empresa_id: empresa })
     .select('id, nome')
     .single()
   if (error) return { ok: false, erro: erroDeColaborador(error.message, error.code) }
@@ -298,9 +315,15 @@ export async function consolidarColaboradores(input: {
   // declarado sobre ela e o valor nunca é enviado.
   //
   // F65 (decisão 5): o árbitro é o unique POR EMPRESA `(empresa_id, nome_chave)` — o `ON CONFLICT`
-  // só infere um índice com EXATAMENTE essas colunas (senão 42P10). A `empresa_id` também não é
-  // enviada: nasce do default. Entre o apply e o deploy os dois uniques coexistem (0172) e os dois
-  // alvos inferem; a 0174 derruba o global depois do deploy. Trava: colaboradores-onconflict.test.ts.
+  // só infere um índice com EXATAMENTE essas colunas (senão 42P10). Trava: colaboradores-onconflict.test.ts.
+  //
+  // F67C: a `empresa_id` agora É enviada — cada grupo nasce na empresa da FILIAL dele (uma ida por filial distinta). A VIEW
+  // `v_colaboradores_textos` (a fila acima) não tem `empresa_id` e agrega por chave sem empresa: recortá-la exige
+  // migration — limite declarado, destino F70. O que esta action faz não vaza: o INSERT nasce na empresa certa.
+  const empresaPorFilial = await empresasDasFiliais(supabase, aCriar.map((g) => g.filial_id))
+  if (aCriar.some((g) => !empresaPorFilial.has(g.filial_id))) {
+    return { ok: false, erro: 'Filial não encontrada.' }
+  }
   const { data: criados, error } = await supabase
     .from('colaboradores')
     .upsert(
@@ -308,6 +331,7 @@ export async function consolidarColaboradores(input: {
         nome: g.grafia_exemplo.trim(),
         filial_id: g.filial_id,
         criado_por: aut.uid,
+        empresa_id: empresaPorFilial.get(g.filial_id)!,
       })),
       { onConflict: 'empresa_id,nome_chave', ignoreDuplicates: true },
     )
@@ -395,7 +419,7 @@ export async function buscarSaldoPorNomeDeColaborador(
     return { ok: false, saldos: [], semVinculo: 0, cadastrado: false, erro: cargo.erro }
   }
 
-  const vinculos = await resolverColaboradoresPorNome(supabase, [limpo])
+  const vinculos = await resolverColaboradoresPorNome(supabase, [limpo], empresaDaOperacao())
   const id = vinculos.get(chaveColaborador(limpo))
   if (!id) return { ok: true, saldos: [], semVinculo: 0, cadastrado: false }
 

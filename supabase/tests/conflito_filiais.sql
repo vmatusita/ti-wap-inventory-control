@@ -170,31 +170,31 @@ begin
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
   -- --- o par em conflito COM patrimônio ---
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009101', 'F24-ST-A', 'notebook', v_f1, 'importacao') returning id into v_a1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009101', 'F24-ST-A', 'notebook', v_f2, 'importacao') returning id into v_a2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009101', 'F24-ST-A', 'notebook', v_f1, 'importacao') returning id into v_a1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009101', 'F24-ST-A', 'notebook', v_f2, 'importacao') returning id into v_a2;
 
   -- v_a1 ganha vida REAL de sistema (movimentação fora da carga do import);
   -- v_a2 fica só com a carga. É o que o selo `tem_historico_real` tem de distinguir.
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por, created_at)
-    values (v_a1, 'compra', current_date - 30, v_f1, 'import startup 01/07/2026', k_admin, now() - interval '30 day');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
-    values (v_a1, 'saida', current_date - 5, v_f1, 'Fulano de Teste', k_admin, now() - interval '5 day');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por, created_at)
-    values (v_a2, 'compra', current_date - 30, v_f2, 'import startup 01/07/2026', k_admin, now() - interval '30 day');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao, criado_por, created_at)
+    values (public.empresa_legada(), v_a1, 'compra', current_date - 30, v_f1, 'import startup 01/07/2026', k_admin, now() - interval '30 day');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
+    values (public.empresa_legada(), v_a1, 'saida', current_date - 5, v_f1, 'Fulano de Teste', k_admin, now() - interval '5 day');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao, criado_por, created_at)
+    values (public.empresa_legada(), v_a2, 'compra', current_date - 30, v_f2, 'import startup 01/07/2026', k_admin, now() - interval '30 day');
 
   -- --- o par em conflito SEM patrimônio (a tag é a identidade) ---
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values (null, 'F24-ST-B', 'monitor', v_f1, 'importacao') returning id into v_b1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values (null, 'F24-ST-B', 'monitor', v_f2, 'importacao') returning id into v_b2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), null, 'F24-ST-B', 'monitor', v_f1, 'importacao') returning id into v_b1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), null, 'F24-ST-B', 'monitor', v_f2, 'importacao') returning id into v_b2;
 
   -- --- ativo sozinho (a isca da contenção) e ativo sem identidade ---
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009199', 'F24-ST-SOLO', 'celular', v_f1, 'cadastro') returning id into v_solo;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values (null, null, 'celular', v_f1, 'importacao') returning id into v_sem_id;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009199', 'F24-ST-SOLO', 'celular', v_f1, 'cadastro') returning id into v_solo;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), null, null, 'celular', v_f1, 'importacao') returning id into v_sem_id;
 
   -- ⚠ TODA fixture é criada AQUI, como dono da transação, ANTES de qualquer `set local role`.
   -- Criá-la no meio do roteiro — depois de a sessão já estar em `authenticated` — esbarra na
@@ -202,22 +202,22 @@ begin
   -- tem a ver com o que ele mede.
 
   -- §8: o par cujo lado entra num termo de lote
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009301', 'F24-ST-X', 'notebook', v_f1, 'importacao') returning id into v_x1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009301', 'F24-ST-X', 'notebook', v_f2, 'importacao') returning id into v_x2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009301', 'F24-ST-X', 'notebook', v_f1, 'importacao') returning id into v_x1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009301', 'F24-ST-X', 'notebook', v_f2, 'importacao') returning id into v_x2;
   -- ⚠ `termos_gerados` exige `movimentacao_ids`, `dados` e `gerado_por` (não `criado_por`).
   insert into public.termos_gerados
-    (tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
-    values ('responsabilidade_notebook', '{}'::uuid[], array[v_x1, v_solo], 'Fulano de Teste',
+    (empresa_id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+    values (public.empresa_legada(), 'responsabilidade_notebook', '{}'::uuid[], array[v_x1, v_solo], 'Fulano de Teste',
             '{}'::jsonb, 'termos/f24-misto.docx', k_admin)
     returning id into v_termo;
 
   -- §7/§9: o par que vai tentar transferir para a filial do gêmeo
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, status)
-    values ('WAP0009401', 'F24-ST-T', 'notebook', v_f1, 'cadastro', 'em_estoque') returning id into v_t1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, status)
-    values ('WAP0009401', 'F24-ST-T', 'notebook', v_f2, 'cadastro', 'em_estoque') returning id into v_t2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem, status)
+    values (public.empresa_legada(), 'WAP0009401', 'F24-ST-T', 'notebook', v_f1, 'cadastro', 'em_estoque') returning id into v_t1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem, status)
+    values (public.empresa_legada(), 'WAP0009401', 'F24-ST-T', 'notebook', v_f2, 'cadastro', 'em_estoque') returning id into v_t2;
 
   -- §7/§9: o par que vai tentar transferir para a filial do gêmeo
   -- ==========================================================================
@@ -248,8 +248,8 @@ begin
 
   -- DENTRO da mesma filial a duplicata segue IMPOSSÍVEL — com patrimônio…
   begin
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-      values ('WAP0009101', 'F24-ST-A', 'notebook', v_f1, 'cadastro');
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+      values (public.empresa_legada(), 'WAP0009101', 'F24-ST-A', 'notebook', v_f1, 'cadastro');
     v_falhas := v_falhas + 1; raise warning '✗ 1d  duplicata na MESMA filial (com patrimônio) foi ACEITA';
   exception when unique_violation then
     v_ok := v_ok + 1; raise notice '✓ 1d  duplicata na MESMA filial (com patrimônio) recusada pelo índice';
@@ -257,16 +257,16 @@ begin
 
   -- …e sem patrimônio (o índice parcial)
   begin
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-      values (null, 'F24-ST-B', 'monitor', v_f1, 'cadastro');
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+      values (public.empresa_legada(), null, 'F24-ST-B', 'monitor', v_f1, 'cadastro');
     v_falhas := v_falhas + 1; raise warning '✗ 1e  duplicata na MESMA filial (sem patrimônio) foi ACEITA';
   exception when unique_violation then
     v_ok := v_ok + 1; raise notice '✓ 1e  duplicata na MESMA filial (sem patrimônio) recusada pelo índice parcial';
   end;
 
   -- o par é EXATO: mesmo patrimônio com OUTRA tag não é o mesmo equipamento
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009101', 'F24-ST-OUTRA', 'notebook', v_f2, 'cadastro');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009101', 'F24-ST-OUTRA', 'notebook', v_f2, 'cadastro');
   select count(*) into v_n from public.v_conflitos_filiais_grupos;
   if v_n = 4 then
     v_ok := v_ok + 1; raise notice '✓ 1f  mesmo patrimônio com outra service tag NÃO entra no grupo (o par é exato)';
@@ -310,8 +310,8 @@ begin
 
   -- grupo de TRÊS filiais (a ordem §1.2: não force par)
   if v_f3 is not null then
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-      values ('WAP0009101', 'F24-ST-A', 'notebook', v_f3, 'importacao') returning id into v_c3;
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+      values (public.empresa_legada(), 'WAP0009101', 'F24-ST-A', 'notebook', v_f3, 'importacao') returning id into v_c3;
     select ativos into v_n from public.v_conflitos_filiais_grupos
      where rotulo = 'WAP0009101' limit 1;
     if v_n = 3 then
@@ -559,8 +559,8 @@ begin
   -- ==========================================================================
   -- (o par v_t1/v_t2 já nasceu no bloco de FIXTURES, como dono)
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
-      values (v_t1, 'transferencia', current_date, v_f1, v_f2, k_admin, now());
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
+      values (public.empresa_legada(), v_t1, 'transferencia', current_date, v_f1, v_f2, k_admin, now());
     v_falhas := v_falhas + 1; raise warning '✗ 7a  transferir para a filial do gêmeo foi ACEITO';
   exception when insufficient_privilege then
     v_ok := v_ok + 1; raise notice '✓ 7a  transferir para a filial do gêmeo é recusado com mensagem própria';
@@ -573,8 +573,8 @@ begin
   -- transferência para uma filial LIVRE continua passando (a recusa é ESTREITA)
   if v_f3 is not null then
     begin
-      insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
-        values (v_t1, 'transferencia', current_date, v_f1, v_f3, k_admin, now())
+      insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
+        values (public.empresa_legada(), v_t1, 'transferencia', current_date, v_f1, v_f3, k_admin, now())
         returning id into v_mov_transf;
       select filial_id into v_n from public.ativos where id = v_t1;
       if v_n = v_f3 then
@@ -592,8 +592,8 @@ begin
   -- ==========================================================================
   if v_mov_transf is not null then
     begin
-      insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
-        values (v_t1, 'estorno', current_date, v_f3, v_mov_transf, k_admin, now() + interval '1 second');
+      insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
+        values (public.empresa_legada(), v_t1, 'estorno', current_date, v_f3, v_mov_transf, k_admin, now() + interval '1 second');
       select filial_id into v_n from public.ativos where id = v_t1;
       if v_n = v_f1 then
         v_ok := v_ok + 1; raise notice '✓ 9a  o estorno da transferência devolveu o ativo à filial de origem';
@@ -793,8 +793,8 @@ begin
   -- da chamada, que é o que a revalidação da RPC exige. Dados 100% fictícios (regra 2):
   -- patrimônios WAP0009601..WAP0009613, service tags F24-ST-L01..L13.
   with novos as (
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    select 'WAP00096' || lpad(g::text, 2, '0'),
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    select public.empresa_legada(), 'WAP00096' || lpad(g::text, 2, '0'),
            'F24-ST-L' || lpad(g::text, 2, '0'),
            'notebook',
            f.fid,

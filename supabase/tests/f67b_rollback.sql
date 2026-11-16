@@ -98,6 +98,9 @@ select pg_temp.f67b_ledger()  as ledger_antes,
 \gset
 
 -- O CONTRAÍDO: a cadeia inteira (o estado do CI)
+-- F67C (16/11/2026): e a F67C antes da F67B — a cadeia inteira tem a F67C por cima (17 funções recriadas, a ferramenta de
+-- órfão nova e os defaults tirados das 20); ela sai PRIMEIRO, e o que este roteiro prova não muda.
+\ir ../rollback/F67C-desfaz.sql
 \ir ../rollback/F67B-desfaz.sql
 
 select pg_temp.f67b_impressao_txt() as depois,

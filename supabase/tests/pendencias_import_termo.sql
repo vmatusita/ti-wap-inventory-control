@@ -39,8 +39,8 @@ begin
   -- P1 — importado, em posse, SEM termo, SEM outra pendência → NÃO aparece
   --      (o coração do pedido: o acervo legado do import não é cobrado).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
-    values ('TESTE0049001', 'notebook', v_matriz, 'em_uso', null, 'importacao', now())
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
+    values (public.empresa_legada(), 'TESTE0049001', 'notebook', v_matriz, 'em_uso', null, 'importacao', now())
     returning id into p1;
   select exists(select 1 from public.v_pendencias where id = p1) into v_in;
   if not v_in then
@@ -53,8 +53,8 @@ begin
   -- ---------------------------------------------------------------
   -- P2 — CADASTRO manual, em posse, SEM termo → "termo pendente" (preservado).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
-    values ('TESTE0049002', 'notebook', v_matriz, 'em_uso', null, 'cadastro', now())
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
+    values (public.empresa_legada(), 'TESTE0049002', 'notebook', v_matriz, 'em_uso', null, 'cadastro', now())
     returning id into p2;
   select pendencia into v_pend from public.v_pendencias where id = p2;
   if v_pend = 'termo pendente' then
@@ -68,8 +68,8 @@ begin
   --      físico') → reclassifica para ela; NÃO some e NÃO é "termo pendente".
   --      (patrimônio null exige a 0034; service_tag null não colide no índice.)
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, status, termo_assinado, origem, pendencia, updated_at)
-    values (null, 'notebook', v_matriz, 'em_uso', null, 'importacao', 'sem patrimônio físico', now())
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, status, termo_assinado, origem, pendencia, updated_at)
+    values (public.empresa_legada(), null, 'notebook', v_matriz, 'em_uso', null, 'importacao', 'sem patrimônio físico', now())
     returning id into p3;
   select pendencia into v_pend from public.v_pendencias where id = p3;
   if v_pend = 'sem patrimônio físico' then
@@ -82,8 +82,8 @@ begin
   -- P4 — 'inferido' (NÃO é import) em posse sem termo → segue "termo pendente"
   --      (prova que o escopo da dispensa é EXATAMENTE origem='importacao').
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
-    values ('TESTE0049004', 'notebook', v_matriz, 'emprestado', 'nao', 'inferido', now())
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
+    values (public.empresa_legada(), 'TESTE0049004', 'notebook', v_matriz, 'emprestado', 'nao', 'inferido', now())
     returning id into p4;
   select pendencia into v_pend from public.v_pendencias where id = p4;
   if v_pend = 'termo pendente' then
@@ -96,8 +96,8 @@ begin
   -- P5 — importado em posse COM termo assinado → nunca foi pendente (controle:
   --      a dispensa não é o único motivo de sair da view; 'sim' já saía).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
-    values ('TESTE0049005', 'notebook', v_matriz, 'em_uso', 'sim', 'importacao', now())
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, status, termo_assinado, origem, updated_at)
+    values (public.empresa_legada(), 'TESTE0049005', 'notebook', v_matriz, 'em_uso', 'sim', 'importacao', now())
     returning id into p5;
   select exists(select 1 from public.v_pendencias where id = p5) into v_in;
   if not v_in then

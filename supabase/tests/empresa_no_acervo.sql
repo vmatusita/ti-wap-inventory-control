@@ -7,8 +7,9 @@
 -- pelo catálogo no bloco 5 de `catalogo_policies.sql` (15a/15b/15c). Este roteiro prova o
 -- COMPORTAMENTO, numa transação desfeita, com dado 100% fictício:
 --
---   1 — o default vale (sabotagem G): um INSERT SEM `empresa_id` em cada uma das oito recebe
---       `public.empresa_legada()`; e toda linha das oito tem a coluna preenchida com ela;
+--   1 — SEM DEFAULT (F67C, 16/11/2026 — até a F67C: "o default vale"): um INSERT SEM `empresa_id` em
+--       cada uma das oito é RECUSADO (23502; 23503 no termo com ids — o gatilho lê a coluna antes do NOT
+--       NULL); e toda linha das oito tem a coluna preenchida com a legada;
 --   2 — a FK vale (sabotagem G): um INSERT com empresa INEXISTENTE leva 23503 nas oito — e,
 --       de volta como `postgres`, nenhuma linha com ela ficou (a recusa provada duas vezes);
 --   3 — a armadilha da ficha (sabotagem E): o `update … set empresa_id` ingênuo leva 42501 da
@@ -111,42 +112,68 @@ begin
           'f63.acervo@wap.ind.br', '', now(), now(), now());
 
   -- ==========================================================================
-  -- 1 — O DEFAULT VALE: um INSERT SEM `empresa_id` em cada uma das oito.
+  -- 1 — SEM DEFAULT (F67C, 16/11/2026): a escrita DIZ a empresa. Até a F67C este cenário provava que um INSERT sem
+  --     `empresa_id` recebia `public.empresa_legada()` nas oito; com o default fora (0205), a prova se INVERTE: o mesmo
+  --     INSERT sem a coluna é RECUSADO — 23502 (not null), ou 23503 no termo com ids (o gatilho `termo_da_empresa` lê
+  --     `new.empresa_id` antes do NOT NULL: fato 8 do PLAN-F67C). As fixtures que os cenários seguintes usam nascem com a
+  --     empresa EXPLÍCITA (a legada, como antes).
   -- ==========================================================================
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0063001', 'F63ACERVO1', 'notebook', v_f1, 'cadastro') returning id into v_ativo;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0063002', 'F63ACERVO2', 'notebook', v_f1, 'cadastro') returning id into v_ativo2;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_ativo, 'compra', current_date - 3, v_f1, k_autor, now() - interval '3 days') returning id into v_mov;
-  insert into public.itens (nome, grupo) values ('F63 Item Fictício do Acervo', 'acessorio') returning id into v_item;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item, v_f1, 'entrada', 3, current_date, k_autor) returning id into v_lanc;
-  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
-  values (v_ativo, v_mov, 'F63 pendência fictícia', v_f1, 'Fulano ZZF63') returning id into v_pend;
-  insert into public.anotacoes (ativo_id, texto, criado_por)
-  values (v_ativo, 'anotação fictícia da F63', k_autor) returning id into v_anot;
-  insert into public.colaboradores (nome, criado_por)
-  values ('Fulano ZZF63 Default', k_autor) returning id into v_colab;
-  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
-  values (v_termo, 'responsabilidade_notebook', array[v_mov], array[v_ativo], 'Fulano ZZF63', '{}'::jsonb,
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (k_legada, 'WAP0063001', 'F63ACERVO1', 'notebook', v_f1, 'cadastro') returning id into v_ativo;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (k_legada, 'WAP0063002', 'F63ACERVO2', 'notebook', v_f1, 'cadastro') returning id into v_ativo2;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (k_legada, v_ativo, 'compra', current_date - 3, v_f1, k_autor, now() - interval '3 days') returning id into v_mov;
+  insert into public.itens (empresa_id, nome, grupo) values (k_legada, 'F63 Item Fictício do Acervo', 'acessorio') returning id into v_item;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (k_legada, v_item, v_f1, 'entrada', 3, current_date, k_autor) returning id into v_lanc;
+  insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (k_legada, v_ativo, v_mov, 'F63 pendência fictícia', v_f1, 'Fulano ZZF63') returning id into v_pend;
+  insert into public.anotacoes (empresa_id, ativo_id, texto, criado_por)
+  values (k_legada, v_ativo, 'anotação fictícia da F63', k_autor) returning id into v_anot;
+  insert into public.colaboradores (empresa_id, nome, criado_por)
+  values (k_legada, 'Fulano ZZF63 Default', k_autor) returning id into v_colab;
+  insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+  values (k_legada, v_termo, 'responsabilidade_notebook', array[v_mov], array[v_ativo], 'Fulano ZZF63', '{}'::jsonb,
           v_termo::text || '.docx', k_autor);
 
-  select count(*) filter (where e is distinct from k_legada),
-         coalesce(string_agg(t, ', ') filter (where e is distinct from k_legada), '')
-    into v_ruins, v_rot
-    from (values
-      ('ativos',           (select empresa_id from public.ativos           where id = v_ativo)),
-      ('movimentacoes',    (select empresa_id from public.movimentacoes    where id = v_mov)),
-      ('itens',            (select empresa_id from public.itens            where id = v_item)),
-      ('lancamentos_item', (select empresa_id from public.lancamentos_item where id = v_lanc)),
-      ('pendencias_item',  (select empresa_id from public.pendencias_item  where id = v_pend)),
-      ('anotacoes',        (select empresa_id from public.anotacoes        where id = v_anot)),
-      ('colaboradores',    (select empresa_id from public.colaboradores    where id = v_colab)),
-      ('termos_gerados',   (select empresa_id from public.termos_gerados   where id = v_termo))
-    ) as x(t, e);
-  if pg_temp.assert_zero_de('1a um INSERT sem empresa_id recebe public.empresa_legada() nas oito tabelas do acervo' ||
-       case when v_ruins > 0 then ' — não recebeu: ' || v_rot else '' end, v_ruins, 8) then
+  -- a prova: o mesmo INSERT SEM a coluna, numa subtransação por tabela, é recusado com o código certo
+  v_ruins := 0; v_rot := '';
+  foreach v_txt in array k_oito loop
+    begin
+      case v_txt
+        when 'ativos' then
+          insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
+          values ('WAP0063091', 'F63SEMEMPRESA', 'notebook', v_f1, 'cadastro');
+        when 'movimentacoes' then
+          insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
+          values (v_ativo2, 'compra', current_date - 2, v_f1, k_autor);
+        when 'itens' then
+          insert into public.itens (nome, grupo) values ('F63 Item Sem Empresa', 'acessorio');
+        when 'lancamentos_item' then
+          insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
+          values (v_item, v_f1, 'entrada', 1, current_date, k_autor);
+        when 'pendencias_item' then
+          insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
+          values (v_ativo, v_mov, 'F63 pendência sem empresa', v_f1, 'Fulano ZZF63');
+        when 'anotacoes' then
+          insert into public.anotacoes (ativo_id, texto, criado_por) values (v_ativo, 'anotação sem empresa', k_autor);
+        when 'colaboradores' then
+          insert into public.colaboradores (nome, criado_por) values ('Fulano ZZF63 Sem Empresa', k_autor);
+        when 'termos_gerados' then
+          insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+          values (gen_random_uuid(), 'responsabilidade_notebook', array[v_mov], array[v_ativo], 'Fulano ZZF63', '{}'::jsonb,
+                  gen_random_uuid()::text || '.docx', k_autor);
+      end case;
+      v_ruins := v_ruins + 1; v_rot := v_rot || v_txt || ' (aceitou sem empresa) ';
+    exception when others then
+      if not (sqlstate = '23502' or (sqlstate = '23503' and v_txt = 'termos_gerados')) then
+        v_ruins := v_ruins + 1; v_rot := v_rot || v_txt || ' (' || sqlstate || ') ';
+      end if;
+    end;
+  end loop;
+  if pg_temp.assert_zero_de('1a um INSERT sem empresa_id é RECUSADO nas oito tabelas do acervo (23502; 23503 no termo com ids) — F67C, sem default' ||
+       case when v_ruins > 0 then ' — ' || v_rot else '' end, v_ruins, 8) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- count(*) = count(empresa_id) = count(*) filter (where empresa_id = legada), somado nas oito
@@ -549,13 +576,15 @@ begin
   -- catalogo_policies.sql, derivada do catálogo, para as 21 tabelas com a coluna — uma fonte só
   -- (decisão 5 do PLAN-F66). O rótulo 7a não volta a ser usado neste roteiro.
 
-  -- 7b — funções de public que tocam as oito E citam empresa_id. A exceção nominal
+  -- 7b — funções de public que tocam as oito E LEEM empresa_id. F67C (16/11/2026, decisão 6): escrever a coluna não é
+  -- lê-la — a lista de colunas do INSERT e o alvo do on conflict saem antes (`pg_temp.sem_lista_de_escrita`,
+  -- _asserts.sql); a 7d (auto-sabotagem) continua provando que uma LEITURA é acusada. A exceção nominal
   -- `checagens_integridade_nucleo` (0158) lê `m.empresa_id` de MEMBROS, num comando que não toca
   -- o acervo; a leitura por comando e por alias é conferida no disco por
   -- src/lib/validators/empresa-acervo-sem-leitura.test.ts.
   select count(*),
-         count(*) filter (where p.prosrc ~ '\mempresa_id\M' and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes))),
-         coalesce(string_agg(p.proname, ', ') filter (where p.prosrc ~ '\mempresa_id\M' and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes))), '')
+         count(*) filter (where pg_temp.sem_lista_de_escrita(p.prosrc) ~ '\mempresa_id\M' and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes))),
+         coalesce(string_agg(p.proname, ', ') filter (where pg_temp.sem_lista_de_escrita(p.prosrc) ~ '\mempresa_id\M' and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes))), '')
     into v_univ, v_ruins, v_rot
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prosrc ~ v_re_oito;
@@ -578,7 +607,7 @@ begin
       select count(*) from public.movimentacoes m where m.empresa_id = public.empresa_legada()
     $s$;
     select (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-             where n.nspname = 'public' and p.prosrc ~ v_re_oito and p.prosrc ~ '\mempresa_id\M'
+             where n.nspname = 'public' and p.prosrc ~ v_re_oito and pg_temp.sem_lista_de_escrita(p.prosrc) ~ '\mempresa_id\M'
                and not (p.proname = any (array['checagens_integridade_nucleo'] || k_leitura_tenant_nomes)))::text
       into v_estado;
     raise exception 'f63-7d-desfaz';

@@ -8,7 +8,8 @@
 -- rollback, em `f64_rollback.sql`. Este roteiro prova o COMPORTAMENTO, numa transação desfeita,
 -- com dado 100% fictício:
 --
---   1 — o default vale (sabotagem E): um INSERT SEM `empresa_id` em cada uma das onze recebe
+--   1 — SEM DEFAULT (F67C, 16/11/2026 — até a F67C: "o default vale"): um INSERT SEM `empresa_id` em cada
+--       uma das onze é RECUSADO (23502); as fixtures nascem com a legada EXPLÍCITA. (Texto original:) recebe
 --       `public.empresa_legada()`; e toda linha das onze tem a coluna preenchida com ela. (E os
 --       roteiros que já inseriam nas onze — fato 8 — continuam verdes SEM uma edição.)
 --   2 — a FK vale (sabotagem E): empresa INEXISTENTE leva 23503 nas onze — e, de volta como
@@ -146,6 +147,11 @@ declare
   -- F67B (16/11/2026): os TRÊS que conferem o caminho do backup foram recriados (0195 a expansão, 0199 a contração) —
   -- a mudança é SÓ a cláusula do prefixo (a empresa no caminho); o md5 passa ao corpo da 0199, calculado do arquivo do
   -- mesmo jeito (apagar_ativo e import_gravar_trilha, que não mudaram, conferem o método de novo: iguais).
+  -- F67C (16/11/2026): import_gravar_trilha foi recriada (0204: a trilha do import com a empresa da filial) — o md5 passa
+  -- ao corpo novo, calculado do arquivo do mesmo jeito (o método conferido: o md5 antigo, do arquivo da 0131, é o que
+  -- estava aqui); e entra a escritora de eventos_admin que a lista não tinha: registrar_limpeza_termos_sem_linha, a
+  -- assinatura NOVA (uuid, text, text, text) da 0204 (a antiga sai na 0206). registrar_tentativa_senha (que grava
+  -- senha_tentativas, tabela SEM empresa_id — k_infra) fica como estava.
   k_escritores constant text[] := array[
     'apagar_ativo:a304f7c2fc172b4ba26fd0de8ec93beb',
     'apagar_ativos_conflito_filiais:22b0ee06475538fc90a5353fd45c5f37',
@@ -155,7 +161,8 @@ declare
     'forcar_saldo_item:dcb2ff4992b06446c458e750dbe8a51b',
     'resetar_acervo:16b4b7d050922a7bfc610086037d2f67',
     'resetar_itens:60c9861a44b37e8d8e4bd49a96f7cd4d',
-    'import_gravar_trilha:3587aa25577ed90ecb516c41e0dd11b2',
+    'import_gravar_trilha:2c23d8ae972dd804b2fbb592a20e643b',
+    'registrar_limpeza_termos_sem_linha:2454329e797ef4040ffad036dfd82b7a',
     'registrar_tentativa_senha:ee0d1c21835858c0dd04eb5a017eabe7'];
   k_autor    constant uuid := '64000000-0000-4000-8000-0000000000a1';
   -- uma empresa que NÃO existe (o v4 fictício) — o alvo da FK
@@ -188,44 +195,73 @@ begin
           'f64.vocabulario@wap.ind.br', '', now(), now(), now());
 
   -- ==========================================================================
-  -- 1 — O DEFAULT VALE: um INSERT SEM `empresa_id` em cada uma das onze.
+  -- 1 — SEM DEFAULT (F67C, 16/11/2026): a escrita DIZ a empresa. Até a F67C este cenário provava que um INSERT sem
+  --     `empresa_id` recebia `public.empresa_legada()` nas onze; com o default fora (0206), a prova se INVERTE: o mesmo
+  --     INSERT sem a coluna é RECUSADO — 23502 (not null), ou 23503 no kit com motivo (o gatilho `kit_motivo_da_empresa`
+  --     lê `new.empresa_id` antes do NOT NULL: fato 8 do PLAN-F67C; o kit abaixo é SEM motivo, então 23502). As fixtures
+  --     que os cenários seguintes usam nascem com a empresa EXPLÍCITA (a legada, como antes).
   -- ==========================================================================
-  insert into public.tipos_item (slug, rotulo, ordem) values ('zzf64tipo', 'Tipo fictício F64', 9964);
-  insert into public.motivos (codigo, rotulo, aplica_a)
-  values ('f64-motivo-default', 'Motivo fictício F64', array['saida']::public.tipo_movimentacao[]);
-  insert into public.kits_modelos (nome, payload, criado_por)
-  values ('F64 Kit do default', '{"tipo": "saida", "categorias": ["notebook"]}'::jsonb, k_autor);
-  insert into public.senhas_acesso (rotulo, hash, criado_por) values ('F64 Senha fictícia', 'hash-ficticio-f64', k_autor);
-  insert into public.eventos_admin (acao, autor, alvo, detalhe)
-  values ('papel_alterado', k_autor, 'f64.alvo@wap.ind.br', '{"de": "consulta", "para": "operador"}'::jsonb);
-  insert into public.import_logs (filial_id, modo, arquivo_hash, total_linhas, ativos_criados,
+  insert into public.tipos_item (empresa_id, slug, rotulo, ordem) values (k_legada, 'zzf64tipo', 'Tipo fictício F64', 9964);
+  insert into public.motivos (empresa_id, codigo, rotulo, aplica_a)
+  values (k_legada, 'f64-motivo-default', 'Motivo fictício F64', array['saida']::public.tipo_movimentacao[]);
+  insert into public.kits_modelos (empresa_id, nome, payload, criado_por)
+  values (k_legada, 'F64 Kit do default', '{"tipo": "saida", "categorias": ["notebook"]}'::jsonb, k_autor);
+  insert into public.senhas_acesso (empresa_id, rotulo, hash, criado_por) values (k_legada, 'F64 Senha fictícia', 'hash-ficticio-f64', k_autor);
+  insert into public.eventos_admin (empresa_id, acao, autor, alvo, detalhe)
+  values (k_legada, 'papel_alterado', k_autor, 'f64.alvo@wap.ind.br', '{"de": "consulta", "para": "operador"}'::jsonb);
+  insert into public.import_logs (empresa_id, filial_id, modo, arquivo_hash, total_linhas, ativos_criados,
                                   movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, criado_por)
-  values (v_f1, 'substituir', 'hash-ficticio-f64', 0, 0, 0, 0, 0, 'f64/backup.csv', '[]'::jsonb, k_autor);
-  insert into public.relatorios_gerados (periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
-  values (current_date - 4064, current_date - 4064, v_f1, 1, '{}'::jsonb, k_autor);
-  insert into public.import_prefixos_patrimonio (prefixo) values ('ZZF');
-  insert into public.import_termos_categoria (termo, categoria, rotulo) values ('zzf64 categoria', 'notebook', null);
-  insert into public.import_termos_estado (termo, estado, rotulo) values ('zzf64 estado', 'em_uso', null);
-  insert into public.unidades_apelidos (filial_id, apelido) values (v_f1, 'ZZF64 Apelido Fictício');
+  values (k_legada, v_f1, 'substituir', 'hash-ficticio-f64', 0, 0, 0, 0, 0, 'f64/backup.csv', '[]'::jsonb, k_autor);
+  insert into public.relatorios_gerados (empresa_id, periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
+  values (k_legada, current_date - 4064, current_date - 4064, v_f1, 1, '{}'::jsonb, k_autor);
+  insert into public.import_prefixos_patrimonio (empresa_id, prefixo) values (k_legada, 'ZZF');
+  insert into public.import_termos_categoria (empresa_id, termo, categoria, rotulo) values (k_legada, 'zzf64 categoria', 'notebook', null);
+  insert into public.import_termos_estado (empresa_id, termo, estado, rotulo) values (k_legada, 'zzf64 estado', 'em_uso', null);
+  insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (k_legada, v_f1, 'ZZF64 Apelido Fictício');
 
-  select count(*) filter (where e is distinct from k_legada),
-         coalesce(string_agg(t, ', ') filter (where e is distinct from k_legada), '')
-    into v_ruins, v_rot
-    from (values
-      ('tipos_item',                 (select empresa_id from public.tipos_item where slug = 'zzf64tipo')),
-      ('motivos',                    (select empresa_id from public.motivos where codigo = 'f64-motivo-default')),
-      ('kits_modelos',               (select empresa_id from public.kits_modelos where nome = 'F64 Kit do default')),
-      ('senhas_acesso',              (select empresa_id from public.senhas_acesso where rotulo = 'F64 Senha fictícia')),
-      ('eventos_admin',              (select empresa_id from public.eventos_admin where alvo = 'f64.alvo@wap.ind.br')),
-      ('import_logs',                (select empresa_id from public.import_logs where arquivo_hash = 'hash-ficticio-f64')),
-      ('relatorios_gerados',         (select empresa_id from public.relatorios_gerados where periodo_de = current_date - 4064)),
-      ('import_prefixos_patrimonio', (select empresa_id from public.import_prefixos_patrimonio where prefixo = 'ZZF')),
-      ('import_termos_categoria',    (select empresa_id from public.import_termos_categoria where termo = 'zzf64 categoria')),
-      ('import_termos_estado',       (select empresa_id from public.import_termos_estado where termo = 'zzf64 estado')),
-      ('unidades_apelidos',          (select empresa_id from public.unidades_apelidos where apelido = 'ZZF64 Apelido Fictício'))
-    ) as x(t, e);
-  if pg_temp.assert_zero_de('1a um INSERT sem empresa_id recebe public.empresa_legada() nas onze tabelas do lote 2' ||
-       case when v_ruins > 0 then ' — não recebeu: ' || v_rot else '' end, v_ruins, 11) then
+  -- a prova: o mesmo INSERT SEM a coluna, numa subtransação por tabela, é recusado com 23502
+  v_ruins := 0; v_rot := '';
+  foreach v_txt in array k_onze loop
+    begin
+      case v_txt
+        when 'tipos_item' then
+          insert into public.tipos_item (slug, rotulo, ordem) values ('zzf64tiposememp', 'Tipo sem empresa F64', 9966);
+        when 'motivos' then
+          insert into public.motivos (codigo, rotulo, aplica_a)
+          values ('f64-motivo-sem-empresa', 'Motivo sem empresa F64', array['saida']::public.tipo_movimentacao[]);
+        when 'kits_modelos' then
+          insert into public.kits_modelos (nome, payload, criado_por)
+          values ('F64 Kit sem empresa', '{"tipo": "saida", "categorias": ["notebook"]}'::jsonb, k_autor);
+        when 'senhas_acesso' then
+          insert into public.senhas_acesso (rotulo, hash, criado_por) values ('F64 Senha sem empresa', 'hash-sem-empresa-f64', k_autor);
+        when 'eventos_admin' then
+          insert into public.eventos_admin (acao, autor, alvo, detalhe)
+          values ('papel_alterado', k_autor, 'f64.sem.empresa@wap.ind.br', '{}'::jsonb);
+        when 'import_logs' then
+          insert into public.import_logs (filial_id, modo, arquivo_hash, total_linhas, ativos_criados,
+                                          movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, criado_por)
+          values (v_f1, 'substituir', 'hash-sem-empresa-f64', 0, 0, 0, 0, 0, 'f64/sem-empresa.csv', '[]'::jsonb, k_autor);
+        when 'relatorios_gerados' then
+          insert into public.relatorios_gerados (periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
+          values (current_date - 4065, current_date - 4065, v_f1, 1, '{}'::jsonb, k_autor);
+        when 'import_prefixos_patrimonio' then
+          insert into public.import_prefixos_patrimonio (prefixo) values ('ZZH');
+        when 'import_termos_categoria' then
+          insert into public.import_termos_categoria (termo, categoria, rotulo) values ('zzf64 categoria sem empresa', 'notebook', null);
+        when 'import_termos_estado' then
+          insert into public.import_termos_estado (termo, estado, rotulo) values ('zzf64 estado sem empresa', 'em_uso', null);
+        when 'unidades_apelidos' then
+          insert into public.unidades_apelidos (filial_id, apelido) values (v_f1, 'ZZF64 Apelido Sem Empresa');
+      end case;
+      v_ruins := v_ruins + 1; v_rot := v_rot || v_txt || ' (aceitou sem empresa) ';
+    exception when others then
+      if sqlstate <> '23502' then
+        v_ruins := v_ruins + 1; v_rot := v_rot || v_txt || ' (' || sqlstate || ') ';
+      end if;
+    end;
+  end loop;
+  if pg_temp.assert_zero_de('1a um INSERT sem empresa_id é RECUSADO (23502) nas onze tabelas do lote 2 — F67C, sem default' ||
+       case when v_ruins > 0 then ' — ' || v_rot else '' end, v_ruins, 11) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- count(*) = count(empresa_id) = count(*) filter (where empresa_id = legada), somado nas onze
@@ -423,21 +459,21 @@ begin
          coalesce(string_agg(e.nome, ', ') filter (where v.proname is null or v.md5 <> e.md5 or v.assinaturas <> 1), '')
     into v_ruins, v_rot
     from esperado e left join vivo v on v.proname = e.nome;
-  if pg_temp.assert_zero_de('5a o corpo das 9 funções que escrevem nas onze e de registrar_tentativa_senha é o das migrations (as oito da Zona e da mesa, o da F67; os dois outros, o de ANTES da F64) (md5 do prosrc, uma assinatura cada)' ||
-       case when v_ruins > 0 then ' — mudou: ' || v_rot else '' end, v_ruins, 10) then
+  if pg_temp.assert_zero_de('5a o corpo das 10 funções que escrevem nas onze e de registrar_tentativa_senha é o das migrations (as oito da Zona e da mesa, o da F67; a trilha do import e a ferramenta de órfão, o da F67C; o contador da senha, o de ANTES da F64) (md5 do prosrc, uma assinatura cada)' ||
+       case when v_ruins > 0 then ' — mudou: ' || v_rot else '' end, v_ruins, 11) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
-  -- F67 (13/11/2026): a F67 chegou. Os OITO da Zona e da mesa gravam a empresa ALVO EXPLÍCITA na trilha
-  -- (`eventos_admin.empresa_id`, decisão 1 do Johnny de 13/11) e TÊM de citar a coluna; os dois outros
-  -- (import_gravar_trilha, registrar_tentativa_senha) continuam pelo default — a F67C os passa a informar.
-  select count(*) filter (where (p.prosrc ~ '\mempresa_id\M') <> (p.proname not in ('import_gravar_trilha', 'registrar_tentativa_senha'))),
-         coalesce(string_agg(p.proname, ', ') filter (where (p.prosrc ~ '\mempresa_id\M') <> (p.proname not in ('import_gravar_trilha', 'registrar_tentativa_senha'))), '')
+  -- F67 (13/11/2026): os OITO da Zona e da mesa gravam a empresa ALVO EXPLÍCITA na trilha (decisão 1 do Johnny de 13/11).
+  -- F67C (16/11/2026): o default saiu — TODO escritor das onze cita a coluna (a trilha do import e a ferramenta de órfão
+  -- passaram a informá-la, 0204); só registrar_tentativa_senha não cita: ela grava senha_tentativas, sem a coluna.
+  select count(*) filter (where (p.prosrc ~ '\mempresa_id\M') <> (p.proname <> 'registrar_tentativa_senha')),
+         coalesce(string_agg(p.proname, ', ') filter (where (p.prosrc ~ '\mempresa_id\M') <> (p.proname <> 'registrar_tentativa_senha')), '')
     into v_ruins, v_rot
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname in (select split_part(e, ':', 1) from unnest(k_escritores) as e);
-  if pg_temp.assert_zero_de('5b os oito da Zona e da mesa citam empresa_id (a trilha com a empresa alvo, F67) e os dois outros não (o default, até a F67C)' ||
-       case when v_ruins > 0 then ' — cita: ' || v_rot else '' end, v_ruins, 10) then
+  if pg_temp.assert_zero_de('5b os escritores das onze citam empresa_id (a Zona e a mesa desde a F67; a trilha do import e a ferramenta de órfão desde a F67C) e o contador da senha não (senha_tentativas não tem a coluna)' ||
+       case when v_ruins > 0 then ' — fora: ' || v_rot else '' end, v_ruins, 11) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================

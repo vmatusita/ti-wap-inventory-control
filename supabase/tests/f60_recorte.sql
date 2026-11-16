@@ -135,22 +135,22 @@ begin
   -- As três filiais nascem ATIVAS; a D é desativada DEPOIS de receber dado — é o caminho real
   -- (uma filial que fecha com acervo e saldo), e não depende de nenhuma guarda de escrita
   -- aceitar lançamento em filial já desativada.
-  insert into public.filiais (slug, nome) values ('zzf60-recorte-a', 'ZZF60 Recorte A')
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf60-recorte-a', 'ZZF60 Recorte A')
     returning id into v_fa;
-  insert into public.filiais (slug, nome) values ('zzf60-recorte-b', 'ZZF60 Recorte B')
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf60-recorte-b', 'ZZF60 Recorte B')
     returning id into v_fb;
-  insert into public.filiais (slug, nome) values (v_slug_fd, 'ZZF60 Recorte Desativada')
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), v_slug_fd, 'ZZF60 Recorte Desativada')
     returning id into v_fd;
 
-  insert into public.itens (nome, grupo, ordem)
-    values ('ZZF60 Item Recorte', 'acessorio', 9960) returning id into v_item;
-  insert into public.itens (nome, grupo, ordem)
-    values ('ZZF60 Item Chamado', 'acessorio', 9961) returning id into v_item_ch;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'ZZF60 Item Recorte', 'acessorio', 9960) returning id into v_item;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'ZZF60 Item Chamado', 'acessorio', 9961) returning id into v_item_ch;
 
   -- O item do cenário 2: 5 na ativa A, 7 na desativada. Total consolidado 12; coluna 5; fora 7.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item, v_fa, 'entrada', 5, date '2025-06-01', k_prof),
-         (v_item, v_fd, 'entrada', 7, date '2025-06-01', k_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item, v_fa, 'entrada', 5, date '2025-06-01', k_prof),
+         (public.empresa_legada(), v_item, v_fd, 'entrada', 7, date '2025-06-01', k_prof);
 
   -- O item do cenário 3: o chamado que ATRAVESSA filiais na data de corte (2025-08-01).
   --
@@ -161,23 +161,23 @@ begin
   -- (antes). O gatilho aceita (em B a reserva de 5 cobre a liberação de 5), e NA DATA DE CORTE
   -- o chamado tem +5 em A e −5 em B. É exatamente o arranjo em que a soma dos clamps por filial
   -- (5 + 0) difere do clamp sobre o conjunto (0) — e é o que um relatório as-of enxerga.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
-  values (v_item_ch, v_fa, 'entrada', 10, null,          date '2025-05-01', k_prof),
-         (v_item_ch, v_fb, 'entrada', 10, null,          date '2025-05-01', k_prof),
-         (v_item_ch, v_fa, 'reserva',  5, 'ZZF60-CH-01', date '2025-05-01', k_prof);
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
-  values (v_item_ch, v_fb, 'reserva',  5, 'ZZF60-CH-01', date '2025-09-01', k_prof);
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
-  values (v_item_ch, v_fb, 'liberacao', 5, 'ZZF60-CH-01', date '2025-07-01', k_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
+  values (public.empresa_legada(), v_item_ch, v_fa, 'entrada', 10, null,          date '2025-05-01', k_prof),
+         (public.empresa_legada(), v_item_ch, v_fb, 'entrada', 10, null,          date '2025-05-01', k_prof),
+         (public.empresa_legada(), v_item_ch, v_fa, 'reserva',  5, 'ZZF60-CH-01', date '2025-05-01', k_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
+  values (public.empresa_legada(), v_item_ch, v_fb, 'reserva',  5, 'ZZF60-CH-01', date '2025-09-01', k_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
+  values (public.empresa_legada(), v_item_ch, v_fb, 'liberacao', 5, 'ZZF60-CH-01', date '2025-07-01', k_prof);
 
   -- O ativo da desativada: compra e saída DENTRO do período (a saída é o que os três relatórios
   -- de período contam). `created_at` explícito e crescente — a regra da pendência nº 5 da F37.
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF6000001', 'notebook', v_fd) returning id into v_ativo_d;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values (v_ativo_d, 'compra', date '2025-06-01', v_fd, k_prof, timestamptz '2025-06-01 10:00:00+00');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-    values (v_ativo_d, 'saida', date '2025-06-10', v_fd, 'Fulano ZZF60', 'TI', k_prof,
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF6000001', 'notebook', v_fd) returning id into v_ativo_d;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_ativo_d, 'compra', date '2025-06-01', v_fd, k_prof, timestamptz '2025-06-01 10:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+    values (public.empresa_legada(), v_ativo_d, 'saida', date '2025-06-10', v_fd, 'Fulano ZZF60', 'TI', k_prof,
             timestamptz '2025-06-10 10:00:00+00');
 
   -- A filial fecha, com o acervo e o saldo dentro.

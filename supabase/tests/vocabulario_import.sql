@@ -91,12 +91,12 @@ begin
   perform pg_temp.plantar_cargo(k_operador, 'operador');
   perform pg_temp.plantar_cargo(k_consulta, 'consulta');
 
-  insert into public.filiais (slug, nome, ativo) values
-    ('zzf56-alfa', 'Filial ZZF56 Alfa', true)  returning id into v_fA;
-  insert into public.filiais (slug, nome, ativo) values
-    ('zzf56-beta', 'Filial ZZF56 Beta', true)  returning id into v_fB;
-  insert into public.filiais (slug, nome, ativo) values
-    ('zzf56-gama', 'Filial ZZF56 Gama', false) returning id into v_fG;
+  insert into public.filiais (empresa_id, slug, nome, ativo) values
+    (public.empresa_legada(), 'zzf56-alfa', 'Filial ZZF56 Alfa', true)  returning id into v_fA;
+  insert into public.filiais (empresa_id, slug, nome, ativo) values
+    (public.empresa_legada(), 'zzf56-beta', 'Filial ZZF56 Beta', true)  returning id into v_fB;
+  insert into public.filiais (empresa_id, slug, nome, ativo) values
+    (public.empresa_legada(), 'zzf56-gama', 'Filial ZZF56 Gama', false) returning id into v_fG;
 
   -- =========================================================================
   -- 1 — A COLLATION "und-x-icu" EXISTE
@@ -231,8 +231,8 @@ begin
   -- 4 — OS CHECKS RECUSAM (como DONO, capturando o SQLSTATE)
   -- =========================================================================
   begin
-    insert into public.import_termos_categoria (termo, categoria, rotulo)
-      values ('zzf56', 'outro', null);
+    insert into public.import_termos_categoria (empresa_id, termo, categoria, rotulo)
+      values (public.empresa_legada(), 'zzf56', 'outro', null);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4a; '; raise warning '✗ 4a categoria "outro" foi ACEITA — deveria ser recusada';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ 4a categoria "outro" recusada pelo check (sqlstate %)', sqlstate;
@@ -241,8 +241,8 @@ begin
   end;
 
   begin
-    insert into public.import_termos_estado (termo, estado, rotulo)
-      values ('zzf56', 'devolvido_fornecedor', null);
+    insert into public.import_termos_estado (empresa_id, termo, estado, rotulo)
+      values (public.empresa_legada(), 'zzf56', 'devolvido_fornecedor', null);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4b; '; raise warning '✗ 4b estado devolvido_fornecedor foi ACEITO — deveria ser recusado';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ 4b estado devolvido_fornecedor recusado pelo check (sqlstate %)', sqlstate;
@@ -251,8 +251,8 @@ begin
   end;
 
   begin
-    insert into public.import_termos_categoria (termo, categoria, rotulo)
-      values ('zzf56', 'notebook', 'Outra Coisa');
+    insert into public.import_termos_categoria (empresa_id, termo, categoria, rotulo)
+      values (public.empresa_legada(), 'zzf56', 'notebook', 'Outra Coisa');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4c; '; raise warning '✗ 4c rótulo que não volta ao termo foi ACEITO — deveria ser recusado';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ 4c rótulo "Outra Coisa" (≠ termo "zzf56") recusado pelo check (sqlstate %)', sqlstate;
@@ -261,8 +261,8 @@ begin
   end;
 
   begin
-    insert into public.import_termos_estado (termo, estado, rotulo)
-      values ('zzf56 descarte', 'descartado', 'Zzf56 Descarte');
+    insert into public.import_termos_estado (empresa_id, termo, estado, rotulo)
+      values (public.empresa_legada(), 'zzf56 descarte', 'descartado', 'Zzf56 Descarte');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4d; '; raise warning '✗ 4d descartado COM rótulo foi ACEITO — deveria ser recusado';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ 4d estado descartado com rótulo recusado pelo check (sqlstate %)', sqlstate;
@@ -277,8 +277,8 @@ begin
     -- isso o termo NÃO é livre: 'zzf56 estoque dois' é o que 'Zzf56 Estoque Dois'
     -- normaliza de volta — o check passa — e só aí o segundo rótulo para o MESMO
     -- estado (em_estoque já tem 'estoque'/'Estoque' no seed) esbarra no índice.
-    insert into public.import_termos_estado (termo, estado, rotulo)
-      values ('zzf56 estoque dois', 'em_estoque', 'Zzf56 Estoque Dois');
+    insert into public.import_termos_estado (empresa_id, termo, estado, rotulo)
+      values (public.empresa_legada(), 'zzf56 estoque dois', 'em_estoque', 'Zzf56 Estoque Dois');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4e; '; raise warning '✗ 4e um SEGUNDO rótulo para em_estoque foi ACEITO — o índice único parcial deveria recusar';
   exception when unique_violation then
     v_ok := v_ok + 1; raise notice '✓ 4e segundo rótulo do mesmo estado (em_estoque) recusado pelo índice único parcial (sqlstate %)', sqlstate;
@@ -287,7 +287,7 @@ begin
   end;
 
   begin
-    insert into public.import_prefixos_patrimonio (prefixo) values ('wap');
+    insert into public.import_prefixos_patrimonio (empresa_id, prefixo) values (public.empresa_legada(), 'wap');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4f; '; raise warning '✗ 4f prefixo minúsculo foi ACEITO — deveria ser recusado pelo formato';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ 4f prefixo fora do formato ("wap") recusado pelo check (sqlstate %)', sqlstate;
@@ -323,7 +323,7 @@ begin
   end if;
 
   begin
-    insert into public.unidades_apelidos (filial_id, apelido) values (v_fA, 'ZZF56 Operador Tentou');
+    insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fA, 'ZZF56 Operador Tentou');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c; '; raise warning '✗ 5c operador INSERIU apelido — é matéria de admin';
   exception when insufficient_privilege then
     v_ok := v_ok + 1; raise notice '✓ 5c operador recusado ao inserir apelido (sqlstate %)', sqlstate;
@@ -338,7 +338,7 @@ begin
   declare
     v_novo_id bigint;
   begin
-    insert into public.unidades_apelidos (filial_id, apelido) values (v_fA, 'ZZF56 Admin Incluiu')
+    insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fA, 'ZZF56 Admin Incluiu')
       returning id into v_novo_id;
     v_ok := v_ok + 1; raise notice '✓ 5d admin INSERE apelido (id=%)', v_novo_id;
 
@@ -356,7 +356,7 @@ begin
   end;
 
   begin
-    insert into public.import_termos_categoria (termo, categoria, rotulo) values ('zzf56admin', 'notebook', null);
+    insert into public.import_termos_categoria (empresa_id, termo, categoria, rotulo) values (public.empresa_legada(), 'zzf56admin', 'notebook', null);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5f; '; raise warning '✗ 5f admin INSERIU em import_termos_categoria — não há policy de escrita nenhuma nesta fase';
   exception when insufficient_privilege then
     v_ok := v_ok + 1; raise notice '✓ 5f admin recusado ao inserir em import_termos_categoria — sem policy de escrita (sqlstate %)', sqlstate;
@@ -375,7 +375,7 @@ begin
 
   -- 6a — apelido = NOME de outra filial → P0001
   begin
-    insert into public.unidades_apelidos (filial_id, apelido) values (v_fA, 'Filial ZZF56 Beta');
+    insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fA, 'Filial ZZF56 Beta');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6a; '; raise warning '✗ 6a apelido igual ao NOME de outra filial foi ACEITO';
   exception
     when sqlstate 'P0001' then
@@ -385,9 +385,9 @@ begin
   end;
 
   -- 6b — apelido = APELIDO de outra filial → 23505 (índice único; fora da guarda)
-  insert into public.unidades_apelidos (filial_id, apelido) values (v_fA, 'ZZF56 Compartilhado');
+  insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fA, 'ZZF56 Compartilhado');
   begin
-    insert into public.unidades_apelidos (filial_id, apelido) values (v_fB, 'ZZF56 Compartilhado');
+    insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fB, 'ZZF56 Compartilhado');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6b; '; raise warning '✗ 6b apelido igual a apelido de OUTRA filial foi ACEITO';
   exception
     when unique_violation then
@@ -398,7 +398,7 @@ begin
 
   -- 6c — apelido = nome da PRÓPRIA filial → P0001 ("o nome próprio já vale")
   begin
-    insert into public.unidades_apelidos (filial_id, apelido) values (v_fA, 'Filial ZZF56 Alfa');
+    insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fA, 'Filial ZZF56 Alfa');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6c; '; raise warning '✗ 6c apelido igual ao PRÓPRIO nome foi ACEITO';
   exception
     when sqlstate 'P0001' then
@@ -409,7 +409,7 @@ begin
 
   -- 6d — CRIAR filial com nome = apelido existente → P0001
   begin
-    insert into public.filiais (slug, nome, ativo) values ('zzf56-delta', 'ZZF56 Compartilhado', true);
+    insert into public.filiais (empresa_id, slug, nome, ativo) values (public.empresa_legada(), 'zzf56-delta', 'ZZF56 Compartilhado', true);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6d; '; raise warning '✗ 6d filial criada com nome = apelido existente foi ACEITA';
   exception
     when sqlstate 'P0001' then
@@ -445,7 +445,7 @@ begin
   -- 6g — nome de filial INATIVA continua bloqueando apelido → P0001 (toda filial,
   --      ativa ou não, é UNIDADE CONHECIDA — Decisão 2).
   begin
-    insert into public.unidades_apelidos (filial_id, apelido) values (v_fA, 'Filial ZZF56 Gama');
+    insert into public.unidades_apelidos (empresa_id, filial_id, apelido) values (public.empresa_legada(), v_fA, 'Filial ZZF56 Gama');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6g; '; raise warning '✗ 6g apelido igual ao nome de uma filial INATIVA foi ACEITO';
   exception
     when sqlstate 'P0001' then

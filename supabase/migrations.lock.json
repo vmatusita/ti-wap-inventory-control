@@ -201,6 +201,14 @@
     "0196_backup_orfao_duas_formas.sql": "2088fe54ffd8a172ee11a2dac320c50e49d68346723f637fcea7db3a0c242037",
     "0197_termo_pela_empresa_da_linha.sql": "7e9010d2921a9cbd9c1f74af5cec25c4b8bc68e5b157124a7c2592cdf92378a4",
     "0198_contracao_termos_pela_linha.sql": "acd161250e7d443f565bb98d5ebc1502ad9e9b36cbfc743d74f2eb706ceb7421",
-    "0199_contracao_backups_por_empresa.sql": "76dc22fdab3759ad78e4322a901d770216780a29dd50f72131333167635f7d69"
+    "0199_contracao_backups_por_empresa.sql": "76dc22fdab3759ad78e4322a901d770216780a29dd50f72131333167635f7d69",
+    "0200_escrita_empresa_anotacoes.sql": "cc10015f79e1dcb6da98ce0cdf1b3ce106ba881fc2685702b93f9476ff3ad675",
+    "0201_escrita_empresa_movimentacoes.sql": "091b609c85dfd916962971da1789d508866e1a4b9f2a5e9735e18cfaa3b73f01",
+    "0202_escrita_empresa_itens.sql": "e6b67b41443af43b2c90616bcd537a8b8f24b8577b32992191043b05cfd439f5",
+    "0203_escrita_empresa_import.sql": "91a596859b0ab5ff4911f2db9af1c9ddb4b367e151d9668691ce1253f4918239",
+    "0204_escrita_empresa_registros.sql": "9d8116f45854b6c36bb5052505e3e0c3824d5c565328b38bdcdf450097a2ef24",
+    "0205_contracao_default_acervo.sql": "b1038654de20b82343281041b2b90bfcd4f261136395714d804158f953683905",
+    "0206_contracao_default_registros.sql": "cd2866bb2459cc82ecf9321f082855e194de500a416b0827a126029e6d515b21",
+    "0207_contracao_default_filiais.sql": "8906929ea801b059c88be5ebbb5a5cec69cf350f30ee0e0195b70fc1c1bcb357"
   }
 }

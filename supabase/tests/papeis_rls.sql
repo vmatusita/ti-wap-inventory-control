@@ -223,17 +223,17 @@ begin
     (k_inativo,  v_f1);
 
   -- Um ativo em cada filial + um item de catálogo, para os testes de escrita.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009001', 'F21TST1', 'notebook', v_f1, 'cadastro')
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009001', 'F21TST1', 'notebook', v_f1, 'cadastro')
   returning id into v_ativo_f1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009002', 'F21TST2', 'notebook', v_f2, 'cadastro')
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009002', 'F21TST2', 'notebook', v_f2, 'cadastro')
   returning id into v_ativo_f2;
 
   select id into v_item from public.itens where ativo order by id limit 1;
   if v_item is null then
-    insert into public.itens (nome, grupo)
-    values ('Item ficticio F21', 'acessorio') returning id into v_item;
+    insert into public.itens (empresa_id, nome, grupo)
+    values (public.empresa_legada(), 'Item ficticio F21', 'acessorio') returning id into v_item;
   end if;
 
   -- FIXTURES DAS TABELAS FECHADAS. Sem elas, as asserções "não vê nada" (3d/3e/3f/6b)
@@ -241,17 +241,17 @@ begin
   -- `senhas_acesso`, `import_logs`, `eventos_admin` e o bucket de backup nascem VAZIOS.
   -- "Ver 0 linhas de uma tabela vazia" não prova policy nenhuma. Com uma linha plantada
   -- aqui (como postgres, que ignora RLS), o 0 passa a significar "a policy escondeu".
-  insert into public.senhas_acesso (rotulo, hash, criado_por)
-  values ('Senha ficticia F21', 'hash-ficticio-nao-e-senha-real', k_admin);
+  insert into public.senhas_acesso (empresa_id, rotulo, hash, criado_por)
+  values (public.empresa_legada(), 'Senha ficticia F21', 'hash-ficticio-nao-e-senha-real', k_admin);
 
-  insert into public.import_logs (
+  insert into public.import_logs (empresa_id, 
     filial_id, modo, arquivo_hash, total_linhas,
     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
     backup_path, correcoes, criado_por
-  ) values (v_f1, 'substituir', 'hash-f21', 0, 0, 0, 0, 0, 'f21/backup.csv', '[]'::jsonb, k_admin);
+  ) values (public.empresa_legada(), v_f1, 'substituir', 'hash-f21', 0, 0, 0, 0, 0, 'f21/backup.csv', '[]'::jsonb, k_admin);
 
-  insert into public.eventos_admin (acao, autor, alvo, detalhe)
-  values ('papel_alterado', k_admin, 'f21.operador@wap.ind.br', '{"de":"consulta","para":"operador"}'::jsonb);
+  insert into public.eventos_admin (empresa_id, acao, autor, alvo, detalhe)
+  values (public.empresa_legada(), 'papel_alterado', k_admin, 'f21.operador@wap.ind.br', '{"de":"consulta","para":"operador"}'::jsonb);
 
   -- F67B (16/11/2026): o backup da fixture na forma NOVA (import/empresa-<uuid>/filial-<id>/…) — desde a 0199 o bucket
   -- decide pela empresa do CAMINHO, e um nome fora de toda forma (o `f21/fixture-backup.csv` de antes) não é lido por
@@ -262,10 +262,10 @@ begin
 
   -- Um lançamento em CADA filial, criados como postgres (que ignora RLS), para os testes de
   -- `estorna_id` cruzando filial (2e-bis / 2e-ter). Entradas de 5, para haver saldo a estornar.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item, v_f1, 'entrada', 5, current_date, k_admin) returning id into v_lanc_f1;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item, v_f2, 'entrada', 5, current_date, k_admin) returning id into v_lanc_f2;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item, v_f1, 'entrada', 5, current_date, k_admin) returning id into v_lanc_f1;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item, v_f2, 'entrada', 5, current_date, k_admin) returning id into v_lanc_f2;
 
   -- FIXTURES DOS TERMOS (0069). Dois ativos NOVOS (um por filial) com uma saída cada, e um
   -- TERMO já gerado para o da filial 2 — a vítima do exploit. Criados como postgres, que ignora
@@ -273,21 +273,21 @@ begin
   -- movimentações; `arquivo_path` = id||'.docx'), para as asserções medirem AUTORIZAÇÃO e não
   -- uma fixture malformada. O objeto de Storage entra junto: sem ele, "não consegue apagar o
   -- .docx" passaria de graça.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009003', 'F21TST3', 'notebook', v_f1, 'cadastro') returning id into v_ativo_t1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009004', 'F21TST4', 'notebook', v_f2, 'cadastro') returning id into v_ativo_t2;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por)
-  values (v_ativo_t1, 'saida', current_date, v_f1, 'Fulano de Teste', k_admin)
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009003', 'F21TST3', 'notebook', v_f1, 'cadastro') returning id into v_ativo_t1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009004', 'F21TST4', 'notebook', v_f2, 'cadastro') returning id into v_ativo_t2;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, criado_por)
+  values (public.empresa_legada(), v_ativo_t1, 'saida', current_date, v_f1, 'Fulano de Teste', k_admin)
   returning id into v_mov_t1;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por)
-  values (v_ativo_t2, 'saida', current_date, v_f2, 'Beltrana de Teste', k_admin)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, criado_por)
+  values (public.empresa_legada(), v_ativo_t2, 'saida', current_date, v_f2, 'Beltrana de Teste', k_admin)
   returning id into v_mov_t2;
   v_termo_f2   := gen_random_uuid();
   v_termo_novo := gen_random_uuid();
-  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador,
+  insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador,
                                      dados, arquivo_path, gerado_por)
-  values (v_termo_f2, 'responsabilidade_notebook', array[v_mov_t2], array[v_ativo_t2],
+  values (public.empresa_legada(), v_termo_f2, 'responsabilidade_notebook', array[v_mov_t2], array[v_ativo_t2],
           'Beltrana de Teste', '{}'::jsonb, v_termo_f2::text || '.docx', k_admin);
   insert into storage.objects (bucket_id, name, owner)
   values ('termos', v_termo_f2::text || '.docx', k_admin);
@@ -305,9 +305,9 @@ begin
   --
   -- DUAS linhas, e não uma: uma só faria "viu 1" e "viu tudo" coincidirem, e 1j não
   -- conseguiria afirmar que o cargo mais fraco enxerga o CADASTRO INTEIRO.
-  insert into public.colaboradores (nome, filial_id, criado_por) values
-    ('Fulano F48 Um',   v_f1, k_admin),
-    ('Fulana F48 Dois', v_f2, k_admin);
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values
+    (public.empresa_legada(), 'Fulano F48 Um',   v_f1, k_admin),
+    (public.empresa_legada(), 'Fulana F48 Dois', v_f2, k_admin);
   select count(*) into v_colabs from public.colaboradores;
   if v_colabs >= 2 then
     v_ok := v_ok + 1;
@@ -397,7 +397,7 @@ begin
   -- única tabela de cadastro aberta ao operador. Sem esta asserção, a policy
   -- `pode_escrever()` da 0112 poderia estar escrita como `using (true)` e ninguém veria.
   begin
-    insert into public.colaboradores (nome, criado_por) values ('Consulta F37', k_consulta);
+    insert into public.colaboradores (empresa_id, nome, criado_por) values (public.empresa_legada(), 'Consulta F37', k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1i-bis; ';
     raise warning '✗ 1i-bis consulta CRIOU colaborador (não escreve nada)';
   exception when others then
@@ -406,8 +406,8 @@ begin
 
   -- 1c..1h. NÃO escreve em nada
   begin
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009901', 'F21X1', 'notebook', v_f1, 'cadastro');
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009901', 'F21X1', 'notebook', v_f1, 'cadastro');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1c; ';
     raise warning '✗ 1c consulta INSERIU ativo (deveria ser recusado)';
   exception when others then
@@ -427,9 +427,9 @@ begin
   end;
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao,
                                       status_resultante, criado_por)
-    values (v_ativo_f1, 'ajuste', current_date, v_f1, 'teste f21', 'em_estoque', k_consulta);
+    values (public.empresa_legada(), v_ativo_f1, 'ajuste', current_date, v_f1, 'teste f21', 'em_estoque', k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1e; ';
     raise warning '✗ 1e consulta INSERIU movimentação (deveria ser recusado)';
   exception when others then
@@ -437,8 +437,8 @@ begin
   end;
 
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_f1, 'entrada', 1, current_date, k_consulta);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'entrada', 1, current_date, k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1f; ';
     raise warning '✗ 1f consulta LANÇOU item (deveria ser recusado)';
   exception when others then
@@ -446,8 +446,8 @@ begin
   end;
 
   begin
-    insert into public.anotacoes (ativo_id, texto, criado_por)
-    values (v_ativo_f1, 'nota f21', k_consulta);
+    insert into public.anotacoes (empresa_id, ativo_id, texto, criado_por)
+    values (public.empresa_legada(), v_ativo_f1, 'nota f21', k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1g; ';
     raise warning '✗ 1g consulta ANOTOU (deveria ser recusado)';
   exception when others then
@@ -455,9 +455,9 @@ begin
   end;
 
   begin
-    insert into public.relatorios_gerados (periodo_de, periodo_ate, filial_id, versao,
+    insert into public.relatorios_gerados (empresa_id, periodo_de, periodo_ate, filial_id, versao,
                                            dados, gerado_por)
-    values (current_date, current_date, v_f1, 1, '{}'::jsonb, k_consulta);
+    values (public.empresa_legada(), current_date, current_date, v_f1, 1, '{}'::jsonb, k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1h; ';
     raise warning '✗ 1h consulta GEROU relatório (deveria ser recusado)';
   exception when others then
@@ -484,9 +484,9 @@ begin
 
   -- 2b. ESCREVE movimentação na filial VINCULADA
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao,
                                       status_resultante, criado_por)
-    values (v_ativo_f1, 'ajuste', current_date, v_f1, 'ajuste f21 vinculada',
+    values (public.empresa_legada(), v_ativo_f1, 'ajuste', current_date, v_f1, 'ajuste f21 vinculada',
             'em_estoque', k_operador);
     v_ok := v_ok + 1; raise notice '✓ 2b operador MOVIMENTA na filial vinculada (f%)', v_f1;
   exception when others then
@@ -497,9 +497,9 @@ begin
 
   -- 2c. é RECUSADO na filial NÃO vinculada
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao,
                                       status_resultante, criado_por)
-    values (v_ativo_f2, 'ajuste', current_date, v_f2, 'ajuste f21 nao vinculada',
+    values (public.empresa_legada(), v_ativo_f2, 'ajuste', current_date, v_f2, 'ajuste f21 nao vinculada',
             'em_estoque', k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2c; ';
     raise warning '✗ 2c operador MOVIMENTOU na filial NÃO vinculada (f%)', v_f2;
@@ -517,9 +517,9 @@ begin
   -- O 2c acima NÃO cobre este caso: lá o ativo e o `filial_id` são os dois da filial não
   -- vinculada, então ele passaria mesmo sem a correção. É esta asserção que prova a 0067.
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id,
                                       criado_por)
-    values (v_ativo_f2, 'transferencia', current_date, v_f1, v_f1, k_operador);
+    values (public.empresa_legada(), v_ativo_f2, 'transferencia', current_date, v_f1, v_f1, k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2c-bis_FURO_ABERTO; ';
     raise warning '✗ 2c-bis operador MOVIMENTOU ativo da filial não vinculada declarando a própria filial (a 0067 não está no ar)';
   exception when others then
@@ -538,8 +538,8 @@ begin
 
   -- 2d. lançamento de item: vinculada OK
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_f1, 'entrada', 2, current_date, k_operador);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'entrada', 2, current_date, k_operador);
     v_ok := v_ok + 1; raise notice '✓ 2d operador LANÇA item na filial vinculada';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2d; ';
@@ -548,8 +548,8 @@ begin
 
   -- 2e. lançamento de item: NÃO vinculada recusado
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_f2, 'entrada', 2, current_date, k_operador);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_f2, 'entrada', 2, current_date, k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2e; ';
     raise warning '✗ 2e operador LANÇOU item na filial NÃO vinculada';
   exception when others then
@@ -563,9 +563,9 @@ begin
   -- ele passava a aparecer "estornado" no histórico dela sem nada ter sido revertido, o saldo
   -- continuava contando, e o operador legítimo nunca mais conseguia estorná-lo (tabela imutável).
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                          criado_por, estorna_id)
-    values (v_item, v_f1, 'saida', 5, current_date, k_operador, v_lanc_f2);
+    values (public.empresa_legada(), v_item, v_f1, 'saida', 5, current_date, k_operador, v_lanc_f2);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2e-bis_ESTORNO_CRUZOU_FILIAL; ';
     raise warning '✗ 2e-bis operador estornou lançamento de filial não vinculada (a 0068 não está no ar)';
   exception when others then
@@ -576,9 +576,9 @@ begin
   -- 2e-ter. E o estorno LEGÍTIMO (mesma filial, mesmo item) continua passando — senão a 0068
   -- teria fechado o furo quebrando a correção normal do dia a dia.
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                          criado_por, estorna_id)
-    values (v_item, v_f1, 'saida', 5, current_date, k_operador, v_lanc_f1);
+    values (public.empresa_legada(), v_item, v_f1, 'saida', 5, current_date, k_operador, v_lanc_f1);
     v_ok := v_ok + 1;
     raise notice '✓ 2e-ter estorno legítimo na própria filial aceito';
   exception when others then
@@ -699,9 +699,9 @@ begin
   -- quarentena na F48) exercita no CI.
   v_termo_forjado := gen_random_uuid();
   begin
-    insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador,
+    insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador,
                                        dados, arquivo_path, gerado_por)
-    values (v_termo_forjado, 'responsabilidade_desktop', array[v_mov_t2], array[v_ativo_t1],
+    values (public.empresa_legada(), v_termo_forjado, 'responsabilidade_desktop', array[v_mov_t2], array[v_ativo_t1],
             'x', '{}'::jsonb, v_termo_forjado::text || '.docx', k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-bis-3_VAGA_QUEIMADA; ';
     raise warning '✗ 2i-bis-3 operador QUEIMOU a vaga de termo da filial % — a ÂNCORA não conferiu `ativo_ids` (as outras três conjunções passaram de propósito)', v_f2;
@@ -731,9 +731,9 @@ begin
   -- `coalesce(…, false)`). O par continua provando o mesmo fato — o fluxo normal passa —, na
   -- ordem nova: 2i-ter-2 (a linha) e então 2i-ter (o arquivo da linha).
   begin
-    insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador,
+    insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador,
                                        dados, arquivo_path, gerado_por)
-    values (v_termo_novo, 'responsabilidade_notebook', array[v_mov_t1], array[v_ativo_t1],
+    values (public.empresa_legada(), v_termo_novo, 'responsabilidade_notebook', array[v_mov_t1], array[v_ativo_t1],
             'Fulano de Teste', '{}'::jsonb, v_termo_novo::text || '.docx', k_operador);
     v_ok := v_ok + 1; raise notice '✓ 2i-ter-2 operador GERA termo na filial vinculada';
   exception when others then
@@ -769,9 +769,9 @@ begin
   -- É a ÚLTIMA asserção da seção de propósito: ela MOVE `v_ativo_f1` para a filial 2, e
   -- qualquer checagem posterior sobre esse ativo passaria a medir outra coisa.
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id,
                                       criado_por)
-    values (v_ativo_f1, 'transferencia', current_date, v_f1, v_f2, k_operador);
+    values (public.empresa_legada(), v_ativo_f1, 'transferencia', current_date, v_f1, v_f2, k_operador);
     v_ok := v_ok + 1;
     raise notice '✓ 2h transferência legítima f%→f% aceita (destino segue livre)', v_f1, v_f2;
   exception when others then
@@ -788,8 +788,8 @@ begin
   -- filial (`filial_id` é atributo). O operador vinculado só à filial 1 cadastra uma
   -- pessoa da filial 2 — e deve mesmo, porque é ele quem entrega o equipamento.
   begin
-    insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano F37 Operador', v_f2, k_operador)
+    insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano F37 Operador', v_f2, k_operador)
     returning id into v_colab_f37;
     v_ok := v_ok + 1;
     raise notice '✓ 2j operador CRIA colaborador (inline no fluxo), inclusive de filial não vinculada';
@@ -802,8 +802,8 @@ begin
   -- 3 — OPERADOR não é admin: catálogo e leituras fechadas
   -- =========================================================================
   begin
-    insert into public.motivos (codigo, rotulo, aplica_a)
-    values ('f21-op', 'Motivo f21 operador', array['saida']::public.tipo_movimentacao[]);
+    insert into public.motivos (empresa_id, codigo, rotulo, aplica_a)
+    values (public.empresa_legada(), 'f21-op', 'Motivo f21 operador', array['saida']::public.tipo_movimentacao[]);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3a; ';
     raise warning '✗ 3a operador CRIOU motivo (é matéria de admin)';
   exception when others then
@@ -811,7 +811,7 @@ begin
   end;
 
   begin
-    insert into public.filiais (slug, nome) values ('f21-teste', 'Filial F21');
+    insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'f21-teste', 'Filial F21');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3b; ';
     raise warning '✗ 3b operador CRIOU filial (é matéria de admin)';
   exception when others then
@@ -829,7 +829,7 @@ begin
   --
   -- É a METADE POSITIVA do par com 3c-quater, exatamente como 2j é com 3c-ter.
   begin
-    insert into public.itens (nome, grupo) values ('Item f41 op', 'acessorio')
+    insert into public.itens (empresa_id, nome, grupo) values (public.empresa_legada(), 'Item f41 op', 'acessorio')
     returning id into v_item_f41;
     v_ok := v_ok + 1;
     raise notice '✓ 3c operador CRIA item de catálogo (inline no fluxo, desde a F41)';
@@ -864,7 +864,7 @@ begin
   -- "Mochila", "mochila" e "Mochila " — três itens onde há um, e três saldos que
   -- não somam.
   begin
-    insert into public.itens (nome, grupo) values ('  ITEM   F41   OP  ', 'acessorio');
+    insert into public.itens (empresa_id, nome, grupo) values (public.empresa_legada(), '  ITEM   F41   OP  ', 'acessorio');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-quinquies; ';
     raise warning '✗ 3c-quinquies a chave de item NÃO deduplicou (entrou item repetido)';
   exception when unique_violation then
@@ -877,7 +877,7 @@ begin
   -- 3c-bis (F37). `tipos_item` é vocabulário do sistema, como motivos: o operador
   -- escolhe, não inventa.
   begin
-    insert into public.tipos_item (slug, rotulo) values ('f37_op', 'Tipo do operador');
+    insert into public.tipos_item (empresa_id, slug, rotulo) values (public.empresa_legada(), 'f37_op', 'Tipo do operador');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3c-bis; ';
     raise warning '✗ 3c-bis operador CRIOU tipo de item (é matéria de admin)';
   exception when others then
@@ -935,11 +935,11 @@ begin
   -- tabela, então qualquer logado gravava linhas falsas no histórico do import destrutivo
   -- via PostgREST. Trilha de auditoria que qualquer um escreve não é trilha.
   begin
-    insert into public.import_logs (
+    insert into public.import_logs (empresa_id, 
       filial_id, modo, arquivo_hash, total_linhas,
       ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
       backup_path, correcoes, criado_por
-    ) values (v_f1, 'substituir', 'forjado', 0, 0, 0, 0, 0, 'x', '[]'::jsonb, k_operador);
+    ) values (public.empresa_legada(), v_f1, 'substituir', 'forjado', 0, 0, 0, 0, 0, 'x', '[]'::jsonb, k_operador);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3f-bis_FORJOU_TRILHA; ';
     raise warning '✗ 3f-bis operador GRAVOU na trilha do import (a 0067 não está no ar)';
   exception when others then
@@ -1029,9 +1029,9 @@ begin
   end if;
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao,
                                       status_resultante, criado_por)
-    values (v_ativo_f1, 'ajuste', current_date, v_f1, 'ajuste inativo', 'em_estoque', k_inativo);
+    values (public.empresa_legada(), v_ativo_f1, 'ajuste', current_date, v_f1, 'ajuste inativo', 'em_estoque', k_inativo);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '4c; ';
     raise warning '✗ 4c desativado MOVIMENTOU (deveria ser recusado)';
   exception when others then
@@ -1128,8 +1128,8 @@ begin
   end if;
 
   begin
-    insert into public.motivos (codigo, rotulo, aplica_a)
-    values ('f21-adm', 'Motivo f21 admin', array['saida']::public.tipo_movimentacao[]);
+    insert into public.motivos (empresa_id, codigo, rotulo, aplica_a)
+    values (public.empresa_legada(), 'f21-adm', 'Motivo f21 admin', array['saida']::public.tipo_movimentacao[]);
     v_ok := v_ok + 1; raise notice '✓ 5c admin cria motivo';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c; ';
@@ -1138,7 +1138,7 @@ begin
 
   -- 5c-bis (F37). O outro lado do 3c-bis: quem cria tipo de item é o nível administrador.
   begin
-    insert into public.tipos_item (slug, rotulo) values ('f37_adm', 'Tipo do admin');
+    insert into public.tipos_item (empresa_id, slug, rotulo) values (public.empresa_legada(), 'f37_adm', 'Tipo do admin');
     v_ok := v_ok + 1; raise notice '✓ 5c-bis admin cria tipo de item';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5c-bis; ';
@@ -1164,9 +1164,9 @@ begin
   end;
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao,
                                       status_resultante, criado_por)
-    values (v_ativo_f2, 'ajuste', current_date, v_f2, 'ajuste admin f21',
+    values (public.empresa_legada(), v_ativo_f2, 'ajuste', current_date, v_f2, 'ajuste admin f21',
             'em_estoque', k_admin);
     v_ok := v_ok + 1; raise notice '✓ 5d admin movimenta na filial sem vínculo (f%)', v_f2;
   exception when others then

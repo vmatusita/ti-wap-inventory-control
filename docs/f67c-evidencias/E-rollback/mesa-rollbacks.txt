@@ -1,0 +1,127 @@
+# Evidência E-rollback — mesa PGlite (PostgreSQL 17.5 em WASM), 16/11/2026
+# 1) a rodada VERDE: cadeia 0001–0207 (cadeia-f67c.dump), nove roteiros de rollback. f67c_rollback: 0 falhas; os outros oito: mesmos FIM e mesmas falhas de AMBIENTE (colação C da mesa) que a linha de base da cadeia até a 0199 (base-0199.txt) — as mensagens ✗ com os md5 são idênticas às da base.
+# comando: node rodar.mjs --carregar=cadeia-f67c.dump --roteiros=f67c_rollback,f62_rollback,f63_rollback,f64_rollback,f65_rollback,f66_rollback,f66b_rollback,f67_rollback,f67b_rollback --verbose
+
+dump carregado: cadeia-f67c.dump (1.1 s)
+==== f67c_rollback ====
+NOTICE:  (medição) f67c_rollback depois: comentarios:7ecfbef0ec7ae99fff001b05f2b662a2:117|defaults:7c6c0cd5a255e35dcc902d44ba85ec46:92|funcoes:add3d1199f93731e5a54429751e752fe:117|gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53|policies:a56f5d6f2b4c78ec7359c493262f26c2:62|views:a38b7bf1527d5cb13f776b5e8af0b2b4:9
+NOTICE:  ✓ rc1 os comentários das funções de public depois do rollback são os da cadeia até a 0199 (0 de 1 conferidos)
+NOTICE:  ✓ rc2 os defaults das colunas de public depois do rollback são os da cadeia até a 0199 (as 20 de empresa_id com empresa_legada()) (0 de 1 conferidos)
+NOTICE:  ✓ rc3 as funções de public depois do rollback são as da cadeia até a 0199 (corpo, definer, search_path e EXECUTE) (0 de 1 conferidos)
+NOTICE:  ✓ rc4 os gatilhos de public depois do rollback são os da cadeia até a 0199 (0 de 1 conferidos)
+NOTICE:  ✓ rc5 as policies de public e de storage depois do rollback são as da cadeia até a 0199 (0 de 1 conferidos)
+NOTICE:  ✓ rc6 as views de public depois do rollback são as da cadeia até a 0199 (0 de 1 conferidos)
+NOTICE:  ✓ rc7 o rollback rodado de novo, sobre o banco já desfeito, dá o mesmo esquema (idempotente) (0 de 1 conferidos)
+NOTICE:  ✓ rc8 o só-expansão (0200–0204 reaplicadas, sem a contração): o rollback devolve o esquema da cadeia até a 0199 (0 de 1 conferidos)
+NOTICE:  ✓ rc9 os 20 defaults empresa_legada() voltam — nenhum antes do rollback (o contraído), vinte depois, e vinte depois do só-expansão — antes 0, depois 20, só-expansão antes 20, só-expansão depois 20 (0 de 1 conferidos)
+NOTICE:  ✓ rc10 a ferramenta de órfão: a antiga (text, text, text) volta e a nova (uuid, text, text, text) sai — nos dois estados — antes nova, depois antiga, só-expansão depois antiga (0 de 1 conferidos)
+NOTICE:  ✓ rc11 o ledger de migrations não é reescrito pelo rollback (as linhas da F67C ficam) (0 de 1 conferidos)
+NOTICE:  FIM f67c_rollback: 11 asserções, 0 falhas
+WARNING:  # 1743: aborting transaction 945
+OK       f67c_rollback                      ✓  11  ✗ 0  FIM 11/0  0.8 s
+==== f62_rollback ====
+WARNING:  # 1743: aborting transaction 949
+NOTICE:  ✓ rb0 o estado depois da F62 foi montado (promovido=admin, desligado=sem cargo, dev=dev) — só na membership
+NOTICE:  ✓ rb1 rollback na ordem escrita (cópia primeiro): o corpo antigo devolve o estado MAIS NOVO — promovido=admin, desligado=sem cargo, dev=dev, e a impressão de todo perfil é a mesma de antes do rollback
+NOTICE:  ✓ rb2 SEM a cópia, o rollback devolve o estado VELHO — o desligado voltaria a ter cargo (operador/operador/operador) e a impressão muda: a cópia é o passo que impede isso
+NOTICE:  ✓ rb3 o esquema voltou ao de antes da F62: sem membros/empresas/plataforma_admins, sem empresa_id/membro_id, PK (usuario_id, filial_id), papel_atual() lendo profiles
+NOTICE:  FIM f62_rollback: 4 asserções, 0 falhas
+WARNING:  # 1743: aborting transaction 950
+WARNING:  # 1743: aborting transaction 948
+OK       f62_rollback                       ✓   4  ✗ 0  FIM 4/0  1.6 s
+==== f63_rollback ====
+NOTICE:  (medição) impressão do esquema das oito DEPOIS do rollback: d4354acaf7a6e21ce3f2e71295868a76 · antes, sem o que a F63 declarou: d4354acaf7a6e21ce3f2e71295868a76
+NOTICE:  ✓ rb0 antes do rollback, as oito tabelas do acervo TÊM empresa_id visível (0 de 8 conferidos)
+NOTICE:  ✓ rb1 depois do rollback, nenhuma das oito tem empresa_id visível (0 de 8 conferidos)
+NOTICE:  ✓ rb2 depois do rollback, public.backups_migration não existe (0 de 1 conferidos)
+WARNING:  ✗ rb3 o esquema das oito depois do rollback é o do CI antes da 0159 — impressão d4354acaf7a6e21ce3f2e71295868a76, esperada c533eeff15f4196c2f8a5ec4721ff570: 1 de 1 fora da regra
+NOTICE:  ✓ rb4 o rollback tira exatamente o que a F63 declarou (antes sem empresa_id = depois) (0 de 1 conferidos)
+NOTICE:  FIM f63_rollback: 5 asserções, 1 falhas
+WARNING:  # 1743: aborting transaction 953
+AMBIENTE f63_rollback                       ✓   4  ✗ 1  FIM 5/1  0.8 s  <- o contador declara 1 falha(s); marcou 1 ✗
+==== f64_rollback ====
+NOTICE:  (medição) impressão do esquema das onze DEPOIS do rollback: 992eb7264a3aa224c50af8cafbf8deb8 · antes, sem o que a F64 declarou: a54192ce086978525b194d05b5547f1a · depois, sem: a54192ce086978525b194d05b5547f1a
+NOTICE:  ✓ rb0 antes do rollback, as onze tabelas do lote 2 TÊM empresa_id visível, e o gatilho e a função do kit existem (0 de 13 conferidos)
+NOTICE:  ✓ rb1 depois do rollback, nenhuma das onze tem empresa_id visível (0 de 11 conferidos)
+NOTICE:  ✓ rb2 depois do rollback, o gatilho e a função do kit sumiram, e o núcleo voltou ao corpo da 0158 (0 de 3 conferidos)
+WARNING:  ✗ rb3 o esquema das onze (e as duas funções) depois do rollback é o do CI antes da 0162 — impressão 992eb7264a3aa224c50af8cafbf8deb8, esperada 9ab2b820d7cdaa5d46cd6e9f17424054: 1 de 1 fora da regra
+NOTICE:  ✓ rb4 o rollback tira exatamente o que a F64 declarou (antes sem a F64 = depois sem a F64) (0 de 1 conferidos)
+NOTICE:  FIM f64_rollback: 5 asserções, 1 falhas
+WARNING:  # 1743: aborting transaction 956
+AMBIENTE f64_rollback                       ✓   4  ✗ 1  FIM 5/1  0.7 s  <- o contador declara 1 falha(s); marcou 1 ✗
+==== f65_rollback ====
+NOTICE:  (medição) impressão do esquema das 20 DEPOIS do rollback: f808b847142597ec68ac82592c065cf4 · antes, sem o que a F65 declarou: d45b66afe621a21f45bec03e1554390a · depois, sem: d45b66afe621a21f45bec03e1554390a
+NOTICE:  ✓ rb0 antes do rollback, o que a F65 pôs existe (23 FKs compostas, 7 uniques dos pais, 41 gatilhos, 2 funções) (0 de 73 conferidos)
+NOTICE:  ✓ rb1 depois do rollback, nada da F65 sobrou (FK composta de negócio, unique dos pais, gatilho da fase, função nova, provisório *_f65) (0 de 73 conferidos)
+NOTICE:  ✓ rb2 depois do rollback, guarda_empresa e termo_da_empresa sumiram, e a diagonal voltou ao corpo da 0139 (0 de 3 conferidos)
+WARNING:  ✗ rb3 o esquema das 20 (e as três funções) depois do rollback é o do CI antes da 0165 — impressão f808b847142597ec68ac82592c065cf4, esperada 1c72ca42784d716f9009cc68f504c8f3: 1 de 1 fora da regra
+NOTICE:  ✓ rb4 o rollback tira exatamente o que a F65 declarou (antes sem a F65 = depois sem a F65) (0 de 1 conferidos)
+NOTICE:  FIM f65_rollback: 5 asserções, 1 falhas
+WARNING:  # 1743: aborting transaction 959
+AMBIENTE f65_rollback                       ✓   4  ✗ 1  FIM 5/1  1.2 s  <- o contador declara 1 falha(s); marcou 1 ✗
+==== f66_rollback ====
+NOTICE:  (medição) contagens antes/depois do rollback (citam conjunto / chamam pode_escrever_filial / rel_* pelo par): 51/0/2 → 0/6/0
+NOTICE:  (medição) depois do rollback: public 4013c8faf77f3410b099590dcd56c233 · storage 2fd30352f3d081dfd61e8efd6f79b104 · as 11 e086b501c67186e90623122bb3f5d695 · rel rel_por_motivo_filiais:1bd176033fa1a387060280f2abe859c5,rel_resumo_filiais:74923fe5b3523dc23cb522cf45b18de9
+NOTICE:  ✓ rb0 antes do rollback, o que a F66 pôs existe (51 policies citam função de conjunto, nenhuma chama pode_escrever_filial, as duas rel_* juntam pelo par) (0 de 1 conferidos)
+NOTICE:  ✓ rb1 depois do rollback, nada da F66 sobrou (0 citam função de conjunto, as 6 de unidade voltaram a pode_escrever_filial, 0 rel_* pelo par) (0 de 1 conferidos)
+NOTICE:  ✓ rb2 as duas rel_* voltaram ao corpo da 0143 (o md5 do prosrc do "antes" dos dois bancos vivos) (0 de 1 conferidos)
+WARNING:  ✗ rb3 as policies de public e de Storage depois do rollback são as do "antes" dos dois bancos vivos (o md5 vivas de impressao-policies.sql) — public 4013c8faf77f3410b099590dcd56c233, storage 2fd30352f3d081dfd61e8efd6f79b104: 2 de 2 fora da regra
+WARNING:  ✗ rb4 as 11 policies que a F66 não toca são as mesmas antes e depois do rollback, e as do "antes" vivo — antes e086b501c67186e90623122bb3f5d695, depois e086b501c67186e90623122bb3f5d695: 2 de 2 fora da regra
+NOTICE:  ✓ rb5 o rollback rodado de novo não muda nada (idempotente) (0 de 1 conferidos)
+NOTICE:  FIM f66_rollback: 6 asserções, 2 falhas
+WARNING:  # 1743: aborting transaction 962
+AMBIENTE f66_rollback                       ✓   4  ✗ 2  FIM 6/2  0.4 s  <- o contador declara 2 falha(s); marcou 2 ✗
+==== f66b_rollback ====
+NOTICE:  (medição) CHECK de public antes/depois do rollback: 101:97498d2f4c46507accb4c8ade22fd90d → 36:3c5caec7d94035a3ae58ca3053bc0bd3; canônicos de comprimento 65 → 0
+NOTICE:  ✓ rb0 antes do rollback, os 65 CHECK de comprimento da F66B existem (101 CHECK em public) (0 de 2 conferidos)
+NOTICE:  ✓ rb1 depois do rollback, nenhum CHECK canônico de comprimento sobra (0 de 65 conferidos)
+WARNING:  ✗ rb2 as CHECK de public depois do rollback são as de ANTES da 0181 (contagem e md5 do pg_get_constraintdef) — 36:3c5caec7d94035a3ae58ca3053bc0bd3, esperado 36:f921131b4bf0a4c7635606c14a29f790: 1 de 1 fora da regra
+NOTICE:  ✓ rb3 as de comprimento anteriores à F66B (anotacao_texto_len, unidades_apelidos_apelido_tamanho) ficaram (0 de 2 conferidos)
+NOTICE:  ✓ rb4 o rollback rodado de novo não muda nada (idempotente) (0 de 1 conferidos)
+NOTICE:  FIM f66b_rollback: 5 asserções, 1 falhas
+WARNING:  # 1743: aborting transaction 965
+AMBIENTE f66b_rollback                      ✓   4  ✗ 1  FIM 5/1  0.2 s  <- o contador declara 1 falha(s); marcou 1 ✗
+==== f67_rollback ====
+WARNING:  ✗ rb1 as funções de public depois do rollback são as do CI antes da 0185 (corpo, definer, search_path e EXECUTE) — funcoes:a1fb356a5b7a45363bbad94989fc9e6f:106, esperado funcoes:e5a982611889d7d2a1059069e4b701bc:106: 1 de 1 fora da regra
+WARNING:  ✗ rb2 as policies de public e de storage depois do rollback são as do CI antes da 0185 — policies:a47b77d40b02df40c4c4b720278b376a:62, esperado policies:df2385787c2c4137c144786d21a7ca86:62: 1 de 1 fora da regra
+WARNING:  ✗ rb3 as views de public depois do rollback são as do CI antes da 0185 (a mesa sem a partição nem a coluna empresa) — views:f8f592d87c9179c8c6f0fb58e2e41245:9, esperado views:eb6a8509379eb9b77bfb59d4e7e5eb2f:9: 1 de 1 fora da regra
+WARNING:  ✗ rb4 os gatilhos de public depois do rollback são os do CI antes da 0185 (sem a trava do termo) — gatilhos:c77acfda37021a4e7f5e69b2c319287b:52, esperado gatilhos:faabdedeccadc5ee111e827b75da9976:52: 1 de 1 fora da regra
+NOTICE:  ✓ rb5 o rollback rodado de novo, sobre o banco já desfeito, dá o mesmo esquema (idempotente) (0 de 1 conferidos)
+WARNING:  ✗ rb6 o só-expansão (0185–0192 reaplicadas, sem a contração): o rollback devolve o esquema do CI antes da 0185 — funcoes:a1fb356a5b7a45363bbad94989fc9e6f:106|gatilhos:c77acfda37021a4e7f5e69b2c319287b:52|policies:a47b77d40b02df40c4c4b720278b376a:62|views:f8f592d87c9179c8c6f0fb58e2e41245:9: 1 de 1 fora da regra
+NOTICE:  ✓ rb7 o ledger de migrations não é reescrito pelo rollback (as linhas da F67 ficam) (0 de 1 conferidos)
+NOTICE:  FIM f67_rollback: 7 asserções, 5 falhas
+WARNING:  # 1743: aborting transaction 968
+AMBIENTE f67_rollback                       ✓   2  ✗ 5  FIM 7/5  0.6 s  <- o contador declara 5 falha(s); marcou 5 ✗
+==== f67b_rollback ====
+NOTICE:  (medição) f67b_rollback depois: comentarios:c5e802fa4aff182d9eb9cb015027727f:115|funcoes:d2241bbd60f940f2d2e9a68cdc26216c:114|gatilhos:617db192c01b01d3236bb2eb6b5a1ff9:53|policies:b472f6d107cf0ac91bc0c5261c465083:62|views:06ffd9c4196befed55fde75a8eab8b6a:9
+WARNING:  ✗ rb1 os comentários (das funções de public e da coluna eventos_admin.acao) depois do rollback são os do CI na cadeia até a 0193 — comentarios:c5e802fa4aff182d9eb9cb015027727f:115, esperado comentarios:c6632ecf0ae248192a4da12b3948e637:115: 1 de 1 fora da regra
+WARNING:  ✗ rb2 as funções de public depois do rollback são as do CI na cadeia até a 0193 (corpo, definer, search_path e EXECUTE) — funcoes:d2241bbd60f940f2d2e9a68cdc26216c:114, esperado funcoes:0a2a3c3e7c8a71d014b7f3b01ba3bdf3:114: 1 de 1 fora da regra
+WARNING:  ✗ rb3 os gatilhos de public depois do rollback são os do CI na cadeia até a 0193 — gatilhos:617db192c01b01d3236bb2eb6b5a1ff9:53, esperado gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53: 1 de 1 fora da regra
+WARNING:  ✗ rb4 as policies de public e de storage depois do rollback são as do CI na cadeia até a 0193 — policies:b472f6d107cf0ac91bc0c5261c465083:62, esperado policies:23f75895fe22ee72d63cbdc5966036d4:62: 1 de 1 fora da regra
+WARNING:  ✗ rb5 as views de public depois do rollback são as do CI na cadeia até a 0193 — views:06ffd9c4196befed55fde75a8eab8b6a:9, esperado views:a38b7bf1527d5cb13f776b5e8af0b2b4:9: 1 de 1 fora da regra
+NOTICE:  ✓ rb6 o rollback rodado de novo, sobre o banco já desfeito, dá o mesmo esquema (idempotente) (0 de 1 conferidos)
+WARNING:  ✗ rb7 o só-expansão (0194–0197 reaplicadas, sem a contração): o rollback devolve o esquema do CI na cadeia até a 0193: 1 de 1 fora da regra
+NOTICE:  ✓ rb8 o ledger de migrations não é reescrito pelo rollback (as linhas da F67B ficam) (0 de 1 conferidos)
+NOTICE:  ✓ rb9 nenhum objeto de Storage é tocado pelo rollback (os backups das duas formas ficam no bucket) (0 de 1 conferidos)
+NOTICE:  FIM f67b_rollback: 9 asserções, 6 falhas
+WARNING:  # 1743: aborting transaction 971
+AMBIENTE f67b_rollback                      ✓   3  ✗ 6  FIM 9/6  0.5 s  <- o contador declara 6 falha(s); marcou 6 ✗
+==== RESUMO ====
+9 roteiro(s); 57 asserções declaradas (FIM); 40 ✓ contados; 17 ✗; 7 roteiro(s) só com ✗ de ambiente (esperado na mesa); 0 roteiro(s) com problema REAL; 8 s
+
+# 2) SABOTAGEM J: cópia do F67C-desfaz.sql SEM o bloco 0205 (os 8 defaults do acervo), rodada no lugar do original — o roteiro acusa pela parte 'defaults' (rc2, rc8, rc9)
+WARNING:  ✗ rc2 os defaults das colunas de public depois do rollback são os da cadeia até a 0199 (as 20 de empresa_id com empresa_legada()) — defaults:5ffa8bd6c6abfe04af50b804cfe80c90:84, esperado defaults:7c6c0cd5a255e35dcc902d44ba85ec46:92: 1 de 1 fora da regra
+WARNING:  ✗ rc8 o só-expansão (0200–0204 reaplicadas, sem a contração): o rollback devolve o esquema da cadeia até a 0199: 1 de 1 fora da regra
+WARNING:  ✗ rc9 os 20 defaults empresa_legada() voltam — nenhum antes do rollback (o contraído), vinte depois, e vinte depois do só-expansão — antes 0, depois 12, só-expansão antes 12, só-expansão depois 12: 1 de 1 fora da regra
+NOTICE:  FIM f67c_rollback: 11 asserções, 3 falhas
+FALHOU   sab_J                              ✓   8  ✗ 3  FIM (ausente)  0.8 s  <- não emitiu a linha 'FIM sab_J: N asserções, M falhas' — abortou antes do fim; marcou 3 ✗
+1 roteiro(s); 0 asserções declaradas (FIM); 8 ✓ contados; 3 ✗; 0 roteiro(s) só com ✗ de ambiente (esperado na mesa); 1 roteiro(s) com problema REAL; 3 s
+
+# 3) SABOTAGEM F: cópia SEM a volta de uma função (import_gravar_trilha, bloco 0204) — o roteiro acusa pela parte 'funcoes' (rc3, rc8)
+WARNING:  ✗ rc3 as funções de public depois do rollback são as da cadeia até a 0199 (corpo, definer, search_path e EXECUTE) — funcoes:bc08ab700ed091011ef907988409ac12:117, esperado funcoes:add3d1199f93731e5a54429751e752fe:117: 1 de 1 fora da regra
+WARNING:  ✗ rc8 o só-expansão (0200–0204 reaplicadas, sem a contração): o rollback devolve o esquema da cadeia até a 0199: 1 de 1 fora da regra
+NOTICE:  FIM f67c_rollback: 11 asserções, 2 falhas
+FALHOU   sab_F                              ✓   9  ✗ 2  FIM (ausente)  0.8 s  <- não emitiu a linha 'FIM sab_F: N asserções, M falhas' — abortou antes do fim; marcou 2 ✗
+1 roteiro(s); 0 asserções declaradas (FIM); 9 ✓ contados; 2 ✗; 0 roteiro(s) só com ✗ de ambiente (esperado na mesa); 1 roteiro(s) com problema REAL; 2 s
+
+# 4) testes de mesa (vitest, com 0205–0207 copiadas temporariamente para supabase/migrations/): rollback-f67c, rollback-f67b, rollback-f67 — 3 arquivos, 89 testes, todos verdes

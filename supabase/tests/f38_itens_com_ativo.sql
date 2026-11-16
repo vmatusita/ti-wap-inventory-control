@@ -157,32 +157,32 @@ begin
   perform pg_temp.plantar_cargo(k_operador, 'operador');
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
-  insert into public.tipos_item (slug, rotulo, ordem)
-    values ('zzf38tipo', 'TESTE F38 Tipo', 9990) returning id into v_tipo_id;
+  insert into public.tipos_item (empresa_id, slug, rotulo, ordem)
+    values (public.empresa_legada(), 'zzf38tipo', 'TESTE F38 Tipo', 9990) returning id into v_tipo_id;
 
-  insert into public.itens (nome, grupo, ordem, tipo_id)
-    values ('TESTE F38 Item A', 'acessorio', 9990, v_tipo_id) returning id into v_itemA;
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE F38 Item B', 'acessorio', 9991) returning id into v_itemB;
+  insert into public.itens (empresa_id, nome, grupo, ordem, tipo_id)
+    values (public.empresa_legada(), 'TESTE F38 Item A', 'acessorio', 9990, v_tipo_id) returning id into v_itemA;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE F38 Item B', 'acessorio', 9991) returning id into v_itemB;
 
-  insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano ZZF38 Um', v_f1, k_admin) returning id into v_colab;
-  insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano ZZF38 Dois', v_f1, k_admin) returning id into v_colab2;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZF38 Um', v_f1, k_admin) returning id into v_colab;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZF38 Dois', v_f1, k_admin) returning id into v_colab2;
 
   -- Estoque de partida: 30 do A e 12 do B na filial 1.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_itemA, v_f1, 'entrada', 30, current_date, k_admin),
-         (v_itemB, v_f1, 'entrada', 12, current_date, k_admin);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_itemA, v_f1, 'entrada', 30, current_date, k_admin),
+         (public.empresa_legada(), v_itemB, v_f1, 'entrada', 12, current_date, k_admin);
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF38A001', 'notebook', v_f1) returning id into v_ativo1;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF38A002', 'monitor', v_f1) returning id into v_ativo2;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF38A003', 'notebook', v_f1) returning id into v_ativo3;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF38A004', 'notebook', v_f1) returning id into v_ativo4;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF38A001', 'notebook', v_f1) returning id into v_ativo1;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF38A002', 'monitor', v_f1) returning id into v_ativo2;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF38A003', 'notebook', v_f1) returning id into v_ativo3;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF38A004', 'notebook', v_f1) returning id into v_ativo4;
 
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
@@ -254,8 +254,8 @@ begin
   end if;
 
   -- O lançamento AVULSO (carrinho da tela de itens) continua com o vínculo nulo.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_itemB, v_f1, 'entrada', 5, current_date, k_admin) returning id into v_lanc;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_itemB, v_f1, 'entrada', 5, current_date, k_admin) returning id into v_lanc;
   if (select movimentacao_id from public.lancamentos_item where id = v_lanc) is null then
     v_ok := v_ok + 1; raise notice '✓ 1d o lançamento avulso continua nascendo sem vínculo — e assim fica';
   else
@@ -421,9 +421,9 @@ begin
    where item_id = v_itemA and filial_id = v_f1;
 
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                          colaborador_id, criado_por)
-      values (v_itemA, v_f1, 'retorno', coalesce(v_pessoa, 0)::int + 1, current_date,
+      values (public.empresa_legada(), v_itemA, v_f1, 'retorno', coalesce(v_pessoa, 0)::int + 1, current_date,
               v_colab, k_admin);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5a_GUARDA_NAO_PEGOU; ';
     raise warning '✗ 5a retorno acima do saldo da pessoa (% + 1) foi ACEITO', v_pessoa;
@@ -434,9 +434,9 @@ begin
 
   -- E o retorno DENTRO do saldo dela passa (o par que prova que não fechou demais).
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                          colaborador_id, criado_por)
-      values (v_itemA, v_f1, 'retorno', 1, current_date, v_colab, k_admin);
+      values (public.empresa_legada(), v_itemA, v_f1, 'retorno', 1, current_date, v_colab, k_admin);
     v_ok := v_ok + 1; raise notice '✓ 5b retorno DENTRO do saldo da pessoa continua passando';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5b; ';
@@ -453,8 +453,8 @@ begin
    where item_id = v_itemA and filial_id = v_f1;
 
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-      values (v_itemA, v_f1, 'retorno', 1, current_date, k_admin);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+      values (public.empresa_legada(), v_itemA, v_f1, 'retorno', 1, current_date, k_admin);
     v_ok := v_ok + 1;
     raise notice '✓ 6a retorno SEM colaborador_id passa como sempre passou (entrega antiga funciona igual)';
   exception when others then
@@ -478,9 +478,9 @@ begin
   -- =========================================================================
   -- Uma devolução com item faltante, que abre a pendência pelo trigger 0051.
   -- ⚠ `created_at` explícito e distinto (pendência nº 5 da F37).
-  insert into public.movimentacoes (ativo_id, tipo, motivo, data, filial_id, colaborador,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, motivo, data, filial_id, colaborador,
                                     colaborador_id, itens_faltantes, criado_por, created_at)
-    values (v_ativo1, 'devolucao', 'desligamento', current_date, v_f1, 'Fulano ZZF38 Um',
+    values (public.empresa_legada(), v_ativo1, 'devolucao', 'desligamento', current_date, v_f1, 'Fulano ZZF38 Um',
             v_colab, array['zzf38tipo'], k_admin, now() + interval '1 second')
     returning id into v_mov_dev;
 
@@ -495,9 +495,9 @@ begin
   end if;
 
   -- Dá saldo à pessoa para o retorno da resolução poder carregar o vínculo.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                        colaborador_id, criado_por)
-    values (v_itemA, v_f1, 'saida', 1, current_date, v_colab, k_admin);
+    values (public.empresa_legada(), v_itemA, v_f1, 'saida', 1, current_date, v_colab, k_admin);
 
   select total, estoque into v_total0, v_est0
     from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_itemA;
@@ -620,13 +620,13 @@ begin
   -- =========================================================================
   -- 8 — `baixa`: pessoa −1, Total −1, estoque DE VOLTA ao que era
   -- =========================================================================
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                        colaborador_id, criado_por)
-    values (v_itemA, v_f1, 'saida', 1, current_date, v_colab2, k_admin);
+    values (public.empresa_legada(), v_itemA, v_f1, 'saida', 1, current_date, v_colab2, k_admin);
 
-  insert into public.movimentacoes (ativo_id, tipo, motivo, data, filial_id, colaborador,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, motivo, data, filial_id, colaborador,
                                     colaborador_id, itens_faltantes, criado_por, created_at)
-    values (v_ativo2, 'devolucao', 'desligamento', current_date, v_f1, 'Fulano ZZF38 Dois',
+    values (public.empresa_legada(), v_ativo2, 'devolucao', 'desligamento', current_date, v_f1, 'Fulano ZZF38 Dois',
             v_colab2, array['zzf38tipo'], k_admin, now() + interval '2 seconds')
     returning id into v_mov_dev;
   select id into v_pend from public.pendencias_item where movimentacao_id = v_mov_dev;
@@ -999,13 +999,13 @@ begin
   --
   -- Ativo NOVO, e `created_at` explícito na saída que precede a devolução: regra da
   -- pendência nº 5 da F37, a mesma que o cabeçalho deste arquivo cita.
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE F38 Item F41', 'acessorio', 9992) returning id into v_item_f41;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF38A016', 'notebook', v_f1) returning id into v_ativo4;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador,
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE F38 Item F41', 'acessorio', 9992) returning id into v_item_f41;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF38A016', 'notebook', v_f1) returning id into v_ativo4;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador,
                                     status_resultante, criado_por, created_at)
-  values (v_ativo4, 'saida', current_date - 4, v_f1, 'Fulano ZZF38 Um',
+  values (public.empresa_legada(), v_ativo4, 'saida', current_date - 4, v_f1, 'Fulano ZZF38 Um',
           'em_uso', k_admin, now() - interval '4 days');
 
   v_ret := public.criar_movimentacao_com_itens(

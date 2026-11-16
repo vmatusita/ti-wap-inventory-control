@@ -107,9 +107,12 @@ export default async function RelatorioFilialPage({
 
   // F16/T4 — o id numérico da filial (o filtro de /ativos é por id, não pelo slug)
   // para os KPI tiles clicáveis do operador. `geral` → null (sem filtro de filial).
+  // F67C: a empresa que resolve o slug — a da operação (F70: a da sessão; F68: a da senha, no visualizador). A mesma vai
+  // ao snapshot e ao filtro do tempo real.
+  const empresaDaOp = empresaDaOperacao()
   let filialId: number | null = null
   if (filialSlug !== 'geral') {
-    const f = await resolverFilialPorSlug(acesso.client, filialSlug)
+    const f = await resolverFilialPorSlug(acesso.client, filialSlug, empresaDaOp)
     if (!f) notFound()
     filialId = f.id
   }
@@ -137,6 +140,7 @@ export default async function RelatorioFilialPage({
       // F57 — o recorte de quem pede; o visualizador por senha não tem cargo (`null`).
       recorteDe(acesso.modo === 'operador' ? acesso.operador : null),
       filialSlug,
+      empresaDaOp,
       { de: periodo.de, ate: periodo.ate, rotulo: periodo.rotulo },
       ehOperador, // viewer → sem pendências no snapshot ao vivo
     ),

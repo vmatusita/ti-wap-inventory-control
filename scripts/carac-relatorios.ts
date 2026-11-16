@@ -18,6 +18,7 @@ import { hojeISO } from '@/lib/format'
 import { semanaUtilCorrente } from '@/lib/relatorios/periodo'
 import type { DbClient } from '@/lib/queries/relatorios'
 import { recorteDe } from '@/lib/auth/recorte-leitura'
+import { EMPRESA_LEGADA_ID } from '@/lib/auth/empresa-legada'
 
 type Combo = { filial: string; nome: string; de: string; ate: string }
 
@@ -72,7 +73,8 @@ async function capturarEstavel(outfile: string) {
     const chave = `${c.filial}|${c.nome}`
     // F57 — script de manutenção: service role e nenhuma sessão, então o recorte de hoje
     // (universal). Na virada, este é um dos pontos que passam a receber a empresa.
-    v2[chave] = await rel.getSnapshotRelatorioV2(client, recorteDe(null), c.filial, {
+    // F67C: o slug resolve numa empresa — a legada EXPLÍCITA (o script caracteriza os relatórios da WAP; destino F70).
+    v2[chave] = await rel.getSnapshotRelatorioV2(client, recorteDe(null), c.filial, EMPRESA_LEGADA_ID, {
       de: c.de,
       ate: c.ate,
       rotulo: c.nome,

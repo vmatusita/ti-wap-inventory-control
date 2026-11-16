@@ -65,11 +65,11 @@ begin
   -- =============================================================
 
   -- 1a — emprestimo de em_estoque -> emprestado (colaborador fixado no ativo)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19EMP01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19EMP01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19EMP01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'emprestimo', 'Fulano', 'TI', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'emprestimo', 'Fulano', 'TI', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'emprestado' and v_colab = 'Fulano' then
     v_ok := v_ok + 1; raise notice '✓ 1a emprestimo de em_estoque -> emprestado (colaborador setado)';
@@ -78,11 +78,11 @@ begin
   end if;
 
   -- 1b — reserva de em_estoque -> reservado
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19RES01', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19RES01', 'celular', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19RES01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'reserva', 'Ciclano', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'reserva', 'Ciclano', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'reservado' then
     v_ok := v_ok + 1; raise notice '✓ 1b reserva de em_estoque -> reservado';
@@ -93,17 +93,17 @@ begin
   -- 1c — retorno_manutencao de em_manutencao -> em_estoque
   --      (leva o ativo a em_manutencao antes via envio_manutencao; a check MN1/0045
   --       exige chamado_fornecedor no envio).
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19MAN01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19MAN01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19MAN01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (a, 'envio_manutencao', v_matriz, 'OS-FIC-01', v_prof);            -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, 'OS-FIC-01', v_prof);            -- em_manutencao
   select status into v_status from public.ativos where id = a;
   if v_status <> 'em_manutencao' then
     v_falhas := v_falhas + 1; raise warning '✗ 1c precondicao: envio_manutencao deveria levar a em_manutencao, obtido %', v_status;
   end if;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'retorno_manutencao', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'retorno_manutencao', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then
     v_ok := v_ok + 1; raise notice '✓ 1c retorno_manutencao de em_manutencao -> em_estoque';
@@ -112,11 +112,11 @@ begin
   end if;
 
   -- 1d — marcar_defasado de em_estoque -> defasado
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19DEF01', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19DEF01', 'monitor', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19DEF01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'marcar_defasado', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'marcar_defasado', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'defasado' then
     v_ok := v_ok + 1; raise notice '✓ 1d marcar_defasado de em_estoque -> defasado';
@@ -125,11 +125,11 @@ begin
   end if;
 
   -- 1e — descarte de em_estoque -> descartado (detentor nulo)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19DESC01', 'desktop', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19DESC01', 'desktop', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19DESC01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'descarte', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'descarte', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'descartado' and v_colab is null then
     v_ok := v_ok + 1; raise notice '✓ 1e descarte de em_estoque -> descartado (detentor nulo)';
@@ -144,12 +144,12 @@ begin
   -- =============================================================
 
   -- 2a — devolucao de em_estoque (so em_uso/emprestado devolvem)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19INV01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19INV01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19INV01';
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'devolucao', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'devolucao', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2a devolucao de em_estoque: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2a devolucao de em_estoque rejeitada: %', sqlerrm;
@@ -157,14 +157,14 @@ begin
   end;
 
   -- 2b — triagem_ok de em_uso (so em_triagem passa)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19INV02', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19INV02', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19INV02';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Beltrano', v_matriz, v_prof);                        -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Beltrano', v_matriz, v_prof);                        -- em_uso
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'triagem_ok', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'triagem_ok', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2b triagem_ok de em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2b triagem_ok de em_uso rejeitada: %', sqlerrm;
@@ -172,14 +172,14 @@ begin
   end;
 
   -- 2c — reserva de em_uso (so em_estoque reserva)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19INV03', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19INV03', 'celular', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19INV03';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Beltrano', v_matriz, v_prof);                        -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Beltrano', v_matriz, v_prof);                        -- em_uso
   begin
-    insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-      values (a, 'reserva', 'Fulano', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'reserva', 'Fulano', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2c reserva de em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2c reserva de em_uso rejeitada: %', sqlerrm;
@@ -188,14 +188,14 @@ begin
 
   -- 2d — transferencia de um ativo descartado (terminal de baixa nao se transfere;
   --      status_apos_movimentacao exclui descartado/devolvido_fornecedor)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19INV04', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19INV04', 'monitor', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19INV04';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'descarte', v_matriz, v_prof);                                 -- descartado
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'descarte', v_matriz, v_prof);                                 -- descartado
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
-      values (a, 'transferencia', v_matriz, v_lin, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, filial_destino_id, criado_por)
+      values (public.empresa_legada(), a, 'transferencia', v_matriz, v_lin, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2d transferencia de descartado: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2d transferencia de descartado rejeitada: %', sqlerrm;
@@ -207,13 +207,13 @@ begin
   --      estado. 2e.1 prova o auto-laço (positivo); 2e.2 prova a rejeicao (compra de
   --      em_uso).
   --   2e.1 — segunda compra enquanto em_estoque: ACEITA (permanece em_estoque)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19INV05', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19INV05', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19INV05';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_matriz, v_prof);                                   -- 1a compra
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_matriz, v_prof);                                   -- 2a compra (auto-laço)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);                                   -- 1a compra
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);                                   -- 2a compra (auto-laço)
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then
     v_ok := v_ok + 1; raise notice '✓ 2e.1 segunda compra de em_estoque e auto-laço ACEITO (permanece em_estoque)';
@@ -221,11 +221,11 @@ begin
     v_falhas := v_falhas + 1; raise warning '✗ 2e.1 segunda compra de em_estoque: esperado em_estoque, obtido %', v_status;
   end if;
   --   2e.2 — segunda compra sobre ativo em_uso: REJEITADA
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Beltrano', v_matriz, v_prof);                        -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Beltrano', v_matriz, v_prof);                        -- em_uso
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'compra', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2e.2 segunda compra sobre em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2e.2 segunda compra sobre em_uso rejeitada: %', sqlerrm;
@@ -239,19 +239,19 @@ begin
   --     precisa de ordem real. O guard `v_orig.tipo = 'estorno'` barra antes do
   --     guard da "ultima efetiva".
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19EST01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19EST01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19EST01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (a, 'saida', 'Beltrano', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00'); -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), a, 'saida', 'Beltrano', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00'); -- em_uso
   select id into v_saida from public.movimentacoes where ativo_id = a and tipo = 'saida' limit 1;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
-    values (a, 'estorno', v_matriz, v_prof, v_saida, timestamptz '2026-06-01 10:01:00+00');   -- desfaz a saida
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
+    values (public.empresa_legada(), a, 'estorno', v_matriz, v_prof, v_saida, timestamptz '2026-06-01 10:01:00+00');   -- desfaz a saida
   select id into v_est from public.movimentacoes
     where ativo_id = a and tipo = 'estorno' order by created_at desc limit 1;
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
-      values (a, 'estorno', v_matriz, v_prof, v_est, timestamptz '2026-06-01 10:02:00+00');   -- estorno do estorno
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
+      values (public.empresa_legada(), a, 'estorno', v_matriz, v_prof, v_est, timestamptz '2026-06-01 10:02:00+00');   -- estorno do estorno
     v_falhas := v_falhas + 1; raise warning '✗ 3 estorno-de-estorno: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%nao pode ser estornada%' or sqlerrm like '%estornada%' then
@@ -266,12 +266,12 @@ begin
   --     `new.status_resultante is null or new.observacao is null` e levanta
   --     'Ajuste exige status_resultante e observacao (justificativa)'.
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF19AJ01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF19AJ01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF19AJ01';
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
-      values (a, 'ajuste', v_matriz, 'em_manutencao', null, v_prof);          -- observacao NULL
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
+      values (public.empresa_legada(), a, 'ajuste', v_matriz, 'em_manutencao', null, v_prof);          -- observacao NULL
     v_falhas := v_falhas + 1; raise warning '✗ 4 ajuste sem observacao: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%observacao%' or sqlerrm like '%justificativa%' or sqlerrm like '%Ajuste exige%' then

@@ -175,6 +175,7 @@ export async function convidarUsuario(input: {
     // segura, e o aviso manda o admin ajustar em Editar.
     const r = await aplicarCargoEVinculos(supabase, convite.data.user.id, papel, filiais)
     await registrarEventoAdmin({
+      empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
       acao: 'convite_gerado',
       autor: aut.uid,
       alvo: email,
@@ -248,6 +249,7 @@ async function gerarLinkDeRecuperacao(
   const estado = await getEstadoUsuario(recovery.data.user.id).catch(() => null)
   const desativado = estado ? !estado.ativo : false
   await registrarEventoAdmin({
+    empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
     acao: 'convite_reenviado',
     autor: autorUid,
     alvo: email,
@@ -477,6 +479,7 @@ export async function editarUsuario(input: {
   const alvo = await alvoLegivel(estado)
   if (trocouPapel && r.papelGravado) {
     await registrarEventoAdmin({
+      empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
       acao: 'papel_alterado',
       autor: aut.uid,
       alvo,
@@ -485,6 +488,7 @@ export async function editarUsuario(input: {
   }
   if (r.vinculosGravados && trocouVinculos) {
     await registrarEventoAdmin({
+      empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
       acao: 'vinculos_alterados',
       autor: aut.uid,
       alvo,
@@ -560,6 +564,7 @@ export async function definirStatusUsuario(input: {
   const loginBloqueado = !ban.error
 
   await registrarEventoAdmin({
+    empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
     acao: ativo ? 'usuario_reativado' : 'usuario_desativado',
     autor: aut.uid,
     alvo: await alvoLegivel(estado),
@@ -611,7 +616,8 @@ export async function criarFilial(input: {
   const colisaoDeNome = mensagemColisaoNomeFilial(parsed.data.nome, null, donoDoNome)
   if (colisaoDeNome) return { ok: false, erro: colisaoDeNome }
 
-  const { error } = await client.from('filiais').insert(parsed.data)
+  // F67C: a filial nova nasce na empresa da OPERAÇÃO (a legada explícita) — não há pai de onde tirar. Destino F70: a da sessão.
+  const { error } = await client.from('filiais').insert({ ...parsed.data, empresa_id: empresaDaOperacao() })
   if (error) {
     if (casaConstraint(error.message, 'filiais_slug_key')) {
       return { ok: false, erro: 'Já existe uma filial com esse slug.' }
@@ -734,7 +740,8 @@ export async function criarMotivo(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const { error } = await client.from('motivos').insert(parsed.data)
+  // F67C: o motivo nasce na empresa da OPERAÇÃO (destino F70: a da sessão).
+  const { error } = await client.from('motivos').insert({ ...parsed.data, empresa_id: empresaDaOperacao() })
   if (error) {
     if (casa(error.message, FRASES_DO_MOTOR.duplicata)) {
       return { ok: false, erro: 'Já existe um motivo com esse código.' }
@@ -761,11 +768,17 @@ export async function atualizarMotivo(input: {
   }
   const { codigo, rotulo, aplica_a, ativo } = parsed.data
 
-  const { error } = await client
+  // F67C (leitor (b), PLAN-F67C §3): o `codigo` é único POR EMPRESA desde a F65 — sem o recorte, o UPDATE alcançaria o
+  // motivo de mesmo código de TODAS as empresas. Recorta pela empresa de quem escreve (destino F70: a da sessão) e CONTA
+  // as linhas: 0 = o motivo não existe nela (a RLS também filtra em silêncio).
+  const { data: alterados, error } = await client
     .from('motivos')
     .update({ rotulo, aplica_a, ativo })
+    .eq('empresa_id', empresaDaOperacao())
     .eq('codigo', codigo)
+    .select('id')
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+  if (!alterados || alterados.length === 0) return { ok: false, erro: 'Motivo não encontrado.' }
   revalidatePath('/admin/motivos')
   return { ok: true }
 }

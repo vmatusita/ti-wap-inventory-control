@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import {
@@ -61,9 +62,13 @@ export async function criarTipoItem(input: {
   // Homônimo DESATIVADO: reativa em vez de recusar. Mesmo beco sem saída que a F12
   // documentou em `criarItemInline` — o admin não vê o tipo na lista de ativos,
   // tenta criar, e levaria "já existe" para algo que a tela diz não existir.
+  // F67C (leitor (a), PLAN-F67C §3): o `slug` é único POR EMPRESA desde a F65 — o homônimo é o da empresa de quem cria (a
+  // da operação; destino F70: a da sessão), e o INSERT nasce nela.
+  const empresa = empresaDaOperacao()
   const { data: existente, error: erroBusca } = await supabase
     .from('tipos_item')
     .select('id, ativo')
+    .eq('empresa_id', empresa)
     .eq('slug', parsed.data.slug)
     .maybeSingle()
   if (erroBusca) {
@@ -101,7 +106,7 @@ export async function criarTipoItem(input: {
 
   const { data, error } = await supabase
     .from('tipos_item')
-    .insert({ slug: parsed.data.slug, rotulo: parsed.data.rotulo, ordem })
+    .insert({ slug: parsed.data.slug, rotulo: parsed.data.rotulo, ordem, empresa_id: empresa })
     .select('id')
     .single()
   if (error) return { ok: false, erro: erroDeTipo(error.message, error.code) }

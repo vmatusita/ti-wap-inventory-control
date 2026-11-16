@@ -208,9 +208,9 @@ begin
   perform pg_temp.plantar_cargo(k_consulta, 'consulta');
   perform pg_temp.plantar_status(k_desativado, false);
 
-  insert into public.filiais (slug, nome) values ('zzf55a', 'ZZF55 Filial Teste A') returning id into v_fa;
-  insert into public.filiais (slug, nome) values ('zzf55b', 'ZZF55 Filial Teste B') returning id into v_fb;
-  insert into public.filiais (slug, nome) values ('zzf55c', 'ZZF55 Filial Teste C') returning id into v_fc;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf55a', 'ZZF55 Filial Teste A') returning id into v_fa;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf55b', 'ZZF55 Filial Teste B') returning id into v_fb;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf55c', 'ZZF55 Filial Teste C') returning id into v_fc;
 
   -- ===========================================================================
   -- (A) — AS DOZE, UMA A UMA
@@ -234,10 +234,10 @@ begin
     -- explicitamente mais abaixo, porque não confiamos só nisso.
     drop index public.ativos_patrimonio_service_tag_uidx;
 
-    insert into public.ativos (patrimonio, categoria, filial_id, service_tag)
-      values ('ZZF55PD01', 'notebook', v_fa, 'ZZF55PDST') returning id into v_a1;
-    insert into public.ativos (patrimonio, categoria, filial_id, service_tag)
-      values ('ZZF55PD01', 'notebook', v_fa, 'ZZF55PDST') returning id into v_a2;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, service_tag)
+      values (public.empresa_legada(), 'ZZF55PD01', 'notebook', v_fa, 'ZZF55PDST') returning id into v_a1;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, service_tag)
+      values (public.empresa_legada(), 'ZZF55PD01', 'notebook', v_fa, 'ZZF55PDST') returning id into v_a2;
 
     select total into v_depois from public.checagens_integridade_nucleo()
      where chave = 'patrimonio_duplicado';
@@ -283,7 +283,7 @@ begin
     select total into v_antes from public.checagens_integridade_nucleo()
      where chave = 'ativo_filial_inativa';
 
-    insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF55FI01', 'notebook', v_fc);
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF55FI01', 'notebook', v_fc);
     update public.filiais set ativo = false where id = v_fc;
 
     select total into v_depois from public.checagens_integridade_nucleo()
@@ -325,8 +325,8 @@ begin
     -- recusa id que não existe NA EMPRESA DO TERMO (23503). A checagem aqui é a do ARQUIVO
     -- que falta no bucket, e os arrays vazios (o termo "degenerado", que o sistema
     -- conhece) bastam para prová-la, sem movimentação nem ativo reais.
-    insert into public.termos_gerados (tipo, movimentacao_ids, ativo_ids, dados, arquivo_path, gerado_por)
-      values ('responsabilidade_notebook', '{}'::uuid[], '{}'::uuid[],
+    insert into public.termos_gerados (empresa_id, tipo, movimentacao_ids, ativo_ids, dados, arquivo_path, gerado_por)
+      values (public.empresa_legada(), 'responsabilidade_notebook', '{}'::uuid[], '{}'::uuid[],
               '{}'::jsonb, 'zzf55/termo-orfao.docx', k_autor)
       returning id into v_termo;
 
@@ -451,19 +451,19 @@ begin
     select total into v_antes from public.checagens_integridade_nucleo()
      where chave = 'pendencia_de_estornada';
 
-    insert into public.ativos (patrimonio, categoria, filial_id)
-      values ('ZZF55PE01', 'notebook', v_fa) returning id into v_a6;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+      values (public.empresa_legada(), 'ZZF55PE01', 'notebook', v_fa) returning id into v_a6;
 
     -- `created_at` EXPLÍCITO e DISTINTO nas três — regra da pendência nº 5 da F37
     -- (duas movimentações do MESMO ativo na MESMA transação): sem isto o desempate
     -- do estorno vira sorteio de uuid.
-    insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
-      values (v_a6, 'saida', 'Fulano ZZF55', 'TI', v_fa, k_autor, now() - interval '3 minutes');
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-      values (v_a6, 'devolucao', v_fa, k_autor, now() - interval '2 minutes')
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
+      values (public.empresa_legada(), v_a6, 'saida', 'Fulano ZZF55', 'TI', v_fa, k_autor, now() - interval '3 minutes');
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+      values (public.empresa_legada(), v_a6, 'devolucao', v_fa, k_autor, now() - interval '2 minutes')
       returning id into v_mov_dev;
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, estorno_de, criado_por, created_at)
-      values (v_a6, 'estorno', v_fa, v_mov_dev, k_autor, now() - interval '1 minute');
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, estorno_de, criado_por, created_at)
+      values (public.empresa_legada(), v_a6, 'estorno', v_fa, v_mov_dev, k_autor, now() - interval '1 minute');
 
     -- O "estorno-strip" de `aplicar_movimentacao` (`delete from pendencias_item
     -- where movimentacao_id = v_orig.id`) já rodou dentro do INSERT acima — mas não
@@ -471,8 +471,8 @@ begin
     -- O estado impossível só existe se alguém inserir a pendência DEPOIS que o
     -- estorno já correu, por fora do fluxo normal — nenhuma tela faz isto; é
     -- exatamente o que plantamos aqui, à mão.
-    insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, status)
-      values (v_a6, v_mov_dev, 'ZZF55 Item Fantasma', v_fa, 'aberta')
+    insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, status)
+      values (public.empresa_legada(), v_a6, v_mov_dev, 'ZZF55 Item Fantasma', v_fa, 'aberta')
       returning id into v_pend;
 
     select total into v_depois from public.checagens_integridade_nucleo()
@@ -592,10 +592,10 @@ begin
 
     -- Mesmo patrimônio, filiais DIFERENTES: o índice por-filial da 0091 PERMITE
     -- isto de propósito — é o caminho feliz do recurso desde a F24. Nada a desligar.
-    insert into public.ativos (patrimonio, categoria, filial_id)
-      values ('ZZF55CF01', 'notebook', v_fa) returning id into v_a9a;
-    insert into public.ativos (patrimonio, categoria, filial_id)
-      values ('ZZF55CF01', 'notebook', v_fb) returning id into v_a9b;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+      values (public.empresa_legada(), 'ZZF55CF01', 'notebook', v_fa) returning id into v_a9a;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+      values (public.empresa_legada(), 'ZZF55CF01', 'notebook', v_fb) returning id into v_a9b;
 
     select total into v_depois from public.checagens_integridade_nucleo()
      where chave = 'conflito_entre_filiais';
@@ -632,8 +632,8 @@ begin
     select total into v_antes from public.checagens_integridade_nucleo()
      where chave = 'detentor_em_estado_sem_dono';
 
-    insert into public.ativos (patrimonio, categoria, filial_id)
-      values ('ZZF55DE01', 'notebook', v_fa) returning id into v_a10;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+      values (public.empresa_legada(), 'ZZF55DE01', 'notebook', v_fa) returning id into v_a10;
     -- status default = em_estoque (sem dono). UPDATE em `ativos` é operação normal
     -- — `guarda_acervo` (0081) só recusa DELETE nesta tabela, nunca UPDATE.
     update public.ativos set colaborador_atual = 'Fulano ZZF55 Sujo' where id = v_a10;
@@ -672,15 +672,15 @@ begin
     select total into v_antes from public.checagens_integridade_nucleo()
      where chave = 'reserva_aberta';
 
-    insert into public.itens (nome, grupo, ordem)
-      values ('TESTE F55 Item Reserva', 'acessorio', 9990) returning id into v_item55;
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-      values (v_item55, v_fa, 'entrada', 5, current_date, k_autor);
+    insert into public.itens (empresa_id, nome, grupo, ordem)
+      values (public.empresa_legada(), 'TESTE F55 Item Reserva', 'acessorio', 9990) returning id into v_item55;
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+      values (public.empresa_legada(), v_item55, v_fa, 'entrada', 5, current_date, k_autor);
     -- Basta ter saldo (`entrada` antes) para `valida_lancamento_item` aceitar a
     -- reserva — a regra do banco não impede reserva aberta, só saldo negativo.
     -- Nada a desligar.
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
-      values (v_item55, v_fa, 'reserva', 2, 'ZZF55-CH01', current_date, k_autor);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
+      values (public.empresa_legada(), v_item55, v_fa, 'reserva', 2, 'ZZF55-CH01', current_date, k_autor);
 
     select total into v_depois from public.checagens_integridade_nucleo()
      where chave = 'reserva_aberta';
@@ -692,8 +692,8 @@ begin
       v_falhas := v_falhas + 1;
     end if;
 
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
-      values (v_item55, v_fa, 'liberacao', 2, 'ZZF55-CH01', current_date, k_autor);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
+      values (public.empresa_legada(), v_item55, v_fa, 'liberacao', 2, 'ZZF55-CH01', current_date, k_autor);
     select total into v_depois2 from public.checagens_integridade_nucleo()
      where chave = 'reserva_aberta';
     if pg_temp.assert_zero_de(
@@ -762,8 +762,8 @@ begin
      where chave = 'kit_motivo_orfao';
 
     alter table public.kits_modelos disable trigger kits_modelos_motivo_da_empresa;
-    insert into public.kits_modelos (nome, payload, criado_por)
-      values ('TESTE F64 Kit Órfão', '{"tipo": "saida", "motivo": "zzf64-inexistente", "categorias": ["notebook"]}', k_autor)
+    insert into public.kits_modelos (empresa_id, nome, payload, criado_por)
+      values (public.empresa_legada(), 'TESTE F64 Kit Órfão', '{"tipo": "saida", "motivo": "zzf64-inexistente", "categorias": ["notebook"]}', k_autor)
       returning id into v_kit64;
     alter table public.kits_modelos enable trigger kits_modelos_motivo_da_empresa;
 

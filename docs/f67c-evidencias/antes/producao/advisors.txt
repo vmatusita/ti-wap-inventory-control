@@ -1,0 +1,20 @@
+SECURITY (producao pbtjcalbmepmrqzprusb) 16/11/2026 (observed_at 20:03Z), antes de qualquer apply da F67C
+INFO  rls_enabled_no_policy = 6 (ambiente, backups_migration, empresas, plataforma_admins, senha_tentativas, senhas_acesso)
+WARN  authenticated_security_definer_function_executable = 39:
+      apagar_ativo, apagar_ativos_conflito_filiais, apagar_item, apagar_movimentacao, apagar_usuario,
+      checagens_integridade_resumo, definir_papel_usuario, definir_status_usuario, definir_vinculos_usuario,
+      dev_checagens_integridade, e_admin, e_admin_na, e_dev_na, e_plataforma, empresas_de_admin, empresas_de_escrita,
+      empresas_do_membro, encerrar_sessoes_usuario, estorno_item_coerente, forcar_estado_ativo, forcar_saldo_item,
+      importar_ativos_substituir, ledger_de_migracoes, papel_atual, papel_na_empresa, pode_escrever,
+      pode_escrever_arquivo_termo, pode_escrever_filial, pode_escrever_na, pode_escrever_termo, pode_escrever_unidade,
+      pode_ler_arquivo_termo, previa_reset, registrar_limpeza_termos_sem_linha, resetar_acervo, resetar_itens,
+      termo_ancora_coerente, ultima_migracao_aplicada, unidades_de_escrita)
+      (39 = as 38 do "antes" da F67B + registrar_limpeza_termos_sem_linha, que a 0196 criou)
+WARN  auth_leaked_password_protection = 1
+ERROR: 0
+PERFORMANCE (producao)
+INFO  unindexed_foreign_keys = 39
+INFO  no_primary_key = 1 (_bkp_relatorios_gerados_f6a)
+INFO  unused_index = 7
+WARN  multiple_permissive_policies = 1 (pendencias_item UPDATE authenticated)
+ERROR: 0

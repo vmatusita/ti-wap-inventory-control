@@ -75,27 +75,27 @@ begin
   perform pg_temp.plantar_cargo(k_oper, 'operador');
   insert into public.operador_filiais (usuario_id, filial_id) values (k_oper, v_f1);
 
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE CE Item', 'acessorio', 9993) returning id into v_item;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_f1, 'entrada', 10, current_date, k_admin);
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE CE Item', 'acessorio', 9993) returning id into v_item;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'entrada', 10, current_date, k_admin);
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZCE00001', 'notebook', v_f1) returning id into v_a1;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZCE00002', 'notebook', v_f1) returning id into v_a2;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZCE00001', 'notebook', v_f1) returning id into v_a1;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZCE00002', 'notebook', v_f1) returning id into v_a2;
 
   -- =========================================================================
   -- OS TRÊS CLIQUES EM "Cadastrar" — com a sessão do operador, sob a RLS
   -- =========================================================================
   perform set_config('request.jwt.claims', json_build_object('sub', k_oper, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano ZZCE Sem Item', v_f1, k_oper) returning id into v_pa;
-  insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano ZZCE Com Item', v_f1, k_oper) returning id into v_pb;
-  insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano ZZCE Abandonado', v_f1, k_oper) returning id into v_pc;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZCE Sem Item', v_f1, k_oper) returning id into v_pa;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZCE Com Item', v_f1, k_oper) returning id into v_pb;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZCE Abandonado', v_f1, k_oper) returning id into v_pc;
   reset role;
 
   -- =========================================================================

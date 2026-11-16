@@ -22,7 +22,15 @@ export type EventoAdmin = {
   /** Sobre quem/o quê, legível: e-mail do convidado, rótulo da senha, slug da filial. */
   alvo?: string | null
   detalhe?: Json | null
+  /**
+   * A EMPRESA ALVO do evento (F67C, decisão 20 — `eventos_admin.empresa_id` perde o default). Obrigatória: quem chama a
+   * resolve na action, com o client de SESSÃO (`empresaDaFilial`, ou `empresaDaOperacao()` quando o evento não tem
+   * filial) — o registrador usa o client administrativo, e `empresa_da_filial` é revogada de `service_role`.
+   */
+  empresa: string
 }
+
+class FalhaDaTrilhaSemEmpresa extends Error {}
 
 export async function registrarEventoAdmin(evento: EventoAdmin): Promise<void> {
   try {
@@ -32,8 +40,14 @@ export async function registrarEventoAdmin(evento: EventoAdmin): Promise<void> {
       autor: evento.autor,
       alvo: evento.alvo ?? null,
       detalhe: evento.detalhe ?? null,
+      empresa_id: evento.empresa,
     })
-    if (error) throw new Error(error.message)
+    if (error) {
+      // F67C — o 23502 em `empresa_id` vira causa NOMEADA no log. Só `code` e `message`: o `details` do Postgres traz os
+      // VALORES da linha e nunca vai ao log.
+      if (error.code === '23502') throw new FalhaDaTrilhaSemEmpresa(error.message)
+      throw new Error(error.message)
+    }
   } catch (err) {
     // NÃO propaga. Decisão consciente: a ação administrativa já aconteceu (o convite foi
     // gerado, o cargo foi trocado) — estourar aqui faria a tela dizer "falhou" sobre algo
@@ -47,6 +61,9 @@ export async function registrarEventoAdmin(evento: EventoAdmin): Promise<void> {
       escopo: 'auditoria.registro-evento',
       erro: err,
       ctx: {
+        ...(err instanceof FalhaDaTrilhaSemEmpresa
+          ? { causa: 'a trilha ficou sem a empresa (23502 na coluna da empresa de eventos_admin)' }
+          : {}),
         acao: evento.acao,
         autor: evento.autor,
         // `alvo` é o e-mail do convidado (ver o tipo `EventoAdmin` acima) e fica aqui de

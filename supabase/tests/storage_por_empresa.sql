@@ -468,7 +468,9 @@ begin
   -- =========================================================================
   -- O — a ferramenta de órfão: só a plataforma, confirmação digitada, a trilha antes da cópia
   -- =========================================================================
-  if to_regprocedure('public.registrar_limpeza_termos_sem_linha(text,text,text)') is null then
+  -- F67C (decisão 3): a assinatura nova, com a empresa da OPERAÇÃO carimbada na trilha (p_empresa 1º); a antiga
+  -- (text, text, text) saiu na 0206.
+  if to_regprocedure('public.registrar_limpeza_termos_sem_linha(uuid,text,text,text)') is null then
     if pg_temp.assert_zero_de('O1 a ferramenta de órfão é só da plataforma (o admin e o operador são recusados)', 1, 1)
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
     if pg_temp.assert_zero_de('O2 a ferramenta recusa confirmação errada, raiz fora da forma e justificativa curta', 1, 1)
@@ -483,18 +485,18 @@ begin
                     and not exists (select 1 from public.termos_gerados t where t.arquivo_path = o.name) order by o.name);
     v_lista := format('LIMPAR %s ARQUIVOS DE TERMO', cardinality(v_esp));
     v_n := 0;
-    for v_r in select pg_temp.f67b_como(u, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L)',
+    for v_r in select pg_temp.f67b_como(u, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L, %L)', v_emp_a,
                                                   'orfao/' || v_c3, v_lista, 'justificativa fictícia da F67B'))
                  from unnest(array[k_admin_a, k_oper_a, k_admin_b]) as u loop
       if v_r <> 'recusa:42501' then v_n := v_n + 1; end if;
     end loop;
     if pg_temp.assert_zero_de('O1 a ferramenta de órfão é só da plataforma (o admin e o operador são recusados)', v_n, 3)
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
-    v_n := (case when pg_temp.f67b_como(k_plat, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L)',
+    v_n := (case when pg_temp.f67b_como(k_plat, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L, %L)', v_emp_a,
                  'orfao/' || v_c3, 'LIMPAR 999 ARQUIVOS DE TERMO', 'justificativa fictícia da F67B')) like 'recusa:%' then 0 else 1 end)
-         + (case when pg_temp.f67b_como(k_plat, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L)',
+         + (case when pg_temp.f67b_como(k_plat, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L, %L)', v_emp_a,
                  'orfao/../termos', v_lista, 'justificativa fictícia da F67B')) like 'recusa:%' then 0 else 1 end)
-         + (case when pg_temp.f67b_como(k_plat, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L)',
+         + (case when pg_temp.f67b_como(k_plat, format('select public.registrar_limpeza_termos_sem_linha(%L, %L, %L, %L)', v_emp_a,
                  'orfao/' || v_c3, v_lista, 'curta')) like 'recusa:%' then 0 else 1 end);
     if pg_temp.assert_zero_de('O2 a ferramenta recusa confirmação errada, raiz fora da forma e justificativa curta', v_n, 3)
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
@@ -502,14 +504,15 @@ begin
     perform set_config('request.jwt.claims', json_build_object('sub', k_plat, 'role', 'authenticated')::text, true);
     -- a recusa (a contagem da RPC diferente da esperada, por exemplo) vira asserção vermelha, nunca roteiro abortado
     begin
-      execute 'select public.registrar_limpeza_termos_sem_linha($1, $2, $3)' into v_arr
-        using 'orfao/' || v_c3, v_lista, 'justificativa fictícia da F67B';
+      execute 'select public.registrar_limpeza_termos_sem_linha($1, $2, $3, $4)' into v_arr
+        using v_emp_a, 'orfao/' || v_c3, v_lista, 'justificativa fictícia da F67B';
     exception when others then
       v_arr := null;
     end;
     perform set_config('request.jwt.claims', '', true);
     select count(*) into v_n from public.eventos_admin e
-     where e.acao = 'termos_sem_linha_limpos' and e.detalhe->>'raiz' = 'orfao/' || v_c3 and e.autor = k_plat;
+     where e.acao = 'termos_sem_linha_limpos' and e.detalhe->>'raiz' = 'orfao/' || v_c3 and e.autor = k_plat
+       and e.empresa_id = v_emp_a;  -- F67C: a trilha nasce com a empresa da operação
     if pg_temp.assert_zero_de('O3 a plataforma recebe a lista EXATA dos .docx sem linha, e a trilha nasce com a raiz',
          (case when coalesce(v_arr, '{}') = v_esp and cardinality(v_esp) >= 1 then 0 else 1 end) + (case when v_n = 1 then 0 else 1 end), 2)
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;

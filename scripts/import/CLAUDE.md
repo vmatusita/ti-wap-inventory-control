@@ -10,6 +10,9 @@ Isto é DIFERENTE do import de startup por filial em `admin/importar` (F7, tela 
 2 na raiz) — dois caminhos para dado real, com guardas separadas porque um é ferramenta de CLI
 de uso único e o outro é feature permanente da UI, usada por admin/dev filial a filial.
 
+**A empresa (F67C, o fim do default):** todo INSERT da carga diz a empresa — a das filiais oficiais da carga, lida em
+`buscarFiliais` DEPOIS das guardas (as filiais têm de ser de UMA empresa só, senão a carga recusa). `guard.ts` não muda.
+
 `carga.ts`/`plano.ts`/`normalizar.ts` formam o motor puro e testável; `parse.ts` lê o CSV
 (PapaParse, mesma lib do export F3). CSVs de teste são 100% fictícios (`WAP0001234`/"Fulano");
 CSVs reais nunca entram no repositório.

@@ -1,0 +1,386 @@
+### 1. escrita-com-empresa.test.ts (antes da correção de scripts/**)
+
+ RUN  v4.1.11 .
+
+ ❯ |puro| src/lib/validators/escrita-com-empresa.test.ts (48 tests | 3 failed) 121ms
+     × todo INSERT numa das 20, no corpo vigente de função, tem lista de colunas com empresa_id 16ms
+     × toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no 1º argumento (ou na declaração do identificador) 2ms
+     × todo `insert into <das 20>` em texto de script tem empresa_id na lista de colunas 72ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — SQL no disco (decisão 7) > todo INSERT numa das 20, no corpo vigente de função, tem lista de colunas com empresa_id
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "registrar_limpeza_termos_sem_linha(text,text,text) (vigente em 0196_backup_orfao_duas_formas.sql): insert into eventos_admin sem empresa_id",
++ ]
+
+ ❯ src/lib/validators/escrita-com-empresa.test.ts:130:24
+    128|       return ruins.map((x) => `${v.nome}(${v.tipos.join(',')}) (vigent…
+    129|     })
+    130|     expect(violadores).toEqual([])
+       |                        ^
+    131|   })
+    132|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — TS e scripts (decisão 5) > toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no 1º argumento (ou na declaração do identificador)
+AssertionError: expected [ …(33) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/lib/actions/admin.ts:614 (filiais, insert)",
++   "src/lib/actions/admin.ts:737 (motivos, insert)",
++   "src/lib/actions/ativos.ts:133 (anotacoes, insert)",
++   "src/lib/actions/colaboradores.ts:166 (colaboradores, insert)",
++   "src/lib/actions/colaboradores.ts:197 (colaboradores, insert)",
++   "src/lib/actions/colaboradores.ts:305 (colaboradores, upsert)",
++   "src/lib/actions/itens.ts:448 (lancamentos_item, insert)",
++   "src/lib/actions/itens.ts:571 (itens, insert)",
++   "src/lib/actions/itens.ts:710 (itens, insert)",
++   "src/lib/actions/kits.ts:69 (kits_modelos, insert)",
++   "src/lib/actions/pendencias.ts:442 (anotacoes, insert)",
++   "src/lib/actions/relatorios.ts:150 (relatorios_gerados, insert)",
++   "src/lib/actions/senhas.ts:170 (senhas_acesso, insert)",
++   "src/lib/actions/tipos-item.ts:103 (tipos_item, insert)",
++   "src/lib/actions/unidades-apelidos.ts:62 (unidades_apelidos, insert)",
++   "src/lib/auditoria-registro.ts:30 (eventos_admin, insert)",
++   "src/lib/termos/persistir.ts:121 (termos_gerados, insert)",
++   "scripts/import/carga.ts:314 (ativos, insert)",
++   "scripts/import/carga.ts:362 (movimentacoes, insert)",
++   "scripts/import/carga.ts:468 (itens, insert)",
++   "scripts/import/carga.ts:520 (lancamentos_item, insert)",
++   "scripts/manutencao/gerar-errata-truncamento.ts:229 (relatorios_gerados, insert)",
++   "scripts/seed.ts:704 (ativos, insert)",
++   "scripts/seed.ts:757 (movimentacoes, insert)",
++   "scripts/seed.ts:804 (ativos, insert)",
++   "scripts/seed.ts:809 (movimentacoes, insert)",
++   "scripts/seed.ts:885 (colaboradores, upsert)",
++   "scripts/seed.ts:920 (itens, insert)",
++   "scripts/seed.ts:1047 (lancamentos_item, insert)",
++   "scripts/seed.ts:1093 (anotacoes, insert)",
++   "scripts/seed.ts:1525 (eventos_admin, insert)",
++   "scripts/smoke/fixtures-passe2.ts:82 (itens, insert)",
++   "scripts/smoke/persona.ts:80 (eventos_admin, insert)",
++ ]
+
+ ❯ src/lib/validators/escrita-com-empresa.test.ts:335:57
+    333|
+    334|   it('toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no …
+    335|     expect(escritas.filter((e) => !e.ok).map(descreve)).toEqual([])
+       |                                                         ^
+    336|   })
+    337|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — SQL em texto dentro de scripts/** (decisão 5) > todo `insert into <das 20>` em texto de script tem empresa_id na lista de colunas
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "scripts/perf/medir-itens.mjs:277 (itens, sem empresa_id)",
++   "scripts/perf/medir-itens.mjs:328 (lancamentos_item, sem empresa_id)",
++   "scripts/perf/medir-itens.mjs:572 (lancamentos_item, sem empresa_id)",
++ ]
+
+ ❯ src/lib/validators/escrita-com-empresa.test.ts:436:24
+    434|   it('todo `insert into <das 20>` em texto de script tem empresa_id na…
+    435|     const violadores = fontes.flatMap(({ a, f }) => insertsEmTexto(f, …
+    436|     expect(violadores).toEqual([])
+       |                        ^
+    437|   })
+    438|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 45 passed (48)
+   Start at  17:39:23
+   Duration  1.31s (transform 120ms, setup 0ms, import 889ms, tests 121ms, environment 0ms)
+
+
+### 2. restaurar-guarda.test.mts com os testes novos, restaurar.mjs ainda no estado anterior
+
+ RUN  v4.1.11 .
+
+ ❯ |puro| scripts/db/restaurar-guarda.test.mts (59 tests | 13 failed) 47ms
+     × a expressão exata do subselect (o roteiro SQL espelha este texto) 6ms
+     × backup SEM a chave (REESCRITO): a coluna ENTRA e vale a empresa da FILIAL da linha no destino — nunca o default 1ms
+     × ativos (tem filial_id): o subselect exato da filial 5ms
+     × movimentacoes (tem filial_id): o subselect exato da filial 2ms
+     × pendencias_item (tem filial_id): o subselect exato da filial 1ms
+     × lancamentos_item (tem filial_id): o subselect exato da filial 1ms
+     × anotacoes (só ativo_id): a empresa do ATIVO — que entra antes na ordem 1ms
+     × termos_gerados: a do 1º ativo de `ativo_ids` 2ms
+     × termos_gerados SEM ativo: a da 1ª movimentação de `movimentacao_ids` 2ms
+     × lote MISTO (REESCRITO): nenhuma linha vai com null — a antiga recebe a da filial, a nova mantém a dela 1ms
+     × `empresa_id: null` na linha conta como ausente (resolve pela filial) 0ms
+     × SEM pai de onde tirar a empresa: RECUSA com frase clara, nada é montado 1ms
+     × a conferência conta quantas linhas receberam a empresa pela filial/pai e quantas trouxeram a chave 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > a expressão exata do subselect (o roteiro SQL espelha este texto)
+AssertionError: expected undefined to be '(select f.empresa_id from public.fili…' // Object.is equality
+
+- Expected:
+"(select f.empresa_id from public.filiais f where f.id = {filial_id})"
+
++ Received:
+undefined
+
+ ❯ scripts/db/restaurar-guarda.test.mts:523:37
+    521|
+    522|   it('a expressão exata do subselect (o roteiro SQL espelha este texto…
+    523|     expect(EMPRESA_PELA_FILIAL_SQL).toBe('(select f.empresa_id from pu…
+       |                                     ^
+    524|     expect(EMPRESA_PELO_ATIVO_SQL).toBe('(select a.empresa_id from pub…
+    525|     expect(EMPRESA_PELA_MOVIMENTACAO_SQL).toBe(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > backup SEM a chave (REESCRITO): a coluna ENTRA e vale a empresa da FILIAL da linha no destino — nunca o default
+AssertionError: expected 'insert into public.ativos (id, patrim…' to match /^insert into public\.ativos \(id, pat…/
+
+- Expected:
+/^insert into public\.ativos \(id, patrimonio, filial_id, empresa_id\)/
+
++ Received:
+"insert into public.ativos (id, patrimonio, filial_id)
+values
+  ('63000000-0000-4000-8000-0000000008a1', 'WAP0063801', '63000000-0000-4000-8000-0000000000f1');"
+
+ ❯ scripts/db/restaurar-guarda.test.mts:532:17
+    530|   it('backup SEM a chave (REESCRITO): a coluna ENTRA e vale a empresa …
+    531|     const sql = sqlDeInsercao('ativos', [antes])!
+    532|     expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio,…
+       |                 ^
+    533|     expect(sql).toContain(pelaFilial(F))
+    534|     expect(sql).not.toContain('empresa_legada')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > ativos (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.ativos (id, filial…' to contain '(select f.empresa_id from public.fili…'
+
+- Expected
++ Received
+
+- (select f.empresa_id from public.filiais f where f.id = '63000000-0000-4000-8000-0000000000f1')
++ insert into public.ativos (id, filial_id)
++ values
++   ('x', '63000000-0000-4000-8000-0000000000f1');
+
+ ❯ scripts/db/restaurar-guarda.test.mts:541:19
+    539|     (tabela) => {
+    540|       const sql = sqlDeInsercao(tabela, [{ id: 'x', filial_id: F }])!
+    541|       expect(sql).toContain(`(select f.empresa_id from public.filiais …
+       |                   ^
+    542|     },
+    543|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > movimentacoes (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.movimentacoes (id,…' to contain '(select f.empresa_id from public.fili…'
+
+- Expected
++ Received
+
+- (select f.empresa_id from public.filiais f where f.id = '63000000-0000-4000-8000-0000000000f1')
++ insert into public.movimentacoes (id, filial_id) overriding system value
++ values
++   ('x', '63000000-0000-4000-8000-0000000000f1');
+
+ ❯ scripts/db/restaurar-guarda.test.mts:541:19
+    539|     (tabela) => {
+    540|       const sql = sqlDeInsercao(tabela, [{ id: 'x', filial_id: F }])!
+    541|       expect(sql).toContain(`(select f.empresa_id from public.filiais …
+       |                   ^
+    542|     },
+    543|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > pendencias_item (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.pendencias_item (i…' to contain '(select f.empresa_id from public.fili…'
+
+- Expected
++ Received
+
+- (select f.empresa_id from public.filiais f where f.id = '63000000-0000-4000-8000-0000000000f1')
++ insert into public.pendencias_item (id, filial_id)
++ values
++   ('x', '63000000-0000-4000-8000-0000000000f1');
+
+ ❯ scripts/db/restaurar-guarda.test.mts:541:19
+    539|     (tabela) => {
+    540|       const sql = sqlDeInsercao(tabela, [{ id: 'x', filial_id: F }])!
+    541|       expect(sql).toContain(`(select f.empresa_id from public.filiais …
+       |                   ^
+    542|     },
+    543|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > lancamentos_item (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.lancamentos_item (…' to contain '(select f.empresa_id from public.fili…'
+
+- Expected
++ Received
+
+- (select f.empresa_id from public.filiais f where f.id = '63000000-0000-4000-8000-0000000000f1')
++ insert into public.lancamentos_item (id, filial_id)
++ values
++   ('x', '63000000-0000-4000-8000-0000000000f1');
+
+ ❯ scripts/db/restaurar-guarda.test.mts:541:19
+    539|     (tabela) => {
+    540|       const sql = sqlDeInsercao(tabela, [{ id: 'x', filial_id: F }])!
+    541|       expect(sql).toContain(`(select f.empresa_id from public.filiais …
+       |                   ^
+    542|     },
+    543|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > anotacoes (só ativo_id): a empresa do ATIVO — que entra antes na ordem
+AssertionError: expected 'insert into public.anotacoes (id, ati…' to contain '(select a.empresa_id from public.ativ…'
+
+- Expected
++ Received
+
+- (select a.empresa_id from public.ativos a where a.id = '63000000-0000-4000-8000-0000000000a1')
++ insert into public.anotacoes (id, ativo_id)
++ values
++   ('n', '63000000-0000-4000-8000-0000000000a1');
+
+ ❯ scripts/db/restaurar-guarda.test.mts:547:17
+    545|   it('anotacoes (só ativo_id): a empresa do ATIVO — que entra antes na…
+    546|     const sql = sqlDeInsercao('anotacoes', [{ id: 'n', ativo_id: A }])!
+    547|     expect(sql).toContain(`(select a.empresa_id from public.ativos a w…
+       |                 ^
+    548|     expect(ORDEM_DE_INSERCAO.indexOf('ativos')).toBeLessThan(ORDEM_DE_…
+    549|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > termos_gerados: a do 1º ativo de `ativo_ids`
+AssertionError: expected 'insert into public.termos_gerados (id…' to contain '(select a.empresa_id from public.ativ…'
+
+- Expected
++ Received
+
+- (select a.empresa_id from public.ativos a where a.id = '63000000-0000-4000-8000-0000000000a1')
++ insert into public.termos_gerados (id, ativo_ids, movimentacao_ids)
++ values
++   ('t', array['63000000-0000-4000-8000-0000000000a1','outro'], array['63000000-0000-4000-8000-0000000000b1']);
+
+ ❯ scripts/db/restaurar-guarda.test.mts:553:17
+    551|   it('termos_gerados: a do 1º ativo de `ativo_ids`', () => {
+    552|     const sql = sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids:…
+    553|     expect(sql).toContain(`(select a.empresa_id from public.ativos a w…
+       |                 ^
+    554|     expect(sql).not.toContain('public.movimentacoes m')
+    555|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > termos_gerados SEM ativo: a da 1ª movimentação de `movimentacao_ids`
+AssertionError: expected 'insert into public.termos_gerados (id…' to contain '(select m.empresa_id from public.movi…'
+
+- Expected
++ Received
+
+- (select m.empresa_id from public.movimentacoes m where m.id = '63000000-0000-4000-8000-0000000000b1')
++ insert into public.termos_gerados (id, ativo_ids, movimentacao_ids)
++ values
++   ('t', '{}', array['63000000-0000-4000-8000-0000000000b1','outra']);
+
+ ❯ scripts/db/restaurar-guarda.test.mts:559:17
+    557|   it('termos_gerados SEM ativo: a da 1ª movimentação de `movimentacao_…
+    558|     const sql = sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids:…
+    559|     expect(sql).toContain(`(select m.empresa_id from public.movimentac…
+       |                 ^
+    560|   })
+    561|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > lote MISTO (REESCRITO): nenhuma linha vai com null — a antiga recebe a da filial, a nova mantém a dela
+TypeError: Cannot read properties of undefined (reading 'replace')
+ ❯ pelaFilial scripts/db/restaurar-guarda.test.mts:518:62
+    516|   const A = '63000000-0000-4000-8000-0000000000a1'
+    517|   const M = '63000000-0000-4000-8000-0000000000b1'
+    518|   const pelaFilial = (id: string) => EMPRESA_PELA_FILIAL_SQL.replace('…
+       |                                                              ^
+    519|   const antes = { id: '63000000-0000-4000-8000-0000000008a1', patrimon…
+    520|   const depois = { id: '63000000-0000-4000-8000-0000000008b1', patrimo…
+ ❯ scripts/db/restaurar-guarda.test.mts:572:52
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > `empresa_id: null` na linha conta como ausente (resolve pela filial)
+TypeError: Cannot read properties of undefined (reading 'replace')
+ ❯ pelaFilial scripts/db/restaurar-guarda.test.mts:518:62
+    516|   const A = '63000000-0000-4000-8000-0000000000a1'
+    517|   const M = '63000000-0000-4000-8000-0000000000b1'
+    518|   const pelaFilial = (id: string) => EMPRESA_PELA_FILIAL_SQL.replace('…
+       |                                                              ^
+    519|   const antes = { id: '63000000-0000-4000-8000-0000000008a1', patrimon…
+    520|   const depois = { id: '63000000-0000-4000-8000-0000000008b1', patrimo…
+ ❯ scripts/db/restaurar-guarda.test.mts:579:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > SEM pai de onde tirar a empresa: RECUSA com frase clara, nada é montado
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ scripts/db/restaurar-guarda.test.mts:583:58
+    581|
+    582|   it('SEM pai de onde tirar a empresa: RECUSA com frase clara, nada é …
+    583|     expect(() => sqlDeInsercao('ativos', [{ id: 'x' }])).toThrow(/Rest…
+       |                                                          ^
+    584|     expect(() => sqlDeInsercao('anotacoes', [{ id: 'n' }])).toThrow(/R…
+    585|     expect(() => sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/13]⎯
+
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > a conferência conta quantas linhas receberam a empresa pela filial/pai e quantas trouxeram a chave
+TypeError: contagemDeEmpresa is not a function
+ ❯ scripts/db/restaurar-guarda.test.mts:594:12
+    592|
+    593|   it('a conferência conta quantas linhas receberam a empresa pela fili…
+    594|     expect(contagemDeEmpresa('ativos', [antes, depois, { id: 'z', fili…
+       |            ^
+    595|       pelaFilialOuPai: 2,
+    596|       trouxeAChave: 1,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/13]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  13 failed | 46 passed (59)
+   Start at  17:40:54
+   Duration  567ms (transform 82ms, setup 0ms, import 181ms, tests 47ms, environment 0ms)
+

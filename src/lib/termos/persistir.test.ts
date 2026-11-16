@@ -33,6 +33,7 @@ type Opcoes = {
 
 function clienteFalso(o: Opcoes) {
   const ordem: string[] = []
+  const gravados: { op: 'insert' | 'update'; linha: Record<string, unknown> }[] = []
   const linhas = new Map((o.existentes ?? []).map((l) => [l.id, l]))
   const client = {
     from(tabela: string) {
@@ -51,12 +52,14 @@ function clienteFalso(o: Opcoes) {
           return encadeia
         },
         insert(linha: { id: string; arquivo_path: string }) {
+          gravados.push({ op: 'insert', linha })
           ordem.push(`insert:${linha.arquivo_path}`)
           if (o.falhaInsert) return Promise.resolve({ error: { message: 'recusado', code: '42501' } })
           linhas.set(linha.id, { id: linha.id, arquivo_path: linha.arquivo_path })
           return Promise.resolve({ error: null })
         },
-        update() {
+        update(linha: Record<string, unknown>) {
+          gravados.push({ op: 'update', linha })
           return {
             eq(_c: string, id: string) {
               ordem.push(`update:${id}`)
@@ -102,7 +105,7 @@ function clienteFalso(o: Opcoes) {
       },
     },
   }
-  return { client: client as never, ordem, linhas }
+  return { client: client as never, ordem, linhas, gravados }
 }
 
 const PARAMS = {
@@ -113,6 +116,7 @@ const PARAMS = {
   dados: {},
   buffer: Buffer.from('docx'),
   uid: 'u1',
+  empresa: 'empresa-ficticia',
 }
 
 beforeEach(() => registrarFalha.mockReset())
@@ -152,6 +156,22 @@ describe('1. INSERT (id novo): a LINHA antes do upload', () => {
     const id = ordem.find((x) => x.startsWith('delete-rollback:'))!.slice('delete-rollback:'.length)
     expect(registrarFalha).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(registrarFalha.mock.calls[0])).toContain(id)
+  })
+})
+
+describe('1b. a EMPRESA (F67C): vai SÓ no INSERT', () => {
+  it('o INSERT da linha leva empresa_id', async () => {
+    const f = clienteFalso({})
+    await persistirTermo(f.client, PARAMS)
+    expect(f.gravados.find((g) => g.op === 'insert')?.linha).toMatchObject({ empresa_id: 'empresa-ficticia' })
+  })
+  it('o UPDATE da regeração NÃO reescreve a empresa (guarda_empresa recusaria)', async () => {
+    const V1 = { id: '11111111-1111-4111-8111-111111111111', arquivo_path: '11111111-1111-4111-8111-111111111111.docx' }
+    const f = clienteFalso({ existentes: [V1] })
+    await persistirTermo(f.client, PARAMS)
+    const up = f.gravados.find((g) => g.op === 'update')
+    expect(up).toBeDefined()
+    expect(up?.linha).not.toHaveProperty('empresa_id')
   })
 })
 

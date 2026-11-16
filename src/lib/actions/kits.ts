@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
 import { atualizarKitSchema, kitCatalogoSchema } from '@/lib/validators/kit'
@@ -73,6 +74,8 @@ export async function criarKit(input: {
       // texto trimado) — nunca o objeto cru do formulário.
       payload: paraJson(parsed.data.payload),
       criado_por: aut.uid,
+      // F67C: o kit nasce na empresa da OPERAÇÃO (destino F70: a da sessão).
+      empresa_id: empresaDaOperacao(),
     })
     .select('id')
     .single()

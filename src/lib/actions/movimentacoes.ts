@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
+import { empresaDaFilial } from '@/lib/escopo/empresa-da-filial'
 import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
@@ -336,10 +338,17 @@ export async function registrarMovimentacoes(input: {
   // F38 — os DETENTORES ATUAIS entram na mesma resolução. Na devolução a pessoa do
   // `retorno` não vem do formulário (que não tem o campo), e sim do ativo; sem
   // esses nomes aqui, o mapa não teria a chave e o vínculo nunca resolveria.
+  // F67C: o vínculo com a pessoa se resolve na empresa das filiais do lote (todas da MESMA empresa: as FKs compostas
+  // recusam o resto); lote sem ativo visível → a da operação.
+  const empresaDoLote =
+    filiaisDoLote.length > 0 ? await empresaDaFilial(supabase, filiaisDoLote[0]) : empresaDaOperacao()
+  if (empresaDoLote === null) {
+    return { ok: false, criadas: 0, resultados: [], erroGeral: 'Filial não encontrada.' }
+  }
   const vinculos = await resolverColaboradoresPorNome(supabase, [
     ...itens.map((i) => ('colaborador' in i ? i.colaborador : null)),
     ...(ativosData ?? []).map((a) => a.colaborador_atual),
-  ])
+  ], empresaDoLote)
 
   // Primeira linha: o que dá para conferir sem tocar o banco. A do banco continua
   // sendo a que vale; esta poupa o operador de perder o lote por algo óbvio.
@@ -980,7 +989,7 @@ export async function buscarColaboradoresDoCampo(
     const supabase = await createClient()
     const aut = await exigirPapel(supabase, 'consulta')
     if (!aut.ok) return vazio
-    return await sugestoesDoCampoColaborador(prefixo)
+    return await sugestoesDoCampoColaborador(prefixo, empresaDaOperacao())
   } catch (err) {
     registrarFalha({ escopo: 'movimentacoes.sugestoes-colaborador', erro: err })
     return vazio

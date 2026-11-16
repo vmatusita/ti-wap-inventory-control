@@ -294,6 +294,20 @@ const DA_F38 = [
   '0197',
   '0198',
   '0199',
+  // F67C (docs/PLAN-F67C.md §6) — o fim do default. A EXPANSÃO (0200–0204) RECRIA, com a MESMA assinatura, as 17 funções
+  // que inseriam numa das 20 tabelas de negócio sem `empresa_id` (a coluna entra na lista, a empresa da filial da linha
+  // pela ponte `empresa_da_filial`) — quatro delas INTOCÁVEIS (`criar_compra_lote`, `devolver_ao_fornecedor`,
+  // `transferir_item`, `movimentacao_abrir_pendencias_item`), liberadas nominalmente abaixo; nenhum corpo novo ganha marca
+  // da F38 — e cria a assinatura nova da ferramenta de órfão; a CONTRAÇÃO (0205–0207) tira o default das 20 e derruba a
+  // assinatura antiga. Nenhuma escreve no acervo no apply.
+  '0200',
+  '0201',
+  '0202',
+  '0203',
+  '0204',
+  '0205',
+  '0206',
+  '0207',
 ]
 
 /**
@@ -738,6 +752,36 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     '0197': ['pode_escrever_termo', 'pode_escrever_arquivo_termo'],
     '0198': ['pode_ler_arquivo_termo', 'pode_escrever_arquivo_termo'],
     '0199': ['import_validar_plano', 'resetar_acervo', 'resetar_itens', 'apagar_ativos_conflito_filiais'],
+    // F67C (docs/PLAN-F67C.md §2.1) — a expansão: cada uma com o diff contra o corpo vigente no cabeçalho, gerado (só a
+    // coluna, o valor e a ponte `empresa_da_filial`).
+    '0200': [
+      'corrigir_patrimonio_com_anotacao',
+      'definir_service_tag_com_anotacao',
+      'confirmar_assinatura_termo_com_anotacao',
+      'desfazer_confirmacao_termo_com_anotacao',
+      'confirmar_assinatura_lote_com_anotacoes',
+    ],
+    '0201': [
+      'criar_compra_lote',
+      'devolver_ao_fornecedor',
+      'criar_movimentacao_com_itens',
+      'estornar_movimentacao_com_itens',
+      'movimentacao_abrir_pendencias_item',
+    ],
+    '0202': [
+      'lancar_itens_lote',
+      'reabrir_pendencias_item_com_estornos',
+      'resolver_pendencias_item_com_lancamentos',
+      'transferir_item',
+    ],
+    '0203': [
+      'import_criar_ativos',
+      'import_lancar_movimentacoes',
+    ],
+    '0204': [
+      'import_gravar_trilha',
+      'registrar_limpeza_termos_sem_linha',
+    ],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
@@ -784,6 +828,9 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // contagem de objetos (RUNBOOK, Anexo F67B).
     '0198': ['pode_escrever_termo'],
     '0199': ['prefixo_backup_import', 'prefixo_backup_reset', 'prefixo_backup_conflito'],
+    // F67C — a contração do lote 2: a assinatura antiga da ferramenta de órfão (sem empresa), sem consumidor desde a
+    // v1.75.0 (o app chama a nova, uuid primeiro). Só depois do deploy e da janela por forma (RUNBOOK, Anexo F67C).
+    '0206': ['registrar_limpeza_termos_sem_linha'],
   }
 
   it('NENHUMA função intocável é recriada pelas migrations da fase', () => {

@@ -18,7 +18,7 @@ import {
   cadastrosComMesmaIdentidade,
   chaveDeIdentidadeSemUnidade,
 } from '@/lib/ativos/identidade'
-import { unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
+import { empresaDaFilial, unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
 
 // Remove UM trecho de uma pendência `;`-joinable (comparação case-insensitive),
 // preservando os demais (ex.: 'sem patrimônio físico; termo pendente' → 'termo
@@ -130,10 +130,15 @@ export async function anotarAtivo(input: {
   const aut = await exigirEscrita(supabase, ativo.filial_id)
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
+  // F67C: a anotação nasce na empresa da FILIAL do ativo (já lida acima).
+  const empresa = await empresaDaFilial(supabase, ativo.filial_id)
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const { error } = await supabase.from('anotacoes').insert({
     ativo_id: parsed.data.ativo_id,
     texto: parsed.data.texto,
     criado_por: aut.uid,
+    empresa_id: empresa,
   })
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 

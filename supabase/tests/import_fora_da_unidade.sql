@@ -100,8 +100,8 @@ begin
   end if;
 
   -- filiais de teste (id smallint identity → gerado; slug único, inéditos)
-  insert into public.filiais (slug, nome) values ('zzf52-teste-a', 'F52 Teste A') returning id into v_f1;
-  insert into public.filiais (slug, nome) values ('zzf52-teste-b', 'F52 Teste B') returning id into v_f2;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf52-teste-a', 'F52 Teste A') returning id into v_f1;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf52-teste-b', 'F52 Teste B') returning id into v_f2;
 
   -- F67B (16/11/2026): o backup do import passou à forma NOVA, com a empresa no 2º segmento
   -- (import/empresa-<uuid>/filial-<id>/, prefixo_backup_import(uuid, smallint) da 0194); a antiga saiu na 0199.
@@ -278,11 +278,11 @@ begin
   -- `import_gravar_trilha`, chamada só pela orquestradora, que não entra neste roteiro).
 
   -- fixture 4a/4c-controle: log RECENTE da filial 1 (dentro da janela de 24h).
-  insert into public.import_logs (
+  insert into public.import_logs (empresa_id, 
     filial_id, modo, arquivo_hash, total_linhas,
     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
     backup_path, correcoes, criado_por, created_at
-  ) values (
+  ) values (public.empresa_legada(), 
     v_f1, 'substituir', 'ZZF52HASH-4A', 1, 1, 0, 0, 0,
     v_prefixo1 || 'log-4a.json', '[]'::jsonb, v_prof, now()
   );
@@ -321,11 +321,11 @@ begin
   end;
 
   -- fixture 4c: log da MESMA filial 1, mesmo hash (outro), mas FORA da janela (48h atrás).
-  insert into public.import_logs (
+  insert into public.import_logs (empresa_id, 
     filial_id, modo, arquivo_hash, total_linhas,
     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
     backup_path, correcoes, criado_por, created_at
-  ) values (
+  ) values (public.empresa_legada(), 
     v_f1, 'substituir', 'ZZF52HASH-4C', 1, 1, 0, 0, 0,
     v_prefixo1 || 'log-4c.json', '[]'::jsonb, v_prof, now() - interval '48 hours'
   );

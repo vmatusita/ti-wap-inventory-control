@@ -31,6 +31,10 @@ function ehEstadoPlanilha(e: StatusAtivo): e is EstadoPlanilha {
 
 type DbClient = SupabaseClient<Database>
 
+// F67C (leitor (c), PLAN-F67C §3): a chave de cada catálogo é única POR EMPRESA desde a F65 — com duas empresas as cinco
+// leituras sem recorte duplicariam o vocabulário e `conferirVocabulario` lançaria (o import ficaria INDISPONÍVEL). A
+// empresa é a da filial do plano (as actions) ou a da operação (a página, antes de escolher filial).
+
 /**
  * Lê o vocabulário do import — TODAS as filiais (ativas e inativas: toda
  * filial é unidade CONHECIDA, Decisão 2 do PLAN-F56.md), os apelidos, o
@@ -40,19 +44,29 @@ type DbClient = SupabaseClient<Database>
  * nunca segue calado — o banco já tem os CHECKs e os índices únicos, mas o
  * código não confia cegamente no que voltou da leitura).
  */
-export async function lerVocabularioImport(client: DbClient): Promise<VocabularioImport> {
+export async function lerVocabularioImport(client: DbClient, empresa: string): Promise<VocabularioImport> {
   const [filiais, apelidos, categorias, estados, prefixos] = await Promise.all([
-    client.from('filiais').select('id, nome, ativo').order('nome', { ascending: true }),
-    client.from('unidades_apelidos').select('filial_id, apelido').order('apelido', { ascending: true }),
+    client.from('filiais').select('id, nome, ativo').eq('empresa_id', empresa).order('nome', { ascending: true }),
+    client
+      .from('unidades_apelidos')
+      .select('filial_id, apelido')
+      .eq('empresa_id', empresa)
+      .order('apelido', { ascending: true }),
     client
       .from('import_termos_categoria')
       .select(LEITURA_VOCAB_CATEGORIAS.select)
+      .eq('empresa_id', empresa)
       .order('termo', { ascending: true }),
     client
       .from('import_termos_estado')
       .select(LEITURA_VOCAB_ESTADOS.select)
+      .eq('empresa_id', empresa)
       .order('termo', { ascending: true }),
-    client.from('import_prefixos_patrimonio').select('prefixo').order('prefixo', { ascending: true }),
+    client
+      .from('import_prefixos_patrimonio')
+      .select('prefixo')
+      .eq('empresa_id', empresa)
+      .order('prefixo', { ascending: true }),
   ])
 
   if (filiais.error) throw new Error(`Falha ao ler filiais (vocabulário do import): ${filiais.error.message}`)

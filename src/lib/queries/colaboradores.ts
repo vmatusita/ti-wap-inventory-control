@@ -282,6 +282,8 @@ export async function resumoDaConsolidacao(): Promise<ResumoConsolidacao> {
 export async function resolverColaboradoresPorNome(
   supabase: Awaited<ReturnType<typeof createClient>>,
   nomes: readonly (string | null | undefined)[],
+  // F67C (leitor (a)): `nome_chave` é única POR EMPRESA — sem o recorte o "último id ganha" entre duas empresas.
+  empresa: string,
 ): Promise<Map<string, string>> {
   const mapa = new Map<string, string>()
   const chaves = chavesDistintas(nomes)
@@ -289,6 +291,7 @@ export async function resolverColaboradoresPorNome(
   const { data, error } = await supabase
     .from('colaboradores')
     .select(LEITURA_COLABORADORES_POR_NOME.select)
+    .eq('empresa_id', empresa)
     .in('nome_chave', chaves)
   if (error) {
     registrarFalha({ escopo: 'colaboradores.resolver-por-nome', erro: error })
@@ -342,6 +345,8 @@ const LINHAS_HISTORICO = 500
  */
 export async function sugestoesDoCampoColaborador(
   prefixo: string,
+  // F67C (leitor (a)): a lista e o "já cadastrado" são da empresa de quem digita (a da operação; destino F70).
+  empresa: string,
 ): Promise<SugestoesColaborador> {
   const vazio: SugestoesColaborador = { cadastrados: [], historico: [], jaCadastrado: false }
   const termo = prefixoSeguro(prefixo)
@@ -385,6 +390,7 @@ export async function sugestoesDoCampoColaborador(
     supabase
       .from('colaboradores')
       .select(LEITURA_SUGESTAO_CADASTRO.select)
+      .eq('empresa_id', empresa)
       .eq('ativo', true)
       .like('nome_chave', `%${chave}%`)
       // A ordem continua por `nome` — a grafia de verdade, com acento e caixa, que
@@ -439,6 +445,7 @@ export async function sugestoesDoCampoColaborador(
     supabase
       .from('colaboradores')
       .select('id, ativo')
+      .eq('empresa_id', empresa)
       .eq('nome_chave', chave)
       .maybeSingle(),
   ])

@@ -126,8 +126,9 @@ function contarPorTipo(inconsistencias: Inconsistencia[]): Record<string, number
 
 type Db = ReturnType<typeof createAdminClient>
 
-async function buscarFiliais(db: Db): Promise<Map<FilialOficial, number>> {
-  const { data, error } = await db.from('filiais').select('id, slug')
+// F67C: a empresa das filiais da carga vem daqui — `buscarFiliais` roda DEPOIS das guardas (guard.ts intocado).
+async function buscarFiliais(db: Db): Promise<{ mapa: Map<FilialOficial, number>; empresaId: string }> {
+  const { data, error } = await db.from('filiais').select('id, slug, empresa_id')
   if (error) throw new Error(`Falha ao ler filiais: ${error.message}`)
   const porSlug = new Map((data ?? []).map((f) => [f.slug as string, f.id as number]))
   const mapa = new Map<FilialOficial, number>()
@@ -143,7 +144,17 @@ async function buscarFiliais(db: Db): Promise<Map<FilialOficial, number>> {
         'Confira o passo 1 do go-live (migration 0026 aplicada?).',
     )
   }
-  return mapa
+  const empresas = new Set(
+    (data ?? [])
+      .filter((f) => (Object.values(SLUG_POR_FILIAL) as string[]).includes(f.slug as string))
+      .map((f) => f.empresa_id as string | null),
+  )
+  if (empresas.size !== 1 || empresas.has(null)) {
+    throw new Error(
+      'As filiais oficiais da carga nao pertencem a UMA empresa so (ou alguma esta sem empresa): a carga nao sabe a que empresa atribuir os dados.',
+    )
+  }
+  return { mapa, empresaId: [...empresas][0] as string }
 }
 
 type AtivoDb = {
@@ -246,6 +257,7 @@ async function executarAtivos(
   plano: Plano,
   filiais: Map<FilialOficial, number>,
   criadoPor: string,
+  empresaId: string,
 ): Promise<ResultadoAtivos> {
   const res: ResultadoAtivos = {
     ativosCriados: 0, ativosAtualizados: 0, ativosJaExistentes: 0,
@@ -305,6 +317,7 @@ async function executarAtivos(
       processador: a.processador,
       fornecedor: a.fornecedor,
       filial_id: filiais.get(a.filial)!,
+      empresa_id: empresaId,
       termo_assinado: a.termo,
       termo_data: a.termoData,
       pendencia: a.pendencia,
@@ -361,6 +374,7 @@ async function executarAtivos(
     }
     const { error } = await db.from('movimentacoes').insert({
       ativo_id: ativoId,
+      empresa_id: empresaId,
       tipo: m.tipo,
       motivo: m.motivo,
       data: m.data,
@@ -452,6 +466,7 @@ async function executarItens(
   criadoPor: string,
   hoje: string,
   criarFaltantes: boolean,
+  empresaId: string,
 ): Promise<ResultadoItens> {
   const res: ResultadoItens = { itensCriados: 0, lancamentosInseridos: 0, lancamentosJaImportados: 0, falhas: [] }
 
@@ -466,7 +481,7 @@ async function executarItens(
     for (const nome of faltantes) {
       const { data, error } = await db
         .from('itens')
-        .insert({ nome, grupo: 'acessorio' })
+        .insert({ nome, grupo: 'acessorio', empresa_id: empresaId })
         .select('id, nome')
         .single()
       if (error) {
@@ -520,6 +535,7 @@ async function executarItens(
     const { error } = await db.from('lancamentos_item').insert({
       item_id: itemId,
       filial_id: filialId,
+      empresa_id: empresaId,
       tipo: 'entrada',
       quantidade: s.saldo,
       data: hoje,
@@ -560,7 +576,7 @@ async function main() {
   const ts = timestamp()
   console.log(`\n=== CARGA F4 · projeto ${cfg.projectRef} · ${args.executar ? 'EXECUTAR' : 'DRY-RUN'} · ${hoje} ===\n`)
 
-  const filiais = await buscarFiliais(db)
+  const { mapa: filiais, empresaId } = await buscarFiliais(db)
   const inconsistencias: Inconsistencia[] = []
 
   // ------------------------------------------------------------------ ativos
@@ -675,7 +691,7 @@ async function main() {
     hoje,
   }
   if (plano) {
-    const r = await executarAtivos(db, plano, filiais, criadoPor)
+    const r = await executarAtivos(db, plano, filiais, criadoPor, empresaId)
     resultado.ativos = r
     console.log(`ativos: criados=${r.ativosCriados} atualizados=${r.ativosAtualizados} jaExistentes=${r.ativosJaExistentes}`)
     console.log(`movimentações inseridas: ${JSON.stringify(r.movimentacoesInseridas)}`)
@@ -686,7 +702,7 @@ async function main() {
     }
   }
   if (planoItens) {
-    const r = await executarItens(db, planoItens, filiais, criadoPor, hoje, args.criarItensFaltantes)
+    const r = await executarItens(db, planoItens, filiais, criadoPor, hoje, args.criarItensFaltantes, empresaId)
     resultado.itens = r
     console.log(`itens: criados=${r.itensCriados} aberturas=${r.lancamentosInseridos} jaImportadas=${r.lancamentosJaImportados}`)
     if (r.falhas.length > 0) {

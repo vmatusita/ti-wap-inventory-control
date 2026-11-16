@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.75.0',
+    data: '2026-11-16',
+    fase: 'F67C',
+    titulo: 'Tudo o que você cadastra ou registra passou a ser gravado já com a sua empresa',
+    mudancas: [
+      'Equipamentos, movimentações, itens e lançamentos, colaboradores, anotações na ficha, termos de responsabilidade e relatórios passaram a ser gravados já com a empresa a que pertencem, em vez de cair na WAP por padrão. Para a WAP, nada muda na tela: tudo continua sendo da WAP.',
+      'Um colaborador cadastrado direto na movimentação passa a ser da empresa da filial da movimentação.',
+      'Em Administração › Motivos, editar um motivo passa a mexer só no motivo da sua empresa, mesmo que outra empresa tenha um motivo com o mesmo código.',
+      'A Auditoria passa a registrar de qual empresa é cada ação administrativa — convites, cargos, acessos, senhas de visualização, apelidos de filial e importações.',
+      'Se algum registro chegar sem dizer a empresa, ele é recusado com a mensagem "Não foi possível gravar: o registro ficou sem a empresa. Recarregue a página e tente de novo; se continuar, avise o administrador." — em vez de ser gravado na empresa errada sem ninguém ver.',
+    ],
+  },
+  {
     versao: '1.74.0',
     data: '2026-11-16',
     fase: 'F67B',

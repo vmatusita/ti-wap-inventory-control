@@ -136,18 +136,18 @@ begin
   perform pg_temp.plantar_cargo(k_operador, 'operador');
   insert into public.operador_filiais (usuario_id, filial_id) values (k_operador, v_f1);
 
-  insert into public.tipos_item (slug, rotulo, ordem)
-    values ('zzf41tipo', 'TESTE F41 Tipo', 9980) returning id into v_tipo_id;
+  insert into public.tipos_item (empresa_id, slug, rotulo, ordem)
+    values (public.empresa_legada(), 'zzf41tipo', 'TESTE F41 Tipo', 9980) returning id into v_tipo_id;
 
-  insert into public.itens (nome, grupo, ordem, tipo_id)
-    values ('TESTE F41 Item A', 'acessorio', 9980, v_tipo_id) returning id into v_itemA;
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE F41 Item B', 'acessorio', 9981) returning id into v_itemB;
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE F41 Item C', 'acessorio', 9982) returning id into v_itemC;
+  insert into public.itens (empresa_id, nome, grupo, ordem, tipo_id)
+    values (public.empresa_legada(), 'TESTE F41 Item A', 'acessorio', 9980, v_tipo_id) returning id into v_itemA;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE F41 Item B', 'acessorio', 9981) returning id into v_itemB;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE F41 Item C', 'acessorio', 9982) returning id into v_itemC;
 
-  insert into public.colaboradores (nome, filial_id, criado_por)
-    values ('Fulano ZZF41 Um', v_f1, k_admin) returning id into v_colab;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZF41 Um', v_f1, k_admin) returning id into v_colab;
 
   -- O ITEM A fica DE PROPÓSITO sem lançamento nenhum: total 0, estoque 0, em uso 0.
   -- É o par que, em produção, é a maioria (128 dos 132) — e é nele que marcar
@@ -155,21 +155,21 @@ begin
   --
   -- O ITEM B ganha 4 de entrada e 1 de saída: em uso em aberto = 1.
   -- O ITEM C ganha 5 de entrada e nenhuma saída: em estoque = 5.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_itemB, v_f1, 'entrada', 4, current_date, k_admin),
-         (v_itemB, v_f1, 'saida',   1, current_date, k_admin),
-         (v_itemC, v_f1, 'entrada', 5, current_date, k_admin);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_itemB, v_f1, 'entrada', 4, current_date, k_admin),
+         (public.empresa_legada(), v_itemB, v_f1, 'saida',   1, current_date, k_admin),
+         (public.empresa_legada(), v_itemC, v_f1, 'entrada', 5, current_date, k_admin);
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF41A001', 'notebook', v_f1) returning id into v_ativo1;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF41A002', 'notebook', v_f1) returning id into v_ativo2;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF41A003', 'notebook', v_f1) returning id into v_ativo3;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF41A004', 'notebook', v_f1) returning id into v_ativo4;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF41A005', 'notebook', v_f1) returning id into v_ativo5;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF41A001', 'notebook', v_f1) returning id into v_ativo1;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF41A002', 'notebook', v_f1) returning id into v_ativo2;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF41A003', 'notebook', v_f1) returning id into v_ativo3;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF41A004', 'notebook', v_f1) returning id into v_ativo4;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF41A005', 'notebook', v_f1) returning id into v_ativo5;
 
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
@@ -203,9 +203,9 @@ begin
     -- pela RPC as duas nasceriam com o mesmo instante e o desempate (created_at, id)
     -- viraria sorteio de uuid — o estorno do cenario 5 falharia de forma
     -- INTERMITENTE, com "so a ultima movimentacao pode ser estornada".
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador,
                                       status_resultante, criado_por, created_at)
-    values (v_ativo1, 'saida', current_date - 3, v_f1, 'Fulano ZZF41 Um',
+    values (public.empresa_legada(), v_ativo1, 'saida', current_date - 3, v_f1, 'Fulano ZZF41 Um',
             'em_uso', k_admin, now() - interval '3 days');
     -- Agora a devolução, com o item A no checklist.
     v_ret := public.criar_movimentacao_com_itens(
@@ -273,9 +273,9 @@ begin
     -- pela RPC as duas nasceriam com o mesmo instante e o desempate (created_at, id)
     -- viraria sorteio de uuid — o estorno do cenario 5 falharia de forma
     -- INTERMITENTE, com "so a ultima movimentacao pode ser estornada".
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador,
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador,
                                       status_resultante, criado_por, created_at)
-    values (v_ativo2, 'saida', current_date - 3, v_f1, 'Fulano ZZF41 Um',
+    values (public.empresa_legada(), v_ativo2, 'saida', current_date - 3, v_f1, 'Fulano ZZF41 Um',
             'em_uso', k_admin, now() - interval '3 days');
     v_ret := public.criar_movimentacao_com_itens(
       jsonb_build_array(jsonb_build_object(
@@ -357,9 +357,9 @@ begin
   -- =========================================================================
   -- Uma devolução com item FALTANTE abre a pendência pelo trigger 0051.
   -- ⚠ INSERT DIRETO — ver a nota do cenario 1 (regra da pendencia n.5 da F37).
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador,
                                     status_resultante, criado_por, created_at)
-  values (v_ativo4, 'saida', current_date - 3, v_f1, 'Fulano ZZF41 Um',
+  values (public.empresa_legada(), v_ativo4, 'saida', current_date - 3, v_f1, 'Fulano ZZF41 Um',
           'em_uso', k_admin, now() - interval '3 days');
   v_ret := public.criar_movimentacao_com_itens(
     jsonb_build_array(jsonb_build_object(
@@ -541,8 +541,8 @@ begin
   --     aceita; se este cenário passar a falhar, alguém afrouxou a guarda.
   -- =========================================================================
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_itemB, v_f1, 'retorno', 9999, current_date, k_admin);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_itemB, v_f1, 'retorno', 9999, current_date, k_admin);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7; ';
     raise warning '✗ 7 o trigger ACEITOU retorno acima do aberto — a guarda foi afrouxada';
   exception when others then
@@ -551,8 +551,8 @@ begin
   end;
 
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_itemC, v_f1, 'saida', 999999, current_date, k_admin);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_itemC, v_f1, 'saida', 999999, current_date, k_admin);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '7b; ';
     raise warning '✗ 7b o trigger ACEITOU saída acima do estoque';
   exception when others then
@@ -677,8 +677,8 @@ begin
   end if;
 
   begin
-    insert into public.itens (nome, grupo, ordem)
-      values ('  teste   f41   ITEM  a  ', 'acessorio', 9989);
+    insert into public.itens (empresa_id, nome, grupo, ordem)
+      values (public.empresa_legada(), '  teste   f41   ITEM  a  ', 'acessorio', 9989);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '11b; ';
     raise warning '✗ 11b o índice único da chave NÃO recusou o nome repetido';
   exception when unique_violation then

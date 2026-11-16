@@ -249,14 +249,14 @@ begin
 
   -- Um ativo, uma movimentação, um item e um lançamento genéricos: alvo das varreduras da §1 e
   -- das asserções de imutabilidade da §2.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009201', 'F23BASE', 'notebook', v_f1, 'cadastro') returning id into v_at_x;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_x, 'compra', current_date - 40, v_f1, k_dev, now() - interval '40 days') returning id into v_mov_x;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009201', 'F23BASE', 'notebook', v_f1, 'cadastro') returning id into v_at_x;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_x, 'compra', current_date - 40, v_f1, k_dev, now() - interval '40 days') returning id into v_mov_x;
 
-  insert into public.itens (nome, grupo, ordem) values ('F23 Item Base', 'acessorio', 900) returning id into v_item_cad;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item_cad, v_f1, 'entrada', 9, current_date - 5, k_dev) returning id into v_lanc_tmp;
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'F23 Item Base', 'acessorio', 900) returning id into v_item_cad;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item_cad, v_f1, 'entrada', 9, current_date - 5, k_dev) returning id into v_lanc_tmp;
 
   -- =========================================================================
   -- 1 — EXCLUSIVIDADE: as sete RPCs são do cargo dev, e de mais ninguém
@@ -534,8 +534,8 @@ begin
   -- 2f. INSERT com a MARCA mentida — este ramo a RLS NÃO cobre (o dev TEM policy de INSERT).
   --     Só a guarda impede um request forjado de se rotular "correção técnica do dev".
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, forcado)
-    values (v_at_x, 'saida', current_date, v_f1, k_dev, true);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, forcado)
+    values (public.empresa_legada(), v_at_x, 'saida', current_date, v_f1, k_dev, true);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2f_MARCA_MENTIDA; ';
     raise warning '✗ 2f um INSERT comum gravou forcado = true em movimentacoes';
   exception when others then
@@ -569,8 +569,8 @@ begin
   --     (a ordem alfabética dos dois BEFORE INSERT é o que garante isso:
   --     movimentacoes_guarda_acervo < trg_aplicar_movimentacao).
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por)
-    values (v_at_x, 'saida', current_date, v_f1, 'Fulano de Teste', 'TI', k_dev) returning id into v_mov_tmp;
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por)
+    values (public.empresa_legada(), v_at_x, 'saida', current_date, v_f1, 'Fulano de Teste', 'TI', k_dev) returning id into v_mov_tmp;
     select status into v_st from public.ativos where id = v_at_x;
     if v_st = 'em_uso' then
       v_ok := v_ok + 1; raise notice '✓ 2h o INSERT NORMAL de movimentação continua passando E derivando o estado (em_uso)';
@@ -652,8 +652,8 @@ begin
   end;
 
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, observacao, criado_por, forcado)
-    values (v_item_cad, v_f1, 'ajuste', 1, current_date, 'tentativa de marca mentida', k_dev, true);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, observacao, criado_por, forcado)
+    values (public.empresa_legada(), v_item_cad, v_f1, 'ajuste', 1, current_date, 'tentativa de marca mentida', k_dev, true);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2n_MARCA_MENTIDA_DONO; ';
     raise warning '✗ 2n o DONO gravou forcado = true em lancamentos_item';
   exception when others then
@@ -707,25 +707,25 @@ begin
   -- =========================================================================
   -- 3 — apagar_ativo: some com o rastro, libera o par, recusa termo de lote misto
   -- =========================================================================
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009301', 'F23A', 'notebook', v_f1, 'cadastro') returning id into v_at_a;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_a, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_a, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days')
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009301', 'F23A', 'notebook', v_f1, 'cadastro') returning id into v_at_a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_a, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_a, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days')
   returning id into v_mov_a_saida;
   -- devolução COM item faltante → nasce a pendência de item (F18)
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, itens_faltantes, criado_por, created_at)
-  values (v_at_a, 'devolucao', current_date - 10, v_f1, 'Fulano de Teste', array['Carregador ficticio'], k_dev, now() - interval '10 days');
-  insert into public.anotacoes (ativo_id, texto, criado_por) values (v_at_a, 'anotacao ficticia do roteiro F23', k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, itens_faltantes, criado_por, created_at)
+  values (public.empresa_legada(), v_at_a, 'devolucao', current_date - 10, v_f1, 'Fulano de Teste', array['Carregador ficticio'], k_dev, now() - interval '10 days');
+  insert into public.anotacoes (empresa_id, ativo_id, texto, criado_por) values (public.empresa_legada(), v_at_a, 'anotacao ficticia do roteiro F23', k_dev);
   v_termo_a := gen_random_uuid();
   v_path_a  := v_termo_a::text || '.docx';
-  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
-  values (v_termo_a, 'responsabilidade_notebook', array[v_mov_a_saida], array[v_at_a], 'Fulano de Teste', '{}'::jsonb, v_path_a, k_dev);
+  insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+  values (public.empresa_legada(), v_termo_a, 'responsabilidade_notebook', array[v_mov_a_saida], array[v_at_a], 'Fulano de Teste', '{}'::jsonb, v_path_a, k_dev);
   insert into storage.objects (bucket_id, name, owner) values ('termos', v_path_a, k_dev);
   -- o SUBSTITUTO (F14/F15) apontando para o alvo: o ponteiro é anulado, o substituto sobrevive
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, substitui_ativo_id)
-  values ('WAP0009302', 'F23B', 'notebook', v_f1, 'cadastro', v_at_a) returning id into v_at_b;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem, substitui_ativo_id)
+  values (public.empresa_legada(), 'WAP0009302', 'F23B', 'notebook', v_f1, 'cadastro', v_at_a) returning id into v_at_b;
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -782,8 +782,8 @@ begin
   -- 3f. O PAR PATRIMÔNIO + SERVICE TAG FOI LIBERADO — a razão prática de existir a ferramenta
   --     (quem prova é o índice único `ativos_patrimonio_service_tag_uidx`).
   begin
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009301', 'F23A', 'notebook', v_f1, 'cadastro') returning id into v_at_n;
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009301', 'F23A', 'notebook', v_f1, 'cadastro') returning id into v_at_n;
     v_ok := v_ok + 1; raise notice '✓ 3f o par patrimônio+service tag voltou a ser usável';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '3f_PAR_PRESO; ';
@@ -803,17 +803,17 @@ begin
   -- 3h. TERMO DE LOTE MISTO → RECUSA (documento assinado não morre como efeito colateral).
   --     Os dois ativos ficam na MESMA filial de propósito: assim o termo é "de lote" sem ser
   --     "de filial mista", e não bloqueia o reset por filial da §6 mais adiante.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009303', 'F23C', 'notebook', v_f1, 'cadastro') returning id into v_at_c;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009304', 'F23D', 'notebook', v_f1, 'cadastro') returning id into v_at_d;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
-  values (v_at_c, 'saida', current_date - 5, v_f1, 'Fulano de Teste', k_dev, now() - interval '5 days') returning id into v_mov_tmp;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
-  values (v_at_d, 'saida', current_date - 5, v_f1, 'Fulano de Teste', k_dev, now() - interval '5 days') returning id into v_uuid;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009303', 'F23C', 'notebook', v_f1, 'cadastro') returning id into v_at_c;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009304', 'F23D', 'notebook', v_f1, 'cadastro') returning id into v_at_d;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
+  values (public.empresa_legada(), v_at_c, 'saida', current_date - 5, v_f1, 'Fulano de Teste', k_dev, now() - interval '5 days') returning id into v_mov_tmp;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, criado_por, created_at)
+  values (public.empresa_legada(), v_at_d, 'saida', current_date - 5, v_f1, 'Fulano de Teste', k_dev, now() - interval '5 days') returning id into v_uuid;
   v_termo_cd := gen_random_uuid();
-  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
-  values (v_termo_cd, 'responsabilidade_notebook', array[v_mov_tmp, v_uuid], array[v_at_c, v_at_d], 'Fulano de Teste', '{}'::jsonb, v_termo_cd::text || '.docx', k_dev);
+  insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+  values (public.empresa_legada(), v_termo_cd, 'responsabilidade_notebook', array[v_mov_tmp, v_uuid], array[v_at_c, v_at_d], 'Fulano de Teste', '{}'::jsonb, v_termo_cd::text || '.docx', k_dev);
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -835,60 +835,60 @@ begin
   -- 4 — apagar_movimentacao: os seis cenários
   -- =========================================================================
   -- (a) A ÚLTIMA — apaga e o ativo volta EXATAMENTE ao snapshot_anterior
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009401', 'F23E', 'notebook', v_f1, 'cadastro') returning id into v_at_e;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_e, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_e, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days') returning id into v_mov_e2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009401', 'F23E', 'notebook', v_f1, 'cadastro') returning id into v_at_e;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_e, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_e, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days') returning id into v_mov_e2;
 
   -- (b) DO MEIO
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009402', 'F23F', 'notebook', v_f1, 'cadastro') returning id into v_at_f;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_f, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_f, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days') returning id into v_mov_f2;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_f, 'devolucao', current_date - 10, v_f1, k_dev, now() - interval '10 days');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009402', 'F23F', 'notebook', v_f1, 'cadastro') returning id into v_at_f;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_f, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_f, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days') returning id into v_mov_f2;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_f, 'devolucao', current_date - 10, v_f1, k_dev, now() - interval '10 days');
 
   -- (c) A ÚNICA
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009403', 'F23G', 'notebook', v_f1, 'cadastro') returning id into v_at_g;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_g, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days') returning id into v_mov_g1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009403', 'F23G', 'notebook', v_f1, 'cadastro') returning id into v_at_g;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_g, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days') returning id into v_mov_g1;
 
   -- (d) COM TERMO CITANDO A MOVIMENTAÇÃO
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009404', 'F23H', 'notebook', v_f1, 'cadastro') returning id into v_at_h;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_h, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_h, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days') returning id into v_mov_h2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009404', 'F23H', 'notebook', v_f1, 'cadastro') returning id into v_at_h;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_h, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_h, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days') returning id into v_mov_h2;
   v_termo_h := gen_random_uuid();
-  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
-  values (v_termo_h, 'responsabilidade_notebook', array[v_mov_h2], array[v_at_h], 'Fulano de Teste', '{}'::jsonb, v_termo_h::text || '.docx', k_dev);
+  insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+  values (public.empresa_legada(), v_termo_h, 'responsabilidade_notebook', array[v_mov_h2], array[v_at_h], 'Fulano de Teste', '{}'::jsonb, v_termo_h::text || '.docx', k_dev);
 
   -- (e) O PAR ESTORNO
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009405', 'F23I', 'notebook', v_f1, 'cadastro') returning id into v_at_i;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_i, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_i, 'saida', current_date - 20, v_f1, 'Beltrano de Teste', 'Compras', k_dev, now() - interval '20 days') returning id into v_mov_i2;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
-  values (v_at_i, 'estorno', current_date - 19, v_f1, v_mov_i2, k_dev, now() - interval '19 days') returning id into v_mov_i3;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009405', 'F23I', 'notebook', v_f1, 'cadastro') returning id into v_at_i;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_i, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_i, 'saida', current_date - 20, v_f1, 'Beltrano de Teste', 'Compras', k_dev, now() - interval '20 days') returning id into v_mov_i2;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
+  values (public.empresa_legada(), v_at_i, 'estorno', current_date - 19, v_f1, v_mov_i2, k_dev, now() - interval '19 days') returning id into v_mov_i3;
 
   -- (f) ⚠ A DIVERGÊNCIA DE ORDENAÇÃO que o ensaio não tem, plantada de propósito.
   --     Padrão do import de startup: a COMPRA entra primeiro (created_at antigo) com data
   --     RECENTE, e a movimentação seguinte entra depois (created_at novo) com data ANTIGA.
   --     Assim `(data, ...)` e `(created_at, id)` discordam sobre quem é "a última".
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009406', 'F23J', 'notebook', v_f1, 'cadastro') returning id into v_at_j;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_j, 'compra', current_date - 1, v_f1, k_dev, now() - interval '2 hours') returning id into v_mov_j1;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_j, 'saida', current_date - 3000, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '1 hour') returning id into v_mov_j2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009406', 'F23J', 'notebook', v_f1, 'cadastro') returning id into v_at_j;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_j, 'compra', current_date - 1, v_f1, k_dev, now() - interval '2 hours') returning id into v_mov_j1;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_j, 'saida', current_date - 3000, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '1 hour') returning id into v_mov_j2;
 
   -- (g) ⚠ O EMPATE DE `created_at` — o caso de MASSA em produção (1111 dos 1232 ativos), que a
   --     0087 transformou em RECUSA. O import de startup grava a compra de abertura e o ajuste
@@ -896,12 +896,12 @@ begin
   --     pela ordenação (created_at, id), "a última" sairia do sorteio do uuid. Aqui as duas
   --     nascem com o MESMO `created_at`, de propósito — é o único lugar deste arquivo onde o
   --     empate é desejado.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009407', 'F23Z', 'notebook', v_f1, 'cadastro') returning id into v_at_z;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_z, 'compra', current_date - 60, v_f1, k_dev, now() - interval '60 days') returning id into v_mov_z1;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, created_at)
-  values (v_at_z, 'ajuste', current_date - 60, v_f1, 'em_estoque', 'reconciliacao ficticia do import', k_dev, now() - interval '60 days')
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009407', 'F23Z', 'notebook', v_f1, 'cadastro') returning id into v_at_z;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_z, 'compra', current_date - 60, v_f1, k_dev, now() - interval '60 days') returning id into v_mov_z1;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, created_at)
+  values (public.empresa_legada(), v_at_z, 'ajuste', current_date - 60, v_f1, 'em_estoque', 'reconciliacao ficticia do import', k_dev, now() - interval '60 days')
   returning id into v_mov_z2;
 
   set local role authenticated;
@@ -1094,8 +1094,8 @@ begin
   --     implementação que recusasse o ativo INTEIRO por ter qualquer empate passaria em 4g e
   --     tiraria a ferramenta de 90% do acervo sem ninguém notar. A movimentação nova entra
   --     pelo caminho normal, já como o dev logado.
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_z, 'saida', current_date - 2, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '2 hours')
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_z, 'saida', current_date - 2, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '2 hours')
   returning id into v_mov_z3;
 
   begin
@@ -1118,11 +1118,11 @@ begin
   -- =========================================================================
   -- 5 — apagar_item: some com lançamentos E com o saldo (que é derivado)
   -- =========================================================================
-  insert into public.itens (nome, grupo, ordem) values ('F23 Mouse Ficticio', 'acessorio', 901) returning id into v_item5;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item5, v_f1, 'entrada', 7, current_date - 5, k_dev);
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item5, v_f1, 'entrada', 5, current_date - 4, k_dev);
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'F23 Mouse Ficticio', 'acessorio', 901) returning id into v_item5;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item5, v_f1, 'entrada', 7, current_date - 5, k_dev);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item5, v_f1, 'entrada', 5, current_date - 4, k_dev);
   select total into v_s1 from public.rel_saldo_itens_filiais(array[v_f1], current_date) where filial_id is null and item_id = v_item5;
 
   set local role authenticated;
@@ -1149,12 +1149,12 @@ begin
   -- =========================================================================
   -- 9 — FORÇAR ESTADO (roda ANTES dos resets, que levariam o acervo embora)
   -- =========================================================================
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009901', 'F23K', 'notebook', v_f1, 'cadastro') returning id into v_at_k;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_k, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_k, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009901', 'F23K', 'notebook', v_f1, 'cadastro') returning id into v_at_k;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_k, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_k, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days');
 
   -- ANTES: os três relatórios que a ordem manda comparar (critério 6).
   select coalesce(sum(total), 0) into v_r1 from public.rel_resumo_filiais((select array_agg(f.id order by f.id) from public.filiais f), v_de, v_ate);
@@ -1220,12 +1220,12 @@ begin
   --     `reservado` (`status_tem_detentor`) — `defasado`, que a 0084 deixava de fora da
   --     lista à mão, passou para o lado SEM dono. Este cenário usa `emprestado`, que está
   --     dos dois lados da mudança e continua preservando.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009902', 'F23L', 'notebook', v_f1, 'cadastro') returning id into v_at_l;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_l, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_l, 'saida', current_date - 20, v_f1, 'Beltrano de Teste', 'Compras', k_dev, now() - interval '20 days');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009902', 'F23L', 'notebook', v_f1, 'cadastro') returning id into v_at_l;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_l, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_l, 'saida', current_date - 20, v_f1, 'Beltrano de Teste', 'Compras', k_dev, now() - interval '20 days');
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -1247,9 +1247,9 @@ begin
   -- 10 — FORÇAR SALDO
   -- =========================================================================
   reset role;
-  insert into public.itens (nome, grupo, ordem) values ('F23 Cabo Ficticio', 'acessorio', 902) returning id into v_item10;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item10, v_f1, 'entrada', 3, current_date - 5, k_dev);
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'F23 Cabo Ficticio', 'acessorio', 902) returning id into v_item10;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item10, v_f1, 'entrada', 3, current_date - 5, k_dev);
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -1290,19 +1290,19 @@ begin
   -- do estorno (o "estorno-strip" da F18). Se a guarda da 0081 tivesse alcançado aquela tabela,
   -- o estorno de uma devolução com itens faltantes quebraria — e nada mais neste roteiro
   -- perceberia.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009501', 'F23M', 'notebook', v_f1, 'cadastro') returning id into v_at_m;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_at_m, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
-  values (v_at_m, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, itens_faltantes, criado_por, created_at)
-  values (v_at_m, 'devolucao', current_date - 10, v_f1, 'Fulano de Teste', array['Fonte ficticia'], k_dev, now() - interval '10 days') returning id into v_mov_m2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009501', 'F23M', 'notebook', v_f1, 'cadastro') returning id into v_at_m;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_m, 'compra', current_date - 30, v_f1, k_dev, now() - interval '30 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, setor, criado_por, created_at)
+  values (public.empresa_legada(), v_at_m, 'saida', current_date - 20, v_f1, 'Fulano de Teste', 'TI', k_dev, now() - interval '20 days');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, itens_faltantes, criado_por, created_at)
+  values (public.empresa_legada(), v_at_m, 'devolucao', current_date - 10, v_f1, 'Fulano de Teste', array['Fonte ficticia'], k_dev, now() - interval '10 days') returning id into v_mov_m2;
   select count(*) into v_c1 from public.pendencias_item where movimentacao_id = v_mov_m2;
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
-    values (v_at_m, 'estorno', current_date - 9, v_f1, v_mov_m2, k_dev, now() - interval '9 days');
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, estorno_de, criado_por, created_at)
+    values (public.empresa_legada(), v_at_m, 'estorno', current_date - 9, v_f1, v_mov_m2, k_dev, now() - interval '9 days');
     select status, colaborador_atual into v_st, v_txt from public.ativos where id = v_at_m;
     select count(*) into v_c2 from public.pendencias_item where movimentacao_id = v_mov_m2;
     if v_c1 = 1 and v_c2 = 0 and v_st = 'em_uso' and v_txt = 'Fulano de Teste' then
@@ -1395,11 +1395,11 @@ begin
   -- ajuste já está sendo inserido quando `valida_lancamento_item` recusa (o alvo 0 é menor do
   -- que o que já está atrelado a um chamado). Nas demais RPCs as validações vêm antes de abrir.
   reset role;
-  insert into public.itens (nome, grupo, ordem) values ('F23 Teclado Ficticio', 'acessorio', 903) returning id into v_item13;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item13, v_f1, 'entrada', 10, current_date - 5, k_dev);
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
-  values (v_item13, v_f1, 'reserva', 10, 'CH-F23-FICTICIO', current_date - 4, k_dev);
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'F23 Teclado Ficticio', 'acessorio', 903) returning id into v_item13;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item13, v_f1, 'entrada', 10, current_date - 5, k_dev);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, chamado, data, criado_por)
+  values (public.empresa_legada(), v_item13, v_f1, 'reserva', 10, 'CH-F23-FICTICIO', current_date - 4, k_dev);
 
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_dev, 'role', 'authenticated')::text, true);
@@ -1535,15 +1535,15 @@ begin
   -- É o comportamento HERDADO do import ("Substituir tudo"), e o roteiro o documenta em vez de
   -- prometer algo mais simples do que a realidade: o recorte é "os ativos desta filial e tudo
   -- que é deles", não "tudo que aconteceu nesta filial".
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009601', 'F23X', 'notebook', v_f2, 'cadastro') returning id into v_at_x;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
-  values (v_at_x, 'transferencia', current_date - 8, v_f2, v_f1, k_dev, now() - interval '8 days') returning id into v_mov_x;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009601', 'F23X', 'notebook', v_f2, 'cadastro') returning id into v_at_x;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_x, 'transferencia', current_date - 8, v_f2, v_f1, k_dev, now() - interval '8 days') returning id into v_mov_x;
 
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009602', 'F23Y', 'notebook', v_f1, 'cadastro') returning id into v_at_y;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
-  values (v_at_y, 'transferencia', current_date - 8, v_f1, v_f2, k_dev, now() - interval '8 days') returning id into v_mov_y;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009602', 'F23Y', 'notebook', v_f1, 'cadastro') returning id into v_at_y;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
+  values (public.empresa_legada(), v_at_y, 'transferencia', current_date - 8, v_f1, v_f2, k_dev, now() - interval '8 days') returning id into v_mov_y;
 
   select count(*)::int into v_c1 from public.ativos a where a.filial_id = v_f1;
   select count(*)::int into v_c2 from public.movimentacoes m
@@ -1616,17 +1616,17 @@ begin
   -- =========================================================================
   -- ⚠ Esta seção é a ÚLTIMA por construção: depois dela não existe mais acervo para medir.
   -- Uma linha em CADA tabela que tem de sobreviver, plantada antes.
-  insert into public.motivos (codigo, rotulo, aplica_a)
-  values ('f23_motivo_ficticio', 'Motivo ficticio F23', array['saida']::public.tipo_movimentacao[]);
-  insert into public.kits_modelos (nome, payload, criado_por)
-  values ('F23 Kit Ficticio', '{"categorias":["notebook"]}'::jsonb, k_admin);
-  insert into public.senhas_acesso (rotulo, hash, criado_por)
-  values ('F23 Senha Ficticia', 'hash-ficticio-do-roteiro', k_admin);
-  insert into public.relatorios_gerados (periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
-  values (current_date, current_date, v_f2, 1, '{}'::jsonb, k_admin);
-  insert into public.import_logs (filial_id, modo, arquivo_hash, total_linhas, ativos_criados,
+  insert into public.motivos (empresa_id, codigo, rotulo, aplica_a)
+  values (public.empresa_legada(), 'f23_motivo_ficticio', 'Motivo ficticio F23', array['saida']::public.tipo_movimentacao[]);
+  insert into public.kits_modelos (empresa_id, nome, payload, criado_por)
+  values (public.empresa_legada(), 'F23 Kit Ficticio', '{"categorias":["notebook"]}'::jsonb, k_admin);
+  insert into public.senhas_acesso (empresa_id, rotulo, hash, criado_por)
+  values (public.empresa_legada(), 'F23 Senha Ficticia', 'hash-ficticio-do-roteiro', k_admin);
+  insert into public.relatorios_gerados (empresa_id, periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
+  values (public.empresa_legada(), current_date, current_date, v_f2, 1, '{}'::jsonb, k_admin);
+  insert into public.import_logs (empresa_id, filial_id, modo, arquivo_hash, total_linhas, ativos_criados,
                                   movs_apagadas, anotacoes_apagadas, termos_apagados, backup_path, correcoes, criado_por)
-  values (v_f2, 'substituir', 'hash-ficticio-f23', 0, 0, 0, 0, 0, 'f23/backup.csv', '[]'::jsonb, k_admin);
+  values (public.empresa_legada(), v_f2, 'substituir', 'hash-ficticio-f23', 0, 0, 0, 0, 0, 'f23/backup.csv', '[]'::jsonb, k_admin);
 
   -- F67 (13/11/2026; PLAN-F67, decisão 5): o "tudo" é todas as filiais DESTA empresa — as contagens da revalidação e a
   -- quantidade da frase são as da empresa legada (no CI, o acervo inteiro é dela).

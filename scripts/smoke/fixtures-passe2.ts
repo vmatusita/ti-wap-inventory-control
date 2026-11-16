@@ -69,6 +69,8 @@ export const SLUG_ITEM_FALTANTE = 'mouse'
 export async function garantirItemDoSmoke(
   sessao: Sessao,
   criadoPor: string,
+  // F67C: a filial `sede` que a fixture já usa — a empresa do item vem dela, lida pela mesma sessão.
+  filialSedeId: number,
 ): Promise<{ itemId: number; criouAgora: boolean }> {
   const { data: existente, error: eLeitura } = await sessao
     .from('itens')
@@ -78,9 +80,19 @@ export async function garantirItemDoSmoke(
   if (eLeitura) throw new Error(`Falha ao procurar o item do smoke: ${eLeitura.message}`)
   if (existente) return { itemId: existente.id as number, criouAgora: false }
 
+  const { data: filialSede, error: eFilial } = await sessao
+    .from('filiais')
+    .select('empresa_id')
+    .eq('id', filialSedeId)
+    .single()
+  if (eFilial || !filialSede?.empresa_id) {
+    throw new Error(`Falha ao ler a empresa da filial sede: ${eFilial?.message ?? 'sem empresa'}`)
+  }
+
   const { data: novo, error: eInsert } = await sessao
     .from('itens')
     .insert({
+      empresa_id: filialSede.empresa_id as string,
       nome: NOME_ITEM_SMOKE,
       grupo: GRUPO_ITEM_SMOKE,
       ativo: true,

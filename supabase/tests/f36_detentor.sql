@@ -121,13 +121,13 @@ begin
   -- =============================================================
   -- b — O FURO PRINCIPAL: ajuste para estado SEM dono ZERA
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36AJU01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36AJU01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36AJU01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Ajuste', 'TI', v_matriz, k_dev);                    -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
-    values (a, 'ajuste', 'em_estoque', 'F36 cenario b: acerto de inventario (teste)', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Ajuste', 'TI', v_matriz, k_dev);                    -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'ajuste', 'em_estoque', 'F36 cenario b: acerto de inventario (teste)', v_matriz, k_dev);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
@@ -140,13 +140,13 @@ begin
   -- =============================================================
   -- c — O PAR POSITIVO: ajuste para estado COM dono PRESERVA
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36AJU02', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36AJU02', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36AJU02';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Ciclano Preservado', 'Financeiro', v_matriz, k_dev);       -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
-    values (a, 'ajuste', 'emprestado', 'F36 cenario c: era emprestimo, nao saida (teste)', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Ciclano Preservado', 'Financeiro', v_matriz, k_dev);       -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'ajuste', 'emprestado', 'F36 cenario c: era emprestimo, nao saida (teste)', v_matriz, k_dev);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'emprestado' and v_colab = 'Ciclano Preservado' and v_setor = 'Financeiro' then
@@ -159,15 +159,15 @@ begin
   -- =============================================================
   -- d — retorno_manutencao limpa detentor LEGADO
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36RET01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36RET01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36RET01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (a, 'envio_manutencao', v_matriz, 'OS-F36-D', k_dev);                    -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, 'OS-F36-D', k_dev);                    -- em_manutencao
   update public.ativos set colaborador_atual = 'Beltrano Legado', setor_atual = 'Logistica'
    where id = a;                                                                    -- sujeira legada
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'retorno_manutencao', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'retorno_manutencao', v_matriz, k_dev);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
@@ -180,13 +180,13 @@ begin
   -- =============================================================
   -- e — marcar_defasado limpa detentor LEGADO (o estado que a 0084 esquecia)
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36DEF01', 'desktop', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36DEF01', 'desktop', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36DEF01';
   update public.ativos set colaborador_atual = 'Fulano Legado', setor_atual = 'TI'
    where id = a;                                                                    -- sujeira legada
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'marcar_defasado', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'marcar_defasado', v_matriz, k_dev);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'defasado' and v_colab is null and v_setor is null then
@@ -199,13 +199,13 @@ begin
   -- =============================================================
   -- f — transferencia de ativo em_uso PRESERVA o detentor
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36TRF01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36TRF01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36TRF01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Viajante', 'Comercial', v_matriz, k_dev);           -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
-    values (a, 'transferencia', v_matriz, v_lin, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Viajante', 'Comercial', v_matriz, k_dev);           -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, filial_destino_id, criado_por)
+    values (public.empresa_legada(), a, 'transferencia', v_matriz, v_lin, k_dev);
   select status, colaborador_atual, setor_atual, filial_id
     into v_status, v_colab, v_setor, v_filial from public.ativos where id = a;
   if v_status = 'em_uso' and v_colab = 'Fulano Viajante' and v_setor = 'Comercial' and v_filial = v_lin then
@@ -218,8 +218,8 @@ begin
   -- =============================================================
   -- g — estorno DEVOLVE o colaborador (decisão D2, ramo intocado)
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36EST01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36EST01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36EST01';
   -- ⚠ `created_at` EXPLÍCITO e distinto — corrigido em 28/08/2026 (F37), e o motivo
   -- vale para qualquer roteiro futuro que estorne. A guarda do estorno em
@@ -231,18 +231,18 @@ begin
   -- real. Não era defeito do código; era o roteiro perguntando uma coisa que ele não
   -- controlava. Com os dois instantes separados, a `devolucao` é inequivocamente a
   -- última e o cenário mede o que se propôs a medir.
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
-    values (a, 'saida', 'Fulano Estornado', 'RH', v_matriz, k_dev, now() - interval '2 minutes');  -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, motivo, filial_id, criado_por, created_at)
-    values (a, 'devolucao', 'desligamento', v_matriz, k_dev, now() - interval '1 minute');         -- em_estoque, sem dono
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Estornado', 'RH', v_matriz, k_dev, now() - interval '2 minutes');  -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, motivo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), a, 'devolucao', 'desligamento', v_matriz, k_dev, now() - interval '1 minute');         -- em_estoque, sem dono
   select colaborador_atual into v_colab from public.ativos where id = a;
   if v_colab is null then
     v_ok := v_ok + 1; raise notice '✓ g1 a devolucao zerou o detentor (precondicao do estorno)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ g1 precondicao: esperado null apos devolucao, obtido %', v_colab;
   end if;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, estorno_de, criado_por)
-    select a, 'estorno', v_matriz, m.id, k_dev
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, estorno_de, criado_por)
+    select public.empresa_legada(), a, 'estorno', v_matriz, m.id, k_dev
       from public.movimentacoes m
      where m.ativo_id = a and m.tipo = 'devolucao';
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
@@ -257,11 +257,11 @@ begin
   -- =============================================================
   -- h — REGRESSÃO: o dia a dia continua igual
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36REG01', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36REG01', 'celular', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36REG01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'reserva', 'Ciclano Reservou', 'Compras', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'reserva', 'Ciclano Reservou', 'Compras', v_matriz, k_dev);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   if v_status = 'reservado' and v_colab = 'Ciclano Reservou' and v_setor = 'Compras' then
@@ -271,8 +271,8 @@ begin
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'emprestimo', 'Beltrano Pegou', 'Producao', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'emprestimo', 'Beltrano Pegou', 'Producao', v_matriz, k_dev);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'emprestado' and v_colab = 'Beltrano Pegou' then
     v_ok := v_ok + 1; raise notice '✓ h2 emprestimo continua trocando o detentor';
@@ -281,8 +281,8 @@ begin
       v_status, coalesce(v_colab, '(null)');
   end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, motivo, colaborador, itens_faltantes, filial_id, criado_por)
-    values (a, 'devolucao', 'fim_emprestimo', 'Beltrano Pegou', array['carregador'], v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, motivo, colaborador, itens_faltantes, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'devolucao', 'fim_emprestimo', 'Beltrano Pegou', array['carregador'], v_matriz, k_dev);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor
     from public.ativos where id = a;
   select count(*) into v_cnt from public.pendencias_item
@@ -300,13 +300,13 @@ begin
   -- Um ativo com saida (há 10 dias) e ajuste para em_estoque (há 2 dias). Hoje ele não
   -- tem dono nem ao vivo nem as-of; e a leitura de 5 dias atrás continua mostrando o
   -- período como ele foi — em_uso, com o colaborador.
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36ASO01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36ASO01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36ASO01';
-  insert into public.movimentacoes (ativo_id, tipo, data, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', current_date - 10, 'Fulano AsOf', 'TI', v_matriz, k_dev);
-  insert into public.movimentacoes (ativo_id, tipo, data, status_resultante, observacao, filial_id, criado_por)
-    values (a, 'ajuste', current_date - 2, 'em_estoque', 'F36 cenario i: acerto (teste)', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', current_date - 10, 'Fulano AsOf', 'TI', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, status_resultante, observacao, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'ajuste', current_date - 2, 'em_estoque', 'F36 cenario i: acerto (teste)', v_matriz, k_dev);
 
   select r.status, r.colaborador, r.setor into v_status, v_colab, v_setor
     from public.rel_estoque_asof_filiais(array[v_matriz], current_date) r where r.ativo_id = a;
@@ -344,8 +344,8 @@ begin
     v_ok := v_ok + 1; raise notice '✓ j1 a décima checagem existe e responde (total atual = %)', v_antes;
   end if;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36CHK01', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36CHK01', 'monitor', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36CHK01';
   update public.ativos set colaborador_atual = 'Fulano Sujo' where id = a;   -- sujeira legada
 
@@ -362,8 +362,8 @@ begin
     v_falhas := v_falhas + 1; raise warning '✗ j2 esperado % + 1, obtido %', v_antes, coalesce(v_depois::text, '(null)');
   end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, k_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, k_dev);
 
   set local role authenticated;
   perform set_config('request.jwt.claims',
@@ -381,11 +381,11 @@ begin
   -- =============================================================
   -- k — forcar_estado_ativo para `defasado` zera (o que a 0084 não fazia)
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF36FOR01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF36FOR01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF36FOR01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Forcado', 'TI', v_matriz, k_dev);                   -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Forcado', 'TI', v_matriz, k_dev);                   -- em_uso
 
   set local role authenticated;
   perform set_config('request.jwt.claims',

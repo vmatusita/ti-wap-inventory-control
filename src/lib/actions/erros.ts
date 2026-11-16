@@ -43,6 +43,12 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
     return 'A importação demorou demais e foi cancelada — tente novamente ou avise o TI.'
   }
 
+  // F67C (decisão 18) — o registro ficou sem a empresa (23502 em `empresa_id`): nenhum default a preenche mais. Frase
+  // fixa, sem o `details` do Postgres (que traz os valores da linha). O 23502 de OUTRA coluna segue o caminho de antes.
+  if (c === '23502' && casa(m, FRASES_DO_MOTOR.colunaEmpresaNula)) {
+    return 'Não foi possível gravar: o registro ficou sem a empresa. Recarregue a página e tente de novo; se continuar, avise o administrador.'
+  }
+
   // F66B — o teto de COMPRIMENTO do banco (23514 de um CHECK `<tabela>_<coluna>_tamanho`): a frase diz o campo e o
   // teto, com o rótulo e o número da fonte única (`fraseDeComprimento`, erros-do-banco.ts). Chega aqui o texto longo
   // que escapou do Zod — a tela sem `.max()`, a RPC do import chamada por fora; no import pela tela, a action segue

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { listarFiliais } from '@/lib/queries/filiais'
 import { listarImportLogs } from '@/lib/queries/import-logs'
 import { lerVocabularioImport } from '@/lib/queries/vocabulario-import'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { paraCliente, VocabularioImportInvalidoError } from '@/lib/import'
 import { registrarFalha } from '@/lib/observabilidade'
 import { formatDateTime } from '@/lib/format'
@@ -52,7 +53,8 @@ export default async function AdminImportarPage() {
     // tratavam a falha de leitura do vocabulário com mensagem própria; a PÁGINA caía no
     // boundary genérico. Um vocabulário que `conferirVocabulario` recusa (ambíguo ou
     // incompleto) derruba só o wizard, com o motivo à vista — o histórico continua lá.
-    lerVocabularioImport(client).then(
+    // F67C: o vocabulário é o da empresa da OPERAÇÃO (a página ainda não escolheu filial; destino F70: a da sessão).
+    lerVocabularioImport(client, empresaDaOperacao()).then(
       (vocabulario) => ({ ok: true as const, vocabulario }),
       (erro: unknown) => ({ ok: false as const, erro }),
     ),

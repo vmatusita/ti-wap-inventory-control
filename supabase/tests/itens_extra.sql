@@ -70,13 +70,13 @@ begin
   -- A observação é fornecida de propósito: passa a constraint lanc_item_ajuste_obs
   -- (0015) e ISOLA a rejeição no TRIGGER, não na constraint de justificativa.
   -- ---------------------------------------------------------------
-  insert into public.itens (nome, grupo, ordem)
-    values ('ZZF19 Item Teste', 'acessorio', 999) returning id into v_item;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_matriz, 'entrada', 5, '2026-06-01', v_prof);
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'ZZF19 Item Teste', 'acessorio', 999) returning id into v_item;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_matriz, 'entrada', 5, '2026-06-01', v_prof);
   begin
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, observacao, data, criado_por)
-      values (v_item, v_matriz, 'ajuste', -10, 'Ajuste que levaria o total abaixo de zero',
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, observacao, data, criado_por)
+      values (public.empresa_legada(), v_item, v_matriz, 'ajuste', -10, 'Ajuste que levaria o total abaixo de zero',
               '2026-06-02', v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ R-ITE-02: ajuste −10 (total −5) NÃO foi bloqueado (deveria)';
   exception when others then
@@ -95,8 +95,8 @@ begin
   -- grant de tabela seja mais restrito noutro ambiente: o handler engole o erro
   -- e a verificação final — linha intacta/presente — é o que decide.)
   -- ---------------------------------------------------------------
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_matriz, 'entrada', 7, '2026-06-03', v_prof) returning id into v_lanc;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_matriz, 'entrada', 7, '2026-06-03', v_prof) returning id into v_lanc;
 
   -- 11a — UPDATE como authenticated não altera a linha.
   v_rows := -1;
@@ -143,10 +143,10 @@ begin
   -- recusava (e mais: acento e espaço a mais) e o tirou do banco por
   -- redundante — este cenário segue provado, agora pelo índice que sobrou.
   -- ---------------------------------------------------------------
-  insert into public.itens (nome, grupo, ordem)
-    values ('ZZF19 Mouse', 'acessorio', 998) returning id into v_item2;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'ZZF19 Mouse', 'acessorio', 998) returning id into v_item2;
   begin
-    insert into public.itens (nome, grupo, ordem) values ('zzf19 mouse', 'acessorio', 997);
+    insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'zzf19 mouse', 'acessorio', 997);
     v_falhas := v_falhas + 1; raise warning '✗ R-ITE-22: ''zzf19 mouse'' após ''ZZF19 Mouse'' NÃO foi bloqueado (deveria)';
   exception
     when unique_violation then

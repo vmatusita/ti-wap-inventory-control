@@ -87,20 +87,62 @@ const EXCECOES_TS = ['src/lib/types/database.ts'] as const
 // e o Postgres só infere o índice com EXATAMENTE essas colunas). Exceção NOMINAL, por arquivo E tabela,
 // cada uma usada exatamente uma vez — um `.eq('empresa_id', …)` novo no mesmo arquivo segue reprovado
 // pela catraca abaixo, que compara trecho a trecho.
-const EXCECOES_TS_F65: readonly { arquivo: string; tabela: string; motivo: string }[] = [
+//
+// F67C (16/11/2026 — PLAN-F67C, decisão 6): A RÉGUA MUDA DE NATUREZA — escrever não é ler. O argumento de `.insert(` e de
+// `.upsert(` (o payload e o 2º argumento com `onConflict`) sai da cadeia ANTES do predicado; `select/eq/filter/match/
+// order/in/or/is/contains/update` continuam acusando. Por isso a entrada F65 do ÁRBITRO do ON CONFLICT (colaboradores.ts)
+// SAIU (o `onConflict` é argumento de upsert) — mantê-la seria fantasma. E o formato das exceções passou a aceitar MAIS
+// DE UM uso por arquivo/tabela, com a contagem exata (`usos`): cada exceção é usada exatamente o número declarado.
+type ExcecaoTs = { arquivo: string; tabela: string; usos: number; motivo: string }
+const LEITORES_F67C: readonly (readonly [string, string, number, string, string])[] = [
+  ['src/lib/actions/admin.ts', 'motivos', 1, 'b', 'atualizarMotivo: o UPDATE por código só alcança a empresa de quem escreve'],
+  ['src/lib/actions/itens.ts', 'itens', 1, 'a', 'criarItemInline: o homônimo por nome_chave é o da empresa de quem cria'],
+  ['src/lib/actions/colaboradores.ts', 'colaboradores', 1, 'a', 'criarColaboradorInline: o homônimo por nome_chave é o da empresa da filial'],
+  ['src/lib/actions/tipos-item.ts', 'tipos_item', 1, 'a', 'criarTipoItem: o homônimo por slug é o da empresa de quem cria'],
+  ['src/lib/actions/relatorios.ts', 'relatorios_gerados', 1, 'd', 'lerUltimaVersao: a versão vigente é a da empresa do relatório'],
+  ['src/lib/queries/colaboradores.ts', 'colaboradores', 3, 'a', 'resolverColaboradoresPorNome, a lista do campo e o já-cadastrado: da empresa pedida'],
+  ['src/lib/queries/vocabulario-import.ts', 'unidades_apelidos', 1, 'c', 'lerVocabularioImport: os apelidos da empresa'],
+  ['src/lib/queries/vocabulario-import.ts', 'import_termos_categoria', 1, 'c', 'lerVocabularioImport: o De→Para de categoria da empresa'],
+  ['src/lib/queries/vocabulario-import.ts', 'import_termos_estado', 1, 'c', 'lerVocabularioImport: o De→Para de estado da empresa'],
+  ['src/lib/queries/vocabulario-import.ts', 'import_prefixos_patrimonio', 1, 'c', 'lerVocabularioImport: os prefixos de patrimônio da empresa'],
+]
+const EXCECOES_TS_F65: readonly ExcecaoTs[] = [
   {
     arquivo: 'src/lib/queries/gerados.ts',
     tabela: 'relatorios_gerados',
+    usos: 1,
     motivo: 'F65 (decisão 6): a chave da versão do snapshot é por empresa — identidade da chave, não recorte',
   },
-  {
-    arquivo: 'src/lib/actions/colaboradores.ts',
-    tabela: 'colaboradores',
-    motivo: 'F65 (decisão 5): o árbitro do ON CONFLICT é o unique por empresa — alvo de inferência, não recorte',
-  },
+  // F67C (fato 25) — os LEITORES (a)–(d): o recorte é pela empresa de quem ESCREVE, porque a chave natural é única POR
+  // EMPRESA desde a F65 (o PLAN-F67C §3 é a tabela-verdade). Exceção NOMINAL, com o número exato de usos.
+  ...LEITORES_F67C.map(([arquivo, tabela, usos, letra, quem]) => ({
+    arquivo,
+    tabela,
+    usos,
+    motivo: `F67C (fato 25, leitor (${letra})): ${quem} — recorte pela empresa de quem escreve; a chave natural é única POR EMPRESA desde a F65`,
+  })),
 ]
 const ehExcecaoTsF65 = (l: Leitura) =>
   EXCECOES_TS_F65.some((e) => l.onde.startsWith(`${e.arquivo}:`) && l.tabela === e.tabela)
+
+/**
+ * F67C — o texto SEM o argumento de `.insert(` e de `.upsert(` (o payload e o 2º argumento, com o `onConflict`): escrever a
+ * empresa não é lê-la. O resto da cadeia (`.select('…empresa_id')`, `.eq(`, `.filter(`…) fica, e segue acusando.
+ */
+function semArgumentosDeEscrita(texto: string): string {
+  let saida = ''
+  let i = 0
+  const re = /\.(?:insert|upsert)\s*\(/g
+  for (let m = re.exec(texto); m; m = re.exec(texto)) {
+    const abre = m.index + m[0].length - 1
+    const fecha = fimDoPar(texto, abre)
+    if (fecha < 0) continue
+    saida += texto.slice(i, abre) + '()'
+    i = fecha
+    re.lastIndex = fecha
+  }
+  return saida + texto.slice(i)
+}
 
 // Todo fonte JS/TS que o bundler aceita — `.mts`/`.cts` e os `.js` também (2ª rodada da revisão
 // adversarial: a varredura só via `.ts`/`.tsx`, e um utilitário `.mts` novo escaparia das duas travas).
@@ -196,7 +238,7 @@ function leiturasDoAcervo(fonte: string, arquivo: string, oito: readonly string[
   return { leituras, dinamicas }
 }
 
-const citaEmpresaId = (l: Leitura) => /\bempresa_id\b/.test(l.texto)
+const citaEmpresaId = (l: Leitura) => /\bempresa_id\b/.test(semArgumentosDeEscrita(l.texto))
 
 describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', () => {
   // Desde a F64: as dezenove (os dois lotes). O nome `oito` fica — é o universo da trava, que cresceu.
@@ -230,10 +272,10 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
     expect(leituras.filter((l) => citaEmpresaId(l) && !ehExcecaoTsF65(l)).map((l) => `${l.onde} (${l.tabela})`)).toEqual([])
   })
 
-  it('cada exceção nominal da F65 é usada por EXATAMENTE uma cadeia (a lista não guarda fantasma nem cobre duas)', () => {
+  it('cada exceção nominal é usada EXATAMENTE o número de vezes que declara (sem fantasma, sem cobrir uma a mais — F65/F67C)', () => {
     for (const e of EXCECOES_TS_F65) {
       const usos = leituras.filter((l) => citaEmpresaId(l) && l.onde.startsWith(`${e.arquivo}:`) && l.tabela === e.tabela)
-      expect(usos.map((l) => l.onde), `${e.arquivo} (${e.tabela})`).toHaveLength(1)
+      expect(usos.map((l) => l.onde), `${e.arquivo} (${e.tabela})`).toHaveLength(e.usos)
       expect(e.motivo.length, `${e.arquivo} sem motivo`).toBeGreaterThan(20)
     }
   })
@@ -263,6 +305,12 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
     ['`.eq(empresa_id)` em eventos_admin (F64)', "await admin.from('eventos_admin').select('id, acao').eq('empresa_id', e).order('quando')", true],
     ['`.select(id, empresa_id)` em senhas_acesso (F64)', "const { data } = await admin.from('senhas_acesso').select('id, empresa_id').eq('ativa', true)", true],
     ['descritor de forma de motivos citando a coluna (F64)', "leituraDeRelacao({ rotulo: 'x', origem: 'motivos', select: 'codigo, rotulo, empresa_id', forma: F, ordem: ['codigo'] })", true],
+    // F67C (sabotagem I): escrever a empresa não é lê-la — o argumento de insert/upsert sai; o resto da cadeia acusa
+    ['F67C: `.insert(x)` COM empresa_id no payload PASSA', "await supabase.from('ativos').insert({ patrimonio: p, empresa_id: e })", false],
+    ['F67C: `.insert(x).select(id, empresa_id)` ACUSA (a leitura no retorno)', "await supabase.from('ativos').insert({ patrimonio: p }).select('id, empresa_id')", true],
+    ['F67C: `.upsert(x, { onConflict })` com empresa_id PASSA', "await supabase.from('colaboradores').upsert(xs, { onConflict: 'empresa_id,nome_chave' })", false],
+    ['F67C: `.upsert(x).eq(empresa_id)` ACUSA (recorte depois da escrita)', "await supabase.from('colaboradores').upsert(xs).eq('empresa_id', e)", true],
+    ['F67C: `.update(x).eq(empresa_id)` ACUSA (só insert/upsert são escrita que informa)', "await supabase.from('motivos').update({ ativo: true }).eq('empresa_id', e)", true],
     ['par legítimo: o lote 2 SEM a coluna', "await admin.from('eventos_admin').select('id, acao, alvo').order('quando', { ascending: false })", false],
     ['par legítimo: tabela da F62 (membros)', "await supabase.from('membros').select('id').eq('empresa_id', EMPRESA_LEGADA_ID)", false],
     ['par legítimo: a cadeia das oito SEM a coluna', "await supabase.from('ativos').select('id, patrimonio').eq('filial_id', f)", false],
@@ -283,7 +331,8 @@ describe('ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7)', (
  * no mesmo arquivo manteria a contagem.
  */
 function ocorrenciasDeEmpresaId(fonte: string): string[] {
-  const texto = semComentarios(fonte).replace(/(['"`])\s*\+\s*\1/g, '')
+  // F67C: o argumento de `.insert(`/`.upsert(` (o payload e o `onConflict`) não conta — escrever não é ler.
+  const texto = semArgumentosDeEscrita(semComentarios(fonte).replace(/(['"`])\s*\+\s*\1/g, ''))
   return [...texto.matchAll(/\bempresa_id\b/g)].map((m) => {
     const de = texto.lastIndexOf('.from(', m.index)
     return texto
@@ -337,11 +386,55 @@ const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> =
     ],
     motivo: 'F65 (decisão 6): a empresa de cada versão, para a chave do snapshot (o índice da 0171)',
   },
+  // F67C (decisão 18): a FRASE do 23502 — o texto que o motor escreve quando a coluna da empresa vem nula; não é consulta.
+  'src/lib/supabase/erros-do-banco.ts': {
+    trechos: ["colunaEmpresaNula: ['null value in column \"empresa_id"],
+    motivo: 'F67C (decisão 18): a grafia do erro do motor (23502 na coluna da empresa) — texto de mensagem, não leitura da coluna',
+  },
+  // (a entrada F65 do alvo do ON CONFLICT de colaboradores.ts SAIU na F67C: é argumento de upsert, e escrever não é ler)
+  // F67C — os LEITORES (a)–(d): recorte pela empresa de quem escreve (a chave natural é única POR EMPRESA desde a F65).
+  // As de `filiais` (fora das dezenove) só entram aqui, na catraca do literal; as demais também são exceção nominal acima.
+  'src/lib/actions/admin.ts': {
+    trechos: [".from('motivos') .update({ rotulo, aplica_a, ativo }) .eq('empresa_id"],
+    motivo: 'F67C (fato 25, leitor (b)): atualizarMotivo — o UPDATE por código só alcança a empresa de quem escreve',
+  },
   'src/lib/actions/colaboradores.ts': {
+    trechos: [".from('colaboradores') .select('id, nome, ativo') .eq('empresa_id"],
+    motivo: 'F67C (fato 25, leitor (a)): criarColaboradorInline — o homônimo por nome_chave é o da empresa da filial',
+  },
+  'src/lib/actions/itens.ts': {
+    trechos: [".from('itens') .select('id, nome, ativo') .eq('empresa_id"],
+    motivo: 'F67C (fato 25, leitor (a)): criarItemInline — o homônimo por nome_chave é o da empresa de quem cria',
+  },
+  'src/lib/actions/relatorios.ts': {
+    trechos: [".from('relatorios_gerados') .select(LEITURA_ULTIMA_VERSAO_RELATORIO.select) .eq('empresa_id"],
+    motivo: 'F67C (fato 25, leitor (d)): lerUltimaVersao — a versão vigente é a da empresa do relatório',
+  },
+  'src/lib/actions/tipos-item.ts': {
+    trechos: [".from('tipos_item') .select('id, ativo') .eq('empresa_id"],
+    motivo: 'F67C (fato 25, leitor (a)): criarTipoItem — o homônimo por slug é o da empresa de quem cria',
+  },
+  'src/lib/queries/colaboradores.ts': {
     trechos: [
-      ".from('colaboradores') .upsert( aCriar.map((g) => ({ nome: g.grafia_exemplo.trim(), filial_id: g.filial_id, criado_por: aut.uid, })), { onConflict: 'empresa_id",
+      ".from('colaboradores') .select(LEITURA_COLABORADORES_POR_NOME.select) .eq('empresa_id",
+      ".from('colaboradores') .select(LEITURA_SUGESTAO_CADASTRO.select) .eq('empresa_id",
+      ".from('colaboradores') .select('id, ativo') .eq('empresa_id",
     ],
-    motivo: 'F65 (decisão 5): o alvo do ON CONFLICT da consolidação (o unique por empresa da 0172/0174)',
+    motivo: 'F67C (fato 25, leitor (a)): resolverColaboradoresPorNome, a lista do campo e o já-cadastrado — da empresa pedida',
+  },
+  'src/lib/queries/relatorios/comum.ts': {
+    trechos: [".from('filiais') .select('id, nome, slug') .eq('empresa_id"],
+    motivo: 'F67C (fato 25, leitor (a)): resolverFilialPorSlug — o slug da filial é único POR EMPRESA (filiais fica fora das dezenove)',
+  },
+  'src/lib/queries/vocabulario-import.ts': {
+    trechos: [
+      ".from('filiais').select('id, nome, ativo').eq('empresa_id",
+      ".from('unidades_apelidos') .select('filial_id, apelido') .eq('empresa_id",
+      ".from('import_termos_categoria') .select(LEITURA_VOCAB_CATEGORIAS.select) .eq('empresa_id",
+      ".from('import_termos_estado') .select(LEITURA_VOCAB_ESTADOS.select) .eq('empresa_id",
+      ".from('import_prefixos_patrimonio') .select('prefixo') .eq('empresa_id",
+    ],
+    motivo: 'F67C (fato 25, leitor (c)): lerVocabularioImport — o vocabulário do import é o da empresa',
   },
   // F67 (13/11/2026) — a identidade do ativo é POR EMPRESA desde a F65 (a nota F66 da ficha): as recusas de cadastro
   // manual e o import procuram o par só nas unidades DA EMPRESA do cadastro. É a leitura de `filiais` (a tabela que
@@ -371,7 +464,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do litera
   it('nenhum trecho liberado parte de uma das oito — fora das exceções nominais da F65, cada uma da SUA tabela', () => {
     // F67B (16/11/2026): a ÚNICA entrada que não é consulta — o filtro do Realtime compõe uma string para o
     // postgres_changes, não lê a coluna. A prova de que continua não sendo consulta é o trecho NÃO ter `.from(`.
-    const SEM_CONSULTA = new Set(['src/lib/relatorios/assinatura-realtime.ts'])
+    const SEM_CONSULTA = new Set(['src/lib/relatorios/assinatura-realtime.ts', 'src/lib/supabase/erros-do-banco.ts'])
     for (const [a, { trechos }] of Object.entries(EMPRESA_ID_NO_APP)) {
       for (const t of trechos) {
         if (SEM_CONSULTA.has(a)) {
@@ -470,10 +563,21 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     return comandosQueLeem(corpo, gatilhos).map((c) => c.trecho)
   }
 
+  /**
+   * F67C (16/11/2026 — decisão 6 do PLAN-F67C): ESCREVER A COLUNA NÃO É LÊ-LA — o espelho exato de
+   * `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`). Desde o fim do default todo INSERT numa das 20 TEM de dizer a
+   * empresa; saem do comando, ANTES da régua, só a LISTA DE COLUNAS de `insert into T (…)` (o nome da tabela fica) e o
+   * ALVO de `on conflict (…)`. `returning empresa_id`, `select … empresa_id`, `where x.empresa_id` continuam LEITURA.
+   */
+  const neutralizarEscrita = (cmd: string) =>
+    cmd
+      .replace(/(\binsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?[a-z_][a-z0-9_]*(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*)\([^()]*\)/gi, '$1()')
+      .replace(/\bon\s+conflict\s*\((?:[^()]|\([^()]*\))*\)/gi, 'on conflict ()')
+
   /** Os comandos que leem, com as tabelas dos lotes que cada um toca (a régua das exceções). */
   function comandosQueLeem(corpo: string, gatilhos: readonly string[] = []): { trecho: string; tabelas: string[] }[] {
     const achados: { trecho: string; tabelas: string[] }[] = []
-    for (const cmd of comandosDoTexto(corpo)) {
+    for (const cmd of comandosDoTexto(corpo).map(neutralizarEscrita)) {
       // sem caixa: o Postgres dobra o identificador sem aspas (`A.EMPRESA_ID` é `a.empresa_id`)
       if (!/\bempresa_id\b/i.test(cmd)) continue
       const alias = new Map<string, string>()
@@ -545,7 +649,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   function origensNaoProvadas(funcao: string, corpo: string): string[] {
     const achados: string[] = []
     for (const bruto of comandosDoTexto(corpo)) {
-      const cmd = bruto.toLowerCase()
+      const cmd = neutralizarEscrita(bruto).toLowerCase()
       if (!/\bempresa_id\b/.test(cmd)) continue
       for (const m of cmd.matchAll(/(?:\b([a-z_][a-z0-9_]*)\s*\.\s*)?\bempresa_id\b/g)) {
         const q = m[1]
@@ -690,7 +794,14 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   it.each([
     ['um corpo lendo movimentacoes.empresa_id pelo alias', 'select m.empresa_id from public.movimentacoes m limit 1', true],
     ['um corpo filtrando ativos por empresa_id sem qualificador', 'select count(*) from public.ativos where empresa_id = p_empresa', true],
-    ['um corpo gravando empresa_id em itens', 'insert into public.itens (nome, empresa_id) values (p_nome, p_empresa)', true],
+    // F67C (decisão 6): ESCREVER não é ler — a lista de colunas do INSERT (e o alvo do on conflict) sai antes da régua.
+    // Até a F67C este caso esperava `true`; a mudança de natureza da régua está no PLAN-F67C §4 e na ata.
+    ['F67C: um corpo GRAVANDO empresa_id em itens (escrita, não leitura)', 'insert into public.itens (nome, empresa_id) values (p_nome, p_empresa)', false],
+    ['F67C: o alvo do on conflict com empresa_id (inferência do árbitro, não leitura)', 'insert into public.itens (empresa_id, nome) values (p_e, p_n) on conflict (empresa_id, nome_chave) do nothing', false],
+    // A SABOTAGEM G da F67C: a parte de LEITURA não afrouxou — cada forma abaixo continua acusando.
+    ['sabotagem G: o INSERT que DEVOLVE a coluna (returning empresa_id)', 'insert into public.itens (empresa_id, nome) values (p_e, p_n) returning empresa_id', true],
+    ['sabotagem G: o INSERT … SELECT que lê a coluna de uma das oito', "insert into public.anotacoes (empresa_id, ativo_id, texto) select a.empresa_id, a.id, 'x' from public.ativos a", true],
+    ['sabotagem G: o on conflict … do update que filtra pela coluna', 'insert into public.itens (empresa_id, nome) values (p_e, p_n) on conflict (empresa_id, nome_chave) do update set nome = excluded.nome where itens.empresa_id = p_x', true],
     ['par legítimo: membros.empresa_id', 'select m.empresa_id from public.membros m limit 1', false],
     ['par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo)', 'select count(*) into v from public.ativos; select 1 from public.membros m where m.empresa_id = public.empresa_legada()', false],
     // 2ª rodada da revisão adversarial: o `;` dentro de TEXTO não parte o comando; o `into v_n from` não esconde a tabela

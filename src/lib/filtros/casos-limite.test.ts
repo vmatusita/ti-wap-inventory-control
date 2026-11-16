@@ -296,7 +296,7 @@ const ADAPTADOR: Adaptador = {
       throw e
     }
     if (familia !== 'ao-vivo' || param === 'geral') return 'abre'
-    return (await resolverFilialPorSlug(client, param ?? '')) ? 'abre' : '404'
+    return (await resolverFilialPorSlug(client, param ?? '', 'empresa-ficticia')) ? 'abre' : '404'
   },
 }
 

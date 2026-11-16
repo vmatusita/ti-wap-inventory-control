@@ -13,6 +13,7 @@ import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { traduzirErroStorage } from '@/lib/supabase/erros-do-banco'
 import { persistirTermo } from '@/lib/termos/persistir'
+import { empresaDaFilial } from '@/lib/escopo/empresa-da-filial'
 import {
   confirmarAssinaturaSchema,
   desfazerAssinaturaSchema,
@@ -511,6 +512,10 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
   if (!aut.ok) return { ok: false, erro: aut.erro }
   const uid = aut.uid
 
+  // F67C: o termo nasce na empresa da FILIAL de um dos ativos (o banco confere todos); sem filial visível, recusa.
+  const empresa = await empresaDaFilial(supabase, (ativosFiliais ?? [])[0]?.filial_id ?? -1)
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const dados: DadosTermo = {
     ...campos,
     data,
@@ -545,6 +550,7 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
     dados,
     buffer,
     uid,
+    empresa,
   })
   if (!persistido.ok) return { ok: false, erro: persistido.erro }
   const { id, arquivoPath } = persistido

@@ -26,7 +26,10 @@ importa para quem mexe NESTE código: implementação, não a política.
   EXPLÍCITA e o **ponto de injeção da F70** (a empresa da sessão). Quando a operação TEM filial, a empresa é a DELA
   (`empresaDaFilial`, `src/lib/escopo/empresa-da-filial.ts`). Cada uso do literal e de `empresaDaOperacao()` é contado,
   arquivo a arquivo, com o destino escrito, por `empresa-legada-catraca.test.ts` — uma ocorrência nova reprova e obriga a
-  decidir: a empresa da filial, a da sessão, ou legada de propósito.
+  decidir: a empresa da filial, a da sessão, ou legada de propósito. **Desde a F67C** (o fim do default) ela também é a
+  empresa de toda ESCRITA sem pai — item, motivo, tipo, kit, filial, o colaborador sem filial, o relatório consolidado, a
+  senha de visualização (destino F68) e as trilhas de conta — e de todo leitor por chave natural sem filial; o tipo
+  `Insert` do `database.ts` exige `empresa_id`, então um escritor novo sem empresa não compila.
 
 ## `acesso.ts` — o que uma guarda nova precisa respeitar
 

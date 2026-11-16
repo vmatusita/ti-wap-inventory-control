@@ -81,6 +81,9 @@ $f$;
 -- este roteiro prova não muda.
 -- F67B (16/11/2026): e a F67B antes da F67 — as policies do Storage da F67B citam e_admin_na() e empresas_de_admin(),
 -- que o rollback da F67 derruba (sem esta linha ele nem roda). O que este roteiro prova não muda.
+-- F67C (16/11/2026): e a F67C antes da F67B — a cadeia inteira tem a F67C por cima (17 funções recriadas, a ferramenta de
+-- órfão nova e os defaults tirados das 20); ela sai PRIMEIRO, e o que este roteiro prova não muda.
+\ir ../rollback/F67C-desfaz.sql
 \ir ../rollback/F67B-desfaz.sql
 \ir ../rollback/F67-desfaz.sql
 select pg_temp.f66_contagens() as contagens_antes,

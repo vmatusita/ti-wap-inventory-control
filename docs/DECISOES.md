@@ -14143,3 +14143,85 @@ nada a ninguém (o modo autônomo do `CLAUDE.md`). Evidência em `docs/f67b-evid
 8. **Nenhuma escrita em produção além dos seis `apply_migration`**; nenhum objeto de Storage gravado, copiado, movido ou
    apagado; a ferramenta de órfão NÃO foi chamada (a limpeza dos 3 `.docx` sem linha é decisão do Johnny). A tag
    `v1.74.0` vai no merge do PR de documentação.
+
+## 2026-11-16 · F67C (v1.75.0) · o fim do default: a escrita informa a empresa
+
+**Contexto.** A ordem [`prompts/F67C-fim-do-default-ultracode.md`](prompts/F67C-fim-do-default-ultracode.md): tirar o
+`default public.empresa_legada()` das 20 colunas `empresa_id` de `k_negocio`, depois de fazer TODA escrita dizer a
+empresa — as funções SQL, o app, a trilha, os scripts, o restaurador e os roteiros —, com os leitores por chave natural
+recortados e nada mudando para a WAP. Plano [`PLAN-F67C.md`](PLAN-F67C.md) (os 32 fatos remedidos, as tabelas-verdade,
+as vinte decisões); migrations `0200`–`0204` (a expansão) e `0205`–`0207` (a contração); evidência em
+`docs/f67c-evidencias/`; relatório [`RELATORIO-F67C.md`](RELATORIO-F67C.md).
+
+**As decisões do Johnny, registradas.**
+
+- **(16/11-3)** Uma run, em lotes por família — acervo (8) → vocabulário e registros (11) → `filiais` —, cada lote com os
+  escritores antes e o `drop default` por último, depois do deploy. Um PR de código e um PR de documentação com a tag.
+- **(16/11-4)** O seed só passa a dizer a empresa fictícia de hoje (e o `onConflict` do mesmo upsert passa a
+  `'empresa_id,nome_chave'`); as duas empresas, as seis tabelas sem fixture e o `seed.test.ts` continuam no backlog.
+- Herdadas e aplicadas: 12/11-2 (a divisão F67/F67B/F67C), 13/11-1 ("dev sou só eu"), 13/11-2 (expandir e contrair, zero
+  janela — aqui os escritores e o default), 13/11-3 (as 13 checagens travadas), e da F67 a trilha com a empresa ALVO e a
+  regra "a da filial quando há filial, senão a da operação".
+
+**As vinte decisões da fase** (o texto inteiro no §5 do plano; aqui o que a execução fixou ou mudou):
+
+1. **De onde vem a empresa** — a tabela-verdade do plano (§2). **Descartado um gatilho BEFORE INSERT que derivasse a
+   empresa do pai**: seria o default disfarçado, o tipo exigiria a coluna de qualquer jeito, e ele disputaria a ordem
+   alfabética com `termo_da_empresa`, `termo_exige_modelo_da_empresa` e `kit_motivo_da_empresa` (ADR-002 §19).
+2. **As 17 funções: a empresa da FILIAL da linha pela PONTE ÚNICA `empresa_da_filial`, mesma assinatura** — DIVERGÊNCIA
+   declarada contra a proposta da ordem (que previa ler `a.empresa_id`/`m.empresa_id` do pai e uma categoria nominal nova
+   na régua): nenhuma função passa a LER `empresa_id`; a coluna aparece só na lista do INSERT, e a leitura do pai é a de
+   `filiais.empresa_id` DENTRO da ponte (fora dos lotes, já permitida). A FK composta `(empresa_id, filial_id)` garante
+   que a empresa da filial É a do ativo, da movimentação e da pendência. A categoria nominal "a empresa do pai para gravar
+   o filho" nasceu vazia por construção e não foi criada. Medido: a ponte é `invoker`, `stable`, `EXECUTE` só para
+   `authenticated` — as 14 invoker só são executáveis por `authenticated`, as 4 definer rodam como dono.
+3. **A ferramenta de órfão: assinatura nova `(p_empresa uuid, …)` AO LADO** (molde F67), a empresa da operação; a antiga
+   caiu na `0206`.
+4. **O tipo: hand-fix datado** no `database.ts` (o `Insert` das 20 sem `?`; a sobrecarga nova da ferramenta em
+   `Functions`), com a trava de mesa `empresa-obrigatoria-no-insert.test.ts` lendo o tipo pelo compilador.
+5. **A varredura de escrita** (`escrita-com-empresa.test.ts`): o corpo vigente das funções e o código das migrations
+   ≥ 0200 (disco); toda `.from('<20>')…insert|upsert(` de `src/**` e `scripts/**` com `empresa_id` no payload literal ou
+   na declaração do identificador; o SQL em texto dos scripts. Exceção NOMINAL única: `scripts/db/mutacoes.mjs` (o
+   catálogo do injetor sabota corpos de propósito).
+6. **A régua "ninguém lê" mudou de natureza**: `pg_temp.sem_lista_de_escrita` (`_asserts.sql`) tira do texto SÓ a lista
+   de colunas do INSERT (o nome da tabela fica) e o alvo do `ON CONFLICT`; o espelho de disco faz o mesmo; no app, o
+   argumento de `.insert(`/`.upsert(` sai da cadeia. Um caso de sabotagem I antigo ("gravar `empresa_id` conta como
+   ler") foi INVERTIDO de propósito, e três casos da sabotagem G provam que `returning`, `insert … select` e o `do
+   update … where` continuam acusando. As entradas de `k_leitura_tenant` NÃO mudaram (o nome da tabela do INSERT segue no
+   texto; a 15k continua sem fantasma).
+7. **A 15m** varre o código de toda função de `public` (e o texto inteiro das que usam `execute`), sem lista de exceção.
+8. **Os leitores (a)–(d)** como no §3 do plano; a view `v_colaboradores_textos` não tem empresa e ficou para a F70.
+9. **Lotes e ordem**: `0200`–`0203` (lote 1), `0204` (lote 2), contração `0205` → `0206` → `0207`. A inversão de 15b/15c
+   compartilha UMA expressão (a 15c cobre o lote 2 e `filiais`): no histórico, a 15c fica vermelha entre o commit da
+   `0205` e o da `0207` — os três no mesmo push.
+10. **Os 703 INSERTs dos roteiros: o valor é SEMPRE `public.empresa_legada()`** — refinado durante a execução: é a forma
+    explícita EXATA do que o default dava, o que preserva por construção o comportamento de toda fixture, inclusive das
+    que o roteiro espera que FALHEM (a FK composta continua recusando o que recusava); a "empresa da fixture = a do pai"
+    vale em todo INSERT bem-sucedido porque a FK composta o confere. Cinco subagentes em conjuntos disjuntos, cada um
+    seguido de um revisor em contexto fresco (aprovados os cinco); o conferidor mecânico (`conferir-roteiro.mjs`, fora do
+    repositório) reprova linha mudada fora de INSERT e asserção mudada. 986 asserções FIM nos 35 = 986.
+11. **`restaurar.mjs`**: o subselect da empresa da filial (do ativo, da movimentação) no próprio SQL gerado; sem pai,
+    recusa; a conferência conta. O roteiro `restauracao.sql` 8a passou a provar a empresa DA FILIAL (numa filial da B) e
+    ganhou a 8c (sem filial no destino → `23502`).
+12. **A janela por forma** com a Skew Protection MEDIDA ligada (o `data-dpl-id` do HTML público) e o teto não legível →
+    12 h (padrão Pro): ver o relatório para o que aconteceu.
+13. **A vigília**: `query_logs` por `sql_state_code`, nunca `event_message` (o `DETAIL` traz a linha).
+14. **A prova viva no ensaio** — só INSERTs diretos num bloco que termina em `raise`; as 17 funções, no CI.
+15. **"Nada muda para a WAP"** pelas contagens, policies, checagens, smoke e conferidor; o conta a conta não roda
+    (nenhuma policy muda).
+16. **O rollback** gerado (`F67C-desfaz.sql`), o `set default` primeiro; ensaiado por `f67c_rollback.sql` com a impressão
+    ordenada por `collate "C"` (as constantes valem na mesa e no CI); roda antes do da F67B nos sete roteiros de rollback.
+17. **O injetor**: 184 → 188 (quatro novas: o default de volta em `filiais` e numa tabela futura, a função sem a coluna, a
+    empresa de quem chama); as duas `*-default-literal` da F63/F64 mudaram de sentido. O `update motivos` e o
+    `restaurar.mjs` são TS/JS: o injetor (que muta o banco) não os alcança — sabotagens E e F de mesa.
+18. **A frase do `23502` em `empresa_id`** em `erros-do-banco.ts` (erro do motor), nunca o `DETAIL`.
+19. **Os scripts**: a empresa das filiais (seed, carga — depois das guardas, uma empresa só), a da linha v1 (errata), a
+    legada explícita (persona do smoke, destino F70), a da sede (fixture do smoke), `public.empresa_legada()` no SQL do
+    instrumento da F60.
+20. **A trilha**: `EventoAdmin.empresa` obrigatório; a falha `23502` nomeada no `registrarFalha` sem o `details`.
+
+**Medido e registrado.** O `transferir_item` vivo (os dois bancos, `7a0ad146…`) difere do arquivo `0104` SÓ nos
+comentários (a parte executável é idêntica, comparada linha a linha) — a recriação partiu do arquivo; o rollback devolve o
+texto do arquivo. A mesa PGlite reproduz as constantes do CI ordenando como o `en_US` do CI (por
+`regexp_replace(x, '[^A-Za-z0-9]', '', 'g'), x`): o L4 novo (`1b1de60c…`, 47 funções) é IGUAL na cadeia até a 0199 e na
+contraída — a F67C não tocou nenhuma delas.

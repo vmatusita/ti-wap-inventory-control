@@ -172,9 +172,9 @@ begin
   end if;
 
   -- filiais de teste (id smallint identity → gerado; slug único, inéditos)
-  insert into public.filiais (slug, nome) values ('zzf19-teste-a', 'F19 Teste A') returning id into v_fa;
-  insert into public.filiais (slug, nome) values ('zzf19-teste-b', 'F19 Teste B') returning id into v_fb;
-  insert into public.filiais (slug, nome) values ('zzf19-teste-c', 'F19 Teste C') returning id into v_fc;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf19-teste-a', 'F19 Teste A') returning id into v_fa;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf19-teste-b', 'F19 Teste B') returning id into v_fb;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf19-teste-c', 'F19 Teste C') returning id into v_fc;
 
   -- F52 (migration 0132): desde a 0132, import_validar_plano exige que o backup
   -- informado esteja sob o prefixo import/filial-<id>/ DESTA filial e que o objeto
@@ -309,8 +309,8 @@ begin
   --   Este é o cenário que os caminhos 1→4 nunca percorrem: no import feliz o
   --   estado SEMPRE bate, então a conferência nunca lança e uma quebra nela
   --   passaria despercebida.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
-  values ('ZZF19S0001', 'ZZF19STC1', 'notebook', v_fc) returning id into v_ativo_c;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id)
+  values (public.empresa_legada(), 'ZZF19S0001', 'ZZF19STC1', 'notebook', v_fc) returning id into v_ativo_c;
   p_plano_c := jsonb_build_object(
     'filialId', v_fc, 'ativos', jsonb_build_array(
       jsonb_build_object('patrimonio','ZZF19S0001','serviceTag','ZZF19STC1',
@@ -331,9 +331,9 @@ begin
   --   aberta e fechada AQUI porque quem a abre é sempre quem orquestra — a
   --   auxiliar não tem essa chave, e essa é a razão de ela não ser uma terceira
   --   porta (0080/0081).
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
-  values (v_ativo_c, 'compra', current_date, v_fc, 'ZZF19 seção 0', v_prof);
-  insert into public.anotacoes (ativo_id, texto, criado_por) values (v_ativo_c, 'ZZF19 nota', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao, criado_por)
+  values (public.empresa_legada(), v_ativo_c, 'compra', current_date, v_fc, 'ZZF19 seção 0', v_prof);
+  insert into public.anotacoes (empresa_id, ativo_id, texto, criado_por) values (public.empresa_legada(), v_ativo_c, 'ZZF19 nota', v_prof);
 
   perform set_config('estoque.dev_destrutivo', 'on', true);
   v_apagado := public.import_apagar_acervo_filial(v_fc);
@@ -489,7 +489,7 @@ begin
   --   Um ativo pré-existente na filial B (fora do plano) some; a filial fica só
   --   com o(s) do plano; a filial A (outra) permanece intacta.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF19OLD001', 'notebook', v_fb);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF19OLD001', 'notebook', v_fb);
   select count(*) into v_fa_before from public.ativos where filial_id = v_fa;   -- outra filial (A) antes = 2
 
   -- F52: confirmacao = nome desta filial (B), backup sob o prefixo desta filial e
@@ -537,72 +537,72 @@ begin
   -- FK nunca chega ao commit. Sem isto, um erro de ORDEM nela passaria verde
   -- no CI e só estouraria no commit de produção.
   -- =================================================================
-  insert into public.filiais (slug, nome) values ('zzf56-teste-d', 'F56 Teste D') returning id into v_fd;
-  insert into public.filiais (slug, nome) values ('zzf56-teste-e', 'F56 Teste E') returning id into v_fe;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf56-teste-d', 'F56 Teste D') returning id into v_fd;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf56-teste-e', 'F56 Teste E') returning id into v_fe;
 
   v_prefixo_d := public.prefixo_backup_import(public.empresa_da_filial(v_fd), v_fd);   -- F67B: a forma nova
   insert into storage.objects (bucket_id, name, owner)
   values ('backups-import', v_prefixo_d || 'existe.json', v_prof);
 
-  insert into public.itens (nome, grupo) values ('ZZF56 Item', 'acessorio') returning id into v_item_d;
-  insert into public.colaboradores (nome, criado_por) values ('ZZF56 Fulano', v_prof) returning id into v_colab_d;
+  insert into public.itens (empresa_id, nome, grupo) values (public.empresa_legada(), 'ZZF56 Item', 'acessorio') returning id into v_item_d;
+  insert into public.colaboradores (empresa_id, nome, criado_por) values (public.empresa_legada(), 'ZZF56 Fulano', v_prof) returning id into v_colab_d;
 
   -- ---- fixtures (i) e (ii): um ativo com lançamento preso a MOVIMENTAÇÃO e
   --      pendência ABERTA, os dois do mesmo ativo do acervo ---------------
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id) values
-    ('ZZF56D0001', 'ZZF56STD1', 'notebook', v_fd) returning id into v_ativo_d1;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
-  values (v_ativo_d1, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id) values
+    (public.empresa_legada(), 'ZZF56D0001', 'ZZF56STD1', 'notebook', v_fd) returning id into v_ativo_d1;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por)
+  values (public.empresa_legada(), v_ativo_d1, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d1;
 
   -- entrada avulsa: só para o saldo do item não ficar negativo com a saída abaixo
   -- (valida_lancamento_item, 0118: `saida` sem `entrada` prévia estoura "estoque
   -- insuficiente"). Sem vínculo nenhum — nem movimentacao_id nem pendencia_item_id
   -- — então nem é tocada pelo desvínculo, nem apagada: prova que o conserto NÃO
   -- toca lançamento que já não tinha o problema.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_item_d, v_fd, 'entrada', 5, current_date, v_prof) returning id into v_lanc_setup;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_item_d, v_fd, 'entrada', 5, current_date, v_prof) returning id into v_lanc_setup;
 
   -- fixture (i): saída presa à movimentação do acervo (o "o que foi junto").
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                        movimentacao_id, colaborador_id, criado_por)
-  values (v_item_d, v_fd, 'saida', 1, current_date, v_mov_d1, v_colab_d, v_prof)
+  values (public.empresa_legada(), v_item_d, v_fd, 'saida', 1, current_date, v_mov_d1, v_colab_d, v_prof)
   returning id into v_lanc_d1;
 
   -- fixture (ii): pendência ABERTA do acervo (à mão, como restauracao.sql:267-268
   -- — funciona porque o roteiro roda como `postgres`, que ignora RLS).
-  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
-  values (v_ativo_d1, v_mov_d1, 'carregador', v_fd, 'ZZF56 Fulano') returning id into v_pend_aberta;
+  insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (public.empresa_legada(), v_ativo_d1, v_mov_d1, 'carregador', v_fd, 'ZZF56 Fulano') returning id into v_pend_aberta;
 
   -- ---- fixture (iii): pendência RESOLVIDA com lançamento (o elo pendencia_item_id) ----
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id) values
-    ('ZZF56D0002', 'ZZF56STD2', 'notebook', v_fd) returning id into v_ativo_d2;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
-  values (v_ativo_d2, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d2;
-  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador,
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id) values
+    (public.empresa_legada(), 'ZZF56D0002', 'ZZF56STD2', 'notebook', v_fd) returning id into v_ativo_d2;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por)
+  values (public.empresa_legada(), v_ativo_d2, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d2;
+  insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, colaborador,
                                       status, desfecho, resolvida_em, resolvida_por)
-  values (v_ativo_d2, v_mov_d2, 'mouse', v_fd, 'ZZF56 Fulano',
+  values (public.empresa_legada(), v_ativo_d2, v_mov_d2, 'mouse', v_fd, 'ZZF56 Fulano',
           'resolvida', 'recuperado', now(), v_prof) returning id into v_pend_resolvida;
   -- retorno SEM colaborador_id: mantém o saldo do colaborador (5k) preso só ao
   -- lançamento (i), provando que desvincular não mexe em tipo/quantidade/pessoa.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                        pendencia_item_id, criado_por)
-  values (v_item_d, v_fd, 'retorno', 1, current_date, v_pend_resolvida, v_prof)
+  values (public.empresa_legada(), v_item_d, v_fd, 'retorno', 1, current_date, v_pend_resolvida, v_prof)
   returning id into v_lanc_d2;
 
   -- ---- fixture (iv): substituto em OUTRA filial (E) apontando para o acervo (D) ----
-  insert into public.ativos (patrimonio, categoria, filial_id, substitui_ativo_id) values
-    ('ZZF56E0001', 'notebook', v_fe, v_ativo_d1) returning id into v_ativo_e_sub;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, substitui_ativo_id) values
+    (public.empresa_legada(), 'ZZF56E0001', 'notebook', v_fe, v_ativo_d1) returning id into v_ativo_e_sub;
 
   -- ---- fixture (v): ativo TRANSFERIDO — nasceu em D (pendência com filial_id=D
   --      da ÉPOCA), hoje mora em E. Prova que o critério é a filial ATUAL, nunca
   --      a histórica (fato 29: contar pela época daria um número diferente e
   --      apagaria a pendência de um ativo que já não é mais do acervo). ----
-  insert into public.ativos (patrimonio, categoria, filial_id) values
-    ('ZZF56D0003', 'notebook', v_fd) returning id into v_ativo_d3;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
-  values (v_ativo_d3, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d3;
-  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
-  values (v_ativo_d3, v_mov_d3, 'mochila', v_fd, 'ZZF56 Outro') returning id into v_pend_transferido;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values
+    (public.empresa_legada(), 'ZZF56D0003', 'notebook', v_fd) returning id into v_ativo_d3;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por)
+  values (public.empresa_legada(), v_ativo_d3, 'compra', current_date, v_fd, v_prof) returning id into v_mov_d3;
+  insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (public.empresa_legada(), v_ativo_d3, v_mov_d3, 'mochila', v_fd, 'ZZF56 Outro') returning id into v_pend_transferido;
   update public.ativos set filial_id = v_fe where id = v_ativo_d3;  -- "hoje" está em E
 
   -- ---- o saldo ANTES (a régua "desvincular ≠ mudar saldo", fato 32) --------

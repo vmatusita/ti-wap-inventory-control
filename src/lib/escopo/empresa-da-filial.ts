@@ -32,3 +32,16 @@ export async function unidadesDaMesmaEmpresa(client: Client, filialId: number): 
   if (error) throw new Error(`Falha ao ler as unidades da empresa: ${error.message}`)
   return (data ?? []).map((f) => f.id)
 }
+
+/**
+ * As empresas de VÁRIAS filiais (F67C): uma ida ao banco por filial DISTINTA — um lote que toca uma filial só (o caso
+ * comum) faz uma chamada. O mapa traz só as filiais que resolveram; quem chama recusa se alguma faltar.
+ */
+export async function empresasDasFiliais(client: Client, filialIds: readonly number[]): Promise<Map<number, string>> {
+  const mapa = new Map<number, string>()
+  for (const id of new Set(filialIds)) {
+    const e = await empresaDaFilial(client, id)
+    if (e !== null) mapa.set(id, e)
+  }
+  return mapa
+}

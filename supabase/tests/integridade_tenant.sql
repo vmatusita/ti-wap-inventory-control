@@ -120,7 +120,12 @@ declare
   -- f4471f0, 64 funções; docs/f67b-evidencias/C-ci/). Que a F67B não tocou NENHUMA das 64 está provado na mesa: o L4 da
   -- base PGlite até a 0193 e o da base até a 0199 dão o MESMO md5 (3fa0c72a…, 64 funções) — o valor do CI é o mesmo
   -- conjunto, no ambiente que é a régua.
-  k_funcoes_pre_0165 constant text := '84f64e0b50d37a4c4d4ea30f0d2b3ca1';
+  -- F67C (16/11/2026): o conjunto encolhe de novo — fora as 17 que a F67C recria com a MESMA assinatura (0200–0204: a
+  -- coluna empresa_id na lista do INSERT). A constante de antes, `84f64e0b…` (64), dá lugar à do conjunto fora delas (47).
+  -- Medida NA MESA com a ordem do CI EMULADA (o banco da mesa é `C`, o do CI ignora pontuação: ordenar por
+  -- `regexp_replace(x,'[^A-Za-z0-9]','','g'), x` reproduz o `84f64e0b…` do CI na lista antiga — docs/f67c-evidencias/):
+  -- `1b1de60c…`, IGUAL na cadeia até a 0199 e na cadeia contraída (a F67C não tocou nenhuma das 47). O CI confirma.
+  k_funcoes_pre_0165 constant text := '1b1de60c9eb6db1d797d93a8934bc79e';
   -- O md5 do `prosrc` de vocabulario_unidades_guarda() da 0139 (o dos dois bancos antes da F65).
   k_diagonal_0139 constant text := '91e80d533d72191325e614d24e15a881';
 begin
@@ -569,7 +574,16 @@ begin
                            'empresa_do_caminho_backup', 'caminho_backup_legado', 'prefixo_backup_import',
                            'prefixo_backup_reset', 'prefixo_backup_conflito', 'import_validar_plano',
                            'checagens_integridade_nucleo', 'registrar_limpeza_termos_sem_linha',
-                           'pode_escrever_arquivo_termo');
+                           'pode_escrever_arquivo_termo',
+                           -- F67C (0200–0204): as 17 que passam a gravar empresa_id (a mesma assinatura)
+                           'corrigir_patrimonio_com_anotacao', 'definir_service_tag_com_anotacao',
+                           'confirmar_assinatura_termo_com_anotacao', 'desfazer_confirmacao_termo_com_anotacao',
+                           'confirmar_assinatura_lote_com_anotacoes', 'criar_compra_lote', 'devolver_ao_fornecedor',
+                           'criar_movimentacao_com_itens', 'estornar_movimentacao_com_itens',
+                           'movimentacao_abrir_pendencias_item', 'lancar_itens_lote',
+                           'reabrir_pendencias_item_com_estornos', 'resolver_pendencias_item_com_lancamentos',
+                           'transferir_item', 'import_criar_ativos', 'import_lancar_movimentacoes',
+                           'import_gravar_trilha');
   raise notice '(medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: % (% funções)', v_m0,
     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
         and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
@@ -589,7 +603,16 @@ begin
                            'empresa_do_caminho_backup', 'caminho_backup_legado', 'prefixo_backup_import',
                            'prefixo_backup_reset', 'prefixo_backup_conflito', 'import_validar_plano',
                            'checagens_integridade_nucleo', 'registrar_limpeza_termos_sem_linha',
-                           'pode_escrever_arquivo_termo'));
+                           'pode_escrever_arquivo_termo',
+                           -- F67C (0200–0204): as 17 que passam a gravar empresa_id (a mesma assinatura)
+                           'corrigir_patrimonio_com_anotacao', 'definir_service_tag_com_anotacao',
+                           'confirmar_assinatura_termo_com_anotacao', 'desfazer_confirmacao_termo_com_anotacao',
+                           'confirmar_assinatura_lote_com_anotacoes', 'criar_compra_lote', 'devolver_ao_fornecedor',
+                           'criar_movimentacao_com_itens', 'estornar_movimentacao_com_itens',
+                           'movimentacao_abrir_pendencias_item', 'lancar_itens_lote',
+                           'reabrir_pendencias_item_com_estornos', 'resolver_pendencias_item_com_lancamentos',
+                           'transferir_item', 'import_criar_ativos', 'import_lancar_movimentacoes',
+                           'import_gravar_trilha'));
   if pg_temp.assert_zero_de(
        'L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,

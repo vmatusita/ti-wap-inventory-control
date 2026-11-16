@@ -81,8 +81,8 @@ begin
     (k_operador, v_f1),
     (k_outro,    v_f2);
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-  values ('WAP0009103', 'notebook', v_f1)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009103', 'notebook', v_f1)
   returning id into v_ativo;
 
   -- A pendência de item nasce pelo trigger da DEVOLUÇÃO com itens faltantes (0051).
@@ -91,12 +91,12 @@ begin
   -- estados exige a sequência: sem a saída, a devolução seria transição inválida.
   -- (Mesma sequência de `supabase/tests/pendencias_item.sql`; `status_resultante`
   -- é derivado pelo trigger, não se informa.)
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-  values (v_ativo, 'compra', v_f1, k_operador);
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-  values (v_ativo, 'saida', 'Fulano de Teste', v_f1, k_operador);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por)
-  values (v_ativo, 'devolucao', v_f1, array['Carregador'], k_operador)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+  values (public.empresa_legada(), v_ativo, 'compra', v_f1, k_operador);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+  values (public.empresa_legada(), v_ativo, 'saida', 'Fulano de Teste', v_f1, k_operador);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por)
+  values (public.empresa_legada(), v_ativo, 'devolucao', v_f1, array['Carregador'], k_operador)
   returning id into v_mov;
 
   select id into v_pend

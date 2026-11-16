@@ -1465,8 +1465,10 @@ begin
   -- As tabelas de `k_negocio` ainda SEM a coluna saíam num aviso de pendência nomeada da F64 —
   -- sem reprovar: eram as sete da ficha F64 e as quatro do vocabulário do import (fato 18). Desde a
   -- F64 (23/09/2026) o aviso é a asserção 15f, que REPROVA — e o lote 2 tem as suas (15d a 15j).
-  -- O DEFAULT FICA ATÉ A F67 (decisão do Johnny, 23/09/2026): por isso 15b EXIGE o default, e a
-  -- F67 inverte esta asserção no commit em que o tira.
+  -- O DEFAULT FICOU ATÉ A F67C (decisão do Johnny, 23/09/2026; a divisão 12/11-2 levou o fim do default da F67 para a
+  -- F67C): até ali 15b EXIGIA o default `public.empresa_legada()`. A F67C (16/11/2026) a INVERTEU no commit da contração
+  -- (0205): 15b e 15c exigem a AUSÊNCIA do default — o resto da forma (a coluna visível, `uuid`, `not null`, FK validada,
+  -- sem force) continua exigido. A derivada 15l (abaixo) reprova default em QUALQUER `empresa_id` de `public`.
   -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(nome, ', ' order by nome), '')
     into v_cnt, v_lista
@@ -1505,14 +1507,9 @@ begin
                    where k.conrelid = c.rel and k.contype = 'f' and k.convalidated
                      and k.confrelid = 'public.empresas'::regclass and k.conkey = array[c.attnum])
                 then 'sem FK VALIDADA para public.empresas (id)' end,
-           case when c.attnum is not null and not (
-                  c.def_oid is not null
-                  and exists (select 1 from pg_depend dp
-                               where dp.classid = 'pg_attrdef'::regclass and dp.objid = c.def_oid
-                                 and dp.refclassid = 'pg_proc'::regclass
-                                 and dp.refobjid = 'public.empresa_legada()'::regprocedure)
-                  and c.def_txt ~ '^(public\.)?empresa_legada\(\)$')
-                then 'default não é public.empresa_legada() (' || coalesce(c.def_txt, 'nenhum') || ')' end,
+           -- F67C (0205/0207): INVERTIDA — a coluna NÃO tem default (a escrita diz a empresa); qualquer default reprova
+           case when c.attnum is not null and c.def_oid is not null
+                then 'tem default (' || coalesce(c.def_txt, '?') || ') — desde a F67C a escrita diz a empresa' end,
            case when c.rel is not null and (select k.relforcerowsecurity from pg_class k where k.oid = c.rel)
                 then 'force row level security' end
          ) order by c.tabela), '{}'),
@@ -1526,7 +1523,7 @@ begin
     from unnest(v_l1_tab, v_l1_def, v_l1_lote) as x(t, d, l)
    where l;
   if pg_temp.assert_zero_de(
-       '15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force)' ||
+       '15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e SEM default (sem force) — F67C' ||
        case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
        v_cnt, array_length(k_lote1, 1)::bigint) then
     v_ok := v_ok + 1;
@@ -1540,7 +1537,7 @@ begin
     from unnest(v_l1_tab, v_l1_def, v_l1_lote) as x(t, d, l)
    where not l;
   if pg_temp.assert_zero_de(
-       '15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma' ||
+       '15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma (sem default, F67C)' ||
        case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
        v_cnt, v_univ) then
     v_ok := v_ok + 1;
@@ -1575,8 +1572,8 @@ begin
   --         o que não é leitura do lote 2);
   --   15j — cada exceção nominal de `k_leitura_integridade` é uma função que EXISTE (a lista não
   --         guarda fantasma; antes da 0164 reprova por `kit_motivo_da_empresa`).
-  -- O DEFAULT FICA ATÉ A F67 (decisão 1 do Johnny, 23/09/2026): 15e EXIGE o default, e a F67 a
-  -- inverte junto com a 15b.
+  -- O DEFAULT FICOU ATÉ A F67C (decisão 1 do Johnny, 23/09/2026): até ali 15e EXIGIA o default; a F67C (16/11/2026) a
+  -- INVERTEU no commit da contração do lote 2 (0206) — 15e exige a AUSÊNCIA, como a 15b.
   -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(x, '; ' order by x), '')
     into v_cnt, v_lista
@@ -1618,14 +1615,9 @@ begin
                    where k.conrelid = c.rel and k.contype = 'f' and k.convalidated
                      and k.confrelid = 'public.empresas'::regclass and k.conkey = array[c.attnum])
                 then 'sem FK VALIDADA para public.empresas (id)' end,
-           case when c.attnum is not null and not (
-                  c.def_oid is not null
-                  and exists (select 1 from pg_depend dp
-                               where dp.classid = 'pg_attrdef'::regclass and dp.objid = c.def_oid
-                                 and dp.refclassid = 'pg_proc'::regclass
-                                 and dp.refobjid = 'public.empresa_legada()'::regprocedure)
-                  and c.def_txt ~ '^(public\.)?empresa_legada\(\)$')
-                then 'default não é public.empresa_legada() (' || coalesce(c.def_txt, 'nenhum') || ')' end,
+           -- F67C (0206): INVERTIDA — a coluna NÃO tem default (a escrita diz a empresa); qualquer default reprova
+           case when c.attnum is not null and c.def_oid is not null
+                then 'tem default (' || coalesce(c.def_txt, '?') || ') — desde a F67C a escrita diz a empresa' end,
            case when c.rel is not null and (select k.relforcerowsecurity from pg_class k where k.oid = c.rel)
                 then 'force row level security' end
          ) order by c.tabela), '{}')
@@ -1637,7 +1629,7 @@ begin
     into v_cnt, v_lista
     from unnest(v_l2_tab, v_l2_def) as x(t, d);
   if pg_temp.assert_zero_de(
-       '15e as onze do lote 2 têm empresa_id uuid not null, FK validada para empresas e default public.empresa_legada() (sem force)' ||
+       '15e as onze do lote 2 têm empresa_id uuid not null, FK validada para empresas e SEM default (sem force) — F67C' ||
        case when v_cnt > 0 then ' — fora da forma: ' || v_lista else '' end,
        v_cnt, array_length(k_lote2, 1)::bigint) then
     v_ok := v_ok + 1;
@@ -1765,6 +1757,77 @@ begin
        '15k toda exceção de leitura da F65 (k_leitura_tenant) é uma função que existe e LÊ empresa_id, fora das do kit; a guarda cobre as 20 de negócio' ||
        case when v_cnt > 0 then ' — ' || v_lista else '' end,
        v_cnt, array_length(k_leitura_tenant, 1)::bigint + 1) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- BLOCO 5 (cont.) — O FIM DO DEFAULT: TODA ESCRITA DIZ A EMPRESA (F67C, 16/11/2026 — docs/PLAN-F67C.md §4, decisão 7)
+  -- ---------------------------------------------------------------
+  -- Até a F67C as 20 colunas `empresa_id` tinham `default public.empresa_legada()`: a linha que alguém criava sem dizer a
+  -- empresa nascia DA WAP por omissão — com duas empresas, o defeito mais silencioso possível (um item, um motivo, uma
+  -- linha da trilha de Auditoria criados pela B nasceriam da WAP sem erro nenhum). A F67C faz toda escrita dizer a empresa
+  -- (a expansão) e só então tira o default (a contração). Duas asserções, DERIVADAS DO CATÁLOGO, sem lista de exceção:
+  --   15l — NENHUMA coluna `empresa_id` de tabela de `public` tem default — as 20 de negócio e qualquer tabela futura
+  --         (uma tabela nova que nascer com `empresa_id … default <qualquer coisa>` reprova aqui pelo nome). Universo:
+  --         toda coluna `empresa_id` de tabela de `public` (22 no dia da F67C: as 20 + `membros` + `operador_filiais`).
+  --         Nasce VERMELHA pelos 20 nomes, e fica verde com a contração (0205–0207).
+  --   15m — todo INSERT numa das 20 de `k_negocio`, no corpo de qualquer função de `public`, TEM lista de colunas e
+  --         `empresa_id` nela. O corpo é lido pelo LÉXICO (`pg_temp.sql_so_codigo`: sem comentário, sem texto); nas
+  --         funções que usam `execute` (SQL dinâmico), o TEXTO inteiro também é varrido — um `execute 'insert into
+  --         public.x (a) …'` sem a coluna acusa. Universo: os INSERTs achados (contados — uma varredura que não achasse
+  --         nenhum passaria verde sem olhar nada). Nasce VERMELHA pelas 18 funções do PLAN-F67C §2.1, e fica verde com a
+  --         expansão (0200–0204). A metade de DISCO é `src/lib/validators/escrita-com-empresa.test.ts`.
+  -- (A LEITURA de `empresa_id` continua sob a 15h — escrever a coluna, desde a F67C, não é lê-la: `_asserts.sql`.)
+  select count(*),
+         count(*) filter (where d.adrelid is not null),
+         coalesce(string_agg(c.relname || ' (default ' || pg_get_expr(d.adbin, d.adrelid) || ')', '; ' order by c.relname)
+                    filter (where d.adrelid is not null), '')
+    into v_univ, v_cnt, v_lista
+    from pg_attribute a
+    join pg_class c on c.oid = a.attrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
+   where n.nspname = 'public' and c.relkind in ('r', 'p') and a.attname = 'empresa_id' and not a.attisdropped;
+  if pg_temp.assert_zero_de(
+       '15l nenhuma coluna empresa_id de tabela de public tem default (a escrita diz a empresa; derivada do catálogo, inclusive tabela futura)' ||
+       case when v_cnt > 0 then ' — com default: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  with f as (
+    select p.proname, p.oid,
+           lower(pg_temp.sql_so_codigo(p.prosrc)) as codigo,
+           lower(p.prosrc) as cru
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind in ('f', 'p')
+  ), alvo as (
+    -- o código; nas funções com `execute`, o texto INTEIRO no lugar dele (os literais entram — o dinâmico não escapa;
+    -- um texto só por função, para nenhum INSERT ser contado duas vezes)
+    select f.proname, f.oid, case when f.codigo ~ '\mexecute\M' then f.cru else f.codigo end as texto from f
+  ), ins as (
+    select a.proname, a.oid, m.x[1] as tabela, m.x[2] as lista, m.ord
+      from alvo a
+      cross join lateral regexp_matches(a.texto,
+             '\minsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?(' || array_to_string(k_negocio, '|') || ')\M(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*(\([^()]*\))?',
+             'g') with ordinality as m(x, ord)
+  )
+  select count(*),
+         count(*) filter (where i.lista is null or i.lista !~ '\mempresa_id\M'),
+         coalesce(string_agg(i.oid::regprocedure::text || ': o INSERT em ' || i.tabela ||
+                             case when i.lista is null then ' sem lista de colunas' else ' sem empresa_id' end,
+                             '; ' order by i.oid::regprocedure::text, i.ord)
+                    filter (where i.lista is null or i.lista !~ '\mempresa_id\M'), '')
+    into v_univ, v_cnt, v_lista
+    from ins i;
+  if pg_temp.assert_zero_de(
+       '15m todo INSERT numa das 20 de negócio no corpo de uma função de public tem lista de colunas e empresa_id nela' ||
+       case when v_cnt > 0 then ' — sem a empresa: ' || v_lista else '' end,
+       v_cnt, v_univ) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

@@ -218,15 +218,15 @@ begin
   if v_prof is null then
     raise exception 'PRE-REQUISITO: crie ao menos 1 operador (profile) antes de rodar este roteiro';
   end if;
-  insert into public.filiais (slug, nome) values ('zzf66b-a', 'F66B Teste A') returning id into v_f;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf66b-a', 'F66B Teste A') returning id into v_f;
 
   -- ===============================================================
   -- L1 — lote 1, colaboradores: INSERT do nome, UPDATE do setor
   -- ===============================================================
   v_r := pg_temp.f66b_tenta(format(
-    'insert into public.colaboradores (nome, filial_id, criado_por) values (repeat(%L, 120), %s, %L)', 'n', v_f, v_prof));
+    'insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), repeat(%L, 120), %s, %L)', 'n', v_f, v_prof));
   v_s := pg_temp.f66b_tenta(format(
-    'insert into public.colaboradores (nome, filial_id, criado_por) values (repeat(%L, 121), %s, %L)', 'o', v_f, v_prof));
+    'insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), repeat(%L, 121), %s, %L)', 'o', v_f, v_prof));
   if v_r = 'ok' and v_s = '23514:colaboradores_nome_tamanho' then
     v_ok := v_ok + 1; raise notice '✓ L1a colaboradores: INSERT do nome com 120 passa, com 121 leva 23514 colaboradores_nome_tamanho';
   else
@@ -244,7 +244,7 @@ begin
   begin
     alter table public.colaboradores drop constraint colaboradores_nome_tamanho;
     v_s := pg_temp.f66b_tenta(format(
-      'insert into public.colaboradores (nome, filial_id, criado_por) values (repeat(%L, 121), %s, %L)', 'p', v_f, v_prof));
+      'insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), repeat(%L, 121), %s, %L)', 'p', v_f, v_prof));
     raise exception 'f66b-desfaz';
   exception when others then
     if sqlerrm <> 'f66b-desfaz' then v_erro := sqlerrm; end if;
@@ -259,10 +259,10 @@ begin
   -- L2 — lote 2, ativos: INSERT da marca, UPDATE das observações
   -- ===============================================================
   v_r := pg_temp.f66b_tenta(format(
-    'insert into public.ativos (patrimonio, service_tag, categoria, filial_id, marca) values (null, %L, %L, %s, repeat(%L, 60))',
+    'insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, marca) values (public.empresa_legada(), null, %L, %L, %s, repeat(%L, 60))',
     'ZZF66BST1', 'notebook', v_f, 'm'));
   v_s := pg_temp.f66b_tenta(format(
-    'insert into public.ativos (patrimonio, service_tag, categoria, filial_id, marca) values (null, %L, %L, %s, repeat(%L, 61))',
+    'insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, marca) values (public.empresa_legada(), null, %L, %L, %s, repeat(%L, 61))',
     'ZZF66BST2', 'notebook', v_f, 'm'));
   if v_r = 'ok' and v_s = '23514:ativos_marca_tamanho' then
     v_ok := v_ok + 1; raise notice '✓ L2a ativos: INSERT da marca com 60 passa, com 61 leva 23514 ativos_marca_tamanho';
@@ -272,8 +272,8 @@ begin
   -- M1 — a mensagem REAL do 23514 cita a constraint no formato que a tradução lê (fraseDeComprimento, erros-do-banco.ts)
   v_estado := null; v_con := null; v_erro := null;
   begin
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, marca)
-    values (null, 'ZZF66BST3', 'notebook', v_f, repeat('m', 61));
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, marca)
+    values (public.empresa_legada(), null, 'ZZF66BST3', 'notebook', v_f, repeat('m', 61));
   exception when others then
     get stacked diagnostics v_estado = returned_sqlstate, v_con = constraint_name, v_erro = message_text;
   end;
@@ -310,10 +310,10 @@ begin
   -- L3 — lote 3, motivos: INSERT do código, UPDATE do rótulo
   -- ===============================================================
   v_r := pg_temp.f66b_tenta(format(
-    'insert into public.motivos (codigo, rotulo, aplica_a) values (repeat(%L, 40), %L, array[%L]::public.tipo_movimentacao[])',
+    'insert into public.motivos (empresa_id, codigo, rotulo, aplica_a) values (public.empresa_legada(), repeat(%L, 40), %L, array[%L]::public.tipo_movimentacao[])',
     'c', 'F66B motivo', 'saida'));
   v_s := pg_temp.f66b_tenta(format(
-    'insert into public.motivos (codigo, rotulo, aplica_a) values (repeat(%L, 41), %L, array[%L]::public.tipo_movimentacao[])',
+    'insert into public.motivos (empresa_id, codigo, rotulo, aplica_a) values (public.empresa_legada(), repeat(%L, 41), %L, array[%L]::public.tipo_movimentacao[])',
     'd', 'F66B motivo', 'saida'));
   if v_r = 'ok' and v_s = '23514:motivos_codigo_tamanho' then
     v_ok := v_ok + 1; raise notice '✓ L3a motivos: INSERT do código com 40 passa, com 41 leva 23514 motivos_codigo_tamanho';
@@ -331,7 +331,7 @@ begin
   begin
     alter table public.motivos drop constraint motivos_codigo_tamanho;
     v_s := pg_temp.f66b_tenta(format(
-      'insert into public.motivos (codigo, rotulo, aplica_a) values (repeat(%L, 41), %L, array[%L]::public.tipo_movimentacao[])',
+      'insert into public.motivos (empresa_id, codigo, rotulo, aplica_a) values (public.empresa_legada(), repeat(%L, 41), %L, array[%L]::public.tipo_movimentacao[])',
       'e', 'F66B motivo', 'saida'));
     raise exception 'f66b-desfaz';
   exception when others then
@@ -347,9 +347,9 @@ begin
   -- L4 — lote 4, senhas_acesso: INSERT do rótulo, UPDATE do hash
   -- ===============================================================
   v_r := pg_temp.f66b_tenta(format(
-    'insert into public.senhas_acesso (rotulo, hash, criado_por) values (repeat(%L, 80), %L, %L)', 'r', 'f66b-hash-ficticio', v_prof));
+    'insert into public.senhas_acesso (empresa_id, rotulo, hash, criado_por) values (public.empresa_legada(), repeat(%L, 80), %L, %L)', 'r', 'f66b-hash-ficticio', v_prof));
   v_s := pg_temp.f66b_tenta(format(
-    'insert into public.senhas_acesso (rotulo, hash, criado_por) values (repeat(%L, 81), %L, %L)', 's', 'f66b-hash-ficticio', v_prof));
+    'insert into public.senhas_acesso (empresa_id, rotulo, hash, criado_por) values (public.empresa_legada(), repeat(%L, 81), %L, %L)', 's', 'f66b-hash-ficticio', v_prof));
   if v_r = 'ok' and v_s = '23514:senhas_acesso_rotulo_tamanho' then
     v_ok := v_ok + 1; raise notice '✓ L4a senhas_acesso: INSERT do rótulo com 80 passa, com 81 leva 23514 senhas_acesso_rotulo_tamanho';
   else
@@ -385,16 +385,16 @@ begin
   -- ===============================================================
   perform pg_temp.plantar_cargo(v_prof, 'admin');
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof)::text, true);
-  insert into public.filiais (slug, nome) values ('zzf66b-imp', 'F66B Import') returning id into v_fi;
+  insert into public.filiais (empresa_id, slug, nome) values (public.empresa_legada(), 'zzf66b-imp', 'F66B Import') returning id into v_fi;
   -- F67B (16/11/2026): o backup do import passou à forma NOVA, com a empresa no 2º segmento
   -- (import/empresa-<uuid>/filial-<id>/, prefixo_backup_import(uuid, smallint) da 0194); a antiga saiu na 0199.
   v_prefixo := public.prefixo_backup_import(public.empresa_da_filial(v_fi), v_fi);
   insert into storage.objects (bucket_id, name, owner) values ('backups-import', v_prefixo || 'existe.json', v_prof);
   -- o acervo que a limpeza do import apagaria: um ativo e a compra dele
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
-  values ('ZZF66B0000', 'ZZF66BST0', 'notebook', v_fi) returning id into v_ativo0;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, observacao, criado_por)
-  values (v_ativo0, 'compra', current_date, v_fi, 'ZZF66B acervo de antes', v_prof);
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id)
+  values (public.empresa_legada(), 'ZZF66B0000', 'ZZF66BST0', 'notebook', v_fi) returning id into v_ativo0;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, observacao, criado_por)
+  values (public.empresa_legada(), v_ativo0, 'compra', current_date, v_fi, 'ZZF66B acervo de antes', v_prof);
 
   v_plano := jsonb_build_object(
     'filialId', v_fi, 'confirmacao', 'F66B Import', 'totalLinhasDados', 1,
@@ -478,7 +478,7 @@ begin
   end if;
   -- K2 — e o INSERT de verdade passa: a chave no pior caso cabe no CHECK dela
   v_r := pg_temp.f66b_tenta(format(
-    'insert into public.colaboradores (nome, filial_id, criado_por) values (repeat(chr(64300), 120), %s, %L)', v_f, v_prof));
+    'insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), repeat(chr(64300), 120), %s, %L)', v_f, v_prof));
   if v_r = 'ok' then
     v_ok := v_ok + 1; raise notice '✓ K2 o colaborador de nome 120 × U+FB2C grava (nome_chave no pior caso cabe em colaboradores_nome_chave_tamanho)';
   else
