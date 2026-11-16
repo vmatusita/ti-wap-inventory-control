@@ -294,6 +294,13 @@ const DA_F38 = [
   '0197',
   '0198',
   '0199',
+  // F67C (docs/PLAN-F67C.md §6) — o fim do default. A EXPANSÃO (0200–0204) RECRIA, com a MESMA assinatura, as 17 funções
+  // que inseriam numa das 20 tabelas de negócio sem `empresa_id` (a coluna entra na lista, a empresa da filial da linha
+  // pela ponte `empresa_da_filial`) — quatro delas INTOCÁVEIS (`criar_compra_lote`, `devolver_ao_fornecedor`,
+  // `transferir_item`, `movimentacao_abrir_pendencias_item`), liberadas nominalmente abaixo; nenhum corpo novo ganha marca
+  // da F38 — e cria a assinatura nova da ferramenta de órfão; a CONTRAÇÃO (0205–0207) tira o default das 20 e derruba a
+  // assinatura antiga. Nenhuma escreve no acervo no apply.
+  '0200',
 ]
 
 /**
@@ -738,6 +745,15 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     '0197': ['pode_escrever_termo', 'pode_escrever_arquivo_termo'],
     '0198': ['pode_ler_arquivo_termo', 'pode_escrever_arquivo_termo'],
     '0199': ['import_validar_plano', 'resetar_acervo', 'resetar_itens', 'apagar_ativos_conflito_filiais'],
+    // F67C (docs/PLAN-F67C.md §2.1) — a expansão: cada uma com o diff contra o corpo vigente no cabeçalho, gerado (só a
+    // coluna, o valor e a ponte `empresa_da_filial`).
+    '0200': [
+      'corrigir_patrimonio_com_anotacao',
+      'definir_service_tag_com_anotacao',
+      'confirmar_assinatura_termo_com_anotacao',
+      'desfazer_confirmacao_termo_com_anotacao',
+      'confirmar_assinatura_lote_com_anotacoes',
+    ],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`

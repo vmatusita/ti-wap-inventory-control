@@ -470,10 +470,21 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
     return comandosQueLeem(corpo, gatilhos).map((c) => c.trecho)
   }
 
+  /**
+   * F67C (16/11/2026 — decisão 6 do PLAN-F67C): ESCREVER A COLUNA NÃO É LÊ-LA — o espelho exato de
+   * `pg_temp.leitura_de_empresa_do_lote` (`_asserts.sql`). Desde o fim do default todo INSERT numa das 20 TEM de dizer a
+   * empresa; saem do comando, ANTES da régua, só a LISTA DE COLUNAS de `insert into T (…)` (o nome da tabela fica) e o
+   * ALVO de `on conflict (…)`. `returning empresa_id`, `select … empresa_id`, `where x.empresa_id` continuam LEITURA.
+   */
+  const neutralizarEscrita = (cmd: string) =>
+    cmd
+      .replace(/(\binsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?[a-z_][a-z0-9_]*(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*)\([^()]*\)/gi, '$1()')
+      .replace(/\bon\s+conflict\s*\((?:[^()]|\([^()]*\))*\)/gi, 'on conflict ()')
+
   /** Os comandos que leem, com as tabelas dos lotes que cada um toca (a régua das exceções). */
   function comandosQueLeem(corpo: string, gatilhos: readonly string[] = []): { trecho: string; tabelas: string[] }[] {
     const achados: { trecho: string; tabelas: string[] }[] = []
-    for (const cmd of comandosDoTexto(corpo)) {
+    for (const cmd of comandosDoTexto(corpo).map(neutralizarEscrita)) {
       // sem caixa: o Postgres dobra o identificador sem aspas (`A.EMPRESA_ID` é `a.empresa_id`)
       if (!/\bempresa_id\b/i.test(cmd)) continue
       const alias = new Map<string, string>()
@@ -545,7 +556,7 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   function origensNaoProvadas(funcao: string, corpo: string): string[] {
     const achados: string[] = []
     for (const bruto of comandosDoTexto(corpo)) {
-      const cmd = bruto.toLowerCase()
+      const cmd = neutralizarEscrita(bruto).toLowerCase()
       if (!/\bempresa_id\b/.test(cmd)) continue
       for (const m of cmd.matchAll(/(?:\b([a-z_][a-z0-9_]*)\s*\.\s*)?\bempresa_id\b/g)) {
         const q = m[1]
@@ -690,7 +701,14 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
   it.each([
     ['um corpo lendo movimentacoes.empresa_id pelo alias', 'select m.empresa_id from public.movimentacoes m limit 1', true],
     ['um corpo filtrando ativos por empresa_id sem qualificador', 'select count(*) from public.ativos where empresa_id = p_empresa', true],
-    ['um corpo gravando empresa_id em itens', 'insert into public.itens (nome, empresa_id) values (p_nome, p_empresa)', true],
+    // F67C (decisão 6): ESCREVER não é ler — a lista de colunas do INSERT (e o alvo do on conflict) sai antes da régua.
+    // Até a F67C este caso esperava `true`; a mudança de natureza da régua está no PLAN-F67C §4 e na ata.
+    ['F67C: um corpo GRAVANDO empresa_id em itens (escrita, não leitura)', 'insert into public.itens (nome, empresa_id) values (p_nome, p_empresa)', false],
+    ['F67C: o alvo do on conflict com empresa_id (inferência do árbitro, não leitura)', 'insert into public.itens (empresa_id, nome) values (p_e, p_n) on conflict (empresa_id, nome_chave) do nothing', false],
+    // A SABOTAGEM G da F67C: a parte de LEITURA não afrouxou — cada forma abaixo continua acusando.
+    ['sabotagem G: o INSERT que DEVOLVE a coluna (returning empresa_id)', 'insert into public.itens (empresa_id, nome) values (p_e, p_n) returning empresa_id', true],
+    ['sabotagem G: o INSERT … SELECT que lê a coluna de uma das oito', "insert into public.anotacoes (empresa_id, ativo_id, texto) select a.empresa_id, a.id, 'x' from public.ativos a", true],
+    ['sabotagem G: o on conflict … do update que filtra pela coluna', 'insert into public.itens (empresa_id, nome) values (p_e, p_n) on conflict (empresa_id, nome_chave) do update set nome = excluded.nome where itens.empresa_id = p_x', true],
     ['par legítimo: membros.empresa_id', 'select m.empresa_id from public.membros m limit 1', false],
     ['par legítimo: membros num comando, ativos noutro (a forma de checagens_integridade_nucleo)', 'select count(*) into v from public.ativos; select 1 from public.membros m where m.empresa_id = public.empresa_legada()', false],
     // 2ª rodada da revisão adversarial: o `;` dentro de TEXTO não parte o comando; o `into v_n from` não esconde a tabela

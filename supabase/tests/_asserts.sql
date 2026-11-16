@@ -366,6 +366,17 @@ begin
   end if;
   -- o código em minúsculas: o Postgres dobra o identificador sem aspas (`FROM Public.Motivos`)
   v_codigo := lower(pg_temp.sql_so_codigo(p_corpo));
+  -- F67C (16/11/2026 — decisão 6 do PLAN-F67C): ESCREVER A COLUNA NÃO É LÊ-LA. Desde o fim do default, todo INSERT numa
+  -- das 20 TEM de dizer a empresa (15m) — e até aqui a lista de colunas do INSERT contava como leitura (o predicado não
+  -- distinguia verbo; era por isso que as destrutivas e as `forcar_*` da F67 moravam em `k_leitura_tenant`). Duas coisas
+  -- saem do texto ANTES do predicado, e só elas: a LISTA DE COLUNAS de `insert into T (…)` (o nome da tabela FICA — a
+  -- tabela continua citada) e o ALVO de `on conflict (…)` (a inferência do árbitro). Tudo o mais continua LEITURA e
+  -- acusa como antes: `returning empresa_id`, `select … empresa_id`, `where x.empresa_id = …`, o `do update … where`
+  -- (a sabotagem G da F67C prova que a régua de leitura não afrouxou).
+  v_codigo := regexp_replace(v_codigo,
+    '(\minsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?[a-z_][a-z0-9_]*(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*)\([^()]*\)',
+    '\1()', 'g');
+  v_codigo := regexp_replace(v_codigo, '\mon\s+conflict\s*\((?:[^()]|\([^()]*\))*\)', 'on conflict ()', 'g');
   if v_codigo !~ '\mempresa_id\M'
      or (v_codigo !~ v_re_lote and not (v_gatilho_no_lote and v_codigo ~ '\m(new|old)\s*\.\s*empresa_id\M')) then
     return null;
