@@ -87,6 +87,7 @@ declare
   v_e8a      uuid;
   v_e8b      uuid;
   v_e8c      uuid;
+  v_txt8c    text;
 begin
   select id into v_f1 from public.filiais where ativo order by id limit 1;
   if v_f1 is null then
@@ -112,26 +113,26 @@ begin
   -- A `devolucao` com `itens_faltantes` é escolhida de propósito: é ela que faz o
   -- trigger INSERIR `pendencias_item`, que é o cenário 3c.
   -- =========================================================================
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0054001', 'F54REST', 'notebook', v_f1, 'cadastro')
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0054001', 'F54REST', 'notebook', v_f1, 'cadastro')
   returning id into v_ativo;
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-  values (v_ativo, 'compra', current_date - 30, v_f1, k_autor, now() - interval '30 days')
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+  values (public.empresa_legada(), v_ativo, 'compra', current_date - 30, v_f1, k_autor, now() - interval '30 days')
   returning id into v_mov_a;
 
   -- A SAÍDA existe porque a máquina de estados exige: `devolucao` só é válida a partir
   -- de `em_uso`/`emprestado`. Descobri isso rodando o roteiro contra o ensaio, e não
   -- lendo — o cenário original ia direto de `em_estoque` para `devolucao` e a RPC
   -- recusou, o que é a máquina fazendo o trabalho dela.
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at, colaborador)
-  values (v_ativo, 'saida', current_date - 20, v_f1, k_autor, now() - interval '20 days',
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at, colaborador)
+  values (public.empresa_legada(), v_ativo, 'saida', current_date - 20, v_f1, k_autor, now() - interval '20 days',
           'Fulano de Teste')
   returning id into v_mov_s;
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at,
                                     colaborador, itens_faltantes)
-  values (v_ativo, 'devolucao', current_date - 2, v_f1, k_autor, now() - interval '2 days',
+  values (public.empresa_legada(), v_ativo, 'devolucao', current_date - 2, v_f1, k_autor, now() - interval '2 days',
           'Fulano de Teste', array['carregador'])
   returning id into v_mov_b;
 
@@ -190,8 +191,8 @@ begin
   -- ---- 4a. A ORDEM DE INSERÇÃO (feita aqui porque tudo abaixo depende dela) --
   -- ativos → movimentacoes → pendencias_item. Invertê-la viola FK.
   begin
-    insert into public.ativos (id, patrimonio, service_tag, categoria, filial_id, origem, status)
-    values (v_ativo, 'WAP0054001', 'F54REST', 'notebook', v_f1, 'cadastro', 'em_estoque');
+    insert into public.ativos (empresa_id, id, patrimonio, service_tag, categoria, filial_id, origem, status)
+    values (public.empresa_legada(), v_ativo, 'WAP0054001', 'F54REST', 'notebook', v_f1, 'cadastro', 'em_estoque');
     v_ok := v_ok + 1;
     raise notice '✓ 4a `ativos` entra primeiro, sem violar FK';
   exception when others then
@@ -212,8 +213,8 @@ begin
   -- "roteiro abortou" em vez de "mutação detectada". Uma asserção que derruba o
   -- roteiro inteiro converte um diagnóstico certo no diagnóstico errado.
   begin
-    insert into public.movimentacoes (id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values (v_sonda, v_bkp_ordem_a, v_ativo, 'compra', current_date - 30, v_f1, k_autor,
+    insert into public.movimentacoes (empresa_id, id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_sonda, v_bkp_ordem_a, v_ativo, 'compra', current_date - 30, v_f1, k_autor,
             now() - interval '30 days');
     v_falhas := v_falhas + 1;
     raise warning '✗ 2a o INSERT com `ordem` explícita PASSOU sem `overriding system value` — a coluna deixou de ser `generated always`, e o restaurador da F54 está escrito para um banco que não existe mais';
@@ -230,22 +231,22 @@ begin
   -- Desligando o trigger antes (Decisão 7): ver a seção 3.
   alter table public.movimentacoes disable trigger trg_aplicar_movimentacao;
 
-  insert into public.movimentacoes (id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at,
+  insert into public.movimentacoes (empresa_id, id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at,
                                     status_anterior, status_resultante)
   overriding system value
-  values (v_mov_a, v_bkp_ordem_a, v_ativo, 'compra', current_date - 30, v_f1, k_autor,
+  values (public.empresa_legada(), v_mov_a, v_bkp_ordem_a, v_ativo, 'compra', current_date - 30, v_f1, k_autor,
           now() - interval '30 days', null, 'em_estoque');
 
-  insert into public.movimentacoes (id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at,
+  insert into public.movimentacoes (empresa_id, id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at,
                                     colaborador, status_anterior, status_resultante)
   overriding system value
-  values (v_mov_s, v_bkp_ordem_s, v_ativo, 'saida', current_date - 20, v_f1, k_autor,
+  values (public.empresa_legada(), v_mov_s, v_bkp_ordem_s, v_ativo, 'saida', current_date - 20, v_f1, k_autor,
           now() - interval '20 days', 'Fulano de Teste', 'em_estoque', 'em_uso');
 
-  insert into public.movimentacoes (id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at,
+  insert into public.movimentacoes (empresa_id, id, ordem, ativo_id, tipo, data, filial_id, criado_por, created_at,
                                     colaborador, itens_faltantes, status_anterior, status_resultante)
   overriding system value
-  values (v_mov_b, v_bkp_ordem_b, v_ativo, 'devolucao', current_date - 2, v_f1, k_autor,
+  values (public.empresa_legada(), v_mov_b, v_bkp_ordem_b, v_ativo, 'devolucao', current_date - 2, v_f1, k_autor,
           now() - interval '2 days', 'Fulano de Teste', array['carregador'], 'em_uso', v_bkp_status);
 
   select ordem into v_ordem from public.movimentacoes where id = v_mov_a;
@@ -286,14 +287,14 @@ begin
   perform set_config('estoque.dev_destrutivo', 'off', true);
 
   -- Restaura a pendência COMO O BACKUP a traz…
-  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
-  values (v_ativo, v_mov_b, 'carregador', v_f1, 'Fulano de Teste');
+  insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (public.empresa_legada(), v_ativo, v_mov_b, 'carregador', v_f1, 'Fulano de Teste');
 
   -- …e agora reinsere a movimentação de devolução com o trigger LIGADO, que é o que a
   -- estratégia "deixar a máquina derivar" faria. A `saida` antes dela é a máquina de
   -- estados cobrando o seu: `devolucao` só sai de `em_uso`/`emprestado`.
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at, colaborador)
-  values (v_ativo, 'saida', current_date - 1, v_f1, k_autor, now() - interval '1 day', 'Fulano de Teste');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at, colaborador)
+  values (public.empresa_legada(), v_ativo, 'saida', current_date - 1, v_f1, k_autor, now() - interval '1 day', 'Fulano de Teste');
 
   -- ---- 3a. Com o trigger LIGADO, o `status` restaurado é SOBRESCRITO -------
   -- ⚠ MEDIDO AQUI, e não depois da devolução, e o motivo é uma correção: a primeira
@@ -311,9 +312,9 @@ begin
     raise warning '✗ 3a o trigger não reescreveu `ativos.status` (ficou em %) — ele deixou de recalcular o estado, e a premissa da Decisão 7 mudou', v_st;
   end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at,
                                     colaborador, itens_faltantes)
-  values (v_ativo, 'devolucao', current_date - 1, v_f1, k_autor, now() - interval '1 day',
+  values (public.empresa_legada(), v_ativo, 'devolucao', current_date - 1, v_f1, k_autor, now() - interval '1 day',
           'Fulano de Teste', array['carregador']);
 
   select count(*) into v_n from public.pendencias_item where ativo_id = v_ativo;
@@ -363,8 +364,8 @@ begin
   perform setval(v_seq, v_bkp_ordem_s - 1, true);
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
-    values (v_ativo, 'compra', current_date, v_f1, k_autor);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por)
+    values (public.empresa_legada(), v_ativo, 'compra', current_date, v_f1, k_autor);
     v_falhas := v_falhas + 1;
     raise warning '✗ 2c o INSERT seguinte PASSOU com a sequência atrás — o índice único de `ordem` sumiu, e a restauração deixou de ter esse risco (ou de ter esse índice)';
   exception when unique_violation then
@@ -375,8 +376,8 @@ begin
   -- ---- 2d. COM `setval`, o INSERT seguinte passa --------------------------
   perform setval(v_seq, (select max(ordem) from public.movimentacoes), true);
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por)
-    values (v_ativo, 'compra', current_date, v_f1, k_autor);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por)
+    values (public.empresa_legada(), v_ativo, 'compra', current_date, v_f1, k_autor);
     v_ok := v_ok + 1;
     raise notice '✓ 2d com `setval` para max(ordem), a movimentação seguinte entra sem colidir';
   exception when others then
@@ -392,8 +393,8 @@ begin
   -- com `forcado = true` não. Como o backup PODE conter linhas forçadas (a marca é
   -- gravável dentro da janela, 0079), o restaurador abre a janela mesmo assim.
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, forcado)
-    values (v_ativo, 'compra', current_date, v_f1, k_autor, true);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, forcado)
+    values (public.empresa_legada(), v_ativo, 'compra', current_date, v_f1, k_autor, true);
     v_falhas := v_falhas + 1;
     raise warning '✗ 5a `guarda_acervo` DEIXOU gravar `forcado = true` fora da janela — a marca do desenvolvedor virou gravável por qualquer caminho';
   exception when insufficient_privilege then
@@ -404,8 +405,8 @@ begin
   -- ---- 5b. Dentro da janela, a linha forçada entra ------------------------
   perform set_config('estoque.dev_destrutivo', 'on', true);
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, forcado)
-    values (v_ativo, 'compra', current_date, v_f1, k_autor, true);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, forcado)
+    values (public.empresa_legada(), v_ativo, 'compra', current_date, v_f1, k_autor, true);
     v_ok := v_ok + 1;
     raise notice '✓ 5b dentro da janela, a linha `forcado = true` do backup pode ser restaurada';
   exception when others then
@@ -426,11 +427,11 @@ begin
   -- =========================================================================
 
   -- ---- 6 — religar os DOIS elos de um lançamento de item -------------------
-  insert into public.itens (nome, grupo) values ('F56 Restauração Item', 'acessorio')
+  insert into public.itens (empresa_id, nome, grupo) values (public.empresa_legada(), 'F56 Restauração Item', 'acessorio')
   returning id into v_item6;
 
-  insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador)
-  values (v_ativo, v_mov_a, 'F56 pendência do religar', v_f1, 'F56 Fulano')
+  insert into public.pendencias_item (empresa_id, ativo_id, movimentacao_id, item, filial_id, colaborador)
+  values (public.empresa_legada(), v_ativo, v_mov_a, 'F56 pendência do religar', v_f1, 'F56 Fulano')
   returning id into v_pend6;
 
   -- O lançamento nasce COM os dois elos (o retrato que um backup versão 2
@@ -438,9 +439,9 @@ begin
   -- de `pendencia_item_id`/`movimentacao_id` não ser recusado por acaso e
   -- para o UPDATE seguinte, que simula o PÓS-desvínculo, ser aceito.
   perform set_config('estoque.dev_destrutivo', 'on', true);
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data,
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data,
                                        movimentacao_id, pendencia_item_id, criado_por)
-  values (v_item6, v_f1, 'entrada', 1, current_date, v_mov_a, v_pend6, k_autor)
+  values (public.empresa_legada(), v_item6, v_f1, 'entrada', 1, current_date, v_mov_a, v_pend6, k_autor)
   returning id into v_lanc6;
 
   -- Simula o PÓS-desvínculo — exatamente o que `import_apagar_acervo_filial`
@@ -502,8 +503,8 @@ begin
   -- ---- 7 — religar `ativos.substitui_ativo_id` (o mesmo UPDATE do backup do
   --      RESET, fato 27) — SEM precisar de janela: ativos_guarda_acervo (0081)
   --      só recusa DELETE, nunca UPDATE ------------------------------------
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, substitui_ativo_id)
-  values ('WAP0056002', 'F56REST2', 'notebook', v_f1, null) returning id into v_ativo_sub7;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, substitui_ativo_id)
+  values (public.empresa_legada(), 'WAP0056002', 'F56REST2', 'notebook', v_f1, null) returning id into v_ativo_sub7;
 
   update public.ativos as a
      set substitui_ativo_id = v.substitui_ativo_id
@@ -521,16 +522,16 @@ begin
 
   -- =========================================================================
   -- 8 — F63 (sabotagem H): `empresa_id` NO BACKUP, ou não.
-  -- `scripts/db/restaurar.mjs` (`sqlDeInsercao`, :272) monta o INSERT com as colunas que as
-  -- LINHAS DO BACKUP trazem. Um backup de ANTES da F63 não tem a chave `empresa_id`: o INSERT a
-  -- omite e o default da coluna (`public.empresa_legada()`, até a F67) preenche — a linha volta
-  -- na WAP. Um de DEPOIS traz a chave: a linha volta com a empresa que o backup disser, mesmo
-  -- que não seja a WAP (uma empresa B fictícia, aqui). Os INSERTs abaixo têm a FORMA que o
-  -- restaurador monta (lista de colunas = chaves do backup).
+  -- `scripts/db/restaurar.mjs` (`sqlDeInsercao`) monta o INSERT com as colunas que as LINHAS DO BACKUP
+  -- trazem. Um de DEPOIS da F63 traz a chave: a linha volta com a empresa que o backup disser, mesmo que
+  -- não seja a WAP (uma empresa B fictícia, aqui). Um de ANTES da F63 não tem a chave `empresa_id`: até a
+  -- F67C o INSERT a omitia e o default preenchia a WAP. F67C (16/11/2026 — decisão 11 do PLAN-F67C): o
+  -- default saiu, e o restaurador passa a preencher, para a linha SEM a chave, a empresa da FILIAL da linha
+  -- no banco de DESTINO — pelo subselect que `sqlDeInsercao` emite (a FORMA abaixo é a dele; a constante
+  -- exportada de restaurar.mjs e este texto são amarrados por um teste de mesa). Para provar que vem da
+  -- FILIAL e não de um default, a linha 8a vai numa filial da EMPRESA B: ela tem de voltar na B. E a linha
+  -- sem filial de onde tirar (a filial não existe no destino) é RECUSADA (23502) — nunca grava errado (8c).
   -- =========================================================================
-  insert into public.ativos (id, patrimonio, service_tag, categoria, filial_id, origem, status)
-  values (v_ativo8a, 'WAP0063801', 'F63REST1', 'notebook', v_f1, 'cadastro', 'em_estoque');
-
   insert into public.empresas (slug, nome) values ('f63-restauracao-b', 'Empresa B da restauração (F63)')
   returning id into v_emp8;
   -- F65 (23/09/2026): o ativo da empresa B vai para uma filial DA B. Até a F65 a fixture o punha na filial da WAP
@@ -539,6 +540,10 @@ begin
   -- muda.
   insert into public.filiais (nome, slug, empresa_id) values ('F63 Restauração B', 'f63-restauracao-b', v_emp8)
   returning id into v_f8;
+
+  insert into public.ativos (empresa_id, id, patrimonio, service_tag, categoria, filial_id, origem, status)
+  values ((select f.empresa_id from public.filiais f where f.id = v_f8),
+          v_ativo8a, 'WAP0063801', 'F63REST1', 'notebook', v_f8, 'cadastro', 'em_estoque');
   insert into public.ativos (id, patrimonio, service_tag, categoria, filial_id, origem, status, empresa_id)
   values (v_ativo8b, 'WAP0063802', 'F63REST2', 'notebook', v_f8, 'cadastro', 'em_estoque', v_emp8);
   insert into public.anotacoes (id, ativo_id, texto, criado_por, empresa_id)
@@ -547,8 +552,24 @@ begin
   select empresa_id into v_e8a from public.ativos where id = v_ativo8a;
   select empresa_id into v_e8b from public.ativos where id = v_ativo8b;
   select empresa_id into v_e8c from public.anotacoes where id = v_anot8b;
-  if pg_temp.assert_zero_de('8a um backup SEM a chave empresa_id (anterior à F63) restaura com a WAP (o default)',
-       case when v_e8a = public.empresa_legada() then 0 else 1 end, 1) then
+  -- F67C: até a F67C a 8a dizia "restaura com a WAP (o default)"; desde a F67C a empresa vem da FILIAL da linha
+  if pg_temp.assert_zero_de('8a um backup SEM a chave empresa_id (anterior à F63) restaura com a empresa da FILIAL da linha no destino (a B, não o antigo default)',
+       case when v_e8a = v_emp8 then 0 else 1 end, 1) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+  -- 8c (F67C): a linha sem a chave cuja filial NÃO existe no destino é recusada (23502) — o subselect dá NULL
+  begin
+    insert into public.ativos (empresa_id, id, patrimonio, service_tag, categoria, filial_id, origem, status)
+    values ((select f.empresa_id from public.filiais f where f.id = 32000),
+            gen_random_uuid(), 'WAP0063803', 'F63REST3', 'notebook', 32000, 'cadastro', 'em_estoque');
+    v_txt8c := 'aceitou';
+  exception when others then
+    v_txt8c := sqlstate;
+  end;
+  if pg_temp.assert_zero_de('8c um backup SEM a chave e SEM a filial no destino é recusado (23502) — nunca grava a empresa errada',
+       case when v_txt8c = '23502' then 0 else 1 end, 1) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

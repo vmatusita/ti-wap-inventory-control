@@ -810,11 +810,15 @@ describe('12. o lote 1 da chave de recorte (F63): a lista das oito mora numa fon
     expect(lote1).toEqual(['anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item', 'movimentacoes', 'pendencias_item', 'termos_gerados'])
   })
 
-  it('o bloco 5 confere a lista contra k_negocio (15a) e contra o catálogo (15b/15c), com o default pelo pg_depend', () => {
+  it('o bloco 5 confere a lista contra k_negocio (15a) e contra o catálogo (15b/15c), SEM default desde a F67C (15l, 15m)', () => {
     const sql = semComentarios(cat)
     expect(sql, '15a: k_lote1 não é conferida contra k_negocio').toMatch(/from unnest\(k_lote1\) as nome\s+where not \(nome = any \(k_negocio\)\)/)
     expect(sql, 'a leitura de catálogo não cobre o lote 1 E as tabelas de negócio que já têm a coluna').toMatch(/unnest\(k_negocio \|\| k_lote1\)/)
-    expect(sql, '15b: o default não é conferido pelo pg_depend').toMatch(/refobjid = 'public\.empresa_legada\(\)'::regprocedure/)
+    // F67C (16/11/2026): a 15b se INVERTEU — exige a AUSÊNCIA do default (a escrita diz a empresa); a derivada 15l reprova
+    // default em qualquer empresa_id de public, e a 15m reprova INSERT numa das 20 sem a coluna (PLAN-F67C §4).
+    expect(sql, '15b: não exige a AUSÊNCIA do default (F67C)').toMatch(/c\.def_oid is not null\s+then 'tem default/)
+    expect(sql, '15l: a derivada do catálogo sumiu').toMatch(/assert_zero_de\(\s*'15l /)
+    expect(sql, '15m: a varredura de escrita do catálogo sumiu').toMatch(/assert_zero_de\(\s*'15m /)
     expect(sql, '15b: a FK não exige convalidated').toMatch(/k\.convalidated/)
     expect(sql, '15b: não confere o force').toMatch(/relforcerowsecurity/)
     for (const rotulo of ['15a', '15b', '15c']) {
@@ -871,7 +875,8 @@ describe('13. o lote 2 da chave de recorte (F64): a lista das onze e as exceçõ
     expect(sql, '15d: k_lote2 não é conferida contra k_negocio').toMatch(/from unnest\(k_lote2\) as nome where not \(nome = any \(k_negocio\)\)/)
     expect(sql, '15d: a união dos lotes com filiais não é conferida contra k_negocio').toMatch(/not \(nome = any \(k_lote1 \|\| k_lote2 \|\| array\['filiais'\]\)\)/)
     expect(sql, '15e: a leitura de catálogo não cobre o lote 2').toMatch(/from unnest\(k_lote2\) as nome\s+\), col as/)
-    expect(sql, '15e: o default não é conferido pelo pg_depend').toMatch(/refobjid = 'public\.empresa_legada\(\)'::regprocedure/)
+    // F67C (16/11/2026): a 15e se INVERTEU, como a 15b — exige a AUSÊNCIA do default.
+    expect(sql, '15e: não exige a AUSÊNCIA do default (F67C)').toMatch(/c\.def_oid is not null\s+then 'tem default/)
     expect(sql, 'a pendência da F64 continua como aviso — ela tem de REPROVAR').not.toMatch(/pendência nomeada da F64, sem reprovar/)
     for (const rotulo of ['15d', '15e', '15f', '15h', '15i', '15j']) {
       expect(sql, `o rótulo ${rotulo} não está literal num assert_zero_de (o injetor lê por token)`).toMatch(new RegExp(String.raw`assert_zero_de\(\s*'${rotulo} `))

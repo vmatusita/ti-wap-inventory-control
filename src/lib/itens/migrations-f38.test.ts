@@ -305,6 +305,9 @@ const DA_F38 = [
   '0202',
   '0203',
   '0204',
+  '0205',
+  '0206',
+  '0207',
 ]
 
 /**
@@ -825,6 +828,9 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // contagem de objetos (RUNBOOK, Anexo F67B).
     '0198': ['pode_escrever_termo'],
     '0199': ['prefixo_backup_import', 'prefixo_backup_reset', 'prefixo_backup_conflito'],
+    // F67C — a contração do lote 2: a assinatura antiga da ferramenta de órfão (sem empresa), sem consumidor desde a
+    // v1.75.0 (o app chama a nova, uuid primeiro). Só depois do deploy e da janela por forma (RUNBOOK, Anexo F67C).
+    '0206': ['registrar_limpeza_termos_sem_linha'],
   }
 
   it('NENHUMA função intocável é recriada pelas migrations da fase', () => {
