@@ -278,6 +278,14 @@ export const LEITURA_FORCAR_ESTADO = reciboDeRpc({
   }),
 })
 
+// `limparTermosSemLinha` — `registrar_limpeza_termos_sem_linha` (0196, F67B). Escalar: `returns text[]`, a lista
+// EXATA dos `.docx` do bucket `termos` sem linha que a action copia e remove (nunca um caminho fora dela).
+export const LEITURA_LIMPAR_TERMOS_SEM_LINHA = reciboDeRpc({
+  rotulo: 'dev-destrutivo.limpar-termos-sem-linha',
+  rpc: 'registrar_limpeza_termos_sem_linha',
+  forma: z.array(s),
+})
+
 // `forcarSaldo` — `forcar_saldo_item` (0084). Variantes: o atalho idempotente (`alterado`,
 // `item_id`, `item`, `filial_id`, `filial`, `saldo`) e o caminho que lança de fato (`alterado`,
 // `item_id`, `item`, `filial_id`, `filial`, `de`, `para`, `delta`, `lancamento_id`).

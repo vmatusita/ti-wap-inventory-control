@@ -77,44 +77,12 @@ const LOTE_REMOCAO = 500
 // ativo é o próprio id; depois de uma exclusão bem-sucedida aqueles ativos não existem
 // mais para serem reselecionados. Uma tentativa RECUSADA não copia nada — a cópia só
 // acontece depois de a RPC voltar sem erro.
-
-/**
- * A raiz das cópias quando a operação tem backup em ARQUIVO (import e reset, e o conflito
- * acima do teto): o próprio caminho do JSON, sem a extensão.
- *
- * Espelho SQL: `regexp_replace(caminho, '\.json$', '')`.
- */
-export function raizDoBackupEmArquivo(backupPath: string): string {
-  return backupPath.replace(/\.json$/, '')
-}
-
-/**
- * A raiz das cópias de `apagarAtivo`, que NÃO tem backup em arquivo — o backup dela é
- * jsonb inline no evento `ativo_apagado`, que grava `detalhe->>'ativo_id'`.
- *
- * Espelho SQL: `'ativo/' || (detalhe->>'ativo_id')`.
- */
-export function raizDoAtivo(ativoId: string): string {
-  return `ativo/${ativoId}`
-}
-
-/**
- * A raiz das cópias de `apagarConflito`, IGUAL acima e abaixo do teto de 25 — abaixo dele
- * não há backup em arquivo, e o digest da seleção é a única âncora que existe nos dois
- * casos.
- *
- * Espelho SQL: `prefixo_backup_conflito() || digest_selecao_conflito(ids)` — as duas
- * funções já existem no banco desde a migration 0100, então não há algoritmo novo
- * duplicado entre TypeScript e SQL.
- */
-export function raizDoConflito(digest: string): string {
-  return `conflito/${digest}`
-}
-
-/** O prefixo final das cópias, a partir da raiz. Espelho SQL: `|| '/termos/'`. */
-export function prefixoDasCopias(raiz: string): string {
-  return `${raiz}/termos/`
-}
+//
+// ⚠ F67B (16/11/2026) — AS RAÍZES MUDARAM DE CASA. `raizDoBackupEmArquivo`, `raizDoAtivo`,
+// `raizDoConflito` e `prefixoDasCopias` moram agora em `src/lib/storage/caminho.ts`, a função
+// ÚNICA que monta caminho do bucket `backups-import` — com a EMPRESA no 2º segmento (a policy
+// do bucket decide por ela). Este módulo continua sendo a porta única de REMOÇÃO: recebe o
+// `prefixoDestino` já montado e não conhece empresa nenhuma.
 
 export type ResultadoCopiaRemocao = {
   /** Os que foram copiados E removidos — o caminho feliz. */

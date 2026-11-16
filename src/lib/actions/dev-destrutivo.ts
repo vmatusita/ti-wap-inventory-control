@@ -26,16 +26,19 @@ import {
   apagarMovimentacaoSchema,
   forcarEstadoSchema,
   forcarSaldoSchema,
+  limparTermosSemLinhaSchema,
   resetarSchema,
   validarOperacaoDestrutiva,
 } from '@/lib/validators/dev-destrutivo'
+import { avisoDaLimpeza, copiarEntaoRemoverTermos } from '@/lib/storage/copiar-antes-de-remover'
 import {
-  avisoDaLimpeza,
-  copiarEntaoRemoverTermos,
+  caminhoBackupReset,
+  carimboDeArquivo,
   prefixoDasCopias,
   raizDoAtivo,
   raizDoBackupEmArquivo,
-} from '@/lib/storage/copiar-antes-de-remover'
+  raizDoOrfao,
+} from '@/lib/storage/caminho'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { valorOuFalha } from '@/lib/supabase/linhas'
 import {
@@ -45,6 +48,7 @@ import {
   LEITURA_APAGAR_MOVIMENTACAO,
   LEITURA_FORCAR_ESTADO,
   LEITURA_FORCAR_SALDO,
+  LEITURA_LIMPAR_TERMOS_SEM_LINHA,
 } from '@/lib/queries/formas/dev-destrutivo'
 
 // Server Actions da ZONA DESTRUTIVA da /dev (F23) — apagar, resetar e forçar.
@@ -87,12 +91,11 @@ function revalidar(rotas: readonly string[]): void {
  * `protect_objects_delete` (BEFORE DELETE FOR EACH STATEMENT), que recusa TODA exclusão de
  * objeto por SQL. O caminho é a API de Storage, daqui.
  *
- * ⚠ Usa o client ADMINISTRATIVO por CONSERVADORISMO, não por necessidade — e a distinção
- * importa porque a primeira versão deste comentário afirmava o contrário. A sessão do dev
- * também conseguiria: as policies do bucket (0069) usam `pode_escrever_arquivo_termo`, cujo
- * `coalesce(…, true)` libera justamente o nome que NENHUMA linha referencia, que é o caso
- * aqui (a RPC já apagou a linha). Depender desse fallback deixaria a limpeza refém de um
- * detalhe de predicado que existe por outro motivo; o client admin não depende de nada.
+ * ⚠ Usa o client ADMINISTRATIVO por NECESSIDADE desde a F67B (16/11/2026). Até a 0197 a sessão
+ * do dev também conseguiria (o `coalesce(…, true)` de `pode_escrever_arquivo_termo` liberava o
+ * nome que nenhuma linha referencia); desde a contração (0198) o bucket `termos` decide pela
+ * LINHA, e um `.docx` cuja linha a RPC acabou de apagar não é alcançável por sessão NENHUMA —
+ * nem para ler (a cópia), nem para apagar. O client admin não depende de predicado nenhum.
  *
  * ⚠ FALHA AQUI NÃO PODE SER SILENCIOSA. A linha já morreu; se o arquivo ficar, ele vira órfão
  * invisível. Devolve a mensagem para a action avisar na tela, e a 8ª checagem de integridade
@@ -105,8 +108,9 @@ function revalidar(rotas: readonly string[]): void {
  * mora na porta única, junto com a cópia, mas o motivo dela é este e continua valendo.)
  *
  * ⚠ F54 — E AGORA ELA COPIA ANTES. O `prefixoDestino` é derivado pelo CHAMADOR, porque cada
- * um tem uma âncora diferente: `apagarAtivo` usa `ativo/<id>` (o backup dela é jsonb inline
- * no evento, não há arquivo) e `resetarBloco` usa o caminho do JSON sem a extensão.
+ * um tem uma âncora diferente: `apagarAtivo` usa `ativo/empresa-<uuid>/<id>` (o backup dela é
+ * jsonb inline no evento, não há arquivo), `resetarBloco` usa o caminho do JSON sem a extensão e
+ * `limparTermosSemLinha` usa `orfao/<carimbo>` (F67B) — todos de `src/lib/storage/caminho.ts`.
  */
 async function limparArquivosDeTermo(
   caminhos: string[],
@@ -226,8 +230,10 @@ export async function apagarAtivo(input: {
     }
   }
 
+  // F67B: a empresa da operação vai à RPC E à raiz das cópias (`ativo/empresa-<uuid>/<id>`) — a mesma.
+  const empresa = empresaDaOperacao()
   const { data, error } = await chamarRpc(supabase, 'apagar_ativo', {
-    p_empresa: empresaDaOperacao(),
+    p_empresa: empresa,
     p_ativo: ativoId,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,
@@ -238,13 +244,13 @@ export async function apagarAtivo(input: {
   // números/sem arquivos" — o `?? 0`/`?? []` abaixo já tratava dado ausente do mesmo jeito.
   const lidoR = valorOuFalha(data, LEITURA_APAGAR_ATIVO.forma, LEITURA_APAGAR_ATIVO.rotulo)
   const r: Partial<z.output<typeof LEITURA_APAGAR_ATIVO.forma>> = lidoR.ok ? lidoR.valor : {}
-  // F54 — a raiz das cópias é `ativo/<id>`. Esta action NÃO tem backup em arquivo (o dela
+  // F54 — a raiz das cópias é `ativo/<id>` (F67B: `ativo/empresa-<uuid>/<id>`). Esta action NÃO tem backup em arquivo (o dela
   // é jsonb inline no evento `ativo_apagado`, escrito pela RPC na mesma transação), então
   // a âncora é o próprio id do ativo — que a RPC já grava em `detalhe->>'ativo_id'`. É por
   // isso que a 12ª checagem reconhece estas cópias sem precisar de registro novo.
   const aviso = await limparArquivosDeTermo(
     r.arquivos_termos ?? [],
-    prefixoDasCopias(raizDoAtivo(ativoId)),
+    prefixoDasCopias(raizDoAtivo(empresa, ativoId)),
   )
 
   revalidar(ROTAS_ACERVO)
@@ -418,9 +424,9 @@ export async function resetarBloco(input: {
   let backupPath: string
   try {
     const conteudo = await montarBackupDoReset(bloco, filialId)
-    const carimbo = new Date().toISOString().replace(/[:.]/g, '-')
-    const escopo = filialId === null ? 'global' : `filial-${filialId}`
-    backupPath = `reset/${bloco}/${escopo}/${carimbo}.json`
+    // F67B: `reset/empresa-<uuid>/<bloco>/<tudo|filial-N>/<carimbo>.json` — a empresa do reset no 2º segmento, pela
+    // função única (o bucket decide por ela; a RPC confere a forma nova). O "tudo" é a empresa inteira desde a F67.
+    backupPath = caminhoBackupReset(empresaId, bloco, filialId, carimboDeArquivo())
 
     const { error: erroUpload } = await supabase.storage
       .from('backups-import')
@@ -471,6 +477,55 @@ export async function resetarBloco(input: {
 
   revalidar(bloco === 'acervo' ? ROTAS_ACERVO : ROTAS_ITENS)
   return { ok: true, aviso: aviso ?? undefined, dados: { ...r, backup_path: backupPath } }
+}
+
+// ---------------------------------------------------------------------------
+// 4b. LIMPAR os `.docx` de termo SEM REGISTRO — a ferramenta nomeada de órfão (F67B)
+// ---------------------------------------------------------------------------
+// Desde a contração (0198) um `.docx` do bucket `termos` que nenhuma linha de `termos_gerados` referencia é
+// inalcançável por qualquer sessão: ninguém o lê, ninguém o apaga. A 8ª checagem (`arquivo_termo_orfao`) os conta;
+// esta é a ferramenta que os tira de lá — COPIANDO antes de remover, com trilha. Três passos, nesta ordem:
+//   1º  a RPC `registrar_limpeza_termos_sem_linha` (0196), em SQL fixo: só a PLATAFORMA (um `.docx` sem linha não é
+//       de empresa nenhuma), justificativa, a confirmação digitada com a contagem de AGORA, e a TRILHA
+//       `termos_sem_linha_limpos` gravada ANTES da cópia — ela devolve a lista exata (só os sem linha há mais de 1 hora:
+//       um termo no meio da gravação do código anterior à F67B nunca entra);
+//   2º  a cópia de cada um para `orfao/<carimbo>/termos/` no `backups-import` (a 12ª checagem reconhece a cópia pela
+//       trilha), pela porta única `copiarEntaoRemoverTermos`, que NÃO remove o que não copiou;
+//   3º  a remoção, pela mesma porta — client ADMINISTRATIVO (sem linha, nenhuma sessão alcança o objeto).
+// Se o 2º/3º falhar, a trilha diz o que deveria ter saído e o aviso diz o que ficou: o `.docx` que ficou continua
+// contado pela 8ª checagem, e a ferramenta pode rodar de novo (com outra pasta: o carimbo é novo a cada chamada).
+// ⚠ Entregue, NÃO executada em banco vivo na F67B (a prova é o roteiro `storage_por_empresa.sql`, bloco O).
+export async function limparTermosSemLinha(input: {
+  confirmacao: string
+  justificativa: string
+}): Promise<DevResult<{ arquivos: number }>> {
+  const supabase = await createClient()
+  const aut = await exigirDev(supabase)
+  if (!aut.ok) return { ok: false, erro: aut.erro }
+
+  const parsed = limparTermosSemLinhaSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  }
+  const { confirmacao, justificativa } = parsed.data
+
+  const raiz = raizDoOrfao(carimboDeArquivo())
+  const { data, error } = await chamarRpc(supabase, 'registrar_limpeza_termos_sem_linha', {
+    p_raiz: raiz,
+    p_confirmacao: confirmacao,
+    p_justificativa: justificativa,
+  })
+  if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
+
+  // A trilha já foi gravada: forma errada degrada para "nada a copiar" — e então nada é removido (a porta única só
+  // remove o que copiou), o que é o lado seguro.
+  const lido = valorOuFalha(data, LEITURA_LIMPAR_TERMOS_SEM_LINHA.forma, LEITURA_LIMPAR_TERMOS_SEM_LINHA.rotulo)
+  const lista = lido.ok ? lido.valor : []
+  const aviso = await limparArquivosDeTermo(lista, prefixoDasCopias(raiz))
+
+  revalidatePath('/dev')
+  revalidatePath('/dev/destrutivo')
+  return { ok: true, aviso: aviso ?? undefined, dados: { arquivos: lista.length } }
 }
 
 // ---------------------------------------------------------------------------

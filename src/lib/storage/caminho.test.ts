@@ -219,6 +219,10 @@ const NOMINAIS: Record<string, string> = {
   'src/lib/storage/caminho.ts': 'a função única — é aqui que o caminho nasce',
   'scripts/db/restaurar.mjs':
     'reconhece, não grava: imprime o prefixo das cópias de um backup que JÁ existe (agnóstico de forma, fato 20 da F67B)',
+  'scripts/db/mutacoes.mjs':
+    'reconhece, não grava: o texto SQL e a explicação das mutações do injetor (a forma do caminho dentro de um corpo de função mutado, aplicado só no banco descartável do CI)',
+  'scripts/perf/conta-a-conta.mjs':
+    'reconhece, não grava: o espelho SQL das formas (antiga e nova) dentro do comando de LEITURA que classifica cada objeto do bucket por conta, para provar "nada muda para a WAP" antes e depois (F67B)',
 }
 
 function fontes(dir: string): string[] {

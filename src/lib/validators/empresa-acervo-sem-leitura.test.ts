@@ -321,6 +321,14 @@ const EMPRESA_ID_NO_APP: Record<string, { trechos: string[]; motivo: string }> =
     ],
     motivo: 'F62: a lista de usuários e os vínculos (membros, operador_filiais) na empresa legada',
   },
+  // F67B (16/11/2026) — o FILTRO de empresa das assinaturas de tempo real: não lê a coluna (não é consulta), compõe o
+  // `filter` do postgres_changes com a empresa vinda do servidor; quem decide é a RLS de SELECT de cada tabela.
+  'src/lib/relatorios/assinatura-realtime.ts': {
+    trechos: [
+      "precisa ser um uuid minúsculo (vinda do servidor).') } return { event: 'INSERT', schema: 'public', table, filter: `empresa_id",
+    ],
+    motivo: 'F67B (decisão 13): o filtro do Realtime por empresa — composição do filtro, não leitura da coluna',
+  },
   // F65 — as duas exceções nominais (EXCECOES_TS_F65, lá em cima): partem de uma das dezenove, e só elas podem.
   'src/lib/queries/gerados.ts': {
     trechos: [
@@ -361,8 +369,15 @@ describe('ninguém lê empresa_id do acervo antes da F66 — a catraca do litera
   })
 
   it('nenhum trecho liberado parte de uma das oito — fora das exceções nominais da F65, cada uma da SUA tabela', () => {
+    // F67B (16/11/2026): a ÚNICA entrada que não é consulta — o filtro do Realtime compõe uma string para o
+    // postgres_changes, não lê a coluna. A prova de que continua não sendo consulta é o trecho NÃO ter `.from(`.
+    const SEM_CONSULTA = new Set(['src/lib/relatorios/assinatura-realtime.ts'])
     for (const [a, { trechos }] of Object.entries(EMPRESA_ID_NO_APP)) {
       for (const t of trechos) {
+        if (SEM_CONSULTA.has(a)) {
+          expect(t, `${a}: o trecho virou consulta — sai da exceção sem tabela`).not.toMatch(/\.from\(/)
+          continue
+        }
         const tabela = /^\.from\(\s*['"`]([a-z_0-9]+)['"`]/.exec(t)?.[1]
         expect(tabela, `${a}: trecho sem o .from( da tabela — «${t}»`).toBeDefined()
         const nominal = EXCECOES_TS_F65.some((e) => e.arquivo === a && e.tabela === tabela)
@@ -575,6 +590,10 @@ describe('ninguém lê empresa_id do acervo antes da F66 — o corpo VIGENTE das
       'forcar_estado_ativo',
       'forcar_saldo_item',
       'guarda_empresa',
+      // F67B (16/11/2026): o bucket `termos` pela LINHA — as duas leem `termos_gerados.empresa_id` da linha que
+      // referencia o objeto (catalogo_policies.sql, k_leitura_tenant)
+      'pode_escrever_arquivo_termo',
+      'pode_ler_arquivo_termo',
       'previa_reset',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',

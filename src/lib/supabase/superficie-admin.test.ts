@@ -90,13 +90,19 @@ const DECLARADOS: Record<string, Declaracao> = {
   },
   'src/lib/actions/dev-destrutivo.ts': {
     motivo:
-      'Remove do bucket `termos` os `.docx` que ficaram órfãos depois de a RPC apagar a linha. É Storage, não tabela — e o próprio arquivo registra que a sessão do dev provavelmente conseguiria pela policy do bucket, mas que não se quis depender desse detalhe de predicado num caminho destrutivo.',
+      'Copia e remove do bucket `termos` os `.docx` que ficaram sem linha depois de a RPC apagar a linha (e, desde a F67B, os sem registro da ferramenta de órfão `limparTermosSemLinha`). É Storage, não tabela — e desde a contração da F67B (0198) é NECESSIDADE: o bucket decide pela LINHA, e um `.docx` sem linha não é alcançável por sessão nenhuma.',
     guarda:
-      '`exigirDev` nos exports que chegam até aqui (apagarAtivo:175, resetarBloco:327), além da guarda interna `exigir_dev_para_destruir()` dentro da própria RPC.',
+      '`exigirDev` nos exports que chegam até aqui (apagarAtivo, resetarBloco, limparTermosSemLinha), além da guarda interna dentro de cada RPC (`exigir_dev_para_destruir()`; `e_plataforma()` em `registrar_limpeza_termos_sem_linha`) — e só a lista que a RPC DEVOLVEU é copiada/removida.',
+  },
+  'src/lib/actions/importar.ts': {
+    motivo:
+      'F67B (decisão 16/11-2 do Johnny): SÓ a cópia e a remoção dos `.docx` dos termos que `importar_ativos_substituir` acabou de apagar, DEPOIS da RPC. Desde a contração (0198) o bucket `termos` decide pela LINHA; a RPC apagou as linhas, então nenhuma sessão alcança mais esses arquivos. A RPC, o backup e o descarte do backup seguem no client de sessão.',
+    guarda:
+      '`exigirAdmin` no export que chega até aqui (aplicarImport), a guarda `e_admin_na(p_empresa)` dentro da RPC, e a lista copiada/removida é exatamente `arquivos_termos_apagados` do RETORNO da RPC (nunca um caminho montado no app), pela porta única `copiarEntaoRemoverTermos`.',
   },
   'src/lib/actions/conflitos.ts': {
     motivo:
-      'Gêmeo do caso acima, na mesa de conflitos entre filiais: apaga do bucket `backups-import` o backup que subiu mas cuja RPC recusou, e limpa os `.docx` órfãos depois do commit de `apagar_ativos_conflito_filiais`. Mesma família de necessidade — Storage, por conservadorismo.',
+      'Gêmeo do caso acima, na mesa de conflitos entre filiais: apaga do bucket `backups-import` o backup que subiu mas cuja RPC recusou, e limpa os `.docx` órfãos depois do commit de `apagar_ativos_conflito_filiais`. Storage — e, para os `.docx`, desde a contração da F67B (0198) necessidade: sem linha, nenhuma sessão alcança o arquivo.',
     guarda:
       '`exigirAdmin` no export que chega até aqui (apagarConflito:210) — é a ÚNICA exceção à exclusividade do dev sobre exclusão de ativo (F24), e a RPC revalida tudo sob lock por dentro.',
   },

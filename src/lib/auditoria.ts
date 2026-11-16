@@ -55,6 +55,9 @@ export const ACOES_ADMIN = [
   // seed.admin@wap.ind.br fora do fluxo de convite (auth.admin.createUser direto),
   // então não há convite_gerado que preceda o cadastro dela.
   'usuario_criado',
+  // F67B — a ferramenta nomeada de órfão da Zona destrutiva (`registrar_limpeza_termos_sem_linha`, 0196): gravada
+  // DENTRO da RPC, antes da cópia dos `.docx` sem registro — a 12ª checagem reconhece a cópia por ela.
+  'termos_sem_linha_limpos',
 ] as const
 
 export type AcaoAdmin = (typeof ACOES_ADMIN)[number]
@@ -86,6 +89,7 @@ export const ACAO_ROTULO: Record<AcaoAdmin, string> = {
   apelido_incluido: 'Apelido de filial incluído',
   apelido_removido: 'Apelido de filial removido',
   usuario_criado: 'Conta criada por script (sem convite)',
+  termos_sem_linha_limpos: 'Arquivos de termo sem registro limpos',
 }
 
 // As que APAGAM ou FORÇAM de forma irreversível: as sete da Zona destrutiva (F23) mais a
@@ -105,6 +109,7 @@ export const ACOES_DESTRUTIVAS: readonly AcaoAdmin[] = [
   'estado_forcado',
   'saldo_forcado',
   'conflito_filiais_resolvido',
+  'termos_sem_linha_limpos',
 ] as const
 
 export function eAcaoDestrutiva(acao: string): boolean {

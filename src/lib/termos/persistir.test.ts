@@ -109,8 +109,8 @@ const PARAMS = {
   tipo: 'responsabilidade_notebook' as const,
   movimentacaoIds: ['m2', 'm1'],
   ativoIds: ['a1'],
-  campos: { colaborador: 'Fulano' } as never,
-  dados: {} as never,
+  colaborador: 'Fulano',
+  dados: {},
   buffer: Buffer.from('docx'),
   uid: 'u1',
 }

@@ -58,6 +58,7 @@ import { createClient } from '@/lib/supabase/server'
 import { AtivosPaginacao } from '@/components/ativos/ativos-paginacao'
 import { TAMANHOS_PAGINA, TAMANHO_PAGINA_PADRAO, parseTamanhoPagina } from '@/lib/ativos/lista'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 export const metadata = {
@@ -278,7 +279,7 @@ export default async function ItensPage({
         })}
         acoes={
           <>
-            <RealtimeRefresh />
+            <RealtimeRefresh empresaId={empresaDaOperacao()} />
             <ExportarCsvButton
               acao={exportarItensSaldosCSV}
               rotulo="Exportar saldos"

@@ -20,6 +20,23 @@ import { describe, expect, it } from 'vitest'
 const RAIZ = process.cwd()
 
 const CATRACA: Record<string, { legada: number; operacao: number; destino: string }> = {
+  // F67B (16/11/2026) — o FILTRO DE EMPRESA das assinaturas de tempo real: a página (Server Component) passa a empresa
+  // da operação por prop ao `RealtimeRefresh` (que é 'use client' e não a lê do navegador).
+  'src/app/(app)/itens/historico/page.tsx': {
+    legada: 0,
+    operacao: 1,
+    destino: 'F70 — o filtro de empresa do tempo real pela empresa da SESSÃO (a segurança é a RLS de SELECT por assinante)',
+  },
+  'src/app/(app)/itens/page.tsx': {
+    legada: 0,
+    operacao: 1,
+    destino: 'F70 — o filtro de empresa do tempo real pela empresa da SESSÃO (a segurança é a RLS de SELECT por assinante)',
+  },
+  'src/app/(app)/relatorios/[filial]/page.tsx': {
+    legada: 0,
+    operacao: 1,
+    destino: 'F70 — o filtro de empresa do tempo real pela empresa da SESSÃO (a segurança é a RLS de SELECT por assinante)',
+  },
   'src/lib/actions/admin.ts': {
     legada: 0,
     operacao: 4,

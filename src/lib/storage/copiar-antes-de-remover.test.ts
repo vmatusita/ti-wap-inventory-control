@@ -6,14 +6,14 @@ import { describe, expect, it, vi } from 'vitest'
 // fronteira é o `npm run build`. Mesmo padrão de `queries/itens.test.ts`.
 vi.mock('server-only', () => ({}))
 
+import { avisoDaLimpeza, copiarEntaoRemoverTermos } from '@/lib/storage/copiar-antes-de-remover'
+import * as porta from '@/lib/storage/copiar-antes-de-remover'
 import {
-  avisoDaLimpeza,
-  copiarEntaoRemoverTermos,
   prefixoDasCopias,
   raizDoAtivo,
   raizDoBackupEmArquivo,
   raizDoConflito,
-} from '@/lib/storage/copiar-antes-de-remover'
+} from '@/lib/storage/caminho'
 
 // =============================================================================
 // O COMPORTAMENTO da porta única — F54. É AQUI que "se a cópia falhar, não remove"
@@ -171,34 +171,40 @@ describe('3. o aviso conta a verdade para quem opera', () => {
 })
 
 describe('4. a convenção de caminho — o espelho do que a 12ª checagem recalcula em SQL', () => {
-  it('backup em arquivo: o JSON sem a extensão', () => {
-    expect(raizDoBackupEmArquivo('import/filial-3/2026-09-09T14-05-33-102Z.json')).toBe(
-      'import/filial-3/2026-09-09T14-05-33-102Z',
+  // F67B (16/11/2026): as raízes moram em `caminho.ts` (a função ÚNICA, com a empresa no 2º segmento); a porta de
+  // remoção não monta caminho nenhum — recebe o `prefixoDestino` pronto. A forma completa é `caminho.test.ts`.
+  const E = '00000000-0000-4000-a000-000000000001'
+
+  it('a porta única de remoção NÃO monta caminho (as raízes saíram daqui)', () => {
+    for (const nome of ['raizDoBackupEmArquivo', 'raizDoAtivo', 'raizDoConflito', 'prefixoDasCopias']) {
+      expect(nome in porta, `${nome} voltou a ser exportada pela porta de remoção`).toBe(false)
+    }
+  })
+
+  it('backup em arquivo: o JSON sem a extensão (só a FINAL), com a empresa', () => {
+    expect(raizDoBackupEmArquivo(`import/empresa-${E}/filial-3/2026-09-09T14-05-33-102Z.json`)).toBe(
+      `import/empresa-${E}/filial-3/2026-09-09T14-05-33-102Z`,
     )
-    expect(raizDoBackupEmArquivo('reset/acervo/global/2026-09-09T14-05-33-102Z.json')).toBe(
-      'reset/acervo/global/2026-09-09T14-05-33-102Z',
+    expect(raizDoBackupEmArquivo(`reset/empresa-${E}/acervo/tudo/a.json.b.json`)).toBe(
+      `reset/empresa-${E}/acervo/tudo/a.json.b`,
     )
   })
 
-  it('só a extensão FINAL sai (um `.json` no meio do nome não é tocado)', () => {
-    expect(raizDoBackupEmArquivo('import/filial-3/a.json.b.json')).toBe('import/filial-3/a.json.b')
-  })
-
-  it('ativo e conflito: as âncoras dos dois casos SEM backup em arquivo', () => {
-    expect(raizDoAtivo('a3d9f001-2222-4444-8888-999900001111')).toBe(
-      'ativo/a3d9f001-2222-4444-8888-999900001111',
+  it('ativo e conflito: as âncoras dos dois casos SEM backup em arquivo, com a empresa', () => {
+    expect(raizDoAtivo(E, 'a3d9f001-2222-4444-8888-999900001111')).toBe(
+      `ativo/empresa-${E}/a3d9f001-2222-4444-8888-999900001111`,
     )
-    expect(raizDoConflito('5e884898da28047151d0e56f8dc62920')).toBe(
-      'conflito/5e884898da28047151d0e56f8dc62920',
+    expect(raizDoConflito(E, '5e884898da28047151d0e56f8dc62920')).toBe(
+      `conflito/empresa-${E}/5e884898da28047151d0e56f8dc62920`,
     )
   })
 
   it('o prefixo termina em barra — senão a cópia vira irmã, não filha', () => {
     // `${raiz}termos/` sem a barra produziria `…102Ztermos/`, um nome legal no Storage e
     // ilegível para qualquer humano — e que a checagem 12 não reconheceria.
-    expect(prefixoDasCopias('import/filial-3/2026-09-09T14-05-33-102Z')).toBe(
-      'import/filial-3/2026-09-09T14-05-33-102Z/termos/',
+    expect(prefixoDasCopias(`import/empresa-${E}/filial-3/2026-09-09T14-05-33-102Z`)).toBe(
+      `import/empresa-${E}/filial-3/2026-09-09T14-05-33-102Z/termos/`,
     )
-    expect(prefixoDasCopias(raizDoAtivo('x'))).toMatch(/\/termos\/$/)
+    expect(prefixoDasCopias(raizDoAtivo(E, 'a3d9f001-2222-4444-8888-999900001111'))).toMatch(/\/termos\/$/)
   })
 })

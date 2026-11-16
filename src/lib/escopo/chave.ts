@@ -25,8 +25,10 @@
 //
 // ⚠ E ela NÃO é segurança. Nome de canal e chave de storage são visíveis e editáveis
 // pelo devtools de quem está na página. Quem impede um cliente de receber a linha de
-// outro escopo é a RLS na publication `supabase_realtime` — que não existe hoje e é
-// F70. Trocar o nome do canal separa por CONVENÇÃO, não por autorização.
+// outro escopo é a policy de SELECT de cada tabela da publication `supabase_realtime`,
+// que o Realtime confere por assinante (F67B: a trava de catálogo é o §9 de
+// `supabase/tests/catalogo_policies.sql`; o `filter` de empresa das assinaturas é
+// redução de ruído, não autorização). Trocar o nome do canal separa por CONVENÇÃO.
 
 /** O valor de hoje. Uma organização só, um escopo só — e o nome diz isso. */
 const ESCOPO_UNICO = 'wap'

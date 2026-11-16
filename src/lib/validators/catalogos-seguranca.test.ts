@@ -1022,6 +1022,9 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
       'forcar_estado_ativo',
       'forcar_saldo_item',
       'guarda_empresa',
+      // F67B (16/11/2026): + DUAS da mesma classe da F67 — o .docx decidido pela LINHA de termos_gerados, na empresa dela
+      'pode_escrever_arquivo_termo',
+      'pode_ler_arquivo_termo',
       'previa_reset',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',
@@ -1053,6 +1056,9 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     expect(tabelas.apagar_ativos_conflito_filiais).toEqual(['ativos', 'eventos_admin'])
     expect(tabelas.exigir_ativos_da_empresa).toEqual(['ativos'])
     expect(tabelas.termo_exige_modelo_da_empresa).toEqual(['termos_gerados'])
+    // F67B: as duas do bucket `termos`, só a linha dona
+    expect(tabelas.pode_ler_arquivo_termo).toEqual(['termos_gerados'])
+    expect(tabelas.pode_escrever_arquivo_termo).toEqual(['termos_gerados'])
     expect(lista(fonte('empresa_no_vocabulario'), 'k_leitura_tenant'), 'empresa_no_vocabulario.sql: a cópia divergiu').toEqual(tenant)
     expect(lista(fonte('empresa_no_acervo'), 'k_leitura_tenant_nomes'), 'empresa_no_acervo.sql: a cópia dos nomes divergiu').toEqual(
       tenant.map((e) => e.split(':')[0]),
@@ -1139,6 +1145,10 @@ describe('15. o recorte nas policies (F66): a tabela-verdade, os pares e as exce
     const excecoes = lerExcecoesDoCatalogo(cat).entradas.map((e: { chave: string }) => e.chave)
     const deUnidade = excecoes.filter((c: string) => c.endsWith(' / pode_escrever_filial'))
     expect(deUnidade, 'as seis exceções de pode_escrever_filial sobreviveram à 0176').toEqual(temA0176 ? [] : deUnidade)
-    if (temA0176) expect(excecoes).toHaveLength(12)
+    // F67B (16/11/2026): + CINCO, por decisão da fase (docs/PLAN-F67B.md, decisão 3) — o backup de `backups-import` decide
+    // pelo próprio name, que carrega a empresa dona (empresa_do_caminho_backup nas 4 policies; caminho_backup_legado, a
+    // cláusula legada fechada, na de leitura). A catraca só encolhe por conserto; crescer é decisão, escrita na ata.
+    const temA0199 = migs.some((m: string) => m.startsWith('0199_'))
+    if (temA0176) expect(excecoes).toHaveLength(temA0199 ? 17 : 12)
   })
 })

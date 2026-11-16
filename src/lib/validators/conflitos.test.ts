@@ -5,7 +5,6 @@ import {
   CAP_BACKUP_INLINE,
   MAX_ATIVOS_POR_OPERACAO,
   MIN_JUSTIFICATIVA_CONFLITO,
-  PREFIXO_BACKUP_CONFLITO,
   confirmacaoConflitoConfere,
   exigeBackupEmArquivo,
   textoConfirmacaoConflito,
@@ -148,11 +147,6 @@ describe('constantes duplicadas na migration VIVA da RPC', () => {
     expect(textoConfirmacaoConflito(7)).toBe('APAGAR 7')
   })
 
-  it('o prefixo do backup bate com prefixo_backup_conflito()', () => {
-    // Esta função vive na sua própria migration (hoje a 0093), que não é a mesma da RPC —
-    // por isso a busca é separada, e também por marcador, nunca por número.
-    expect(
-      sqlMaisRecenteCom('create or replace function public.prefixo_backup_conflito'),
-    ).toContain(`select '${PREFIXO_BACKUP_CONFLITO}'`)
-  })
+  // O prefixo do backup em arquivo (0093) saiu daqui. F67B (16/11/2026): o caminho do bucket `backups-import` mora em `src/lib/storage/caminho.ts` (a função única, com a
+  // EMPRESA no 2º segmento), e a régua TS × SQL dele é `src/lib/storage/caminho.test.ts` §3, contra o corpo vigente.
 })

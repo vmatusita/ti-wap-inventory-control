@@ -11,9 +11,11 @@ import { getOperador } from '@/lib/auth/acesso'
 import { eDev } from '@/lib/auth/papeis'
 import { listarFiliaisParaVinculo } from '@/lib/queries/admin'
 import { listarItensDestrutivo } from '@/lib/queries/dev-destrutivo'
+import { rodarChecagens } from '@/lib/queries/dev'
 import { PainelAtivo } from '@/components/dev/destrutivo/painel-ativo'
 import { PainelItens } from '@/components/dev/destrutivo/painel-itens'
 import { PainelReset } from '@/components/dev/destrutivo/painel-reset'
+import { PainelTermosSemLinha } from '@/components/dev/destrutivo/painel-termos-sem-linha'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 //
@@ -67,10 +69,13 @@ export default async function DevDestrutivoPage() {
   if (!operador) redirect('/login')
   if (!eDev(operador.papel)) redirect('/')
 
-  const [filiais, itens] = await Promise.all([
+  const [filiais, itens, checagens] = await Promise.all([
     listarFiliaisParaVinculo(),
     listarItensDestrutivo(),
+    rodarChecagens(),
   ])
+  // F67B — a contagem da ferramenta de órfão é a da 8ª checagem (`arquivo_termo_orfao`); `null` quando ela não rodou
+  const termosSemLinha = checagens.find((c) => c.chave === 'arquivo_termo_orfao')?.achados ?? null
 
   return (
     <div className="space-y-4">
@@ -132,6 +137,20 @@ export default async function DevDestrutivoPage() {
         </CardHeader>
         <CardContent>
           <PainelReset filiais={filiais} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Arquivos de termo sem registro</CardTitle>
+          <CardDescription>
+            Documentos de termo (.docx) guardados sem nenhum registro de termo que os explique.
+            Ninguém consegue abri-los pela tela; esta ferramenta guarda uma cópia de cada um e os
+            tira do armazenamento.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PainelTermosSemLinha total={termosSemLinha} />
         </CardContent>
       </Card>
     </div>

@@ -1751,6 +1751,7 @@ export type Database = {
         Args: { p_alvo: string; p_empresa: string }
         Returns: undefined
       }
+      caminho_backup_legado: { Args: { p_nome: string }; Returns: boolean }
       chave_identidade_ativo: {
         Args: { p_patrimonio: string; p_service_tag: string }
         Returns: string
@@ -1882,6 +1883,7 @@ export type Database = {
       // F62 hand-fix (22/09/2026): escrito à mão antes do apply (0152–0158); a geração do MCP o substitui.
       e_plataforma: { Args: never; Returns: boolean }
       empresa_da_filial: { Args: { p_filial: number }; Returns: string }
+      empresa_do_caminho_backup: { Args: { p_nome: string }; Returns: string }
       empresa_legada: { Args: never; Returns: string }
       empresas_com_modelo_de_termo: { Args: never; Returns: string[] }
       empresas_de_admin: { Args: never; Returns: string[] }
@@ -2086,16 +2088,22 @@ export type Database = {
       }
       pode_escrever_filial: { Args: { fid: number }; Returns: boolean }
       pode_escrever_na: { Args: { p_empresa: string }; Returns: boolean }
-      pode_escrever_termo: { Args: { p_ativo_ids: string[] }; Returns: boolean }
+      pode_escrever_termo: {
+        Args: { p_ativo_ids: string[]; p_empresa: string }
+        Returns: boolean
+      }
       pode_escrever_unidade: {
         Args: { p_empresa: string; p_filial: number }
         Returns: boolean
       }
       pode_ler_arquivo_termo: { Args: { p_nome: string }; Returns: boolean }
-      prefixo_backup_conflito: { Args: never; Returns: string }
-      prefixo_backup_import: { Args: { p_filial: number }; Returns: string }
+      prefixo_backup_conflito: { Args: { p_empresa: string }; Returns: string }
+      prefixo_backup_import: {
+        Args: { p_empresa: string; p_filial: number }
+        Returns: string
+      }
       prefixo_backup_reset: {
-        Args: { p_bloco: string; p_filial: number }
+        Args: { p_bloco: string; p_empresa: string; p_filial: number }
         Returns: string
       }
       previa_reset: {
@@ -2110,6 +2118,10 @@ export type Database = {
           p_justificativa: string
         }
         Returns: Json
+      }
+      registrar_limpeza_termos_sem_linha: {
+        Args: { p_confirmacao: string; p_justificativa: string; p_raiz: string }
+        Returns: string[]
       }
       registrar_tentativa_senha: {
         Args: { p_ip: string; p_janela_seg?: number; p_max?: number }
