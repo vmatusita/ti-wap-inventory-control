@@ -2865,12 +2865,15 @@ const F63_ACERVO = [
     id: 'f63-lote1-default-literal',
     roteiro: 'catalogo_policies.sql',
     classe: 'default-literal',
-    derruba: ['15b'],
+    // F67C (16/11/2026): MUDOU DE SENTIDO. Até a F67C a 15b EXIGIA o default `public.empresa_legada()` e esta mutação
+    // provava que um default LITERAL (outra fonte) reprovava. Desde a contração (0205) a 15b exige a AUSÊNCIA de default
+    // e a 15l (derivada) reprova qualquer `empresa_id` de `public` com default — o mesmo SQL agora é "o default de volta".
+    derruba: ['15b', '15l'],
     porque:
-      'O default de ativos.empresa_id vira o LITERAL da WAP em vez de public.empresa_legada(): o valor é o mesmo hoje, mas a fonte única deixa de ser a função — trocar a empresa legada (por migration) passaria a deixar esta coluna para trás em silêncio, e a F67 tiraria de uma tabela um default que não é o que ela procura.',
+      'O default de ativos.empresa_id VOLTA (aqui, o literal da WAP): a linha que um escritor criar sem dizer a empresa passaria a nascer da WAP por omissão, em silêncio — exatamente o defeito que a F67C tirou. A 15b (as oito sem default) e a 15l (nenhuma empresa_id de public com default) têm de acusar pelo nome.',
     sql: `alter table public.ativos alter column empresa_id set default '00000000-0000-4000-a000-000000000001'::uuid;  ${MARCA}`,
     prova: {
-      sql: `select not exists (select 1 from pg_depend dp join pg_attrdef d on d.oid = dp.objid where dp.classid = 'pg_attrdef'::regclass and d.adrelid = 'public.ativos'::regclass and dp.refobjid = 'public.empresa_legada()'::regprocedure)`,
+      sql: `select exists (select 1 from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum where d.adrelid = 'public.ativos'::regclass and a.attname = 'empresa_id')`,
       espera: 't',
     },
   },
@@ -2963,12 +2966,13 @@ const F64_LOTE2_E_KIT = [
     id: 'f64-lote2-default-literal',
     roteiro: 'catalogo_policies.sql',
     classe: 'default-literal',
-    derruba: ['15e'],
+    // F67C (16/11/2026): MUDOU DE SENTIDO, como a f63-lote1-default-literal — a 15e passou a exigir a AUSÊNCIA de default.
+    derruba: ['15e', '15l'],
     porque:
-      'O default de motivos.empresa_id vira o LITERAL da WAP em vez de public.empresa_legada(): o valor é o mesmo hoje, mas a fonte única deixa de ser a função — trocar a empresa legada deixaria o motivo para trás em silêncio, e a F67 tiraria de uma tabela um default que não é o que ela procura.',
+      'O default de motivos.empresa_id VOLTA (aqui, o literal da WAP): um motivo criado sem dizer a empresa nasceria da WAP sem erro nenhum — motivos não tem pai que o confira. A 15e (as onze sem default) e a 15l (nenhuma empresa_id de public com default) têm de acusar pelo nome.',
     sql: `alter table public.motivos alter column empresa_id set default '00000000-0000-4000-a000-000000000001'::uuid;  ${MARCA}`,
     prova: {
-      sql: `select not exists (select 1 from pg_depend dp join pg_attrdef d on d.oid = dp.objid where dp.classid = 'pg_attrdef'::regclass and d.adrelid = 'public.motivos'::regclass and dp.refobjid = 'public.empresa_legada()'::regprocedure)`,
+      sql: `select exists (select 1 from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum where d.adrelid = 'public.motivos'::regclass and a.attname = 'empresa_id')`,
       espera: 't',
     },
   },
@@ -3814,18 +3818,20 @@ const F67B_STORAGE = [
   },
   {
     id: 'f67b-orfao-sem-guarda-de-plataforma',
+    // F67C (16/11/2026): a ferramenta ganhou a assinatura com a empresa (0204) e a antiga (text, text, text) saiu na 0206 —
+    // as duas mutações dela miram a assinatura NOVA (o mesmo corpo, os mesmos trechos).
     roteiro: 'storage_por_empresa.sql',
     classe: 'guarda-removida',
     derruba: ['O1'],
     porque:
       'A ferramenta de órfão perde a guarda da plataforma: o admin de uma empresa recebe a lista dos `.docx` sem registro de TODAS — e a action copia e remove o que a RPC devolveu. Um `.docx` sem linha não é de empresa nenhuma; quem o limpa é a plataforma.',
     sql: mutarFuncaoSemReplace(
-      'public.registrar_limpeza_termos_sem_linha(text, text, text)',
+      'public.registrar_limpeza_termos_sem_linha(uuid, text, text, text)',
       '  if not public.e_plataforma() then',
       `  if false then  ${MARCA}`,
       'f67b-orfao-sem-guarda-de-plataforma',
     ),
-    prova: provaMarca('public.registrar_limpeza_termos_sem_linha(text, text, text)'),
+    prova: provaMarca('public.registrar_limpeza_termos_sem_linha(uuid, text, text, text)'),
   },
   {
     id: 'f67b-orfao-lista-o-recem-nascido',
@@ -3837,12 +3843,12 @@ const F67B_STORAGE = [
     porque:
       'A ferramenta de órfão perde a idade mínima: um `.docx` recém-subido pelo código anterior à F67B (o arquivo ANTES da linha) entra na lista e é copiado e removido segundos antes de a linha dele nascer — um termo assinado sem arquivo.',
     sql: mutarFuncaoSemReplace(
-      'public.registrar_limpeza_termos_sem_linha(text, text, text)',
+      'public.registrar_limpeza_termos_sem_linha(uuid, text, text, text)',
       "       and o.created_at < now() - interval '1 hour'\n",
       `       and true  ${MARCA}\n`,
       'f67b-orfao-lista-o-recem-nascido',
     ),
-    prova: provaMarca('public.registrar_limpeza_termos_sem_linha(text, text, text)'),
+    prova: provaMarca('public.registrar_limpeza_termos_sem_linha(uuid, text, text, text)'),
   },
   {
     id: 'f67b-12a-copia-nova-sem-trilha',
@@ -3919,6 +3925,88 @@ const F67B_STORAGE = [
   },
 ]
 
+// =============================================================================
+// F67C (16/11/2026) — o fim do default: toda escrita diz a empresa (docs/PLAN-F67C.md §4 e decisão 17)
+// =============================================================================
+// Uma mutação por classe de trava desta fase que nenhum teste de mesa já derruba. As duas da F63/F64 que EXIGIAM o
+// default (`*-default-literal`) mudaram de sentido e cobrem "o default de volta" nos lotes 1 e 2; aqui, o de `filiais`,
+// o de uma tabela FUTURA, a função que esquece a coluna e a que grava a empresa de quem chama em vez da do pai. O
+// `update motivos` sem a empresa e o `restaurar.mjs` sem o preenchimento são TS/JS — o injetor muta o BANCO e não os
+// alcança: as sabotagens E e F são de mesa (declarado na ata).
+/** @type {Mutacao[]} */
+const F67C_ESCRITA = [
+  {
+    id: 'f67c-default-de-volta-filiais',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'default-de-volta',
+    derruba: ['15c', '15l'],
+    porque:
+      'O default public.empresa_legada() volta em filiais.empresa_id: uma filial criada por um caminho que esqueça a empresa nasceria da WAP por omissão — e, com duas empresas, a filial da B nasceria da WAP sem erro nenhum. A 15c (a forma derivada do catálogo, que cobre filiais) e a 15l (nenhuma empresa_id de public com default) têm de acusar.',
+    sql: `alter table public.filiais alter column empresa_id set default public.empresa_legada();  ${MARCA}`,
+    prova: {
+      sql: `select exists (select 1 from pg_attrdef d join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum where d.adrelid = 'public.filiais'::regclass and a.attname = 'empresa_id')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f67c-default-em-tabela-nova',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'default-de-volta',
+    derruba: ['15l'],
+    porque:
+      'Uma tabela NOVA de public nasce com `empresa_id … default public.empresa_legada()` — o defeito que a F67C tirou das 20 voltando por uma porta que nenhuma lista nominal conhece. A 15l é derivada do CATÁLOGO justamente para pegar a tabela futura pelo nome.',
+    sql: `create table public.f67c_sabotagem_default (id int primary key, empresa_id uuid not null default public.empresa_legada() references public.empresas (id));  ${MARCA}`,
+    prova: { sql: `select to_regclass('public.f67c_sabotagem_default') is not null`, espera: 't' },
+  },
+  {
+    id: 'f67c-funcao-sem-empresa',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'escrita-sem-empresa',
+    derruba: ['15m'],
+    porque:
+      'Uma das funções que gravam no acervo (lancar_itens_lote, o lançamento de acerto) volta a inserir SEM empresa_id na lista de colunas: com o default fora, o lançamento leva 23502 na cara do operador; com o default de volta, nasceria da WAP calado. A 15m (todo INSERT numa das 20 no corpo de uma função tem a coluna) tem de acusar pelo nome da função.',
+    sql: mutarFuncao(
+      'public.lancar_itens_lote(jsonb, uuid)',
+      `          empresa_id, item_id, filial_id, tipo, quantidade, data,
+          colaborador, colaborador_id, observacao, chamado, criado_por, regularizacao
+        ) values (
+          public.empresa_da_filial(v_filial),
+`,
+      `          item_id, filial_id, tipo, quantidade, data,
+          colaborador, colaborador_id, observacao, chamado, criado_por, regularizacao
+        ) values (  ${MARCA}
+`,
+      'f67c-funcao-sem-empresa',
+    ),
+    prova: {
+      sql: `select (length(p.prosrc) - length(replace(p.prosrc, 'empresa_da_filial(v_filial)', ''))) / length('empresa_da_filial(v_filial)') = 1
+              from pg_proc p where p.oid = 'public.lancar_itens_lote(jsonb,uuid)'::regprocedure`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f67c-empresa-de-quem-chama',
+    roteiro: 'escrita_por_empresa.sql',
+    classe: 'empresa-errada',
+    derruba: ['E11'],
+    porque:
+      'Uma das funções que gravam no acervo (lancar_itens_lote, o lançamento normal) passa a gravar a empresa LEGADA — a de "quem chama" no mundo de uma empresa só — em vez da empresa da FILIAL da linha: com duas empresas, o lançamento de um membro da B nasce da WAP (ou é recusado pela FK composta / pela policy, com a causa escondida). O roteiro da escrita por empresa (a bateria da B) tem de acusar pela função.',
+    sql: mutarFuncao(
+      'public.lancar_itens_lote(jsonb, uuid)',
+      `          public.empresa_da_filial(v_filial),
+          v_item_id::smallint, v_filial, v_tipo::public.tipo_lancamento, v_normal,`,
+      `          public.empresa_legada(),  ${MARCA}
+          v_item_id::smallint, v_filial, v_tipo::public.tipo_lancamento, v_normal,`,
+      'f67c-empresa-de-quem-chama',
+    ),
+    prova: {
+      sql: `select position('public.empresa_legada(),' in p.prosrc) > 0
+              from pg_proc p where p.oid = 'public.lancar_itens_lote(jsonb,uuid)'::regprocedure`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -3945,6 +4033,7 @@ export const MUTACOES = [
   ...F66B_COMPRIMENTO,
   ...F67_CARGO_POR_EMPRESA,
   ...F67B_STORAGE,
+  ...F67C_ESCRITA,
 ]
 
 /**

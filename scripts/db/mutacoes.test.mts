@@ -352,7 +352,13 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // ⚠ E DE 182 PARA 184 NA REVISÃO ADVERSARIAL DA MESMA F67B (16/11/2026): o revisor achou que a 9c e a 9d da
     // publication do Realtime não tinham mutação (a ordem lista "uma tabela da publication sem o recorte"); entraram
     // `f67b-realtime-select-sem-recorte` (9d) e `f67b-realtime-tabela-sem-select` (9c), medidas DETECTADAS na mesa.
-    expect(MUTACOES.length).toBeLessThanOrEqual(184)
+    // ⚠ O TETO SUBIU DE 184 PARA 188 NA F67C (16/11/2026; PLAN-F67C, decisão 17), no número EXATO. O fim do default
+    // escreveu uma mutação por classe de trava desta fase que nenhum teste de mesa já derruba, cada uma medida DETECTADA
+    // na mesa PGlite antes do push (docs/f67c-evidencias/E-mutacoes/): o default de volta em filiais (15c/15l), o default
+    // numa tabela FUTURA (15l), uma das funções do acervo sem a coluna (15m) e a empresa de quem chama no lugar da do pai
+    // (E11 de escrita_por_empresa.sql). As duas `*-default-literal` da F63/F64 mudaram de SENTIDO (o default de volta,
+    // agora reprovado por 15b/15e e 15l) e não contam. 184 + 4 = 188, sem folga.
+    expect(MUTACOES.length).toBeLessThanOrEqual(188)
   })
 
   it('os `id` são únicos', () => {
