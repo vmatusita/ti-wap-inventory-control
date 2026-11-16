@@ -1770,6 +1770,77 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
+  -- ---------------------------------------------------------------
+  -- BLOCO 5 (cont.) — O FIM DO DEFAULT: TODA ESCRITA DIZ A EMPRESA (F67C, 16/11/2026 — docs/PLAN-F67C.md §4, decisão 7)
+  -- ---------------------------------------------------------------
+  -- Até a F67C as 20 colunas `empresa_id` tinham `default public.empresa_legada()`: a linha que alguém criava sem dizer a
+  -- empresa nascia DA WAP por omissão — com duas empresas, o defeito mais silencioso possível (um item, um motivo, uma
+  -- linha da trilha de Auditoria criados pela B nasceriam da WAP sem erro nenhum). A F67C faz toda escrita dizer a empresa
+  -- (a expansão) e só então tira o default (a contração). Duas asserções, DERIVADAS DO CATÁLOGO, sem lista de exceção:
+  --   15l — NENHUMA coluna `empresa_id` de tabela de `public` tem default — as 20 de negócio e qualquer tabela futura
+  --         (uma tabela nova que nascer com `empresa_id … default <qualquer coisa>` reprova aqui pelo nome). Universo:
+  --         toda coluna `empresa_id` de tabela de `public` (22 no dia da F67C: as 20 + `membros` + `operador_filiais`).
+  --         Nasce VERMELHA pelos 20 nomes, e fica verde com a contração (0205–0207).
+  --   15m — todo INSERT numa das 20 de `k_negocio`, no corpo de qualquer função de `public`, TEM lista de colunas e
+  --         `empresa_id` nela. O corpo é lido pelo LÉXICO (`pg_temp.sql_so_codigo`: sem comentário, sem texto); nas
+  --         funções que usam `execute` (SQL dinâmico), o TEXTO inteiro também é varrido — um `execute 'insert into
+  --         public.x (a) …'` sem a coluna acusa. Universo: os INSERTs achados (contados — uma varredura que não achasse
+  --         nenhum passaria verde sem olhar nada). Nasce VERMELHA pelas 18 funções do PLAN-F67C §2.1, e fica verde com a
+  --         expansão (0200–0204). A metade de DISCO é `src/lib/validators/escrita-com-empresa.test.ts`.
+  -- (A LEITURA de `empresa_id` continua sob a 15h — escrever a coluna, desde a F67C, não é lê-la: `_asserts.sql`.)
+  select count(*),
+         count(*) filter (where d.adrelid is not null),
+         coalesce(string_agg(c.relname || ' (default ' || pg_get_expr(d.adbin, d.adrelid) || ')', '; ' order by c.relname)
+                    filter (where d.adrelid is not null), '')
+    into v_univ, v_cnt, v_lista
+    from pg_attribute a
+    join pg_class c on c.oid = a.attrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
+   where n.nspname = 'public' and c.relkind in ('r', 'p') and a.attname = 'empresa_id' and not a.attisdropped;
+  if pg_temp.assert_zero_de(
+       '15l nenhuma coluna empresa_id de tabela de public tem default (a escrita diz a empresa; derivada do catálogo, inclusive tabela futura)' ||
+       case when v_cnt > 0 then ' — com default: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  with f as (
+    select p.proname, p.oid,
+           lower(pg_temp.sql_so_codigo(p.prosrc)) as codigo,
+           lower(p.prosrc) as cru
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind in ('f', 'p')
+  ), alvo as (
+    -- o código; nas funções com `execute`, o texto INTEIRO no lugar dele (os literais entram — o dinâmico não escapa;
+    -- um texto só por função, para nenhum INSERT ser contado duas vezes)
+    select f.proname, f.oid, case when f.codigo ~ '\mexecute\M' then f.cru else f.codigo end as texto from f
+  ), ins as (
+    select a.proname, a.oid, m.x[1] as tabela, m.x[2] as lista, m.ord
+      from alvo a
+      cross join lateral regexp_matches(a.texto,
+             '\minsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?(' || array_to_string(k_negocio, '|') || ')\M(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*(\([^()]*\))?',
+             'g') with ordinality as m(x, ord)
+  )
+  select count(*),
+         count(*) filter (where i.lista is null or i.lista !~ '\mempresa_id\M'),
+         coalesce(string_agg(i.oid::regprocedure::text || ': insert into ' || i.tabela ||
+                             case when i.lista is null then ' sem lista de colunas' else ' sem empresa_id' end,
+                             '; ' order by i.oid::regprocedure::text, i.ord)
+                    filter (where i.lista is null or i.lista !~ '\mempresa_id\M'), '')
+    into v_univ, v_cnt, v_lista
+    from ins i;
+  if pg_temp.assert_zero_de(
+       '15m todo INSERT numa das 20 de negócio no corpo de uma função de public tem lista de colunas e empresa_id nela' ||
+       case when v_cnt > 0 then ' — sem a empresa: ' || v_lista else '' end,
+       v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
   -- ===============================================================
   -- BLOCO 6 — O RECORTE DE EMPRESA NAS POLICIES (F66, 24/09/2026)
   --

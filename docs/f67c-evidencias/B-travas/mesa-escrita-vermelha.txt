@@ -1,0 +1,141 @@
+
+ RUN  v4.1.11 <raiz>
+
+ ❯ |puro| src/lib/validators/escrita-com-empresa.test.ts (48 tests | 3 failed) 61ms
+     × todo INSERT numa das 20, no corpo vigente de função, tem lista de colunas com empresa_id 8ms
+     × toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no 1º argumento (ou na declaração do identificador) 1ms
+     × todo `insert into <das 20>` em texto de script tem empresa_id na lista de colunas 38ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — SQL no disco (decisão 7) > todo INSERT numa das 20, no corpo vigente de função, tem lista de colunas com empresa_id
+AssertionError: expected [ …(29) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "criar_compra_lote(jsonb,uuid) (vigente em 0064_papeis_guardas_rpcs.sql): insert into ativos sem empresa_id",
++   "criar_compra_lote(jsonb,uuid) (vigente em 0064_papeis_guardas_rpcs.sql): insert into movimentacoes sem empresa_id",
++   "devolver_ao_fornecedor(uuid,jsonb,jsonb,uuid) (vigente em 0047_troca.sql): insert into movimentacoes sem empresa_id",
++   "devolver_ao_fornecedor(uuid,jsonb,jsonb,uuid) (vigente em 0047_troca.sql): insert into ativos sem empresa_id",
++   "devolver_ao_fornecedor(uuid,jsonb,jsonb,uuid) (vigente em 0047_troca.sql): insert into movimentacoes sem empresa_id",
++   "transferir_item(smallint,smallint,jsonb,date,text,text,text,uuid) (vigente em 0104_transferir_item.sql): insert into lancamentos_item sem empresa_id",
++   "transferir_item(smallint,smallint,jsonb,date,text,text,text,uuid) (vigente em 0104_transferir_item.sql): insert into lancamentos_item sem empresa_id",
++   "criar_movimentacao_com_itens(jsonb,jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into movimentacoes sem empresa_id",
++   "criar_movimentacao_com_itens(jsonb,jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "criar_movimentacao_com_itens(jsonb,jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "resolver_pendencias_item_com_lancamentos(uuid[],text,text,jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "reabrir_pendencias_item_com_estornos(uuid[],text,jsonb,uuid) (vigente em 0122_ordem_dos_inversos.sql): insert into lancamentos_item sem empresa_id",
++   "estornar_movimentacao_com_itens(uuid,text,jsonb,uuid) (vigente em 0122_ordem_dos_inversos.sql): insert into movimentacoes sem empresa_id",
++   "estornar_movimentacao_com_itens(uuid,text,jsonb,uuid) (vigente em 0122_ordem_dos_inversos.sql): insert into lancamentos_item sem empresa_id",
++   "lancar_itens_lote(jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "lancar_itens_lote(jsonb,uuid) (vigente em 0126_lancamento_regulariza.sql): insert into lancamentos_item sem empresa_id",
++   "import_criar_ativos(jsonb,smallint) (vigente em 0131_import_decomposto.sql): insert into ativos sem empresa_id",
++   "import_lancar_movimentacoes(uuid,jsonb,smallint,uuid,date,text) (vigente em 0131_import_decomposto.sql): insert into movimentacoes sem empresa_id",
++   "import_lancar_movimentacoes(uuid,jsonb,smallint,uuid,date,text) (vigente em 0131_import_decomposto.sql): insert into movimentacoes sem empresa_id",
++   "import_gravar_trilha(jsonb,smallint,text,jsonb,uuid,integer,integer,integer,integer,integer) (vigente em 0131_import_decomposto.sql): insert into import_logs sem empresa_id",
++   "corrigir_patrimonio_com_anotacao(uuid,text,text,boolean,text) (vigente em 0149_escrita_atomica_ativos_anotacao.sql): insert into anotacoes sem empresa_id",
++   "definir_service_tag_com_anotacao(uuid,text,text,boolean,text) (vigente em 0151_escrita_atomica_reconfere_no_banco.sql): insert into anotacoes sem empresa_id",
++   "confirmar_assinatura_termo_com_anotacao(uuid,date,text) (vigente em 0151_escrita_atomica_reconfere_no_banco.sql): insert into anotacoes sem empresa_id",
++   "desfazer_confirmacao_termo_com_anotacao(uuid,public.termo_status,text) (vigente em 0151_escrita_atomica_reconfere_no_banco.sql): insert into anotacoes sem empresa_id",
++   "confirmar_assinatura_lote_com_anotacoes(uuid[],date,text) (vigente em 0151_escrita_atomica_reconfere_no_banco.sql): insert into anotacoes sem empresa_id",
++   "movimentacao_abrir_pendencias_item(public.movimentacoes,public.ativos) (vigente em 0150_movimentacao_decomposta.sql): insert into pendencias_item sem empresa_id",
++   "registrar_limpeza_termos_sem_linha(text,text,text) (vigente em 0196_backup_orfao_duas_formas.sql): insert into eventos_admin sem empresa_id",
++ ]
+
+ ❯ src/lib/validators/escrita-com-empresa.test.ts:130:24
+    128|       return ruins.map((x) => `${v.nome}(${v.tipos.join(',')}) (vigent…
+    129|     })
+    130|     expect(violadores).toEqual([])
+       |                        ^
+    131|   })
+    132|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — TS e scripts (decisão 5) > toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no 1º argumento (ou na declaração do identificador)
+AssertionError: expected [ …(33) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/lib/actions/admin.ts:614 (filiais, insert)",
++   "src/lib/actions/admin.ts:737 (motivos, insert)",
++   "src/lib/actions/ativos.ts:133 (anotacoes, insert)",
++   "src/lib/actions/colaboradores.ts:166 (colaboradores, insert)",
++   "src/lib/actions/colaboradores.ts:197 (colaboradores, insert)",
++   "src/lib/actions/colaboradores.ts:305 (colaboradores, upsert)",
++   "src/lib/actions/itens.ts:448 (lancamentos_item, insert)",
++   "src/lib/actions/itens.ts:571 (itens, insert)",
++   "src/lib/actions/itens.ts:710 (itens, insert)",
++   "src/lib/actions/kits.ts:69 (kits_modelos, insert)",
++   "src/lib/actions/pendencias.ts:442 (anotacoes, insert)",
++   "src/lib/actions/relatorios.ts:150 (relatorios_gerados, insert)",
++   "src/lib/actions/senhas.ts:170 (senhas_acesso, insert)",
++   "src/lib/actions/tipos-item.ts:103 (tipos_item, insert)",
++   "src/lib/actions/unidades-apelidos.ts:62 (unidades_apelidos, insert)",
++   "src/lib/auditoria-registro.ts:30 (eventos_admin, insert)",
++   "src/lib/termos/persistir.ts:121 (termos_gerados, insert)",
++   "scripts/import/carga.ts:314 (ativos, insert)",
++   "scripts/import/carga.ts:362 (movimentacoes, insert)",
++   "scripts/import/carga.ts:468 (itens, insert)",
++   "scripts/import/carga.ts:520 (lancamentos_item, insert)",
++   "scripts/manutencao/gerar-errata-truncamento.ts:229 (relatorios_gerados, insert)",
++   "scripts/seed.ts:704 (ativos, insert)",
++   "scripts/seed.ts:757 (movimentacoes, insert)",
++   "scripts/seed.ts:804 (ativos, insert)",
++   "scripts/seed.ts:809 (movimentacoes, insert)",
++   "scripts/seed.ts:885 (colaboradores, upsert)",
++   "scripts/seed.ts:920 (itens, insert)",
++   "scripts/seed.ts:1047 (lancamentos_item, insert)",
++   "scripts/seed.ts:1093 (anotacoes, insert)",
++   "scripts/seed.ts:1525 (eventos_admin, insert)",
++   "scripts/smoke/fixtures-passe2.ts:82 (itens, insert)",
++   "scripts/smoke/persona.ts:80 (eventos_admin, insert)",
++ ]
+
+ ❯ src/lib/validators/escrita-com-empresa.test.ts:335:57
+    333|
+    334|   it('toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no …
+    335|     expect(escritas.filter((e) => !e.ok).map(descreve)).toEqual([])
+       |                                                         ^
+    336|   })
+    337|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — SQL em texto dentro de scripts/** (decisão 5) > todo `insert into <das 20>` em texto de script tem empresa_id na lista de colunas
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "scripts/perf/medir-itens.mjs:277 (itens, sem empresa_id)",
++   "scripts/perf/medir-itens.mjs:328 (lancamentos_item, sem empresa_id)",
++   "scripts/perf/medir-itens.mjs:572 (lancamentos_item, sem empresa_id)",
++ ]
+
+ ❯ src/lib/validators/escrita-com-empresa.test.ts:436:24
+    434|   it('todo `insert into <das 20>` em texto de script tem empresa_id na…
+    435|     const violadores = fontes.flatMap(({ a, f }) => insertsEmTexto(f, …
+    436|     expect(violadores).toEqual([])
+       |                        ^
+    437|   })
+    438|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 45 passed (48)
+   Start at  17:25:49
+   Duration  1.34s (transform 121ms, setup 0ms, import 1.00s, tests 61ms, environment 0ms)
+

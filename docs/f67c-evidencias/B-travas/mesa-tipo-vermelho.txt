@@ -1,0 +1,42 @@
+# F67C — a trava do tipo (empresa_id obrigatório no Insert das 20), VERMELHA antes do hand-fix, 16/11/2026
+# npx vitest run src/lib/validators/empresa-obrigatoria-no-insert.test.ts
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/empresa-obrigatoria-no-insert.test.ts > o tipo como trava: empresa_id OBRIGATÓRIO no Insert das 20 (F67C, decisão 4) > nenhuma das 20 aceita Insert sem empresa_id: a coluna é string e obrigatória (sem `?`)
+AssertionError: expected [ …(20) ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "anotacoes (Insert com empresa_id?: opcional)",
++   "ativos (Insert com empresa_id?: opcional)",
++   "colaboradores (Insert com empresa_id?: opcional)",
++   "eventos_admin (Insert com empresa_id?: opcional)",
++   "filiais (Insert com empresa_id?: opcional)",
++   "import_logs (Insert com empresa_id?: opcional)",
++   "import_prefixos_patrimonio (Insert com empresa_id?: opcional)",
++   "import_termos_categoria (Insert com empresa_id?: opcional)",
++   "import_termos_estado (Insert com empresa_id?: opcional)",
++   "itens (Insert com empresa_id?: opcional)",
++   "kits_modelos (Insert com empresa_id?: opcional)",
++   "lancamentos_item (Insert com empresa_id?: opcional)",
++   "motivos (Insert com empresa_id?: opcional)",
++   "movimentacoes (Insert com empresa_id?: opcional)",
++   "pendencias_item (Insert com empresa_id?: opcional)",
++   "relatorios_gerados (Insert com empresa_id?: opcional)",
++   "senhas_acesso (Insert com empresa_id?: opcional)",
++   "termos_gerados (Insert com empresa_id?: opcional)",
++   "tipos_item (Insert com empresa_id?: opcional)",
++   "unidades_apelidos (Insert com empresa_id?: opcional)",
++ ]
+ ❯ src/lib/validators/empresa-obrigatoria-no-insert.test.ts:110:56
+    108|
+    109|   it('nenhuma das 20 aceita Insert sem empresa_id: a coluna é string e…
+    110|     expect(insertsSemEmpresaObrigatoria(TIPOS, vinte)).toEqual([])
+       |                                                        ^
+    111|   })
+    112|
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  17:25:00
+   Duration  734ms (transform 100ms, setup 0ms, import 364ms, tests 127ms, environment 0ms)
