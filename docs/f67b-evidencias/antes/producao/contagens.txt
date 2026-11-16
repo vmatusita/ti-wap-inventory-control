@@ -1,0 +1,31 @@
+# F67B — o "antes" em PRODUCAO (pbtjcalbmepmrqzprusb, PG 17.6), 16/11/2026, pelo MCP execute_sql (so leitura).
+# So contagem, nome de objeto de esquema e texto de esquema. Nenhum nome de objeto de Storage.
+membros=16 | membros_ativos=14 (admin 2, consulta 5, dev 2, operador 5) | inativos 2 (admin 1, operador 1) | empresas=1 | filiais=6 | plataforma_admins=2
+ledger: 177 entradas, max 20261113134024 (contracao_assinaturas_antigas = a 0193)
+funcoes public: 114 (69 security definer) — md5 do TSV (funcoes.tsv sem a quebra final) 42ed9d458db83246567a9675570f06eb
+policies public+storage: 62 (8 em storage.objects) — md5 do TSV (policies.tsv sem a quebra final) f8eaf46260d1c9aa419e02418819804b
+
+# bucket termos
+objetos=301 (todos na forma <uuid>.docx na raiz) | linhas termos_gerados=298 | objeto_sem_linha=3 | linha_sem_objeto=0 | arquivo_path nulo=0
+degenerados (ativo_ids='{}')=0 | arquivo_path repetido=0 | conjuntos de movimentacoes com mais de um termo=0
+termos_gerados fora da empresa legada=0
+indices de termos_gerados: termos_gerados_pkey (id), termos_gerados_tipo_movimentacao_ids_key (tipo, movimentacao_ids) UNIQUE, termos_gerados_ativos_gin, termos_gerados_movs_gin, termos_gerados_arquivo_path_idx btree (arquivo_path) — NAO unico
+
+# bucket backups-import (29 objetos), por forma (regexes em formas-storage.sql)
+historica <slug>/<carimbo>.json = 22
+reset/<bloco>/<global|filial-N>/<carimbo>.json = 5
+reset/<bloco>/<global|filial-N>/<carimbo>/termos/<arquivo> = 2
+import/filial-N/... = 0 | conflito/... = 0 | ativo/... = 0 | forma NOVA (…/empresa-<uuid>/…) = 0 | fora de toda forma = 0
+import_logs=12 (12 com backup_path; maior backup_path = 44 caracteres; 0 fora da legada)
+eventos_admin com detalhe->'backup_path' = 42 (acoes: acervo_resetado, conflito_filiais_resolvido, import_executado, itens_resetados); maior = 51 caracteres; ativo_apagado = 44
+
+# storage
+buckets: backups-import (privado, sem limite, sem mime), termos (privado, sem limite, sem mime)
+gatilhos em storage.objects: protect_objects_delete, update_objects_updated_at
+funcoes de storage presentes: extension, filename, foldername, protect_delete, search
+
+# Realtime
+publication supabase_realtime: anotacoes, lancamentos_item, movimentacoes (puballtables=false; insert/update/delete=true)
+as tres: RLS ligada (nao forcada), replica identity default, coluna empresa_id presente; 0 linhas fora da legada em cada
+policy de SELECT das tres (a mesma, "leitura operador"): ((( SELECT papel_atual() AS papel_atual) IS NOT NULL) AND (empresa_id = ANY (ARRAY( SELECT empresas_do_membro() AS empresas_do_membro))))
+policies em realtime.*: 0
