@@ -417,6 +417,11 @@ contração (os roteiros e a contração no MESMO push — separados, o CI ficar
 
 O último commit que toca `src/**`, `scripts/**` ou `supabase/**` — CONTÉM a contração. Gravado aqui na Frente G.
 
+**`1ea59f33`** (`test(f67c): a impressão das policies no rollback pelo nome do papel, não pelo oid`) — CI verde nos dois
+jobs (run 43960598691: 65 roteiros, 1.368 asserções, injetor 188/188, `db:types:diff` verde). A revisão adversarial leu
+`76676211` (o mesmo código, salvo a impressão das policies do `f67c_rollback.sql`); o merge do PR #99 (`16031e9c`) tem a
+MESMA árvore (`git diff 1ea59f33 16031e9c` vazio). Depois dele, só `docs/**`.
+
 ## 10. O que este plano NÃO promete
 
 - Que uma empresa que não é a WAP escreve em PRODUÇÃO (não há segunda empresa nos bancos vivos): provado no CI.

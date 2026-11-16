@@ -1,0 +1,39 @@
+# F67C — a CONTRAÇÃO no ENSAIO (sgmvldiizsrjbxzzpmhh), 16/11/2026 ~18:45 BRT, logo depois da expansão (o ensaio não tem
+# app de produção: a contração lá não espera deploy nem janela). MCP apply_migration, o texto do arquivo inteiro.
+
+apply:
+  0205 contracao_default_acervo     (ledger 202)
+  0206 contracao_default_registros  (ledger 203)
+  0207 contracao_default_filiais    → 20261116184519 (ledger 204)
+
+depois (execute_sql, só catálogo):
+  colunas empresa_id de public: 22 | not null: 22 | com default: 0
+  defaults dependentes de public.empresa_legada() no pg_depend: 0   (antes: 20)
+  registrar_limpeza_termos_sem_linha(text,text,text): AUSENTE | (uuid,text,text,text): de pé
+  as outras 99 funções (sem as 18 recriadas/derrubadas) = 673464c134b4884bb89693cced10b469 — o md5 esperado, do
+    funcoes.tsv do "antes" sem essas linhas: NENHUMA outra função mudou
+  funções de public: 117 | policies public+storage: 62, cee318f577345f75dc06b99874b8a867 (= o "antes") | gatilhos: 53
+
+# A PROVA VIVA DA ESCRITA (decisão 14) — prova-viva-ensaio.sql, um único bloco que termina em raise (nada fica)
+# 1ª rodada:  sem_empresa_recusados_23502=19 de 20 | com_empresa_aceitos=17 de 20
+#             fora=[movimentacoes:sem=P0001; movimentacoes:com=P0001; pendencias_item:com=42501; termos_gerados:com=42501]
+#   → defeitos do ROTEIRO da prova, não da escrita: `ajuste` sem status_resultante é recusado pela máquina de estados nas
+#     duas formas; pendencias_item NÃO tem policy de INSERT para authenticated (só o gatilho da devolução a escreve);
+#     a policy de INSERT do termo exige ativo_ids não vazio, a âncora coerente e arquivo_path = id || '.docx'.
+# 2ª rodada (marcar_defasado; pendencias_item como o dono; o termo COM ativo, movimentação, id e arquivo_path):
+#             sem_empresa_recusados_23502=20 de 20 | com_empresa_aceitos=19 de 20 | fora=[termos_gerados:com=42501]
+# 3ª rodada (a versão do arquivo):
+#             sem_empresa_recusados_23502=20 de 20 | com_empresa_aceitos=20 de 20 | fora=[]
+# Depois: o prefixo ZQV e as filiais f67c-pv-*: 0 linhas (o raise desfez tudo).
+
+# Depois de tudo:
+linhas fora da legada, somadas nas 20: 0
+as 13 checagens: operador_sem_filial 1; as outras doze 0 — IGUAIS ao "antes"
+advisors SECURITY: rls_enabled_no_policy 6 (INFO) · authenticated_security_definer_function_executable 39 (WARN; os
+  mesmos nomes do "antes"; registrar_limpeza_termos_sem_linha agora na assinatura nova) · auth_leaked_password_protection
+  1 (WARN) · ERROR 0 — iguais
+advisors PERFORMANCE: unindexed_foreign_keys 39 · no_primary_key 1 · multiple_permissive_policies 1 (pendencias_item
+  UPDATE) · unused_index 42 (estatística de uso do ensaio, não esquema) · ERROR 0
+conferidor (scripts/formas/conferir.mts --alvo=ensaio, SHA 1ea59f33, árvore limpa): 248 pontos · 88182 linhas ·
+  0 recusadas · 0 com erro · 1 "reprovado" = itens.saldo-colaborador não provado (a grade não gerou célula: o ensaio
+  não tem colaborador — o mesmo da F65, memória); conferidor-ensaio.json

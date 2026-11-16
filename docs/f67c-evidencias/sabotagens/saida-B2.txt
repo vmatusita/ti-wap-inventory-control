@@ -1,0 +1,9 @@
+######## Sabotagem B (o ramo do acerto) — extra B, roteiros f41_regularizacao,colaborador_estorno,f38_itens_com_ativo
+206 migrations aplicadas + 1 extra(s)
+WARNING:  ✗ 6 o lançamento avulso foi RECUSADO (23502 null value in column "empresa_id" of relation "lancamentos_item" violates not-null constraint)
+WARNING:  ✗ 10 o lote com duas linhas do mesmo par foi RECUSADO (23502 null value in column "empresa_id" of relation "lancamentos_item" violates not-null constraint) — a leitura não é incremental
+FALHOU   f41_regularizacao                  ✓  24  ✗ 3  FIM 26/2  0.2 s  <- o contador declara 2 falha(s); marcou 3 ✗
+OK       colaborador_estorno                ✓  19  ✗ 0  FIM 19/0  0.1 s
+WARNING:  ✗ 3d esperava ao menos 2 travas advisory dos itens, obtido 0
+AMBIENTE f38_itens_com_ativo                ✓  50  ✗ 2  FIM 51/1  0.2 s  <- o contador declara 1 falha(s); marcou 2 ✗
+3 roteiro(s); 96 asserções declaradas (FIM); 93 ✓ contados; 5 ✗; 1 roteiro(s) só com ✗ de ambiente (esperado na mesa); 1 roteiro(s) com problema REAL; 3 s

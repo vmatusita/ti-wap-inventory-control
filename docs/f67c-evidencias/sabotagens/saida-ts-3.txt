@@ -1,0 +1,10 @@
+
+######## Sabotagem I — registrarEventoAdmin chamado SEM a empresa (encerrarSessoes, dev.ts)
+(trocado em src/lib/actions/dev.ts; restaurado e conferido por sha256 ao fim)
+$ npx vitest run src/lib/auditoria-registro-empresa.test.ts
+     × chamada 7 (lib/actions/dev.ts) traz a chave `empresa:` 5ms
+      Tests  1 failed | 18 passed (19)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 7 (lib/actions/dev.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'sessoes_encerradas\',\n…' to match /(^|[\s{,])empresa\s*[:,}]/
+(saída: código 1)

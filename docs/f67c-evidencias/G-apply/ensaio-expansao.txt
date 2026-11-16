@@ -1,0 +1,36 @@
+# F67C — a EXPANSÃO no ENSAIO (sgmvldiizsrjbxzzpmhh), 16/11/2026, pelo MCP apply_migration (o texto de cada arquivo colado
+# INTEIRO na chamada, LF), um lote por vez, cada um seguido da prova (execute_sql, só catálogo). SHA de código: 1ea59f33.
+
+apply (name → versão no ledger, hora local -03):
+  0200 escrita_empresa_anotacoes      → 20261116183722 (ledger 197)
+  0201 escrita_empresa_movimentacoes  → 20261116183953 (ledger 198)
+  0202 escrita_empresa_itens          → 20261116184143 (ledger 199)
+  0203 escrita_empresa_import         → (ledger 200)
+  0204 escrita_empresa_registros      → 20261116184306 (ledger 201)
+
+A prova depois de CADA lote (a mesma consulta, crescendo):
+  exatidão = md5(prosrc) do banco contra o md5 do corpo calculado do ARQUIVO (entre os $$, LF):
+    depois da 0200:  5 de 5   | as outras funções (112) = 3d2c7224546e9bbf1a71bf6ba2bc0152 (esperado, do funcoes.tsv do "antes" sem as 5)
+    depois da 0201: 10 de 10  | as outras (107) = d984c7a70c3ed7842c74149ab5565a5f (esperado)
+    depois da 0202: 14 de 14  | as outras (103) = 8413b6ee08bec0c4be20a6c492ec5c0a (esperado)
+    depois da 0204: 18 de 18  | as outras (100, a antiga da ferramenta de órfão inclusive) = f277adba1be94d7a2c2b0f55b5bc13b5 (esperado)
+  policies public+storage: 62, md5 cee318f577345f75dc06b99874b8a867 em TODOS os passos (= o "antes": nenhuma policy mudou)
+  as 17 recriadas: nome, args, security definer/invoker e o EXECUTE de anon/authenticated/service_role/PUBLIC
+    = 589183f797832a947ad54aa021e59fd2 (17) — igual ao "antes" (o create or replace preservou a ACL)
+  a assinatura NOVA registrar_limpeza_termos_sem_linha(p_empresa uuid, p_raiz text, p_confirmacao text, p_justificativa text):
+    security definer; EXECUTE anon 0, authenticated 1, service_role 0, PUBLIC 0; md5 do comentário
+    553e0387adde69bd031098c3a0cbc42c = o do arquivo
+  funções de public: 118 (117 + a nova); defaults dependentes de public.empresa_legada(): 20 (a expansão não os toca)
+
+# Sabotagem H — a janela sabe ver (decisão 12), no ENSAIO, no estado de EXPANSÃO (default ainda presente)
+# O instrumento (docs/f67c-evidencias/antes/formas-insert.sql), restrito a import_prefixos_patrimonio, só número:
+  T_a 18:43:56  postgres f_sem 1 c_sem 1 | service_role: nenhuma forma
+  SABOTAGEM     begin; set local role service_role; insert into public.import_prefixos_patrimonio (prefixo) values ('ZQV'); rollback;
+                (INSERT de TOPO, SEM empresa_id, aceito pelo default; a transação desfeita — nada fica)
+  T_b 18:44:09  postgres f_sem 1 c_sem 1 | service_role f_sem 1 c_sem 1   ← Δ +1 na forma SEM, no papel do app; persistiu: 0 linhas
+  T_c 18:44:20  postgres f_sem 1 c_sem 1 | service_role f_sem 1 c_sem 1   ← sem a sabotagem, Δ 0
+# Achado medido (a doc não diz): o pg_stat_statements CONTA o statement de uma transação desfeita por rollback (a
+# estatística não é transacional). E a doc diz que a execução só é contada "only for successful operations": depois do
+# drop, o INSERT sem a coluna leva 23502 e NÃO aparece — a vigília é pelos logs do Postgres, não por esta tabela.
+# Por que não "dentro de um bloco que termina em raise": com track=top, um INSERT dentro de DO é statement ANINHADO e
+# nunca é contado — a prova equivalente é o INSERT de topo numa transação desfeita (registrado na ata).

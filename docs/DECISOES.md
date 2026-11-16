@@ -14225,3 +14225,34 @@ comentários (a parte executável é idêntica, comparada linha a linha) — a r
 texto do arquivo. A mesa PGlite reproduz as constantes do CI ordenando como o `en_US` do CI (por
 `regexp_replace(x, '[^A-Za-z0-9]', '', 'g'), x`): o L4 novo (`1b1de60c…`, 47 funções) é IGUAL na cadeia até a 0199 e na
 contraída — a F67C não tocou nenhuma delas.
+
+**A execução (16/11, depois do código).**
+- **O CI acusou UMA constante, e só ela.** O primeiro run (`76676211`) caiu no rc5/rc8 do `f67c_rollback.sql`: a impressão
+  das policies usava `polroles::text`, que imprime OIDS — e o oid de `anon`/`authenticated` muda de banco para banco (as
+  outras cinco partes já batiam, e o L4 emulado bateu de primeira). Correção (`1ea59f33`): os papéis pelo NOME, ordenados
+  `collate "C"`; a constante remedida na cadeia até a 0199. É o SHA de código congelado.
+- **A mesa tinha um defeito próprio**, achado por isso: depois do `discard all`, o PGlite volta o `search_path` a
+  `pg_catalog`, e só o PRIMEIRO roteiro de cada run via `public` — toda impressão com `regclass`/`regprocedure`/`pg_get_expr`
+  saía qualificada nos seguintes. O runner da mesa (fora do repositório) passou a repor o `search_path` do psql; com isso
+  cinco "✗ de ambiente" antigos dos rollbacks F63–F66B deixaram de existir na mesa (eram este defeito, não a colação).
+- **A revisão adversarial** (8 agentes, lendo `76676211` pelo git): 9 achados, os 9 refutados com motivo — limites das
+  varreduras (MERGE, alvo entre aspas, `INSERT … (SELECT …)`, `.from()` em variável, tabela dinâmica) que o NOT NULL, o
+  tipo ou a guarda do SQL gerado cobrem; declarados no relatório (`f67c-evidencias/F-revisao/`).
+- **A prova viva no ensaio precisou de três rodadas** — defeitos do ROTEIRO, não da escrita: `ajuste` sem
+  `status_resultante` é recusado pela máquina de estados (P0001) nas duas formas; `pendencias_item` não tem policy de
+  INSERT para `authenticated`; a policy de INSERT do termo exige ativo, âncora coerente e `arquivo_path = id || '.docx'`.
+  A 3ª: **20/20 recusados sem a empresa (23502), 20/20 aceitos com ela**, nada persistiu.
+- **A sabotagem H mediu o que a doc não diz**: o `pg_stat_statements` CONTA o statement de uma transação desfeita por
+  rollback. E a doc diz que a execução só é contada para operação bem-sucedida — o `23502` depois do drop não aparece lá:
+  a vigília é pelos logs. Com `track=top`, o INSERT de dentro de um `DO` não é contado: a prova equivalente é o INSERT de
+  TOPO numa transação desfeita.
+- **A sabotagem B** mostrou que o `23502` da função sem a coluna só aparece no roteiro que exercita aquele ramo
+  (`f41_regularizacao`, não `itens_quantidade` nem `escrita_por_empresa`) — a 15m, estática, é a trava que não depende de
+  cobertura de ramo.
+- **O apply.** Ensaio: expansão (0200–0204) com a exatidão lote a lote (o md5 de cada corpo = o do arquivo; as outras
+  funções = o md5 esperado do "antes" sem elas; policies iguais), contração (0205–0207), a prova viva, o conferidor (0
+  recusadas). Produção, ANTES do merge: só a expansão, com as mesmas provas, o smoke (0 falha), o conferidor (0 recusadas,
+  0 reprovados), as 13 checagens iguais, a paridade (as 99 intocadas e as 18 da fase com o mesmo md5 nos dois bancos).
+  Merge do PR #99 (`16031e9c`), deploy, `/api/saude` 1.75.0, T0 da janela às 19:03:45.
+- **A janela de 12 h** (decisão 12): a Skew Protection medida LIGADA e o teto não legível (padrão Pro, 12 h) — a
+  contração em produção espera T1 ≥ 07:04 de 17/11, depois do deploy de 19:03 (ver o relatório).
