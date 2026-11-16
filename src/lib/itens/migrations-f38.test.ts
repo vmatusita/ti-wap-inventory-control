@@ -302,6 +302,7 @@ const DA_F38 = [
   // assinatura antiga. Nenhuma escreve no acervo no apply.
   '0200',
   '0201',
+  '0202',
 ]
 
 /**
@@ -761,6 +762,12 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'criar_movimentacao_com_itens',
       'estornar_movimentacao_com_itens',
       'movimentacao_abrir_pendencias_item',
+    ],
+    '0202': [
+      'lancar_itens_lote',
+      'reabrir_pendencias_item_com_estornos',
+      'resolver_pendencias_item_com_lancamentos',
+      'transferir_item',
     ],
   }
 
