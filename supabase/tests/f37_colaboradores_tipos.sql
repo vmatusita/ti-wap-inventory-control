@@ -158,8 +158,8 @@ begin
   end if;
 
   -- a8 — a coluna GERADA usa a MESMA função (não uma cópia da regra).
-  insert into public.colaboradores (nome, criado_por)
-    values ('Fulano ZZF37A Chave', k_prof)
+  insert into public.colaboradores (empresa_id, nome, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZF37A Chave', k_prof)
     returning nome_chave into v_obtido;
   if v_obtido = public.colaborador_chave('Fulano ZZF37A Chave') then
     v_ok := v_ok + 1; raise notice '✓ a8 a coluna GERADA nome_chave devolve o mesmo valor que colaborador_chave() direto (''%'')', v_obtido;
@@ -171,9 +171,9 @@ begin
   -- =============================================================
   -- b — O ÍNDICE ÚNICO recusa a segunda grafia (mesma chave normalizada)
   -- =============================================================
-  insert into public.colaboradores (nome, criado_por) values ('Fulano ZZF37B Duplicado', k_prof);
+  insert into public.colaboradores (empresa_id, nome, criado_por) values (public.empresa_legada(), 'Fulano ZZF37B Duplicado', k_prof);
   begin
-    insert into public.colaboradores (nome, criado_por) values ('FULANO ZZF37B DUPLICADO', k_prof);
+    insert into public.colaboradores (empresa_id, nome, criado_por) values (public.empresa_legada(), 'FULANO ZZF37B DUPLICADO', k_prof);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'b1; '; raise warning '✗ b1 a segunda grafia foi ACEITA — o índice único deveria recusar (mesma nome_chave)';
   exception when unique_violation then
     v_ok := v_ok + 1; raise notice '✓ b1 segunda grafia (mesma chave normalizada) recusada pelo índice único (sqlstate %)', sqlstate;
@@ -185,7 +185,7 @@ begin
   -- c — A TABELA recusa nome em branco
   -- =============================================================
   begin
-    insert into public.colaboradores (nome, criado_por) values ('   ', k_prof);
+    insert into public.colaboradores (empresa_id, nome, criado_por) values (public.empresa_legada(), '   ', k_prof);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'c1; '; raise warning '✗ c1 nome em branco foi ACEITO — deveria ser recusado (colaboradores_nome_nao_vazio)';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ c1 nome em branco recusado pelo check colaboradores_nome_nao_vazio (sqlstate %)', sqlstate;
@@ -196,16 +196,16 @@ begin
   -- =============================================================
   -- d — O VÍNCULO DO REGISTRO NOVO: as DUAS colunas ficam gravadas
   -- =============================================================
-  insert into public.colaboradores (nome, criado_por)
-    values ('Fulano ZZF37D Vinculo', k_prof)
+  insert into public.colaboradores (empresa_id, nome, criado_por)
+    values (public.empresa_legada(), 'Fulano ZZF37D Vinculo', k_prof)
     returning id into v_colab_id;
 
   -- d1 — movimentacoes: colaborador (texto) E colaborador_id juntos, no INSERT.
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF37D001', 'notebook', v_matriz)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF37D001', 'notebook', v_matriz)
     returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, colaborador_id, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano ZZF37D Vinculo', v_colab_id, 'TI', v_matriz, k_prof)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, colaborador_id, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano ZZF37D Vinculo', v_colab_id, 'TI', v_matriz, k_prof)
     returning id into v_mov_id;
   select colaborador, colaborador_id into v_mov_colab_txt, v_mov_colab_id
     from public.movimentacoes where id = v_mov_id;
@@ -218,12 +218,12 @@ begin
 
   -- d2 — lancamentos_item: precisa de uma 'entrada' antes da 'saida' (trigger
   -- valida_lancamento_item recusa saldo negativo — molde itens_quantidade.sql).
-  insert into public.itens (nome, grupo, ordem) values ('TESTE F37 Item Vinculo', 'acessorio', 996)
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'TESTE F37 Item Vinculo', 'acessorio', 996)
     returning id into v_item;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_matriz, 'entrada', 10, current_date, k_prof);
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, colaborador, colaborador_id, data, criado_por)
-    values (v_item, v_matriz, 'saida', 3, 'Fulano ZZF37D Vinculo', v_colab_id, current_date, k_prof)
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_matriz, 'entrada', 10, current_date, k_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, colaborador, colaborador_id, data, criado_por)
+    values (public.empresa_legada(), v_item, v_matriz, 'saida', 3, 'Fulano ZZF37D Vinculo', v_colab_id, current_date, k_prof)
     returning id into v_lanc_id;
   select colaborador, colaborador_id into v_lanc_colab_txt, v_lanc_colab_id
     from public.lancamentos_item where id = v_lanc_id;
@@ -266,17 +266,17 @@ begin
   -- =============================================================
   v_chave := public.colaborador_chave('Fulano ZZF37');
 
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F001', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano ZZF37', 'TI', v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F001', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano ZZF37', 'TI', v_matriz, k_prof);
 
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F002', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'FULANO ZZF37', 'TI', v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F002', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'FULANO ZZF37', 'TI', v_matriz, k_prof);
 
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F003', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'fulano  zzf37', 'TI', v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F003', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'fulano  zzf37', 'TI', v_matriz, k_prof);
 
   select ocorrencias, grafias, ja_cadastrado into v_ocorrencias, v_grafias, v_ja_cad
     from public.v_colaboradores_textos where nome_chave = v_chave;
@@ -288,7 +288,7 @@ begin
       coalesce(v_ocorrencias::text, '(null)'), coalesce(v_grafias::text, '(null)'), coalesce(v_ja_cad::text, '(null)');
   end if;
 
-  insert into public.colaboradores (nome, criado_por) values ('Fulano ZZF37', k_prof)
+  insert into public.colaboradores (empresa_id, nome, criado_por) values (public.empresa_legada(), 'Fulano ZZF37', k_prof)
     returning id into v_colab_id2;
 
   select ja_cadastrado, colaborador_id into v_ja_cad, v_colab_view_id
@@ -315,17 +315,17 @@ begin
   -- pessoa na view inteira — que tem de ser ZERO mesmo com eles no acervo. Note que
   -- as três linhas SÃO gravadas: a prova é que a view as ignora, não que o banco as
   -- recuse (ele não recusa, e não é papel dele).
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F004', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', E'\t', v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F004', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', E'\t', v_matriz, k_prof);
 
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F005', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', E'\r\n', v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F005', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', E'\r\n', v_matriz, k_prof);
 
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F006', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', chr(160), v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F006', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', chr(160), v_matriz, k_prof);
 
   select count(*) into v_cnt from public.v_colaboradores_textos
    where btrim(coalesce(nome_chave, ''),
@@ -347,9 +347,9 @@ begin
   -- banco recém-migrado do CI não há mais nada: sem esta linha, os dois lados
   -- valeriam zero e o teste passaria mesmo com a view quebrada. Ele é o grupo
   -- PENDENTE que os dois lados têm de enxergar.
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('ZZF37F007', 'notebook', v_matriz) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Ciclano ZZF37 Pendente', v_matriz, k_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'ZZF37F007', 'notebook', v_matriz) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Ciclano ZZF37 Pendente', v_matriz, k_prof);
 
   select count(*) into v_cnt from public.v_colaboradores_textos where not ja_cadastrado;
   select coalesce(grupos, 0) into v_grupos_resumo
@@ -394,7 +394,7 @@ begin
   end if;
 
   begin
-    insert into public.tipos_item (slug, rotulo) values ('Fone Maiusculo', 'Teste');
+    insert into public.tipos_item (empresa_id, slug, rotulo) values (public.empresa_legada(), 'Fone Maiusculo', 'Teste');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'g4; '; raise warning '✗ g4 slug fora do formato foi ACEITO — deveria ser recusado (tipos_item_slug_formato)';
   exception when check_violation then
     v_ok := v_ok + 1; raise notice '✓ g4 slug fora do formato (''Fone Maiusculo'') recusado pelo check (sqlstate %)', sqlstate;
@@ -403,7 +403,7 @@ begin
   end;
 
   begin
-    insert into public.tipos_item (slug, rotulo) values ('carregador', 'Duplicado');
+    insert into public.tipos_item (empresa_id, slug, rotulo) values (public.empresa_legada(), 'carregador', 'Duplicado');
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'g5; '; raise warning '✗ g5 slug duplicado foi ACEITO — deveria ser recusado pelo unique de slug';
   exception when unique_violation then
     v_ok := v_ok + 1; raise notice '✓ g5 slug duplicado (''carregador'') recusado pelo unique (sqlstate %)', sqlstate;
@@ -414,7 +414,7 @@ begin
   -- =============================================================
   -- h — itens.tipo_id é ANULÁVEL; a FK recusa tipo inexistente
   -- =============================================================
-  insert into public.itens (nome, grupo, ordem, tipo_id) values ('TESTE F37 Item SemTipo', 'acessorio', 995, null)
+  insert into public.itens (empresa_id, nome, grupo, ordem, tipo_id) values (public.empresa_legada(), 'TESTE F37 Item SemTipo', 'acessorio', 995, null)
     returning id, tipo_id into v_item2, v_tipo_id;
   if v_tipo_id is null then
     v_ok := v_ok + 1; raise notice '✓ h1 itens.tipo_id é anulável — item de catálogo criado sem tipo';
@@ -423,7 +423,7 @@ begin
   end if;
 
   begin
-    insert into public.itens (nome, grupo, ordem, tipo_id) values ('TESTE F37 Item TipoInvalido', 'acessorio', 994, 32000);
+    insert into public.itens (empresa_id, nome, grupo, ordem, tipo_id) values (public.empresa_legada(), 'TESTE F37 Item TipoInvalido', 'acessorio', 994, 32000);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || 'h2; '; raise warning '✗ h2 tipo_id inexistente foi ACEITO — a FK deveria recusar';
   exception when foreign_key_violation then
     v_ok := v_ok + 1; raise notice '✓ h2 tipo_id inexistente (32000) recusado pela FK (sqlstate %)', sqlstate;

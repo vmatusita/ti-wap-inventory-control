@@ -148,11 +148,11 @@ declare
   v_erro text;
 begin
   begin
-    insert into public.movimentacoes (
+    insert into public.movimentacoes (empresa_id, 
       ativo_id, tipo, filial_id, colaborador, setor, filial_destino_id,
       termo_assinado, termo_data, itens_faltantes, status_resultante,
       observacao, estorno_de, created_at, chamado_fornecedor, criado_por)
-    values (
+    values (public.empresa_legada(), 
       p_ativo, p_tipo, p_filial, p_colaborador, p_setor, p_destino,
       p_termo, p_termo_data, p_itens, p_status,
       p_observacao, p_estorno_de, coalesce(p_created_at, now()), p_chamado,
@@ -200,10 +200,10 @@ create function pg_temp.ag_ativo(
 ) returns uuid
 language sql
 as $f$
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, status,
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, status,
                              colaborador_atual, setor_atual, pendencia, termo_assinado, termo_data,
                              updated_at)
-  values (p_patrimonio, p_tag, 'notebook', p_filial, p_status,
+  values (public.empresa_legada(), p_patrimonio, p_tag, 'notebook', p_filial, p_status,
           p_col, p_setor, p_pendencia, p_termo, p_termo_data,
           timestamptz '2026-01-01 00:00:00+00')
   returning id;
@@ -458,9 +458,9 @@ begin
   -- 2f — estorno de movimentação SEM snapshot (legado; montada com o gatilho desligado).
   a := pg_temp.ag_ativo('TESTEAG2F01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   alter table public.movimentacoes disable trigger trg_aplicar_movimentacao;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, colaborador, criado_por,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, colaborador, criado_por,
                                     status_anterior, status_resultante, snapshot_anterior)
-    values (a, 'saida', v_f1, 'Detentor AG', v_prof, 'em_estoque', 'em_uso', null)
+    values (public.empresa_legada(), a, 'saida', v_f1, 'Detentor AG', v_prof, 'em_estoque', 'em_uso', null)
     returning id into m1;
   alter table public.movimentacoes enable trigger trg_aplicar_movimentacao;
   perform pg_temp.ag_passo('2f', a, 'estorno', v_f1, p_estorno_de => m1);
@@ -504,13 +504,13 @@ begin
   end if;
 
   -- 2i — a pendência de item desta devolução já teve desfecho (0146): recusa, e nada é desfeito.
-  insert into public.itens (nome, grupo, ordem) values ('Item Teste AG 2i', 'acessorio', 9462)
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'Item Teste AG 2i', 'acessorio', 9462)
     returning id into v_item;
   a := pg_temp.ag_ativo('TESTEAG2I01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG');
   v_dev := pg_temp.ag_passo('2i-prep', a, 'devolucao', v_f1, p_itens => array['carregador']);
   select id into v_pend from public.pendencias_item where movimentacao_id = v_dev;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, pendencia_item_id, criado_por)
-    values (v_item, v_f1, 'entrada', 1, v_pend, v_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, pendencia_item_id, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'entrada', 1, v_pend, v_prof);
   perform pg_temp.ag_passo('2i', a, 'estorno', v_f1, p_estorno_de => v_dev);
   v_erro := pg_temp.ag_ultimo_erro();
   if coalesce(v_erro = 'P0001 Estorno bloqueado: a pendencia de item desta devolucao ja teve desfecho registrado no estoque de itens (use ajuste, com justificativa)'
@@ -581,9 +581,9 @@ begin
   a := pg_temp.ag_ativo('TESTEAG2N01', v_f1, 'em_uso', 'Detentor AG', 'Setor AG', 'Pendência atual',
          'sim', date '2026-03-03');
   alter table public.movimentacoes disable trigger trg_aplicar_movimentacao;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, colaborador, criado_por,
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, colaborador, criado_por,
                                     status_anterior, status_resultante, snapshot_anterior)
-    values (a, 'saida', v_f1, 'Detentor AG', v_prof, 'em_estoque', 'em_uso',
+    values (public.empresa_legada(), a, 'saida', v_f1, 'Detentor AG', v_prof, 'em_estoque', 'em_uso',
             jsonb_build_object('status', 'em_estoque', 'colaborador', null, 'setor', null, 'filial_id', v_f1))
     returning id into m1;
   alter table public.movimentacoes enable trigger trg_aplicar_movimentacao;

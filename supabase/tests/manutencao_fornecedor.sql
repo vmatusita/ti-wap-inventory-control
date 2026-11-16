@@ -49,16 +49,16 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 1 (MN1) — chamado do fornecedor no envio_manutencao
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, fornecedor)
-    values ('TESTEF14001', 'notebook', v_matriz, 'TechSupply Fic');
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, fornecedor)
+    values (public.empresa_legada(), 'TESTEF14001', 'notebook', v_matriz, 'TechSupply Fic');
   select id into a from public.ativos where patrimonio = 'TESTEF14001';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_matriz, v_prof);   -- em_estoque
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);   -- em_estoque
 
   -- 1a. envio_manutencao SEM chamado_fornecedor DEVE falhar (check MN1)
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'envio_manutencao', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 1a envio_manutencao sem chamado_fornecedor: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%chamado_fornecedor%' or sqlerrm like '%movimentacoes_chamado_fornecedor_envio%' then
@@ -69,8 +69,8 @@ begin
   end;
 
   -- 1b. envio_manutencao COM chamado_fornecedor grava e leva a em_manutencao
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado, chamado_fornecedor, criado_por)
-    values (a, 'envio_manutencao', v_matriz, '77001', 'OS-FORN-4401', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, '77001', 'OS-FORN-4401', v_prof);
   select status into v_status from public.ativos where id = a;
   select chamado_fornecedor into v_cf from public.movimentacoes
     where ativo_id = a and tipo = 'envio_manutencao';
@@ -83,8 +83,8 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 2 (MN2) — devolucao_fornecedor: em_manutencao -> devolvido_fornecedor
   -- ---------------------------------------------------------------
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-4401', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-4401', v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'devolvido_fornecedor' then
     v_ok := v_ok + 1; raise notice '✓ 2a devolucao_fornecedor -> devolvido_fornecedor';
@@ -94,8 +94,8 @@ begin
 
   -- 2b. de devolvido_fornecedor: transferencia DEVE falhar
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
-      values (a, 'transferencia', v_matriz, v_linhares, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, filial_destino_id, criado_por)
+      values (public.empresa_legada(), a, 'transferencia', v_matriz, v_linhares, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2b transferencia de devolvido_fornecedor: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2b transferencia de devolvido_fornecedor rejeitada';
@@ -104,8 +104,8 @@ begin
 
   -- 2c. de devolvido_fornecedor: saida DEVE falhar
   begin
-    insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-      values (a, 'saida', 'Fulano Fic', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'saida', 'Fulano Fic', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2c saida de devolvido_fornecedor: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2c saida de devolvido_fornecedor rejeitada';
@@ -115,8 +115,8 @@ begin
   -- 2d. de devolvido_fornecedor: envio_manutencao DEVE falhar (mesmo COM chamado do fornecedor:
   --     é a maquina de estados que barra, nao a check MN1)
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-      values (a, 'envio_manutencao', v_matriz, 'OS-FORN-X', v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+      values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, 'OS-FORN-X', v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2d envio_manutencao de devolvido_fornecedor: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2d envio_manutencao de devolvido_fornecedor rejeitado';
@@ -124,21 +124,21 @@ begin
   end;
 
   -- 2e. de devolvido_fornecedor: ajuste (valvula de escape) DEVE funcionar
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
-    values (a, 'ajuste', v_matriz, 'em_manutencao', 'reabertura para reenvio (teste F14)', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
+    values (public.empresa_legada(), a, 'ajuste', v_matriz, 'em_manutencao', 'reabertura para reenvio (teste F14)', v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_manutencao' then v_ok := v_ok + 1; raise notice '✓ 2e ajuste tira de devolvido_fornecedor (valvula de escape)';
   else v_falhas := v_falhas + 1; raise warning '✗ 2e esperado em_manutencao apos ajuste, obtido %', v_status; end if;
 
   -- 2f. devolucao_fornecedor de estado que NAO e em_manutencao DEVE falhar
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTEF14002', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF14002', 'celular', v_matriz);
   select id into b from public.ativos where patrimonio = 'TESTEF14002';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (b, 'compra', v_matriz, v_prof);   -- em_estoque
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'compra', v_matriz, v_prof);   -- em_estoque
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-      values (b, 'devolucao_fornecedor', v_matriz, 'OS-FORN-Z', v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+      values (public.empresa_legada(), b, 'devolucao_fornecedor', v_matriz, 'OS-FORN-Z', v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2f devolucao_fornecedor de em_estoque: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2f devolucao_fornecedor de em_estoque rejeitada';
@@ -151,23 +151,23 @@ begin
   --   dentro de UMA transacao now() e constante, entao o guard de estorno (ordena
   --   por created_at, id) precisa de ordem real.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, fornecedor)
-    values ('TESTEF14003', 'notebook', v_matriz, 'Leasing Fic');
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, fornecedor)
+    values (public.empresa_legada(), 'TESTEF14003', 'notebook', v_matriz, 'Leasing Fic');
   select id into c from public.ativos where patrimonio = 'TESTEF14003';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (c, 'compra', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por, created_at)
-    values (c, 'envio_manutencao', v_matriz, 'OS-FORN-9', v_prof, timestamptz '2026-06-01 10:01:00+00'); -- em_manutencao
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por, created_at)
-    values (c, 'devolucao_fornecedor', v_matriz, 'OS-FORN-9', v_prof, timestamptz '2026-06-01 10:02:00+00') -- devolvido
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), c, 'compra', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por, created_at)
+    values (public.empresa_legada(), c, 'envio_manutencao', v_matriz, 'OS-FORN-9', v_prof, timestamptz '2026-06-01 10:01:00+00'); -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por, created_at)
+    values (public.empresa_legada(), c, 'devolucao_fornecedor', v_matriz, 'OS-FORN-9', v_prof, timestamptz '2026-06-01 10:02:00+00') -- devolvido
     returning id into v_dev_mov;
   -- substituto (direto) vinculado ao antigo
-  insert into public.ativos (patrimonio, categoria, filial_id, fornecedor, origem, substitui_ativo_id)
-    values ('TESTEF14003S', 'notebook', v_matriz, 'Leasing Fic', 'cadastro', c)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, fornecedor, origem, substitui_ativo_id)
+    values (public.empresa_legada(), 'TESTEF14003S', 'notebook', v_matriz, 'Leasing Fic', 'cadastro', c)
     returning id into v_sub;
   -- estorno da devolucao (ultima mov efetiva do ANTIGO)
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
-    values (c, 'estorno', v_matriz, v_prof, v_dev_mov, timestamptz '2026-06-01 10:03:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
+    values (public.empresa_legada(), c, 'estorno', v_matriz, v_prof, v_dev_mov, timestamptz '2026-06-01 10:03:00+00');
   select status into v_status from public.ativos where id = c;
   select count(*) into v_cnt from public.ativos where id = v_sub;
   if v_status = 'em_manutencao' then v_ok := v_ok + 1; raise notice '✓ 3a estorno da devolucao_fornecedor restaurou em_manutencao';
@@ -178,13 +178,13 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 4 (MN3/MN4) — RPC devolver_ao_fornecedor COM substituto
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, fornecedor)
-    values ('TESTEF14004', 'celular', v_matriz, 'Proprinter Fic');
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, fornecedor)
+    values (public.empresa_legada(), 'TESTEF14004', 'celular', v_matriz, 'Proprinter Fic');
   select id into d from public.ativos where patrimonio = 'TESTEF14004';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (d, 'compra', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado, chamado_fornecedor, criado_por)
-    values (d, 'envio_manutencao', v_matriz, '77004', 'OS-FORN-4404', v_prof); -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), d, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), d, 'envio_manutencao', v_matriz, '77004', 'OS-FORN-4404', v_prof); -- em_manutencao
 
   select mov_id, substituto_id, substituto_mov_id
     into v_mov, v_subid, v_submov
@@ -219,15 +219,15 @@ begin
   -- CENARIO 5 (MN3) — colisao patrimonio+service_tag do substituto: ROLLBACK TOTAL
   --   nem a devolucao entra. Pre-cria o ativo que vai colidir.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
-    values ('TESTEF14DUP', 'STDUP', 'monitor', v_matriz);
-  insert into public.ativos (patrimonio, categoria, filial_id, fornecedor)
-    values ('TESTEF14005', 'monitor', v_matriz, 'TechSupply Fic');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF14DUP', 'STDUP', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, fornecedor)
+    values (public.empresa_legada(), 'TESTEF14005', 'monitor', v_matriz, 'TechSupply Fic');
   select id into b from public.ativos where patrimonio = 'TESTEF14005';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (b, 'compra', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (b, 'envio_manutencao', v_matriz, 'OS-FORN-5', v_prof); -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), b, 'envio_manutencao', v_matriz, 'OS-FORN-5', v_prof); -- em_manutencao
   begin
     perform public.devolver_ao_fornecedor(
       b,
@@ -250,13 +250,13 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 6 (MN3) — RPC SEM substituto (p_substituto null): so a devolucao
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTEF14006', 'desktop', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF14006', 'desktop', v_matriz);
   select id into d from public.ativos where patrimonio = 'TESTEF14006';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (d, 'compra', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (d, 'envio_manutencao', v_matriz, 'OS-FORN-6', v_prof); -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), d, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), d, 'envio_manutencao', v_matriz, 'OS-FORN-6', v_prof); -- em_manutencao
   select mov_id, substituto_id, substituto_mov_id
     into v_mov, v_subid, v_submov
     from public.devolver_ao_fornecedor(
@@ -288,23 +288,23 @@ begin
   --   existe como DADO LEGADO, anterior à limpeza da 0111. `update` em `ativos` é
   --   operação normal (a guarda_acervo da 0081 só barra DELETE).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTEF14007', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF14007', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'TESTEF14007';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Fic', 'TI', v_matriz, v_prof);   -- em_uso (detentor setado)
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
-    values (a, 'ajuste', v_matriz, 'em_manutencao', 'forcar manutencao (teste F14)', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Fic', 'TI', v_matriz, v_prof);   -- em_uso (detentor setado)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, status_resultante, observacao, criado_por)
+    values (public.empresa_legada(), a, 'ajuste', v_matriz, 'em_manutencao', 'forcar manutencao (teste F14)', v_prof);
   select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;
   if v_cf is null and v_forn is null then
     v_ok := v_ok + 1; raise notice '✓ 7a ajuste para em_manutencao (estado sem dono) ZERA o detentor (F36)';
   else v_falhas := v_falhas + 1; raise warning '✗ 7a ajuste para em_manutencao deveria zerar o detentor (F36), obtido %/%', v_cf, v_forn; end if;
   -- precondição LEGADA de 7b, plantada à mão (ver a emenda acima)
   update public.ativos set colaborador_atual = 'Fulano Fic', setor_atual = 'TI' where id = a;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-7', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'devolucao_fornecedor', v_matriz, 'OS-FORN-7', v_prof);
   select colaborador_atual, setor_atual into v_cf, v_forn from public.ativos where id = a;
   if v_cf is null and v_forn is null then
     v_ok := v_ok + 1; raise notice '✓ 7b devolucao_fornecedor zera colaborador/setor (espelho de descartado)';

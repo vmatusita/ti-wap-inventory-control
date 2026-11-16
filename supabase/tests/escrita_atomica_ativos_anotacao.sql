@@ -139,42 +139,42 @@ begin
     (k_operador, v_f1),
     (k_outro,    v_f2);
 
-  insert into public.ativos (patrimonio, categoria, filial_id, pendencia)
-  values ('WAP0009201', 'notebook', v_f1, 'sem patrimônio físico; termo pendente')
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, pendencia)
+  values (public.empresa_legada(), 'WAP0009201', 'notebook', v_f1, 'sem patrimônio físico; termo pendente')
   returning id into v_ativo1;
 
   -- Sem service tag (NULL em ambos): o índice compara coalesce(service_tag,''), então o par
   -- que colide é (patrimonio, '') — v_ativo_dup fica parado aqui como o "já existe".
-  insert into public.ativos (patrimonio, categoria, filial_id)
-  values ('WAP0009202', 'notebook', v_f1)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009202', 'notebook', v_f1)
   returning id into v_ativo_dup;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-  values ('WAP0009203', 'notebook', v_f1)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009203', 'notebook', v_f1)
   returning id into v_ativo2;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-  values ('WAP0009204', 'notebook', v_f2)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009204', 'notebook', v_f2)
   returning id into v_ativo4;
 
-  insert into public.ativos (patrimonio, categoria, filial_id, pendencia)
-  values ('WAP0009205', 'notebook', v_f1, 'sem service tag')
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, pendencia)
+  values (public.empresa_legada(), 'WAP0009205', 'notebook', v_f1, 'sem service tag')
   returning id into v_ativo_st;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-  values ('WAP0009206', 'notebook', v_f1)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009206', 'notebook', v_f1)
   returning id into v_ativo_ct;
 
-  insert into public.ativos (patrimonio, categoria, filial_id, termo_assinado, termo_data)
-  values ('WAP0009207', 'notebook', v_f1, 'sim', current_date)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, termo_assinado, termo_data)
+  values (public.empresa_legada(), 'WAP0009207', 'notebook', v_f1, 'sim', current_date)
   returning id into v_ativo_dt;
 
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('WAP0009208', 'notebook', v_f1) returning id into v_lote_a;
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('WAP0009209', 'notebook', v_f1) returning id into v_lote_b;
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('WAP0009210', 'notebook', v_f1) returning id into v_lote_c;
-  insert into public.ativos (patrimonio, categoria, filial_id, termo_assinado) values ('WAP0009211', 'notebook', v_f1, 'sim') returning id into v_lote_ja;
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('WAP0009212', 'notebook', v_f1) returning id into v_lote_d;
-  insert into public.ativos (patrimonio, categoria, filial_id) values ('WAP0009213', 'notebook', v_f2) returning id into v_lote_fora;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'WAP0009208', 'notebook', v_f1) returning id into v_lote_a;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'WAP0009209', 'notebook', v_f1) returning id into v_lote_b;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'WAP0009210', 'notebook', v_f1) returning id into v_lote_c;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, termo_assinado) values (public.empresa_legada(), 'WAP0009211', 'notebook', v_f1, 'sim') returning id into v_lote_ja;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'WAP0009212', 'notebook', v_f1) returning id into v_lote_d;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id) values (public.empresa_legada(), 'WAP0009213', 'notebook', v_f2) returning id into v_lote_fora;
 
   -- =========================================================================
   -- 1 — corrigir_patrimonio_com_anotacao: SUCESSO (as duas coisas, na mesma chamada)
@@ -479,8 +479,8 @@ begin
   -- "Definir service tag" limpa "sem service tag" da pendência; logo depois, "corrigir
   -- patrimônio" chega com a pendência que ELE leu antes (a velha) e sem mudança própria
   -- (false). A primeira versão da 0149 regravava sempre, e devolvia "sem service tag" à ficha.
-  insert into public.ativos (patrimonio, categoria, filial_id, pendencia)
-  values ('WAP0009214', 'notebook', v_f1, 'sem service tag; termo pendente')
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, pendencia)
+  values (public.empresa_legada(), 'WAP0009214', 'notebook', v_f1, 'sem service tag; termo pendente')
   returning id into v_ativo12;
 
   set local role authenticated;
@@ -504,17 +504,17 @@ begin
   -- =========================================================================
   -- Cada fixture já nasce no estado que a PRIMEIRA de duas escritas simultâneas deixaria; a
   -- chamada é a SEGUNDA, que passou pela leitura da action antes de a primeira gravar.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
-  values ('WAP0009215', 'SVCJA13', 'notebook', v_f1)
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009215', 'SVCJA13', 'notebook', v_f1)
   returning id into v_ativo13;
-  insert into public.ativos (patrimonio, categoria, filial_id, termo_assinado, termo_data)
-  values ('WAP0009216', 'notebook', v_f1, 'sim', '2026-01-02')
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, termo_assinado, termo_data)
+  values (public.empresa_legada(), 'WAP0009216', 'notebook', v_f1, 'sim', '2026-01-02')
   returning id into v_ativo14;
-  insert into public.ativos (patrimonio, categoria, filial_id, termo_assinado)
-  values ('WAP0009217', 'notebook', v_f1, 'gerado')
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, termo_assinado)
+  values (public.empresa_legada(), 'WAP0009217', 'notebook', v_f1, 'gerado')
   returning id into v_ativo15;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id)
-  values ('WAP0009218', 'SVCJA16', 'notebook', v_f2)
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id)
+  values (public.empresa_legada(), 'WAP0009218', 'SVCJA16', 'notebook', v_f2)
   returning id into v_ativo16;
 
   -- 13 — service tag já preenchida

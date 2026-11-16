@@ -119,15 +119,15 @@ begin
 
   -- Itens PRÓPRIOS do roteiro (nunca um item real do catálogo): assim as contagens
   -- de Total/Estoque abaixo são exatamente as que este arquivo criou.
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE F31 Item A', 'acessorio', 990) returning id into v_itemA;
-  insert into public.itens (nome, grupo, ordem)
-    values ('TESTE F31 Item B', 'componente', 991) returning id into v_itemB;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE F31 Item A', 'acessorio', 990) returning id into v_itemA;
+  insert into public.itens (empresa_id, nome, grupo, ordem)
+    values (public.empresa_legada(), 'TESTE F31 Item B', 'componente', 991) returning id into v_itemB;
 
   -- Estoque de partida na ORIGEM: 30 do A e 12 do B. Destino começa zerado.
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-  values (v_itemA, v_f1, 'entrada', 30, current_date, k_admin),
-         (v_itemB, v_f1, 'entrada', 12, current_date, k_admin);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+  values (public.empresa_legada(), v_itemA, v_f1, 'entrada', 30, current_date, k_admin),
+         (public.empresa_legada(), v_itemB, v_f1, 'entrada', 12, current_date, k_admin);
 
   -- Daqui em diante, agindo como o ADMIN fictício (escreve em qualquer filial).
   perform set_config('request.jwt.claims',
@@ -235,14 +235,14 @@ begin
     v_total_c0 bigint;
     v_total_c1 bigint;
   begin
-    insert into public.itens (nome, grupo, ordem)
-      values ('TESTE F31 Item C', 'acessorio', 992) returning id into v_itemC;
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-      values (v_itemC, v_f1, 'entrada', 30, current_date, k_admin);
+    insert into public.itens (empresa_id, nome, grupo, ordem)
+      values (public.empresa_legada(), 'TESTE F31 Item C', 'acessorio', 992) returning id into v_itemC;
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+      values (public.empresa_legada(), v_itemC, v_f1, 'entrada', 30, current_date, k_admin);
     select total into v_total_c0 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemC;
-    insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-      values (v_itemC, v_f1, 'saida',   10, current_date, k_admin),
-             (v_itemC, v_f2, 'entrada', 10, current_date, k_admin);
+    insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+      values (public.empresa_legada(), v_itemC, v_f1, 'saida',   10, current_date, k_admin),
+             (public.empresa_legada(), v_itemC, v_f2, 'entrada', 10, current_date, k_admin);
     select total into v_total_c1 from public.rel_saldo_itens_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date) where filial_id is null and item_id = v_itemC;
     if v_total_c1 = v_total_c0 + 10 then
       v_ok := v_ok + 1;

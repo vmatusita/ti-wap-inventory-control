@@ -81,64 +81,64 @@ begin
   insert into public.filiais (nome, slug, empresa_id) values ('ZZUE B Unidade', 'zzue-b-unidade', v_emp_b)
     returning id into v_fb;
 
-  insert into public.itens (nome, grupo, ordem) values ('TESTE UE Item', 'acessorio', 9994) returning id into v_item;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por)
-    values (v_item, v_f1, 'entrada', 10, current_date, k_admin);
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'TESTE UE Item', 'acessorio', 9994) returning id into v_item;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'entrada', 10, current_date, k_admin);
 
   for v_k in 1 .. 6 loop
-    insert into public.ativos (patrimonio, categoria, filial_id)
-      values ('ZZUE0000' || v_k, 'notebook', v_f1) returning id into v_mov;
+    insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+      values (public.empresa_legada(), 'ZZUE0000' || v_k, 'notebook', v_f1) returning id into v_mov;
     v_a := v_a || v_mov;
   end loop;
 
   -- os cadastros da empresa A (o u4 nasce DEPOIS do histórico em texto, como na consolidação)
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Estornado', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Abandonado', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Reusado', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Estornado', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Abandonado', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Reusado', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
   v_p := v_p || null::uuid;  -- p[4], criado adiante
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Item', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Detentor', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
-  insert into public.colaboradores (nome, filial_id, criado_por, ativo) values ('Fulano ZZUE Inativo', v_f1, k_admin, false) returning id into v_mov; v_p := v_p || v_mov;
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Homonimo', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Acessorio', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Item', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Detentor', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por, ativo) values (public.empresa_legada(), 'Fulano ZZUE Inativo', v_f1, k_admin, false) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Homonimo', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Acessorio', v_f1, k_admin) returning id into v_mov; v_p := v_p || v_mov;
 
   -- u1: saída vinculada e estornada
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
-    values (v_a[1], 'saida', 'Fulano ZZUE Estornado', v_p[1], v_f1, k_admin, now() - interval '2 minutes') returning id into v_mov;
-  insert into public.movimentacoes (ativo_id, tipo, estorno_de, filial_id, criado_por, created_at)
-    values (v_a[1], 'estorno', v_mov, v_f1, k_admin, now() - interval '1 minute');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[1], 'saida', 'Fulano ZZUE Estornado', v_p[1], v_f1, k_admin, now() - interval '2 minutes') returning id into v_mov;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, estorno_de, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[1], 'estorno', v_mov, v_f1, k_admin, now() - interval '1 minute');
 
   -- u3: uma estornada (a[2]) e uma válida (a[3], depois devolvida — a saída continua valendo e o detentor sai)
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
-    values (v_a[2], 'saida', 'Fulano ZZUE Reusado', v_p[3], v_f1, k_admin, now() - interval '2 minutes') returning id into v_mov;
-  insert into public.movimentacoes (ativo_id, tipo, estorno_de, filial_id, criado_por, created_at)
-    values (v_a[2], 'estorno', v_mov, v_f1, k_admin, now() - interval '1 minute');
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
-    values (v_a[3], 'saida', 'Fulano ZZUE Reusado', v_p[3], v_f1, k_admin, now() - interval '2 minutes');
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (v_a[3], 'devolucao', v_f1, k_admin, now() - interval '1 minute');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[2], 'saida', 'Fulano ZZUE Reusado', v_p[3], v_f1, k_admin, now() - interval '2 minutes') returning id into v_mov;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, estorno_de, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[2], 'estorno', v_mov, v_f1, k_admin, now() - interval '1 minute');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, colaborador_id, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[3], 'saida', 'Fulano ZZUE Reusado', v_p[3], v_f1, k_admin, now() - interval '2 minutes');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[3], 'devolucao', v_f1, k_admin, now() - interval '1 minute');
 
   -- u4: o histórico em TEXTO (id nulo, outra grafia da mesma chave), devolvido; o cadastro nasce depois
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (v_a[4], 'saida', '  fulano   zzue CONSOLIDADO ', v_f1, k_admin, now() - interval '2 minutes');
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (v_a[4], 'devolucao', v_f1, k_admin, now() - interval '1 minute');
-  insert into public.colaboradores (nome, filial_id, criado_por) values ('Fulano ZZUE Consolidado', v_f1, k_admin) returning id into v_mov;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[4], 'saida', '  fulano   zzue CONSOLIDADO ', v_f1, k_admin, now() - interval '2 minutes');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), v_a[4], 'devolucao', v_f1, k_admin, now() - interval '1 minute');
+  insert into public.colaboradores (empresa_id, nome, filial_id, criado_por) values (public.empresa_legada(), 'Fulano ZZUE Consolidado', v_f1, k_admin) returning id into v_mov;
   v_p[4] := v_mov;
 
   -- u5: o item lançado com a pessoa e o inverso (o estorno avulso de item)
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, criado_por)
-    values (v_item, v_f1, 'saida', 1, current_date, 'Fulano ZZUE Item', v_p[5], k_admin) returning id into v_lanc;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, estorna_id, observacao, criado_por)
-    values (v_item, v_f1, 'retorno', 1, current_date, 'Fulano ZZUE Item', v_p[5], v_lanc, 'Estorno: roteiro uso efetivo', k_admin);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'saida', 1, current_date, 'Fulano ZZUE Item', v_p[5], k_admin) returning id into v_lanc;
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, estorna_id, observacao, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'retorno', 1, current_date, 'Fulano ZZUE Item', v_p[5], v_lanc, 'Estorno: roteiro uso efetivo', k_admin);
 
   -- u6: o detentor de hoje sem movimentação vinculada (o equipamento chegou com a pessoa, como na carga do go-live)
   -- (outra grafia da mesma chave, como vem da carga: o detentor casa pela chave, não pelo texto igual)
   update public.ativos set status = 'em_uso', colaborador_atual = '  fulano zzue DETENTOR ' where id = v_a[5];
 
   -- u11: o único uso é um acessório entregue e NÃO devolvido (o lançamento sem inverso)
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, criado_por)
-    values (v_item, v_f1, 'saida', 1, current_date, 'Fulano ZZUE Acessorio', v_p[9], k_admin);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, data, colaborador, colaborador_id, criado_por)
+    values (public.empresa_legada(), v_item, v_f1, 'saida', 1, current_date, 'Fulano ZZUE Acessorio', v_p[9], k_admin);
 
   -- u8: a empresa B — um homônimo com registro VÁLIDO lá (pela chave do texto) e o ativo com ele
   insert into public.colaboradores (nome, filial_id, criado_por, empresa_id)

@@ -191,8 +191,8 @@ begin
   select greatest(coalesce((select max(data) from public.movimentacoes), current_date), current_date)
     into v_data_3a;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300301', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300301', 'notebook', v_matriz);
   select id into h from public.ativos where patrimonio = 'ZZF5300301';
 
   -- ⚠ ids EXPLÍCITOS, e a razão é determinismo, não estilo. Com `gen_random_uuid()`,
@@ -204,12 +204,12 @@ begin
   -- acusando de fraca uma asserção que está certa. id ALTO na compra e BAIXO no
   -- ajuste (o mesmo arranjo do CENÁRIO 1, escrito pela 0054 com o mesmo propósito)
   -- faz a régua antiga errar SEMPRE e a nova acertar SEMPRE.
-  insert into public.movimentacoes (id, ativo_id, tipo, data, filial_id, criado_por)
-    values ('ffffffff-ffff-4fff-8fff-fffffffffff3', h, 'compra', v_data_3a, v_matriz, v_prof)
+  insert into public.movimentacoes (empresa_id, id, ativo_id, tipo, data, filial_id, criado_por)
+    values (public.empresa_legada(), 'ffffffff-ffff-4fff-8fff-fffffffffff3', h, 'compra', v_data_3a, v_matriz, v_prof)
     returning ordem into v_ordem_compra;
 
-  insert into public.movimentacoes (id, ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por)
-    values ('00000000-0000-4000-8000-000000000031', h, 'ajuste', v_data_3a, v_matriz, 'em_uso',
+  insert into public.movimentacoes (empresa_id, id, ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por)
+    values (public.empresa_legada(), '00000000-0000-4000-8000-000000000031', h, 'ajuste', v_data_3a, v_matriz, 'em_uso',
             'F53 3a: reconciliacao de import (mesmo instante da compra)', v_prof)
     returning ordem into v_ordem_ajuste;
 
@@ -268,20 +268,20 @@ begin
   -- ajuste vencer o empate. Esperado: rel_estoque_asof(hoje).status = 'em_uso' e
   -- IGUAL a ativos.status (o trigger, last-insert-wins, também é 'em_uso').
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF1900001', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF1900001', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF1900001';
 
   -- compra de abertura: id ALTO, created_at/data explícitos (na transação now() é
   -- constante, por isso created_at é fixado à mão).
-  insert into public.movimentacoes (id, ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values ('ffffffff-ffff-4fff-8fff-ffffffffffff', a, 'compra',
+  insert into public.movimentacoes (empresa_id, id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), 'ffffffff-ffff-4fff-8fff-ffffffffffff', a, 'compra',
             date '2026-06-01', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');
 
   -- ajuste de reconciliação p/ em_uso: id BAIXO, MESMO created_at e MESMO data.
-  insert into public.movimentacoes (id, ativo_id, tipo, data, filial_id,
+  insert into public.movimentacoes (empresa_id, id, ativo_id, tipo, data, filial_id,
                                      status_resultante, observacao, criado_por, created_at)
-    values ('00000000-0000-4000-8000-000000000001', a, 'ajuste',
+    values (public.empresa_legada(), '00000000-0000-4000-8000-000000000001', a, 'ajuste',
             date '2026-06-01', v_matriz, 'em_uso',
             'reconciliacao de import (teste F19)', v_prof, timestamptz '2026-06-01 10:00:00+00');
 
@@ -304,17 +304,17 @@ begin
   --   as-of(hoje) = em_estoque (o par saída+estorno se anula → sobra a compra);
   --   ativos.status corrente = em_estoque (o estorno restaurou o snapshot).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF1900002', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF1900002', 'notebook', v_matriz);
   select id into b from public.ativos where patrimonio = 'ZZF1900002';
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values (b, 'compra', date '2026-06-01', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, data, filial_id, criado_por, created_at)
-    values (b, 'saida', 'Fulano', 'TI', date '2026-06-10', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), b, 'compra', date '2026-06-01', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), b, 'saida', 'Fulano', 'TI', date '2026-06-10', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');
   select id into v_saida from public.movimentacoes where ativo_id = b and tipo = 'saida' limit 1;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at, estorno_de)
-    values (b, 'estorno', date '2026-06-20', v_matriz, v_prof, timestamptz '2026-06-01 10:02:00+00', v_saida);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at, estorno_de)
+    values (public.empresa_legada(), b, 'estorno', date '2026-06-20', v_matriz, v_prof, timestamptz '2026-06-01 10:02:00+00', v_saida);
 
   select status into v_d1  from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2026-06-10') where ativo_id = b;
   select status into v_now from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), current_date)      where ativo_id = b;
@@ -343,15 +343,15 @@ begin
   -- `ordem` DISTINTA e CRESCENTE, na ordem física de inserção — é a identidade
   -- (generated always), não mais um sorteio de uuid.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300303', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300303', 'notebook', v_matriz);
   select id into i from public.ativos where patrimonio = 'ZZF5300303';
 
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (i, 'compra', v_matriz, v_prof)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), i, 'compra', v_matriz, v_prof)
     returning ordem into v_ordem3c_1;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (i, 'saida', 'Fulano 3c', 'TI', v_matriz, v_prof)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), i, 'saida', 'Fulano 3c', 'TI', v_matriz, v_prof)
     returning ordem into v_ordem3c_2;
 
   if v_ordem3c_2 = v_ordem3c_1 + 1 then
@@ -367,20 +367,20 @@ begin
   -- estornar a PENÚLTIMA movimentação do ativo (a SAÍDA, quando já existe uma
   -- DEVOLUÇÃO depois dela).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300304', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300304', 'notebook', v_matriz);
   select id into j from public.ativos where patrimonio = 'ZZF5300304';
 
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (j, 'saida', 'Fulano 4a', v_matriz, v_prof, timestamptz '2026-03-01 10:00:00+00')
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), j, 'saida', 'Fulano 4a', v_matriz, v_prof, timestamptz '2026-03-01 10:00:00+00')
     returning id into v_saida4a;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (j, 'devolucao', v_matriz, v_prof, timestamptz '2026-03-01 10:01:00+00')
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), j, 'devolucao', v_matriz, v_prof, timestamptz '2026-03-01 10:01:00+00')
     returning id into v_devol4a;
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-      values (j, 'estorno', v_matriz, v_prof, v_saida4a);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+      values (public.empresa_legada(), j, 'estorno', v_matriz, v_prof, v_saida4a);
     v_falhas := v_falhas + 1;
     raise warning '✗ 4a estorno da PENULTIMA (saida) NAO foi recusado (deveria)';
   exception when others then
@@ -398,8 +398,8 @@ begin
   -- devolução acima) do mesmo ativo.
   -- ---------------------------------------------------------------
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-      values (j, 'estorno', v_matriz, v_prof, v_devol4a)
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+      values (public.empresa_legada(), j, 'estorno', v_matriz, v_prof, v_devol4a)
       returning id into v_estorno4b;
     v_ok := v_ok + 1;
     raise notice '✓ 4b a trava do estorno ACEITA estornar a ULTIMA movimentacao (devolucao), id=%', v_estorno4b;
@@ -428,25 +428,25 @@ begin
   --   · régua NOVA `(created_at, ordem)` — o ajuste foi inserido depois, tem
   --     `ordem` maior → RECUSA, corretamente.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300305', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300305', 'notebook', v_matriz);
   select id into l from public.ativos where patrimonio = 'ZZF5300305';
 
   -- id ALTO na compra, id BAIXO no ajuste: é o que faz a régua velha errar.
-  insert into public.movimentacoes (id, ativo_id, tipo, filial_id, criado_por, created_at)
-    values ('ffffffff-ffff-4fff-8fff-fffffffffff1', l, 'compra', v_matriz, v_prof,
+  insert into public.movimentacoes (empresa_id, id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), 'ffffffff-ffff-4fff-8fff-fffffffffff1', l, 'compra', v_matriz, v_prof,
             timestamptz '2026-04-01 09:00:00+00')
     returning id into v_compra4c;
-  insert into public.movimentacoes (id, ativo_id, tipo, filial_id, criado_por, created_at,
+  insert into public.movimentacoes (empresa_id, id, ativo_id, tipo, filial_id, criado_por, created_at,
                                     status_resultante, observacao)
-    values ('00000000-0000-4000-8000-000000000041', l, 'ajuste', v_matriz, v_prof,
+    values (public.empresa_legada(), '00000000-0000-4000-8000-000000000041', l, 'ajuste', v_matriz, v_prof,
             timestamptz '2026-04-01 09:00:00+00', 'em_uso',
             'F53 4c: reconciliacao de import no MESMO instante da compra')
     returning id into v_ajuste4c;
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-      values (l, 'estorno', v_matriz, v_prof, v_compra4c);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+      values (public.empresa_legada(), l, 'estorno', v_matriz, v_prof, v_compra4c);
     v_falhas := v_falhas + 1;
     raise warning '✗ 4c a trava ACEITOU estornar a COMPRA de abertura, que tem o mesmo created_at do ajuste e id MAIOR — e o ajuste veio depois. E o comportamento da regua VELHA (created_at, id): a trava nao esta desempatando por `ordem`';
   exception when others then
@@ -462,8 +462,8 @@ begin
   -- O par positivo de 4c: a ÚLTIMA por `ordem` (o ajuste) É estornável. Sem ele, 4c
   -- passaria verde numa trava que recusasse TUDO.
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-      values (l, 'estorno', v_matriz, v_prof, v_ajuste4c);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+      values (public.empresa_legada(), l, 'estorno', v_matriz, v_prof, v_ajuste4c);
     v_ok := v_ok + 1;
     raise notice '✓ 4d a mesma trava ACEITA estornar o ajuste (a ultima por ordem, apesar do id menor)';
   exception when others then
@@ -515,20 +515,20 @@ begin
   -- ordem desc puro" (docs/PLAN-F53.md §4) — é exatamente isto que as duas
   -- seleções abaixo comparam.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300306', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300306', 'notebook', v_matriz);
   select id into k from public.ativos where patrimonio = 'ZZF5300306';
 
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values (k, 'compra', date '2024-01-01', v_matriz, v_prof, timestamptz '2024-01-01 09:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), k, 'compra', date '2024-01-01', v_matriz, v_prof, timestamptz '2024-01-01 09:00:00+00');
 
   -- M1 — "mais recente por data" do par, inserida PRIMEIRO (ordem menor).
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, created_at)
-    values (k, 'ajuste', date '2026-08-01', v_matriz, 'em_uso', 'F53 6a: M1, mais recente por data', v_prof, timestamptz '2026-08-01 09:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, created_at)
+    values (public.empresa_legada(), k, 'ajuste', date '2026-08-01', v_matriz, 'em_uso', 'F53 6a: M1, mais recente por data', v_prof, timestamptz '2026-08-01 09:00:00+00');
 
   -- M2 — "retroativa" (data ANTES de M1, mas gravada DEPOIS: ordem MAIOR).
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, created_at)
-    values (k, 'ajuste', date '2026-01-01', v_matriz, 'em_manutencao', 'F53 6a: M2, retroativa, lancada DEPOIS de M1', v_prof, timestamptz '2026-01-01 09:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, status_resultante, observacao, criado_por, created_at)
+    values (public.empresa_legada(), k, 'ajuste', date '2026-01-01', v_matriz, 'em_manutencao', 'F53 6a: M2, retroativa, lancada DEPOIS de M1', v_prof, timestamptz '2026-01-01 09:00:00+00');
 
   -- as-of numa data POSTERIOR às duas (2026-08-15): as duas estão em `efetivas`.
   select status into v_asof6a from public.rel_estoque_asof_filiais((select array_agg(f.id order by f.id) from public.filiais f), date '2026-08-15') where ativo_id = k;
@@ -556,13 +556,13 @@ begin
   -- ---------------------------------------------------------------
   select coalesce(max(ordem), 0) into v_max_antes from public.movimentacoes;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300307', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300307', 'notebook', v_matriz);
   select id into p7a from public.ativos where patrimonio = 'ZZF5300307';
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (p7a, 'compra', v_matriz, v_prof)
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), p7a, 'compra', v_matriz, v_prof)
       returning ordem into v_novo_ordem;
     if v_novo_ordem = v_max_antes + 1 then
       v_ok := v_ok + 1;
@@ -595,14 +595,14 @@ begin
   -- exige `status_resultante` e `observacao`, e a recusa dele é um `raise exception`
   -- P0001 do trigger — que NÃO é `unique_violation` e escaparia do handler abaixo,
   -- derrubando o roteiro inteiro em vez de falhar a asserção. Medido.
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF5300308', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF5300308', 'notebook', v_matriz);
   select id into p7b from public.ativos where patrimonio = 'ZZF5300308';
 
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, ordem)
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, ordem)
       overriding system value
-      values (p7b, 'compra', v_matriz, v_prof, v_novo_ordem);
+      values (public.empresa_legada(), p7b, 'compra', v_matriz, v_prof, v_novo_ordem);
     v_falhas := v_falhas + 1;
     raise warning '✗ 7b duas movimentacoes com a MESMA ordem (%) foram ACEITAS — movimentacoes_ordem_uidx nao esta no ar, e `ordem` deixou de ser uma ordem', v_novo_ordem;
   exception when unique_violation then
@@ -737,17 +737,17 @@ begin
   -- crescente (a regra da pendência nº 5 da F37: duas movimentações do mesmo ativo na mesma
   -- transação). B é fictícia e nasce aqui — o arquivo só tem a matriz como pré-requisito.
   -- ---------------------------------------------------------------
-  insert into public.filiais (slug, nome)
-    values ('zzf60-asof-destino', 'ZZF60 AsOf Destino')
+  insert into public.filiais (empresa_id, slug, nome)
+    values (public.empresa_legada(), 'zzf60-asof-destino', 'ZZF60 AsOf Destino')
     returning id into v_destino11;
 
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF6000311', 'notebook', v_matriz)
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF6000311', 'notebook', v_matriz)
     returning id into t11;
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, created_at)
-    values (t11, 'compra', date '2025-03-01', v_matriz, v_prof, timestamptz '2025-03-01 10:00:00+00');
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
-    values (t11, 'transferencia', date '2025-03-20', v_matriz, v_destino11, v_prof, timestamptz '2025-03-20 10:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), t11, 'compra', date '2025-03-01', v_matriz, v_prof, timestamptz '2025-03-01 10:00:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por, created_at)
+    values (public.empresa_legada(), t11, 'transferencia', date '2025-03-20', v_matriz, v_destino11, v_prof, timestamptz '2025-03-20 10:00:00+00');
 
   -- A premissa do cenário: HOJE o ativo é de B. Sem isto, 11a não discriminaria nada (a
   -- filial de hoje e a da data seriam a mesma, como nos cenários acima).

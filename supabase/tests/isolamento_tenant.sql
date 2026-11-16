@@ -347,9 +347,9 @@ begin
 
   -- DOIS ativos na filial NÃO vinculada, com um valor conhecido no campo que a
   -- asserção 8 vai tentar reescrever.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, modelo)
-  values ('WAP0009481', 'F48TST1', 'notebook', v_f2, 'cadastro', 'modelo-original-f48'),
-         ('WAP0009482', 'F48TST2', 'notebook', v_f2, 'cadastro', 'modelo-original-f48');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem, modelo)
+  values (public.empresa_legada(), 'WAP0009481', 'F48TST1', 'notebook', v_f2, 'cadastro', 'modelo-original-f48'),
+         (public.empresa_legada(), 'WAP0009482', 'F48TST2', 'notebook', v_f2, 'cadastro', 'modelo-original-f48');
 
   -- =========================================================================
   -- 1..4 — OS PAPÉIS. Sem estas quatro, todo "viu zero" deste repositório é vazio.
@@ -555,8 +555,8 @@ begin
   -- 8d — A METADE POSITIVA. O MESMO operador, na filial em que ELE escreve.
   -- Sem ela, 8a/8b/8c ficariam verdes num banco em que ninguém escreve em `ativos` — e o
   -- arcabouço estaria provando "está tudo trancado", não "o recorte recorta".
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, modelo)
-  values ('WAP0009483', 'F48TST3', 'notebook', v_f1, 'cadastro', 'modelo-original-f48');
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem, modelo)
+  values (public.empresa_legada(), 'WAP0009483', 'F48TST3', 'notebook', v_f1, 'cadastro', 'modelo-original-f48');
 
   set local role authenticated;
   perform set_config('request.jwt.claims',
@@ -1666,11 +1666,11 @@ begin
   -- 11a — o operador vinculado a X (v_f1)
   perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-        values ('WAP0009663', 'F66PAR1', 'notebook', v_f1, 'cadastro');
+  begin insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+        values (public.empresa_legada(), 'WAP0009663', 'F66PAR1', 'notebook', v_f1, 'cadastro');
   exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-em-X-recusado(' || sqlstate || ')'; end;
-  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-        values ('WAP0009664', 'F66PAR2', 'notebook', v_f2, 'cadastro');
+  begin insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+        values (public.empresa_legada(), 'WAP0009664', 'F66PAR2', 'notebook', v_f2, 'cadastro');
         v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-em-Y-aceito';
   exception when insufficient_privilege then null;
             when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-em-Y(' || sqlstate || ')'; end;
@@ -1679,8 +1679,8 @@ begin
         v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-na-B-aceito';
   exception when insufficient_privilege then null;
             when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' operador-na-B(' || sqlstate || ')'; end;
-  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-        values ('WAP0009666', 'F66PAR4', 'notebook', null, 'cadastro');
+  begin insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+        values (public.empresa_legada(), 'WAP0009666', 'F66PAR4', 'notebook', null, 'cadastro');
         v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' filial-nula-aceita';
   exception when insufficient_privilege then null;
             when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' filial-nula(' || sqlstate || ')'; end;
@@ -1688,8 +1688,8 @@ begin
   -- 11b — o admin da A: toda filial da A, inclusive a desativada; nunca a da B
   perform set_config('request.jwt.claims', json_build_object('sub', k_admin_a, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-        values ('WAP0009667', 'F66PAR5', 'notebook', v_fdes, 'cadastro');
+  begin insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+        values (public.empresa_legada(), 'WAP0009667', 'F66PAR5', 'notebook', v_fdes, 'cadastro');
   exception when others then v_ruins := v_ruins + 1; v_rotulos := v_rotulos || ' admin-na-desativada-recusado(' || sqlstate || ')'; end;
   begin insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem, empresa_id)
         values ('WAP0009668', 'F66PAR6', 'notebook', v_fb, 'cadastro', v_emp_b);
@@ -1719,8 +1719,8 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
   set local role authenticated;
   begin
-    insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por)
-    select a.id, 'transferencia', current_date, v_f1, v_f1, k_operador
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por)
+    select public.empresa_legada(), a.id, 'transferencia', current_date, v_f1, v_f1, k_operador
       from public.ativos a where a.patrimonio = 'WAP0009481';
     v_estado2 := 'aceito';
   exception when insufficient_privilege then v_estado2 := 'recusado';

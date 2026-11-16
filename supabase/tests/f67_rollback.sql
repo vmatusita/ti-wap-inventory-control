@@ -77,6 +77,9 @@ select pg_temp.f67_ledger() as ledger_antes
 -- O CONTRAÍDO: a cadeia inteira (o estado do CI). F67B (16/11/2026): a cadeia inteira tem a F67B por cima — ela sai
 -- PRIMEIRO (as policies do Storage dela citam e_admin_na() e empresas_de_admin(), que o rollback da F67 derruba), e o
 -- que este roteiro prova não muda: a F67 desfeita a partir do estado da 0193.
+-- F67C (16/11/2026): e a F67C antes da F67B — a cadeia inteira tem a F67C por cima (17 funções recriadas, a ferramenta de
+-- órfão nova e os defaults tirados das 20); ela sai PRIMEIRO, e o que este roteiro prova não muda.
+\ir ../rollback/F67C-desfaz.sql
 \ir ../rollback/F67B-desfaz.sql
 \ir ../rollback/F67-desfaz.sql
 

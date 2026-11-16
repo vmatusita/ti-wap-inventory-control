@@ -64,13 +64,13 @@ begin
   -- =============================================================
 
   -- a — devolucao de em_uso -> em_estoque, colaborador E setor limpos
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34DEV01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34DEV01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34DEV01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Devolucao', 'TI', v_matriz, v_prof);              -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'devolucao', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Devolucao', 'TI', v_matriz, v_prof);              -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'devolucao', v_matriz, v_prof);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
     v_ok := v_ok + 1; raise notice '✓ a devolucao de em_uso -> em_estoque (colaborador e setor limpos, F34)';
@@ -80,13 +80,13 @@ begin
   end if;
 
   -- b — devolucao de emprestado -> em_estoque
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34DEV02', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34DEV02', 'celular', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34DEV02';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'emprestimo', 'Beltrano Emprestimo', v_matriz, v_prof);            -- emprestado
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'devolucao', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'emprestimo', 'Beltrano Emprestimo', v_matriz, v_prof);            -- emprestado
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'devolucao', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then
     v_ok := v_ok + 1; raise notice '✓ b devolucao de emprestado -> em_estoque (F34)';
@@ -98,13 +98,13 @@ begin
   -- pendencias_item nascem ABERTAS — as duas coisas na MESMA assercao (é o par
   -- que a ordem cobra: F34 muda o status resultante, F18 continua abrindo a
   -- pendencia por item).
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34DEV03', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34DEV03', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34DEV03';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Sicrano Itens', v_matriz, v_prof);                       -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por)
-    values (a, 'devolucao', v_matriz, array['carregador','mouse'], v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Sicrano Itens', v_matriz, v_prof);                       -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por)
+    values (public.empresa_legada(), a, 'devolucao', v_matriz, array['carregador','mouse'], v_prof);
   select status into v_status from public.ativos where id = a;
   select count(*) into v_cnt from public.pendencias_item where ativo_id = a and status = 'aberta';
   if v_status = 'em_estoque' and v_cnt = 2 then
@@ -119,11 +119,11 @@ begin
   -- =============================================================
 
   -- d — envio_triagem de em_estoque -> em_triagem
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34TRI01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34TRI01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34TRI01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_triagem' then
     v_ok := v_ok + 1; raise notice '✓ d envio_triagem de em_estoque -> em_triagem (F34, opt-in)';
@@ -132,14 +132,14 @@ begin
   end if;
 
   -- e1 — envio_triagem de em_uso: RECUSADO
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34TRI02', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34TRI02', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34TRI02';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Uso', v_matriz, v_prof);                          -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Uso', v_matriz, v_prof);                          -- em_uso
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'envio_triagem', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ e1 envio_triagem de em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ e1 envio_triagem de em_uso rejeitada: %', sqlerrm;
@@ -147,14 +147,14 @@ begin
   end;
 
   -- e2 — envio_triagem de emprestado: RECUSADO
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34TRI03', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34TRI03', 'celular', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34TRI03';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'emprestimo', 'Ciclano Emprestimo', v_matriz, v_prof);             -- emprestado
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'emprestimo', 'Ciclano Emprestimo', v_matriz, v_prof);             -- emprestado
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'envio_triagem', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ e2 envio_triagem de emprestado: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ e2 envio_triagem de emprestado rejeitada: %', sqlerrm;
@@ -162,14 +162,14 @@ begin
   end;
 
   -- e3 — envio_triagem de reservado: RECUSADO
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34TRI04', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34TRI04', 'monitor', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34TRI04';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'reserva', 'Fulano Reserva', v_matriz, v_prof);                    -- reservado
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'reserva', 'Fulano Reserva', v_matriz, v_prof);                    -- reservado
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'envio_triagem', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ e3 envio_triagem de reservado: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ e3 envio_triagem de reservado rejeitada: %', sqlerrm;
@@ -178,14 +178,14 @@ begin
 
   -- e4 — envio_triagem de em_triagem (ja esta la): RECUSADO. O ativo fica
   -- em_triagem (a excecao desfaz só o INSERT que falhou) — reaproveitado no f1.
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34TRI05', 'desktop', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34TRI05', 'desktop', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34TRI05';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'envio_triagem', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ e4 envio_triagem de em_triagem: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ e4 envio_triagem de em_triagem rejeitada: %', sqlerrm;
@@ -195,8 +195,8 @@ begin
   -- f1 — triagem_ok de em_triagem -> em_estoque CONTINUA valendo (reaproveita o
   -- ativo de e4: o envio_triagem invalido nao mudou o estado, entao `a` segue
   -- em_triagem aqui).
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'triagem_ok', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'triagem_ok', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then
     v_ok := v_ok + 1; raise notice '✓ f1 triagem_ok de em_triagem -> em_estoque (continua valendo)';
@@ -206,8 +206,8 @@ begin
 
   -- f2 — triagem_ok de em_estoque (mesmo ativo, agora fora da triagem): RECUSADO
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (a, 'triagem_ok', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), a, 'triagem_ok', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ f2 triagem_ok de em_estoque: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ f2 triagem_ok de em_estoque rejeitada: %', sqlerrm;
@@ -223,11 +223,11 @@ begin
   -- codigo, como a ordem exige) que o ativo continua reservado e que
   -- colaborador_atual/setor_atual passam a ser os NOVOS, com as DUAS reservas
   -- na linha do tempo.
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34RES01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34RES01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34RES01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'reserva', 'Fulano da Silva Ficticio', 'TI', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'reserva', 'Fulano da Silva Ficticio', 'TI', v_matriz, v_prof);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'reservado' and v_colab = 'Fulano da Silva Ficticio' and v_setor = 'TI' then
     v_ok := v_ok + 1; raise notice '✓ g1 reserva de em_estoque -> reservado (Fulano da Silva Ficticio/TI)';
@@ -236,8 +236,8 @@ begin
       v_status, coalesce(v_colab, '(null)'), coalesce(v_setor, '(null)');
   end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'reserva', 'Ciclano Ficticio', 'Financeiro', v_matriz, v_prof);    -- RE-RESERVA
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'reserva', 'Ciclano Ficticio', 'Financeiro', v_matriz, v_prof);    -- RE-RESERVA
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'reservado' and v_colab = 'Ciclano Ficticio' and v_setor = 'Financeiro' then
     v_ok := v_ok + 1; raise notice '✓ g2 re-reserva: continua reservado, colaborador/setor viram os NOVOS (Ciclano Ficticio/Financeiro)';
@@ -270,8 +270,8 @@ begin
   -- explícita: quem inserir por fora do app (SQL direto, script, RPC futura
   -- sem essa checagem) ainda apaga o detentor em silêncio — o Zod é a única
   -- barreira, e ela mora na aplicação, não no Postgres.
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'reserva', v_matriz, v_prof);                                     -- sem colaborador/setor
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'reserva', v_matriz, v_prof);                                     -- sem colaborador/setor
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'reservado' and v_colab is null and v_setor is null then
     v_ok := v_ok + 1; raise notice '✓ h re-reserva sem colaborador (inserida por fora do app): trigger aceita, detentor fica NULO — o app recusa, o banco não';
@@ -286,13 +286,13 @@ begin
   -- =============================================================
 
   -- i1 — saida de em_triagem -> em_uso
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34SAI01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34SAI01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34SAI01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Fulano SaidaTriagem', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano SaidaTriagem', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_uso' then
     v_ok := v_ok + 1; raise notice '✓ i1 saida de em_triagem -> em_uso (ninguem fica preso na triagem)';
@@ -301,13 +301,13 @@ begin
   end if;
 
   -- i2 — descarte de em_triagem -> descartado
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34DES01', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34DES01', 'monitor', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34DES01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'descarte', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'descarte', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'descartado' then
     v_ok := v_ok + 1; raise notice '✓ i2 descarte de em_triagem -> descartado';
@@ -316,13 +316,13 @@ begin
   end if;
 
   -- i3 — envio_manutencao de em_triagem -> em_manutencao
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34MAN01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34MAN01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34MAN01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
-    values (a, 'envio_manutencao', v_matriz, 'OS-FIC-F34', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, 'OS-FIC-F34', v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_manutencao' then
     v_ok := v_ok + 1; raise notice '✓ i3 envio_manutencao de em_triagem -> em_manutencao';
@@ -331,13 +331,13 @@ begin
   end if;
 
   -- i4 — marcar_defasado de em_triagem -> defasado
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34DEF01', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34DEF01', 'celular', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34DEF01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'marcar_defasado', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'marcar_defasado', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'defasado' then
     v_ok := v_ok + 1; raise notice '✓ i4 marcar_defasado de em_triagem -> defasado';
@@ -348,13 +348,13 @@ begin
   -- i5 — transferencia de em_triagem: permanece em_triagem, muda de filial
   -- (o tipo transferencia É de filial, e a F34 não o toca — status_apos_movimentacao
   -- devolve o proprio p_status para qualquer estado fora do terminal de baixa).
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34TRF01', 'desktop', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34TRF01', 'desktop', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34TRF01';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por)
-    values (a, 'transferencia', v_matriz, v_lin, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);                                -- em_triagem
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, filial_destino_id, criado_por)
+    values (public.empresa_legada(), a, 'transferencia', v_matriz, v_lin, v_prof);
   select status, filial_id into v_status, v_filial from public.ativos where id = a;
   if v_status = 'em_triagem' and v_filial = v_lin then
     v_ok := v_ok + 1; raise notice '✓ i5 transferencia de em_triagem: continua em_triagem, muda para linhares';
@@ -382,13 +382,13 @@ begin
   -- DELETE). Sem a linha da 0109 em `envio_triagem`, ou sem a regra da 0110,
   -- esse detentor legado vazaria para `em_triagem`.
   -- =============================================================
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('ZZF34ZER01', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'ZZF34ZER01', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'ZZF34ZER01';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Detentor Fantasma', 'Comercial', v_matriz, v_prof);       -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
-    values (a, 'ajuste', 'em_estoque', 'F34 cenario j: ajuste para estado sem dono (teste)', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Detentor Fantasma', 'Comercial', v_matriz, v_prof);       -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'ajuste', 'em_estoque', 'F34 cenario j: ajuste para estado sem dono (teste)', v_matriz, v_prof);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null and v_setor is null then
     v_ok := v_ok + 1; raise notice '✓ j1 ajuste para em_estoque (estado sem dono) ZERA o detentor (F36)';
@@ -402,8 +402,8 @@ begin
      set colaborador_atual = 'Detentor Fantasma', setor_atual = 'Comercial'
    where id = a;
 
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
   select status, colaborador_atual, setor_atual into v_status, v_colab, v_setor from public.ativos where id = a;
   if v_status = 'em_triagem' and v_colab is null and v_setor is null then
     v_ok := v_ok + 1; raise notice '✓ j2 envio_triagem zera o detentor legado (0109/0110: em_triagem nao tem dono)';

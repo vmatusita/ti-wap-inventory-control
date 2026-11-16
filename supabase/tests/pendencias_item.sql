@@ -45,14 +45,14 @@ begin
   -- 1 — devolução com 2 itens cria 2 ABERTAS ligadas à movimentação,
   --     com o colaborador da ÉPOCA, e NÃO toca ativos.pendencia.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0018001', 'notebook', v_mat) returning id into a;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_mat, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Fulano Teste', v_mat, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por)
-    values (a, 'devolucao', v_mat, array['Mochila','Carregador'], v_prof) returning id into v_dev;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0018001', 'notebook', v_mat) returning id into a;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Fulano Teste', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por)
+    values (public.empresa_legada(), a, 'devolucao', v_mat, array['Mochila','Carregador'], v_prof) returning id into v_dev;
 
   select count(*), max(colaborador) into v_n, v_colab
     from public.pendencias_item where movimentacao_id = v_dev and status = 'aberta';
@@ -74,12 +74,12 @@ begin
   -- ---------------------------------------------------------------
   -- 2 — devolução SEM item marcado não cria nada.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0018002', 'monitor', v_mat) returning id into b;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (b, 'saida', 'Beltrano Teste', v_mat, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (b, 'devolucao', v_mat, v_prof) returning id into v_dev;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0018002', 'monitor', v_mat) returning id into b;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'saida', 'Beltrano Teste', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'devolucao', v_mat, v_prof) returning id into v_dev;
   select count(*) into v_n from public.pendencias_item where movimentacao_id = v_dev;
   if v_n = 0 then v_ok := v_ok + 1; raise notice '✓ 2 devolução sem item marcado não criou linha';
   else v_falhas := v_falhas + 1; raise warning '✗ 2 esperado 0 linhas, obtido %', v_n; end if;
@@ -95,10 +95,10 @@ begin
   --     nunca rodariam.
   -- ---------------------------------------------------------------
   update public.ativos set pendencia = 'sem patrimônio físico' where id = a;  -- ativo do passo 1 (em_estoque, F34)
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_mat, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'triagem_ok', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'triagem_ok', v_mat, v_prof);
   select pendencia into v_pend from public.ativos where id = a;
   if v_pend = 'sem patrimônio físico' then v_ok := v_ok + 1; raise notice '✓ 3a triagem_ok preservou o trecho alheio de pendencia';
   else v_falhas := v_falhas + 1; raise warning '✗ 3a esperado "sem patrimônio físico", obtido %', coalesce(v_pend,'(null)'); end if;
@@ -110,8 +110,8 @@ begin
   -- 4 — saída SEGUINTE do mesmo ativo (agora em_estoque) para OUTRA pessoa não
   --     cria nem limpa; a pendência continua apontando a pessoa ANTIGA (Fulano).
   -- ---------------------------------------------------------------
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (a, 'saida', 'Sicrano Novo Dono', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Sicrano Novo Dono', v_mat, v_prof);
   select count(*), max(colaborador) into v_n, v_colab
     from public.pendencias_item where ativo_id = a and status = 'aberta';
   if v_n = 2 and v_colab = 'Fulano Teste' then
@@ -121,17 +121,17 @@ begin
   -- ---------------------------------------------------------------
   -- 5 — estorno da devolução REMOVE as linhas dela (inverso simétrico).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0018005', 'celular', v_mat) returning id into c;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (c, 'saida', 'Ciclano Teste', v_mat, v_prof, now() - interval '2 min');
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por, created_at)
-    values (c, 'devolucao', v_mat, array['mochila'], v_prof, now() - interval '1 min') returning id into v_dev;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0018005', 'celular', v_mat) returning id into c;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), c, 'saida', 'Ciclano Teste', v_mat, v_prof, now() - interval '2 min');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por, created_at)
+    values (public.empresa_legada(), c, 'devolucao', v_mat, array['mochila'], v_prof, now() - interval '1 min') returning id into v_dev;
   select count(*) into v_n from public.pendencias_item where movimentacao_id = v_dev;
   if v_n = 1 then v_ok := v_ok + 1; raise notice '✓ 5a devolução criou 1 linha (pré-estorno)';
   else v_falhas := v_falhas + 1; raise warning '✗ 5a esperado 1, obtido %', v_n; end if;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-    values (c, 'estorno', v_mat, v_prof, v_dev);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+    values (public.empresa_legada(), c, 'estorno', v_mat, v_prof, v_dev);
   select count(*) into v_n from public.pendencias_item where movimentacao_id = v_dev;
   if v_n = 0 then v_ok := v_ok + 1; raise notice '✓ 5b estorno removeu a linha da devolução';
   else v_falhas := v_falhas + 1; raise warning '✗ 5b esperado 0 após estorno, obtido %', v_n; end if;
@@ -140,12 +140,12 @@ begin
   -- 6 — resolução (simula a Server Action resolverPendenciaItem): UPDATE grava
   --     status/desfecho/quem/quando e a CHECK do ciclo ACEITA (não estoura).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0018006', 'notebook', v_mat) returning id into d;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (d, 'saida', 'Deltrano Teste', v_mat, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por)
-    values (d, 'devolucao', v_mat, array['mouse pad'], v_prof) returning id into v_dev;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0018006', 'notebook', v_mat) returning id into d;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), d, 'saida', 'Deltrano Teste', v_mat, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por)
+    values (public.empresa_legada(), d, 'devolucao', v_mat, array['mouse pad'], v_prof) returning id into v_dev;
   update public.pendencias_item
     set status = 'resolvida', desfecho = 'baixa', observacao = 'não vai voltar (teste)',
         resolvida_em = now(), resolvida_por = v_prof
@@ -164,12 +164,12 @@ begin
   --     ao ramo que gera linha. Provamos que compra/ajuste marcados 'import
   --     startup' não criam pendencias_item.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, origem)
-    values ('TESTE0018007', 'notebook', v_mat, 'importacao') returning id into b;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, observacao, criado_por)
-    values (b, 'compra', v_mat, 'import startup 20/07/2026', v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
-    values (b, 'ajuste', 'em_uso', 'import startup 20/07/2026', v_mat, v_prof);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'TESTE0018007', 'notebook', v_mat, 'importacao') returning id into b;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, observacao, criado_por)
+    values (public.empresa_legada(), b, 'compra', v_mat, 'import startup 20/07/2026', v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, status_resultante, observacao, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'ajuste', 'em_uso', 'import startup 20/07/2026', v_mat, v_prof);
   select count(*) into v_n from public.pendencias_item where ativo_id = b;
   if v_n = 0 then v_ok := v_ok + 1; raise notice '✓ 7 import (compra+ajuste marcados) não abriu pendência de item';
   else v_falhas := v_falhas + 1; raise warning '✗ 7 import abriu % pendência(s) de item (deveria 0)', v_n; end if;
@@ -179,20 +179,20 @@ begin
   --     movimentação cujo snapshot capturou o texto antigo, ao ser estornada,
   --     restaura os DEMAIS trechos mas NÃO o de itens (que virou pendencias_item).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0018008', 'notebook', v_mat) returning id into b;
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0018008', 'notebook', v_mat) returning id into b;
   -- created_at explícito e crescente: dentro de UMA transação now() é constante, e o
   -- guard de estorno desempata por id (gen_random_uuid é aleatório, não monotônico).
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (b, 'saida', 'Egidio Teste', v_mat, v_prof, timestamptz '2026-06-01 09:00:00+00');  -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), b, 'saida', 'Egidio Teste', v_mat, v_prof, timestamptz '2026-06-01 09:00:00+00');  -- em_uso
   -- simula o campo livre LEGADO (pré-F18 o trigger gravava 'itens faltantes: …')
   update public.ativos set pendencia = 'itens faltantes: mochila; sem patrimônio físico' where id = b;
   -- um ajuste captura esse texto no snapshot (e não toca pendencia)
-  insert into public.movimentacoes (ativo_id, tipo, status_resultante, observacao, filial_id, criado_por, created_at)
-    values (b, 'ajuste', 'em_uso', 'teste', v_mat, v_prof, timestamptz '2026-06-01 09:01:00+00') returning id into v_dev;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, status_resultante, observacao, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), b, 'ajuste', 'em_uso', 'teste', v_mat, v_prof, timestamptz '2026-06-01 09:01:00+00') returning id into v_dev;
   -- estorna o ajuste (última mov) → restaura SEM o trecho de itens
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
-    values (b, 'estorno', v_mat, v_prof, v_dev, timestamptz '2026-06-01 09:02:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
+    values (public.empresa_legada(), b, 'estorno', v_mat, v_prof, v_dev, timestamptz '2026-06-01 09:02:00+00');
   select pendencia into v_pend from public.ativos where id = b;
   if v_pend = 'sem patrimônio físico' then
     v_ok := v_ok + 1; raise notice '✓ 8 estorno restaura sem ressuscitar "itens faltantes" (F18 §A2)';
@@ -205,22 +205,22 @@ begin
   --     (uma `entrada`, sempre válida) — é o vínculo que a resolução da F38 grava.
   --     Contraste com o cenário 5: pendência ABERTA continua sendo apagada.
   -- ---------------------------------------------------------------
-  insert into public.itens (nome, grupo, ordem) values ('Item Teste 0146', 'acessorio', 946)
+  insert into public.itens (empresa_id, nome, grupo, ordem) values (public.empresa_legada(), 'Item Teste 0146', 'acessorio', 946)
     returning id into v_item9;
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0018009', 'notebook', v_mat) returning id into b;
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (b, 'saida', 'Fulano Teste', v_mat, v_prof, now() - interval '2 min');
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por, created_at)
-    values (b, 'devolucao', v_mat, array['carregador'], v_prof, now() - interval '1 min')
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0018009', 'notebook', v_mat) returning id into b;
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), b, 'saida', 'Fulano Teste', v_mat, v_prof, now() - interval '2 min');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por, created_at)
+    values (public.empresa_legada(), b, 'devolucao', v_mat, array['carregador'], v_prof, now() - interval '1 min')
     returning id into v_dev;
   select id into v_pend9 from public.pendencias_item where movimentacao_id = v_dev;
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, pendencia_item_id, criado_por)
-    values (v_item9, v_mat, 'entrada', 1, v_pend9, v_prof);
+  insert into public.lancamentos_item (empresa_id, item_id, filial_id, tipo, quantidade, pendencia_item_id, criado_por)
+    values (public.empresa_legada(), v_item9, v_mat, 'entrada', 1, v_pend9, v_prof);
   v_msg9 := null;
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-      values (b, 'estorno', v_mat, v_prof, v_dev);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+      values (public.empresa_legada(), b, 'estorno', v_mat, v_prof, v_dev);
   exception when others then
     v_msg9 := sqlstate || ' ' || sqlerrm;
   end;

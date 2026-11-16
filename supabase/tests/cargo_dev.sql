@@ -194,34 +194,34 @@ begin
   perform set_config('estoque.gestao_usuarios', 'off', true);
 
   -- Ativos em cada filial.
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009101', 'F22TST1', 'notebook', v_f1, 'cadastro') returning id into v_ativo_f1;
-  insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-  values ('WAP0009102', 'F22TST2', 'notebook', v_f2, 'cadastro') returning id into v_ativo_f2;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009101', 'F22TST1', 'notebook', v_f1, 'cadastro') returning id into v_ativo_f1;
+  insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+  values (public.empresa_legada(), 'WAP0009102', 'F22TST2', 'notebook', v_f2, 'cadastro') returning id into v_ativo_f2;
 
   -- HISTÓRICO DA VÍTIMA — o que a seção 6 exige que sobreviva ao apagar.
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, colaborador, criado_por)
-  values (v_ativo_f1, 'saida', current_date, v_f1, 'Sicrano de Teste', k_vitima)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, colaborador, criado_por)
+  values (public.empresa_legada(), v_ativo_f1, 'saida', current_date, v_f1, 'Sicrano de Teste', k_vitima)
   returning id into v_mov_vit;
-  insert into public.anotacoes (ativo_id, texto, criado_por)
-  values (v_ativo_f2, 'anotacao ficticia da vitima', k_vitima)
+  insert into public.anotacoes (empresa_id, ativo_id, texto, criado_por)
+  values (public.empresa_legada(), v_ativo_f2, 'anotacao ficticia da vitima', k_vitima)
   returning id into v_anot_vit;
   -- F67B (16/11/2026): a linha de termos_gerados que a 1h precisa — desde a 0198 o .docx só é gravável se uma LINHA o
   -- referencia (o persistirTermo grava a linha ANTES do upload). A 1h continua provando o mesmo fato: o dev escreve o
   -- arquivo do termo que ele pode escrever (a linha passa pela empresa e pela filial do ativo).
-  insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
-  values (v_termo_1h, 'responsabilidade_notebook', array[v_mov_vit], array[v_ativo_f1], 'Sicrano de Teste', '{}'::jsonb,
+  insert into public.termos_gerados (empresa_id, id, tipo, movimentacao_ids, ativo_ids, colaborador, dados, arquivo_path, gerado_por)
+  values (public.empresa_legada(), v_termo_1h, 'responsabilidade_notebook', array[v_mov_vit], array[v_ativo_f1], 'Sicrano de Teste', '{}'::jsonb,
           v_termo_1h::text || '.docx', k_vitima);
 
   -- Fixtures das tabelas fechadas (num banco NOVO elas nascem vazias, e "ver 0 linhas de
   -- tabela vazia" não prova policy nenhuma).
-  insert into public.import_logs (
+  insert into public.import_logs (empresa_id, 
     filial_id, modo, arquivo_hash, total_linhas,
     ativos_criados, movs_apagadas, anotacoes_apagadas, termos_apagados,
     backup_path, correcoes, criado_por
-  ) values (v_f1, 'substituir', 'hash-f22', 0, 0, 0, 0, 0, 'f22/backup.csv', '[]'::jsonb, k_admin);
-  insert into public.eventos_admin (acao, autor, alvo, detalhe)
-  values ('papel_alterado', k_admin, 'f22.operador@wap.ind.br', '{"de":"consulta","para":"operador"}'::jsonb);
+  ) values (public.empresa_legada(), v_f1, 'substituir', 'hash-f22', 0, 0, 0, 0, 0, 'f22/backup.csv', '[]'::jsonb, k_admin);
+  insert into public.eventos_admin (empresa_id, acao, autor, alvo, detalhe)
+  values (public.empresa_legada(), 'papel_alterado', k_admin, 'f22.operador@wap.ind.br', '{"de":"consulta","para":"operador"}'::jsonb);
 
   -- =========================================================================
   -- 1 — DEV É NÍVEL ADMINISTRADOR (e mais do que e_admin() sozinho entrega)
@@ -242,7 +242,7 @@ begin
 
   -- 1a. catálogo de admin (policy e_admin) — o ganho da redefinição
   begin
-    insert into public.motivos (codigo, rotulo, aplica_a) values ('f22_teste', 'Motivo F22', array['saida']::public.tipo_movimentacao[]);
+    insert into public.motivos (empresa_id, codigo, rotulo, aplica_a) values (public.empresa_legada(), 'f22_teste', 'Motivo F22', array['saida']::public.tipo_movimentacao[]);
     v_ok := v_ok + 1; raise notice '✓ 1a dev INSERE em motivos (policy e_admin)';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1a; ';
@@ -298,10 +298,10 @@ begin
   -- 1e. ESCRITA POR FILIAL — o buraco que e_admin() não tapa (pode_escrever_filial).
   --     Nas DUAS filiais, sem nenhuma linha em operador_filiais.
   begin
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009111', 'F22DEV1', 'notebook', v_f1, 'cadastro');
-    insert into public.ativos (patrimonio, service_tag, categoria, filial_id, origem)
-    values ('WAP0009112', 'F22DEV2', 'notebook', v_f2, 'cadastro');
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009111', 'F22DEV1', 'notebook', v_f1, 'cadastro');
+    insert into public.ativos (empresa_id, patrimonio, service_tag, categoria, filial_id, origem)
+    values (public.empresa_legada(), 'WAP0009112', 'F22DEV2', 'notebook', v_f2, 'cadastro');
     v_ok := v_ok + 1; raise notice '✓ 1e dev INSERE ativo nas DUAS filiais, sem vínculo';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1e_SEM_ESCRITA_DE_FILIAL; ';
@@ -310,7 +310,7 @@ begin
 
   -- 1f / 1g. as duas policies que gateavam por LISTA LITERAL de cargo (agora pode_escrever())
   begin
-    insert into public.anotacoes (ativo_id, texto, criado_por) values (v_ativo_f1, 'nota do dev', k_dev);
+    insert into public.anotacoes (empresa_id, ativo_id, texto, criado_por) values (public.empresa_legada(), v_ativo_f1, 'nota do dev', k_dev);
     v_ok := v_ok + 1; raise notice '✓ 1f dev ANOTA (policy pode_escrever)';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1f_LISTA_LITERAL; ';
@@ -318,8 +318,8 @@ begin
   end;
 
   begin
-    insert into public.relatorios_gerados (periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
-    values (current_date, current_date, v_f1, 1, '{}'::jsonb, k_dev);
+    insert into public.relatorios_gerados (empresa_id, periodo_de, periodo_ate, filial_id, versao, dados, gerado_por)
+    values (public.empresa_legada(), current_date, current_date, v_f1, 1, '{}'::jsonb, k_dev);
     v_ok := v_ok + 1; raise notice '✓ 1g dev GERA snapshot de relatório (policy pode_escrever)';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '1g_LISTA_LITERAL; ';

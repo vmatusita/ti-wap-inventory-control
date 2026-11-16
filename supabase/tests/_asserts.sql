@@ -326,6 +326,26 @@ begin
 end;
 $fn$;
 
+-- =============================================================
+-- ESCREVER A COLUNA NÃO É LÊ-LA (F67C, 16/11/2026 — decisão 6 do PLAN-F67C)
+-- =============================================================
+-- O texto (minúsculo) sem as duas coisas que são ESCRITA de `empresa_id`, e só elas: a LISTA DE COLUNAS de
+-- `insert into T (…)` (o nome da tabela FICA — a tabela continua citada) e o ALVO de `on conflict (…)` (a inferência
+-- do árbitro). `returning empresa_id`, `select … empresa_id`, `where x.empresa_id`, o `do update … where` continuam no
+-- texto: são LEITURA. Usada pelo predicado único abaixo (15h, 7b, 6 de empresa_no_vocabulario) e pela 7b/7d de
+-- empresa_no_acervo.sql. O espelho de disco é `neutralizarEscrita` em src/lib/validators/empresa-acervo-sem-leitura.test.ts.
+create or replace function pg_temp.sem_lista_de_escrita(p_texto text)
+returns text
+language sql
+immutable
+as $fn$
+  select regexp_replace(
+           regexp_replace(lower(p_texto),
+             '(\minsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?[a-z_][a-z0-9_]*(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*)\([^()]*\)',
+             '\1()', 'g'),
+           '\mon\s+conflict\s*\((?:[^()]|\([^()]*\))*\)', 'on conflict ()', 'g')
+$fn$;
+
 create or replace function pg_temp.leitura_de_empresa_do_lote(
   p_funcao      text,
   p_corpo       text,
@@ -373,10 +393,7 @@ begin
   -- tabela continua citada) e o ALVO de `on conflict (…)` (a inferência do árbitro). Tudo o mais continua LEITURA e
   -- acusa como antes: `returning empresa_id`, `select … empresa_id`, `where x.empresa_id = …`, o `do update … where`
   -- (a sabotagem G da F67C prova que a régua de leitura não afrouxou).
-  v_codigo := regexp_replace(v_codigo,
-    '(\minsert\s+into\s+(?:only\s+)?(?:public\s*\.\s*)?[a-z_][a-z0-9_]*(?:\s+as\s+[a-z_][a-z0-9_]*)?\s*)\([^()]*\)',
-    '\1()', 'g');
-  v_codigo := regexp_replace(v_codigo, '\mon\s+conflict\s*\((?:[^()]|\([^()]*\))*\)', 'on conflict ()', 'g');
+  v_codigo := pg_temp.sem_lista_de_escrita(v_codigo);
   if v_codigo !~ '\mempresa_id\M'
      or (v_codigo !~ v_re_lote and not (v_gatilho_no_lote and v_codigo ~ '\m(new|old)\s*\.\s*empresa_id\M')) then
     return null;

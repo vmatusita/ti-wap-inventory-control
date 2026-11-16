@@ -56,8 +56,8 @@ language plpgsql
 as $f$
 begin
   if p_empresa is null then
-    insert into public.kits_modelos (nome, payload, criado_por)
-    values (p_nome, p_payload, '64000000-0000-4000-8000-00000000c0de');
+    insert into public.kits_modelos (empresa_id, nome, payload, criado_por)
+    values (public.empresa_legada(), p_nome, p_payload, '64000000-0000-4000-8000-00000000c0de');
   else
     execute 'insert into public.kits_modelos (nome, payload, criado_por, empresa_id) values ($1, $2, $3, $4)'
       using p_nome, p_payload, '64000000-0000-4000-8000-00000000c0de'::uuid, p_empresa;
@@ -145,8 +145,8 @@ begin
 
   -- A FIXTURE: a empresa B, um motivo que SÓ existe nela, e um motivo da WAP (o default).
   insert into public.empresas (slug, nome) values ('f64-kit-b', 'Empresa B do kit (F64)') returning id into k_emp_b;
-  insert into public.motivos (codigo, rotulo, aplica_a)
-  values ('f64-da-wap', 'Motivo F64 da WAP', array['saida']::public.tipo_movimentacao[]);
+  insert into public.motivos (empresa_id, codigo, rotulo, aplica_a)
+  values (public.empresa_legada(), 'f64-da-wap', 'Motivo F64 da WAP', array['saida']::public.tipo_movimentacao[]);
   begin
     execute 'insert into public.motivos (codigo, rotulo, aplica_a, empresa_id) values ($1, $2, $3, $4)'
       using 'f64-so-na-b', 'Motivo F64 só da empresa B', array['saida']::public.tipo_movimentacao[], k_emp_b;
@@ -367,14 +367,14 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims', json_build_object('sub', k_admin, 'role', 'authenticated')::text, true);
   begin
-    insert into public.kits_modelos (nome, payload, criado_por)
-    values ('F64 kit do admin com motivo da WAP', '{"tipo": "saida", "motivo": "f64-da-wap", "categorias": ["notebook"]}', k_admin);
+    insert into public.kits_modelos (empresa_id, nome, payload, criado_por)
+    values (public.empresa_legada(), 'F64 kit do admin com motivo da WAP', '{"tipo": "saida", "motivo": "f64-da-wap", "categorias": ["notebook"]}', k_admin);
   exception when others then
     v_ruins := v_ruins + 1; v_rot := v_rot || ' motivo-da-WAP(' || sqlstate || ': ' || sqlerrm || ')';
   end;
   begin
-    insert into public.kits_modelos (nome, payload, criado_por)
-    values ('F64 kit do admin com motivo da B', '{"tipo": "saida", "motivo": "f64-so-na-b", "categorias": ["notebook"]}', k_admin);
+    insert into public.kits_modelos (empresa_id, nome, payload, criado_por)
+    values (public.empresa_legada(), 'F64 kit do admin com motivo da B', '{"tipo": "saida", "motivo": "f64-so-na-b", "categorias": ["notebook"]}', k_admin);
     v_ruins := v_ruins + 1; v_rot := v_rot || ' motivo-da-B(passou)';
   exception when others then
     if not pg_temp.f64_recusa_do_kit(sqlstate || ': ' || sqlerrm) then

@@ -55,38 +55,38 @@ begin
   -- devolucao passa a resultar direto em_estoque — a triagem virou OPT-IN) ->
   -- em_triagem (envio_triagem, manual) -> em_estoque (triagem_ok).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000001', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000001', 'notebook', v_matriz);
   select id into a from public.ativos where patrimonio = 'TESTE0000001';
 
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then v_ok := v_ok + 1; raise notice '✓ 1a compra -> em_estoque';
   else v_falhas := v_falhas + 1; raise warning '✗ 1a compra: esperado em_estoque, obtido %', v_status; end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (a, 'saida', 'Colaborador Teste', 'TI', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'saida', 'Colaborador Teste', 'TI', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'em_uso' and v_colab = 'Colaborador Teste' then v_ok := v_ok + 1; raise notice '✓ 1b saida -> em_uso (colaborador setado)';
   else v_falhas := v_falhas + 1; raise warning '✗ 1b saida: esperado em_uso/Colaborador Teste, obtido %/%', v_status, v_colab; end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'devolucao', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'devolucao', v_matriz, v_prof);
   select status, colaborador_atual into v_status, v_colab from public.ativos where id = a;
   if v_status = 'em_estoque' and v_colab is null then v_ok := v_ok + 1; raise notice '✓ 1c devolucao -> em_estoque (colaborador limpo, F34)';
   else v_falhas := v_falhas + 1; raise warning '✗ 1c devolucao: esperado em_estoque/null, obtido %/%', v_status, v_colab; end if;
 
   -- F34: a triagem virou OPT-IN — precisa de um envio_triagem manual para o
   -- ativo chegar a em_triagem antes do triagem_ok (senão a transicao é invalida).
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'envio_triagem', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'envio_triagem', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_triagem' then v_ok := v_ok + 1; raise notice '✓ 1c2 envio_triagem -> em_triagem (F34, opt-in)';
   else v_falhas := v_falhas + 1; raise warning '✗ 1c2 envio_triagem: esperado em_triagem, obtido %', v_status; end if;
 
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'triagem_ok', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'triagem_ok', v_matriz, v_prof);
   select status into v_status from public.ativos where id = a;
   if v_status = 'em_estoque' then v_ok := v_ok + 1; raise notice '✓ 1d triagem_ok -> em_estoque';
   else v_falhas := v_falhas + 1; raise warning '✗ 1d triagem_ok: esperado em_estoque, obtido %', v_status; end if;
@@ -94,14 +94,14 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 2 — transicao invalida: saida de ativo em_uso DEVE falhar
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000002', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000002', 'notebook', v_matriz);
   select id into b from public.ativos where patrimonio = 'TESTE0000002';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (b, 'saida', 'Colaborador Teste', v_matriz, v_prof);  -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'saida', 'Colaborador Teste', v_matriz, v_prof);  -- em_uso
   begin
-    insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-      values (b, 'saida', 'Outro Teste', v_matriz, v_prof);       -- invalido
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+      values (public.empresa_legada(), b, 'saida', 'Outro Teste', v_matriz, v_prof);       -- invalido
     v_falhas := v_falhas + 1; raise warning '✗ 2 saida de em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then
@@ -115,19 +115,19 @@ begin
   -- CENARIO 3 — estorno da ULTIMA movimentacao restaura estado completo
   --   (status, colaborador, setor, filial). Estornamos uma transferencia.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000003', 'celular', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000003', 'celular', v_matriz);
   select id into c from public.ativos where patrimonio = 'TESTE0000003';
   -- created_at explicito e crescente: dentro de UMA transacao now() e constante,
   -- entao o guard de estorno (que ordena por created_at) precisa de ordem real.
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
-    values (c, 'saida', 'Ciclano Teste', 'RH', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso @ matriz
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por, created_at)
-    values (c, 'transferencia', v_matriz, v_linhares, v_prof, timestamptz '2026-06-01 10:01:00+00');       -- em_uso @ linhares
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), c, 'saida', 'Ciclano Teste', 'RH', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso @ matriz
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, filial_destino_id, criado_por, created_at)
+    values (public.empresa_legada(), c, 'transferencia', v_matriz, v_linhares, v_prof, timestamptz '2026-06-01 10:01:00+00');       -- em_uso @ linhares
   select id into v_transf from public.movimentacoes
     where ativo_id = c and tipo = 'transferencia' order by created_at desc limit 1;
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-    values (c, 'estorno', v_linhares, v_prof, v_transf);                -- desfaz a transferencia
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+    values (public.empresa_legada(), c, 'estorno', v_linhares, v_prof, v_transf);                -- desfaz a transferencia
   select status, colaborador_atual, setor_atual, filial_id
     into v_status, v_colab, v_setor, v_filial from public.ativos where id = c;
   if v_status = 'em_uso' and v_colab = 'Ciclano Teste' and v_setor = 'RH' and v_filial = v_matriz then
@@ -141,20 +141,20 @@ begin
   -- CENARIO 4 — estorno de movimentacao ANTIGA (nao-ultima) DEVE falhar
   --   ativo: saida -> devolucao; tenta estornar a SAIDA (a ultima e a devolucao)
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000004', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000004', 'monitor', v_matriz);
   select id into d from public.ativos where patrimonio = 'TESTE0000004';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (d, 'saida', 'Beltrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (d, 'devolucao', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');                 -- em_estoque (F34)
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), d, 'saida', 'Beltrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00');  -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), d, 'devolucao', v_matriz, v_prof, timestamptz '2026-06-01 10:01:00+00');                 -- em_estoque (F34)
   declare v_saida uuid;
   begin
     select id into v_saida from public.movimentacoes
       where ativo_id = d and tipo = 'saida' order by created_at asc limit 1;
     begin
-      insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-        values (d, 'estorno', v_matriz, v_prof, v_saida);               -- nao-ultima
+      insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+        values (public.empresa_legada(), d, 'estorno', v_matriz, v_prof, v_saida);               -- nao-ultima
       v_falhas := v_falhas + 1; raise warning '✗ 4 estorno de mov. antiga: NAO falhou (deveria)';
     exception when others then
       if sqlerrm like '%ultima movimentacao%' then
@@ -170,19 +170,19 @@ begin
   -- terminam em em_uso). Estorno da SAIDA (nao-ultima) DEVE falhar, mesmo com o
   -- status coincidindo (o proxy antigo por status_resultante deixava passar).
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000007', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000007', 'notebook', v_matriz);
   select id into g from public.ativos where patrimonio = 'TESTE0000007';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
-    values (g, 'saida', 'Sicrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00'); -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, filial_destino_id, criado_por, created_at)
-    values (g, 'transferencia', v_matriz, v_linhares, v_prof, timestamptz '2026-06-01 10:01:00+00'); -- em_uso @ linhares
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), g, 'saida', 'Sicrano Teste', v_matriz, v_prof, timestamptz '2026-06-01 10:00:00+00'); -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, filial_destino_id, criado_por, created_at)
+    values (public.empresa_legada(), g, 'transferencia', v_matriz, v_linhares, v_prof, timestamptz '2026-06-01 10:01:00+00'); -- em_uso @ linhares
   declare v_saida_g uuid;
   begin
     select id into v_saida_g from public.movimentacoes where ativo_id = g and tipo = 'saida' limit 1;
     begin
-      insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de)
-        values (g, 'estorno', v_linhares, v_prof, v_saida_g);           -- nao-ultima (mesmo status!)
+      insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de)
+        values (public.empresa_legada(), g, 'estorno', v_linhares, v_prof, v_saida_g);           -- nao-ultima (mesmo status!)
       v_falhas := v_falhas + 1; raise warning '✗ 4b estorno de saida nao-ultima (mesmo status): NAO falhou (deveria)';
     exception when others then
       if sqlerrm like '%ultima movimentacao%' then
@@ -207,13 +207,13 @@ begin
   -- inteiro e o CENARIO 6 nunca rodaria — era exatamente o defeito que a F34
   -- introduziria aqui.
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000005', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000005', 'notebook', v_matriz);
   select id into e from public.ativos where patrimonio = 'TESTE0000005';
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, filial_id, criado_por)
-    values (e, 'saida', 'Fulano Teste', v_matriz, v_prof);              -- em_uso
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, itens_faltantes, criado_por)
-    values (e, 'devolucao', v_matriz, array['carregador','mochila'], v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, filial_id, criado_por)
+    values (public.empresa_legada(), e, 'saida', 'Fulano Teste', v_matriz, v_prof);              -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, itens_faltantes, criado_por)
+    values (public.empresa_legada(), e, 'devolucao', v_matriz, array['carregador','mochila'], v_prof);
   select pendencia into v_pend from public.ativos where id = e;
   if v_pend is null then
     v_ok := v_ok + 1; raise notice '✓ 5a devolucao com itens_faltantes NAO toca ativos.pendencia (F18)';
@@ -224,10 +224,10 @@ begin
   update public.ativos set pendencia = 'sem patrimônio físico' where id = e;  -- trecho alheio
   -- F34: envio_triagem manual antes do triagem_ok (a devolucao acima ja deixou o
   -- ativo em_estoque, nao em_triagem — ver nota do cabecalho deste cenario).
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (e, 'envio_triagem', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (e, 'triagem_ok', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), e, 'envio_triagem', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), e, 'triagem_ok', v_matriz, v_prof);
   select pendencia into v_pend from public.ativos where id = e;
   if v_pend = 'sem patrimônio físico' then
     v_ok := v_ok + 1; raise notice '✓ 5c triagem_ok preserva o trecho alheio de pendencia (F18, bug §0.1b)';
@@ -237,13 +237,13 @@ begin
   -- CENARIO 6 — transferencia muda filial_id e conta nas DUAS filiais
   --   (mesma logica de union da view v_movimentacoes_mes)
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTE0000006', 'desktop', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTE0000006', 'desktop', v_matriz);
   select id into f from public.ativos where patrimonio = 'TESTE0000006';
   -- Data em dezembro/2026: FORA da janela do seed (jan-jul), para isolar esta
   -- transferencia na view v_movimentacoes_mes (nenhuma outra linha nesse mes).
-  insert into public.movimentacoes (ativo_id, tipo, data, filial_id, filial_destino_id, criado_por)
-    values (f, 'transferencia', date '2026-12-15', v_matriz, v_linhares, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, data, filial_id, filial_destino_id, criado_por)
+    values (public.empresa_legada(), f, 'transferencia', date '2026-12-15', v_matriz, v_linhares, v_prof);
   select filial_id into v_filial from public.ativos where id = f;
   if v_filial = v_linhares then v_ok := v_ok + 1; raise notice '✓ 6a transferencia mudou filial_id p/ linhares';
   else v_falhas := v_falhas + 1; raise warning '✗ 6a filial: esperado linhares, obtido %', v_filial; end if;

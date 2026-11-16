@@ -64,13 +64,13 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 1 (C3) — RPC devolver_ao_fornecedor grava o substituto como 'troca'
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id, fornecedor)
-    values ('TESTEF15001', 'celular', v_matriz, 'Proprinter Fic');
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id, fornecedor)
+    values (public.empresa_legada(), 'TESTEF15001', 'celular', v_matriz, 'Proprinter Fic');
   select id into a from public.ativos where patrimonio = 'TESTEF15001';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (a, 'compra', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, chamado, chamado_fornecedor, criado_por)
-    values (a, 'envio_manutencao', v_matriz, '77015', 'OS-FORN-15A', v_prof); -- em_manutencao
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), a, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, chamado, chamado_fornecedor, criado_por)
+    values (public.empresa_legada(), a, 'envio_manutencao', v_matriz, '77015', 'OS-FORN-15A', v_prof); -- em_manutencao
 
   select mov_id, substituto_id, substituto_mov_id
     into v_mov, v_subid, v_submov
@@ -105,11 +105,11 @@ begin
   -- CENARIO 2 (C3) — 'troca' só no NASCIMENTO (em_estoque -> em_estoque)
   -- ---------------------------------------------------------------
   -- 2a. troca direta num ativo recém-criado (em_estoque) grava e mantém em_estoque
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTEF15002', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF15002', 'notebook', v_matriz);
   select id into b from public.ativos where patrimonio = 'TESTEF15002';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (b, 'troca', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), b, 'troca', v_matriz, v_prof);
   select status into v_status from public.ativos where id = b;
   if v_status = 'em_estoque' then
     v_ok := v_ok + 1; raise notice '✓ 2a troca no nascimento (em_estoque -> em_estoque)';
@@ -118,16 +118,16 @@ begin
   end if;
 
   -- 2b. troca a partir de um estado que NÃO é em_estoque DEVE falhar (inalcançável fora do nascimento)
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTEF15003', 'notebook', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF15003', 'notebook', v_matriz);
   select id into c from public.ativos where patrimonio = 'TESTEF15003';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-    values (c, 'compra', v_matriz, v_prof);
-  insert into public.movimentacoes (ativo_id, tipo, colaborador, setor, filial_id, criado_por)
-    values (c, 'saida', 'Fulano Fic', 'TI', v_matriz, v_prof); -- em_uso
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+    values (public.empresa_legada(), c, 'compra', v_matriz, v_prof);
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, colaborador, setor, filial_id, criado_por)
+    values (public.empresa_legada(), c, 'saida', 'Fulano Fic', 'TI', v_matriz, v_prof); -- em_uso
   begin
-    insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por)
-      values (c, 'troca', v_matriz, v_prof);
+    insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por)
+      values (public.empresa_legada(), c, 'troca', v_matriz, v_prof);
     v_falhas := v_falhas + 1; raise warning '✗ 2b troca de em_uso: NAO falhou (deveria)';
   exception when others then
     if sqlerrm like '%invalida%' then v_ok := v_ok + 1; raise notice '✓ 2b troca fora do nascimento (de em_uso) rejeitada';
@@ -137,14 +137,14 @@ begin
   -- ---------------------------------------------------------------
   -- CENARIO 3 (C3) — estorno de uma 'troca' restaura o snapshot (mecanismo genérico)
   -- ---------------------------------------------------------------
-  insert into public.ativos (patrimonio, categoria, filial_id)
-    values ('TESTEF15004', 'monitor', v_matriz);
+  insert into public.ativos (empresa_id, patrimonio, categoria, filial_id)
+    values (public.empresa_legada(), 'TESTEF15004', 'monitor', v_matriz);
   select id into a from public.ativos where patrimonio = 'TESTEF15004';
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, created_at)
-    values (a, 'troca', v_matriz, v_prof, timestamptz '2026-07-10 10:00:00+00')
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, created_at)
+    values (public.empresa_legada(), a, 'troca', v_matriz, v_prof, timestamptz '2026-07-10 10:00:00+00')
     returning id into v_troca;                                     -- em_estoque (nascimento)
-  insert into public.movimentacoes (ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
-    values (a, 'estorno', v_matriz, v_prof, v_troca, timestamptz '2026-07-10 10:01:00+00');
+  insert into public.movimentacoes (empresa_id, ativo_id, tipo, filial_id, criado_por, estorno_de, created_at)
+    values (public.empresa_legada(), a, 'estorno', v_matriz, v_prof, v_troca, timestamptz '2026-07-10 10:01:00+00');
   select status into v_status from public.ativos where id = a;
   select count(*) into v_cnt from public.ativos where id = a;
   if v_status = 'em_estoque' and v_cnt = 1 then
@@ -187,8 +187,8 @@ begin
   -- CENARIO 5 (C1.2) — import end-to-end: ST vazia importa e nasce com pendência
   -- ---------------------------------------------------------------
   -- filial de teste: id gerado pela identity (GENERATED ALWAYS) — evita colisão em DEV e no CI.
-  insert into public.filiais (slug, nome, ativo)
-    values ('teste-f15-troca', 'Filial Teste F15', true)
+  insert into public.filiais (empresa_id, slug, nome, ativo)
+    values (public.empresa_legada(), 'teste-f15-troca', 'Filial Teste F15', true)
     returning id into v_ft;
   -- contexto de operador para a RPC (usa auth.uid() sem fallback).
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof::text)::text, true);
