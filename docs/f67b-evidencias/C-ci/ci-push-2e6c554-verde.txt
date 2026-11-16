@@ -1,0 +1,17 @@
+# CI, job banco-sem-docker — run 43894520702, push 2e6c554 (16/11/2026): VERDE. A cadeia inteira 0001–0199 num Postgres 17 limpo,
+# os roteiros sem nenhum ✗ (as duas constantes medidas no push anterior entraram), o injetor 182/182 detectadas pelo cenário
+# nomeado, e o gate de deriva de tipos verde. O job verificar (lint, testes, build) também verde.
+
+banco ....... 38 relações · 360 colunas · 105 funções
+database.ts . 38 relações · 360 colunas · 105 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+psql:supabase/tests/catalogo_policies.sql:2341: NOTICE:  FIM catalogo_policies: 46 asserções, 0 falhas
+psql:supabase/tests/definer_sem_tenant.sql:485: NOTICE:  FIM definer_sem_tenant: 9 asserções, 0 falhas
+psql:supabase/tests/f67_rollback.sql:179: NOTICE:  FIM f67_rollback: 7 asserções, 0 falhas
+psql:supabase/tests/f67b_rollback.sql:204: NOTICE:  FIM f67b_rollback: 9 asserções, 0 falhas
+psql:supabase/tests/integridade_tenant.sql:600: NOTICE:  FIM integridade_tenant: 24 asserções, 0 falhas
+psql:supabase/tests/storage_por_empresa.sql:566: NOTICE:  FIM storage_por_empresa: 36 asserções, 0 falhas
+psql:supabase/tests/storage_termo.sql:369: NOTICE:  FIM storage_termo: 15 asserções, 0 falhas
+  63 roteiro(s), 1299 asserções no total
+controle verde: 32 roteiro(s), nenhum ✗.
+182/182 detectadas pelo cenário nomeado · 96730 ms no total

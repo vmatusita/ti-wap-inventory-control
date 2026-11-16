@@ -1,0 +1,14 @@
+# F67B — o "antes" do ENSAIO (sgmvldiizsrjbxzzpmhh, PG 17.11), 16/11/2026, pelo MCP execute_sql (so leitura), depois de
+# o conector voltar a autenticar (a 6a tentativa; as cinco primeiras responderam 28P01). So contagem, nome e hash.
+ledger: 190 entradas, max 20261113122956, a 0193 presente, 0 da F67B
+funcoes public: 114 (69 security definer) — md5 (assinatura:md5(prosrc):definer:proconfig:acl) 68eb62ea298559046ea62137b651ac5e
+policies public+storage: 62 (8 em storage.objects) — md5 (esquema.tabela/nome/cmd/qual/with_check) 5b5afb6f4a9499c75a605bf8d9f86a9f
+empresas=1 | memberships ativas=3
+
+# bucket termos: 2 objetos (forma <uuid>.docx na raiz), 2 linhas de termos_gerados, 0 sem linha
+# bucket backups-import: 4 objetos, todos import/filial-N/<carimbo>.json (forma antiga), 0 na forma nova, 0 fora
+
+# as 13 checagens (checagens_integridade_nucleo, so o total)
+patrimonio_duplicado 0 · ativo_filial_inativa 0 · termo_sem_arquivo 0 · perfil_sem_conta 0 · conta_sem_perfil 0
+pendencia_de_estornada 0 · operador_sem_filial 1 · arquivo_termo_orfao 0 · conflito_entre_filiais 0
+detentor_em_estado_sem_dono 0 · reserva_aberta 0 · backup_orfao 0 · kit_motivo_orfao 0

@@ -289,7 +289,8 @@ Broadcast nem Presence (nada muda).
     tabelas em produção. A "RLS na publication" da ficha é a RLS de SELECT da TABELA (a doc oficial); a trava de catálogo
     (§9 estendido em `catalogo_policies.sql`) exige de toda tabela da publication: RLS ligada, `empresa_id`, policy de
     SELECT com o recorte da F66 (pela FORMA — o mesmo analisador da 16a) e replica identity NÃO-`full` (o DELETE não
-    passa pela RLS — com `full`, a linha velha inteira iria a todo assinante). `nomeDoCanal` não muda.
+    passa pela RLS — com `full` e a RLS DESLIGADA, a linha velha inteira iria a todo assinante; com a RLS ligada, a doc
+    oficial garante só a chave primária: a 9e é defesa em profundidade, corrigida assim na execução). `nomeDoCanal` não muda.
 14. **A trava da legada no Storage:** de CATÁLOGO, em `storage_por_empresa.sql` (bloco L): nenhuma policy de
     `storage.objects` e nenhuma função da tabela-verdade do Storage (§2.2) cita `empresa_legada()`, fora da exceção
     nominal (a cláusula da 16/11-1 em `backups-import leitura operador`, com motivo). A catraca TS só muda pelas três
@@ -304,7 +305,8 @@ Broadcast nem Presence (nada muda).
     Qualquer outra é bloqueio. A sabotagem I prova que o bloco acha divergência.
 16. **O injetor:** uma mutação por classe de trava nova que nenhum teste de mesa derruba — as sete candidatas da ordem
     mais "a escrita volta a aceitar a forma antiga" e "o degenerado aberto a qualquer admin" (§7). Teto **170 → 179**.
-    *(Medido na execução: **12** mutações, teto **170 → 182** no número exato — a idade mínima da ferramenta de órfão
+    *(Medido na execução: **12** mutações, teto **170 → 182** no número exato, e **+2** da revisão adversarial (a 9d e a 9c
+    da publication): **184** — a idade mínima da ferramenta de órfão
     (decisão 19), a 12ª reconhecendo cópia sem trilha e a gravação sem a empresa do caminho entraram, cada uma medida
     DETECTADA na mesa PGlite antes do push: `docs/f67b-evidencias/E-mutacoes/`. As mutações ANTIGAS que miravam os corpos
     que a 0195/0199 recriam com `create or replace` passaram a `mutarFuncao`, com o trecho da forma nova.)*
@@ -379,7 +381,7 @@ cada `\ir ../rollback/F67-desfaz.sql`.
 | 12ª nas duas formas (`storage_por_empresa.sql`, bloco D) | vermelho | backup novo + trilha não conta; antigo + trilha não conta; sem trilha conta, nas duas |
 | `persistir.test.ts` (novo) | vermelho | a ordem e o rollback nos dois ramos e nas falhas, com o client simulado |
 | `superficie-admin.test.ts` | vermelho até o import declarar | o client administrativo só no passo dos `.docx` |
-| injetor | — | doze mutações novas (§4, 16), medidas DETECTADAS na mesa |
+| injetor | — | catorze mutações novas (§4, 16), medidas DETECTADAS na mesa |
 | `f67b_rollback.sql` (novo) + `rollback-f67b.test.ts` | — | os dois estados contra a impressão do CI antes da `0194` |
 
 As sabotagens A a J da ordem saem do CI (roteiros e injetor) e da mesa; a I (conta a conta sabotado) e a J (rollback em

@@ -14100,7 +14100,8 @@ topo do relatório. Produção foi lida (só leitura: o "antes", o conta a conta
   não tem registro.
 - **O card da ferramenta de órfão** na Zona destrutiva usa a contagem da 8ª checagem; se a de 1 hora diferir, o banco
   recusa e a mensagem diz o número de agora (nada é apagado).
-- **O injetor:** doze mutações (não as nove do plano), teto 170 → 182 no número exato, cada uma medida DETECTADA na mesa
+- **O injetor:** catorze mutações (não as nove do plano), teto 170 → 184 no número exato — doze da execução e duas da
+  revisão adversarial (a 9d e a 9c da publication do Realtime, que a ordem lista entre as candidatas) —, cada uma medida DETECTADA na mesa
   PGlite antes do push; as antigas que miravam os corpos recriados pela 0195/0199 passaram a `mutarFuncao`.
 - **O rollback** roda IMEDIATAMENTE antes do da F67 em todos os roteiros de rollback (as policies do Storage da F67B citam
   `e_admin_na()`, que o da F67 derruba); no `f67_rollback.sql`, só antes do primeiro (o contraído).

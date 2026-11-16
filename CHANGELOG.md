@@ -26,7 +26,7 @@ está pronto e provado na mesa e no CI, com o PR aberto e SEM merge, e o caminho
   antes da cópia. Entregue, não executada.
 - 📡 **Tempo real por empresa.** As três assinaturas levam `filter: 'empresa_id=eq.<id>'`, com a empresa vinda do servidor;
   a publication tem trava de catálogo (RLS, recorte, replica identity).
-- 🔒 **Provas:** `storage_por_empresa.sql` (duas empresas fictícias, as policies reais, os dois sentidos), doze mutações
+- 🔒 **Provas:** `storage_por_empresa.sql` (duas empresas fictícias, as policies reais, os dois sentidos), catorze mutações
   novas no injetor, o rollback gerado (`F67B-desfaz.sql`) ensaiado nos dois estados, e o conta a conta "antes" de
   produção (0 divergência).
 

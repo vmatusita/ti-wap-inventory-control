@@ -469,7 +469,7 @@ não por SQLSTATE); o Realtime com a empresa por prop (`empresaDaOperacao()` nas
 F70).
 
 **A prova**: `supabase/tests/storage_por_empresa.sql` (duas empresas fictícias, as policies REAIS, os dois sentidos),
-`catalogo_policies.sql` §9, `persistir.test.ts`, `caminho.test.ts`, doze mutações do injetor, e o conta a conta
+`catalogo_policies.sql` §9, `persistir.test.ts`, `caminho.test.ts`, catorze mutações do injetor, e o conta a conta
 (`scripts/perf/conta-a-conta.mjs`, fases `f67b-*`) com as duas divergências declaradas.
 
 **Rollback**: `supabase/rollback/F67B-desfaz.sql`, GERADO, idempotente nos dois estados; roda ANTES do da F67. Nenhum
