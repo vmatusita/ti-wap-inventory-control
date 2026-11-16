@@ -287,10 +287,11 @@ const PAPEIS_RLS = [
     // ÚNICA barreira restante. Com isso a mutação isolada saiu da quarentena e virou
     // `ancora-do-termo-sempre-coerente`, logo abaixo. Esta continua no lote por medir
     // outra coisa: a reversão PARCIAL da 0069, com as duas invariantes saindo juntas.
+    // F67B: a assinatura vigente é `pode_escrever_termo(empresa_id, ativo_ids)` (0197; a de um argumento sai na 0198).
     sql: `alter policy "operador insere" on public.termos_gerados
   with check (
     coalesce(array_length(ativo_ids, 1), 0) > 0
-    and public.pode_escrever_termo(ativo_ids)
+    and public.pode_escrever_termo(empresa_id, ativo_ids)
   );`,
     prova: {
       sql: `select coalesce(with_check, '') like '%termo_ancora_coerente%'
@@ -1083,7 +1084,8 @@ const IMPORT_SUBSTITUIR = [
 // =============================================================================
 // A ÚNICA exclusão de ativo que o nível administrador alcança (F24 · 0093→0100).
 // F67 (13/11/2026): a forma POR EMPRESA (0191) — a antiga sai na contração (0193). Nasce `create function`, por isso as
-// mutações dela passam por `mutarFuncaoSemReplace`.
+// mutações dela passavam por `mutarFuncaoSemReplace`. F67B (16/11/2026): a 0195 e a 0199 a RECRIAM com
+// `create or replace` (a conferência do caminho do backup com a empresa), e o corpo vigente é o delas — `mutarFuncao`.
 const RPC_CONFLITO = 'public.apagar_ativos_conflito_filiais(uuid, uuid[], text, text, text)'
 
 /** @type {Mutacao[]} */
@@ -1095,7 +1097,7 @@ const CONFLITO_FILIAIS = [
     derruba: ['5f'],
     porque:
       'A exclusão em massa de cadastros em conflito passa a aceitar justificativa de qualquer tamanho — a mesma classe da régua do destrutivo, na única exclusão de ativo que o nível administrador alcança.',
-    sql: mutarFuncaoSemReplace(
+    sql: mutarFuncao(
       RPC_CONFLITO,
       `  if coalesce(length(btrim(p_justificativa)), 0) < 10 then`,
       `  if false then  ${MARCA}`,
@@ -1114,7 +1116,7 @@ const CONFLITO_FILIAIS = [
     derruba: ['5d', '5e'],
     porque:
       'A confirmação digitada deixa de ser conferida: some a exigência de escrever `APAGAR <N>` com a quantidade certa. É a única exclusão de ativo que o nível administrador alcança, e a quantidade no texto é o que faz a pessoa ler o que vai apagar.',
-    sql: mutarFuncaoSemReplace(
+    sql: mutarFuncao(
       RPC_CONFLITO,
       `  if upper(btrim(coalesce(p_confirmacao, ''))) <> upper(v_esperado) then`,
       `  if false then  ${MARCA}`,
@@ -1133,14 +1135,14 @@ const CONFLITO_FILIAIS = [
     derruba: ['11e', '11f', '11g', '11h'],
     porque:
       'Afrouxa a conferencia do caminho do backup para olhar SO o prefixo de conflito, sem o digest da selecao. E exatamente o furo que a 0100 fechou: conferir so o prefixo aceita o backup de QUALQUER outra exclusao de conflito que por acaso esteja no bucket — inclusive o resto de uma tentativa recusada. Com o digest, o proprio nome do arquivo vira uma afirmacao verificavel sobre QUAIS ids ele cobre.',
-    sql: mutarFuncaoSemReplace(
+    sql: mutarFuncao(
       RPC_CONFLITO,
-      "    if btrim(p_backup_path) not like public.prefixo_backup_conflito() || v_digest || '/%' then",
-      `    if btrim(p_backup_path) not like public.prefixo_backup_conflito() || '%' then  ${MARCA}`,
+      "    if not coalesce(btrim(p_backup_path) like public.prefixo_backup_conflito(p_empresa) || v_digest || '/%', false) then",
+      `    if not coalesce(btrim(p_backup_path) like public.prefixo_backup_conflito(p_empresa) || '%', false) then  ${MARCA}`,
       'conflito-backup-em-arquivo-sem-prefixo-do-digest',
     ),
     prova: {
-      sql: "select position('not like public.prefixo_backup_conflito() || ''%'' then  --' in pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid,uuid[],text,text,text)'::regprocedure)) > 0",
+      sql: "select position('like public.prefixo_backup_conflito(p_empresa) || ''%'', false) then  --' in pg_get_functiondef('public.apagar_ativos_conflito_filiais(uuid,uuid[],text,text,text)'::regprocedure)) > 0",
       espera: 't',
     },
   },
@@ -1419,13 +1421,14 @@ const F52_GUARDAS = [
       'Afrouxa a conferência de PREFIXO do backup do import: volta ao ritual de string que existia antes da fase, em que qualquer caminho não-vazio passava — inclusive o backup de OUTRA filial. O backup é a única rede embaixo de um DELETE sem teto.',
     sql: mutarFuncao(
       'public.import_validar_plano(jsonb, text, jsonb, smallint)',
-      "  if btrim(p_backup_path) not like v_prefixo || '%' then",
-      `  if false and btrim(p_backup_path) not like v_prefixo || '%' then  ${MARCA}`,
+      // F67B: a conferência da 0199 (forma nova, com a empresa da filial no prefixo) — `coalesce(…, false)`.
+      "  if not coalesce(btrim(p_backup_path) like v_prefixo || '%', false) then",
+      `  if false and not coalesce(btrim(p_backup_path) like v_prefixo || '%', false) then  ${MARCA}`,
       'f52-backup-do-import-aceita-qualquer-prefixo',
     ),
     prova: {
       sql: `select pg_get_functiondef('public.import_validar_plano(jsonb, text, jsonb, smallint)'::regprocedure)
-              like '%if false and btrim(p_backup_path)%'`,
+              like '%if false and not coalesce(btrim(p_backup_path)%'`,
       espera: 't',
     },
   },
@@ -1475,7 +1478,7 @@ const F52_GUARDAS = [
     porque:
       'Remove `exigir_ativos_da_empresa(v_ids)` de `apagar_ativos_conflito_filiais`. É a MESMA classe da primeira mutação desta família, e no lugar mais perigoso: a mesa é a ÚNICA exceção à exclusividade do dev sobre exclusão de ativo, e a RPC é recriada em cadeia (0093 → 0098 → 0100 → 0132). A guarda foi extraída como função própria exatamente para que a chamada seja UMA linha que o diff denuncia se sumir.',
     // F67 (13/11/2026): a forma por empresa (0191) — a guarda recebe a empresa e deixou de ser no-op.
-    sql: mutarFuncaoSemReplace(
+    sql: mutarFuncao(
       RPC_CONFLITO,
       '  perform public.exigir_ativos_da_empresa(p_empresa, v_ids);',
       `  ${MARCA}
@@ -3648,7 +3651,8 @@ const F67_CARGO_POR_EMPRESA = [
     derruba: ['D4'],
     porque:
       'A sentinela de advisory do "tudo" do reset volta a ser -1, a mesma para TODA empresa: o reset da A e o import de uma filial da B passam a se esperar — e, pior, a chave deixa de dizer de quem é a trava. Com a empresa na chave, cada empresa serializa só consigo mesma.',
-    sql: mutarFuncaoSemReplace(
+    // F67B: a 0195/0199 recriam `resetar_acervo` com `create or replace` — `mutarFuncao`.
+    sql: mutarFuncao(
       'public.resetar_acervo(uuid, smallint, text, text, text, jsonb)',
       "    perform pg_advisory_xact_lock(hashtext('import_substituir'), hashtext(p_empresa::text));",
       `    perform pg_advisory_xact_lock(hashtext('import_substituir'), -1);  ${MARCA}`,
@@ -3691,6 +3695,196 @@ const F67_CARGO_POR_EMPRESA = [
   },
 ]
 
+
+// =============================================================================
+// F67B (16/11/2026) — STORAGE E REALTIME POR EMPRESA: cada mutação derruba uma trava DESTA fase por estado de banco
+// =============================================================================
+// A régua da F63–F67: mutação só onde ela derruba um cenário NOMEADO desta fase. As do bucket `backups-import` voltam a
+// policy ao que ela era (a legada para todos), abrem a cláusula legada, deixam gravar backup novo na forma antiga ou
+// afrouxam a forma; as do bucket `termos` devolvem a leitura sem a membership, o `coalesce(…, true)` e o degenerado de
+// qualquer admin; as da ferramenta de órfão tiram a guarda da plataforma e a idade mínima; a da 12ª reconhece cópia nova
+// sem trilha; a do Realtime põe replica identity FULL. O roteiro é `storage_por_empresa.sql` (e o catálogo, na última).
+const POLICY_BACKUP = (nome) => `select coalesce(qual, '') || coalesce(with_check, '') from pg_policies
+             where schemaname = 'storage' and tablename = 'objects' and policyname = '${nome}'`
+
+/** @type {Mutacao[]} */
+const F67B_STORAGE = [
+  {
+    id: 'f67b-backup-lido-pela-legada-de-novo',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['B2', 'B3'],
+    porque:
+      'A leitura do bucket de backups volta a ser a de antes da F67B: o admin da WAP lê o dump de QUALQUER empresa (o caminho deixa de decidir), e o admin da outra empresa não lê nem o próprio. É exatamente o vazamento que a fase fecha — o backup é o acervo inteiro de uma filial, com nome de colaborador e patrimônio.',
+    sql: `alter policy "backups-import leitura operador" on storage.objects
+  using (bucket_id = 'backups-import' and (select public.e_admin_na(public.empresa_legada())));`,
+    prova: { sql: `select (${POLICY_BACKUP('backups-import leitura operador')}) not like '%empresa_do_caminho_backup%'`, espera: 't' },
+    policies: [{ nome: 'backups-import leitura operador', tabela: 'storage.objects' }],
+  },
+  {
+    id: 'f67b-clausula-legada-sem-lista-fechada',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['B2', 'B6', 'L3'],
+    porque:
+      'A cláusula legada (decisão 16/11-1) perde a lista FECHADA das formas antigas: o admin da WAP passa a ler qualquer objeto do bucket — o backup da outra empresa na forma nova inclusive. A cláusula existe para os backups ANTIGOS, e só para eles; sem a lista, ela é a porta inteira.',
+    sql: `alter policy "backups-import leitura operador" on storage.objects
+  using (bucket_id = 'backups-import'
+    and (public.empresa_do_caminho_backup(name) = any (array (select public.empresas_de_admin()))
+         or (select public.e_admin_na(public.empresa_legada()))));`,
+    prova: { sql: `select (${POLICY_BACKUP('backups-import leitura operador')}) not like '%caminho_backup_legado%'`, espera: 't' },
+    policies: [{ nome: 'backups-import leitura operador', tabela: 'storage.objects' }],
+  },
+  {
+    id: 'f67b-backup-novo-na-forma-antiga',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['B9'],
+    porque:
+      'A gravação volta a aceitar a forma ANTIGA para o admin da WAP: um backup novo nasce sem a empresa no caminho — e a forma antiga é lida pela cláusula legada, que não sabe de que empresa ele é. A janela zero da contração existe para que nenhum objeto novo nasça assim.',
+    sql: `alter policy "backups-import insere operador" on storage.objects
+  with check (bucket_id = 'backups-import'
+    and (public.empresa_do_caminho_backup(name) = any (array (select public.empresas_de_admin()))
+         or (public.caminho_backup_legado(name) and (select public.e_admin_na(public.empresa_legada())))));`,
+    prova: { sql: `select (${POLICY_BACKUP('backups-import insere operador')}) like '%caminho_backup_legado%'`, espera: 't' },
+    policies: [{ nome: 'backups-import insere operador', tabela: 'storage.objects' }],
+  },
+  {
+    id: 'f67b-empresa-do-caminho-sem-a-forma',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'guarda-afrouxada',
+    derruba: ['B6', 'E1'],
+    porque:
+      'A empresa do caminho passa a ser lida de QUALQUER nome que tenha `/empresa-<uuid>/`, sem a forma ancorada da família: um caminho malformado com a empresa no meio vira alcançável pelo admin dela — e um nome fora de toda forma é material de replay que as RPCs não reconhecem.',
+    sql: mutarFuncaoSemReplace(
+      'public.empresa_do_caminho_backup(text)',
+      `  select case
+           when p_nome ~ '^import/empresa-`,
+      `  select case  ${MARCA}
+           when p_nome ~ '/empresa-[0-9a-f-]{36}/' then substring(p_nome from '/empresa-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/')::uuid
+           when p_nome ~ '^import/empresa-`,
+      'f67b-empresa-do-caminho-sem-a-forma',
+    ),
+    prova: provaMarca('public.empresa_do_caminho_backup(text)'),
+  },
+  {
+    id: 'f67b-termo-lido-sem-membership',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['T3', 'T6'],
+    porque:
+      'O `.docx` passa a ser lido por quem quer que exista uma LINHA que o referencie, sem ser membro da empresa dela: o termo de responsabilidade da outra empresa — nome, CPF de quem assinou — abre para qualquer sessão.',
+    sql: mutarFuncao(
+      'public.pode_ler_arquivo_termo(text)',
+      '       and public.papel_na_empresa(t.empresa_id) is not null\n',
+      `       and true  ${MARCA}\n`,
+      'f67b-termo-lido-sem-membership',
+    ),
+    prova: provaMarca('public.pode_ler_arquivo_termo(text)'),
+  },
+  {
+    id: 'f67b-termo-sem-linha-gravavel',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'guarda-afrouxada',
+    derruba: ['T8'],
+    porque:
+      'O `coalesce(…, false)` volta a `true`: um `.docx` que nenhuma linha referencia volta a ser gravável por qualquer um que escreva — o arquivo que não pertence a empresa nenhuma, e que depois nenhuma tela alcança. É o estado de antes da contração, que a inversão do persistirTermo existe para encerrar.',
+    sql: mutarFuncao(
+      'public.pode_escrever_arquivo_termo(text)',
+      '    false\n  )',
+      `    true  ${MARCA}\n  )`,
+      'f67b-termo-sem-linha-gravavel',
+    ),
+    prova: provaMarca('public.pode_escrever_arquivo_termo(text)'),
+  },
+  {
+    id: 'f67b-degenerado-de-qualquer-admin',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'escopo-cruzado',
+    derruba: ['D2'],
+    porque:
+      'O termo DEGENERADO (sem ativo) volta a ser apagável por qualquer admin, de qualquer empresa: o admin da B apaga a linha e o `.docx` de um termo da A. A não-imortalidade da 0069 é por empresa desde a F67B.',
+    sql: mutarFuncaoSemReplace(
+      'public.pode_escrever_termo(uuid, uuid[])',
+      'then public.e_admin_na(p_empresa)',
+      `then public.e_admin()  ${MARCA}\n`,
+      'f67b-degenerado-de-qualquer-admin',
+    ),
+    prova: provaMarca('public.pode_escrever_termo(uuid, uuid[])'),
+  },
+  {
+    id: 'f67b-orfao-sem-guarda-de-plataforma',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'guarda-removida',
+    derruba: ['O1'],
+    porque:
+      'A ferramenta de órfão perde a guarda da plataforma: o admin de uma empresa recebe a lista dos `.docx` sem registro de TODAS — e a action copia e remove o que a RPC devolveu. Um `.docx` sem linha não é de empresa nenhuma; quem o limpa é a plataforma.',
+    sql: mutarFuncaoSemReplace(
+      'public.registrar_limpeza_termos_sem_linha(text, text, text)',
+      '  if not public.e_plataforma() then',
+      `  if false then  ${MARCA}`,
+      'f67b-orfao-sem-guarda-de-plataforma',
+    ),
+    prova: provaMarca('public.registrar_limpeza_termos_sem_linha(text, text, text)'),
+  },
+  {
+    id: 'f67b-orfao-lista-o-recem-nascido',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'guarda-removida',
+    // O3 cai junto e por construção: a frase de confirmação do roteiro conta só os de mais de 1 hora, e a RPC mutada
+    // conta também o recém-nascido — ela recusa, e a lista não volta.
+    derruba: ['O3', 'O4'],
+    porque:
+      'A ferramenta de órfão perde a idade mínima: um `.docx` recém-subido pelo código anterior à F67B (o arquivo ANTES da linha) entra na lista e é copiado e removido segundos antes de a linha dele nascer — um termo assinado sem arquivo.',
+    sql: mutarFuncaoSemReplace(
+      'public.registrar_limpeza_termos_sem_linha(text, text, text)',
+      "       and o.created_at < now() - interval '1 hour'\n",
+      `       and true  ${MARCA}\n`,
+      'f67b-orfao-lista-o-recem-nascido',
+    ),
+    prova: provaMarca('public.registrar_limpeza_termos_sem_linha(text, text, text)'),
+  },
+  {
+    id: 'f67b-12a-copia-nova-sem-trilha',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'integridade-estrutural',
+    derruba: ['F3'],
+    porque:
+      'A 12ª checagem passa a reconhecer como CÓPIA qualquer `.docx` sob a forma nova do apagar ativo, sem conferir a trilha: um objeto plantado sob `ativo/empresa-<uuid>/…` some da contagem de órfãos. A checagem existe para que nada fique no bucket sem uma operação que o explique.',
+    sql: mutarFuncao(
+      'public.checagens_integridade_nucleo()',
+      `            where ea.acao = 'ativo_apagado'
+              and (ea.detalhe->>'ativo_id')
+                  = substring(o.name from '^ativo/empresa-[0-9a-f-]{36}/([0-9a-fA-F-]{36})/termos/')`,
+      `            where (o.name ~ '^ativo/empresa-')  ${MARCA}`,
+      'f67b-12a-copia-nova-sem-trilha',
+    ),
+    prova: provaMarca('public.checagens_integridade_nucleo()'),
+  },
+  {
+    id: 'f67b-backup-sem-empresa-gravavel-pela-plataforma',
+    roteiro: 'storage_por_empresa.sql',
+    classe: 'guarda-afrouxada',
+    derruba: ['B6'],
+    porque:
+      'A gravação deixa de exigir a empresa do caminho e passa a aceitar qualquer admin em qualquer nome: um objeto fora de toda forma (nem nova, nem antiga) nasce no bucket — invisível para a 12ª reconhecer e para a cláusula legada ler, mas material de replay sob um nome que a RPC não confere.',
+    sql: `alter policy "backups-import insere operador" on storage.objects
+  with check (bucket_id = 'backups-import' and (select public.e_admin()));`,
+    prova: { sql: `select (${POLICY_BACKUP('backups-import insere operador')}) not like '%empresa_do_caminho_backup%'`, espera: 't' },
+    policies: [{ nome: 'backups-import insere operador', tabela: 'storage.objects' }],
+  },
+  {
+    id: 'f67b-realtime-replica-identity-full',
+    roteiro: 'catalogo_policies.sql',
+    classe: 'superficie-publica',
+    derruba: ['9e'],
+    porque:
+      'Uma tabela da publication do Realtime passa a replica identity FULL: o DELETE entrega a linha ANTIGA inteira a todo assinante, e o DELETE não passa pela RLS no Realtime — o filtro de empresa do cliente não segura nada. A trava de catálogo 9e existe para que isso nunca entre em silêncio.',
+    sql: 'alter table public.anotacoes replica identity full;',
+    prova: { sql: "select relreplident = 'f' from pg_class where oid = 'public.anotacoes'::regclass", espera: 't' },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -3716,6 +3910,7 @@ export const MUTACOES = [
   ...F66_RECORTE,
   ...F66B_COMPRIMENTO,
   ...F67_CARGO_POR_EMPRESA,
+  ...F67B_STORAGE,
 ]
 
 /**
