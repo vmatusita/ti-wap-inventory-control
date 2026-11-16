@@ -1,0 +1,45 @@
+{
+  "rotulo": "f67b-conta-a-conta-producao-conta-f67b-depois",
+  "canal": "MCP da Supabase (execute_sql), bloco do … raise exception",
+  "sha_codigo": "5d944fd11f7d84b4efa1b43a6e37a8ed14aa332e",
+  "gerado_em": "2026-11-16T15:46:40.146Z",
+  "metodo": "para cada membership ativa (identidade escolhida DENTRO do banco; nenhum id nem nome de objeto sai), a RLS de verdade × o ORÁCULO da regra de antes da F67B (o estado da 0193, escrito no bloco a partir das tabelas-base): a leitura de cada objeto dos dois buckets como authenticated; a escrita (INSERT/UPDATE/DELETE) pelo predicado VIVO de pg_policy avaliado objeto a objeto com as claims dela; as linhas de termos_gerados (UPDATE/DELETE). As classes de objeto (termos com/sem linha; backups na forma antiga, nova, fora) por regex escrita no bloco. transaction_read_only = on; o bloco termina em raise exception.",
+  "alvo": "producao",
+  "fase": "f67b-depois",
+  "objetos": {
+    "termos": 301,
+    "backups": 29,
+    "linhas_termos": 298,
+    "termos_sem_linha": 3,
+    "backups_forma_nova": 0,
+    "backups_forma_antiga": 29
+  },
+  "sabotar": false,
+  "postgres": "17.6",
+  "avaliacoes": 26824,
+  "memberships": 14,
+  "divergencias": {
+    "escrita_linha_termo": 0,
+    "escrita_termo_com_linha": 0,
+    "escrita_termo_sem_linha": 0,
+    "leitura_termo_com_linha": 0,
+    "leitura_termo_sem_linha": 0,
+    "escrita_backup_forma_nova": 0,
+    "leitura_backup_forma_nova": 0,
+    "escrita_backup_forma_antiga": 0,
+    "leitura_backup_forma_antiga": 0,
+    "escrita_backup_fora_de_forma": 0,
+    "leitura_backup_fora_de_forma": 0
+  },
+  "declaradas_esperadas": {
+    "escrita_termo_sem_linha": 81,
+    "leitura_termo_sem_linha": 42,
+    "escrita_backup_forma_antiga": 348
+  },
+  "veredito": {
+    "total": 0,
+    "zero": true,
+    "corrida": 0,
+    "declaradas": {}
+  }
+}

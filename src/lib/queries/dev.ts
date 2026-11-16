@@ -240,7 +240,7 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
     chave: 'arquivo_termo_orfao',
     nome: 'Arquivo de termo órfão no armazenamento',
     descricao:
-      'O inverso da checagem "Termo sem o arquivo correspondente": aqui sobra o arquivo .docx guardado, sem nenhuma linha de termo que o explique. Não trava nada, e não é incomum que apareça sempre diferente de zero — é resíduo antigo, não é sinal de problema sozinho.',
+      'O inverso da checagem "Termo sem o arquivo correspondente": aqui sobra o arquivo .docx guardado, sem nenhuma linha de termo que o explique. Não trava nada, e não é incomum que apareça sempre diferente de zero — é resíduo antigo, não é sinal de problema sozinho. Desde 16/11/2026 ninguém consegue abrir nem apagar um arquivo assim pela tela; a faxina é a ferramenta "Limpar arquivos de termo sem registro" da Zona destrutiva, que guarda uma cópia de cada um antes de tirá-lo.',
   },
   {
     chave: 'conflito_entre_filiais',
@@ -258,7 +258,7 @@ export const CHECAGENS: { chave: string; nome: string; descricao: string }[] = [
     chave: 'backup_orfao',
     nome: 'Arquivo de segurança sem operação correspondente',
     descricao:
-      'Arquivo guardado na área de segurança que não corresponde a nenhuma operação registrada. Aparece em dois casos: o arquivo foi gerado para uma operação que o sistema acabou recusando (nada foi apagado, e a sobra ficou), ou é resíduo antigo, de antes de o sistema passar a registrar o caminho de cada arquivo. Não trava nada e não é sinal de problema sozinho — é faxina. Desde 09/09/2026 os documentos de responsabilidade (.docx) também são guardados aqui antes de qualquer exclusão, e essas cópias NÃO são contadas: o sistema reconhece cada uma pela operação que a gerou.',
+      'Arquivo guardado na área de segurança que não corresponde a nenhuma operação registrada. Aparece em dois casos: o arquivo foi gerado para uma operação que o sistema acabou recusando (nada foi apagado, e a sobra ficou), ou é resíduo antigo, de antes de o sistema passar a registrar o caminho de cada arquivo. Não trava nada e não é sinal de problema sozinho — é faxina. Desde 09/09/2026 os documentos de responsabilidade (.docx) também são guardados aqui antes de qualquer exclusão, e essas cópias NÃO são contadas: o sistema reconhece cada uma pela operação que a gerou. Desde 16/11/2026 cada arquivo novo leva a empresa no caminho; os de antes continuam reconhecidos do mesmo jeito.',
   },
   {
     chave: 'reserva_aberta',

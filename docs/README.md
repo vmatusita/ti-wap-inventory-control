@@ -226,6 +226,25 @@ R-ACC-130); o porquê, no [`ADR-002`](ADR-002-papeis-e-permissoes.md) §17; as r
 | trocar a assinatura de uma função sem trocar o nome | o Anexo F67, "expansão → deploy → a janela → contração" | a janela pelo argumento nomeado (`p_empresa`) no `pg_stat_statements`, e a prova estática |
 | aplicar ou desfazer a F67 | o Anexo F67 e "O rollback da F67 — os dois estados" | `supabase/tests/f67_rollback.sql` (o contraído e o só-expansão) + `scripts/perf/conta-a-conta.mjs` fases `f67-*` |
 
+## Antes de mexer no Storage (termos e backups) ou no tempo real (F67B)
+
+Desde a F67B (16/11/2026) o bucket `termos` decide pela LINHA de `termos_gerados` que referencia o `.docx` (lê quem é
+membro ativo da empresa dela; escreve quem pode escrever a linha; nome sem linha não é gravável), e o bucket
+`backups-import` decide pela EMPRESA DO CAMINHO (`<família>/empresa-<uuid>/…`), com as formas antigas legíveis só pelo
+admin da WAP. As três assinaturas de tempo real levam `filter: 'empresa_id=eq.<id>'`, com a empresa vinda do servidor.
+As regras estão na **emenda F67B** de [`MATRIZ-REGRAS.md`](MATRIZ-REGRAS.md) (R-ACC-131 a R-ACC-136); o porquê, no
+[`ADR-002`](ADR-002-papeis-e-permissoes.md) §18; as receitas, no Anexo F67B do [`RUNBOOK-BANCO.md`](RUNBOOK-BANCO.md); as
+tabelas-verdade, em [`PLAN-F67B.md`](PLAN-F67B.md) §2–§4.
+
+| se você vai… | leia | a trava |
+|---|---|---|
+| gravar um arquivo no bucket `backups-import` | R-ACC-132 | o caminho SÓ por `src/lib/storage/caminho.ts` — `caminho.test.ts` §4 varre quem monta por fora; `storage_por_empresa.sql` blocos B/E |
+| gravar ou apagar um `.docx` de termo | R-ACC-131 e `src/lib/termos/CLAUDE.md` | a LINHA antes do arquivo (`persistir.test.ts`); `storage_por_empresa.sql` blocos T/D |
+| usar o service role com um arquivo | R-ACC-133 | `src/lib/supabase/superficie-admin.test.ts` (declarar o arquivo, o motivo e a guarda) |
+| limpar `.docx` sem registro | R-ACC-134 | a ferramenta nomeada da Zona destrutiva (`registrar_limpeza_termos_sem_linha`) — bloco O |
+| assinar uma tabela no tempo real | R-ACC-135 | `assinatura-realtime.test.ts` (o filtro sempre, a empresa por prop) + `catalogo_policies.sql` §9 (9a–9e) |
+| aplicar ou desfazer a F67B | o Anexo F67B e "O rollback da F67B" | `supabase/tests/f67b_rollback.sql` + `scripts/perf/conta-a-conta.mjs` fases `f67b-*` |
+
 ## Regras para quem escreve documentação aqui
 
 1. **Cada fato mora em um lugar só.** Se já está na spec, no CHANGELOG ou na matriz de regras, **link** — não copie. Cópia envelhece sem avisar.

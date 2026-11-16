@@ -359,7 +359,8 @@ begin
   end if;
 
   -- a auxiliar do backup NÃO está exposta (superfície de API de graça — 0088)
-  if not has_function_privilege('authenticated', 'public.prefixo_backup_conflito()', 'execute')
+  -- F67B: a auxiliar é a da forma NOVA, com a empresa (0194); a antiga, sem empresa, saiu na 0199
+  if not has_function_privilege('authenticated', 'public.prefixo_backup_conflito(uuid)', 'execute')
      and not has_function_privilege('authenticated',
        'public.exigir_identidade_livre_na_filial(uuid,smallint,text)', 'execute') then
     v_ok := v_ok + 1; raise notice '✓ 5c  as funções auxiliares ficam FORA da API de RPC';
@@ -808,10 +809,11 @@ begin
   -- `prefixo_backup_conflito` são fechadas nos quatro papéis (é o que a §5c prova), então
   -- chamá-las depois do `set local role authenticated` daria 42501 e abortaria o roteiro.
   v_sub           := v_lote[1:13];
-  v_path_ok       := public.prefixo_backup_conflito() || public.digest_selecao_conflito(v_lote) || '/lote-f54.json';
-  v_path_errado   := public.prefixo_backup_conflito() || public.digest_selecao_conflito(v_sub)  || '/lote-f54.json';
+  -- F67B: a forma NOVA — conflito/empresa-<uuid>/<digest>/ (a mesa roda com a empresa legada, a do p_empresa abaixo)
+  v_path_ok       := public.prefixo_backup_conflito(public.empresa_legada()) || public.digest_selecao_conflito(v_lote) || '/lote-f54.json';
+  v_path_errado   := public.prefixo_backup_conflito(public.empresa_legada()) || public.digest_selecao_conflito(v_sub)  || '/lote-f54.json';
   v_path_fora     := 'zzf54/fora-do-prefixo.json';
-  v_path_fantasma := public.prefixo_backup_conflito() || public.digest_selecao_conflito(v_lote) || '/nao-existe.json';
+  v_path_fantasma := public.prefixo_backup_conflito(public.empresa_legada()) || public.digest_selecao_conflito(v_lote) || '/nao-existe.json';
 
   -- ⚠ OS OBJETOS DE 11c E 11e PRECISAM EXISTIR, e é isso que torna as duas asserções
   -- HONESTAS. A cascata tem três guardas em sequência: se o caminho também não existisse no

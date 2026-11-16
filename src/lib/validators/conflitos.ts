@@ -31,8 +31,8 @@ export const CAP_BACKUP_INLINE = 25
 /** Teto de sanidade do lote. Espelha `c_max_lote` da migration 0093. */
 export const MAX_ATIVOS_POR_OPERACAO = 200
 
-/** O prefixo do backup em arquivo. Espelha `prefixo_backup_conflito()` (0093). */
-export const PREFIXO_BACKUP_CONFLITO = 'conflito/'
+// O prefixo do backup em arquivo (`PREFIXO_BACKUP_CONFLITO`, 0093) saiu daqui. F67B (16/11/2026): o caminho do bucket `backups-import` mora em `src/lib/storage/caminho.ts` (a função única, com a
+// EMPRESA no 2º segmento), e a régua TS × SQL dele é `src/lib/storage/caminho.test.ts` §3, contra o corpo vigente.
 
 export const justificativaConflitoSchema = z
   .string()

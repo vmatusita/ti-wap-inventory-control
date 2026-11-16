@@ -253,8 +253,12 @@ begin
   insert into public.eventos_admin (acao, autor, alvo, detalhe)
   values ('papel_alterado', k_admin, 'f21.operador@wap.ind.br', '{"de":"consulta","para":"operador"}'::jsonb);
 
+  -- F67B (16/11/2026): o backup da fixture na forma NOVA (import/empresa-<uuid>/filial-<id>/…) — desde a 0199 o bucket
+  -- decide pela empresa do CAMINHO, e um nome fora de toda forma (o `f21/fixture-backup.csv` de antes) não é lido por
+  -- ninguém; o que esta seção prova — a policy olha o CARGO — continua igual, na forma que o app grava.
   insert into storage.objects (bucket_id, name, owner)
-  values ('backups-import', 'f21/fixture-backup.csv', k_admin);
+  values ('backups-import', 'import/empresa-' || public.empresa_legada()::text || '/filial-' || v_f1::text
+                            || '/2026-01-01T00-00-00-000Z.json', k_admin);
 
   -- Um lançamento em CADA filial, criados como postgres (que ignora RLS), para os testes de
   -- `estorna_id` cruzando filial (2e-bis / 2e-ter). Entradas de 5, para haver saldo a estornar.
@@ -722,17 +726,10 @@ begin
 
   -- 2i-ter. E o fluxo LEGÍTIMO segue passando — sem este par, a 0069 poderia ter fechado o furo
   -- quebrando a geração de termo, que é o que o `persistirTermo` faz em toda ficha. A ordem
-  -- reproduz a da action: o objeto sobe ANTES da linha existir (termos.ts), então o nome novo tem
-  -- de ser livre.
-  begin
-    insert into storage.objects (bucket_id, name, owner)
-    values ('termos', v_termo_novo::text || '.docx', k_operador);
-    v_ok := v_ok + 1; raise notice '✓ 2i-ter operador SOBE o .docx do termo novo (nome sem linha)';
-  exception when others then
-    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-ter(' || sqlstate || '); ';
-    raise warning '✗ 2i-ter upload do termo NOVO foi recusado (%) — a 0069 quebrou a geração', sqlstate;
-  end;
-
+  -- reproduz a da action. ⚠ F67B (16/11/2026): a action INVERTEU — a LINHA vem ANTES do upload
+  -- (src/lib/termos/persistir.ts), e desde a 0198 o .docx sem linha é recusado a todos (o
+  -- `coalesce(…, false)`). O par continua provando o mesmo fato — o fluxo normal passa —, na
+  -- ordem nova: 2i-ter-2 (a linha) e então 2i-ter (o arquivo da linha).
   begin
     insert into public.termos_gerados (id, tipo, movimentacao_ids, ativo_ids, colaborador,
                                        dados, arquivo_path, gerado_por)
@@ -743,6 +740,15 @@ begin
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-ter-2(' || sqlstate || '); ';
     raise warning '✗ 2i-ter-2 o termo LEGÍTIMO foi recusado (% %) — a 0069 quebrou o fluxo normal',
       sqlstate, sqlerrm;
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name, owner)
+    values ('termos', v_termo_novo::text || '.docx', k_operador);
+    v_ok := v_ok + 1; raise notice '✓ 2i-ter operador SOBE o .docx do termo novo (a linha já existe — F67B)';
+  exception when others then
+    v_falhas := v_falhas + 1; v_msgs := v_msgs || '2i-ter(' || sqlstate || '); ';
+    raise warning '✗ 2i-ter upload do termo NOVO foi recusado (%) — a geração quebrou', sqlstate;
   end;
 
   update public.termos_gerados set colaborador = 'Fulano de Teste (v2)', atualizado_por = k_operador
@@ -1212,7 +1218,9 @@ begin
   -- punha `e_admin()` DENTRO do `and` com a exigência de array não-vazio, e para
   -- `ativo_ids = '{}'` o resultado era false para todo mundo, admin incluído: nem UPDATE nem
   -- DELETE, e o .docx indestrutível. Três lentes independentes acharam o mesmo defeito.
-  if public.pode_escrever_termo('{}'::uuid[]) then
+  -- F67B (16/11/2026): a forma por empresa (0197) — o degenerado decide pela empresa DA LINHA; o admin
+  -- daqui é da legada, e é nela que ele alcança (a 1-arg, pela legada explícita, saiu na 0198).
+  if public.pode_escrever_termo(public.empresa_legada(), '{}'::uuid[]) then
     v_ok := v_ok + 1; raise notice '✓ 5h admin alcança termo degenerado (ativo_ids vazio) para limpar';
   else
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '5h_LIXO_IMORTAL; ';
@@ -1236,9 +1244,11 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_consulta, 'role', 'authenticated')::text, true);
+  -- F67B (16/11/2026): o nome é o de um termo que EXISTE (a linha da 2i-ter-2) — desde a 0198 um nome solto é recusado
+  -- a todos por não ter linha, e a 6a passaria pelo motivo errado; com a linha, quem recusa é o CARGO (consulta).
   begin
     insert into storage.objects (bucket_id, name, owner)
-    values ('termos', 'f21/teste-consulta.docx', k_consulta);
+    values ('termos', v_termo_novo::text || '.docx', k_consulta);
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6a; ';
     raise warning '✗ 6a consulta SUBIU arquivo no bucket termos';
   exception when others then
@@ -1258,9 +1268,12 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claims',
     json_build_object('sub', k_operador, 'role', 'authenticated')::text, true);
+  -- F67B (16/11/2026): o arquivo é o do termo DELE (a linha da 2i-ter-2) — desde a 0198 o .docx só é gravável se uma
+  -- linha que quem grava pode escrever o referencia; um nome solto (o `f21/teste-operador.docx` de antes) é recusado a
+  -- todos. O fato provado é o mesmo: o cargo operador grava no bucket o arquivo que é dele.
   begin
     insert into storage.objects (bucket_id, name, owner)
-    values ('termos', 'f21/teste-operador.docx', k_operador);
+    values ('termos', v_termo_novo::text || '.docx', k_operador);
     v_ok := v_ok + 1; raise notice '✓ 6c operador SOBE arquivo no bucket termos';
   exception when others then
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6c; ';
@@ -1269,7 +1282,8 @@ begin
 
   begin
     insert into storage.objects (bucket_id, name, owner)
-    values ('backups-import', 'f21/backup-operador.csv', k_operador);
+    values ('backups-import', 'import/empresa-' || public.empresa_legada()::text || '/filial-' || v_f1::text
+                              || '/2026-01-01T00-00-01-000Z.json', k_operador);   -- F67B: a forma nova, recusada pelo CARGO
     v_falhas := v_falhas + 1; v_msgs := v_msgs || '6d; ';
     raise warning '✗ 6d operador SUBIU no bucket backups-import (é matéria de admin)';
   exception when others then

@@ -8,15 +8,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   avisoDaLimpeza,
   copiarEntaoRemoverTermos,
-  prefixoDasCopias,
   descartarBackupNaoUsado,
-  raizDoConflito,
 } from '@/lib/storage/copiar-antes-de-remover'
+import { caminhoBackupConflito, carimboDeArquivo, prefixoDasCopias, raizDoConflito } from '@/lib/storage/caminho'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { registrarFalha } from '@/lib/observabilidade'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { traduzErroBanco } from '@/lib/actions/erros'
+import { traduzirErroStorage } from '@/lib/supabase/erros-do-banco'
 import { acervoDosAtivos, ladosDosAtivos } from '@/lib/queries/conflitos'
 import { valorOuFalha } from '@/lib/supabase/linhas'
 import { LEITURA_APAGAR_CONFLITO } from '@/lib/queries/formas/conflitos'
@@ -25,7 +25,6 @@ import { LEITURA_APAGAR_CONFLITO } from '@/lib/queries/formas/conflitos'
 import type { LadoConflito } from '@/lib/pendencias/conflitos'
 import { resumoDaExclusao } from '@/lib/pendencias/conflitos'
 import {
-  PREFIXO_BACKUP_CONFLITO,
   apagarConflitoSchema,
   exigeBackupEmArquivo,
   validarExclusaoDeConflito,
@@ -204,6 +203,9 @@ export async function apagarConflito(input: {
   if (recusa) return { ok: false, erro: recusa }
 
   // ---- backup em ARQUIVO só acima do cap ----
+  // F67: a empresa da mesa é a da operação (a legada EXPLÍCITA até a F70); o banco recusa id de outra empresa (42501).
+  // F67B: ela entra também no CAMINHO do backup e das cópias (a policy de backups-import decide por ela).
+  const empresaDaMesa = empresaDaOperacao()
   let backupPath: string | null = null
   if (exigeBackupEmArquivo(ativoIds.length)) {
     try {
@@ -265,15 +267,16 @@ export async function apagarConflito(input: {
       // 0100, precedente 0089). Conferir só que "existe um objeto sob conflito/" deixaria
       // passar o backup de qualquer outra exclusão que por acaso esteja no bucket; com o
       // digest, o caminho só é aceito para exatamente estes ids.
-      const carimbo = new Date().toISOString().replace(/[:.]/g, '-')
-      backupPath = `${PREFIXO_BACKUP_CONFLITO}${digestDaSelecao(ativoIds)}/${carimbo}.json`
+      // F67B (16/11/2026): com a EMPRESA no 2º segmento (conflito/empresa-<uuid>/<digest>/…), pela função única
+      // (src/lib/storage/caminho.ts) — o bucket decide pela empresa do caminho, e a RPC confere a forma nova.
+      backupPath = caminhoBackupConflito(empresaDaMesa, digestDaSelecao(ativoIds), carimboDeArquivo())
       const { error: upErr } = await supabase.storage
         .from('backups-import')
         .upload(backupPath, corpo, { contentType: 'application/json', upsert: false })
       if (upErr) {
         return {
           ok: false,
-          erro: `Falha ao gravar o backup — nada foi apagado: ${upErr.message}`,
+          erro: `${traduzirErroStorage(upErr, 'gravar')} Nada foi apagado.`,
         }
       }
     } catch (erro) {
@@ -286,9 +289,8 @@ export async function apagarConflito(input: {
   // `p_backup_path = null` é "sem arquivo" (abaixo do cap não há backup em arquivo — o
   // backup vai em jsonb no próprio evento) — a porta aceita null aqui pelo mapa da RPC
   // (src/lib/supabase/rpc.ts).
-  // F67: a empresa da mesa é a da operação (a legada EXPLÍCITA até a F70); o banco recusa id de outra empresa (42501).
   const { data, error } = await chamarRpc(supabase, 'apagar_ativos_conflito_filiais', {
-    p_empresa: empresaDaOperacao(),
+    p_empresa: empresaDaMesa,
     p_ativos: ativoIds,
     p_confirmacao: parsed.data.confirmacao,
     p_justificativa: parsed.data.justificativa,
@@ -314,14 +316,15 @@ export async function apagarConflito(input: {
   const ret: Partial<z.output<typeof LEITURA_APAGAR_CONFLITO.forma>> = lidoRet.ok ? lidoRet.valor : {}
 
   // ---- limpeza dos .docx, DEPOIS do commit ----
-  // F54 — a raiz das cópias é `conflito/<digest>`, IGUAL acima e abaixo do teto de 25.
+  // F54 — a raiz das cópias é `conflito/<digest>`, IGUAL acima e abaixo do teto de 25. F67B: com a empresa da mesa
+  // no 2º segmento (`conflito/empresa-<uuid>/<digest>`).
   // Abaixo dele não existe backup em arquivo (o backup é jsonb inline no evento), e o
   // digest da seleção é a única âncora presente nos dois casos. Ele é o mesmo valor que a
   // RPC confere no prefixo (0100) e que `digest_selecao_conflito()` recalcula em SQL — por
   // isso a 12ª checagem reconhece estas cópias sem registro novo.
   const aviso = await limparArquivosDeTermo(
     ret.arquivos_termos ?? [],
-    prefixoDasCopias(raizDoConflito(digestDaSelecao(ativoIds))),
+    prefixoDasCopias(raizDoConflito(empresaDaMesa, digestDaSelecao(ativoIds))),
   )
 
   revalidar()

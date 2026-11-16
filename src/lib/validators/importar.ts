@@ -216,18 +216,5 @@ export function parseCorrecoesJson(valor: FormDataEntryValue | null): ParseCorre
 // arrastaria esse motor para o bundle do cliente — a lição que a F39 aprendeu à força.
 export { confirmacaoImportConfere } from '@/lib/validators/confirmacao-digitada'
 
-/**
- * O prefixo obrigatório do backup de um import de startup.
- *
- * ⚠ Espelha `public.prefixo_backup_import(smallint)` (migration 0132), pelo mesmo motivo
- * pelo qual aquela função existe: a Server Action GRAVA o backup neste caminho e a RPC
- * RECUSA o que não estiver sob ele. Se as duas divergirem, todo import passa a ser
- * recusado com "o backup informado não é o backup DESTA filial" — e o caminho estaria
- * certo dos dois lados, só que diferentes.
- *
- * Por ID e não por slug: o slug colide quando deixar de ser único global, e com
- * `upsert:false` o segundo import falharia por causa do primeiro.
- */
-export function prefixoBackupImport(filialId: number): string {
-  return `import/filial-${filialId}/`
-}
+// O prefixo do backup do import (`prefixoBackupImport`, F52) saiu daqui. F67B (16/11/2026): o caminho do bucket `backups-import` mora em `src/lib/storage/caminho.ts` (a função única, com a
+// EMPRESA no 2º segmento), e a régua TS × SQL dele é `src/lib/storage/caminho.test.ts` §3, contra o corpo vigente.

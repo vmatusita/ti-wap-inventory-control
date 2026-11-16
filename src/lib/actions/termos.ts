@@ -2,7 +2,6 @@
 
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
@@ -12,6 +11,8 @@ import { exigirEscrita, exigirEscritaEm, exigirPapel } from '@/lib/auth/acesso'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
+import { traduzirErroStorage } from '@/lib/supabase/erros-do-banco'
+import { persistirTermo } from '@/lib/termos/persistir'
 import {
   confirmarAssinaturaSchema,
   desfazerAssinaturaSchema,
@@ -58,9 +59,6 @@ import {
   LEITURA_TERMOS_EXISTENTES_DO_CONJUNTO,
   LEITURA_URL_TERMO,
 } from '@/lib/queries/formas/termos'
-
-const DOCX_MIME =
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 // Os tetos REAIS de `camposTermoSchema` — quem os respeita é
 // `montarLinhaDeAcessorios`, não o Zod (ver o comentário no validator). ⚠ IMPORTADOS
@@ -446,100 +444,9 @@ async function renderizarDocx(
   return doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' })
 }
 
-// Grava o termo em versão única (§3.10): sobe o .docx no Storage e faz upsert da
-// linha em `termos_gerados` para ESTE conjunto de movimentações, removendo órfãos
-// de variantes antigas do mesmo conjunto. Devolve o id e o path do arquivo.
-async function persistirTermo(
-  supabase: ServerClient,
-  params: {
-    tipo: TermoTipo
-    movimentacaoIds: string[]
-    ativoIds: string[]
-    campos: CamposTermo
-    dados: DadosTermo
-    buffer: Buffer
-    uid: string
-  },
-): Promise<
-  { ok: true; id: string; arquivoPath: string } | { ok: false; erro: string }
-> {
-  const { tipo, movimentacaoIds, ativoIds, campos, dados, buffer, uid } = params
-  const sortedMovIds = [...movimentacaoIds].sort()
-
-  // Termos já existentes para ESTE conjunto de movimentações. Falha de leitura NÃO
-  // vira "não há nenhum": seguiria para um INSERT que o `unique (tipo, movimentacao_ids)`
-  // recusaria com uma mensagem de duplicidade que não explica nada.
-  const { data: existentes, error: eExist } = await supabase
-    .from('termos_gerados')
-    .select('id, arquivo_path')
-    .contains('movimentacao_ids', sortedMovIds)
-    .containedBy('movimentacao_ids', sortedMovIds)
-  if (eExist) return { ok: false, erro: traduzErroBanco(eExist.message, eExist.code) }
-
-  const reutilizar = existentes?.[0]
-  const id = reutilizar?.id ?? randomUUID()
-  const arquivoPath = `${id}.docx`
-
-  // Remove órfãos: linhas/objetos de variantes antigas do mesmo conjunto (ex.:
-  // trocar monitor interno ↔ home office) — mantém uma só versão por movimentações.
-  // A LINHA sai primeiro e o arquivo só depois: apagar o .docx de uma linha que
-  // continuasse de pé deixaria um termo com download quebrado.
-  const orfaos = (existentes ?? []).filter((e) => e.id !== id)
-  if (orfaos.length > 0) {
-    // `.select('id')`: DELETE filtrado pela RLS ("operador apaga") afeta 0 linhas SEM erro.
-    // Só o arquivo das linhas que de fato saíram pode ir embora.
-    const { data: apagadas, error: eDel } = await supabase
-      .from('termos_gerados')
-      .delete()
-      .in('id', orfaos.map((o) => o.id))
-      .select('id')
-    if (eDel) return { ok: false, erro: traduzErroBanco(eDel.message, eDel.code) }
-    const idsApagados = new Set((apagadas ?? []).map((a) => a.id))
-    const arquivos = orfaos.filter((o) => idsApagados.has(o.id)).map((o) => o.arquivo_path)
-    if (arquivos.length > 0) {
-      const { error: eRm } = await supabase.storage.from('termos').remove(arquivos)
-      // A linha já saiu: o arquivo que sobrar é órfão invisível, não termo quebrado —
-      // não há o que reverter, mas não pode sumir sem rastro.
-      if (eRm) registrarFalha({ escopo: 'termos.remover-orfaos', erro: eRm })
-    }
-  }
-
-  // Upload (upsert: sobrescreve o arquivo antigo do mesmo termo — sem órfão).
-  const { error: upErr } = await supabase.storage
-    .from('termos')
-    .upload(arquivoPath, buffer, { contentType: DOCX_MIME, upsert: true })
-  if (upErr) return { ok: false, erro: `Falha ao salvar o arquivo: ${upErr.message}` }
-
-  const linha = {
-    id,
-    tipo,
-    movimentacao_ids: sortedMovIds,
-    ativo_ids: [...ativoIds].sort(),
-    colaborador: campos.colaborador ?? null,
-    dados,
-    arquivo_path: arquivoPath,
-  }
-
-  if (reutilizar) {
-    const { error } = await supabase
-      .from('termos_gerados')
-      .update({ ...linha, atualizado_em: new Date().toISOString(), atualizado_por: uid })
-      .eq('id', id)
-    if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
-  } else {
-    const { error } = await supabase
-      .from('termos_gerados')
-      .insert({ ...linha, gerado_por: uid })
-    if (error) {
-      // Insert falhou (ex.: corrida no unique tipo+movimentações) — remove o .docx
-      // recém-enviado para não deixar objeto órfão no bucket.
-      await supabase.storage.from('termos').remove([arquivoPath])
-      return { ok: false, erro: traduzErroBanco(error.message, error.code) }
-    }
-  }
-
-  return { ok: true, id, arquivoPath }
-}
+// Grava o termo em versão única (§3.10): `persistirTermo` mora em `src/lib/termos/persistir.ts` desde a F67B
+// (16/11/2026) — a LINHA antes do arquivo (o bucket `termos` decide pela linha desde a 0198), com o rollback de cada
+// ramo; módulo `server-only`, testável sem virar Server Action.
 
 // Responsabilidade: marca a flag 'gerado' nos ativos (sem rebaixar 'sim'/'enviado').
 // Inclui 'gerado' no predicado para que REGERAR com data nova atualize termo_data
@@ -634,7 +541,7 @@ export async function gerarTermo(input: unknown): Promise<GeracaoTermo> {
     tipo,
     movimentacaoIds,
     ativoIds,
-    campos,
+    colaborador: campos.colaborador ?? null,
     dados,
     buffer,
     uid,
@@ -697,7 +604,10 @@ export async function urlTermo(input: {
   const { data: signed, error: sErr } = await supabase.storage
     .from('termos')
     .createSignedUrl(linha.arquivo_path, 600)
-  if (sErr || !signed) return { ok: false, erro: 'Falha ao gerar o link do arquivo.' }
+  // F67B: o link exige LER o objeto, e desde a 0198 quem lê é membro ativo da empresa da LINHA — a recusa do Storage
+  // volta "Object not found" (a policy esconde o objeto), traduzida no ponto de chamada.
+  if (sErr) return { ok: false, erro: traduzirErroStorage(sErr, 'ler') }
+  if (!signed) return { ok: false, erro: 'Falha ao gerar o link do arquivo.' }
 
   return {
     ok: true,

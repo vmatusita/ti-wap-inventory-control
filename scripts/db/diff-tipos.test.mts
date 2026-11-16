@@ -304,8 +304,13 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // (empresas_com_modelo_de_termo; a do gatilho é `returns trigger` e fica de fora), e a 0193 derruba `e_dev` — +8 −1.
     // As de nome mantido e assinatura nova não mudam a conta (o gate compara por NOME). HAND-FIX datado no
     // `database.ts`; a geração do MCP de produção depois da contração o substitui.
+    //
+    // F67B (16/11/2026): relações 38 -> 38, funções 102 -> 105. A 0194 cria DUAS que o gerador lista por nome novo
+    // (empresa_do_caminho_backup, caminho_backup_legado — os três prefixo_backup_* novos mantêm o nome das antigas, que a
+    // 0199 derruba), e a 0196 UMA (registrar_limpeza_termos_sem_linha). pode_escrever_termo troca de assinatura (0197/0198)
+    // e mantém o nome. HAND-FIX datado no `database.ts`; a geração do MCP de produção depois da contração o substitui.
     expect(real.relacoes.size).toBe(38)
-    expect(real.funcoes.size).toBe(102)
+    expect(real.funcoes.size).toBe(105)
     expect(real.colunas.size).toBeGreaterThanOrEqual(314)
   })
 

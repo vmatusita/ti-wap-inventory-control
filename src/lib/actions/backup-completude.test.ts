@@ -134,7 +134,7 @@ const CLASSIFICADOS: Record<string, Classificacao> = {
   'src/lib/storage/copiar-antes-de-remover.ts::loteRemocao': {
     tipo: 'copia-antes',
     motivo:
-      'A PORTA ÚNICA. Os quatro fluxos destrutivos que apagam `.docx` do bucket `termos` (import, reset, apagar ativo e conflito entre filiais) passam todos por aqui, e é aqui que a cópia acontece antes da remoção. Concentrar a remoção num ponto só é o que permite a esta trava ser uma asserção sobre estrutura, e não um grep espalhado por quatro arquivos que envelhecem em ritmos diferentes.',
+      'A PORTA ÚNICA. Os fluxos destrutivos que apagam `.docx` do bucket `termos` (import, reset, apagar ativo, conflito entre filiais e, desde a F67B, a ferramenta de órfão) passam todos por aqui, e é aqui que a cópia acontece antes da remoção. Concentrar a remoção num ponto só é o que permite a esta trava ser uma asserção sobre estrutura, e não um grep espalhado por quatro arquivos que envelhecem em ritmos diferentes.',
     listaConfirmada: 'copiados',
     listaDeEntrada: 'caminhos',
   },
@@ -145,15 +145,10 @@ const CLASSIFICADOS: Record<string, Classificacao> = {
     motivo:
       'Apaga o BACKUP que a própria operação acabou de subir, no ramo em que a RPC RECUSOU a exclusão — nada foi apagado, então esse backup não cobre exclusão nenhuma e é sobra, não prova. Copiá-lo seria guardar cópia de um arquivo que existe só por um instante e que o `descartarBackupNaoUsado` existe para não deixar no bucket (o órfão sob prefixo válido é material de replay).',
   },
-  'src/lib/actions/termos.ts::arquivos': {
+  'src/lib/termos/persistir.ts::arquivos': {
     tipo: 'dispensado',
     motivo:
-      'Apaga a VARIANTE SUPERADA do mesmo termo — o sistema mantém uma versão por conjunto de movimentações, e regerar o termo (trocar monitor interno por home office, por exemplo) descarta a anterior. Desde 18/09/2026 a lista é só a das linhas de `termos_gerados` que o DELETE de fato removeu (`.select(\'id\')`), nunca a de entrada: um DELETE barrado pela RLS não leva o arquivo junto. ⚠ ACHADO DA F54, REGISTRADO E NÃO CORRIGIDO AQUI: este é o único caminho em que um `.docx` que JÁ pertenceu ao acervo some sem cópia. Guardá-lo exige decidir por quanto tempo, e retenção é decisão de produto explicitamente fora do escopo desta fase (ver docs/RELATORIO-F54.md, backlog).',
-  },
-  'src/lib/actions/termos.ts::[arquivoPath]': {
-    tipo: 'dispensado',
-    motivo:
-      'COMPENSA um insert que falhou: o `.docx` subiu segundos antes, nesta mesma função, e a linha de `termos_gerados` não chegou a existir (corrida no índice único tipo+movimentações). O objeto nunca entrou no acervo, ninguém o assinou e nada aponta para ele — removê-lo é desfazer o próprio passo, não apagar documento.',
+      'Apaga a VARIANTE SUPERADA do mesmo termo — o sistema mantém uma versão por conjunto de movimentações, e regerar o termo (trocar monitor interno por home office, por exemplo) descarta a anterior. Desde a F67B (16/11/2026, `persistirTermo` mudou para `src/lib/termos/persistir.ts`) o ARQUIVO sai primeiro, ENQUANTO a linha existe (o bucket decide pela linha), e só as linhas cujo arquivo saiu de fato (o `data` do `remove`) são apagadas depois. O `remove` de compensação do INSERT que falhava deixou de existir: a linha nasce ANTES do arquivo, e o rollback é apagar a LINHA. ⚠ ACHADO DA F54, REGISTRADO E NÃO CORRIGIDO AQUI: este é o único caminho em que um `.docx` que JÁ pertenceu ao acervo some sem cópia. Guardá-lo exige decidir por quanto tempo, e retenção é decisão de produto (ver docs/RELATORIO-F54.md, backlog).',
   },
 }
 

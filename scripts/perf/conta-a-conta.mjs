@@ -472,6 +472,330 @@ export function validarComandoF67(sql) {
 }
 
 // ---------------------------------------------------------------------------
+// F67B (16/11/2026) — o conta a conta dos OBJETOS: Storage por empresa (decisão 15 do PLAN-F67B)
+// ---------------------------------------------------------------------------
+// A F67B troca o DONO de cada objeto dos dois buckets: o `.docx` de `termos` passa a ser decidido pela LINHA de
+// `termos_gerados` que o referencia, e o backup de `backups-import` pela EMPRESA DO CAMINHO (com a cláusula legada
+// FECHADA, só de leitura, para os 29 antigos). Para a WAP, nada pode mudar — exceto o DECLARADO, e só depois da
+// CONTRAÇÃO: os `.docx` sem linha (nem lidos nem escritos pela sessão) e a escrita nos backups de forma antiga.
+//
+// O ORÁCULO é a regra de ANTES da F67B (o estado da 0193), ESCRITA no bloco a partir das tabelas-base — nunca pelas
+// funções que a fase recria:
+//   · termos, leitura: membership ATIVA na legada (com a conta viva) → todo objeto do bucket;
+//   · termos, escrita: escreve na legada (dev/admin/operador) E, para cada linha que referencia o objeto, o termo de
+//     antes (o degenerado: dev/admin; senão, todo ativo existe e está numa filial em que ela escreve); objeto SEM linha
+//     → verdadeiro (o `coalesce(…, true)` de antes);
+//   · backups, leitura e escrita: dev/admin na legada → todo objeto do bucket;
+//   · as linhas de `termos_gerados` (UPDATE/DELETE): escreve E a linha é da legada E o termo de antes.
+// O LADO VIVO é a RLS DE VERDADE: a leitura como `authenticated` com as claims da membership; a escrita pelo predicado
+// VIVO de cada policy de escrita, lido de `pg_policy` (`pg_get_expr`) e avaliado objeto a objeto com as mesmas claims
+// (as permissivas do mesmo comando em OR — como o Postgres as combina). Nenhuma cópia de policy mora aqui.
+// AS CLASSES DE OBJETO (termos com/sem linha; backups na forma antiga, nova ou fora de toda forma) são calculadas como o
+// dono, DENTRO do bloco, por regex escrita aqui (independente das funções da fase) — nenhum nome sai do banco.
+// O PAYLOAD: só contagens — memberships, objetos por classe, avaliações, divergências por classe e o ESPERADO das três
+// classes declaradas (calculado pelo oráculo: os objetos sem linha × quem os lia/escrevia; os backups antigos × quem os
+// escrevia). Fases: `f67b-antes` (antes do 1º apply) e `f67b-depois` (depois de cada lote de expansão) — TODA classe tem
+// de dar zero; `f67b-contraida` (depois da contração) — as três declaradas têm de dar EXATAMENTE o esperado, e o resto
+// zero. A SABOTAGEM I (só no ensaio): o oráculo da leitura inverte para a 1ª membership — a leitura TEM de divergir.
+// ⚠ O validador lexa também o conteúdo dos LITERAIS (um literal pode virar `execute`) e recusa as palavras de escrita/DDL
+// dentro deles — menos `import` e `reset`, que aqui são DADO: o nome do bucket `backups-import` e a família `reset/` das
+// regexes (`PERMITIDAS_EM_LITERAL_F67B`). No CÓDIGO elas continuam proibidas (IMPORT FOREIGN SCHEMA, RESET); e os dois
+// únicos `execute` são textos fixos (`EXECUTES_PERMITIDOS_F67B`), então nenhum literal com essas palavras é executado.
+
+export const FASES_F67B = ['f67b-antes', 'f67b-depois', 'f67b-contraida']
+
+/** As três classes que a CONTRAÇÃO muda de propósito (decisões 2 e 4–5 do PLAN-F67B) — e só ela. */
+export const DECLARADAS_F67B = ['leitura_termo_sem_linha', 'escrita_termo_sem_linha', 'escrita_backup_forma_antiga']
+
+// O oráculo da escrita de um `.docx` (a regra de antes): $1 escreve na legada · $2 é dev/admin · $3 as filiais dela.
+const ORACULO_TERMO =
+  '$1 and coalesce((select bool_and(case when coalesce(array_length(t.ativo_ids, 1), 0) = 0 then $2 ' +
+  'else not exists (select 1 from unnest(t.ativo_ids) as x (aid) left join public.ativos a on a.id = x.aid ' +
+  'where a.id is null or not (a.filial_id = any ($3))) end) ' +
+  'from public.termos_gerados t where t.arquivo_path = objects.name), true)'
+// O oráculo da escrita de uma LINHA de `termos_gerados` (a regra de antes): $7 a legada.
+const ORACULO_LINHA =
+  '$1 and empresa_id = $7 and case when coalesce(array_length(ativo_ids, 1), 0) = 0 then $2 ' +
+  'else not exists (select 1 from unnest(ativo_ids) as x (aid) left join public.ativos a on a.id = x.aid ' +
+  'where a.id is null or not (a.filial_id = any ($3))) end'
+
+const EXECUTE_OBJETOS_F67B =
+  "execute format('select count(*) filter (where bucket_id = ''termos'' and not (name = any ($4)) and coalesce((%1$s), false) is distinct from (" +
+  ORACULO_TERMO.replace(/'/g, "''") +
+  ")), count(*) filter (where bucket_id = ''termos'' and name = any ($4) and coalesce((%1$s), false) is distinct from (" +
+  ORACULO_TERMO.replace(/'/g, "''") +
+  ")), count(*) filter (where bucket_id = ''backups-import'' and name = any ($5) and coalesce((%1$s), false) is distinct from $2), " +
+  "count(*) filter (where bucket_id = ''backups-import'' and name = any ($6) and coalesce((%1$s), false) is distinct from $2), " +
+  "count(*) filter (where bucket_id = ''backups-import'' and not (name = any ($5)) and not (name = any ($6)) and coalesce((%1$s), false) is distinct from $2) " +
+  "from storage.objects', v_expr) into v_a, v_b, v_c, v_d, v_e using v_escreve, v_admin, v_filiais, v_sem, v_antiga, v_nova;"
+const EXECUTE_LINHAS_F67B =
+  "execute format('select count(*) filter (where coalesce((%1$s), false) is distinct from (" +
+  ORACULO_LINHA.replace(/'/g, "''") +
+  ")) from public.termos_gerados', v_expr) into v_a using v_escreve, v_admin, v_filiais, v_sem, v_antiga, v_nova, v_emp;"
+
+/** O bloco da prova conta a conta dos objetos (F67B). `sabotar` só no ensaio. */
+export function comandoContaF67B({ alvo, fase, sabotar = false }) {
+  if (!['ensaio', 'producao'].includes(alvo)) recusar(`alvo ${alvo}`)
+  if (!FASES_F67B.includes(fase)) recusar(`--fase "${fase}" não existe — só ${FASES_F67B.join('|')}.`)
+  if (typeof sabotar !== 'boolean') recusar('sabotar tem de ser booleano.')
+  if (sabotar && alvo !== 'ensaio') recusar('a sabotagem roda só no ensaio.')
+  const U = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  return `do $f67b$
+declare
+  v_alvo     constant text    := '${alvo}';
+  v_fase     constant text    := '${fase}';
+  v_sabotar  constant boolean := ${sabotar};
+  v_cmds     constant "char"[] := array['a', 'w', 'd']::"char"[];
+  v_rotulo   text;
+  v_emp      uuid;
+  v_uid      uuid;
+  v_papel    public.papel_usuario;
+  v_le       boolean;
+  v_escreve  boolean;
+  v_admin    boolean;
+  v_filiais  smallint[];
+  v_sem      text[];
+  v_antiga   text[];
+  v_nova     text[];
+  v_cmd      "char";
+  v_expr     text;
+  v_a        bigint;
+  v_b        bigint;
+  v_c        bigint;
+  v_d        bigint;
+  v_e        bigint;
+  v_n_termos bigint;
+  v_n_bk     bigint;
+  v_n_linhas bigint;
+  v_membros  int := 0;
+  v_aval     bigint := 0;
+  v_lt_com   bigint := 0;
+  v_lt_sem   bigint := 0;
+  v_et_com   bigint := 0;
+  v_et_sem   bigint := 0;
+  v_lb_ant   bigint := 0;
+  v_lb_nova  bigint := 0;
+  v_lb_fora  bigint := 0;
+  v_eb_ant   bigint := 0;
+  v_eb_nova  bigint := 0;
+  v_eb_fora  bigint := 0;
+  v_linha    bigint := 0;
+  v_esp_lt   bigint := 0;
+  v_esp_et   bigint := 0;
+  v_esp_eb   bigint := 0;
+-- nada nesta transação grava; e ela nunca se confirma (termina em raise exception)
+begin
+  perform set_config('transaction_read_only', 'on', true);
+
+  -- o BANCO confirma o alvo, antes de qualquer leitura
+  v_rotulo := public.rotulo_de_ambiente();
+  if (v_alvo = 'ensaio' and v_rotulo is distinct from 'desenvolvimento')
+     or (v_alvo = 'producao' and v_rotulo is not null) then
+    raise exception 'F67B_ALVO_RECUSADO alvo=% rotulo=%', v_alvo, coalesce(v_rotulo, '(null)');
+  end if;
+  if v_sabotar and v_alvo <> 'ensaio' then
+    raise exception 'F67B_SABOTAGEM_FORA_DO_ENSAIO alvo=%', v_alvo;
+  end if;
+  v_emp := public.empresa_legada();
+
+  -- AS CLASSES DE OBJETO, como o dono — as listas vivem só dentro do bloco; nenhum nome sai
+  v_sem := array(select o.name from storage.objects o where o.bucket_id = 'termos'
+                   and not exists (select 1 from public.termos_gerados t where t.arquivo_path = o.name));
+  v_antiga := array(select o.name from storage.objects o where o.bucket_id = 'backups-import' and (
+                   o.name ~ '^import/filial-[0-9]+/[^/]+(\\.json|/termos/[^/]+)$'
+                or o.name ~ '^reset/(acervo|itens)/(global|filial-[0-9]+)/[^/]+(\\.json|/termos/[^/]+)$'
+                or o.name ~ '^conflito/[0-9a-f]{32}/([^/]+\\.json|termos/[^/]+)$'
+                or o.name ~ '^ativo/[0-9a-fA-F-]{36}/termos/[^/]+$'
+                or (o.name ~ '^[a-z0-9][a-z0-9-]*/[^/]+\\.json$' and o.name !~ '^(import|reset|conflito|ativo|orfao)/')));
+  v_nova := array(select o.name from storage.objects o where o.bucket_id = 'backups-import' and (
+                   o.name ~ '^import/empresa-${U}/filial-[0-9]+/[^/]+(\\.json|/termos/[^/]+)$'
+                or o.name ~ '^reset/empresa-${U}/(acervo|itens)/(tudo|filial-[0-9]+)/[^/]+(\\.json|/termos/[^/]+)$'
+                or o.name ~ '^conflito/empresa-${U}/[0-9a-f]{32}/([^/]+\\.json|termos/[^/]+)$'
+                or o.name ~ '^ativo/empresa-${U}/[0-9a-fA-F-]{36}/termos/[^/]+$'));
+  v_n_termos := (select count(*) from storage.objects o where o.bucket_id = 'termos');
+  v_n_bk := (select count(*) from storage.objects o where o.bucket_id = 'backups-import');
+  v_n_linhas := (select count(*) from public.termos_gerados);
+
+  for v_uid in select distinct m.profile_id from public.membros m where m.ativo order by m.profile_id loop
+    v_membros := v_membros + 1;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid, 'role', 'authenticated')::text, true);
+
+    -- o ORÁCULO: a regra de antes da F67B — a membership ATIVA na legada, a conta viva, o vínculo na legada
+    v_papel := (select m.papel from public.membros m join public.profiles p on p.id = m.profile_id
+                 where m.profile_id = v_uid and m.empresa_id = v_emp and m.ativo and p.excluido_em is null);
+    v_le := v_papel is not null;
+    v_escreve := coalesce(v_papel in ('dev', 'admin', 'operador'), false);
+    v_admin := coalesce(v_papel in ('dev', 'admin'), false);
+    if v_sabotar and v_membros = 1 then
+      v_le := not v_le;
+    end if;
+    v_filiais := case
+      when v_admin then array(select f.id from public.filiais f where f.empresa_id = v_emp)
+      when v_escreve then array(select vf.filial_id from public.operador_filiais vf
+                                  join public.membros m on m.id = vf.membro_id and m.empresa_id = vf.empresa_id
+                                 where m.profile_id = v_uid and m.empresa_id = v_emp)
+      else array[]::smallint[] end;
+
+    -- 1. a LEITURA — a RLS de verdade, como authenticated, com as claims dela
+    perform set_config('role', 'authenticated', true);
+    select count(*) filter (where not (o.name = any (v_sem))), count(*) filter (where o.name = any (v_sem))
+      into v_a, v_b from storage.objects o where o.bucket_id = 'termos';
+    select count(*) filter (where o.name = any (v_antiga)), count(*) filter (where o.name = any (v_nova)),
+           count(*) filter (where not (o.name = any (v_antiga)) and not (o.name = any (v_nova)))
+      into v_c, v_d, v_e from storage.objects o where o.bucket_id = 'backups-import';
+    perform set_config('role', 'none', true);
+    v_lt_com := v_lt_com + abs(v_a - case when v_le then v_n_termos - cardinality(v_sem) else 0 end);
+    v_lt_sem := v_lt_sem + abs(v_b - case when v_le then cardinality(v_sem) else 0 end);
+    v_lb_ant := v_lb_ant + abs(v_c - case when v_admin then cardinality(v_antiga) else 0 end);
+    v_lb_nova := v_lb_nova + abs(v_d - case when v_admin then cardinality(v_nova) else 0 end);
+    v_lb_fora := v_lb_fora + abs(v_e - case when v_admin then v_n_bk - cardinality(v_antiga) - cardinality(v_nova) else 0 end);
+    v_esp_lt := v_esp_lt + case when v_le then cardinality(v_sem) else 0 end;
+    v_aval := v_aval + v_n_termos + v_n_bk;
+
+    -- 2. a ESCRITA nos objetos — o predicado VIVO de cada comando (as permissivas em OR), objeto a objeto, × o oráculo
+    foreach v_cmd in array v_cmds loop
+      v_expr := (select coalesce(string_agg('(' || case p.polcmd
+                     when 'a' then pg_get_expr(p.polwithcheck, p.polrelid)
+                     when 'd' then pg_get_expr(p.polqual, p.polrelid)
+                     else '(' || pg_get_expr(p.polqual, p.polrelid) || ') and (' || pg_get_expr(p.polwithcheck, p.polrelid) || ')'
+                   end || ')', ' or ' order by p.polname), 'false')
+                   from pg_policy p
+                  where p.polrelid = 'storage.objects'::regclass and p.polcmd = v_cmd and p.polpermissive);
+      ${EXECUTE_OBJETOS_F67B}
+      v_et_com := v_et_com + v_a;
+      v_et_sem := v_et_sem + v_b;
+      v_eb_ant := v_eb_ant + v_c;
+      v_eb_nova := v_eb_nova + v_d;
+      v_eb_fora := v_eb_fora + v_e;
+      v_esp_et := v_esp_et + case when v_escreve then cardinality(v_sem) else 0 end;
+      v_esp_eb := v_esp_eb + case when v_admin then cardinality(v_antiga) else 0 end;
+      v_aval := v_aval + v_n_termos + v_n_bk;
+    end loop;
+
+    -- 3. a ESCRITA nas LINHAS de termos_gerados (UPDATE e DELETE: o using vivo × o termo de antes)
+    foreach v_cmd in array array['w', 'd']::"char"[] loop
+      v_expr := (select coalesce(string_agg('(' || pg_get_expr(p.polqual, p.polrelid) || ')', ' or ' order by p.polname), 'false')
+                   from pg_policy p
+                  where p.polrelid = 'public.termos_gerados'::regclass and p.polcmd = v_cmd and p.polpermissive);
+      ${EXECUTE_LINHAS_F67B}
+      v_linha := v_linha + v_a;
+      v_aval := v_aval + v_n_linhas;
+    end loop;
+  end loop;
+
+  raise exception 'F67B_CONTA %', jsonb_build_object(
+    '_canal', repeat('.', 120000),
+    'alvo', v_alvo, 'fase', v_fase, 'sabotar', v_sabotar,
+    'postgres', current_setting('server_version'),
+    'memberships', v_membros, 'avaliacoes', v_aval,
+    'objetos', jsonb_build_object('termos', v_n_termos, 'termos_sem_linha', cardinality(v_sem),
+                                  'backups', v_n_bk, 'backups_forma_antiga', cardinality(v_antiga),
+                                  'backups_forma_nova', cardinality(v_nova), 'linhas_termos', v_n_linhas),
+    'divergencias', jsonb_build_object('leitura_termo_com_linha', v_lt_com, 'leitura_termo_sem_linha', v_lt_sem,
+                                       'escrita_termo_com_linha', v_et_com, 'escrita_termo_sem_linha', v_et_sem,
+                                       'leitura_backup_forma_antiga', v_lb_ant, 'leitura_backup_forma_nova', v_lb_nova,
+                                       'leitura_backup_fora_de_forma', v_lb_fora,
+                                       'escrita_backup_forma_antiga', v_eb_ant, 'escrita_backup_forma_nova', v_eb_nova,
+                                       'escrita_backup_fora_de_forma', v_eb_fora, 'escrita_linha_termo', v_linha),
+    'declaradas_esperadas', jsonb_build_object('leitura_termo_sem_linha', v_esp_lt, 'escrita_termo_sem_linha', v_esp_et,
+                                               'escrita_backup_forma_antiga', v_esp_eb));
+end $f67b$;`
+}
+
+/** As ÚNICAS funções que o bloco da F67B chama, pelo nome (o último, sem schema) — no código e nos literais. */
+const FUNCOES_PERMITIDAS_F67B = new Set([
+  'set_config', 'current_setting', 'rotulo_de_ambiente', 'empresa_legada', 'json_build_object', 'jsonb_build_object',
+  'coalesce', 'repeat', 'count', 'abs', 'cardinality', 'string_agg', 'pg_get_expr', 'format', 'array_length', 'bool_and',
+  'unnest',
+])
+/** As palavras proibidas que, DENTRO de um literal do bloco da F67B, são dado (o bucket `backups-import`, a família `reset/`). */
+const PERMITIDAS_EM_LITERAL_F67B = ['import', 'reset']
+/** Os ÚNICOS `execute` do bloco da F67B — o texto exato, espaço normalizado (o %1$s é o predicado VIVO de pg_policy). */
+const EXECUTES_PERMITIDOS_F67B = new Set([EXECUTE_OBJETOS_F67B, EXECUTE_LINHAS_F67B].map((s) => s.replace(/\s+/g, ' ')))
+
+/** Recusa o comando que não seja o bloco da prova da F67B, só leitura. Devolve o comando se passar. */
+export function validarComandoF67B(sql) {
+  if (typeof sql !== 'string' || sql.length === 0) recusar('comando vazio.')
+  const t = sql.trim()
+  if (!t.startsWith('do $f67b$') || !t.endsWith('end $f67b$;')) recusar('comando fora do modelo (do $f67b$ … end $f67b$;).')
+  if (t.split('$f67b$').length !== 3) recusar('delimitador $f67b$ repetido — um segundo bloco escondido.')
+  const corpo = t.slice('do $f67b$'.length, t.length - '$f67b$;'.length)
+  const { palavras, chamadas, comentarios } = palavrasDeCodigo(corpo)
+  const codigo = corpo.split('')
+  for (const [a, b] of comentarios) for (let k = a; k < b; k++) codigo[k] = ' '
+  const semComentario = codigo.join('')
+
+  if (!/\bbegin\s+perform set_config\('transaction_read_only', 'on', true\);/.test(semComentario)) {
+    recusar('o bloco não liga transaction_read_only antes de tudo.')
+  }
+  if (!/raise exception 'F67B_CONTA %', jsonb_build_object\([\s\S]*\);\s*end\s*$/.test(semComentario)) {
+    recusar('o bloco não termina em raise exception — ele poderia se confirmar.')
+  }
+  // no CÓDIGO, toda palavra proibida; nos literais, todas menos as duas que aqui são dado (o bucket e a família reset/)
+  const doCodigo = new Set(
+    lexar(semComentario).tokens.filter((x) => x.tipo === 'ident' || x.tipo === 'qident').map((x) => x.v),
+  )
+  for (const p of PROIBIDAS) {
+    if (doCodigo.has(p)) recusar(`palavra proibida no comando: "${p}".`)
+    if (palavras.includes(p) && !PERMITIDAS_EM_LITERAL_F67B.includes(p)) recusar(`palavra proibida no comando: "${p}".`)
+  }
+  for (const f of chamadas) {
+    if (!FUNCOES_PERMITIDAS_F67B.has(f)) recusar(`chamada a função fora do modelo: "${f}(…)".`)
+  }
+  const porGuc = new Map()
+  for (const m of semComentario.matchAll(/set_config\(\s*'([^']+)'\s*,\s*([^,]+),/g)) {
+    if (!GUCS_PERMITIDOS.includes(m[1])) recusar(`set_config de "${m[1]}" fora da lista permitida.`)
+    if (m[1] === 'role' && !["'authenticated'", "'none'"].includes(m[2].trim())) {
+      recusar('troca de papel para outro que não authenticated (ou a volta ao dono).')
+    }
+    if (m[1] === 'transaction_read_only' && m[2].trim() !== "'on'") recusar('transaction_read_only com valor que não é on.')
+    porGuc.set(m[1], (porGuc.get(m[1]) ?? 0) + 1)
+  }
+  if (porGuc.get('transaction_read_only') !== 1) recusar('transaction_read_only ligado mais de uma vez — ou nenhuma.')
+  if ((porGuc.get('role') ?? 0) !== 2) recusar('o papel troca exatamente duas vezes (para authenticated e de volta).')
+  if (palavras.filter((p) => p === 'set_config').length !== [...semComentario.matchAll(/set_config\(\s*'[^']+'\s*,/g)].length) {
+    recusar('set_config com nome de parâmetro que não é literal.')
+  }
+  const executes = [...semComentario.matchAll(/\bexecute\b[\s\S]*?;(?=\s*\n)/g)].map((m) => m[0].replace(/\s+/g, ' '))
+  for (const e of executes) {
+    if (!EXECUTES_PERMITIDOS_F67B.has(e)) recusar(`execute fora do modelo: "${e.slice(0, 120)}".`)
+  }
+  if (palavras.filter((p) => p === 'execute').length !== executes.length) recusar('execute fora do modelo.')
+  // O FECHO: byte a byte o que este script gera para os parâmetros que o próprio comando declara.
+  try {
+    const alvo = /v_alvo\s+constant text\s+:= '([a-z]+)';/.exec(t)?.[1]
+    const fase = /v_fase\s+constant text\s+:= '([a-z0-9-]+)';/.exec(t)?.[1]
+    const sabotar = /v_sabotar\s+constant boolean := (true|false);/.exec(t)?.[1] === 'true'
+    if (t !== comandoContaF67B({ alvo, fase, sabotar }).trim()) recusar('o comando não é, byte a byte, um comando que este script gera.')
+  } catch (err) {
+    if (err instanceof Recusa) throw err
+    recusar('o comando não é, byte a byte, um comando que este script gera.')
+  }
+  return sql
+}
+
+/**
+ * O veredito da F67B: antes e depois de cada lote de expansão, TODA classe tem de dar zero; depois da contração, as três
+ * declaradas têm de dar EXATAMENTE o esperado que o oráculo calculou (nem um a mais, nem um a menos) e o resto zero.
+ */
+export function vereditoF67B(p) {
+  const d = p.divergencias
+  const esp = p.declaradas_esperadas ?? {}
+  const contraida = p.fase === 'f67b-contraida'
+  let total = 0
+  const declaradas = {}
+  for (const [classe, n] of Object.entries(d)) {
+    if (contraida && DECLARADAS_F67B.includes(classe)) {
+      declaradas[classe] = { medido: Number(n), esperado: Number(esp[classe] ?? 0) }
+      total += Math.abs(Number(n) - Number(esp[classe] ?? 0))
+    } else {
+      total += Number(n)
+    }
+  }
+  return { total, zero: total === 0, corrida: 0, declaradas }
+}
+
+// ---------------------------------------------------------------------------
 // A guarda — roda sobre TODO comando antes de ele sair do processo
 // ---------------------------------------------------------------------------
 
@@ -626,14 +950,14 @@ export function lerPayload(texto) {
       break
     }
   }
-  const recusa = /F6[67]_(ALVO_RECUSADO|SABOTAGEM_FORA_DO_ENSAIO)[^\n"]*/.exec(msg)
+  const recusa = /F6(?:6|7|7B)_(ALVO_RECUSADO|SABOTAGEM_FORA_DO_ENSAIO)[^\n"]*/.exec(msg)
   if (recusa) return { recusa: recusa[0] }
-  // F67: o bloco da F67 fala `F67_CONTA {…}`; o da F66, `F66_CONTA {…}` — o mesmo canal, o mesmo leitor
-  const i66 = msg.indexOf('F66_CONTA {')
-  const i67 = msg.indexOf('F67_CONTA {')
-  const i = i66 === -1 ? i67 : i67 === -1 ? i66 : Math.min(i66, i67)
-  if (i === -1) recusar('resposta sem F66_CONTA/F67_CONTA — o bloco não chegou ao fim.')
-  const inicio = i + 'F66_CONTA '.length
+  // F67: o bloco da F67 fala `F67_CONTA {…}`; o da F66, `F66_CONTA {…}`; o da F67B, `F67B_CONTA {…}` — o mesmo canal, o
+  // mesmo leitor. ⚠ F67B: o início do JSON sai do comprimento do MARCADOR ACHADO — o `'F66_CONTA '.length` fixo de antes
+  // cortaria um caractere a mais do `F67B_CONTA ` (11) e o JSON.parse falharia.
+  const marcador = /F6(?:6|7|7B)_CONTA \{/.exec(msg)
+  if (!marcador) recusar('resposta sem F66_CONTA/F67_CONTA/F67B_CONTA — o bloco não chegou ao fim.')
+  const inicio = marcador.index + marcador[0].length - 1
   let prof = 0
   for (let k = inicio; k < msg.length; k++) {
     if (msg[k] === '{') prof++
@@ -717,10 +1041,12 @@ async function main() {
           ? validarComando
           : o.instrumento === 'conta-f67'
             ? validarComandoF67
-            : o.instrumento === 'equivalencia'
-              ? validarEquivalencia
-              : null
-    if (!validar) recusar('--instrumento medir-rls|conta|conta-f67|equivalencia.')
+            : o.instrumento === 'conta-f67b'
+              ? validarComandoF67B
+              : o.instrumento === 'equivalencia'
+                ? validarEquivalencia
+                : null
+    if (!validar) recusar('--instrumento medir-rls|conta|conta-f67|conta-f67b|equivalencia.')
     const destino = o.arquivo.replace(/.sql$/, '.canal.sql')
     writeFileSync(destino, involucroDoCanal(readFileSync(o.arquivo, 'utf8'), validar))
     console.log(`gravado ${destino}`)
@@ -731,10 +1057,12 @@ async function main() {
   const sabotar = o.sabotar === true
   const nome = `${alvo}-conta-${fase}${sabotar ? '-sabotada' : ''}`
   validarDirFora(o.dir)
-  // F67: as fases f67-antes|f67-depois usam o bloco da F67 (o oráculo da regra de antes), com o validador dele
+  // F67: as fases f67-antes|f67-depois usam o bloco da F67 (o oráculo da regra de antes), com o validador dele.
+  // F67B: as fases f67b-* usam o bloco dos OBJETOS, com o validador e o veredito dele (as três classes declaradas).
   const daF67 = FASES_F67.includes(fase)
-  const gerarBloco = daF67 ? comandoContaF67 : comandoConta
-  const validarBloco = daF67 ? validarComandoF67 : validarComando
+  const daF67B = FASES_F67B.includes(fase)
+  const gerarBloco = daF67B ? comandoContaF67B : daF67 ? comandoContaF67 : comandoConta
+  const validarBloco = daF67B ? validarComandoF67B : daF67 ? validarComandoF67 : validarComando
   if (o.modo === 'gerar') {
     const sql = validarBloco(gerarBloco({ alvo, fase, sabotar }))
     mkdirSync(o.dir, { recursive: true })
@@ -749,13 +1077,20 @@ async function main() {
   const p = lerPayload(readFileSync(arq, 'utf8'))
   if (p.recusa) recusar(`o banco recusou: ${p.recusa}`)
   if (p.alvo !== alvo || p.fase !== fase || p.sabotar !== sabotar) recusar('a resposta não corresponde ao comando.')
-  const v = veredito(p)
+  const v = daF67B ? vereditoF67B(p) : veredito(p)
   const saida = {
-    rotulo: `${daF67 ? 'f67' : 'f66'}-conta-a-conta-${nome}`,
+    rotulo: `${daF67B ? 'f67b' : daF67 ? 'f67' : 'f66'}-conta-a-conta-${nome}`,
     canal: 'MCP da Supabase (execute_sql), bloco do … raise exception',
     sha_codigo: shaDoCodigo(),
     gerado_em: new Date().toISOString(),
-    metodo: daF67
+    metodo: daF67B
+      ? 'para cada membership ativa (identidade escolhida DENTRO do banco; nenhum id nem nome de objeto sai), a RLS de ' +
+        'verdade × o ORÁCULO da regra de antes da F67B (o estado da 0193, escrito no bloco a partir das tabelas-base): a ' +
+        'leitura de cada objeto dos dois buckets como authenticated; a escrita (INSERT/UPDATE/DELETE) pelo predicado VIVO ' +
+        'de pg_policy avaliado objeto a objeto com as claims dela; as linhas de termos_gerados (UPDATE/DELETE). As classes ' +
+        'de objeto (termos com/sem linha; backups na forma antiga, nova, fora) por regex escrita no bloco. ' +
+        'transaction_read_only = on; o bloco termina em raise exception.'
+      : daF67
       ? 'para cada membership ativa (identidade escolhida DENTRO do banco; nenhum id sai), as funções reais × o ORÁCULO da ' +
         'regra de antes (a membership ativa na legada, a conta viva, o vínculo na legada — o corpo da 0158): o cargo, as ' +
         'derivadas, o piso, pode_escrever_filial e pode_escrever_unidade em cada filial da legada, exigir_gestao_de sobre um ' +
@@ -770,7 +1105,11 @@ async function main() {
     veredito: v,
   }
   writeFileSync(join(RAIZ, o.saida), JSON.stringify(saida, null, 2) + '\n')
-  console.log(`gravado ${o.saida}: divergências ${v.total} · corrida ${v.corrida} · memberships ${p.memberships} · tabelas ${p.tabelas} · pares ${p.pares}`)
+  console.log(
+    daF67B
+      ? `gravado ${o.saida}: divergências não declaradas ${v.total} · memberships ${p.memberships} · avaliações ${p.avaliacoes} · objetos ${JSON.stringify(p.objetos)}`
+      : `gravado ${o.saida}: divergências ${v.total} · corrida ${v.corrida} · memberships ${p.memberships} · tabelas ${p.tabelas} · pares ${p.pares}`,
+  )
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

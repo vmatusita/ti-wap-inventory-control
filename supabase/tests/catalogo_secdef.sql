@@ -201,7 +201,14 @@ declare
     -- 42P17 que a 0070 provou exige o dono. `search_path = ''`; EXECUTE só de `authenticated`.
     -- Recebem a empresa do cliente: estão em definer_sem_tenant.sql como a BASE do fecho da
     -- asserção 4 (a empresa testada antes do cargo; argumento nulo fecha).
-    'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade'
+    'papel_na_empresa', 'e_admin_na', 'e_dev_na', 'pode_escrever_na', 'pode_escrever_unidade',
+    -- F67B (16/11/2026, 0196) — a FERRAMENTA NOMEADA DE ÓRFÃO, 70 no total. Lê storage.objects e
+    -- termos_gerados INTEIROS (os .docx sem linha de qualquer empresa) e GRAVA a trilha em
+    -- eventos_admin (sem policy de INSERT): precisa do dono. Só a plataforma (e_plataforma), SQL
+    -- fixo, search_path vazio, EXECUTE só de authenticated. A cópia e a remoção são da API do
+    -- Storage, na Server Action da Zona destrutiva (o gatilho protect_objects_delete recusa SQL).
+    -- `pode_escrever_termo` ganha a forma (uuid, uuid[]) na 0197 — o MESMO nome, já listado acima.
+    'registrar_limpeza_termos_sem_linha'
   ];
 
   -- -----------------------------------------------------------------------

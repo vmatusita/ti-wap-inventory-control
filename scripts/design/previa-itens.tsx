@@ -346,7 +346,8 @@ function Miolo({
         })}
         acoes={
           <>
-            <RealtimeRefresh />
+            {/* F67B: a empresa é a legada FICTÍCIA da prévia estática (renderToStaticMarkup não roda o efeito: nenhum canal abre) */}
+            <RealtimeRefresh empresaId="00000000-0000-4000-a000-000000000001" />
             <ExportarCsvButton
               acao={EXPORT_INERTE}
               rotulo="Exportar saldos"

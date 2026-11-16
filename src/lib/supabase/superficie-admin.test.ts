@@ -90,13 +90,19 @@ const DECLARADOS: Record<string, Declaracao> = {
   },
   'src/lib/actions/dev-destrutivo.ts': {
     motivo:
-      'Remove do bucket `termos` os `.docx` que ficaram órfãos depois de a RPC apagar a linha. É Storage, não tabela — e o próprio arquivo registra que a sessão do dev provavelmente conseguiria pela policy do bucket, mas que não se quis depender desse detalhe de predicado num caminho destrutivo.',
+      'Copia e remove do bucket `termos` os `.docx` que ficaram sem linha depois de a RPC apagar a linha (e, desde a F67B, os sem registro da ferramenta de órfão `limparTermosSemLinha`). É Storage, não tabela — e desde a contração da F67B (0198) é NECESSIDADE: o bucket decide pela LINHA, e um `.docx` sem linha não é alcançável por sessão nenhuma.',
     guarda:
-      '`exigirDev` nos exports que chegam até aqui (apagarAtivo:175, resetarBloco:327), além da guarda interna `exigir_dev_para_destruir()` dentro da própria RPC.',
+      '`exigirDev` nos exports que chegam até aqui (apagarAtivo, resetarBloco, limparTermosSemLinha), além da guarda interna dentro de cada RPC (`exigir_dev_para_destruir()`; `e_plataforma()` em `registrar_limpeza_termos_sem_linha`) — e só a lista que a RPC DEVOLVEU é copiada/removida.',
+  },
+  'src/lib/actions/importar.ts': {
+    motivo:
+      'F67B (decisão 16/11-2 do Johnny): SÓ a cópia e a remoção dos `.docx` dos termos que `importar_ativos_substituir` acabou de apagar, DEPOIS da RPC. Desde a contração (0198) o bucket `termos` decide pela LINHA; a RPC apagou as linhas, então nenhuma sessão alcança mais esses arquivos. A RPC, o backup e o descarte do backup seguem no client de sessão.',
+    guarda:
+      '`exigirAdmin` no export que chega até aqui (aplicarImport), a guarda `e_admin_na(p_empresa)` dentro da RPC, e a lista copiada/removida é exatamente `arquivos_termos_apagados` do RETORNO da RPC (nunca um caminho montado no app), pela porta única `copiarEntaoRemoverTermos`.',
   },
   'src/lib/actions/conflitos.ts': {
     motivo:
-      'Gêmeo do caso acima, na mesa de conflitos entre filiais: apaga do bucket `backups-import` o backup que subiu mas cuja RPC recusou, e limpa os `.docx` órfãos depois do commit de `apagar_ativos_conflito_filiais`. Mesma família de necessidade — Storage, por conservadorismo.',
+      'Gêmeo do caso acima, na mesa de conflitos entre filiais: apaga do bucket `backups-import` o backup que subiu mas cuja RPC recusou, e limpa os `.docx` órfãos depois do commit de `apagar_ativos_conflito_filiais`. Storage — e, para os `.docx`, desde a contração da F67B (0198) necessidade: sem linha, nenhuma sessão alcança o arquivo.',
     guarda:
       '`exigirAdmin` no export que chega até aqui (apagarConflito:210) — é a ÚNICA exceção à exclusividade do dev sobre exclusão de ativo (F24), e a RPC revalida tudo sob lock por dentro.',
   },
@@ -161,6 +167,22 @@ describe('todo arquivo que usa service role está declarado, com motivo e guarda
         `Na virada multiempresa esta lista é a agenda do recorte por tenant — um arquivo\n` +
         `fora dela é um recorte que ninguém vai lembrar de fazer.`,
     ).toBeDefined()
+  })
+
+  it('F67B (16/11-2): importar.ts invoca o service role UMA vez só — e é no passo dos .docx, depois da RPC', () => {
+    // A decisão do Johnny abre o client administrativo no import SÓ para copiar e remover os `.docx` que a RPC acabou de
+    // apagar. Declarar o arquivo não basta: uma segunda invocação (no backup, na RPC, no descarte) passaria pela
+    // declaração. A trava é a contagem exata e o ponto de uso.
+    const a = ARQUIVOS_COM_INVOCACAO.find((x) => x.arquivo === 'src/lib/actions/importar.ts')
+    expect(a?.n, 'importar.ts: o service role saiu do passo dos .docx ou ganhou outro uso').toBe(1)
+    const fonte = limpar(readFileSync(join(RAIZ, 'src', 'lib', 'actions', 'importar.ts'), 'utf8'), true)
+    expect(fonte).toMatch(/copiarEntaoRemoverTermos\(\s*createAdminClient\(\)/)
+    // as posições no texto CRU (o `limpar` apaga os literais, e o nome da RPC é um literal)
+    const cru = readFileSync(join(RAIZ, 'src', 'lib', 'actions', 'importar.ts'), 'utf8')
+    const iRpc = cru.indexOf("chamarRpc(client, 'importar_ativos_substituir'")
+    const iAdmin = cru.search(/copiarEntaoRemoverTermos\(\s*createAdminClient\(\)/)
+    expect(iRpc, 'a RPC do import não foi achada').toBeGreaterThan(-1)
+    expect(iAdmin, 'o service role aparece ANTES da RPC').toBeGreaterThan(iRpc)
   })
 
   it('nenhuma declaração é órfã (o arquivo existe e ainda invoca)', () => {

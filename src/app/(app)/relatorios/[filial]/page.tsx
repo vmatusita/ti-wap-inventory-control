@@ -26,6 +26,7 @@ import { CorpoRelatorio } from '@/components/relatorios/corpo-relatorio'
 import { listarTiposItem, type TipoItem } from '@/lib/queries/tipos-item'
 import { mapaRotulosTipo } from '@/lib/itens/rotulo-tipo'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { ViewerAutoRefresh } from '@/components/relatorios/viewer-auto-refresh'
 import { GerarRelatorioDialog } from '@/components/relatorios/gerar-relatorio-dialog'
 import { BotaoImprimir } from '@/components/relatorios/botao-imprimir'
@@ -182,7 +183,7 @@ export default async function RelatorioFilialPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {acesso.modo === 'operador' ? <RealtimeRefresh /> : <ViewerAutoRefresh />}
+          {acesso.modo === 'operador' ? <RealtimeRefresh empresaId={empresaDaOperacao()} /> : <ViewerAutoRefresh />}
           <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 sm:h-7">
             <Link href="/relatorios/gerados" aria-label="Relatórios gerados">
               <FileClock className="size-4" />

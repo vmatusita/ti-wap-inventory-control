@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { confirmacaoImportConfere } from '@/lib/validators/confirmacao-digitada'
-import { prefixoBackupImport } from '@/lib/validators/importar'
 
 // GUARDA DE SINCRONIA TS↔SQL DA CONFIRMAÇÃO E DO PREFIXO DO IMPORT (F52).
 //
@@ -26,7 +25,6 @@ const DIR_MIGRACOES = join(process.cwd(), 'supabase', 'migrations')
 // Âncora da DEFINIÇÃO, não do nome: `comment on function`, `revoke` e `grant` também citam a
 // função, e um `lastIndexOf` pelo nome cru cairia numa dessas linhas — depois do corpo.
 const ANCORA_VALIDAR = 'create or replace function public.import_validar_plano'
-const ANCORA_PREFIXO = 'create or replace function public.prefixo_backup_import'
 
 /** A migration VIGENTE de uma função: a de maior número que a define. */
 function migrationVigente(ancora: string): { arquivo: string; sql: string } {
@@ -108,24 +106,5 @@ describe('a confirmação do import — TS e SQL são UMA régua só (F52)', () 
   })
 })
 
-describe('o prefixo do backup do import — TS e SQL são UMA régua só (F52)', () => {
-  it('a função SQL devolve import/filial-<id>/', () => {
-    const { sql } = migrationVigente(ANCORA_PREFIXO)
-    expect(sql).toContain("select 'import/filial-' || p_filial::text || '/'")
-  })
-
-  it('a gêmea TS produz exatamente a mesma string', () => {
-    // Se as duas divergirem, TODO import passa a ser recusado com "o backup informado não é
-    // o backup DESTA filial" — e o caminho estaria certo dos dois lados, só que diferentes.
-    for (const id of [1, 2, 5, 42, 114]) {
-      expect(prefixoBackupImport(id)).toBe(`import/filial-${id}/`)
-    }
-  })
-
-  it('o prefixo é por ID, nunca por slug', () => {
-    // O slug colide no dia em que deixar de ser único global, e com `upsert:false` o segundo
-    // import falharia por causa do primeiro. Esta asserção existe para que trocar de volta
-    // para slug seja um teste vermelho, e não uma decisão silenciosa.
-    expect(prefixoBackupImport(7)).toMatch(/^import\/filial-\d+\/$/)
-  })
-})
+// O prefixo do backup do import (F52: TS × SQL, por ID e nunca por slug) saiu daqui. F67B (16/11/2026): o caminho do bucket `backups-import` mora em `src/lib/storage/caminho.ts` (a função única, com a
+// EMPRESA no 2º segmento), e a régua TS × SQL dele é `src/lib/storage/caminho.test.ts` §3, contra o corpo vigente.

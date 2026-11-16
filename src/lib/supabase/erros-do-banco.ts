@@ -216,6 +216,19 @@ export const MSG_SQL = {
     'a emissao de termo ainda nao esta disponivel para esta empresa',
   ],
   saldoAlvoInvalido: ['saldo alvo precisa ser'],
+  // F67B (16/11/2026) — a ferramenta nomeada de órfão (0196, `registrar_limpeza_termos_sem_linha`): uma frase por
+  // classe, sem valor de linha nem caminho.
+  limpezaRestritaAPlataforma: [
+    'limpar arquivos de termo sem registro é restrito à plataforma',
+    'limpar arquivos de termo sem registro e restrito a plataforma',
+  ],
+  pastaDaCopiaForaDaForma: [
+    'a pasta da cópia dos arquivos de termo está fora da forma',
+    'a pasta da copia dos arquivos de termo esta fora da forma',
+  ],
+  confirmacaoDaLimpeza: ['confirmação incorreta: digite exatamente', 'confirmacao incorreta: digite exatamente'],
+  nadaParaLimpar: ['não há arquivo de termo sem registro para limpar', 'nao ha arquivo de termo sem registro para limpar'],
+  pastaDaCopiaJaUsada: ['esta pasta de cópia já foi usada', 'esta pasta de copia ja foi usada'],
   // mesa de conflitos entre filiais (F24)
   foraDeConflito: ['só apaga ativo que esteja em conflito', 'so apaga ativo que esteja em conflito'],
   ativosNaoEncontrados: ['ativo(s) não encontrado', 'ativo(s) nao encontrado'],
@@ -287,3 +300,33 @@ export const FRASES_DO_AUTH = {
   contaJaExiste: ['already', 'registered', 'exists', 'been registered'],
   contaJaExisteOuDuplicada: ['already', 'registered', 'exists', 'duplicate'],
 } as const satisfies Record<string, Grafias>
+
+/**
+ * F67B (16/11/2026) — Frases da API do STORAGE (storage-js). A recusa da RLS de `storage.objects` não chega como
+ * SQLSTATE: o upload recusado volta 403 "new row violates row-level security policy"; o objeto que a policy de leitura
+ * não deixa ver volta "Object not found" no `createSignedUrl`/download. Não vêm de SQL nosso.
+ */
+export const FRASES_DO_STORAGE = {
+  recusaDaRls: ['row-level security'],
+  objetoNaoEncontrado: ['object not found', 'not found'],
+} as const satisfies Record<string, Grafias>
+
+/**
+ * A frase pt-BR de uma recusa do Storage, no ponto de chamada (F67B, decisão 18 do PLAN-F67B). Uma por classe, sem
+ * caminho nem valor de linha: desde a F67B o dono do objeto é a LINHA (bucket `termos`) ou a EMPRESA DO CAMINHO (bucket
+ * `backups-import`), e a recusa diz só isso. O que não é recusa conhecida volta com a mensagem original, como antes.
+ */
+export function traduzirErroStorage(
+  erro: { message?: string | null; statusCode?: string | number | null } | null | undefined,
+  acao: 'ler' | 'gravar',
+): string {
+  const m = erro?.message ?? ''
+  const status = String(erro?.statusCode ?? '')
+  if (acao === 'ler' && (casa(m, FRASES_DO_STORAGE.objetoNaoEncontrado) || casa(m, FRASES_DO_STORAGE.recusaDaRls))) {
+    return 'Este arquivo é de outra empresa ou não existe mais.'
+  }
+  if (acao === 'gravar' && (casa(m, FRASES_DO_STORAGE.recusaDaRls) || status === '403')) {
+    return 'Você não pode gravar este arquivo: ele é de outra empresa ou de um registro que você não pode alterar.'
+  }
+  return acao === 'ler' ? `Falha ao abrir o arquivo: ${m}` : `Falha ao salvar o arquivo: ${m}`
+}

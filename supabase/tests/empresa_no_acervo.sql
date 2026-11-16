@@ -64,7 +64,8 @@ declare
                                                   'resetar_acervo', 'resetar_itens', 'previa_reset', 'rotulo_alcance_reset',
                                                   'apagar_ativo', 'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo',
                                                   'forcar_saldo_item', 'apagar_ativos_conflito_filiais',
-                                                  'exigir_ativos_da_empresa', 'termo_exige_modelo_da_empresa'];
+                                                  'exigir_ativos_da_empresa', 'termo_exige_modelo_da_empresa',
+                                                  'pode_ler_arquivo_termo', 'pode_escrever_arquivo_termo'];
   k_autor   constant uuid := '63000000-0000-4000-8000-000000000001';
   -- uma empresa que NÃO existe (o v4 fictício) — o alvo da FK
   k_fantasma constant uuid := '63000000-0000-4000-8000-0000000000f0';

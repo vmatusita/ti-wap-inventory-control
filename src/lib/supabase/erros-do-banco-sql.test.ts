@@ -7,6 +7,7 @@ import {
   CONSTRAINTS_TRADUZIDAS,
   FRASES_DO_AUTH,
   FRASES_DO_MOTOR,
+  FRASES_DO_STORAGE,
   MSG_SQL,
   TABELAS_CITADAS_EM_ERRO,
 } from '@/lib/supabase/erros-do-banco'
@@ -220,7 +221,13 @@ describe('MSG_SQL contra o corpo VIVO', () => {
 })
 
 describe('a forma das listas', () => {
-  const todas = [...Object.entries(MSG_SQL), ...Object.entries(FRASES_DO_MOTOR), ...Object.entries(FRASES_DO_AUTH)]
+  // F67B: + as frases da API do Storage (a recusa de RLS em storage.objects não chega como SQLSTATE)
+  const todas = [
+    ...Object.entries(MSG_SQL),
+    ...Object.entries(FRASES_DO_MOTOR),
+    ...Object.entries(FRASES_DO_AUTH),
+    ...Object.entries(FRASES_DO_STORAGE),
+  ]
   it.each(todas)('%s: grafias em minúscula, aparadas e sem repetição', (_ramo, grafias) => {
     for (const g of grafias) {
       expect(g, 'grafia vazia').not.toBe('')

@@ -26,6 +26,7 @@ import { efetivar, lerUnidades, recorteDe } from '@/lib/auth/recorte-leitura'
 import { recusarFilialInexistente } from '@/lib/unidades/pertinencia'
 import { createClient } from '@/lib/supabase/server'
 import { RealtimeRefresh } from '@/components/relatorios/realtime-refresh'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 
 // FLX-03 — título curto da aba (WCAG 2.4.2).
 export const metadata = {
@@ -212,7 +213,7 @@ export default async function HistoricoItensPage({
         descricao={descricao}
         acoes={
           <>
-            <RealtimeRefresh />
+            <RealtimeRefresh empresaId={empresaDaOperacao()} />
             <ExportarCsvButton
               acao={exportarItensHistoricoCSV}
               rotulo="Exportar histórico"

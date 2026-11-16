@@ -341,7 +341,18 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // removida de apagar_ativo (10l), a partição da view da mesa removida (C1), a sentinela do "tudo" sem empresa (D4), o
     // gatilho do termo desligado (T1) e a trava do último administrador contando todas as empresas (10m). 163 + 7 = 170,
     // sem folga: a próxima entrega que precisar de mais sobe o número e escreve por quê.
-    expect(MUTACOES.length).toBeLessThanOrEqual(170)
+    // ⚠ O TETO SUBIU DE 170 PARA 182 NA F67B (16/11/2026; PLAN-F67B, decisão 17), no número EXATO. A fase decide o
+    // Storage pela linha e pela empresa do caminho, e escreveu UMA MUTAÇÃO POR TRAVA DE ESTADO desta fase, cada uma medida
+    // DETECTADA na mesa PGlite antes do push (docs/f67b-evidencias/E-mutacoes/): a leitura de backup pela legada de novo
+    // (B2/B3), a cláusula legada sem a lista fechada (B2/B6/L3), backup novo na forma antiga (B9), a empresa do caminho
+    // sem a forma (B6/E1), o termo lido sem membership (T3/T6), o .docx sem linha gravável (T8), o degenerado de qualquer
+    // admin (D2), a ferramenta de órfão sem a guarda da plataforma (O1) e sem a idade mínima (O3/O4), a 12ª reconhecendo
+    // cópia sem trilha (F3), a gravação sem a empresa do caminho (B6) e a replica identity FULL na publication (9e).
+    // 170 + 12 = 182, sem folga.
+    // ⚠ E DE 182 PARA 184 NA REVISÃO ADVERSARIAL DA MESMA F67B (16/11/2026): o revisor achou que a 9c e a 9d da
+    // publication do Realtime não tinham mutação (a ordem lista "uma tabela da publication sem o recorte"); entraram
+    // `f67b-realtime-select-sem-recorte` (9d) e `f67b-realtime-tabela-sem-select` (9c), medidas DETECTADAS na mesa.
+    expect(MUTACOES.length).toBeLessThanOrEqual(184)
   })
 
   it('os `id` são únicos', () => {

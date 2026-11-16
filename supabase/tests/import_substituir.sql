@@ -100,7 +100,7 @@ declare
   -- F52 (migration 0132): a cascata de backup + confirmação digitada + idempotência
   -- agora vivem dentro de import_validar_plano — os planos e caminhos deste roteiro
   -- precisam refletir isso (ver docs/DECISOES.md, F52).
-  v_prefixo_a text;   -- prefixo do backup da filial A (import/filial-<id>/)
+  v_prefixo_a text;   -- prefixo do backup da filial A (F67B: import/empresa-<uuid>/filial-<id>/)
   v_prefixo_b text;   -- idem, filial B
   v_prefixo_c text;   -- idem, filial C
   p_plano_a2  jsonb;  -- variante de p_plano_a com arquivoHash distinto (cenário 2 —
@@ -181,9 +181,11 @@ begin
   -- exista de verdade em storage.objects (bucket backups-import) — mesma técnica de
   -- `supabase/tests/import_fora_da_unidade.sql`. Um objeto "existe.json" por filial
   -- de teste cobre todo caminho positivo deste roteiro (cenários 1, 2, 4 e a seção 0a).
-  v_prefixo_a := public.prefixo_backup_import(v_fa);
-  v_prefixo_b := public.prefixo_backup_import(v_fb);
-  v_prefixo_c := public.prefixo_backup_import(v_fc);
+  -- F67B (16/11/2026): o backup do import passou à forma NOVA, com a empresa no 2º segmento
+  -- (import/empresa-<uuid>/filial-<id>/, prefixo_backup_import(uuid, smallint) da 0194); a antiga saiu na 0199.
+  v_prefixo_a := public.prefixo_backup_import(public.empresa_da_filial(v_fa), v_fa);
+  v_prefixo_b := public.prefixo_backup_import(public.empresa_da_filial(v_fb), v_fb);
+  v_prefixo_c := public.prefixo_backup_import(public.empresa_da_filial(v_fc), v_fc);
 
   insert into storage.objects (bucket_id, name, owner) values
     ('backups-import', v_prefixo_a || 'existe.json', v_prof),
@@ -538,7 +540,7 @@ begin
   insert into public.filiais (slug, nome) values ('zzf56-teste-d', 'F56 Teste D') returning id into v_fd;
   insert into public.filiais (slug, nome) values ('zzf56-teste-e', 'F56 Teste E') returning id into v_fe;
 
-  v_prefixo_d := public.prefixo_backup_import(v_fd);
+  v_prefixo_d := public.prefixo_backup_import(public.empresa_da_filial(v_fd), v_fd);   -- F67B: a forma nova
   insert into storage.objects (bucket_id, name, owner)
   values ('backups-import', v_prefixo_d || 'existe.json', v_prof);
 

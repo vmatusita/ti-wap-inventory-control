@@ -97,6 +97,9 @@ declare
   -- O md5 de cada uma das 12 peças do núcleo na 0158 (calculado do arquivo, o mesmo texto que o
   -- `prosrc` dos dois bancos guarda — md5 do corpo inteiro 06359abd286206bde8432609128ebccd, medido
   -- pelo MCP em produção e no ensaio em 23/09/2026). A 0164 acrescenta a 13ª e não toca nestas.
+  -- F67B (16/11/2026): a 0196 recria o núcleo mudando SÓ a peça da 12ª (`backup_orfao`): as cópias de .docx passam a
+  -- ser reconhecidas nas DUAS formas de caminho (a antiga e a nova, com a empresa) e na raiz da ferramenta de órfão. O
+  -- md5 dela passa ao corpo da 0196, calculado do arquivo do mesmo jeito (as outras onze conferem o método: iguais).
   k_pecas_0158 constant text[] := array[
     'patrimonio_duplicado:edad45c10d5d7167275eb5e98b77ddf5',
     'ativo_filial_inativa:5ecc19e57e6d7fa086d8722dd62daa5b',
@@ -109,7 +112,7 @@ declare
     'conflito_entre_filiais:37012c5ebb03917838034060aec41eae',
     'detentor_em_estado_sem_dono:a57b0927a6787938cbfd9f102edc4554',
     'reserva_aberta:e25b5ad5bf7b5e34dfeb579b83f14420',
-    'backup_orfao:aaed90c40f1e086e748436c4dc52f122'];
+    'backup_orfao:d818754f9cb6870cd9841ec652a980fe'];
 
   v_col     boolean;
   v_gat     boolean;

@@ -195,14 +195,14 @@ begin
 
   -- F52 (migration 0132): o import passou a exigir três coisas que este roteiro não
   -- dava, porque elas não existiam quando ele foi escrito:
-  --   · o backup sob o prefixo DESTA filial (`import/filial-<id>/`) e EXISTENTE em
+  --   · o backup sob o prefixo DESTA filial (F67B: `import/empresa-<uuid>/filial-<id>/`) e EXISTENTE em
   --     `storage.objects` — antes bastava qualquer texto não-vazio;
   --   · a chave `confirmacao` no plano, casando com o nome da filial;
   --   · `arquivo_hash` que não colida com um import da mesma filial nas últimas 24 h.
   -- Isto é conserto de FIXTURE: o cenário 1 continua testando o que testava (o
   -- substituto nasce por `troca`, e não por `compra`).
   insert into storage.objects (bucket_id, name, owner)
-    values ('backups-import', public.prefixo_backup_import(v_ft) || 'existe.json', v_prof);
+    values ('backups-import', public.prefixo_backup_import(public.empresa_da_filial(v_ft), v_ft) || 'existe.json', v_prof);
 
   perform public.importar_ativos_substituir(public.empresa_legada(),
     jsonb_build_object(
@@ -214,7 +214,7 @@ begin
         jsonb_build_object('patrimonio', null,        'serviceTag','','categoria','notebook','estadoAlvo','em_estoque')
       )
     ),
-    public.prefixo_backup_import(v_ft) || 'existe.json',
+    public.prefixo_backup_import(public.empresa_da_filial(v_ft), v_ft) || 'existe.json',
     jsonb_build_object('ativos', 0, 'movimentacoes', 0, 'anotacoes', 0, 'termos', 0),
     '[]'::jsonb
   );

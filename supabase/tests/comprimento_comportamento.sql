@@ -386,7 +386,9 @@ begin
   perform pg_temp.plantar_cargo(v_prof, 'admin');
   perform set_config('request.jwt.claims', json_build_object('sub', v_prof)::text, true);
   insert into public.filiais (slug, nome) values ('zzf66b-imp', 'F66B Import') returning id into v_fi;
-  v_prefixo := public.prefixo_backup_import(v_fi);
+  -- F67B (16/11/2026): o backup do import passou à forma NOVA, com a empresa no 2º segmento
+  -- (import/empresa-<uuid>/filial-<id>/, prefixo_backup_import(uuid, smallint) da 0194); a antiga saiu na 0199.
+  v_prefixo := public.prefixo_backup_import(public.empresa_da_filial(v_fi), v_fi);
   insert into storage.objects (bucket_id, name, owner) values ('backups-import', v_prefixo || 'existe.json', v_prof);
   -- o acervo que a limpeza do import apagaria: um ativo e a compra dele
   insert into public.ativos (patrimonio, service_tag, categoria, filial_id)

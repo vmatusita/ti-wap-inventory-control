@@ -134,22 +134,27 @@ declare
     'forcar_saldo_item:itens,lancamentos_item,eventos_admin',
     'apagar_ativos_conflito_filiais:ativos,eventos_admin',
     'exigir_ativos_da_empresa:ativos',
-    'termo_exige_modelo_da_empresa:termos_gerados'
+    'termo_exige_modelo_da_empresa:termos_gerados',
+    'pode_ler_arquivo_termo:termos_gerados',
+    'pode_escrever_arquivo_termo:termos_gerados'
   ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162 até a F67) — o texto que o CI aplica.
   -- F67 (13/11/2026): os OITO da Zona e da mesa foram recriados com `p_empresa` (0190/0191) — a contração
   -- (0193) derrubou as assinaturas antigas, e o md5 passa aos corpos NOVOS, calculado do arquivo do mesmo
   -- jeito (os dois de antes — import_gravar_trilha e registrar_tentativa_senha — conferem o método: iguais).
+  -- F67B (16/11/2026): os TRÊS que conferem o caminho do backup foram recriados (0195 a expansão, 0199 a contração) —
+  -- a mudança é SÓ a cláusula do prefixo (a empresa no caminho); o md5 passa ao corpo da 0199, calculado do arquivo do
+  -- mesmo jeito (apagar_ativo e import_gravar_trilha, que não mudaram, conferem o método de novo: iguais).
   k_escritores constant text[] := array[
     'apagar_ativo:a304f7c2fc172b4ba26fd0de8ec93beb',
-    'apagar_ativos_conflito_filiais:20993de7072a0cf1c810e989a7602d5f',
+    'apagar_ativos_conflito_filiais:22b0ee06475538fc90a5353fd45c5f37',
     'apagar_item:5aec271f465640a48255ec5aa07d880a',
     'apagar_movimentacao:d20444cdc0a8f8e662536de212cfdafd',
     'forcar_estado_ativo:7d5c17dd2dfda587ef2d8bdfa6458f5f',
     'forcar_saldo_item:dcb2ff4992b06446c458e750dbe8a51b',
-    'resetar_acervo:f4104fca23af6af7c35b8f9c5a9cea27',
-    'resetar_itens:6ca919b50b9946595fb63d72f362e8f5',
+    'resetar_acervo:16b4b7d050922a7bfc610086037d2f67',
+    'resetar_itens:60c9861a44b37e8d8e4bd49a96f7cd4d',
     'import_gravar_trilha:3587aa25577ed90ecb516c41e0dd11b2',
     'registrar_tentativa_senha:ee0d1c21835858c0dd04eb5a017eabe7'];
   k_autor    constant uuid := '64000000-0000-4000-8000-0000000000a1';

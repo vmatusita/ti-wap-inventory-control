@@ -1168,55 +1168,46 @@ antes dos rollbacks da F66 para trás (RUNBOOK, Anexo F67).
 
 ### F67B — Storage e Realtime por empresa
 
-*(Ficha escrita pela F67, 13/11/2026 — decisão 12/11-2 do Johnny. O texto vem da ficha F67 original, com o que a F67
-deixou explícito para cá.)*
+*(Ficha REESCRITA pela F67B, 16/11/2026 — executada pela ordem [`prompts/F67B-storage-e-realtime-por-empresa-ultracode.md`](prompts/F67B-storage-e-realtime-por-empresa-ultracode.md),
+plano [`PLAN-F67B.md`](PLAN-F67B.md), migrations `0194`–`0199`, versão `1.74.0`, relatório [`RELATORIO-F67B.md`](RELATORIO-F67B.md).
+A ficha original foi escrita pela F67 (decisão 12/11-2 do Johnny). **⚠ O apply em banco vivo está PENDENTE**: o ensaio
+recusou toda conexão da run (`28P01`), e nada vai a produção sem ele — o caminho B está no topo do relatório.)*
 
 **Objetivo.** Fechar os dois buckets e o canal de tempo real por empresa — as superfícies que nenhuma auditoria de RLS de
 tabela examina.
 
-**Entra.**
+**O que entrou (medido — PLAN-F67B §1 a §5).**
 
-- **Bucket `termos`.** `pode_ler_arquivo_termo` passa a exigir que o `termos_gerados` correspondente seja da empresa da
-  sessão — **pelo join, nunca pelo caminho**, o que dispensa mover um único objeto (mover os objetos existentes exigiria
-  reescrever `arquivo_path` por igualdade de string, e a janela em que o par path↔linha fica quebrado é exatamente a que
-  desarma a proteção de escrita via o `coalesce(…, true)`). Hoje ela ignora o parâmetro e responde pela legada EXPLÍCITA
-  (`papel_na_empresa(empresa_legada())`, F67) — a exceção nominal de `definer_sem_tenant.sql`, com motivo apontando para cá.
-- **Bucket `backups-import`.** O prefixo `import/empresa-<id>/filial-<id>/` para objetos novos (os antigos continuam
-  resolvendo, porque `import_logs.backup_path` guarda o literal — e o teto de 120 de `backup_path`, fato 27 da F67, cabe o
-  prefixo novo: conferir); as 4 policies passam a exigir `(storage.foldername(name))[2] = any(array(select …))`, mantendo o
-  cargo de administrador — cinto e suspensórios, porque é o objeto de maior valor do sistema. Objetos legados ficam fora
-  de todo prefixo, isto é, invisíveis: comportamento seguro, mas **decidido de propósito e escrito**.
-- **As policies de `storage.objects` que a F67 deixou na legada EXPLÍCITA** (decisão 3 da F67: `backups-import` ×4 com
-  `e_admin_na(empresa_legada())`, `termos` ×3 com `pode_escrever_na(empresa_legada())`) ganham a empresa do OBJETO.
-- **`persistirTermo` invertido** (a linha antes do upload, com rollback correto no ramo de INSERT) e só então
-  `coalesce(…, true)` vira `false` em `pode_escrever_arquivo_termo`. Os dois são um trabalho só, nesta ordem: hoje objeto
-  que nenhuma linha referencia é gravável e apagável por qualquer um que escreve, e basta o par path↔linha divergir para o
-  bucket inteiro ficar aberto. A limpeza de órfão migra para ferramenta NOMEADA na Zona destrutiva. Cuidado:
-  `persistirTermo` reutiliza id existente (UPDATE) num dos ramos e apaga órfãos de variantes antigas.
-- **Realtime:** `filter: 'empresa_id=eq.<id>'` nas três assinaturas (o gancho existe desde a F50) **e** RLS na publication
-  `supabase_realtime`. O filtro do cliente é ergonomia; a trava mora no Postgres. Sem isso, `postgres_changes` entrega o
-  payload da linha ao navegador de todo cliente aberto de toda empresa.
+- **Bucket `termos` pela LINHA** (`0197`, `0198`): `pode_ler_arquivo_termo` pelo join com `termos_gerados` (membro ativo da
+  empresa da linha; saiu das exceções de `definer_sem_tenant.sql`); `pode_escrever_arquivo_termo` delega a
+  `pode_escrever_termo(empresa_id, ativo_ids)` — o degenerado é do admin da empresa DELA — com `coalesce(…, false)`. Nenhum
+  objeto se move.
+- **`persistirTermo` invertido** (`src/lib/termos/persistir.ts`): a linha antes do upload, com o rollback de cada ramo; as
+  variantes antigas saem com o arquivo primeiro.
+- **Bucket `backups-import` pela EMPRESA DO CAMINHO** (`0194`, `0195`, `0199`): `<família>/empresa-<uuid>/…` nas quatro
+  famílias (import, reset — `global` virou `tudo` —, conflito, cópias do apagar ativo), montado só por
+  `src/lib/storage/caminho.ts` e espelhado em SQL; as quatro policies exigem `empresa_do_caminho_backup(name)` (formas
+  ancoradas, não `storage.foldername`, que o CI não tem) numa empresa que quem pede administra; as RPCs conferem a forma
+  nova. Os ANTIGOS: legíveis só pelo admin da WAP, por cláusula FECHADA (16/11-1), nunca graváveis — não ficaram
+  invisíveis, como a ficha original previa.
+- **O import** usa o client administrativo só para os `.docx` depois da RPC (16/11-2).
+- **A ferramenta nomeada de órfão** (`0196` + o card da Zona destrutiva): só a plataforma, só arquivos sem linha há mais de
+  1 hora, trilha antes da cópia; a 12ª checagem nas duas formas e na raiz `orfao/`. Entregue, NÃO executada.
+- **Realtime:** `filter: 'empresa_id=eq.<id>'` nas três assinaturas, a empresa por prop do servidor. A "RLS na publication"
+  da ficha original é a RLS de SELECT da TABELA (a doc oficial): a trava de catálogo (`catalogo_policies.sql` 9c–9e) exige
+  de toda tabela da publication `empresa_id`, policy de SELECT com o recorte e replica identity não-`full`.
+  (`realtime_escopo.sql` não nasceu: o §9 do catálogo cobre o mesmo, e o comportamento por assinante não é provável sem
+  segunda empresa num banco vivo.)
 
-**Não entra.** O default `empresa_legada()` (F67C). A empresa da sessão na tela (F70).
+**Pronto quando — o estado.** Na mesa e no CI: o admin da A não lê nem grava objeto da B em nenhum dos dois buckets, nos
+dois sentidos; o admin da A ainda apaga o degenerado da A; `pode_ler_arquivo_termo` saiu das exceções; o filtro sempre.
+**Falta** o apply (ensaio → produção) com o conta a conta 0 antes da contração e só as divergências declaradas depois.
 
-**Entregas.** Migrations novas; `src/lib/actions/termos.ts` (`persistirTermo`); `src/lib/storage/caminho.ts`;
-`supabase/tests/{storage_por_empresa,realtime_escopo}.sql`.
+**Trava.** `storage_por_empresa.sql` (T, D, B, E, F, O, L); `caminho.test.ts`; `persistir.test.ts`;
+`assinatura-realtime.test.ts`; o §9 de `catalogo_policies.sql`; doze mutações; `f67b_rollback.sql` +
+`rollback-f67b.test.ts`.
 
-**Pronto quando.** O admin da A não lista nem baixa objeto da B em nenhum dos dois buckets; o admin da A **ainda apaga** o
-termo degenerado (`ativo_ids = '{}'`) da própria empresa — o teste que prova que a correção não recriou o lixo imortal que
-a `0069` documenta; `pode_ler_arquivo_termo` sai da lista de exceções de `definer_sem_tenant.sql`; o Realtime não entrega
-linha de outra empresa.
-
-**Trava.** `storage_por_empresa.sql`; `src/lib/storage/caminho.test.ts` (a função única que monta caminho nunca devolve
-string sem prefixo de empresa); a trava do `postgres_changes` exigindo `empresa_id=eq.` no filter; a catraca TS da legada
-perde as entradas de Storage.
-
-**Dependências.** F67.
-
-**Risco.** Médio — objetos em produção. Mitigação: nenhum objeto se move (o join decide); os legados ficam invisíveis por
-decisão escrita; ensaio antes.
-
-**Reversão.** `alter policy` de volta; o `coalesce` de volta; o filtro do cliente sai.
+**Reversão.** `supabase/rollback/F67B-desfaz.sql` (os dois estados), ANTES do da F67 — RUNBOOK, Anexo F67B.
 
 ---
 
@@ -1261,6 +1252,13 @@ nenhuma linha nasce "da WAP por omissão".
   (`actions/relatorios.ts:139`, `lerUltimaVersao`).
 - **O que a F67 deixou explícito para cá:** a catraca TS da legada (`src/lib/auth/empresa-legada-catraca.test.ts`) — as
   entradas que dependem da "empresa de quem escreve" — e as linhas da tabela-verdade do PLAN-F67 §2 com destino F67C.
+
+- *(Nota F67B, 16/11/2026 — o Storage já diz a empresa; a linha do termo ainda não.)* Os caminhos de `backups-import`
+  nascem com a empresa EXPLÍCITA desde a F67B (`src/lib/storage/caminho.ts`: a da filial no import e no reset por
+  filial, a da operação no "tudo", na mesa e no apagar ativo) — nada ali depende do default. A LINHA de `termos_gerados`
+  ainda nasce com o default (`persistirTermo`, `src/lib/termos/persistir.ts`, não passa `empresa_id`), e é ela que
+  decide o bucket `termos` desde a `0198`: quando o default sair, `persistirTermo` passa a empresa de quem gera (a dos
+  ativos do termo), e `storage_por_empresa.sql` (bloco T) já prova o bucket por empresa com linhas plantadas nas duas.
 
 **Não entra.** A empresa ESCOLHIDA na tela (F70): a F67C usa a empresa de quem escreve resolvida no servidor; o seletor é
 da F70.
@@ -1394,6 +1392,14 @@ fase.)*
   navegação, a gestão de contas, a mesa, o "tudo" e as linhas da Zona). A UI da trava do termo (decisão 7) tem a recusa do
   banco pronta desde a `0192`: *"A emissão de termo ainda não está disponível para esta empresa."*
 
+- *(Nota F67B, 16/11/2026 — mais três pontos de injeção da empresa da sessão.)* As três páginas que montam o
+  `RealtimeRefresh` (`/itens`, `/itens/historico`, `/relatorios/[filial]`) passam `empresaDaOperacao()` por prop: o
+  `filter: 'empresa_id=eq.<id>'` do tempo real passa a ser o da empresa ESCOLHIDA (as três entradas estão na catraca, com
+  este destino). A fechadura de pertencimento de `urlBackup` (`src/lib/actions/importar.ts`) ganha corpo aqui (decisão
+  12 da F67B: hoje a RLS de `import_logs` e a policy de `backups-import` pela empresa do caminho já fecham o backup de
+  outra empresa). O card "Arquivos de termo sem registro" da Zona destrutiva é da PLATAFORMA (um `.docx` sem linha não
+  tem empresa) — não muda com o seletor.
+
 **Não entra.** Decomposição dos componentes gigantes. Subdomínio. Reescrita da ajuda.
 
 **Entregas.** `src/lib/empresa/contexto.ts`, `src/components/layout/{marca,seletor-empresa,permissoes,credito-autor}.tsx`, `paleta-comandos.tsx`, `src/app/layout.tsx`, `src/lib/patrimonio.ts`, `.test.tsx` do header e do seletor.
@@ -1433,6 +1439,14 @@ fase.)*
   entre empresas é impossível desde a `0191`). Na regra 2: "a linha cujo par já existe em OUTRA filial … cadastro manual e
   edição de ficha seguem recusando par de qualquer filial" — de qualquer filial DA EMPRESA do cadastro (a identidade do ativo
   é por empresa). A ARQUITETURA §4 e o ADR-002 já estão em dia (§17).
+
+- *(Nota F67B, 16/11/2026 — o que os documentos ainda não dizem sobre o Storage.)* `docs/ESPECIFICACAO.md` e o
+  `ARQUITETURA.md` §4 descrevem os dois buckets por CARGO; desde a F67B o `.docx` é da LINHA de `termos_gerados` e o
+  backup é da EMPRESA DO CAMINHO (R-ACC-131/132, ADR-002 §18). A ajuda do operador não fala de backup nem de Storage, e a
+  frase nova de recusa (*"Este arquivo é de outra empresa ou não existe mais."*) só aparece com uma segunda empresa —
+  decidir se a ajuda a explica quando ela existir. O `CLAUDE.md` da raiz não foi editado (por ordem): a linha "Zona
+  destrutiva … ferramentas NOMEADAS" ganhou uma ferramenta (a limpeza de `.docx` sem registro), que o mapa da raiz não
+  cita.
 
 **Não entra.** Reescrever as ~5.900 linhas de conteúdo de `src/lib/ajuda/conteudo/`.
 

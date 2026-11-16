@@ -1,0 +1,28 @@
+# Mesa PGlite 0.3.14 (PG 17.5 WASM), 16/11/2026 — as 12 mutações F67B do injetor (scripts/db/mutacoes.mjs, F67B_STORAGE),
+# medidas no molde do injetor (scratchpad pg/mutar-f67b.mjs): aplica o SQL, roda a sonda, roda o roteiro e lista os ✗.
+# Controle (sem mutação): storage_por_empresa 36/0 e catalogo_policies 46/0. A régua é o CI (npm run db:test:mutations).
+DETECTADA     f67b-backup-lido-pela-legada-de-novo → storage_por_empresa.sql (espera ✗ B2, B3) · sonda=true · caiu [B2, B3, B6, L3] · efeito colateral: B6, L3 · FIM 36/4
+DETECTADA     f67b-clausula-legada-sem-lista-fechada → storage_por_empresa.sql (espera ✗ B2, B6, L3) · sonda=true · caiu [B2, B6, L3] · FIM 36/3
+DETECTADA     f67b-backup-novo-na-forma-antiga → storage_por_empresa.sql (espera ✗ B9) · sonda=true · caiu [B7, B9, L1, L3] · efeito colateral: B7, L1, L3 · FIM 36/4
+DETECTADA     f67b-empresa-do-caminho-sem-a-forma → storage_por_empresa.sql (espera ✗ B6, E1) · sonda=true · caiu [B6, E1] · FIM 36/2
+DETECTADA     f67b-termo-lido-sem-membership → storage_por_empresa.sql (espera ✗ T3, T6) · sonda=true · caiu [T3, T6, D2, D3] · efeito colateral: D2, D3 · FIM 36/4
+DETECTADA     f67b-termo-sem-linha-gravavel → storage_por_empresa.sql (espera ✗ T8) · sonda=true · caiu [T7, T8] · efeito colateral: T7 · FIM 36/2
+DETECTADA     f67b-degenerado-de-qualquer-admin → storage_por_empresa.sql (espera ✗ D2) · sonda=true · caiu [D2, D3] · efeito colateral: D3 · FIM 36/2
+DETECTADA     f67b-orfao-sem-guarda-de-plataforma → storage_por_empresa.sql (espera ✗ O1) · sonda=true · caiu [O1] · FIM 36/1
+DETECTADA     f67b-orfao-lista-o-recem-nascido → storage_por_empresa.sql (espera ✗ O3, O4) · sonda=true · caiu [O3, O4] · FIM 36/2
+DETECTADA     f67b-12a-copia-nova-sem-trilha → storage_por_empresa.sql (espera ✗ F3) · sonda=true · caiu [F3] · FIM 36/1
+DETECTADA     f67b-backup-sem-empresa-gravavel-pela-plataforma → storage_por_empresa.sql (espera ✗ B6) · sonda=true · caiu [B2, B4, B6, B7, B8, B9] · efeito colateral: B2, B4, B7, B8, B9 · FIM 36/6
+DETECTADA     f67b-realtime-replica-identity-full → catalogo_policies.sql (espera ✗ 9e) · sonda=true · caiu [9e] · FIM 46/1
+
+# As mutações ANTIGAS que a F67B reapontou (os corpos que a 0195/0199 recriaram, a assinatura nova de pode_escrever_termo):
+DETECTADA     conflito-justificativa-sem-tamanho-minimo → conflito_filiais.sql (espera ✗ 5f) · sonda=true · caiu [5f, 4a, 4b, 3b] · efeito colateral: 4a, 4b, 3b · FIM 51/4
+DETECTADA     conflito-confirmacao-com-numero-errado-aceita → conflito_filiais.sql (espera ✗ 5d, 5e) · sonda=true · caiu [5d, 5e, 4a, 4b, 4e, 3b] · efeito colateral: 4a, 4b, 4e, 3b · FIM 51/6
+DETECTADA     conflito-backup-em-arquivo-sem-prefixo-do-digest → conflito_filiais.sql (espera ✗ 11e, 11f, 11g, 11h) · sonda=true · caiu [11e, 11f, 11g, 11h] · FIM 51/4
+DETECTADA     f52-backup-do-import-aceita-qualquer-prefixo → import_fora_da_unidade.sql (espera ✗ 2a) · sonda=true · caiu [2a] · FIM 14/1
+DETECTADA     rls-termo-perde-as-invariantes-da-ancora → papeis_rls.sql (espera ✗ 2i-bis-3) · sonda=false · caiu [2i-bis-3, TOTAL] · efeito colateral: TOTAL · FIM 77/1
+DETECTADA     f67-sentinela-do-tudo-sem-empresa → cargo_por_empresa.sql (espera ✗ D4) · sonda=true · caiu [D4] · FIM 15/1
+DETECTADA     rls-bucket-de-backup-visivel-a-quem-escreve → papeis_rls.sql (espera ✗ 6e) · sonda=false · caiu [6e, TOTAL] · efeito colateral: TOTAL · FIM 77/1
+
+# Revisão adversarial (16/11/2026): as duas que faltavam — a 9d (o SELECT da publication sem o recorte) e a 9c (sem policy de SELECT):
+DETECTADA     f67b-realtime-select-sem-recorte → catalogo_policies.sql (espera ✗ 9d) · sonda=true · caiu [16a, 9d] · efeito colateral: 16a · FIM 46/2
+DETECTADA     f67b-realtime-tabela-sem-select → catalogo_policies.sql (espera ✗ 9c) · sonda=true · caiu [2, 3, 6a, 10b, 9c] · efeito colateral: 2, 3, 6a, 10b · FIM 46/5

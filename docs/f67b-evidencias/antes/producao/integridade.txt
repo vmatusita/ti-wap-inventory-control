@@ -1,0 +1,15 @@
+# As 13 checagens de integridade em PRODUCAO, 16/11/2026, primeira hora da run (a LINHA TRAVADA da F67B, decisao 13/11-3).
+# Medidas por public.checagens_integridade_nucleo() (o MESMO nucleo da Parte B), so (chave, total); a amostra NAO foi lida.
+patrimonio_duplicado 0
+ativo_filial_inativa 0
+termo_sem_arquivo 0
+perfil_sem_conta 0
+conta_sem_perfil 0
+pendencia_de_estornada 0
+operador_sem_filial 0
+arquivo_termo_orfao 3        (a 8a; linha de base 3, catraca)
+conflito_entre_filiais 59    (linha de base 69)
+detentor_em_estado_sem_dono 1  (#84; linha de base 0)
+reserva_aberta 0
+backup_orfao 12              (a 12a; #84; linha de base 10)
+kit_motivo_orfao 0

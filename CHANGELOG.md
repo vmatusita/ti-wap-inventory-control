@@ -6,6 +6,30 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 16/11/2026 — F67B · Storage e Realtime por empresa 🚧
+
+Fase **F67B** (**v1.74.0**) · **com migrations `0194`–`0197` (a expansão) e `0198`–`0199` (a contração)** — funções,
+policies e o comment de uma coluna; **nenhum dado de negócio e nenhum objeto de Storage muda** · sem dependência nova.
+**🚧 O apply está PENDENTE**: o ensaio recusou toda conexão da run (`28P01`), e nada vai a produção sem ele — o código
+está pronto e provado na mesa e no CI, com o PR aberto e SEM merge, e o caminho B no topo do relatório. Plano em
+[`docs/PLAN-F67B.md`](docs/PLAN-F67B.md), ata em [`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-16 · F67B), relatório em
+[`docs/RELATORIO-F67B.md`](docs/RELATORIO-F67B.md).
+
+- 📄 **O documento do termo é da LINHA.** O `.docx` do bucket `termos` é lido por quem é membro ativo da empresa do termo
+  e gravado por quem pode escrever aquele termo; nome sem registro não é gravável. O `persistirTermo` foi invertido (a
+  linha antes do arquivo, com rollback em cada ramo) e mudou para `src/lib/termos/persistir.ts`.
+- 🗄️ **O arquivo de segurança é da EMPRESA DO CAMINHO.** Import, reset, mesa de conflitos e as cópias de `.docx` gravam em
+  `<família>/empresa-<uuid>/…` (a função única `src/lib/storage/caminho.ts`); só o admin daquela empresa alcança. Os
+  antigos ficam legíveis só pelo admin da WAP (decisão 16/11-1); o import usa o client administrativo só para os `.docx`
+  depois da RPC (16/11-2).
+- 🧹 **A ferramenta nomeada de órfão** na Zona destrutiva: só a plataforma, só `.docx` sem linha há mais de 1 hora, trilha
+  antes da cópia. Entregue, não executada.
+- 📡 **Tempo real por empresa.** As três assinaturas levam `filter: 'empresa_id=eq.<id>'`, com a empresa vinda do servidor;
+  a publication tem trava de catálogo (RLS, recorte, replica identity).
+- 🔒 **Provas:** `storage_por_empresa.sql` (duas empresas fictícias, as policies reais, os dois sentidos), catorze mutações
+  novas no injetor, o rollback gerado (`F67B-desfaz.sql`) ensaiado nos dois estados, e o conta a conta "antes" de
+  produção (0 divergência).
+
 ## 13/11/2026 — F67 · O cargo por empresa, as `security definer` e as destrutivas ✅
 
 Fase **F67** (**v1.73.0**) · **com migrations `0185`–`0192` (a expansão) e `0193` (a contração)** — funções, views, nove

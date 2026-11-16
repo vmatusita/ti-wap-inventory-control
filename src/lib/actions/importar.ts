@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { traduzirErroStorage } from '@/lib/supabase/erros-do-banco'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { empresaDaFilial, unidadesDaMesmaEmpresa } from '@/lib/escopo/empresa-da-filial'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
@@ -37,7 +39,7 @@ import {
 } from '@/lib/queries/import-logs'
 import type { Filial } from '@/lib/queries/filiais'
 import { chamarRpc } from '@/lib/supabase/rpc'
-import { confirmacaoImportConfere, prefixoBackupImport } from '@/lib/validators/importar'
+import { confirmacaoImportConfere } from '@/lib/validators/importar'
 import {
   escopoDeGestaoAtual,
   escopoDoImportLog,
@@ -47,14 +49,21 @@ import {
   avisoDaLimpeza,
   copiarEntaoRemoverTermos,
   descartarBackupNaoUsado,
+} from '@/lib/storage/copiar-antes-de-remover'
+import {
+  caminhoBackupImport,
+  carimboDeArquivo,
   prefixoDasCopias,
   raizDoBackupEmArquivo,
-} from '@/lib/storage/copiar-antes-de-remover'
+} from '@/lib/storage/caminho'
 
 // Server Actions da tela admin/importar (OS-F7 / W3). Escritas com validação Zod;
 // TODO acesso ao banco/Storage/RPC pelo client autenticado do operador (a RPC
 // `importar_ativos_substituir` usa auth.uid() e só concede EXECUTE ao authenticated
-// — jamais service_role).
+// — jamais service_role). UMA exceção, desde a F67B (decisão 16/11-2 do Johnny): a cópia e a
+// remoção dos `.docx` dos termos que a RPC acabou de apagar, DEPOIS dela, pelo client
+// administrativo — a linha morreu, e desde a 0198 nenhuma sessão alcança o arquivo dela.
+// Declarada em `src/lib/supabase/superficie-admin.test.ts`; ver o comentário no ponto de uso.
 //
 // ⚠ CORRIGIDO NA F52: este comentário afirmava que "o conteúdo do CSV nunca é persistido
 // nem logado: só o hash viaja no plano". É FALSO desde a 0033. O plano carrega os campos
@@ -373,12 +382,6 @@ async function filialPorId(
   return data ?? null
 }
 
-// Timestamp seguro para chave de objeto do Storage: ISO sem os caracteres que o
-// bucket rejeita/atrapalham (`:` e `.`). Ex.: 2026-07-16T14-30-05-123Z.
-function timestampArquivo(): string {
-  return new Date().toISOString().replace(/[:.]/g, '-')
-}
-
 // ---- 1) validarImport ----------------------------------------------------
 
 // Recebe o arquivo (File) + filialId + correcoes (JSON) no FormData, valida
@@ -620,7 +623,20 @@ export async function aplicarImport(input: {
   // Antes era `<slug>/<timestamp>.json`: um caminho que a RPC aceitava sem conferir nada
   // além de ser não-vazio, e cujo slug colide no dia em que deixar de ser único global —
   // com `upsert:false`, o segundo import falharia por causa do primeiro.
-  const backupPath = `${prefixoBackupImport(filial.id)}${timestampArquivo()}.json`
+  //
+  // F67B — COM A EMPRESA no 2º segmento: `import/empresa-<uuid>/filial-<id>/<carimbo>.json`, pela função única
+  // (src/lib/storage/caminho.ts). O bucket decide pela empresa do caminho, e a RPC confere a forma nova — por isso a
+  // empresa da filial é lida AQUI, antes do backup (até a F67 ela era lida depois, só para a RPC).
+  // F67: a empresa do import é a DA FILIAL do plano (lida no servidor); o banco a confere antes da trava e do backup.
+  let empresaDoImport: string | null
+  try {
+    empresaDoImport = await empresaDaFilial(client, plano.filialId)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.empresa-da-filial', erro })
+    return { ok: false, erro: 'Não foi possível conferir a filial do import. Nada foi apagado — tente de novo em instantes.' }
+  }
+  if (empresaDoImport === null) return { ok: false, erro: 'Filial não encontrada.' }
+  const backupPath = caminhoBackupImport(empresaDoImport, filial.id, carimboDeArquivo())
   try {
     const acervo = await exportarAcervoFilial(client, filial.id)
     // F56 · Frente F (migration 0140, Decisão 9) — a mesma leitura PRÉ-RPC de
@@ -653,7 +669,7 @@ export async function aplicarImport(input: {
       .from('backups-import')
       .upload(backupPath, corpo, { contentType: 'application/json', upsert: false })
     if (upErr) {
-      return { ok: false, erro: `Falha ao gravar o backup — import cancelado: ${upErr.message}` }
+      return { ok: false, erro: `Falha ao gravar o backup — ${traduzirErroStorage(upErr, 'gravar')} Import cancelado.` }
     }
   } catch (erro) {
     registrarFalha({
@@ -678,15 +694,6 @@ export async function aplicarImport(input: {
   // `create or replace` casa pela LISTA DE TIPOS dos argumentos. O overload quebraria
   // `seguranca_catalogo.sql`, que resolve a assinatura de 4 argumentos e exige UMA linha.
   const planoComConfirmacao = { ...plano, confirmacao: confirmacaoTexto }
-  // F67: a empresa do import é a DA FILIAL do plano (lida no servidor); o banco a confere antes da trava e do backup.
-  let empresaDoImport: string | null
-  try {
-    empresaDoImport = await empresaDaFilial(client, plano.filialId)
-  } catch (erro) {
-    registrarFalha({ escopo: 'import.empresa-da-filial', erro })
-    return { ok: false, erro: 'Não foi possível conferir a filial do import. Nada foi apagado — tente de novo em instantes.' }
-  }
-  if (empresaDoImport === null) return { ok: false, erro: 'Filial não encontrada.' }
   const { data, error } = await chamarRpc(client, 'importar_ativos_substituir', {
     p_empresa: empresaDoImport,
     p_plano: planoComConfirmacao,
@@ -717,9 +724,10 @@ export async function aplicarImport(input: {
     // descartá-lo ali destruiria a prova. Errar de ramo aqui é o defeito mais caro que esta
     // fase poderia introduzir, e há teste que prova que o `safeParse` NÃO descarta.
     //
-    // Client de SESSÃO, como todo o resto deste módulo (o cabeçalho proíbe service role).
-    // A policy de DELETE do bucket `backups-import` é `e_admin()`, e quem chegou aqui já
-    // passou por `exigirAdmin` — conferido na 0066, não suposto.
+    // Client de SESSÃO (o service role deste módulo é só a cópia dos `.docx` depois da RPC).
+    // A policy de DELETE do bucket `backups-import` é, desde a F67B, "admin da EMPRESA DO
+    // CAMINHO" — e o caminho acabou de ser montado com a empresa da filial deste import, que
+    // quem chegou aqui administra (`exigirAdmin` + a RPC, que recusou sem apagar nada).
     //
     // ⚠⚠ E SÓ QUANDO A RPC RECUSOU DE VERDADE, não a qualquer erro. `error` do
     // supabase-js cobre também falha de REDE e de gateway (504 do edge, conexão
@@ -815,11 +823,14 @@ export async function aplicarImport(input: {
   // cópias é DETERMINÍSTICO: `<backup_path sem .json>/termos/`, que o restaurador e a 12ª
   // checagem recalculam sem precisar de manifesto.
   //
-  // O client é o de SESSÃO, o mesmo que remove — o cabeçalho deste módulo proíbe service
-  // role, e as policies de Storage (0066/0069) deixam o admin de sessão copiar (`copy()`
-  // exige SELECT na origem e INSERT no destino).
+  // F67B (decisão 16/11-2 do Johnny) — o client é o ADMINISTRATIVO, e SÓ AQUI. Até a F67B era o de sessão ("as
+  // policies deixam o admin de sessão copiar"); desde a contração (0198) o bucket `termos` decide pela LINHA, e a RPC
+  // acabou de apagar as linhas destes `.docx` — nenhuma sessão os alcança mais, nem para ler (a cópia) nem para apagar.
+  // O service role entra DEPOIS da RPC, só para copiar e remover a lista que ELA devolveu (nunca um caminho montado
+  // aqui), pela porta única que não remove o que não copiou. Todo o resto deste módulo segue na sessão — a RPC, o
+  // backup, o descarte —, e a exceção é declarada em `src/lib/supabase/superficie-admin.test.ts`.
   const arquivos = ret.data.arquivos_termos_apagados
-  const limpeza = await copiarEntaoRemoverTermos(client, {
+  const limpeza = await copiarEntaoRemoverTermos(createAdminClient(), {
     prefixoDestino: prefixoDasCopias(raizDoBackupEmArquivo(backupPath)),
     caminhos: arquivos,
   })
@@ -903,10 +914,13 @@ export async function urlBackup(logId: string): Promise<UrlBackupResult> {
   if (!log) return { ok: false, erro: 'Import não encontrado.' }
 
   // A FECHADURA DE PERTENCIMENTO (F54) — hoje um NO-OP, e é o ponto de injeção da
-  // F62/F69. Esta é a cadeia mais curta de download do dump alheio, e ela é pela
-  // APLICAÇÃO: a URL assinada nasce aqui, com a credencial de quem já passou por
-  // `exigirAdmin`, e o Storage não tem como saber que aquele admin é de outra
-  // empresa. Arrumar policy de bucket NÃO fecha isto. Com uma empresa só,
+  // F62/F69. Esta é a cadeia mais curta de download do dump alheio. Até a F67B ela era
+  // a ÚNICA linha (o Storage não sabia de que empresa era o backup); desde a F67B o
+  // bucket decide pela EMPRESA DO CAMINHO (`import/empresa-<uuid>/…`), e a URL assinada
+  // — que exige LER o objeto — já é recusada ao admin de outra empresa; o backup ANTIGO,
+  // sem empresa no caminho, só o admin da WAP lê (a cláusula legada, decisão 16/11-1).
+  // Esta fechadura continua como 2ª linha (decisão 12 do PLAN-F67B), para o dia em que
+  // `import_logs` deixar de ser filtrado pela RLS de leitura. Com uma empresa só,
   // `pertenceAoEscopo` sempre responde `true` e nada muda para ninguém — ver
   // `src/lib/escopo/pertencimento.ts` para por que ela é uma comparação de verdade
   // e não um `return true`.

@@ -316,6 +316,26 @@ export function traduzErroBanco(mensagem: string | undefined | null, code?: stri
   if (casa(m, MSG_SQL.backupDoResetInexistente)) {
     return 'O backup deste reset não foi encontrado no armazenamento. NADA foi apagado — gere a prévia e o backup novamente.'
   }
+  // ---- F67B: a ferramenta nomeada de órfão (`registrar_limpeza_termos_sem_linha`, 0196) ----
+  // A justificativa curta cai no ramo `justificativaObrigatoria` acima (a frase é a mesma). A contagem da frase de
+  // confirmação é um NÚMERO (nunca caminho nem valor de linha): ela vem do banco e é a única coisa que a pessoa
+  // precisa para digitar de novo — os arquivos com menos de 1 hora ficam fora da conta, então ela pode diferir da
+  // 8ª checagem.
+  if (casa(m, MSG_SQL.limpezaRestritaAPlataforma)) {
+    return 'Limpar arquivos de termo sem registro é restrito à plataforma.'
+  }
+  if (casa(m, MSG_SQL.confirmacaoDaLimpeza)) {
+    const n = /limpar ([0-9]{1,6}) arquivos de termo/i.exec(mensagem ?? '')?.[1]
+    return n
+      ? `A contagem mudou: agora são ${n} arquivo(s) sem registro há mais de 1 hora (os mais novos ficam de fora da limpeza). Nada foi apagado — atualize a página e confirme de novo; se a tela ainda mostrar outro número, espere 1 hora.`
+      : 'A contagem mudou desde que a tela foi aberta. Nada foi apagado — atualize a página e confirme de novo.'
+  }
+  if (casa(m, MSG_SQL.nadaParaLimpar)) {
+    return 'Não há arquivo de termo sem registro há mais de 1 hora para limpar. Nada foi apagado.'
+  }
+  if (casa(m, MSG_SQL.pastaDaCopiaForaDaForma) || casa(m, MSG_SQL.pastaDaCopiaJaUsada)) {
+    return 'A pasta da cópia não pôde ser usada. Nada foi apagado — tente de novo em instantes.'
+  }
   if (casa(m, MSG_SQL.estadoMudouDesdeAPrevia)) {
     return 'O estado mudou desde a prévia/backup — alguém registrou algo enquanto você confirmava. Nada foi apagado: gere a prévia novamente.'
   }

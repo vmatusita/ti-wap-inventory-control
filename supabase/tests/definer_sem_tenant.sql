@@ -114,7 +114,11 @@ declare
     -- Termo (0069): `pode_escrever_arquivo_termo` DELEGA para `pode_escrever_termo()`, que
     -- por sua vez chama `e_admin()` ou `pode_escrever_filial(a.filial_id)` — a filial REAL
     -- do ativo lida em `ativos`, nunca a que o cliente declarasse.
-    'pode_escrever_arquivo_termo', 'pode_escrever_termo',
+    -- F67B (16/11/2026): o degenerado passa a decidir pela empresa DA LINHA —
+    -- `pode_escrever_termo(p_empresa, p_ativo_ids)` chama `e_admin_na(p_empresa)` —, e
+    -- `pode_ler_arquivo_termo` SAI das exceções: lê pelo JOIN com `termos_gerados`
+    -- (`papel_na_empresa(t.empresa_id)` da linha que referencia o nome).
+    'pode_escrever_arquivo_termo', 'pode_escrever_termo', 'pode_ler_arquivo_termo',
     -- Zona destrutiva (0082→0110): cada uma chama `exigir_dev_para_destruir(p_justificativa)`
     -- por dentro, ANTES de qualquer efeito.
     'apagar_ativo', 'apagar_item', 'apagar_movimentacao', 'forcar_estado_ativo',
@@ -134,9 +138,9 @@ declare
   -- o próprio arquivo `.sql`).
   -- -----------------------------------------------------------------------
   k_escopo_excecao          text[] := array[
-    'estorno_item_coerente', 'termo_ancora_coerente', 'pode_ler_arquivo_termo'
+    'estorno_item_coerente', 'termo_ancora_coerente', 'registrar_limpeza_termos_sem_linha'
   ];
-  k_escopo_excecao_migracao text[] := array['0068', '0069', '0186'];
+  k_escopo_excecao_migracao text[] := array['0068', '0069', '0196'];
   k_escopo_excecao_motivo   text[] := array[
     --   · estorno_item_coerente (0068) — recebe id do cliente e é alcançável, mas SOZINHA
     --     não protege nada: a autorização real está ANDada ao lado, na MESMA expressão da
@@ -151,11 +155,16 @@ declare
     --     COERÊNCIA de dados (o ativo pertence à movimentação). F67: a empresa dos ids é a
     --     do termo pelo gatilho `termos_gerados_ids_da_empresa` (0173).
     'idem estorno_item_coerente: recebe uuid[] duas vezes e é alcançável, mas a autorização real está ANDada ao lado, na MESMA expressão da policy, junto com pode_escrever_termo() e o recorte de empresa; a empresa dos ids é a do termo pelo gatilho termos_gerados_ids_da_empresa (0173, F67). Sozinha, ela só confere COERÊNCIA de dados, nunca CARGO nem FILIAL.',
-    --   · pode_ler_arquivo_termo (0186, F67; nasceu na 0129) — recebe p_nome text e é
-    --     alcançável, mas por desenho DOCUMENTADO ignora o parâmetro: desde a F67 o corpo é
-    --     "papel_na_empresa(empresa_legada()) is not null" — todo membro ativo da WAP lê
-    --     todo termo, a legada EXPLÍCITA até a F67B fechar por join com termos_gerados.
-    'recebe p_nome text e é alcançável, mas por desenho DOCUMENTADO ignora o parâmetro: desde a F67 o corpo é "papel_na_empresa(empresa_legada()) is not null" — todo membro ativo da empresa legada lê todo termo, a legada EXPLÍCITA até a F67B fechar pelo join com termos_gerados.'
+    --   · registrar_limpeza_termos_sem_linha (0196, F67B) — recebe text (a raiz da cópia, a
+    --     confirmação, a justificativa) e é alcançável, mas o objeto que ela trata NÃO TEM
+    --     EMPRESA: um .docx sem linha de termos_gerados não pertence a ninguém. A guarda é a
+    --     PLATAFORMA (e_plataforma(), decisão 13/11-1 "dev sou só eu"), não uma primitiva por
+    --     empresa; a raiz é conferida por forma fechada (orfao/<carimbo>) e a lista é medida no
+    --     banco, nunca vinda do cliente.
+    'recebe text (a raiz, a confirmação, a justificativa) e é alcançável, mas o objeto que trata NÃO TEM EMPRESA: um .docx sem linha de termos_gerados não pertence a ninguém. A guarda é a PLATAFORMA (e_plataforma(), decisão 13/11-1 do Johnny), não uma primitiva por empresa; a raiz é conferida por forma fechada e a lista dos arquivos é medida no banco, nunca vinda do cliente (F67B).'
+    --   · pode_ler_arquivo_termo (0186) SAIU daqui na F67B (16/11/2026): era a exceção que
+    --     ignorava o nome ("papel_na_empresa(empresa_legada()) is not null"); agora decide
+    --     pelo JOIN com termos_gerados e está em k_escopo_ok — e a 4b recusa a legada no corpo.
   ];
 
   -- -----------------------------------------------------------------------
@@ -350,6 +359,31 @@ begin
        '4 toda função de k_escopo_ok confere a empresa por uma primitiva POR EMPRESA (no corpo, ou por delegação, por nome inteiro)' ||
        case when v_cnt > 0 then ' — sem primitiva por empresa: ' || v_lista else '' end,
        v_cnt, array_length(k_escopo_ok, 1)::bigint) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 4b — F67B (16/11/2026): nenhuma função de `k_escopo_ok` cita `empresa_legada()` no CÓDIGO.
+  -- A 4 aceita "chama uma primitiva por empresa" — e `papel_na_empresa(empresa_legada())` CHAMA
+  -- uma. Era exatamente a forma da exceção que a F67B fecha (a leitura do .docx pela legada, que
+  -- ignorava o nome) e do degenerado de `pode_escrever_termo` (pela legada, não pela empresa da
+  -- linha): a empresa vinha da WAP, não do objeto. A 4b fecha esse buraco da 4: a empresa que a
+  -- primitiva recebe tem de vir do ALVO (o parâmetro, a filial, a linha), nunca da legada.
+  -- Por nome (todas as sobrecargas do nome): é a mesma régua do CI contraído.
+  -- ---------------------------------------------------------------
+  select count(*), coalesce(string_agg(p.oid::regprocedure::text, ', ' order by p.oid::regprocedure::text), '')
+    into v_cnt, v_lista
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f'
+     and p.proname = any (k_escopo_ok)
+     and pg_temp.sql_so_codigo(p.prosrc) ~ '\mempresa_legada\s*\(';
+  if pg_temp.assert_zero_de(
+       '4b nenhuma função de k_escopo_ok cita empresa_legada() no código — a empresa vem do alvo, nunca da legada' ||
+       case when v_cnt > 0 then ' — citam: ' || v_lista else '' end,
+       v_cnt, (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                where n.nspname = 'public' and p.prokind = 'f' and p.proname = any (k_escopo_ok))) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

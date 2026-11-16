@@ -12,9 +12,14 @@ import { TABELAS_ASSINADAS, opcoesDaAssinatura } from '@/lib/relatorios/assinatu
 // `router.refresh()` com debounce de 2s + badge "atualizado agora". Fallback:
 // refetch ao focar a aba. A página segue 100% funcional sem WebSocket. Sessões
 // por senha usam ViewerAutoRefresh (não abrem canal — não têm credencial).
+//
+// F67B — a EMPRESA chega por PROP, do Server Component que monta o componente (hoje a da
+// operação; F70: a da sessão). Ela vira o `filter` das três assinaturas e entra nas
+// dependências do efeito: trocar a empresa refaz o canal. A segurança continua sendo a RLS
+// de SELECT de cada tabela, conferida por assinante — ver `lib/relatorios/assinatura-realtime.ts`.
 const INTERVALO_MINIMO_FOCO_MS = 30_000
 
-export function RealtimeRefresh() {
+export function RealtimeRefresh({ empresaId }: { empresaId: string }) {
   const router = useRouter()
   const [atualizado, setAtualizado] = useState(false)
   // RV-16 — carimbo nasce VAZIO de propósito: o servidor não tem "agora do
@@ -56,13 +61,11 @@ export function RealtimeRefresh() {
 
     // F50 — nome do canal PARAMETRIZADO pelo escopo (`nomeDoCanal`), e as três
     // assinaturas saindo de UMA função (`opcoesDaAssinatura`) em vez de três objetos
-    // montados à mão. Hoje o resultado é byte a byte o de antes: mesmo evento, mesmo
-    // schema, mesmas três tabelas, nenhum `filter`. O que mudou é onde se mexe para
-    // que deixe de ser — ver o cabeçalho de `lib/relatorios/assinatura-realtime.ts`,
-    // inclusive o aviso de que este caminho NÃO passa por `lib/queries` e portanto
-    // não herda recorte nenhum que a virada ponha lá.
+    // montados à mão. F67B — com o filtro da EMPRESA (a da prop), o mesmo nas três. Este
+    // caminho NÃO passa por `lib/queries` e não herda recorte nenhum de lá — ver o
+    // cabeçalho de `lib/relatorios/assinatura-realtime.ts`.
     const canal = TABELAS_ASSINADAS.reduce(
-      (c, tabela) => c.on('postgres_changes', opcoesDaAssinatura(tabela), aoMudar),
+      (c, tabela) => c.on('postgres_changes', opcoesDaAssinatura(tabela, empresaId), aoMudar),
       supabase.channel(nomeDoCanal('relatorio-tempo-real')),
     ).subscribe()
 
@@ -85,7 +88,7 @@ export function RealtimeRefresh() {
       window.removeEventListener('focus', onFocus)
       supabase.removeChannel(canal)
     }
-  }, [router])
+  }, [router, empresaId])
 
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

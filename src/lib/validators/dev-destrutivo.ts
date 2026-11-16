@@ -52,6 +52,26 @@ export const apagarItemSchema = z.object({
 /** `null` = alcance GLOBAL (o sistema inteiro). */
 const filialOuGlobal = z.number().int().positive().nullable()
 
+/**
+ * A ferramenta nomeada de órfão (F67B): a confirmação é a frase `LIMPAR <N> ARQUIVOS DE TERMO`, com o N da contagem
+ * de agora — quem confere o N é o banco (`registrar_limpeza_termos_sem_linha`, 0196); aqui só a forma da frase.
+ */
+export const FRASE_LIMPAR_TERMOS = /^LIMPAR [0-9]{1,6} ARQUIVOS DE TERMO$/
+
+export function fraseLimparTermos(total: number): string {
+  return `LIMPAR ${total} ARQUIVOS DE TERMO`
+}
+
+export const limparTermosSemLinhaSchema = z.object({
+  // em MAIÚSCULAS antes de conferir: a tela tolera a caixa (`confirmacaoConfere`), e o banco compara a frase exata
+  confirmacao: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(FRASE_LIMPAR_TERMOS, 'Digite a frase exatamente como aparece ao lado do campo (ex.: LIMPAR 3 ARQUIVOS DE TERMO).'),
+  justificativa: justificativaSchema,
+})
+
 export const resetarSchema = z.object({
   bloco: z.enum(['acervo', 'itens']),
   filialId: filialOuGlobal,

@@ -95,6 +95,7 @@ import {
   LEITURA_RESETAR_ACERVO,
   LEITURA_RESETAR_ITENS,
   LEITURA_TERMOS_DO_ATIVO_DESTRUTIVO,
+  LEITURA_LIMPAR_TERMOS_SEM_LINHA,
 } from '@/lib/queries/formas/dev-destrutivo'
 import { LEITURA_EVENTOS_ADMIN } from '@/lib/queries/formas/eventos-admin'
 import {
@@ -257,6 +258,7 @@ export const CATALOGO: readonly Descritor[] = [
   // lote 3 — conflitos.ts (recibo)
   LEITURA_APAGAR_CONFLITO,
   // lote 3 — dev-destrutivo.ts (recibos)
+  LEITURA_LIMPAR_TERMOS_SEM_LINHA,
   LEITURA_APAGAR_ATIVO,
   LEITURA_APAGAR_MOVIMENTACAO,
   LEITURA_APAGAR_ITEM,

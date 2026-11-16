@@ -177,7 +177,9 @@ describe('os TRÊS conjuntos concordam', () => {
     // F62 (22/09/2026): a 0158 a recriou trocando SÓ a operador_sem_filial (o cargo passou a
     // morar em membros). F64 (23/09/2026): a 0164 a recriou acrescentando SÓ a 13ª,
     // kit_motivo_orfao (as doze de antes byte a byte) — as treze num lugar só, agora o da 0164.
-    expect(arquivo).toBe('0164_kit_motivo_da_empresa.sql')
+    // F67B (16/11/2026): a 0196 a recriou trocando SÓ a 12ª, backup_orfao (as cópias e os backups nas DUAS formas do
+    // caminho, e a raiz da ferramenta de órfão) — as outras doze byte a byte (kit_motivo_da_empresa.sql, C8a).
+    expect(arquivo).toBe('0196_backup_orfao_duas_formas.sql')
     // A porta da /dev delega: o corpo dela NÃO tem mais as doze.
     const daPorta = chavesDoNucleo(corpoVigente('public.dev_checagens_integridade()', RAIZ).sql)
     expect(daPorta, 'o SQL das doze voltou a existir em DOIS lugares').toEqual([])

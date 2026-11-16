@@ -1,0 +1,23 @@
+# CI, job banco-sem-docker — run 43892474619, push f4471f0 (16/11/2026): a cadeia inteira 0001–0199 num Postgres 17 limpo.
+# As duas reprovações são as CONSTANTES que só o CI mede (como na F65–F67): o L4 de integridade_tenant (o conjunto
+# encolheu pelas 14 da F67B) e o md5 das POLICIES do f67b_rollback (deparse do ambiente; as outras quatro partes = mesa).
+# O f67_rollback (que roda o F67B-desfaz antes do F67-desfaz) passou: a impressão do CI antes da 0185, policies inclusive.
+# O gate de deriva de tipos: verde (105 funções). O injetor não rodou neste push (o passo dos roteiros falhou antes).
+
+banco ....... 38 relações · 360 colunas · 105 funções
+database.ts . 38 relações · 360 colunas · 105 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+psql:supabase/tests/catalogo_policies.sql:2341: NOTICE:  FIM catalogo_policies: 46 asserções, 0 falhas
+psql:supabase/tests/f67_rollback.sql:179: NOTICE:  FIM f67_rollback: 7 asserções, 0 falhas
+psql:supabase/tests/f67b_rollback.sql:200: NOTICE:  (medição) f67b_rollback depois: comentarios:c6632ecf0ae248192a4da12b3948e637:115|funcoes:0a2a3c3e7c8a71d014b7f3b01ba3bdf3:114|gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53|policies:23f75895fe22ee72d63cbdc5966036d4:62|views:a38b7bf1527d5cb13f776b5e8af0b2b4:9
+psql:supabase/tests/f67b_rollback.sql:200: WARNING:  ✗ rb4 as policies de public e de storage depois do rollback são as do CI na cadeia até a 0193 — policies:23f75895fe22ee72d63cbdc5966036d4:62, esperado policies:f3d8c68dc9e82a282b657eafa616562e:62: 1 de 1 fora da regra
+psql:supabase/tests/f67b_rollback.sql:200: WARNING:  ✗ rb7 o só-expansão (0194–0197 reaplicadas, sem a contração): o rollback devolve o esquema do CI na cadeia até a 0193: 1 de 1 fora da regra
+psql:supabase/tests/f67b_rollback.sql:200: NOTICE:  FIM f67b_rollback: 9 asserções, 2 falhas
+psql:supabase/tests/integridade_tenant.sql:595: NOTICE:  (medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: 84f64e0b50d37a4c4d4ea30f0d2b3ca1 (64 funções)
+psql:supabase/tests/integridade_tenant.sql:595: WARNING:  ✗ L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI) — 84f64e0b50d37a4c4d4ea30f0d2b3ca1, esperado 5247f1636bfa26cab2363dcd45adbbc6: 1 de 1 fora da regra
+psql:supabase/tests/storage_por_empresa.sql:566: NOTICE:  FIM storage_por_empresa: 36 asserções, 0 falhas
+  63 roteiro(s), 1299 asserções no total
+ 2026-11-16 15:05:48.467 UTC [528] WARNING:  ✗ autoteste 3 — o ✗ deste é esperado e está escondido: 2 de 7 fora da regra
+ 2026-11-16 15:06:03.443 UTC [568] WARNING:  ✗ rb4 as policies de public e de storage depois do rollback são as do CI na cadeia até a 0193 — policies:23f75895fe22ee72d63cbdc5966036d4:62, esperado policies:f3d8c68dc9e82a282b657eafa616562e:62: 1 de 1 fora da regra
+ 2026-11-16 15:06:03.443 UTC [568] WARNING:  ✗ rb7 o só-expansão (0194–0197 reaplicadas, sem a contração): o rollback devolve o esquema do CI na cadeia até a 0193: 1 de 1 fora da regra
+ 2026-11-16 15:06:04.163 UTC [575] WARNING:  ✗ L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI) — 84f64e0b50d37a4c4d4ea30f0d2b3ca1, esperado 5247f1636bfa26cab2363dcd45adbbc6: 1 de 1 fora da regra

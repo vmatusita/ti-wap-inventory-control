@@ -14066,3 +14066,47 @@ migrations `0185`–`0192` (a expansão, oito lotes) e `0193` (a contração); e
     (`backup_orfao` 12, `detentor_em_estado_sem_dono` 1) — nem um a mais, a condição da decisão 13/11-3 —, a deriva com 0
     pendente (a mais nova no ledger é a `0193`), e a sessão da conta `consulta` lendo o resumo (a decisão 14 vale para a
     sonda agendada). A fase fecha aqui; a tag `v1.73.0` vai no merge do PR de documentação.
+
+## 2026-11-16 · F67B (v1.74.0) · Storage e Realtime por empresa
+
+**Contexto.** A ordem [`prompts/F67B-storage-e-realtime-por-empresa-ultracode.md`](prompts/F67B-storage-e-realtime-por-empresa-ultracode.md):
+o bucket `termos` pela linha de `termos_gerados`, o bucket `backups-import` pela empresa do caminho, o `persistirTermo`
+invertido, a ferramenta nomeada de órfão, o filtro de empresa nas três assinaturas de tempo real, e nada mudando para a
+WAP. Plano [`PLAN-F67B.md`](PLAN-F67B.md) (os 33 fatos remedidos, as tabelas-verdade, as decisões); migrations
+`0194`–`0197` (a expansão) e `0198`–`0199` (a contração); evidência em `docs/f67b-evidencias/`; relatório
+[`RELATORIO-F67B.md`](RELATORIO-F67B.md) — com o **caminho B no topo**.
+
+**As decisões do Johnny, registradas.**
+
+- **(16/11-1)** Os backups ANTIGOS (sem empresa no caminho) ficam legíveis só pelo admin da WAP, por uma cláusula FECHADA
+  pela lista das formas antigas (`caminho_backup_legado`), e nunca graváveis.
+- **(16/11-2)** No import, o client administrativo SÓ para copiar e remover os `.docx` depois da RPC; o resto na sessão.
+
+**O bloqueio da run (fato 5).** O ensaio (`sgmvldiizsrjbxzzpmhh`) respondeu `FATAL 28P01: password authentication failed`
+em toda tentativa (cinco, espaçadas ao longo da run, só `select 1`); `restore_project` recusou, acordar pela API não mudou
+nada. Pela ordem: **nada vai a produção sem o ensaio antes**. Não procurei token, não abri o `.env.local`, não li o
+Gerenciador de Credenciais. Entregue tudo o que não depende de banco vivo; PR ABERTO e SEM merge; o caminho B escrito no
+topo do relatório. Produção foi lida (só leitura: o "antes", o conta a conta "antes" e a sonda de efeito abaixo).
+
+**As decisões da fase** (o texto inteiro no §4 do plano; aqui as que a execução mudou ou acrescentou):
+
+- **A 0196 corrigida no lugar, antes de qualquer apply** — a ferramenta de órfão passou a listar só o `.docx` sem linha
+  há mais de 1 hora (o código anterior à F67B sobe o arquivo ANTES da linha: um termo no meio da gravação entraria na
+  lista na janela entre a expansão e o deploy), e o comment de `eventos_admin.acao` reemitido com o verbo novo. O lock
+  foi regravado com `--regravar-alterada` DEPOIS da sonda de efeito em produção (0 linhas da F67B no ledger;
+  `to_regprocedure` nulo nas funções da 0194/0196); o ensaio nunca aceitou conexão. Commits `ea8c986` e `4eb7ca7`.
+- **A frase da recusa de gravação no Storage** ficou genérica para os dois buckets (*"Você não pode gravar este arquivo:
+  ele é de outra empresa ou de um registro que você não pode alterar."*) — a do plano falava de "registro", e o backup
+  não tem registro.
+- **O card da ferramenta de órfão** na Zona destrutiva usa a contagem da 8ª checagem; se a de 1 hora diferir, o banco
+  recusa e a mensagem diz o número de agora (nada é apagado).
+- **O injetor:** catorze mutações (não as nove do plano), teto 170 → 184 no número exato — doze da execução e duas da
+  revisão adversarial (a 9d e a 9c da publication do Realtime, que a ordem lista entre as candidatas) —, cada uma medida DETECTADA na mesa
+  PGlite antes do push; as antigas que miravam os corpos recriados pela 0195/0199 passaram a `mutarFuncao`.
+- **O rollback** roda IMEDIATAMENTE antes do da F67 em todos os roteiros de rollback (as policies do Storage da F67B citam
+  `e_admin_na()`, que o da F67 derruba); no `f67_rollback.sql`, só antes do primeiro (o contraído).
+- **A catraca do literal `empresa_id`** ganhou a única entrada que não é consulta (o filtro do Realtime), com a prova de
+  que continua sem `.from(`.
+
+**Reversível?** Sim, nada foi aplicado em banco vivo. Depois do apply: `supabase/rollback/F67B-desfaz.sql` (os dois
+estados; nenhum objeto de Storage se move), antes do da F67 — RUNBOOK, Anexo F67B.

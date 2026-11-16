@@ -279,6 +279,21 @@ const DA_F38 = [
   '0191',
   '0192',
   '0193',
+  // F67B — Storage e Realtime por empresa (docs/PLAN-F67B.md §5). A `0194` CRIA as cinco primitivas do caminho de backup
+  // (duas novas de nome; os três `prefixo_backup_*` com aridade nova, ao lado dos antigos); a `0195` RECRIA as quatro
+  // funções que conferem o caminho do backup (só a cláusula do prefixo: a forma nova OU a antiga) e faz `alter policy`
+  // nas 4 de backups-import; a `0196` RECRIA o núcleo das checagens (só a peça da 12ª) e cria a ferramenta de órfão; a
+  // `0197` cria `pode_escrever_termo(uuid, uuid[])` ao lado da antiga, RECRIA `pode_escrever_arquivo_termo` e faz
+  // `alter policy` nas 3 de termos_gerados; a `0198` (contração) RECRIA `pode_ler_arquivo_termo` (o join) e
+  // `pode_escrever_arquivo_termo` (o false) e derruba `pode_escrever_termo(uuid[])`; a `0199` (contração) RECRIA as
+  // quatro do caminho (só a forma nova) e derruba os três montadores antigos. Nenhuma é intocável; todas entram nas
+  // exceções nominais abaixo para que as listas sejam EXAUSTIVAS. Nenhuma escreve no acervo no apply.
+  '0194',
+  '0195',
+  '0196',
+  '0197',
+  '0198',
+  '0199',
 ]
 
 /**
@@ -708,6 +723,21 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
     // a mesa: a forma nova e a antiga recriada só com a chave de advisory por empresa (pelo mesmo motivo da 0190)
     '0191': ['exigir_ativos_da_empresa', 'apagar_ativos_conflito_filiais', 'apagar_ativos_conflito_filiais'],
     '0192': ['empresas_com_modelo_de_termo', 'termo_exige_modelo_da_empresa'],
+    // F67B (docs/PLAN-F67B.md §5) — a expansão (0194–0197) e a contração (0198–0199). As quatro do caminho do backup
+    // aparecem em DUAS migrations (a 0195 aceita as duas formas; a 0199, só a nova): o diff de cada uma é só a cláusula
+    // do prefixo, gerado do corpo vigente.
+    '0194': [
+      'empresa_do_caminho_backup',
+      'caminho_backup_legado',
+      'prefixo_backup_import',
+      'prefixo_backup_reset',
+      'prefixo_backup_conflito',
+    ],
+    '0195': ['import_validar_plano', 'resetar_acervo', 'resetar_itens', 'apagar_ativos_conflito_filiais'],
+    '0196': ['checagens_integridade_nucleo', 'registrar_limpeza_termos_sem_linha'],
+    '0197': ['pode_escrever_termo', 'pode_escrever_arquivo_termo'],
+    '0198': ['pode_ler_arquivo_termo', 'pode_escrever_arquivo_termo'],
+    '0199': ['import_validar_plano', 'resetar_acervo', 'resetar_itens', 'apagar_ativos_conflito_filiais'],
   }
 
   // A MESMA doutrina para o `drop` (F60): exceção NOMINAL, por migration, exaustiva. A `0145`
@@ -749,6 +779,11 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'importar_ativos_substituir',
       'e_dev',
     ],
+    // F67B — a contração: a forma do termo pela legada (sem consumidor desde a 0197) e os três montadores de caminho
+    // antigos, sem empresa (as RPCs da 0199 e a 12ª da 0196 não os citam mais). Só depois do deploy e da janela por
+    // contagem de objetos (RUNBOOK, Anexo F67B).
+    '0198': ['pode_escrever_termo'],
+    '0199': ['prefixo_backup_import', 'prefixo_backup_reset', 'prefixo_backup_conflito'],
   }
 
   it('NENHUMA função intocável é recriada pelas migrations da fase', () => {
