@@ -301,6 +301,7 @@ const DA_F38 = [
   // da F38 — e cria a assinatura nova da ferramenta de órfão; a CONTRAÇÃO (0205–0207) tira o default das 20 e derruba a
   // assinatura antiga. Nenhuma escreve no acervo no apply.
   '0200',
+  '0201',
 ]
 
 /**
@@ -753,6 +754,13 @@ describe('migrations da F38 — o critério 9, provado no disco', () => {
       'confirmar_assinatura_termo_com_anotacao',
       'desfazer_confirmacao_termo_com_anotacao',
       'confirmar_assinatura_lote_com_anotacoes',
+    ],
+    '0201': [
+      'criar_compra_lote',
+      'devolver_ao_fornecedor',
+      'criar_movimentacao_com_itens',
+      'estornar_movimentacao_com_itens',
+      'movimentacao_abrir_pendencias_item',
     ],
   }
 

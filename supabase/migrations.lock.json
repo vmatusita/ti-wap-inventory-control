@@ -202,6 +202,7 @@
     "0197_termo_pela_empresa_da_linha.sql": "7e9010d2921a9cbd9c1f74af5cec25c4b8bc68e5b157124a7c2592cdf92378a4",
     "0198_contracao_termos_pela_linha.sql": "acd161250e7d443f565bb98d5ebc1502ad9e9b36cbfc743d74f2eb706ceb7421",
     "0199_contracao_backups_por_empresa.sql": "76dc22fdab3759ad78e4322a901d770216780a29dd50f72131333167635f7d69",
-    "0200_escrita_empresa_anotacoes.sql": "cc10015f79e1dcb6da98ce0cdf1b3ce106ba881fc2685702b93f9476ff3ad675"
+    "0200_escrita_empresa_anotacoes.sql": "cc10015f79e1dcb6da98ce0cdf1b3ce106ba881fc2685702b93f9476ff3ad675",
+    "0201_escrita_empresa_movimentacoes.sql": "091b609c85dfd916962971da1789d508866e1a4b9f2a5e9735e18cfaa3b73f01"
   }
 }
