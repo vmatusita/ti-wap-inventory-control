@@ -274,8 +274,8 @@ ${GUARDA_ALVO}
   end if;
 end $f60i$;
 with ins as (
-  insert into public.itens (nome, grupo, ordem)
-  select '${MARCADOR} item ' || lpad(g.s::text, 6, '0'), 'acessorio', g.s
+  insert into public.itens (nome, grupo, ordem, empresa_id)
+  select '${MARCADOR} item ' || lpad(g.s::text, 6, '0'), 'acessorio', g.s, public.empresa_legada()
     from generate_series(1, ${p.itens}) as g (s)
    where public.rotulo_de_ambiente() = 'desenvolvimento'
   returning 1
@@ -325,7 +325,7 @@ ctx as (
     (select array_agg(f.id order by f.id) from public.filiais f where f.ativo) as fil
 ),
 ins as (
-  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, observacao, criado_por, created_at)
+  insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, observacao, criado_por, created_at, empresa_id)
   select
     case when g.s % ${p.cadaQuente} = 0 then x.itens[1]
          else x.itens[1 + (g.s % (cardinality(x.itens) * cardinality(x.fil))) / cardinality(x.fil)] end,
@@ -338,7 +338,8 @@ ins as (
     case when g.s <= ${p.frio} then x.frio
          when g.s > ${p.lancamentos - p.caudaQuente} then x.quente
          else x.lote[1 + g.s % cardinality(x.lote)] end,
-    ${instante}
+    ${instante},
+    public.empresa_legada()
   from ctx as x, generate_series(${de}, ${ate}) as g (s)
   where public.rotulo_de_ambiente() = 'desenvolvimento'
   returning 1
@@ -569,7 +570,7 @@ ${GUARDA_ALVO}
     raise exception 'F60I_CONTEXTO_AUSENTE';
   end if;
   for v_i in 0 .. ${p.n} loop
-    execute format('${EXPLAIN}insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, observacao, criado_por) values (%s, %s, %L, 1, current_date, %L, %L)',
+    execute format('${EXPLAIN}insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, observacao, criado_por, empresa_id) values (%s, %s, %L, 1, current_date, %L, %L, public.empresa_legada())',
       v_item_q, v_fil_q, 'entrada', '${OBS_MEDIDA}', v_autor) into v_plano;
     continue when v_i = 0;
     v_p := v_plano::jsonb -> 0;

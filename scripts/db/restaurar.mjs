@@ -264,17 +264,88 @@ function literal(v) {
   return `'${String(v).replace(/'/g, "''")}'`
 }
 
+// -----------------------------------------------------------------------------
+// F67C (decisão 11) — a empresa de cada linha restaurada. O `default empresa_legada()` das 20 colunas
+// `empresa_id` saiu: sem a coluna, o banco recusaria (23502). Backup de ANTES da F63 não traz a chave, e o
+// misto (arquivos de antes e de depois) traz as duas formas — então a coluna entra SEMPRE, preenchida.
+// Tudo SQL puro: a conferência (sem `--aplicar`) continua sem banco.
+// -----------------------------------------------------------------------------
+
+/**
+ * A expressão EXATA da empresa da FILIAL da linha, no banco de DESTINO (`{filial_id}` = o literal da filial).
+ * `supabase/tests/restauracao.sql` espelha este texto; uma trava de mesa exige a mesma expressão nos dois.
+ * Filial inexistente no destino → NULL → 23502 alto (nunca grava errado).
+ */
+export const EMPRESA_PELA_FILIAL_SQL = '(select f.empresa_id from public.filiais f where f.id = {filial_id})'
+/** A da ficha do ATIVO (`anotacoes`; 1º ativo de `termos_gerados`) — os ativos entram antes, na ordem. */
+export const EMPRESA_PELO_ATIVO_SQL = '(select a.empresa_id from public.ativos a where a.id = {ativo_id})'
+/** A da MOVIMENTAÇÃO (`termos_gerados` sem ativo) — as movimentações entram antes, na ordem. */
+export const EMPRESA_PELA_MOVIMENTACAO_SQL =
+  '(select m.empresa_id from public.movimentacoes m where m.id = {movimentacao_id})'
+
+const TABELAS_COM_FILIAL = ['ativos', 'movimentacoes', 'pendencias_item', 'lancamentos_item']
+
+function preencher(modelo, chave, valor) {
+  return modelo.split(`{${chave}}`).join(literal(valor))
+}
+
+/**
+ * De onde vem a `empresa_id` de UMA linha. `{ sql, origem }` com `origem` = `'chave'` (a linha traz a
+ * dela) ou `'pai'` (resolvida no destino pela filial/ativo/movimentação). Sem pai de onde tirar → LANÇA:
+ * nunca grava a empresa errada, nem deixa o banco descobrir só no meio da transação.
+ */
+export function empresaDaLinha(tabela, linha, indice = 0) {
+  if (linha.empresa_id !== undefined && linha.empresa_id !== null) {
+    return { sql: literal(linha.empresa_id), origem: 'chave' }
+  }
+  let sql = null
+  if (TABELAS_COM_FILIAL.includes(tabela) && linha.filial_id) {
+    sql = preencher(EMPRESA_PELA_FILIAL_SQL, 'filial_id', linha.filial_id)
+  } else if (tabela === 'anotacoes' && linha.ativo_id) {
+    sql = preencher(EMPRESA_PELO_ATIVO_SQL, 'ativo_id', linha.ativo_id)
+  } else if (tabela === 'termos_gerados') {
+    if (Array.isArray(linha.ativo_ids) && linha.ativo_ids.length > 0) {
+      sql = preencher(EMPRESA_PELO_ATIVO_SQL, 'ativo_id', linha.ativo_ids[0])
+    } else if (Array.isArray(linha.movimentacao_ids) && linha.movimentacao_ids.length > 0) {
+      sql = preencher(EMPRESA_PELA_MOVIMENTACAO_SQL, 'movimentacao_id', linha.movimentacao_ids[0])
+    }
+  }
+  if (sql === null) {
+    throw new Error(
+      `Restauração recusada: a linha ${indice + 1} de ${tabela}${linha.id ? ` (id ${linha.id})` : ''} não traz a empresa ` +
+        `e não tem filial, ativo ou movimentação de onde tirá-la. Não dá para saber a que empresa ela pertence, ` +
+        `e gravar a empresa errada é pior do que não restaurar. Nada foi gravado.`,
+    )
+  }
+  return { sql, origem: 'pai' }
+}
+
+/** Quantas linhas da tabela receberam a empresa pelo pai e quantas trouxeram a chave (a conferência imprime). */
+export function contagemDeEmpresa(tabela, linhas) {
+  let pelaFilialOuPai = 0
+  let trouxeAChave = 0
+  ;(linhas ?? []).forEach((l, i) => {
+    if (empresaDaLinha(tabela, l, i).origem === 'chave') trouxeAChave += 1
+    else pelaFilialOuPai += 1
+  })
+  return { pelaFilialOuPai, trouxeAChave }
+}
+
 /**
  * O SQL de uma tabela. `movimentacoes` ganha `overriding system value` — armadilha 1.
+ * `empresa_id` entra SEMPRE na lista (no fim), preenchida por `empresaDaLinha`.
  */
 export function sqlDeInsercao(tabela, linhas) {
   if (!linhas || linhas.length === 0) return null
-  const colunas = [...new Set(linhas.flatMap((l) => Object.keys(l)))]
+  const colunas = [...new Set(linhas.flatMap((l) => Object.keys(l)))].filter((c) => c !== 'empresa_id')
   const override = tabela === 'movimentacoes' ? ' overriding system value' : ''
   const valores = linhas
-    .map((l) => `(${colunas.map((c) => literal(l[c] ?? null)).join(', ')})`)
+    .map(
+      (l, i) =>
+        `(${[...colunas.map((c) => literal(l[c] ?? null)), empresaDaLinha(tabela, l, i).sql].join(', ')})`,
+    )
     .join(',\n  ')
-  return `insert into public.${tabela} (${colunas.join(', ')})${override}\nvalues\n  ${valores};`
+  return `insert into public.${tabela} (${[...colunas, 'empresa_id'].join(', ')})${override}\nvalues\n  ${valores};`
 }
 
 /** Armadilha 2: a sequência tem de terminar em max(ordem). */
@@ -516,6 +587,15 @@ async function main() {
       '\n--- CONFERÊNCIA (nada foi escrito). Rode de novo com --aplicar para valer. ---',
     )
     console.log(`SQL gerado: ${sql.split('\n').length} linhas.`)
+    console.log('\nEmpresa de cada linha (decisão 11 da F67C):')
+    for (const tabela of ORDEM_DE_INSERCAO) {
+      const linhas = backup[tabela]
+      if (!linhas || linhas.length === 0) continue
+      const c = contagemDeEmpresa(tabela, linhas)
+      console.log(
+        `  ${tabela.padEnd(18)} ${c.pelaFilialOuPai} pela filial/pai no destino · ${c.trouxeAChave} com a chave do backup`,
+      )
+    }
     return
   }
 

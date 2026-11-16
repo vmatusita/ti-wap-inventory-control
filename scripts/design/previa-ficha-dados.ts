@@ -107,8 +107,7 @@ export function ativoDaPrevia(): AtivoFicha {
       'Ativo fictício usado só na prévia de design da ficha (F44) — nenhum dado real.',
     created_at: '2025-02-10T13:00:00.000Z',
     updated_at: '2026-08-25T10:00:00.000Z',
-    // F63: a coluna existe no acervo desde a 0161 e a ficha a recebe pelo `select('*')` — o
-    // default é a empresa legada até a F67. Nenhuma tela a mostra (o recorte é da F66).
+    // F63: a coluna existe no acervo desde a 0161 e a ficha a recebe pelo `select('*')` (desde a F67C sem default). Nenhuma tela a mostra (o recorte é da F66).
     empresa_id: EMPRESA_LEGADA_ID,
     filial_nome: FILIAL_DA_FICHA.nome,
     filial_slug: FILIAL_DA_FICHA.slug,

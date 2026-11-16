@@ -78,6 +78,8 @@ async function gravarEventoAdmin(
   detalhe: Record<string, unknown>,
 ): Promise<void> {
   const { error } = await db.from('eventos_admin').insert({
+    // F67C: o smoke é da WAP (as leituras de `membros` deste arquivo já usam a constante) — destino F70.
+    empresa_id: EMPRESA_LEGADA_ID,
     acao,
     autor: null,
     alvo: ALVO_TRILHA,

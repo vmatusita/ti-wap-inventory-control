@@ -387,7 +387,7 @@ async function main(): Promise<void> {
     // FIXTURES DO PASSE 2 — pela RPC, com a sessão da persona (não pelo wizard)
     // ---------------------------------------------------------------------
     const hojeIso = new Date().toISOString().slice(0, 10)
-    const { itemId } = await garantirItemDoSmoke(sessaoPersona, persona.id)
+    const { itemId } = await garantirItemDoSmoke(sessaoPersona, persona.id, sedeId)
     await garantirSaldoSede(sessaoPersona, {
       itemId,
       filialId: sedeId,

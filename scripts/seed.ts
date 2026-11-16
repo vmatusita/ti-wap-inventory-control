@@ -680,7 +680,7 @@ function gerarAtivos(filialIdBySlug: Map<string, number>): Ativo[] {
 
 // ============================ INSERCAO =============================
 
-async function inserirAtivos(db: ReturnType<typeof createAdminClient>, ativos: Ativo[]) {
+async function inserirAtivos(db: ReturnType<typeof createAdminClient>, ativos: Ativo[], empresaId: string) {
   const BATCH = 500
   for (let i = 0; i < ativos.length; i += BATCH) {
     const rows = ativos.slice(i, i + BATCH).map((a) => ({
@@ -697,6 +697,7 @@ async function inserirAtivos(db: ReturnType<typeof createAdminClient>, ativos: A
       processador: a.processador,
       fornecedor: a.fornecedor,
       filial_id: a.filial_id,
+      empresa_id: empresaId, // F67C: o default saiu — toda escrita diz a empresa
       pendencia: a.pendencia,
       origem: a.origem,
       // status fica no default 'em_estoque'; as movimentacoes derivam o resto.
@@ -718,6 +719,7 @@ async function inserirMovimentacoes(
   // F37/D5 — chave normalizada -> id do cadastro. Nome fora do mapa grava id nulo,
   // exatamente como acontece na Server Action: e o modelo hibrido reproduzido no seed.
   vinculos: Map<string, string>,
+  empresaId: string,
 ): Promise<number> {
   let total = 0
   let done = 0
@@ -731,6 +733,7 @@ async function inserirMovimentacoes(
       const row = {
         id: detUuid(), // UUID deterministico (como nos ativos)
         ativo_id: a.id,
+        empresa_id: empresaId,
         tipo: s.tipo,
         motivo: s.motivo ?? null,
         data: s.data,
@@ -798,15 +801,16 @@ async function inserirCasosDevolucaoFornecedor(
   db: ReturnType<typeof createAdminClient>,
   filialIdBySlug: Map<string, number>,
   criadoPor: string,
+  empresaId: string,
 ) {
   const matriz = filialIdBySlug.get('matriz')!
   const insAtivo = async (row: Record<string, unknown>): Promise<string> => {
-    const { data, error } = await db.from('ativos').insert(row).select('id').single()
+    const { data, error } = await db.from('ativos').insert({ ...row, empresa_id: empresaId }).select('id').single()
     if (error) throw new Error(`F14 seed (ativo): ${error.message}`)
     return (data as { id: string }).id
   }
   const insMov = async (row: Record<string, unknown>) => {
-    const { error } = await db.from('movimentacoes').insert(row)
+    const { error } = await db.from('movimentacoes').insert({ ...row, empresa_id: empresaId })
     if (error) throw new Error(`F14 seed (mov ${String(row.tipo)}): ${error.message}`)
   }
 
@@ -864,6 +868,7 @@ async function inserirColaboradores(
   db: ReturnType<typeof createAdminClient>,
   filialIdBySlug: Map<string, number>,
   criadoPor: string,
+  empresaId: string,
 ): Promise<Map<string, string>> {
   // Só as grafias CANÔNICAS entram (as variantes de grafia do fim da lista existem
   // para a fila juntar, não para virar cadastro duplicado — e o índice único as
@@ -875,6 +880,7 @@ async function inserirColaboradores(
     nome,
     setor: SETORES[i % SETORES.length],
     filial_id: filiais[i % filiais.length],
+    empresa_id: empresaId,
     criado_por: criadoPor,
   }))
   // `upsert` com `ignoreDuplicates` e leitura DEPOIS, em vez de `insert().select()`:
@@ -883,7 +889,7 @@ async function inserirColaboradores(
   // passo é idempotente, e o mapa sai completo — inclusive dos que já existiam.
   const { error } = await db
     .from('colaboradores')
-    .upsert(rows, { onConflict: 'nome_chave', ignoreDuplicates: true })
+    .upsert(rows, { onConflict: 'empresa_id,nome_chave', ignoreDuplicates: true })
   if (error) throw new Error(`Insert de colaboradores falhou: ${error.message}`)
 
   const { data, error: lErr } = await db.from('colaboradores').select('id, nome_chave')
@@ -902,6 +908,7 @@ async function inserirColaboradores(
 
 async function inserirItens(
   db: ReturnType<typeof createAdminClient>,
+  empresaId: string,
 ): Promise<ItemSeed[]> {
   // F37/D7 — o tipo de cada item, resolvido pelo SLUG contra o seed da migration 0114.
   // Nem todo item tem tipo, e isso é de propósito: é assim que o catálogo real está,
@@ -915,6 +922,7 @@ async function inserirItens(
     nome: c.nome,
     grupo: c.grupo,
     ordem: i + 1,
+    empresa_id: empresaId,
     tipo_id: c.tipo ? (idPorSlug.get(c.tipo) ?? null) : null,
   }))
   const { data, error } = await db.from('itens').insert(rows).select('id, nome, grupo')
@@ -1041,12 +1049,14 @@ async function inserirLancamentos(
   rows: LancRow[],
   criadoPor: string,
   vinculos: Map<string, string>,
+  empresaId: string,
 ): Promise<number> {
   let total = 0
   for (const r of rows) {
     const { error } = await db.from('lancamentos_item').insert({
       item_id: r.item_id,
       filial_id: r.filial_id,
+      empresa_id: empresaId,
       tipo: r.tipo,
       quantidade: r.quantidade,
       chamado: r.chamado,
@@ -1072,6 +1082,7 @@ async function inserirLancamentos(
 async function inserirAnotacoes(
   db: ReturnType<typeof createAdminClient>,
   criadoPor: string,
+  empresaId: string,
 ): Promise<number> {
   const { data: ativos, error } = await db
     .from('ativos')
@@ -1092,6 +1103,7 @@ async function inserirAnotacoes(
       const data = ordToDate(Math.min(ord, WIN_MAX_ORD))
       const { error: e } = await db.from('anotacoes').insert({
         ativo_id: a.id,
+        empresa_id: empresaId,
         texto,
         criado_por: criadoPor,
         created_at: `${data}T14:30:00Z`,
@@ -1506,6 +1518,7 @@ async function inserirEventosAdmin(
   db: ReturnType<typeof createAdminClient>,
   autorId: string,
   filialIdBySlug: Map<string, number>,
+  empresaId: string,
 ): Promise<number> {
   const rows = EVENTOS_SEED.map((e, i) => {
     // Slug -> id, para o `detalhe` ficar na MESMA forma que `editarUsuario` grava.
@@ -1515,6 +1528,7 @@ async function inserirEventosAdmin(
       return id
     })
     return {
+      empresa_id: empresaId,
       quando: `${e.data}T13:${String(10 + i).padStart(2, '0')}:00Z`,
       autor: e.acao === 'import_executado' ? null : autorId, // 1 linha sem autor
       acao: e.acao,
@@ -1748,11 +1762,19 @@ async function main() {
   console.log(`[seed] projeto: ${cfg.projectRef}`)
 
   // Pre-requisitos de dados.
-  const { data: filiais, error: fErr } = await db.from('filiais').select('id,slug')
+  const { data: filiais, error: fErr } = await db.from('filiais').select('id,slug,empresa_id')
   if (fErr) throw new Error(`Nao consegui ler filiais: ${fErr.message}`)
   if (!filiais || filiais.length === 0) throw new Error('Nenhuma filial. Aplique a migration 0007 antes do seed.')
   const filialIdBySlug = new Map<string, number>()
   const slugById = new Map<number, string>()
+  // F67C: a empresa das filiais semeadas — UMA só (o seed so diz a empresa de hoje; nada de segunda empresa).
+  const empresasDasFiliais = new Set((filiais as { empresa_id: string | null }[]).map((f) => f.empresa_id))
+  if (empresasDasFiliais.size !== 1 || empresasDasFiliais.has(null)) {
+    throw new Error(
+      'As filiais do banco nao pertencem a UMA empresa so (ou alguma esta sem empresa): o seed nao sabe a que empresa atribuir os dados ficticios.',
+    )
+  }
+  const empresaId = [...empresasDasFiliais][0] as string
   for (const f of filiais as { id: number; slug: string }[]) {
     filialIdBySlug.set(f.slug, f.id)
     slugById.set(f.id, f.slug)
@@ -1783,22 +1805,22 @@ async function main() {
   console.log('[seed] gerando dados ficticios (deterministico)...')
   const ativos = gerarAtivos(filialIdBySlug)
 
-  await inserirAtivos(db, ativos)
-  const vinculos = await inserirColaboradores(db, filialIdBySlug, criadoPor)
-  const totalMov = await inserirMovimentacoes(db, ativos, criadoPor, vinculos)
+  await inserirAtivos(db, ativos, empresaId)
+  const vinculos = await inserirColaboradores(db, filialIdBySlug, criadoPor, empresaId)
+  const totalMov = await inserirMovimentacoes(db, ativos, criadoPor, vinculos, empresaId)
   await reforcarPendenciaSemPatrimonio(db, ativos)
-  await inserirCasosDevolucaoFornecedor(db, filialIdBySlug, criadoPor)
+  await inserirCasosDevolucaoFornecedor(db, filialIdBySlug, criadoPor, empresaId)
 
   // F3B: catalogo de itens + lancamentos de quantidade + anotacoes de manutencao.
-  const itens = await inserirItens(db)
+  const itens = await inserirItens(db, empresaId)
   const garantidos = casosGarantidos(itens, filialIdBySlug)
   const pular = new Set(garantidos.map((r) => `${r.item_id}:${r.filial_id}`))
   const lancRows = [...garantidos, ...gerarLancamentos(itens, filialIdBySlug, pular)]
-  const totalLanc = await inserirLancamentos(db, lancRows, criadoPor, vinculos)
-  const totalAnot = await inserirAnotacoes(db, criadoPor)
+  const totalLanc = await inserirLancamentos(db, lancRows, criadoPor, vinculos, empresaId)
+  const totalAnot = await inserirAnotacoes(db, criadoPor, empresaId)
 
   // F21: trilha de auditoria ficticia (a aba "Auditoria" de /admin/usuarios).
-  await inserirEventosAdmin(db, criadoPor, filialIdBySlug)
+  await inserirEventosAdmin(db, criadoPor, filialIdBySlug, empresaId)
 
   await sumario(db, slugById, totalMov, itens.length, totalLanc, totalAnot)
   sumarioPerfis(perfis)

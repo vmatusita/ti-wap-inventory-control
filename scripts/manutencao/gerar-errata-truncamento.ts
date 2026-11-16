@@ -70,6 +70,7 @@ type LinhaSnapshot = {
   periodo_de: string
   periodo_ate: string
   filial_id: number | null
+  empresa_id: string
   versao: number
   gerado_em: string
   observacao: string | null
@@ -87,7 +88,7 @@ async function main() {
 
   const { data: todos, error } = await client
     .from('relatorios_gerados')
-    .select('id, periodo_de, periodo_ate, filial_id, versao, gerado_em, observacao, dados')
+    .select('id, periodo_de, periodo_ate, filial_id, empresa_id, versao, gerado_em, observacao, dados')
     .order('periodo_de', { ascending: true })
     .order('versao', { ascending: true })
   if (error) throw new Error(`Falha ao ler snapshots: ${error.message}`)
@@ -192,7 +193,8 @@ async function main() {
     // não era, a v2 herda congelado da v1 em vez de inventar.
     // F57 — script de manutenção: service role e nenhuma sessão, então o recorte de hoje
     // (universal). Na virada, este é um dos pontos que passam a receber a empresa.
-    const novo = await getSnapshotRelatorioV2(client, recorteDe(null), escopo, periodo, false)
+    // F67C: o slug resolve na empresa DA LINHA v1 (a errata é versão nova do mesmo relatório).
+    const novo = await getSnapshotRelatorioV2(client, recorteDe(null), escopo, l.empresa_id, periodo, false)
     novo.pendencias = (l.dados.pendencias ?? []) as SnapshotRelatorioV2['pendencias']
     const antesK = totalDe(l.dados, 'kpis')
     const antesKA = totalDe(l.dados, 'kpisAnterior')
@@ -231,6 +233,7 @@ async function main() {
         periodo_de: l.periodo_de,
         periodo_ate: l.periodo_ate,
         filial_id: l.filial_id,
+        empresa_id: l.empresa_id, // F67C: a errata é versão nova do MESMO relatório — a empresa da v1
         versao: proxima,
         dados: novo as never,
         gerado_por: autor!,

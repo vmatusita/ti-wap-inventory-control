@@ -14,6 +14,11 @@ import {
   refDaUrl,
   sqlDaSequencia,
   sqlDeInsercao,
+  EMPRESA_PELA_FILIAL_SQL,
+  EMPRESA_PELO_ATIVO_SQL,
+  EMPRESA_PELA_MOVIMENTACAO_SQL,
+  contagemDeEmpresa,
+  empresaDaLinha,
   sqlDeReligarElos,
   sqlDeReligarPonteiros,
   versaoDoBackup,
@@ -110,8 +115,8 @@ describe('2. o ref é extraído das DUAS formas de `DATABASE_URL` do Supabase', 
 describe('3. as duas armadilhas da ata 1 da F53 estão no SQL gerado', () => {
   const backup = {
     versao: 1,
-    movimentacoes: [{ id: 'm1', ordem: 42, ativo_id: 'a1', tipo: 'compra' }],
-    ativos: [{ id: 'a1', patrimonio: 'WAP0000001' }],
+    movimentacoes: [{ id: 'm1', ordem: 42, ativo_id: 'a1', tipo: 'compra', filial_id: 'f1' }],
+    ativos: [{ id: 'a1', patrimonio: 'WAP0000001', filial_id: 'f1' }],
   }
 
   it('`movimentacoes` recebe `overriding system value` — senão o INSERT é recusado', () => {
@@ -140,7 +145,7 @@ describe('3. as duas armadilhas da ata 1 da F53 estão no SQL gerado', () => {
 
 describe('4. a terceira e a quarta armadilhas', () => {
   const sql = montarTransacao(
-    { versao: 1, ativos: [{ id: 'a1' }], movimentacoes: [{ id: 'm1', ordem: 1 }] },
+    { versao: 1, ativos: [{ id: 'a1', filial_id: 'f1' }], movimentacoes: [{ id: 'm1', ordem: 1, filial_id: 'f1' }] },
     'x.json',
   )
 
@@ -188,7 +193,11 @@ describe('5. a ordem de inserção respeita as FKs', () => {
 
   it('o SQL sai NA ordem declarada', () => {
     const sql = montarTransacao(
-      { ativos: [{ id: 'a' }], movimentacoes: [{ id: 'm' }], anotacoes: [{ id: 'n' }] },
+      {
+        ativos: [{ id: 'a', filial_id: 'f1' }],
+        movimentacoes: [{ id: 'm', filial_id: 'f1' }],
+        anotacoes: [{ id: 'n', ativo_id: 'a' }],
+      },
       'x.json',
     )
     expect(sql.indexOf('insert into public.ativos')).toBeLessThan(
@@ -239,24 +248,24 @@ describe('7. o prefixo das cópias de .docx é o mesmo que o app grava', () => {
 
 describe('8. o gerador de literais não quebra com o que o acervo tem de verdade', () => {
   it('aspas simples no texto são escapadas', () => {
-    const sql = sqlDeInsercao('ativos', [{ id: 'a', obs: "o'brien" }])
+    const sql = sqlDeInsercao('ativos', [{ id: 'a', filial_id: 'f1', obs: "o'brien" }])
     expect(sql).toContain("'o''brien'")
   })
 
   it('null, boolean e número não viram string', () => {
-    const sql = sqlDeInsercao('movimentacoes', [{ id: 'm', ordem: 7, forcado: true, obs: null }])
+    const sql = sqlDeInsercao('movimentacoes', [{ id: 'm', filial_id: 'f1', ordem: 7, forcado: true, obs: null }])
     expect(sql).toContain('7')
     expect(sql).toContain('true')
     expect(sql).toContain('null')
   })
 
   it('array de texto vira `array[...]` (é assim que `itens_faltantes` chega)', () => {
-    const sql = sqlDeInsercao('movimentacoes', [{ id: 'm', itens_faltantes: ['carregador', 'mochila'] }])
+    const sql = sqlDeInsercao('movimentacoes', [{ id: 'm', filial_id: 'f1', itens_faltantes: ['carregador', 'mochila'] }])
     expect(sql).toContain("array['carregador','mochila']")
   })
 
   it('objeto vira jsonb (é assim que `dados` do termo chega)', () => {
-    const sql = sqlDeInsercao('termos_gerados', [{ id: 't', dados: { a: 1 } }])
+    const sql = sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids: ['a1'], dados: { a: 1 } }])
     expect(sql).toContain('::jsonb')
   })
 
@@ -268,7 +277,7 @@ describe('8. o gerador de literais não quebra com o que o acervo tem de verdade
   it('linhas com colunas DIFERENTES viram um INSERT com a união das colunas', () => {
     // O backup é um dump de `select('*')`, então isso não deveria acontecer — mas se
     // acontecer, perder silenciosamente a coluna de uma linha seria pior que o `null`.
-    const sql = sqlDeInsercao('ativos', [{ id: 'a' }, { id: 'b', patrimonio: 'WAP0000002' }])
+    const sql = sqlDeInsercao('ativos', [{ id: 'a', filial_id: 'f1' }, { id: 'b', filial_id: 'f1', patrimonio: 'WAP0000002' }])
     expect(sql).toContain('id, patrimonio')
     expect(sql).toContain('null')
   })
@@ -423,7 +432,7 @@ describe('12. religar `ativos.substitui_ativo_id` (o mesmo UPDATE serve o backup
     // 2) e grava `ponteiros_perdidos` desde a F23 — bem antes desta fase.
     const backupDoReset = {
       versao: 1,
-      ativos: [{ id: 'a1' }],
+      ativos: [{ id: 'a1', filial_id: 'f1' }],
       ponteiros_perdidos: [{ id: 'sub1', substitui_ativo_id: 'a1' }],
     }
     const sql = montarTransacao(backupDoReset, 'reset/acervo/global/x.json')
@@ -436,8 +445,8 @@ describe('13. `montarTransacao` religa os dois elos SÓ quando o backup os traz'
   it('versão 2 completa: os dois UPDATEs entram DEPOIS das inserções e DENTRO da janela', () => {
     const backup = {
       versao: 2,
-      ativos: [{ id: 'a1' }],
-      movimentacoes: [{ id: 'm1', ordem: 1 }],
+      ativos: [{ id: 'a1', filial_id: 'f1' }],
+      movimentacoes: [{ id: 'm1', ordem: 1, filial_id: 'f1' }],
       pendencias_item: [{ id: 'p1', ativo_id: 'a1', movimentacao_id: 'm1', item: 'x', filial_id: 1 }],
       lancamentos_desvinculados: [{ id: 'l1', movimentacao_id: 'm1', pendencia_item_id: null }],
       ponteiros_perdidos: [{ id: 'sub1', substitui_ativo_id: 'a1' }],
@@ -461,7 +470,11 @@ describe('13. `montarTransacao` religa os dois elos SÓ quando o backup os traz'
   })
 
   it('versão 1 (sem as chaves novas): nenhum dos dois UPDATEs aparece — compatível com o formato de sempre', () => {
-    const backup = { versao: 1, ativos: [{ id: 'a1' }], movimentacoes: [{ id: 'm1', ordem: 1 }] }
+    const backup = {
+      versao: 1,
+      ativos: [{ id: 'a1', filial_id: 'f1' }],
+      movimentacoes: [{ id: 'm1', ordem: 1, filial_id: 'f1' }],
+    }
     const sql = montarTransacao(backup, 'import/filial-1/x.json')
     expect(sql).not.toContain('update public.lancamentos_item as li')
     expect(sql).not.toContain('update public.ativos as a')
@@ -493,32 +506,97 @@ describe('14. `main()` recusa versão acima da que o restaurador conhece (crité
   })
 })
 
-describe('F63 · `empresa_id` no backup — o INSERT que o restaurador monta (sabotagem H, a metade TS)', () => {
-  // `sqlDeInsercao` monta a lista de colunas com as CHAVES das linhas do backup. `restauracao.sql`
-  // (cenário 8) prova, no Postgres do CI, o que o banco faz com as duas formas; aqui se prova que o
-  // restaurador GERA essas duas formas. `scripts/db/restaurar.mjs` não muda na F63.
-  const antes = { id: '63000000-0000-4000-8000-0000000008a1', patrimonio: 'WAP0063801' }
-  const depois = { id: '63000000-0000-4000-8000-0000000008b1', patrimonio: 'WAP0063802', empresa_id: '63000000-0000-4000-8000-0000000000e8' }
+describe('F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11)', () => {
+  // `restauracao.sql` (cenário 8) prova, no Postgres do CI, o que o banco faz; aqui se prova o que o restaurador
+  // GERA. Antes da F67C a linha sem a chave ficava com a coluna FORA do INSERT (o default da empresa legada
+  // preenchia) e o misto levava `null` explícito. Esses dois casos foram REESCRITOS: o default saiu, então a
+  // coluna entra SEMPRE e a linha sem a chave recebe a empresa da filial/pai no banco de DESTINO.
+  const E = '63000000-0000-4000-8000-0000000000e8'
+  const F = '63000000-0000-4000-8000-0000000000f1'
+  const A = '63000000-0000-4000-8000-0000000000a1'
+  const M = '63000000-0000-4000-8000-0000000000b1'
+  const pelaFilial = (id: string) => EMPRESA_PELA_FILIAL_SQL.replace('{filial_id}', `'${id}'`)
+  const antes = { id: '63000000-0000-4000-8000-0000000008a1', patrimonio: 'WAP0063801', filial_id: F }
+  const depois = { id: '63000000-0000-4000-8000-0000000008b1', patrimonio: 'WAP0063802', filial_id: F, empresa_id: E }
 
-  it('backup de ANTES da F63 (sem a chave): a coluna fica FORA do INSERT — o default (a empresa legada) preenche', () => {
-    const sql = sqlDeInsercao('ativos', [antes])
-    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio\)/)
-    expect(sql).not.toContain('empresa_id')
+  it('a expressão exata do subselect (o roteiro SQL espelha este texto)', () => {
+    expect(EMPRESA_PELA_FILIAL_SQL).toBe('(select f.empresa_id from public.filiais f where f.id = {filial_id})')
+    expect(EMPRESA_PELO_ATIVO_SQL).toBe('(select a.empresa_id from public.ativos a where a.id = {ativo_id})')
+    expect(EMPRESA_PELA_MOVIMENTACAO_SQL).toBe(
+      '(select m.empresa_id from public.movimentacoes m where m.id = {movimentacao_id})',
+    )
   })
 
-  it('backup de DEPOIS da F63 (com a chave): a coluna ENTRA, com a empresa que o backup traz', () => {
-    const sql = sqlDeInsercao('ativos', [depois])
-    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, empresa_id\)/)
-    expect(sql).toContain("'63000000-0000-4000-8000-0000000000e8'")
+  it('backup SEM a chave (REESCRITO): a coluna ENTRA e vale a empresa da FILIAL da linha no destino — nunca o default', () => {
+    const sql = sqlDeInsercao('ativos', [antes])!
+    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, filial_id, empresa_id\)/)
+    expect(sql).toContain(pelaFilial(F))
+    expect(sql).not.toContain('empresa_legada')
   })
 
-  it('lote MISTO (as duas formas juntas): a linha sem a chave vai com null EXPLÍCITO — e o banco recusa ALTO (23502), nunca grava errado', () => {
-    // Achado da revisão adversarial da F63, registrado e NÃO corrigido aqui (o restaurador é intocado
-    // nesta fase): um backup só é misto se alguém juntar arquivos de antes e de depois da F63. Com a
-    // coluna `not null`, o null explícito é recusado pelo banco — a restauração falha alto, não
-    // grava a empresa errada. A F67 (que tira o default) é quem faz o restaurador preencher a empresa.
-    const sql = sqlDeInsercao('ativos', [antes, depois])
-    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, empresa_id\)/)
-    expect(sql).toContain("'WAP0063801', null)")
+  it.each(['ativos', 'movimentacoes', 'pendencias_item', 'lancamentos_item'])(
+    '%s (tem filial_id): o subselect exato da filial',
+    (tabela) => {
+      const sql = sqlDeInsercao(tabela, [{ id: 'x', filial_id: F }])!
+      expect(sql).toContain(`(select f.empresa_id from public.filiais f where f.id = '${F}')`)
+    },
+  )
+
+  it('anotacoes (só ativo_id): a empresa do ATIVO — que entra antes na ordem', () => {
+    const sql = sqlDeInsercao('anotacoes', [{ id: 'n', ativo_id: A }])!
+    expect(sql).toContain(`(select a.empresa_id from public.ativos a where a.id = '${A}')`)
+    expect(ORDEM_DE_INSERCAO.indexOf('ativos')).toBeLessThan(ORDEM_DE_INSERCAO.indexOf('anotacoes'))
+  })
+
+  it('termos_gerados: a do 1º ativo de `ativo_ids`', () => {
+    const sql = sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids: [A, 'outro'], movimentacao_ids: [M] }])!
+    expect(sql).toContain(`(select a.empresa_id from public.ativos a where a.id = '${A}')`)
+    expect(sql).not.toContain('public.movimentacoes m')
+  })
+
+  it('termos_gerados SEM ativo: a da 1ª movimentação de `movimentacao_ids`', () => {
+    const sql = sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids: [], movimentacao_ids: [M, 'outra'] }])!
+    expect(sql).toContain(`(select m.empresa_id from public.movimentacoes m where m.id = '${M}')`)
+  })
+
+  it('backup COM a chave: a coluna ENTRA, com a empresa que o backup traz (literal)', () => {
+    const sql = sqlDeInsercao('ativos', [depois])!
+    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, filial_id, empresa_id\)/)
+    expect(sql).toContain(`'${E}')`)
+    expect(sql).not.toContain('select f.empresa_id')
+  })
+
+  it('lote MISTO (REESCRITO): nenhuma linha vai com null — a antiga recebe a da filial, a nova mantém a dela', () => {
+    const sql = sqlDeInsercao('ativos', [antes, depois])!
+    expect(sql).toMatch(/^insert into public\.ativos \(id, patrimonio, filial_id, empresa_id\)/)
+    expect(sql).toContain(`'WAP0063801', '${F}', ${pelaFilial(F)})`)
+    expect(sql).toContain(`'WAP0063802', '${F}', '${E}')`)
+    expect(sql).not.toMatch(/, null\)/)
+  })
+
+  it('`empresa_id: null` na linha conta como ausente (resolve pela filial)', () => {
+    const sql = sqlDeInsercao('ativos', [{ id: 'x', filial_id: F, empresa_id: null }])!
+    expect(sql).toContain(pelaFilial(F))
+  })
+
+  it('SEM pai de onde tirar a empresa: RECUSA com frase clara, nada é montado', () => {
+    expect(() => sqlDeInsercao('ativos', [{ id: 'x' }])).toThrow(/Restauração recusada.*linha 1 de ativos/)
+    expect(() => sqlDeInsercao('anotacoes', [{ id: 'n' }])).toThrow(/Restauração recusada/)
+    expect(() => sqlDeInsercao('termos_gerados', [{ id: 't', ativo_ids: [], movimentacao_ids: [] }])).toThrow(
+      /sem a empresa|não traz a empresa/,
+    )
+    expect(() => montarTransacao({ versao: 1, ativos: [antes, { id: 'sem-pai' }] }, 'x.json')).toThrow(
+      /linha 2 de ativos/,
+    )
+  })
+
+  it('a conferência conta quantas linhas receberam a empresa pela filial/pai e quantas trouxeram a chave', () => {
+    expect(contagemDeEmpresa('ativos', [antes, depois, { id: 'z', filial_id: F }])).toEqual({
+      pelaFilialOuPai: 2,
+      trouxeAChave: 1,
+    })
+    expect(contagemDeEmpresa('anotacoes', undefined)).toEqual({ pelaFilialOuPai: 0, trouxeAChave: 0 })
+    expect(empresaDaLinha('ativos', depois).origem).toBe('chave')
+    expect(empresaDaLinha('ativos', antes).origem).toBe('pai')
   })
 })
