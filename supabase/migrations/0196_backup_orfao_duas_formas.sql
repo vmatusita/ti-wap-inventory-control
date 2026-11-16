@@ -24,7 +24,8 @@
 -- (decisão 9). O Storage recusa DELETE direto em storage.objects (o gatilho protect_objects_delete): a remoção é da API,
 -- pela Server Action da Zona destrutiva. Esta função é a parte do banco, em SQL FIXO: só a PLATAFORMA (um .docx sem linha
 -- não tem empresa — decisão 13/11-1, "dev sou só eu"), justificativa de 10+, raiz na forma orfao/<carimbo de 24>, a
--- lista dos .docx de termos SEM linha medida AGORA, a confirmação digitada "LIMPAR <N> ARQUIVOS DE TERMO" com esse N, e a
+-- lista dos .docx de termos SEM linha HÁ MAIS DE UMA HORA medida agora (o código anterior à F67B sobe o arquivo ANTES da
+-- linha: um objeto recém-nascido sem linha pode ser um termo no meio da gravação, e nunca entra na lista), a confirmação digitada "LIMPAR <N> ARQUIVOS DE TERMO" com esse N, e a
 -- TRILHA gravada antes de qualquer cópia (a 12ª reconhece a cópia por ela). Devolve a lista; a action copia e remove
 -- exatamente ela, pela porta única (copiar-antes-de-remover.ts).
 -- =====================================================================================================================
@@ -320,6 +321,7 @@ begin
     select o.name
       from storage.objects o
      where o.bucket_id = 'termos'
+       and o.created_at < now() - interval '1 hour'
        and not exists (select 1 from public.termos_gerados t where t.arquivo_path = o.name)
      order by o.name);
   v_esperada := 'LIMPAR ' || coalesce(array_length(v_lista, 1), 0)::text || ' ARQUIVOS DE TERMO';
@@ -344,10 +346,16 @@ end;
 $$;
 
 comment on function public.registrar_limpeza_termos_sem_linha(text, text, text) is
-  'F67B (0196): a ferramenta NOMEADA de órfão da Zona destrutiva — a parte do banco. Só a plataforma; justificativa; raiz orfao/<carimbo>; a lista dos .docx de termos sem linha medida agora; a confirmação digitada LIMPAR <N> ARQUIVOS DE TERMO; a trilha termos_sem_linha_limpos gravada ANTES da cópia. A cópia e a remoção são da API do Storage (o gatilho protect_objects_delete recusa DELETE por SQL), pela Server Action, só da lista devolvida.';
+  'F67B (0196): a ferramenta NOMEADA de órfão da Zona destrutiva — a parte do banco. Só a plataforma; justificativa; raiz orfao/<carimbo>; a lista dos .docx de termos sem linha há mais de uma hora (nunca um termo no meio da gravação); a confirmação digitada LIMPAR <N> ARQUIVOS DE TERMO; a trilha termos_sem_linha_limpos gravada ANTES da cópia. A cópia e a remoção são da API do Storage (o gatilho protect_objects_delete recusa DELETE por SQL), pela Server Action, só da lista devolvida.';
 
 revoke all on function public.registrar_limpeza_termos_sem_linha(text, text, text) from public, anon, service_role;
 grant execute on function public.registrar_limpeza_termos_sem_linha(text, text, text) to authenticated;
+
+-- O verbo novo na trilha: o comment de eventos_admin.acao REESCRITO POR INTEIRO (o Postgres não faz "append" em comment)
+-- — os 25 da 0139, na MESMA ordem, MAIS termos_sem_linha_limpos no fim (src/lib/validators/dev-destrutivo.test.ts confere).
+comment on column public.eventos_admin.acao is
+  'F67B (era F56/F54/F24/F23/F22/F21): o que aconteceu. TEXT e não enum de propósito — ação nova não deve exigir migration. Vocabulário fechado, espelhado em src/lib/auditoria.ts (ACOES_ADMIN/ACAO_ROTULO): convite_gerado, convite_reenviado, papel_alterado, vinculos_alterados, usuario_desativado, usuario_reativado, email_alterado, usuario_apagado, sessoes_encerradas, senha_criada, senha_revogada, senha_reativada, import_executado, import_falhou, ativo_apagado, movimentacao_apagada, item_apagado, acervo_resetado, itens_resetados, estado_forcado, saldo_forcado, conflito_filiais_resolvido, apelido_incluido, apelido_removido, usuario_criado, termos_sem_linha_limpos. Os três da F22 (email_alterado, usuario_apagado, sessoes_encerradas) e os SETE da F23 (ativo_apagado, movimentacao_apagada, item_apagado, acervo_resetado, itens_resetados, estado_forcado, saldo_forcado) são privativos do cargo dev. O da F24 (conflito_filiais_resolvido) é do NÍVEL ADMINISTRADOR (admin ou dev) — é a única exclusão de ativo fora da Zona destrutiva, e alcança exclusivamente ativo que esteja num grupo de conflito entre filiais. O da F54 (import_falhou) é gravado pela Server Action, e não por RPC: ele registra a tentativa de import que a RPC recusou e o descarte do backup que já havia subido. Os DOIS da F56 (apelido_incluido, apelido_removido) são gravados pela Server Action da tela Administração › Filiais, do NÍVEL ADMINISTRADOR, a cada apelido de unidade incluído ou removido do vocabulário do import (migration 0139) — trocar um apelido é remover e incluir, e cada metade vira sua própria linha de trilha. O TERCEIRO da F56 (usuario_criado) é gravado pelo smoke do import (scripts/smoke/), que cria a persona fictícia seed.admin@wap.ind.br fora do fluxo de convite (auth.admin.createUser direto) — sem convite_gerado que preceda o cadastro dela. O da F67B (termos_sem_linha_limpos) é da PLATAFORMA (e_plataforma), gravado por registrar_limpeza_termos_sem_linha (0196) ANTES da cópia dos .docx de termo sem registro — a 12ª checagem reconhece a cópia por ele. Os sete da F23, o da F24 e o da F67B são gravados DENTRO das próprias RPCs, na mesma transação da operação — se a trilha falhar, a exclusão não acontece. Mexeu aqui, mexa lá — e vice-versa.';
+
 
 notify pgrst, 'reload schema';
 
@@ -358,4 +366,4 @@ reset lock_timeout;
 --   arquivo_termo_orfao 3, conflito 59, o resto 0); a função nova existe, definer, search_path vazio, executável só por
 --   authenticated.
 --
--- ROLLBACK (supabase/rollback/F67B-desfaz.sql, na ordem inversa 0199 → 0194): derrubar registrar_limpeza_termos_sem_linha e recriar o núcleo com o corpo da 0164.
+-- ROLLBACK (supabase/rollback/F67B-desfaz.sql, na ordem inversa 0199 → 0194): derrubar registrar_limpeza_termos_sem_linha, recriar o núcleo com o corpo da 0164 e reemitir o comment de eventos_admin.acao da 0139.

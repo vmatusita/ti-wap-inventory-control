@@ -12,7 +12,7 @@
 --     ANTIGAS (a lista fechada de `caminho_backup_legado`) são só LIDOS, e só pelo admin da WAP (decisão 16/11-1 do
 --     Johnny); um caminho fora de toda forma não é alcançado por ninguém da sessão;
 --   · a 12ª checagem (`backup_orfao`) reconhece as cópias e os backups nas DUAS formas, e a raiz da ferramenta de órfão;
---   · a ferramenta de órfão (`registrar_limpeza_termos_sem_linha`) é só da plataforma, com confirmação digitada;
+--   · a ferramenta de órfão (`registrar_limpeza_termos_sem_linha`) é só da plataforma, com confirmação digitada, e nunca lista um `.docx` recém-nascido;
 --   · e a TRAVA DA LEGADA NO STORAGE (bloco L, decisão 14): nenhuma policy de `storage.objects` nem função que decide
 --     sobre objeto cita `empresa_legada()`, fora da cláusula legada NOMINAL (a leitura de `backups-import`).
 --
@@ -135,6 +135,7 @@ declare
   v_oda      text;
   v_odb      text;
   v_sem      text := gen_random_uuid()::text || '.docx';
+  v_sem_novo text := gen_random_uuid()::text || '.docx';
   v_c        constant text := '2026-11-16T10-00-00-000Z';
   v_c2       constant text := '2026-11-16T11-00-00-000Z';
   v_c3       constant text := '2026-11-16T12-00-00-000Z';
@@ -211,7 +212,10 @@ begin
   insert into storage.objects (bucket_id, name, owner) values
     ('termos', v_ta, k_admin_a), ('termos', v_tb, k_admin_b),
     ('termos', v_oda, k_admin_a), ('termos', v_odb, k_admin_b),
-    ('termos', v_sem, k_admin_a);
+    ('termos', v_sem, k_admin_a), ('termos', v_sem_novo, k_admin_a);
+  -- o sem-linha ANTIGO (a ferramenta de órfão o lista) e o RECÉM-NASCIDO (um termo no meio da gravação do código anterior
+  -- à F67B, que sobe o arquivo antes da linha: a ferramenta não o toca)
+  update storage.objects set created_at = now() - interval '2 hours' where bucket_id = 'termos' and name = v_sem;
 
   -- os backups: um na forma NOVA de cada empresa, um malformado (família + empresa, mas fora da forma), um fora de
   -- toda forma, e um de CADA forma antiga da lista fechada (decisão 16/11-1)
@@ -233,8 +237,8 @@ begin
   select 'backups-import', x, k_admin_a from unnest(array[v_bk_a, v_bk_b, v_bk_b_mal, v_bk_fora] || v_ant) as x;
 
   select count(*) into v_univ from storage.objects where bucket_id in ('termos', 'backups-import');
-  if pg_temp.assert_zero_de('0a o cenário montou os objetos dos dois buckets (5 de termos, 13 de backups)',
-       case when v_univ >= 18 then 0 else 1 end, 1) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  if pg_temp.assert_zero_de('0a o cenário montou os objetos dos dois buckets (6 de termos, 13 de backups)',
+       case when v_univ >= 19 then 0 else 1 end, 1) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   select count(*) into v_n from pg_class where oid = 'storage.objects'::regclass and relrowsecurity;
   if pg_temp.assert_zero_de('0b RLS ligada em storage.objects (sem ela, nenhuma asserção abaixo significa nada)',
        1 - v_n, 1) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
@@ -453,12 +457,12 @@ begin
   insert into storage.objects (bucket_id, name, owner) values
     ('backups-import', 'reset/empresa-' || v_emp_a || '/itens/tudo/' || v_c3 || '.json', k_admin_a),
     ('backups-import', 'ativo/empresa-' || v_emp_a || '/' || gen_random_uuid() || '/termos/' || v_ta, k_admin_a),
-    ('backups-import', 'conflito/empresa-' || v_emp_b || '/' || public.digest_selecao_conflito(array[v_ativo_a]) || '/termos/' || v_ta, k_admin_a),
+    ('backups-import', 'conflito/empresa-' || v_emp_b || '/' || md5('f67b-selecao-sem-trilha') || '/termos/' || v_ta, k_admin_a),
     ('backups-import', 'orfao/' || v_c3 || '/termos/' || v_ta, k_admin_a),
     ('backups-import', 'reset/itens/global/' || v_c3 || '.json', k_admin_a),
     ('backups-import', 'ativo/' || gen_random_uuid() || '/termos/' || v_ta, k_admin_a);
   select n.total - v_n0 into v_n from public.checagens_integridade_nucleo() n where n.chave = 'backup_orfao';
-  if pg_temp.assert_zero_de('F3 sem trilha, conta como órfão nas duas formas (inclusive a cópia de conflito com a empresa ERRADA)',
+  if pg_temp.assert_zero_de('F3 sem trilha, conta como órfão nas duas formas (o JSON, a cópia de ativo, de conflito e do órfão)',
        abs(v_n - 6), 6) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- =========================================================================
@@ -471,8 +475,11 @@ begin
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
     if pg_temp.assert_zero_de('O3 a plataforma recebe a lista EXATA dos .docx sem linha, e a trilha nasce com a raiz', 1, 1)
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+    if pg_temp.assert_zero_de('O4 o .docx sem linha recém-nascido (menos de 1 hora) fica FORA da lista da ferramenta', 1, 1)
+      then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   else
     v_esp := array(select o.name from storage.objects o where o.bucket_id = 'termos'
+                    and o.created_at < now() - interval '1 hour'
                     and not exists (select 1 from public.termos_gerados t where t.arquivo_path = o.name) order by o.name);
     v_lista := format('LIMPAR %s ARQUIVOS DE TERMO', cardinality(v_esp));
     v_n := 0;
@@ -493,13 +500,21 @@ begin
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
     -- a chamada legítima, como a plataforma (as claims dela, sem trocar de papel): a lista e a trilha
     perform set_config('request.jwt.claims', json_build_object('sub', k_plat, 'role', 'authenticated')::text, true);
-    execute 'select public.registrar_limpeza_termos_sem_linha($1, $2, $3)' into v_arr
-      using 'orfao/' || v_c3, v_lista, 'justificativa fictícia da F67B';
+    -- a recusa (a contagem da RPC diferente da esperada, por exemplo) vira asserção vermelha, nunca roteiro abortado
+    begin
+      execute 'select public.registrar_limpeza_termos_sem_linha($1, $2, $3)' into v_arr
+        using 'orfao/' || v_c3, v_lista, 'justificativa fictícia da F67B';
+    exception when others then
+      v_arr := null;
+    end;
     perform set_config('request.jwt.claims', '', true);
     select count(*) into v_n from public.eventos_admin e
      where e.acao = 'termos_sem_linha_limpos' and e.detalhe->>'raiz' = 'orfao/' || v_c3 and e.autor = k_plat;
     if pg_temp.assert_zero_de('O3 a plataforma recebe a lista EXATA dos .docx sem linha, e a trilha nasce com a raiz',
          (case when coalesce(v_arr, '{}') = v_esp and cardinality(v_esp) >= 1 then 0 else 1 end) + (case when v_n = 1 then 0 else 1 end), 2)
+      then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+    if pg_temp.assert_zero_de('O4 o .docx sem linha recém-nascido (menos de 1 hora) fica FORA da lista da ferramenta',
+         (case when v_sem = any(coalesce(v_arr, '{}')) then 0 else 1 end) + (case when v_sem_novo = any(coalesce(v_arr, '{}')) then 1 else 0 end), 2)
       then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   end if;
 
