@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.74.0',
+    data: '2026-11-16',
+    fase: 'F67B',
+    titulo: 'Os documentos de termo e os arquivos de segurança passaram a valer só dentro da empresa a que pertencem',
+    mudancas: [
+      'O documento (.docx) de um termo de responsabilidade passou a ser aberto só por quem trabalha na empresa do termo, e gravado ou apagado só por quem pode mexer naquele termo. Para a WAP, gerar, baixar e regerar termos continua igual.',
+      'O arquivo de segurança que o sistema guarda antes de um import (Administração › Importar), de um reset na Zona destrutiva ou de resolver um conflito entre filiais (Pendências) passou a levar a empresa no nome, e só quem administra aquela empresa o baixa. Os arquivos guardados antes desta versão continuam disponíveis para os administradores da WAP, só para leitura.',
+      'Na Zona destrutiva (área Desenvolvedor), o quadro novo "Arquivos de termo sem registro" limpa os documentos de termo que ficaram guardados sem nenhum termo que os explique: pede a frase "LIMPAR <N> ARQUIVOS DE TERMO" e a justificativa, guarda uma cópia de cada documento antes de tirá-lo, e só leva os que estão sem registro há mais de 1 hora.',
+      'A atualização ao vivo de Itens, Histórico de itens e Relatórios passou a ouvir só o que acontece na empresa de quem está na tela.',
+      'Quem tenta abrir um documento ou arquivo de segurança que não é da sua empresa vê a mensagem "Este arquivo é de outra empresa ou não existe mais."',
+    ],
+  },
+  {
     versao: '1.73.0',
     data: '2026-11-13',
     fase: 'F67',
