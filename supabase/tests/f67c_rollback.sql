@@ -42,10 +42,14 @@ as $fn$
                              where a.grantee = 0 and a.privilege_type = 'EXECUTE')::text as x
             from pg_proc p where p.pronamespace = 'public'::regnamespace) s
   union all
-  -- as policies de public e de storage
+  -- as policies de public e de storage. Os papéis pelo NOME, nunca `polroles::text`: são oids, e o oid de `anon`/
+  -- `authenticated` muda de um banco para o outro (o CI e a mesa divergiam só nesta parte).
   select 'policies', md5(string_agg(x, E'\n' order by x collate "C")), count(*)
     from (select n.nspname || '.' || c.relname || '/' || p.polname || '/' || p.polcmd::text || '/' || p.polpermissive::text || '/'
-                 || p.polroles::text || '/' || coalesce(pg_get_expr(p.polqual, p.polrelid), '') || '/'
+                 || coalesce((select string_agg(case when r = 0 then 'public' else r::regrole::text end, ','
+                                                order by case when r = 0 then 'public' else r::regrole::text end collate "C")
+                                from unnest(p.polroles) r), '')
+                 || '/' || coalesce(pg_get_expr(p.polqual, p.polrelid), '') || '/'
                  || coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '') as x
             from pg_policy p join pg_class c on c.oid = p.polrelid join pg_namespace n on n.oid = c.relnamespace
            where n.nspname in ('public', 'storage')) s
@@ -176,11 +180,12 @@ declare
   -- A impressão na cadeia até a 0199 (ordenada por parte: comentarios, defaults, funcoes, gatilhos, policies, views).
   -- MEDIDA NA MESA PGlite em 16/11/2026: o dump da cadeia 0001–0199 (antes da F67C) carregado, e o corpo das funções
   -- pg_temp.f67c_impressao()/f67c_impressao_txt() deste arquivo rodado sobre ele — sem rollback nenhum. Todo `order by`
-  -- da impressão é `collate "C"`, para a constante ser a MESMA na mesa e no CI (a colação do banco do CI é en_US).
+  -- da impressão é `collate "C"`, para a constante ser a MESMA na mesa e no CI (a colação do banco do CI é en_US); e os
+  -- papéis das policies vão pelo NOME (o primeiro CI, com `polroles::text`, divergiu só nas policies: oids).
   k_antes constant text :=
     'comentarios:7ecfbef0ec7ae99fff001b05f2b662a2:117|defaults:7c6c0cd5a255e35dcc902d44ba85ec46:92|'
     || 'funcoes:add3d1199f93731e5a54429751e752fe:117|gatilhos:b702fcca51f1cbe5760df8c88aa5a930:53|'
-    || 'policies:a56f5d6f2b4c78ec7359c493262f26c2:62|views:a38b7bf1527d5cb13f776b5e8af0b2b4:9';
+    || 'policies:1d7c641c3f635a207de6a769ba2f2b24:62|views:a38b7bf1527d5cb13f776b5e8af0b2b4:9';
   v_depois  text := current_setting('f67crb.depois');
   v_de_novo text := current_setting('f67crb.de_novo');
   v_exp     text := current_setting('f67crb.so_expansao_depois');
