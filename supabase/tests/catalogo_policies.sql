@@ -2241,5 +2241,87 @@ begin
     v_falhas := v_falhas + 1;
   end if;
 
+  -- ===============================================================
+  -- BLOCO 3-bis — A PUBLICATION AMARRADA À RLS DA TABELA (F67B, 16/11/2026; o §9 estendido)
+  -- ===============================================================
+  -- "RLS na publication" não é objeto do Postgres: uma publication não tem policy. O Realtime da Supabase entrega cada
+  -- INSERT/UPDATE a um assinante SÓ se a policy de SELECT da TABELA deixa aquele assinante ler a linha, com o JWT dele
+  -- (docs oficiais, "Postgres Changes" e "Realtime Authorization"; PLAN-F67B, decisão 13). Então a trava de verdade é:
+  -- toda tabela da publication tem RLS, a coluna da empresa e uma policy de SELECT com o RECORTE de empresa da F66 na
+  -- conjunção de cima — lida pela FORMA (as árvores do laço do recorte acima, nunca por md5). E a ressalva da doc:
+  -- "RLS policies are not applied to DELETE" — com replica identity FULL, o DELETE levaria a linha velha INTEIRA a todo
+  -- assinante; com a default, só a chave. Por isso a replica identity também é travada (9e).
+  -- A lista do TS (`TABELAS_ASSINADAS`) é conferida contra `k_realtime` na mesa (assinatura-realtime.test.ts).
+  -- ---------------------------------------------------------------
+  -- 9c — toda tabela da publication tem RLS LIGADA, a coluna `empresa_id` e ao menos uma policy PERMISSIVA de SELECT.
+  select count(*), coalesce(string_agg(t.tablename || ' (' || concat_ws(', ',
+           case when not c.relrowsecurity then 'sem RLS' end,
+           case when not exists (select 1 from pg_attribute att where att.attrelid = c.oid
+                                   and att.attname = 'empresa_id' and not att.attisdropped) then 'sem empresa_id' end,
+           case when not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polcmd in ('r', '*')
+                                   and p.polpermissive) then 'sem policy de SELECT' end) || ')', '; ' order by t.tablename), '')
+    into v_cnt, v_lista
+    from pg_publication_tables t
+    join pg_class c on c.oid = (quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))::regclass
+   where t.pubname = 'supabase_realtime'
+     and (not c.relrowsecurity
+          or not exists (select 1 from pg_attribute att where att.attrelid = c.oid
+                           and att.attname = 'empresa_id' and not att.attisdropped)
+          or not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polcmd in ('r', '*') and p.polpermissive));
+  select count(*) into v_univ from pg_publication_tables t where t.pubname = 'supabase_realtime';
+  if pg_temp.assert_zero_de(
+       '9c toda tabela da publication do Realtime tem RLS ligada, empresa_id e policy de SELECT' ||
+       case when v_cnt > 0 then ' — falta: ' || v_lista else '' end,
+       v_cnt, greatest(v_univ, 1)) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- 9d — toda policy PERMISSIVA de SELECT (ou ALL) de tabela da publication tem, no USING, o termo canônico de empresa
+  --      na conjunção de cima (`empresa_id = any (array (select public.<fn>()))` — o analisador da 16a, pela forma).
+  with arv as (
+    select * from unnest(v_rr_chave, v_rr_tipo, v_rr_canon) as x (chave, tipo, canon)
+  )
+  select count(*), coalesce(string_agg(t.tablename || ' / ' || p.polname, ', ' order by t.tablename, p.polname), '')
+    into v_cnt, v_lista
+    from pg_publication_tables t
+    join pg_class c on c.oid = (quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))::regclass
+    join pg_policy p on p.polrelid = c.oid and p.polcmd in ('r', '*') and p.polpermissive
+   where t.pubname = 'supabase_realtime'
+     and not exists (select 1 from arv a
+                      where a.chave = t.schemaname || '.' || t.tablename || ' / ' || p.polname
+                        and a.tipo = 'using' and a.canon <> '');
+  select count(*) into v_univ
+    from pg_publication_tables t
+    join pg_class c on c.oid = (quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))::regclass
+    join pg_policy p on p.polrelid = c.oid and p.polcmd in ('r', '*') and p.polpermissive
+   where t.pubname = 'supabase_realtime';
+  if pg_temp.assert_zero_de(
+       '9d toda policy de SELECT de tabela da publication tem o recorte de empresa na conjunção de cima (pela forma)' ||
+       case when v_cnt > 0 then ' — sem o recorte: ' || v_lista else '' end,
+       v_cnt, greatest(v_univ, 1)) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  -- 9e — nenhuma tabela da publication tem replica identity FULL (o DELETE não passa pela RLS: com FULL, a linha velha
+  --      inteira iria a todo assinante de toda empresa).
+  select count(*), coalesce(string_agg(t.tablename, ', ' order by t.tablename), '')
+    into v_cnt, v_lista
+    from pg_publication_tables t
+    join pg_class c on c.oid = (quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))::regclass
+   where t.pubname = 'supabase_realtime' and c.relreplident = 'f';
+  select count(*) into v_univ from pg_publication_tables t where t.pubname = 'supabase_realtime';
+  if pg_temp.assert_zero_de(
+       '9e nenhuma tabela da publication tem replica identity FULL (o DELETE não passa pela RLS)' ||
+       case when v_cnt > 0 then ' — FULL: ' || v_lista else '' end,
+       v_cnt, greatest(v_univ, 1)) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
   raise notice 'FIM catalogo_policies: % asserções, % falhas', v_ok + v_falhas, v_falhas;
 end $$;

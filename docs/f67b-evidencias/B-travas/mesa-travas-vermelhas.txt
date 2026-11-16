@@ -1,0 +1,36 @@
+     × devolve INSERT no schema public, com o filtro da empresa — SEMPRE 19ms
+     × o filtro é provadamente TOTAL hoje: as três tabelas têm empresa_id (0160/0161) e 0 linhas fora da legada 3ms
+     × recusa empresa vazia (nunca emite filtro que não casa nada) 2ms
+     × recusa empresa só espaços (nunca emite filtro que não casa nada) 1ms
+     × recusa empresa maiúscula (nunca emite filtro que não casa nada) 1ms
+     × recusa empresa sem hífens (nunca emite filtro que não casa nada) 1ms
+     × recusa empresa com vírgula (um segundo filtro escondido) (nunca emite filtro que não casa nada) 1ms
+     × recusa empresa com operador (nunca emite filtro que não casa nada) 1ms
+     × as opções vêm de `opcoesDaAssinatura`, com a empresa da prop 18ms
+     × a empresa chega por PROP (o componente é "use client" e não a lê do navegador) 2ms
+     × as três montagens passam a empresa do servidor 34ms
+ FAIL  |puro| src/lib/storage/caminho.test.ts [ src/lib/storage/caminho.test.ts ]
+Error: Cannot find module './caminho' imported from C:/Users/victor.matusita/ti-wap-inventory-control/src/lib/storage/caminho.test.ts
+ FAIL  |puro| src/lib/termos/persistir.test.ts [ src/lib/termos/persistir.test.ts ]
+Error: Cannot find module '/src/lib/termos/persistir' imported from C:/Users/victor.matusita/ti-wap-inventory-control/src/lib/termos/persistir.test.ts
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > devolve INSERT no schema public, com o filtro da empresa — SEMPRE
+AssertionError: expected { event: 'INSERT', …(2) } to deeply equal { event: 'INSERT', …(3) }
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > o filtro é provadamente TOTAL hoje: as três tabelas têm empresa_id (0160/0161) e 0 linhas fora da legada
+TypeError: .toMatch() expects to receive a string, but got undefined
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > recusa empresa vazia (nunca emite filtro que não casa nada)
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > recusa empresa só espaços (nunca emite filtro que não casa nada)
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > recusa empresa maiúscula (nunca emite filtro que não casa nada)
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > recusa empresa sem hífens (nunca emite filtro que não casa nada)
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > recusa empresa com vírgula (um segundo filtro escondido) (nunca emite filtro que não casa nada)
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > opcoesDaAssinatura: uma função para as três tabelas, com a empresa > recusa empresa com operador (nunca emite filtro que não casa nada)
+AssertionError: expected [Function] to throw an error
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > o componente não monta assinatura à mão, e recebe a empresa do servidor > as opções vêm de `opcoesDaAssinatura`, com a empresa da prop
+AssertionError: expected '\'use client\'\n\nimport { useEffect,…' to contain 'opcoesDaAssinatura(tabela, empresaId)'
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > o componente não monta assinatura à mão, e recebe a empresa do servidor > a empresa chega por PROP (o componente é "use client" e não a lê do navegador)
+AssertionError: expected '\'use client\'\n\nimport { useEffect,…' to match /export function RealtimeRefresh\(\{\s…/
+ FAIL  |puro| src/lib/relatorios/assinatura-realtime.test.ts > o componente não monta assinatura à mão, e recebe a empresa do servidor > as três montagens passam a empresa do servidor
+AssertionError: relatorios/[filial]/page.tsx: expected 'import { headers } from \'next/header…' to contain '<RealtimeRefresh empresaId={empresaDa…'
++ // para o gestor, que entra por senha e não tem como diagnosticar. 60 s dá ~30× de folga
+ Test Files  3 failed (3)
+      Tests  11 failed | 16 passed (27)

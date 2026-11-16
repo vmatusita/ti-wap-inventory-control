@@ -4,52 +4,105 @@ import { join } from 'node:path'
 import { TABELAS_ASSINADAS, opcoesDaAssinatura } from './assinatura-realtime'
 import { chaveDeStorage, chaveDoEscopo, nomeDoCanal } from '@/lib/escopo/chave'
 
-// O GANCHO DO ESCOPO NO TEMPO REAL (F50).
+// O GANCHO DO ESCOPO NO TEMPO REAL (F50) — e o FILTRO DE EMPRESA (F67B, 16/11/2026).
 //
-// Duas coisas são travadas aqui, e as duas por escrito antes de existir motivo:
+// Três coisas são travadas aqui:
 //   1. as três assinaturas saem de UMA função — três objetos montados à mão divergem
 //      sozinhos, e no dia do `filter:` de escopo divergiriam justamente onde importa;
-//   2. nenhum `filter` é emitido enquanto não se puder provar que ele é total.
+//   2. desde a F67B, TODA assinatura emite `filter: 'empresa_id=eq.<uuid>'` — a empresa vem do
+//      SERVIDOR (o Server Component a passa por prop) e é validada aqui: vazia ou malformada é
+//      recusada, nunca vira um filtro que não casa nada (o canal pararia de acordar em silêncio);
+//   3. o componente não monta assinatura nem filtro por fora dela, e recebe a empresa por prop.
+// A segurança NÃO é o filtro: é a policy de SELECT de cada tabela, que o Realtime confere por
+// assinante (docs/PLAN-F67B.md, decisão 13; a trava de catálogo é o §9 de catalogo_policies.sql).
 const FONTE_COMPONENTE = readFileSync(
   join(process.cwd(), 'src', 'components', 'relatorios', 'realtime-refresh.tsx'),
   'utf8',
 )
+const EMPRESA = '00000000-0000-4000-a000-000000000001'
 
-describe('opcoesDaAssinatura: uma função para as três tabelas', () => {
+describe('opcoesDaAssinatura: uma função para as três tabelas, com a empresa', () => {
   it('as três tabelas assinadas são exatamente as de sempre', () => {
     expect([...TABELAS_ASSINADAS]).toEqual(['movimentacoes', 'lancamentos_item', 'anotacoes'])
   })
 
-  it('devolve INSERT no schema public, sem filtro', () => {
+  it('TABELAS_ASSINADAS é EXATAMENTE a publication congelada no catálogo (k_realtime), nos dois sentidos', () => {
+    // A trava de catálogo (catalogo_policies.sql §9: 9a/9b o conjunto; 9c–9e a RLS, o recorte e a replica identity de
+    // cada tabela) só vale para o que o app assina se as duas listas forem a MESMA — tabela assinada fora da publication
+    // nunca acorda; tabela na publication fora da lista é um canal que ninguém audita aqui.
+    const sql = readFileSync(join(process.cwd(), 'supabase', 'tests', 'catalogo_policies.sql'), 'utf8')
+    const m = /k_realtime\s+text\[\]\s*:=\s*array\[([^\]]*)\]/.exec(sql)
+    expect(m, 'k_realtime não encontrado em catalogo_policies.sql').not.toBeNull()
+    const doCatalogo = [...m![1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]).sort()
+    expect([...TABELAS_ASSINADAS].sort()).toEqual(doCatalogo)
+  })
+
+  it('devolve INSERT no schema public, com o filtro da empresa — SEMPRE', () => {
     for (const t of TABELAS_ASSINADAS) {
-      expect(opcoesDaAssinatura(t)).toEqual({ event: 'INSERT', schema: 'public', table: t })
+      expect(opcoesDaAssinatura(t, EMPRESA)).toEqual({
+        event: 'INSERT',
+        schema: 'public',
+        table: t,
+        filter: `empresa_id=eq.${EMPRESA}`,
+      })
     }
   })
 
-  it('NENHUMA assinatura emite `filter` hoje', () => {
-    // A régua da fase: não emitir filtro que não se consiga provar total. Medido —
-    // a tela consolidada (`geral`) precisa acordar com INSERT de qualquer filial, duas
-    // das três montagens do componente nem são de relatório, e `anotacoes` não tem
-    // `filial_id` (0017:6-13), então para ela o filtro é impossível hoje.
-    //
-    // Um filtro errado não dá erro: ele faz o canal parar de acordar, o selo "ao vivo"
-    // mente, e ninguém percebe por semanas. Quando o `filter` de escopo entrar, é
-    // AQUI que este teste muda — de propósito, com alguém olhando.
+  it('o filtro é provadamente TOTAL hoje: as três tabelas têm empresa_id (0160/0161) e 0 linhas fora da legada', () => {
+    // A régua da F50 — não emitir filtro que não se consiga provar total — continua: medido em
+    // produção em 16/11/2026 (docs/f67b-evidencias/antes/producao/contagens.txt), as três tabelas
+    // da publication têm a coluna e nenhuma linha fora da empresa legada. Um filtro errado não dá
+    // erro: o canal para de acordar e o selo "ao vivo" mente — por isso a empresa é validada.
     for (const t of TABELAS_ASSINADAS) {
-      expect(opcoesDaAssinatura(t).filter, `${t} ganhou filtro sem passar por esta trava`).toBeUndefined()
+      expect(opcoesDaAssinatura(t, EMPRESA).filter).toMatch(
+        /^empresa_id=eq\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      )
     }
+  })
+
+  it.each([
+    ['vazia', ''],
+    ['só espaços', '   '],
+    ['maiúscula', EMPRESA.toUpperCase()],
+    ['sem hífens', EMPRESA.replace(/-/g, '')],
+    ['com vírgula (um segundo filtro escondido)', `${EMPRESA},filial_id=eq.1`],
+    ['com operador', `neq.${EMPRESA}`],
+  ])('recusa empresa %s (nunca emite filtro que não casa nada)', (_nome, valor) => {
+    expect(() => opcoesDaAssinatura('movimentacoes', valor)).toThrow()
   })
 })
 
-describe('o componente não monta assinatura à mão', () => {
-  it('as opções vêm de `opcoesDaAssinatura`, e nenhum objeto é montado no fonte', () => {
-    expect(FONTE_COMPONENTE).toContain('opcoesDaAssinatura(')
+describe('o componente não monta assinatura à mão, e recebe a empresa do servidor', () => {
+  it('as opções vêm de `opcoesDaAssinatura`, com a empresa da prop', () => {
+    expect(FONTE_COMPONENTE).toContain('opcoesDaAssinatura(tabela, empresaId)')
     // O jeito antigo: `{ event: 'INSERT', schema: 'public', table: 'x' }` escrito no
     // componente, três vezes. Se voltar, as três divergem de novo.
     expect(
       /\{\s*event:\s*'INSERT'/.test(FONTE_COMPONENTE),
       'assinatura montada à mão no componente — use `opcoesDaAssinatura`',
     ).toBe(false)
+    expect(/filter\s*:/.test(FONTE_COMPONENTE), 'filtro montado à mão no componente').toBe(false)
+  })
+
+  it('a empresa chega por PROP (o componente é "use client" e não a lê do navegador)', () => {
+    expect(FONTE_COMPONENTE).toMatch(
+      /export function RealtimeRefresh\(\{\s*empresaId\s*\}:\s*\{\s*empresaId:\s*string\s*\}\)/,
+    )
+    expect(FONTE_COMPONENTE).not.toMatch(/empresaDaOperacao|EMPRESA_LEGADA_ID/)
+    // a empresa entra nas dependências do efeito: trocar a empresa refaz o canal
+    expect(FONTE_COMPONENTE).toContain('[router, empresaId]')
+  })
+
+  it('as três montagens passam a empresa do servidor', () => {
+    for (const pagina of [
+      ['relatorios', '[filial]', 'page.tsx'],
+      ['itens', 'page.tsx'],
+      ['itens', 'historico', 'page.tsx'],
+    ]) {
+      const fonte = readFileSync(join(process.cwd(), 'src', 'app', '(app)', ...pagina), 'utf8')
+      expect(fonte, pagina.join('/')).toContain('<RealtimeRefresh empresaId={empresaDaOperacao()} />')
+      expect(fonte, pagina.join('/')).not.toContain('<RealtimeRefresh />')
+    }
   })
 
   it('nenhuma tabela é assinada por fora da lista', () => {
