@@ -36,10 +36,13 @@ export type Filial = { id: number; nome: string; slug: string }
 export async function resolverFilialPorSlug(
   client: DbClient,
   slug: string,
+  // F67C (leitor (a)): o slug é único POR EMPRESA desde a F65 — a empresa recorta, e `maybeSingle` deixa de lançar com duas.
+  empresa: string,
 ): Promise<Filial | null> {
   const { data, error } = await client
     .from('filiais')
     .select('id, nome, slug')
+    .eq('empresa_id', empresa)
     .eq('slug', slug)
     .maybeSingle()
   if (error) throw new Error(`Falha ao resolver a filial "${slug}": ${error.message}`)

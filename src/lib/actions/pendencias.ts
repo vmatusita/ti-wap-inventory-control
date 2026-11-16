@@ -15,6 +15,7 @@ import { decidirVinculoRetorno } from '@/lib/itens/vinculo-retorno'
 import { textoDaBaixa, textoDoRetornoDaPendencia } from '@/lib/pendencias/texto-baixa'
 import { textoDaRegularizacao } from '@/lib/itens/regularizacao'
 import { resolverColaboradoresPorNome } from '@/lib/queries/colaboradores'
+import { empresaDaFilial, empresasDasFiliais } from '@/lib/escopo/empresa-da-filial'
 import { lancamentosJaEstornados, saldosPorColaborador } from '@/lib/queries/itens'
 import { chaveColaborador } from '@/lib/colaboradores/chave'
 import { planejarEstorno } from '@/lib/itens/estorno'
@@ -204,9 +205,13 @@ async function montarLancamentosDaResolucao(
   )
   const itens = lidoItens.ok ? lidoItens.linhas : []
 
+  // F67C: o vínculo com a pessoa se resolve na empresa das pendências (a da filial delas — toda a resolução é de UMA empresa).
+  const empresa = await empresaDaFilial(supabase, args.alvos[0].filial_id)
+  if (empresa === null) return { payload: [], ativos, erro: 'Filial não encontrada.' }
   const vinculos = await resolverColaboradoresPorNome(
     supabase,
     args.alvos.map((p) => p.colaborador),
+    empresa,
   )
 
   // O saldo de cada pessoa, uma consulta por pessoa distinta (nunca por linha) e
@@ -345,6 +350,13 @@ export async function reabrirPendenciaItem(input: {
   const aut = await exigirEscritaEm(supabase, alvosResolvidos.map((p) => p.filial_id))
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
+  // F67C: a anotação de cada pendência nasce na empresa da FILIAL dela — uma ida por filial DISTINTA do lote (tipicamente
+  // uma). Resolvido ANTES de gravar qualquer coisa: filial sem empresa recusa o lote inteiro.
+  const empresaPorFilial = await empresasDasFiliais(supabase, alvosResolvidos.map((p) => p.filial_id))
+  if (alvosResolvidos.some((p) => !empresaPorFilial.has(p.filial_id))) {
+    return { ok: false, erro: 'Filial não encontrada.' }
+  }
+
   // F38 · §E — REABRIR DESFAZ O QUE A RESOLUÇÃO FEZ, ou recusa.
   //
   // Desde que resolver virou lançamento, reabrir sem tocá-lo deixaria o item de
@@ -444,6 +456,7 @@ export async function reabrirPendenciaItem(input: {
       ativo_id: p.ativo_id,
       texto: `Pendência de item reaberta (${p.item}): ${justificativa}.`,
       criado_por: aut.uid,
+      empresa_id: empresaPorFilial.get(p.filial_id)!,
     })),
   )
   if (eNota) return { ok: false, erro: traduzErroBanco(eNota.message, eNota.code) }

@@ -262,9 +262,21 @@ function primeiroArgumento(texto: string, abre: number): string {
   return texto.slice(abre + 1)
 }
 
-/** O inicializador de `const|let|var <id> =` no arquivo (até o fim do statement), ou `null` se não há declaração. */
-function inicializadorDe(texto: string, id: string): string | null {
-  const m = new RegExp(String.raw`\b(?:const|let|var)\s+${id.replace(/\$/g, '\\$')}\b[^=;]*=(?!=|>)`).exec(texto)
+/**
+ * O inicializador de `const|let|var <id> =` (até o fim do statement), ou `null` se não há declaração. Vale a
+ * declaração MAIS PRÓXIMA antes de `antesDe` (a posição da chamada): o mesmo nome em outro escopo, mais acima no
+ * arquivo, não responde por este INSERT (`carga.ts` tem duas `const linhas`). Sem declaração antes, a primeira do
+ * arquivo (um `let` içado é raro; melhor olhar algo do que nada).
+ */
+function inicializadorDe(texto: string, id: string, antesDe = texto.length): string | null {
+  const re = new RegExp(String.raw`\b(?:const|let|var)\s+${id.replace(/\$/g, '\\$')}\b[^=;]*=(?!=|>)`, 'g')
+  let m: RegExpExecArray | null = null
+  let primeira: RegExpExecArray | null = null
+  for (const x of texto.matchAll(re)) {
+    primeira ??= x
+    if (x.index < antesDe) m = x
+  }
+  m ??= primeira
   if (!m) return null
   const ini = m.index + m[0].length
   let prof = 0
@@ -308,7 +320,7 @@ export function escritasDoTs(fonte: string, arquivo: string, tabelas: readonly s
       const payload = primeiroArgumento(texto, c.abre)
       let ok = /\bempresa_id\b/.test(payload)
       const id = /^\s*([A-Za-z_$][\w$]*)\s*$/.exec(payload)?.[1]
-      if (!ok && id) ok = /\bempresa_id\b/.test(inicializadorDe(texto, id) ?? '')
+      if (!ok && id) ok = /\bempresa_id\b/.test(inicializadorDe(texto, id, c.abre) ?? '')
       const item: EscritaTs = { onde: linha(m.index), tabela: literal ? literal[2] : arg, metodo: c.nome, ok }
       ;(literal ? escritas : dinamicas).push(item)
     }

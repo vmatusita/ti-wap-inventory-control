@@ -47,13 +47,15 @@ export async function getSnapshotRelatorioV2(
   // parâmetro que o consolidado de uma empresa deixa de somar a fila da outra.
   recorte: RecorteDeLeitura,
   filialSlug: string,
+  // F67C: a empresa que resolve o slug (a da operação; no viewer, F68: a da senha).
+  empresa: string,
   periodo: Periodo & { rotulo?: string },
   // A5/F6A: o viewer por senha NÃO recebe pendências (defesa em profundidade; o
   // corte de verdade é no render). Geração de snapshot e operador mantêm `true`.
   incluirPendencias = true,
 ): Promise<SnapshotRelatorioV2> {
   const ehGeral = filialSlug === SLUG_CONSOLIDADO
-  const filial = ehGeral ? null : await resolverFilialPorSlug(client, filialSlug)
+  const filial = ehGeral ? null : await resolverFilialPorSlug(client, filialSlug, empresa)
   if (!ehGeral && !filial) throw new Error(`Filial "${filialSlug}" não encontrada`)
   const filialId = filial?.id ?? null
   const slugParaView = ehGeral ? null : filialSlug

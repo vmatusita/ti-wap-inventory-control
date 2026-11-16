@@ -1,0 +1,840 @@
+
+ RUN  v4.1.11 
+
+ ❯ |puro| src/lib/auditoria-registro-empresa.test.ts (19 tests | 17 failed) 89ms
+     × chamada 0 (lib/actions/admin.ts) traz a chave `empresa:` 10ms
+     × chamada 1 (lib/actions/admin.ts) traz a chave `empresa:` 2ms
+     × chamada 2 (lib/actions/admin.ts) traz a chave `empresa:` 1ms
+     × chamada 3 (lib/actions/admin.ts) traz a chave `empresa:` 1ms
+     × chamada 4 (lib/actions/admin.ts) traz a chave `empresa:` 1ms
+     × chamada 5 (lib/actions/dev.ts) traz a chave `empresa:` 1ms
+     × chamada 6 (lib/actions/dev.ts) traz a chave `empresa:` 1ms
+     × chamada 7 (lib/actions/dev.ts) traz a chave `empresa:` 1ms
+     × chamada 8 (lib/actions/importar.ts) traz a chave `empresa:` 1ms
+     × chamada 9 (lib/actions/importar.ts) traz a chave `empresa:` 1ms
+     × chamada 10 (lib/actions/importar.ts) traz a chave `empresa:` 1ms
+     × chamada 11 (lib/actions/senhas.ts) traz a chave `empresa:` 1ms
+     × chamada 12 (lib/actions/senhas.ts) traz a chave `empresa:` 1ms
+     × chamada 13 (lib/actions/unidades-apelidos.ts) traz a chave `empresa:` 1ms
+     × chamada 14 (lib/actions/unidades-apelidos.ts) traz a chave `empresa:` 1ms
+     × manda a empresa do evento 54ms
+     × 23502 em empresa_id: não propaga, nomeia a causa e NÃO leva o details ao log 3ms
+ ❯ |puro| src/lib/queries/leitores-por-empresa.test.ts (5 tests | 5 failed) 7600ms
+     × com o mesmo slug nas duas empresas, devolve a da empresa pedida (e não lança) 121ms
+     × resolverColaboradoresPorNome: o id é o da empresa pedida, nunca o "último que ganhou" 519ms
+     × sugestoesDoCampoColaborador: lista e jaCadastrado só da empresa pedida 6ms
+     × lê só o catálogo da empresa pedida e NÃO lança com dois catálogos completos 6946ms
+     × as cinco leituras levam o filtro de empresa 3ms
+stderr | src/lib/supabase/frase-23502-empresa.test.ts > traduzErroBanco — 23502 em empresa_id > a frase sai para o erro do motor na coluna empresa_id
+{"evt":"falha","escopo":"erros.nao-mapeado","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":"23502","mensagem":"null value in column \"empresa_id\" of relation \"ativos\" violates not-null constraint"}}
+
+stderr | src/lib/supabase/frase-23502-empresa.test.ts > traduzErroBanco — 23502 em empresa_id > não vaza o details e não sai para o 23502 de OUTRA coluna
+{"evt":"falha","escopo":"erros.nao-mapeado","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":"23502","mensagem":"null value in column \"nome\" of relation \"ativos\" violates not-null constraint"}}
+{"evt":"falha","escopo":"erros.nao-mapeado","empresa":null,"operador":null,"erro":{"nome":"erro","codigo":"23502","mensagem":"null value in column \"empresa_id\" Failing row contains (segredo)"}}
+
+ ❯ |puro| src/lib/supabase/frase-23502-empresa.test.ts (24 tests | 2 failed) 532ms
+     × a frase sai para o erro do motor na coluna empresa_id 19ms
+     × não vaza o details e não sai para o 23502 de OUTRA coluna 6ms
+ ❯ |puro| src/lib/actions/leitores-por-empresa.test.ts (10 tests | 10 failed) 8329ms
+     × slug que só existe na OUTRA empresa: cria na minha, com a minha empresa no INSERT 7457ms
+     × slug repetido nas duas empresas: reativa SÓ o da minha (sem o filtro o maybeSingle erra) 8ms
+     × homônimo só na OUTRA empresa: cria o item na minha, com a minha empresa 387ms
+     × homônimo nas duas: devolve o da minha empresa, sem erro de "mais de uma linha" 2ms
+     × com filial da empresa B: o homônimo da A não vale, e a pessoa nasce na B 51ms
+     × sem filial: a empresa é a da operação e o homônimo dela é devolvido 3ms
+     × filial que não resolve empresa: recusa com frase, nunca grava sem empresa 2ms
+     × grava SÓ na linha da empresa de quem escreve 160ms
+     × 0 linhas alcançadas: "Motivo não encontrado." 2ms
+     × o consolidado lê a versão só da empresa da operação (ramo filial null) 251ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 34 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 0 (lib/actions/admin.ts) traz a chave `empresa:`
+AssertionError: expected '\n      acao: \'convite_gerado\',\n  …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+      acao: 'convite_gerado',
+      autor: aut.uid,
+      alvo: email,
+      
+      
+      detalhe: {
+        papel,
+        filiais,
+        cargo_gravado: r.papelGravado,
+        vinculos_gravados: r.vinculosGravados,
+      },
+    "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 1 (lib/actions/admin.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'convite_reenviado\',\n …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'convite_reenviado',
+    autor: autorUid,
+    alvo: email,
+    detalhe: desativado ? { conta_desativada: true } : null,
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 2 (lib/actions/admin.ts) traz a chave `empresa:`
+AssertionError: expected '\n      acao: \'papel_alterado\',\n  …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+      acao: 'papel_alterado',
+      autor: aut.uid,
+      alvo,
+      detalhe: { de: estado.papel, para: papel },
+    "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 3 (lib/actions/admin.ts) traz a chave `empresa:`
+AssertionError: expected '\n      acao: \'vinculos_alterados\',…' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+      acao: 'vinculos_alterados',
+      autor: aut.uid,
+      alvo,
+      detalhe: { filiais, de: estado.vinculos },
+    "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 4 (lib/actions/admin.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: ativo ? \'usuario_reativa…' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: ativo ? 'usuario_reativado' : 'usuario_desativado',
+    autor: aut.uid,
+    alvo: await alvoLegivel(estado),
+    detalhe: { papel: estado.papel, login_no_auth: loginBloqueado ? 'ok' : 'falhou' },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 5 (lib/actions/dev.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'email_alterado\',\n    …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'email_alterado',
+    autor: aut.uid,
+    alvo: email,
+    detalhe: { de: antes, para: email },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 6 (lib/actions/dev.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'usuario_apagado\',\n   …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'usuario_apagado',
+    autor: aut.uid,
+    alvo: email ?? estado.nome ?? estado.id,
+    detalhe: {
+      papel: estado.papel,
+      conta_removida_no_auth: contaRemovida ? 'ok' : 'falhou',
+    },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 7 (lib/actions/dev.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'sessoes_encerradas\',\n…' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'sessoes_encerradas',
+    autor: aut.uid,
+    alvo: (await emailDoUsuario(usuarioId)) ?? usuarioId,
+    detalhe: { sessoes: quantas },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 8 (lib/actions/importar.ts) traz a chave `empresa:`
+AssertionError: expected '\n      acao: \'import_falhou\',\n   …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+      acao: 'import_falhou',
+      autor: aut.uid,
+      alvo: filial.slug,
+      detalhe: {
+        filial_id: filial.id,
+        filial_nome: filial.nome,
+        arquivo_hash: plano.arquivoHash,
+        erro_codigo: error.code ?? null,
+        
+        
+        ...(descartou ? { backup_descartado: backupPath } : { backup_path: backupPath }),
+      },
+    "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 9 (lib/actions/importar.ts) traz a chave `empresa:`
+AssertionError: expected '\n      acao: \'import_executado\',\n…' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+      acao: 'import_executado',
+      autor: aut.uid,
+      alvo: filial.slug,
+      detalhe: {
+        filial_id: filial.id,
+        filial_nome: filial.nome,
+        arquivo_hash: plano.arquivoHash,
+        backup_path: backupPath,
+        retorno_inesperado: true,
+      },
+    "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 10 (lib/actions/importar.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'import_executado\',\n  …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'import_executado',
+    autor: aut.uid,
+    alvo: filial.slug,
+    detalhe: {
+      filial_id: filial.id,
+      filial_nome: filial.nome,
+      log_id: ret.data.log_id,
+      arquivo_hash: plano.arquivoHash,
+      total_linhas: plano.totalLinhasDados,
+      ativos_criados: ret.data.ativos_criados,
+      movs_apagadas: ret.data.movs_apagadas,
+      anotacoes_apagadas: ret.data.anotacoes_apagadas,
+      termos_apagados: ret.data.termos_apagados,
+      correcoes: correcoes.length,
+      
+      conflitos_abertos: ret.data.conflitos_abertos,
+      
+      pendencias_apagadas: ret.data.pendencias_apagadas,
+      lancamentos_desvinculados: ret.data.lancamentos_desvinculados,
+      ponteiros_anulados: ret.data.ponteiros_anulados,
+      backup_path: backupPath,
+    },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 11 (lib/actions/senhas.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'senha_criada\',\n    au…' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'senha_criada',
+    autor: aut.uid,
+    alvo: parsed.data.rotulo,
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 12 (lib/actions/senhas.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: ativa ? \'senha_reativada…' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: ativa ? 'senha_reativada' : 'senha_revogada',
+    autor: aut.uid,
+    alvo: data.rotulo,
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 13 (lib/actions/unidades-apelidos.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'apelido_incluido\',\n  …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'apelido_incluido',
+    autor: aut.uid,
+    alvo: `${filialNome} → ${apelido}`,
+    detalhe: { filial_id: filialId, filial_nome: filialNome, apelido },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > as 15 chamadas de registrarEventoAdmin informam a empresa > chamada 14 (lib/actions/unidades-apelidos.ts) traz a chave `empresa:`
+AssertionError: expected '\n    acao: \'apelido_removido\',\n  …' to match /(^|[\s{,])empresa\s*[:,}]/
+
+- Expected:
+/(^|[\s{,])empresa\s*[:,}]/
+
++ Received:
+"
+    acao: 'apelido_removido',
+    autor: aut.uid,
+    alvo: `${filialNome} → ${linha.apelido}`,
+    detalhe: { filial_id: linha.filial_id, filial_nome: filialNome, apelido: linha.apelido },
+  "
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:69:22
+     67|     'chamada %i (%s) traz a chave `empresa:`',
+     68|     (_i, _arq, objeto) => {
+     69|       expect(objeto).toMatch(/(^|[\s{,])empresa\s*[:,}]/)
+       |                      ^
+     70|     },
+     71|   )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > registrarEventoAdmin — o INSERT leva empresa_id > manda a empresa do evento
+AssertionError: expected "vi.fn()" to be called with arguments: [ ObjectContaining{…} ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   ObjectContaining {
+-     "empresa_id": "00000000-0000-4000-a000-00000000000b",
++   {
++     "acao": "convite_gerado",
++     "alvo": "x@y",
++     "autor": "u1",
++     "detalhe": null,
+    },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:78:22
+     76|     const { registrarEventoAdmin } = await import('@/lib/auditoria-reg…
+     77|     await registrarEventoAdmin({ acao: 'convite_gerado', autor: 'u1', …
+     78|     expect(h.insert).toHaveBeenCalledWith(expect.objectContaining({ em…
+       |                      ^
+     79|   })
+     80|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/34]⎯
+
+ FAIL  |puro| src/lib/auditoria-registro-empresa.test.ts > registrarEventoAdmin — o INSERT leva empresa_id > 23502 em empresa_id: não propaga, nomeia a causa e NÃO leva o details ao log
+AssertionError: expected 'undefined' to match /empresa/i
+
+- Expected:
+/empresa/i
+
++ Received:
+"undefined"
+
+ ❯ src/lib/auditoria-registro-empresa.test.ts:93:35
+     91|     expect(registrarFalha).toHaveBeenCalledTimes(1)
+     92|     const arg = registrarFalha.mock.calls[0][0] as { erro: unknown; ct…
+     93|     expect(String(arg.ctx.causa)).toMatch(/empresa/i)
+       |                                   ^
+     94|     expect(String(arg.ctx.causa)).toMatch(/23502/)
+     95|     expect(JSON.stringify(arg)).not.toContain('valor-secreto-de-linha')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarTipoItem — o slug é único POR EMPRESA > slug que só existe na OUTRA empresa: cria na minha, com a minha empresa no INSERT
+AssertionError: expected { ok: false, …(1) } to deeply equal { ok: true, id: 99 }
+
+- Expected
++ Received
+
+  {
+-   "id": 99,
+-   "ok": true,
++   "erro": "Já existe um tipo com esse código. Use outro código — ou reative o que já existe, se ele estiver desativado.",
++   "ok": false,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:119:15
+    117|     const f = clienteFalso({ tipos_item: [{ __empresa: EMP_B, id: 7, s…
+    118|     const r = await criarTipoItem({ slug: 'cabo_rede', rotulo: 'Cabo d…
+    119|     expect(r).toEqual({ ok: true, id: 99 })
+       |               ^
+    120|     const ins = f.escritas.find((e) => e.tabela === 'tipos_item' && e.…
+    121|     expect(ins?.payload).toMatchObject({ empresa_id: EMP_A, slug: 'cab…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarTipoItem — o slug é único POR EMPRESA > slug repetido nas duas empresas: reativa SÓ o da minha (sem o filtro o maybeSingle erra)
+AssertionError: expected { Object (ok, erro) } to match object { ok: true, id: 1, reativado: true }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "id": 1,
+-   "ok": true,
+-   "reativado": true,
++   "ok": false,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:133:15
+    131|     })
+    132|     const r = await criarTipoItem({ slug: 'fone', rotulo: 'Fone', orde…
+    133|     expect(r).toMatchObject({ ok: true, id: 1, reativado: true })
+       |               ^
+    134|     expect(f.consultas.find((c) => c.tabela === 'tipos_item')?.filtros…
+    135|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarItemInline — o nome_chave é único POR EMPRESA > homônimo só na OUTRA empresa: cria o item na minha, com a minha empresa
+AssertionError: expected { ok: true, id: 500 } to match object { ok: true, id: 99 }
+
+- Expected
++ Received
+
+  {
+-   "id": 99,
++   "id": 500,
+    "ok": true,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:145:15
+    143|     })
+    144|     const r = await criarItemInline({ nome: 'Mochila', grupo: 'acessor…
+    145|     expect(r).toMatchObject({ ok: true, id: 99 })
+       |               ^
+    146|     const ins = f.escritas.find((e) => e.tabela === 'itens' && e.op ==…
+    147|     expect(ins?.payload).toMatchObject({ empresa_id: EMP_A })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarItemInline — o nome_chave é único POR EMPRESA > homônimo nas duas: devolve o da minha empresa, sem erro de "mais de uma linha"
+AssertionError: expected { Object (ok, erro) } to deeply equal { ok: true, id: 5 }
+
+- Expected
++ Received
+
+  {
+-   "id": 5,
+-   "ok": true,
++   "erro": "mais de uma linha",
++   "ok": false,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:158:76
+    156|       ],
+    157|     })
+    158|     expect(await criarItemInline({ nome: 'Mochila', grupo: 'acessorio'…
+       |                                                                            ^
+    159|   })
+    160| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarColaboradorInline — o nome_chave é único POR EMPRESA, e a empresa é a da FILIAL > com filial da empresa B: o homônimo da A não vale, e a pessoa nasce na B
+AssertionError: expected { ok: true, id: 'a-maria', …(1) } to match object { ok: true, id: 99 }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "id": 99,
++   "id": "a-maria",
+    "ok": true,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:170:15
+    168|     })
+    169|     const r = await criarColaboradorInline({ nome: 'Maria Silva', fili…
+    170|     expect(r).toMatchObject({ ok: true, id: 99 })
+       |               ^
+    171|     const ins = f.escritas.find((e) => e.tabela === 'colaboradores' &&…
+    172|     expect(ins?.payload).toMatchObject({ empresa_id: EMP_B })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarColaboradorInline — o nome_chave é único POR EMPRESA, e a empresa é a da FILIAL > sem filial: a empresa é a da operação e o homônimo dela é devolvido
+AssertionError: expected { Object (ok, erro) } to deeply equal { ok: true, id: 'a-maria', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "id": "a-maria",
+-   "nome": "Maria Silva",
+-   "ok": true,
++   "erro": "mais de uma linha",
++   "ok": false,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:183:67
+    181|       ],
+    182|     })
+    183|     expect(await criarColaboradorInline({ nome: 'Maria Silva' })).toEq…
+       |                                                                   ^
+    184|   })
+    185|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarColaboradorInline — o nome_chave é único POR EMPRESA, e a empresa é a da FILIAL > filial que não resolve empresa: recusa com frase, nunca grava sem empresa
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:190:18
+    188|     const f = clienteFalso({ colaboradores: [] })
+    189|     const r = await criarColaboradorInline({ nome: 'Ciclano Teste', fi…
+    190|     expect(r.ok).toBe(false)
+       |                  ^
+    191|     expect(f.escritas).toEqual([])
+    192|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > atualizarMotivo — o código é único POR EMPRESA; o update só alcança a minha > grava SÓ na linha da empresa de quem escreve
+AssertionError: expected [ 1, 2 ] to deeply equal [ 1 ]
+
+- Expected
++ Received
+
+  [
+    1,
++   2,
+  ]
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:206:26
+    204|     expect(r).toEqual({ ok: true })
+    205|     const up = f.escritas.find((e) => e.tabela === 'motivos' && e.op =…
+    206|     expect(up?.afetados).toEqual([1])
+       |                          ^
+    207|   })
+    208|   it('0 linhas alcançadas: "Motivo não encontrado."', async () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > atualizarMotivo — o código é único POR EMPRESA; o update só alcança a minha > 0 linhas alcançadas: "Motivo não encontrado."
+AssertionError: expected { ok: true } to deeply equal { ok: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "erro": "Motivo não encontrado.",
+-   "ok": false,
++   "ok": true,
+  }
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:212:15
+    210|     clienteFalso({ motivos: [{ __empresa: EMP_B, id: 2, codigo: 'perda…
+    211|     const r = await atualizarMotivo({ codigo: 'perda', rotulo: 'Perda'…
+    212|     expect(r).toEqual({ ok: false, erro: 'Motivo não encontrado.' })
+       |               ^
+    213|   })
+    214| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/34]⎯
+
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > consultarVersaoDoPeriodo / lerUltimaVersao — a versão é a da empresa do relatório > o consolidado lê a versão só da empresa da operação (ramo filial null)
+AssertionError: expected 7 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 7
+
+ ❯ src/lib/actions/leitores-por-empresa.test.ts:226:23
+    224|     })
+    225|     const r = await consultarVersaoDoPeriodo({ filialSlug: 'geral', de…
+    226|     expect(r?.versao).toBe(2)
+       |                       ^
+    227|     const q = f.consultas.find((c) => c.tabela === 'relatorios_gerados…
+    228|     expect(q?.filtros).toContainEqual(['eq', 'empresa_id', EMP_A])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/34]⎯
+
+ FAIL  |puro| src/lib/queries/leitores-por-empresa.test.ts > resolverFilialPorSlug — o slug é único POR EMPRESA > com o mesmo slug nas duas empresas, devolve a da empresa pedida (e não lança)
+Error: Falha ao resolver a filial "sede": mais de uma linha
+ ❯ resolverFilialPorSlug src/lib/queries/relatorios/comum.ts:45:20
+     43|     .eq('slug', slug)
+     44|     .maybeSingle()
+     45|   if (error) throw new Error(`Falha ao resolver a filial "${slug}": ${…
+       |                    ^
+     46|   return data ?? null
+     47| }
+ ❯ src/lib/queries/leitores-por-empresa.test.ts:89:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/34]⎯
+
+ FAIL  |puro| src/lib/queries/leitores-por-empresa.test.ts > colaboradores (queries) — a chave nome_chave é única POR EMPRESA > resolverColaboradoresPorNome: o id é o da empresa pedida, nunca o "último que ganhou"
+AssertionError: expected 'b-maria' to be 'a-maria' // Object.is equality
+
+Expected: "a-maria"
+Received: "b-maria"
+
+ ❯ src/lib/queries/leitores-por-empresa.test.ts:107:38
+    105|     expect(mapaB.get('maria silva')).toBe('b-maria')
+    106|     const mapaA = await resolverColaboradoresPorNome(client, ['Maria S…
+    107|     expect(mapaA.get('maria silva')).toBe('a-maria')
+       |                                      ^
+    108|     expect(mapaA.has('mario souza')).toBe(false)
+    109|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/34]⎯
+
+ FAIL  |puro| src/lib/queries/leitores-por-empresa.test.ts > colaboradores (queries) — a chave nome_chave é única POR EMPRESA > sugestoesDoCampoColaborador: lista e jaCadastrado só da empresa pedida
+AssertionError: expected [ 'Maria Silva', 'Maria Silva', …(1) ] to deeply equal [ 'Maria Silva' ]
+
+- Expected
++ Received
+
+  [
+    "Maria Silva",
++   "Maria Silva",
++   "Mario Souza",
+  ]
+
+ ❯ src/lib/queries/leitores-por-empresa.test.ts:116:27
+    114|     h.cliente = f.client
+    115|     const r = await sugestoesDoCampoColaborador('Mari', EMP_A)
+    116|     expect(r.cadastrados).toEqual(['Maria Silva'])
+       |                           ^
+    117|     const exatoA = await sugestoesDoCampoColaborador('Maria Silva', EM…
+    118|     // sem o filtro o `maybeSingle` do "exato" vê duas linhas, erra, e…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/34]⎯
+
+ FAIL  |puro| src/lib/queries/leitores-por-empresa.test.ts > lerVocabularioImport(client, empresa) — o vocabulário é o da empresa > lê só o catálogo da empresa pedida e NÃO lança com dois catálogos completos
+VocabularioImportInvalidoError: O termo "matriz" (nome próprio de filial) aponta para mais de uma filial (id 1 e id 11) — o vocabulário está ambíguo.
+ ❯ registrarTermo src/lib/import/vocabulario.ts:122:13
+    120|     const dono = donoPorTermo.get(chave)
+    121|     if (dono !== undefined && dono !== filialId) {
+    122|       throw new VocabularioImportInvalidoError(
+       |             ^
+    123|         `O termo "${chave}" (${origem}) aponta para mais de uma filial…
+    124|       )
+ ❯ conferirVocabulario src/lib/import/vocabulario.ts:129:30
+ ❯ lerVocabularioImport src/lib/queries/vocabulario-import.ts:96:3
+ ❯ src/lib/queries/leitores-por-empresa.test.ts:170:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/34]⎯
+
+ FAIL  |puro| src/lib/queries/leitores-por-empresa.test.ts > lerVocabularioImport(client, empresa) — o vocabulário é o da empresa > as cinco leituras levam o filtro de empresa
+VocabularioImportInvalidoError: O termo "matriz" (nome próprio de filial) aponta para mais de uma filial (id 1 e id 11) — o vocabulário está ambíguo.
+ ❯ registrarTermo src/lib/import/vocabulario.ts:122:13
+    120|     const dono = donoPorTermo.get(chave)
+    121|     if (dono !== undefined && dono !== filialId) {
+    122|       throw new VocabularioImportInvalidoError(
+       |             ^
+    123|         `O termo "${chave}" (${origem}) aponta para mais de uma filial…
+    124|       )
+ ❯ conferirVocabulario src/lib/import/vocabulario.ts:129:30
+ ❯ lerVocabularioImport src/lib/queries/vocabulario-import.ts:96:3
+ ❯ src/lib/queries/leitores-por-empresa.test.ts:183:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/34]⎯
+
+ FAIL  |puro| src/lib/supabase/frase-23502-empresa.test.ts > traduzErroBanco — 23502 em empresa_id > a frase sai para o erro do motor na coluna empresa_id
+AssertionError: expected 'null value in column "empresa_id" of …' to be 'Não foi possível gravar: o registro f…' // Object.is equality
+
+Expected: "Não foi possível gravar: o registro ficou sem a empresa. Recarregue a página e tente de novo; se continuar, avise o administrador."
+Received: "null value in column "empresa_id" of relation "ativos" violates not-null constraint"
+
+ ❯ src/lib/supabase/frase-23502-empresa.test.ts:21:7
+     19|     expect(
+     20|       traduzErroBanco('null value in column "empresa_id" of relation "…
+     21|     ).toBe(FRASE)
+       |       ^
+     22|   })
+     23|   it('não vaza o details e não sai para o 23502 de OUTRA coluna', () =…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/34]⎯
+
+ FAIL  |puro| src/lib/supabase/frase-23502-empresa.test.ts > traduzErroBanco — 23502 em empresa_id > não vaza o details e não sai para o 23502 de OUTRA coluna
+AssertionError: expected 'null value in column "empresa_id" Fai…' not to contain 'segredo'
+
+Expected: "segredo"
+Received: "null value in column "empresa_id" Failing row contains (segredo)"
+
+ ❯ src/lib/supabase/frase-23502-empresa.test.ts:28:110
+     26|     ).not.toBe(FRASE)
+     27|     // a frase é fixa: nenhum trecho da mensagem do motor (nem o `deta…
+     28|     expect(traduzErroBanco(`null value in column "empresa_id" Failing …
+       |                                                                                                              ^
+     29|   })
+     30|   it('um 23503 que cita empresa_id não é a frase (só o 23502)', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/34]⎯
+
+
+ Test Files  4 failed (4)
+      Tests  34 failed | 24 passed (58)
+   Start at  17:44:14
+   Duration  8.99s (transform 1.86s, setup 0ms, import 8.40s, tests 16.55s, environment 1ms)
+

@@ -511,6 +511,8 @@ export async function limparTermosSemLinha(input: {
 
   const raiz = raizDoOrfao(carimboDeArquivo())
   const { data, error } = await chamarRpc(supabase, 'registrar_limpeza_termos_sem_linha', {
+    // F67C: a empresa do CARIMBO da trilha (o `.docx` sem linha segue da plataforma) — a da operação, destino F70.
+    p_empresa: empresaDaOperacao(),
     p_raiz: raiz,
     p_confirmacao: confirmacao,
     p_justificativa: justificativa,

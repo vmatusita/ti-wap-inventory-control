@@ -293,6 +293,9 @@ export const FRASES_DO_MOTOR = {
   duplicata: ['duplicate'],
   chaveEstrangeira: ['foreign key', 'violates foreign key'],
   semPermissao: ['row-level security', 'permission denied'],
+  // F67C (16/11/2026, decisão 18) — 23502 na coluna da empresa: sem o default, um escritor que esqueça a empresa leva
+  // `null value in column "empresa_id" …`. A frase só sai quando o CÓDIGO é 23502 E a mensagem cita a coluna.
+  colunaEmpresaNula: ['null value in column "empresa_id"'],
 } as const satisfies Record<string, Grafias>
 
 /** Frases do Supabase Auth (convite, troca de e-mail). Não vêm de SQL nosso. */

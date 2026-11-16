@@ -79,7 +79,8 @@ export type Database = {
           ativo_id: string
           created_at?: string
           criado_por: string
-          empresa_id?: string
+          // F67C (16/11/2026): empresa_id obrigatório no Insert — o default saiu na 0205–0207; a geração do MCP a partir do banco contraído emite o mesmo.
+          empresa_id: string
           id?: string
           texto: string
         }
@@ -153,7 +154,7 @@ export type Database = {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
           colaborador_atual?: string | null
           created_at?: string
-          empresa_id?: string
+          empresa_id: string
           filial_id: number
           fornecedor?: string | null
           hostname?: string | null
@@ -282,7 +283,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por: string
-          empresa_id?: string
+          empresa_id: string
           filial_id?: number | null
           id?: string
           matricula?: string | null
@@ -380,7 +381,7 @@ export type Database = {
           alvo?: string | null
           autor?: string | null
           detalhe?: Json | null
-          empresa_id?: string
+          empresa_id: string
           id?: string
           quando?: string
         }
@@ -425,7 +426,7 @@ export type Database = {
           ativo?: boolean
           cidade?: string
           created_at?: string
-          empresa_id?: string
+          empresa_id: string
           id?: never
           nome: string
           slug: string
@@ -477,7 +478,7 @@ export type Database = {
           correcoes?: Json
           created_at?: string
           criado_por: string
-          empresa_id?: string
+          empresa_id: string
           filial_id: number
           id?: string
           modo: string
@@ -534,7 +535,7 @@ export type Database = {
           prefixo: string
         }
         Insert: {
-          empresa_id?: string
+          empresa_id: string
           prefixo: string
         }
         Update: {
@@ -561,7 +562,7 @@ export type Database = {
         }
         Insert: {
           categoria: Database["public"]["Enums"]["categoria_ativo"]
-          empresa_id?: string
+          empresa_id: string
           rotulo?: string | null
           termo: string
         }
@@ -590,7 +591,7 @@ export type Database = {
           termo: string
         }
         Insert: {
-          empresa_id?: string
+          empresa_id: string
           estado: Database["public"]["Enums"]["status_ativo"]
           rotulo?: string | null
           termo: string
@@ -630,7 +631,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por?: string | null
-          empresa_id?: string
+          empresa_id: string
           estoque_minimo?: number
           grupo: Database["public"]["Enums"]["grupo_item"]
           id?: never
@@ -692,7 +693,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           criado_por: string
-          empresa_id?: string
+          empresa_id: string
           id?: string
           nome: string
           payload: Json
@@ -752,7 +753,7 @@ export type Database = {
           created_at?: string
           criado_por: string
           data?: string
-          empresa_id?: string
+          empresa_id: string
           estorna_id?: string | null
           filial_id: number
           forcado?: boolean
@@ -901,7 +902,7 @@ export type Database = {
           aplica_a: Database["public"]["Enums"]["tipo_movimentacao"][]
           ativo?: boolean
           codigo: string
-          empresa_id?: string
+          empresa_id: string
           rotulo: string
         }
         Update: {
@@ -959,7 +960,7 @@ export type Database = {
           created_at?: string
           criado_por: string
           data?: string
-          empresa_id?: string
+          empresa_id: string
           estorno_de?: string | null
           filial_destino_id?: number | null
           filial_id: number
@@ -1140,7 +1141,7 @@ export type Database = {
           colaborador?: string | null
           created_at?: string
           desfecho?: string | null
-          empresa_id?: string
+          empresa_id: string
           filial_id: number
           id?: string
           item: string
@@ -1277,7 +1278,7 @@ export type Database = {
         }
         Insert: {
           dados: Json
-          empresa_id?: string
+          empresa_id: string
           filial_id?: number | null
           gerado_em?: string
           gerado_por: string
@@ -1358,7 +1359,7 @@ export type Database = {
           ativa?: boolean
           created_at?: string
           criado_por: string
-          empresa_id?: string
+          empresa_id: string
           hash: string
           id?: string
           rotulo: string
@@ -1415,7 +1416,7 @@ export type Database = {
           colaborador?: string | null
           created_at?: string
           dados: Json
-          empresa_id?: string
+          empresa_id: string
           gerado_por: string
           id?: string
           movimentacao_ids: string[]
@@ -1473,7 +1474,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
-          empresa_id?: string
+          empresa_id: string
           id?: never
           ordem?: number
           rotulo: string
@@ -1512,7 +1513,7 @@ export type Database = {
           apelido: string
           apelido_chave?: string | null
           created_at?: string
-          empresa_id?: string
+          empresa_id: string
           filial_id: number
           id?: never
         }
@@ -2119,8 +2120,9 @@ export type Database = {
         }
         Returns: Json
       }
+      // F67C (16/11/2026): a assinatura nova (p_empresa) nasce na 0204 e a antiga sai na contração 0206.
       registrar_limpeza_termos_sem_linha: {
-        Args: { p_confirmacao: string; p_justificativa: string; p_raiz: string }
+        Args: { p_confirmacao: string; p_empresa: string; p_justificativa: string; p_raiz: string }
         Returns: string[]
       }
       registrar_tentativa_senha: {

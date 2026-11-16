@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { TETOS_COLUNA } from '@/lib/validators/tetos-coluna'
 import { exigirPapel } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
+import { empresaDaFilial } from '@/lib/escopo/empresa-da-filial'
 import { createClient } from '@/lib/supabase/server'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco } from '@/lib/actions/erros'
@@ -87,16 +89,21 @@ export async function gerarRelatorio(input: {
   const aut = await exigirPapel(client, 'operador')
   if (!aut.ok) return { ok: false, erro: aut.erro }
 
+  // F67C: a empresa do relatório — a da operação (destino F70: a da sessão) resolve o slug; a do relatório POR FILIAL é
+  // a da filial, e o CONSOLIDADO é da operação. Resolvida UMA vez, antes do laço de retry de versão.
+  const empresaDaOp = empresaDaOperacao()
   const filial =
-    filialSlug === SLUG_CONSOLIDADO ? null : await resolverFilialPorSlug(client, filialSlug)
+    filialSlug === SLUG_CONSOLIDADO ? null : await resolverFilialPorSlug(client, filialSlug, empresaDaOp)
   if (filialSlug !== SLUG_CONSOLIDADO && !filial) {
     return { ok: false, erro: 'Filial não encontrada.' }
   }
   const filialId = filial?.id ?? null
+  const empresa = filial ? await empresaDaFilial(client, filial.id) : empresaDaOp
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
 
   let snapshot
   try {
-    snapshot = await getSnapshotRelatorioV2(client, recorteDe({ papel: aut.papel }), filialSlug, {
+    snapshot = await getSnapshotRelatorioV2(client, recorteDe({ papel: aut.papel }), filialSlug, empresaDaOp, {
       de,
       ate,
       rotulo: `${formatDate(de)} a ${formatDate(ate)}`,
@@ -135,7 +142,7 @@ export async function gerarRelatorio(input: {
     // nenhuma"), a próxima seria sempre 1, o insert bateria no índice único nas 4
     // tentativas e o operador levaria "Outra pessoa gerou este mesmo período" sobre
     // uma falha de INFRAESTRUTURA. Mentira específica é pior que erro genérico.
-    const leitura = await lerUltimaVersao(client, de, ate, filialId)
+    const leitura = await lerUltimaVersao(client, de, ate, filialId, empresa)
     if (!leitura.ok) {
       return {
         ok: false,
@@ -156,6 +163,7 @@ export async function gerarRelatorio(input: {
         dados: paraJson(snapshot),
         gerado_por: aut.uid,
         observacao: obs,
+        empresa_id: empresa,
       })
       .select('id')
       .single()
@@ -203,10 +211,13 @@ async function lerUltimaVersao(
   de: string,
   ate: string,
   filialId: number | null,
+  // F67C (leitor (d)): a versão é por (empresa, período, filial) — a empresa do relatório recorta os dois ramos.
+  empresa: string,
 ): Promise<LeituraVersao> {
   let q = client
     .from('relatorios_gerados')
     .select(LEITURA_ULTIMA_VERSAO_RELATORIO.select)
+    .eq('empresa_id', empresa)
     .eq('periodo_de', de)
     .eq('periodo_ate', ate)
   q = filialId === null ? q.is('filial_id', null) : q.eq('filial_id', filialId)
@@ -252,14 +263,15 @@ export async function consultarVersaoDoPeriodo(input: {
   const aut = await exigirPapel(client, 'operador')
   if (!aut.ok) return null
 
+  const empresaDaOp = empresaDaOperacao()
   const filial =
-    filialSlug === SLUG_CONSOLIDADO ? null : await resolverFilialPorSlug(client, filialSlug)
+    filialSlug === SLUG_CONSOLIDADO ? null : await resolverFilialPorSlug(client, filialSlug, empresaDaOp)
   if (filialSlug !== SLUG_CONSOLIDADO && !filial) return null
 
   // Aqui a falha de leitura degrada para "não sei" (o `null` do retorno): perder o
   // AVISO não é perder a geração, e um erro que não é do operador atrapalharia mais
   // do que ajuda. O `registrarFalha` de `lerUltimaVersao` deixa o rastro no servidor.
-  const leitura = await lerUltimaVersao(client, de, ate, filial?.id ?? null)
+  const leitura = await lerUltimaVersao(client, de, ate, filial?.id ?? null, empresaDaOp)
   if (!leitura.ok || !leitura.ultima) return null
   return {
     versao: leitura.ultima.versao,

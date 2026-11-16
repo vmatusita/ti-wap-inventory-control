@@ -47,9 +47,15 @@ export async function persistirTermo(
     dados: unknown
     buffer: Buffer
     uid: string
+    /**
+     * F67C: a empresa do termo — a da FILIAL de um dos ativos (resolvida em `actions/termos.ts`; o gatilho
+     * `termo_da_empresa` confere TODOS os ativos). Vai SÓ no INSERT: o UPDATE da regeração espalha `linha`, e pôr a
+     * coluna ali reescreveria a empresa (`guarda_empresa` recusa).
+     */
+    empresa: string
   },
 ): Promise<ResultadoPersistir> {
-  const { tipo, movimentacaoIds, ativoIds, colaborador, dados, buffer, uid } = params
+  const { tipo, movimentacaoIds, ativoIds, colaborador, dados, buffer, uid, empresa } = params
   const sortedMovIds = [...movimentacaoIds].sort()
 
   // Termos já existentes para ESTE conjunto de movimentações. Falha de leitura NÃO vira "não há nenhum": seguiria para
@@ -118,7 +124,7 @@ export async function persistirTermo(
   }
 
   // INSERT: a LINHA primeiro (é ela que torna o nome gravável), o arquivo depois.
-  const { error: eIns } = await supabase.from('termos_gerados').insert({ ...linha, gerado_por: uid })
+  const { error: eIns } = await supabase.from('termos_gerados').insert({ ...linha, gerado_por: uid, empresa_id: empresa })
   if (eIns) return { ok: false, erro: traduzErroBanco(eIns.message, eIns.code) }
 
   const { error: upErr } = await supabase.storage

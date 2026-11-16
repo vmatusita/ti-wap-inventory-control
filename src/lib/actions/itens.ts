@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin, exigirEscrita, exigirPapel } from '@/lib/auth/acesso'
+import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
+import { empresaDaFilial } from '@/lib/escopo/empresa-da-filial'
 import { registrarFalha } from '@/lib/observabilidade'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { casa, casaConstraint, FRASES_DO_MOTOR } from '@/lib/supabase/erros-do-banco'
@@ -109,9 +111,13 @@ export async function lancarItens(input: LoteLancamentoItemInput): Promise<Lanca
   // F37/D5 — o vínculo com o cadastro de pessoas, resolvido UMA VEZ para o carrinho
   // inteiro. O TEXTO continua sendo gravado como antes; o id entra ao lado quando a
   // chave normalizada resolve. Nome fora do cadastro não bloqueia nada.
+  // F67C: o vínculo com a pessoa se resolve na empresa da FILIAL do carrinho.
+  const empresaDoLote = await empresaDaFilial(supabase, parsed.data.filial_id)
+  if (empresaDoLote === null) return { ok: false, resultados: [], erroGeral: 'Filial não encontrada.' }
   const vinculos = await resolverColaboradoresPorNome(
     supabase,
     linhas.map((v) => v.colaborador ?? null),
+    empresaDoLote,
   )
 
   // F38 · §C.3 — O CARRINHO AVULSO TAMBÉM PRECISA DA REGRA DO VÍNCULO, e a
@@ -445,7 +451,12 @@ export async function estornarLancamento(input: {
     }).colaboradorId
   }
 
+  // F67C: o inverso nasce na empresa da FILIAL do original (a mesma dele).
+  const empresaDoOriginal = await empresaDaFilial(supabase, orig.filial_id)
+  if (empresaDoOriginal === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const { error: e2 } = await supabase.from('lancamentos_item').insert({
+    empresa_id: empresaDoOriginal,
     item_id: orig.item_id,
     filial_id: orig.filial_id,
     tipo: plano.tipo,
@@ -569,7 +580,8 @@ export async function criarItem(input: {
   // `atualizarItem` logo abaixo, cuja lista explícita precisa ser mantida à mão.
   const { data, error } = await supabase
     .from('itens')
-    .insert(parsed.data)
+    // F67C: o item de catálogo nasce na empresa da OPERAÇÃO (destino F70: a da sessão).
+    .insert({ ...parsed.data, empresa_id: empresaDaOperacao() })
     .select('id')
     .single()
   if (error) {
@@ -649,10 +661,15 @@ export async function criarItemInline(input: {
   //
   // `.eq('nome_chave', …)` e nunca `ilike`: a chave é calculada, não digitada, e
   // `ilike` transformaria um `%` no nome em curinga.
+  //
+  // F67C (leitor (a), PLAN-F67C §3): `nome_chave` é única POR EMPRESA desde a F65 — o homônimo é o da empresa de quem
+  // cria (a da operação; destino F70: a da sessão), e o INSERT nasce nela.
   const chave = chaveItem(parsed.data.nome)
+  const empresa = empresaDaOperacao()
   const { data: homonimo, error: erroBusca } = await supabase
     .from('itens')
     .select('id, nome, ativo')
+    .eq('empresa_id', empresa)
     .eq('nome_chave', chave)
     .maybeSingle()
   if (erroBusca) {
@@ -709,6 +726,7 @@ export async function criarItemInline(input: {
   const { data: criado, error: erroInsert } = await supabase
     .from('itens')
     .insert({
+      empresa_id: empresa,
       nome: parsed.data.nome,
       grupo: parsed.data.grupo as GrupoItem,
       tipo_id: parsed.data.tipo_id ?? null,

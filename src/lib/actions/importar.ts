@@ -405,9 +405,12 @@ export async function validarImport(formData: FormData): Promise<ValidarImportRe
   // vem do BANCO, lido A CADA CHAMADA — nunca do cliente e nunca de um cache entre
   // chamadas: um apelido cadastrado agora mesmo em Administração › Filiais tem de
   // valer já no próximo preview.
+  // F67C: o vocabulário é o da empresa da filial do plano.
+  const empresaDoPlano = await empresaDaFilial(client, filial.id)
+  if (empresaDoPlano === null) return { ok: false, erro: 'Filial não encontrada.' }
   let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
   try {
-    vocabulario = await lerVocabularioImport(client)
+    vocabulario = await lerVocabularioImport(client, empresaDoPlano)
   } catch (erro) {
     registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
@@ -526,6 +529,17 @@ export async function aplicarImport(input: {
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
   if (!filial.ativo) return { ok: false, erro: 'Filial inativa: import bloqueado.' }
 
+  // F67: a empresa do import é a DA FILIAL do plano (lida no servidor; o banco a confere antes da trava e do backup). F67C:
+  // resolvida ANTES do vocabulário, que também é o dessa empresa — e a mesma vai à trilha.
+  let empresaDoImport: string | null
+  try {
+    empresaDoImport = await empresaDaFilial(client, plano.filialId)
+  } catch (erro) {
+    registrarFalha({ escopo: 'import.empresa-da-filial', erro })
+    return { ok: false, erro: 'Não foi possível conferir a filial do import. Nada foi apagado — tente de novo em instantes.' }
+  }
+  if (empresaDoImport === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   // F56 · Frente D (critério 6) — `aplicarImport` NÃO roda o motor (o plano já chega
   // PRONTO do preview), mas confere que TODO ativo do plano tem `categoria` e
   // `estadoAlvo` entre os valores IMPORTÁVEIS do vocabulário que ELA MESMA leu do
@@ -535,7 +549,7 @@ export async function aplicarImport(input: {
   // não passa pelo motor inteiro.
   let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
   try {
-    vocabulario = await lerVocabularioImport(client)
+    vocabulario = await lerVocabularioImport(client, empresaDoImport)
   } catch (erro) {
     registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }
@@ -628,14 +642,6 @@ export async function aplicarImport(input: {
   // (src/lib/storage/caminho.ts). O bucket decide pela empresa do caminho, e a RPC confere a forma nova — por isso a
   // empresa da filial é lida AQUI, antes do backup (até a F67 ela era lida depois, só para a RPC).
   // F67: a empresa do import é a DA FILIAL do plano (lida no servidor); o banco a confere antes da trava e do backup.
-  let empresaDoImport: string | null
-  try {
-    empresaDoImport = await empresaDaFilial(client, plano.filialId)
-  } catch (erro) {
-    registrarFalha({ escopo: 'import.empresa-da-filial', erro })
-    return { ok: false, erro: 'Não foi possível conferir a filial do import. Nada foi apagado — tente de novo em instantes.' }
-  }
-  if (empresaDoImport === null) return { ok: false, erro: 'Filial não encontrada.' }
   const backupPath = caminhoBackupImport(empresaDoImport, filial.id, carimboDeArquivo())
   try {
     const acervo = await exportarAcervoFilial(client, filial.id)
@@ -762,6 +768,7 @@ export async function aplicarImport(input: {
     // servidor, que ninguém lê. `eventos_admin.acao` não tem check constraint (medido: só PK
     // e FK), então o verbo novo entra sem migration.
     await registrarEventoAdmin({
+      empresa: empresaDoImport, // F67C: a da filial do import (já resolvida acima)
       acao: 'import_falhou',
       autor: aut.uid,
       alvo: filial.slug,
@@ -792,6 +799,7 @@ export async function aplicarImport(input: {
     // registro redundante do lado de fora do que depender só do que a RPC gravou), e a
     // 12ª checagem contaria mais um `backup_orfao` do que sumiu sem deixar rastro.
     await registrarEventoAdmin({
+      empresa: empresaDoImport, // F67C: a da filial do import (já resolvida acima)
       acao: 'import_executado',
       autor: aut.uid,
       alvo: filial.slug,
@@ -843,6 +851,7 @@ export async function aplicarImport(input: {
   // conteúdo do CSV: só a filial, as contagens, o hash do arquivo e o caminho do backup
   // (o que permite auditar sem expor nome de colaborador nem patrimônio).
   await registrarEventoAdmin({
+    empresa: empresaDoImport, // F67C: a da filial do import (já resolvida acima)
     acao: 'import_executado',
     autor: aut.uid,
     alvo: filial.slug,
@@ -956,9 +965,12 @@ export async function baixarCsvCorrigido(formData: FormData): Promise<BaixarCsvC
   if (!filial) return { ok: false, erro: 'Filial não encontrada.' }
 
   // F56 · Frente D — o vocabulário do BANCO, lido a cada chamada (nunca do cliente).
+  // F67C: o vocabulário é o da empresa da filial do plano.
+  const empresaDoPlano = await empresaDaFilial(client, filial.id)
+  if (empresaDoPlano === null) return { ok: false, erro: 'Filial não encontrada.' }
   let vocabulario: Awaited<ReturnType<typeof lerVocabularioImport>>
   try {
-    vocabulario = await lerVocabularioImport(client)
+    vocabulario = await lerVocabularioImport(client, empresaDoPlano)
   } catch (erro) {
     registrarFalha({ escopo: 'import.vocabulario', erro, ctx: { filialId: filial.id }, operador: aut.uid })
     return { ok: false, erro: 'Não foi possível ler o vocabulário do import. Tente novamente.' }

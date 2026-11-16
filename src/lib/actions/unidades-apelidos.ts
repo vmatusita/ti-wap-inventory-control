@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAdmin } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
+import { empresaDaFilial } from '@/lib/escopo/empresa-da-filial'
 import { traduzErroBanco, type ActionResult } from '@/lib/actions/erros'
 import { apelidoFilialSchema, removerApelidoUnidadeSchema } from '@/lib/validators/admin'
 import { listarVocabularioDeUnidades, type ApelidoDeFilial } from '@/lib/queries/admin'
@@ -59,7 +60,11 @@ export async function incluirApelidoUnidade(input: {
 
   const filialNome = vocabulario.filiais.find((f) => f.id === filialId)?.nome ?? String(filialId)
 
-  const { error } = await client.from('unidades_apelidos').insert({ filial_id: filialId, apelido })
+  // F67C: o apelido nasce na empresa da FILIAL dele (e a mesma vai à trilha); filial invisível/inexistente recusa.
+  const empresa = await empresaDaFilial(client, filialId)
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
+
+  const { error } = await client.from('unidades_apelidos').insert({ filial_id: filialId, apelido, empresa_id: empresa })
   if (error) {
     // Backstop de corrida — o índice único ou o gatilho do banco recusaram mesmo
     // com a pré-checagem verde (dois admins cadastrando o mesmo termo ao mesmo
@@ -69,6 +74,7 @@ export async function incluirApelidoUnidade(input: {
 
   await registrarEventoAdmin({
     acao: 'apelido_incluido',
+    empresa,
     autor: aut.uid,
     alvo: `${filialNome} → ${apelido}`,
     detalhe: { filial_id: filialId, filial_nome: filialNome, apelido },
@@ -114,6 +120,10 @@ export async function removerApelidoUnidade(input: {
     return { ok: false, erro: 'Este apelido não pertence a esta filial — atualize a página.' }
   }
 
+  // F67C: a empresa da trilha é a da filial do apelido — lida ANTES do delete, pela sessão.
+  const empresa = await empresaDaFilial(client, linha.filial_id)
+  if (empresa === null) return { ok: false, erro: 'Filial não encontrada.' }
+
   const { error } = await client.from('unidades_apelidos').delete().eq('id', parsed.data.apelidoId)
   if (error) return { ok: false, erro: traduzErroBanco(error.message, error.code) }
 
@@ -126,6 +136,7 @@ export async function removerApelidoUnidade(input: {
 
   await registrarEventoAdmin({
     acao: 'apelido_removido',
+    empresa,
     autor: aut.uid,
     alvo: `${filialNome} → ${linha.apelido}`,
     detalhe: { filial_id: linha.filial_id, filial_nome: filialNome, apelido: linha.apelido },

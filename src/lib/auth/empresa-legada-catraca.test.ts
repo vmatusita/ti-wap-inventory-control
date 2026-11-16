@@ -20,6 +20,49 @@ import { describe, expect, it } from 'vitest'
 const RAIZ = process.cwd()
 
 const CATRACA: Record<string, { legada: number; operacao: number; destino: string }> = {
+  // F67C (16/11/2026) — o fim do default: TODA escrita sem pai (de onde tirar a empresa) e todo leitor por chave natural sem
+  // filial usam a empresa da OPERAÇÃO, cada um com o destino escrito. Onde a operação TEM filial, a empresa é a DELA
+  // (`empresaDaFilial`) e não aparece aqui.
+  'src/app/(app)/admin/importar/page.tsx': {
+    legada: 0,
+    operacao: 1,
+    destino: 'F70 — o vocabulário do import da página (antes de escolher filial) é o da empresa da SESSÃO',
+  },
+  'src/lib/actions/colaboradores.ts': {
+    legada: 0,
+    operacao: 3,
+    destino: 'F70 — o colaborador sem filial (cadastro, inline de lote multi-filial) e a busca de saldo por nome, na empresa da SESSÃO',
+  },
+  'src/lib/actions/itens.ts': {
+    legada: 0,
+    operacao: 2,
+    destino: 'F70 — o item de catálogo (criarItem, criarItemInline) nasce na empresa da SESSÃO',
+  },
+  'src/lib/actions/kits.ts': {
+    legada: 0,
+    operacao: 1,
+    destino: 'F70 — o kit nasce na empresa da SESSÃO',
+  },
+  'src/lib/actions/movimentacoes.ts': {
+    legada: 0,
+    operacao: 2,
+    destino: 'F70 — a lista do campo de colaborador e o lote sem ativo visível, na empresa da SESSÃO',
+  },
+  'src/lib/actions/relatorios.ts': {
+    legada: 0,
+    operacao: 2,
+    destino: 'F70 — o slug do relatório e o consolidado são da empresa da SESSÃO',
+  },
+  'src/lib/actions/senhas.ts': {
+    legada: 0,
+    operacao: 2,
+    destino: 'F68 — a senha de visualização e a trilha dela são da empresa DA SENHA (o visualizador entra por ela)',
+  },
+  'src/lib/actions/tipos-item.ts': {
+    legada: 0,
+    operacao: 1,
+    destino: 'F70 — o tipo de item (e o homônimo por slug) é da empresa da SESSÃO',
+  },
   // F67B (16/11/2026) — o FILTRO DE EMPRESA das assinaturas de tempo real: a página (Server Component) passa a empresa
   // da operação por prop ao `RealtimeRefresh` (que é 'use client' e não a lê do navegador).
   'src/app/(app)/itens/historico/page.tsx': {
@@ -34,13 +77,13 @@ const CATRACA: Record<string, { legada: number; operacao: number; destino: strin
   },
   'src/app/(app)/relatorios/[filial]/page.tsx': {
     legada: 0,
-    operacao: 1,
-    destino: 'F70 — o filtro de empresa do tempo real pela empresa da SESSÃO (a segurança é a RLS de SELECT por assinante)',
+    operacao: 2,
+    destino: 'F70 — a empresa que resolve o slug e o filtro do tempo real: a da SESSÃO (F68: a da senha, no visualizador)',
   },
   'src/lib/actions/admin.ts': {
     legada: 0,
-    operacao: 4,
-    destino: 'F70 — a gestão de contas (cargo, vínculos, status, a trava do último administrador) da empresa da SESSÃO',
+    operacao: 12,
+    destino: 'F70 — a gestão de contas (cargo, vínculos, status, a trava do último administrador), a trilha delas, a filial e o motivo nascem na empresa da SESSÃO',
   },
   'src/lib/actions/conflitos.ts': {
     legada: 0,
@@ -49,13 +92,13 @@ const CATRACA: Record<string, { legada: number; operacao: number; destino: strin
   },
   'src/lib/actions/dev-destrutivo.ts': {
     legada: 0,
-    operacao: 6,
-    destino: 'F70 — o "tudo" e as linhas da Zona destrutiva (o banco confere a linha e a filial: 42501 se de outra empresa)',
+    operacao: 7,
+    destino: 'F70 — o "tudo", as linhas e o carimbo da limpeza de .docx sem linha da Zona destrutiva (o banco confere a linha e a filial: 42501 se de outra empresa)',
   },
   'src/lib/actions/dev.ts': {
     legada: 0,
-    operacao: 3,
-    destino: 'F70 — apagar conta e encerrar sessões na empresa da SESSÃO (a trava do último administrador por empresa)',
+    operacao: 6,
+    destino: 'F70 — apagar conta, encerrar sessões, trocar e-mail (e a trilha deles) na empresa da SESSÃO (a trava do último administrador por empresa)',
   },
   'src/lib/auth/acesso.ts': {
     legada: 1,
@@ -128,6 +171,7 @@ const RPCS_POR_EMPRESA = [
   'previa_reset',
   'apagar_ativos_conflito_filiais',
   'importar_ativos_substituir',
+  'registrar_limpeza_termos_sem_linha',
 ]
 
 /** As chamadas `chamarRpc(cliente, <nome>, { … })` de um texto: o nome (literal ou variável) e o objeto de argumentos. */

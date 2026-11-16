@@ -84,6 +84,7 @@ export async function alterarEmailUsuario(input: {
   }
 
   await registrarEventoAdmin({
+    empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
     acao: 'email_alterado',
     autor: aut.uid,
     alvo: email,
@@ -165,6 +166,7 @@ export async function apagarUsuario(input: {
   const contaRemovida = !del.error
 
   await registrarEventoAdmin({
+    empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
     acao: 'usuario_apagado',
     autor: aut.uid,
     alvo: email ?? estado.nome ?? estado.id,
@@ -243,6 +245,7 @@ export async function encerrarSessoes(input: { usuarioId: string }): Promise<Dev
 
   const quantas = typeof data === 'number' ? data : 0
   await registrarEventoAdmin({
+    empresa: empresaDaOperacao(), // F67C: a MESMA da RPC de conta (destino F70)
     acao: 'sessoes_encerradas',
     autor: aut.uid,
     alvo: (await emailDoUsuario(usuarioId)) ?? usuarioId,
