@@ -197,6 +197,7 @@
     "0192_termo_por_empresa.sql": "a966265415a6ef7893c9dce8b382664cc0b101af32e74b954ed8f2812b2c5da9",
     "0193_contracao_assinaturas_antigas.sql": "a7e750328fecbf3d946eadff0560e63c594b2cb79c5218a57b16d019052cc740",
     "0194_caminho_backup_por_empresa.sql": "ec2caf0de5a3a30eab98c7f447197327aabcc4e32e4deb984769ef26167ed73f",
-    "0195_backups_import_por_empresa_expansao.sql": "305462a75f039eb1f6a75e11eb27f7eb9968313199c063c1c6c7986c34be4561"
+    "0195_backups_import_por_empresa_expansao.sql": "305462a75f039eb1f6a75e11eb27f7eb9968313199c063c1c6c7986c34be4561",
+    "0196_backup_orfao_duas_formas.sql": "6a789bb294824665d64d59f395a22397e1f1a099e1b836716bbe418e5555ab4c"
   }
 }
