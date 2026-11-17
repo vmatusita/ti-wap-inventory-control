@@ -2,10 +2,11 @@
 
 **v1.75.0 no ar** — a expansão (`0200`–`0204`) aplicada nos dois bancos com a exatidão lote a lote; o app novo pelo merge
 do [PR #99](https://github.com/vmatusita/ti-wap-inventory-control/pull/99) (merge `16031e9c`, deploy às 19:03 de 16/11);
-o ensaio já contraído (`0205`–`0207`), com a prova viva 20/20 · 20/20; **em produção a CONTRAÇÃO espera a janela de 12 h**
-da Skew Protection (T1 ≥ 07:04 de 17/11) — ver §1.0 · SHA de código congelado **`1ea59f33`** · plano
-[`PLAN-F67C.md`](PLAN-F67C.md) · ata `DECISOES.md` (2026-11-16 · F67C) · evidência em [`f67c-evidencias/`](f67c-evidencias/)
-· tag `v1.75.0` no merge do PR de documentação.
+o ensaio contraído (`0205`–`0207`), com a prova viva 20/20 · 20/20; **em produção a CONTRAÇÃO às 07:06–07:17 de 17/11**,
+depois da janela de 12 h da Skew Protection (T1 com Δ 0) e com a vigília limpa (0 `23502`) — **nenhuma coluna
+`empresa_id` tem default nos dois bancos** · SHA de código congelado **`1ea59f33`** · plano [`PLAN-F67C.md`](PLAN-F67C.md)
+· ata `DECISOES.md` (2026-11-16 · F67C) · evidência em [`f67c-evidencias/`](f67c-evidencias/) · tag `v1.75.0` no merge do
+PR de documentação.
 
 > A oitava fase da virada multiempresa. Até aqui, as 20 colunas `empresa_id` de negócio tinham `default
 > public.empresa_legada()`: a linha que um escritor criasse sem dizer a empresa nascia da WAP por omissão — com uma empresa
@@ -21,23 +22,19 @@ da Skew Protection (T1 ≥ 07:04 de 17/11) — ver §1.0 · SHA de código conge
 
 # 1. O ROTEIRO DO JOHNNY — o que ficou com você
 
-## 1.0 O que está PENDENTE agora, e o comando
+## 1.0 O que está pendente: nada no banco — falta só a sua conferência à mão (§1.2)
 
-**A contração em PRODUÇÃO (`0205`, `0206`, `0207`) espera a janela.** A condição (decisão 12): nenhuma chamada NOVA numa
-forma de INSERT SEM `empresa_id`, nos papéis do app (`authenticated`, `service_role`), entre o deploy (19:03 de 16/11) e o
-T1; com a Skew Protection LIGADA (teto não legível → 12 h, o padrão do Pro), **T1 ≥ 2026-11-17 07:04 -03**. O T0 está em
-[`H-janela/T0.txt`](f67c-evidencias/H-janela/T0.txt).
+**A fase está inteira no ar.** A contração em produção rodou às 07:06 (`0205`, o acervo), 07:12 (`0206`, vocabulário e
+registros, com a assinatura antiga da ferramenta de órfão) e 07:17 (`0207`, `filiais`) de 17/11, depois da janela de 12 h
+(T1 às 07:05:27 igual ao T0 em todas as linhas — [`H-janela/T1.txt`](f67c-evidencias/H-janela/T1.txt)), com a vigília
+limpa depois de cada lote e nos 31 minutos depois do último (0 `23502` de 07:06 a 07:49; 0 falha da trilha de Auditoria)
+([`G-apply/producao-contracao.txt`](f67c-evidencias/G-apply/producao-contracao.txt)). A tag `v1.75.0` foi publicada no
+merge do PR de documentação.
 
-Se esta run não fechar a contração, o caminho é (cada passo só leitura, salvo os `apply`):
-1. O T1: rodar [`antes/formas-insert.sql`](f67c-evidencias/antes/formas-insert.sql) em produção (MCP `execute_sql`) e
-   comparar com o T0 — as linhas de `authenticated`/`service_role`, coluna `c_sem`. Subiu alguma? NÃO contraia: espere
-   mais 12 h e meça de novo (é um cliente velho, de antes do deploy).
-2. Δ 0: `apply_migration` em produção, um por vez, com o texto do arquivo inteiro: `contracao_default_acervo` ← `0205`;
-   esperar 5 min e contar os `23502` (passo 3); `contracao_default_registros` ← `0206`; 5 min; `contracao_default_filiais`
-   ← `0207`; 30 min.
-3. A vigília (só contagem), no MCP `query_logs` de produção:
-   `select count(*) from logs where source = 'postgres_logs' and log_attributes['parsed.sql_state_code'] = '23502'` na
-   janela desde o drop. **Qualquer número > 0 → o rollback do §1.1, do lote, IMEDIATAMENTE.**
+**Se nos próximos dias uma tela der erro de empresa** ("o registro ficou sem a empresa"): o `23502` aparece na contagem
+abaixo, e o remédio é o rollback do §1.1 só do lote daquela tabela — não muda nenhuma linha.
+- A contagem (só número), no MCP `query_logs` de produção:
+  `select count(*) from logs where source = 'postgres_logs' and log_attributes['parsed.sql_state_code'] = '23502'`.
 
 ## 1.1 O rollback do default — se uma tela der erro de empresa
 
@@ -93,6 +90,10 @@ Se uma delas der "o registro ficou sem a empresa", o rollback do §1.1 (o lote d
   partes=b`): a deriva SEM pendente (as migrations do ledger = as do repositório) e as 13 checagens IGUAIS aos números
   travados (`arquivo_termo_orfao` 3, `backup_orfao` 12, `conflito_entre_filiais` 59, `detentor_em_estado_sem_dono` 1, as
   outras 0). A Parte B continua vermelha pelos dois achados do #84 (memória): compare com a execução agendada anterior.
+- **Já rodada depois da contração** (17/11 ~07:25, `workflow_dispatch`, run `44064419716`): deriva **0 pendente** (a mais
+  nova no ledger é a `0207`); VERMELHA pelos MESMOS dois achados do #84 (`backup_orfao` 10 → 12,
+  `detentor_em_estado_sem_dono` 0 → 1) e o mesmo aviso (`conflito_entre_filiais` 59, base 69) da execução agendada de
+  antes do apply (run `43943355365`) — nada novo. A agendada de amanhã deve repetir isso.
 
 ## 1.4 O `git diff v1.74.0 v1.75.0 --stat` — o que deve e o que não deve aparecer
 
@@ -222,22 +223,47 @@ O PR #99 saiu do rascunho com os dois checks verdes no `1ea59f33` e foi mergeado
 **T0** às 19:03:45 de 16/11 ([`H-janela/T0.txt`](f67c-evidencias/H-janela/T0.txt)): nenhuma forma COM `empresa_id` ainda
 (o app novo não escreveu); 18 linhas (tabela, papel) com formas SEM. **A prova estática**: a árvore no ar = a do SHA
 congelado (`git diff 1ea59f33 16031e9c` vazio), com as varreduras de escrita, o tipo e o CI verdes. **A Skew Protection**:
-LIGADA, teto 12 h → T1 ≥ 07:04 de 17/11. *(T1 e a condição: a preencher.)*
+LIGADA, teto 12 h → T1 ≥ 07:04 de 17/11.
+
+**T1** às 07:05:27 de 17/11 ([`H-janela/T1.txt`](f67c-evidencias/H-janela/T1.txt)), com o mesmo instrumento e o mesmo
+`stats_reset` (nada zerou a contagem no meio): as 18 linhas IGUAIS ao T0 — **Δ `c_sem` = 0 em todas** → a condição está
+satisfeita. O deploy no ar no T1 é o mesmo do T0 (`dpl_EAveQcpBts8cyPvy2W8ueui1ARQQ`, `16031e9c`). Dito sem exagero: a
+noite não teve NENHUM INSERT de topo do app, nem SEM nem COM (`f_com` continua 0) — a janela prova que nenhum cliente
+velho escreveu sem a empresa, não que os escritores novos mandam a coluna em produção; isso vem da prova estática e da
+prova viva no ensaio (§16). Os `23502` nos logs do Postgres do merge ao T1: 0.
 
 ## 7.5 Produção — a contração
 
-*(A preencher depois do T1.)*
+([`G-apply/producao-contracao.txt`](f67c-evidencias/G-apply/producao-contracao.txt)) `apply_migration` com o texto de
+cada arquivo inteiro, um lote por vez, a vigília entre eles:
+
+| lote | aplicado (−03) | ledger | o que ficou com default depois | md5 das statements no ledger | vigília (`23502` nos logs · runtime do app) |
+|---|---|---|---|---|---|
+| `0205` o acervo (8) | 07:06:23 | 189 | as 12 dos lotes 2 e 3 | `28eeda1c…` = ensaio | 0 · 0 registros (07:06 → 07:11) |
+| `0206` vocabulário e registros (11) + a assinatura antiga | 07:12:11 | 190 | só `filiais`; a antiga AUSENTE, a nova de pé; 117 funções | `f22bf9e8…` = ensaio | 0 · 0 registros (07:12 → 07:17) |
+| `0207` `filiais` | 07:17:48 | 191 | nenhuma | `c8d60c7e…` = ensaio | 0 · 8 registros, todos do smoke desta run (07:17 → 07:49) |
+
+Depois: 22/22 colunas `empresa_id` NOT NULL e **0 com default**; 0 dependentes de `empresa_legada()` no `pg_depend`; **o
+catálogo INTEIRO de funções com o mesmo md5 nos dois bancos** (`7b461b5b…`, 117 funções, corpo, definição, definer e
+EXECUTE) — a paridade fecha sem delta declarado; as 62 policies com o md5 do "antes" (`cee318f5…`); 53 gatilhos. As 13
+checagens IGUAIS à linha travada; 0 linhas fora da legada. **O smoke: 109 OK · 0 falha**
+([`H-janela/smoke-pos-contracao.txt`](f67c-evidencias/H-janela/smoke-pos-contracao.txt)); **o conferidor: 272 pontos ·
+112.592 linhas · 0 recusadas · 0 reprovados**
+([`H-janela/conferidor-producao-pos-contracao.json`](f67c-evidencias/H-janela/conferidor-producao-pos-contracao.json)).
+Advisors de segurança: os 39 do "antes" (o +1 da expansão — a assinatura nova ao lado da antiga — saiu com a `0206`), 6
+INFO, 1 de senha vazada, 0 ERROR.
 
 # 8. O conferidor e o smoke
 
 | | ensaio | produção |
 |---|---|---|
-| conferidor | 248 pontos · 88.182 linhas · 0 recusadas · 1 não provado (sem colaborador no ensaio) | 272 pontos · 112.592 linhas · **0 recusadas · 0 reprovados** (depois da expansão) |
-| smoke | — | 109 OK · 1 aviso · **0 falha** (depois da expansão e depois do deploy) |
+| conferidor | 248 pontos · 88.182 linhas · 0 recusadas · 1 não provado (sem colaborador no ensaio) | 272 pontos · 112.592 linhas · **0 recusadas · 0 reprovados** (depois da expansão e, de novo, depois da contração) |
+| smoke | — | 109 OK · 1 aviso · **0 falha** (depois da expansão, depois do deploy e depois da contração) |
 
 # 9. As 13 checagens
 
-Produção: antes (17:00), depois da expansão e depois do deploy — **iguais à linha travada**: `arquivo_termo_orfao` 3 ·
+Produção: antes (17:00), depois da expansão, depois do deploy e depois da contração (07:18 de 17/11) — **iguais à linha
+travada**: `arquivo_termo_orfao` 3 ·
 `backup_orfao` 12 · `conflito_entre_filiais` 59 · `detentor_em_estado_sem_dono` 1 · as outras nove 0. Ensaio:
 `operador_sem_filial` 1, as outras doze 0 — antes e depois da contração.
 
@@ -274,24 +300,59 @@ cobrem em execução; um `try/catch` ausente que só degrada a mensagem; o 2º r
 | testes (arquivos · casos) | 274 · 8.775 | **281 · 8.965** |
 | roteiros · asserções | 63 · 1.299 | **65 · 1.368** |
 | injetor (teto) | 184 | **188** |
-| funções de `public` | 117 | 117 (ensaio contraído; produção 118 até a `0206`) |
+| funções de `public` | 117 | 117 nos dois bancos (o catálogo inteiro `7b461b5b…` nos dois) |
 | policies | 62 (`cee318f5…`) | 62 (`cee318f5…`) |
-| colunas `empresa_id` com default | 20 | **0** no ensaio · 20 em produção até a contração |
+| colunas `empresa_id` com default | 20 | **0** nos dois bancos |
+| ledger de produção | 183 | 191 (+ `0200`–`0207`) |
 
 # 14. Os 25 critérios, autoverificados
 
-*(A fechar depois da contração em produção.)*
+| # | critério | | onde |
+|---|---|---|---|
+| 1 | lint, test, typecheck, build, contraste, `verificar:actions`; `banco-sem-docker` verde (roteiros, injetor, `db:types:diff`) | ✅ | §12 (run `43960598691`) |
+| 2 | `PLAN-F67C.md` completo e anterior ao primeiro commit de código | ✅ | [`PLAN-F67C.md`](PLAN-F67C.md) |
+| 3 | o "antes" nos dois bancos, só números, nomes, esquema e hashes | ✅ | `f67c-evidencias/antes/` |
+| 4 | migrations desde a `0200`, classe, rodapé, `db:lock`, `DA_F38`; contração em arquivos por lote; nada de backfill/policy/`cascade` | ✅ | §2; `migrations-f38.test.ts`; o lock (206) |
+| 5 | **nenhuma das 20 com default nos dois bancos**; 15b/15c/15e/15l exigem; sabotagem A | ✅ | §7.1, §7.5, §10 |
+| 6 | as 18 gravam a empresa do pai, mesma assinatura (a 3ª decisão: a nova ao lado, a antiga derrubada na `0206`) | ✅ | exatidão 18/18 nos dois bancos; 15m; sabotagem B |
+| 7 | o app: `Insert` obrigatório, os 17 escritores, a trilha ALVO; varredura TS 0 | ✅ | sabotagens C, D, I |
+| 8 | os scripts e o `restaurar.mjs` | ✅ | sabotagem F; 8a/8c de `restauracao.sql` |
+| 9 | os leitores (a)–(d); o `update motivos` alcança um só | ✅ | M0–M3; sabotagem E |
+| 10 | a régua: escrever não é ler, a leitura acusa como antes | ✅ | sabotagem G |
+| 11 | a escrita de outra empresa no CI | ✅ | `escrita_por_empresa.sql` (55) |
+| 12 | os roteiros: 0 INSERT sem a coluna; asserções antes = depois | ✅ | §6 |
+| 13 | zero janela: T0, T1, a Skew Protection, a prova estática | ✅ | §7.4; `H-janela/` |
+| 14 | a vigília depois de cada lote e ≥ 30 min depois do último | ✅ | §7.5 (0 `23502` de 07:06 a 07:49; 0 falha da trilha) |
+| 15 | nada mudou para a WAP: 0 fora da legada, policies, smoke, conferidor, 13 checagens | ✅ | §7.5, §8, §9 |
+| 16 | funções fora da fase byte a byte; advisors sem novidade não declarada; paridade | ✅ | §7.5 (o catálogo inteiro igual nos dois bancos) |
+| 17 | o rollback nos dois estados, ensaiado no CI; F62–F67B medidos | ✅ | `f67c_rollback.sql`; sabotagem J |
+| 18 | o injetor: as mutações detectadas pelo cenário nomeado; teto 184 → 188 | ✅ | §12; `E-mutacoes/` |
+| 19 | `database.ts` só no que a fase mudou; `db:types:diff` verde | ✅ | §12 |
+| 20 | os documentos (ficha, notas, as regras R-ACC-137 a 143, ADR §19, RUNBOOK, aninhados, índices, ata) | ✅ | commit `7ebde64c`; este PR |
+| 21 | nenhuma dependência; intocados os workflows, o `CLAUDE.md` da raiz, policies, Storage, o seed de duas empresas, `empresa_legada()`; nenhuma linha de base subiu | ✅ | `git diff v1.74.0` vazio em `.github/`, `CLAUDE.md`, `package-lock.json`, `linha-de-base.json`; 0 `policy` nas migrations |
+| 22 | `1.75.0`, CHANGELOG, `registry.ts`; a tag no merge do PR de documentação | ✅ | `76676211`; a tag `v1.75.0` |
+| 23 | as sabotagens A–J com saída real | ✅ | `sabotagens/` |
+| 24 | nenhum dado real; da produção só números, nomes e textos de esquema, hashes | ✅ | as evidências; o `.env.local` só carregado pelos scripts (`--env-file`), nunca aberto. O varredor da F58 (`varrer-evidencias.mts`) sobre `f67c-evidencias/` e este relatório: 79 limpos; dois arquivos de saída de teste da mesa (`B-travas/*-vermelhos.txt`) acusados — os UUIDs e o patrimônio são os das fixtures (todos presentes no código de teste) e o "termo de filial" é a palavra genérica do nome de filial FICTÍCIO da fixture de `leitores-por-empresa.test.ts`, o mesmo falso positivo conhecido do documento das regras; nenhum dado real (§17) |
+| 25 | este relatório no padrão, com o roteiro no topo, o repouso e o "NÃO prova" | ✅ | §1, §15, §16 |
 
 # 15. O estado de repouso
 
-*(A fechar depois da contração em produção.)* Se o projeto parar ANTES da contração em produção: produção fica na
-expansão — as 18 funções e o app dizem a empresa, e o default continua lá, cobrindo um escritor esquecido. Não há
-pressa nem dívida: a contração é só o `apply` das três migrations, depois da condição do §1.0.
+Se o projeto parar aqui por dois meses, nada fica pela metade: os dois bancos estão no mesmo estado final (o catálogo
+de funções e policies idêntico), o app no ar é o do SHA congelado, e nenhuma coluna `empresa_id` tem default. Um
+escritor novo que esquecer a empresa não grava a WAP calado: leva `23502` com a frase da decisão 18, e as travas do CI
+(15l, 15m, a varredura TS, o tipo) o pegam antes do merge. Nada depende de uma segunda empresa existir. O que espera
+são as fases seguintes (F68, F70, F71 — §17), nenhuma com prazo. Se uma tela der erro de empresa nesse meio-tempo: o
+`set default` do lote daquela tabela (§1.1), que devolve o comportamento de antes sem mudar nenhuma linha.
 
 # 16. O que este relatório NÃO prova
 
 - **Que cada escritor RARO funciona em produção depois do drop** (filial, motivo, tipo, kit, senha, apelido, vocabulário,
   errata): provado pelo tipo, pelas varreduras e pelo CI; na janela, Δ 0 por ausência.
+- **Que os escritores COMUNS mandam a coluna em produção.** A janela de 12 h (a noite de 16 para 17/11) e as vigílias não
+  tiveram NENHUM INSERT de topo do app — `f_com` continua 0 no T1, e de 07:06 a 07:49 os únicos logs de runtime na
+  Vercel são os 8 do próprio smoke desta run (nenhum de usuário). O Δ 0 diz que nenhum cliente velho escreveu sem a empresa; que o app novo escreve COM ela vem do
+  tipo, das varreduras, do CI do SHA que está no ar e da prova viva no ensaio — e a primeira escrita real do dia é a sua
+  conferência do §1.2.
 - **Que uma empresa que não é a WAP escreve em produção** — os bancos vivos têm uma empresa só; provado no CI
   (`escrita_por_empresa.sql`) e, no ensaio, pela prova viva com a empresa legada.
 - **Que o import de uma empresa nova funciona de ponta a ponta** — o vocabulário inicial dela é da F70.
@@ -311,4 +372,6 @@ pressa nem dívida: a contração é só o `apply` das três migrations, depois 
 - **Backlog** (das fases anteriores, sem mudança): o conta a conta com as memberships desativadas; os caminhos sem `.max()`
   e os pares de tetos da F66B; `movimentacoes.itens_faltantes`; o `savepoint` por linha na RPC do import; a paginação
   keyset; derrubar `profiles.papel`/`ativo`; o WARN `multiple_permissive_policies` de `pendencias_item`; a retenção dos
-  backups antigos; o `try/catch` em volta de `empresaDaFilial` nas actions do import (a revisão: só a mensagem).
+  backups antigos; o `try/catch` em volta de `empresaDaFilial` nas actions do import (a revisão: só a mensagem); trocar o
+  nome de filial fictício da fixture de `src/lib/queries/leitores-por-empresa.test.ts` por um que não seja palavra
+  genérica (o varredor da F58 o acusa como termo de filial — falso positivo, mas ruído em toda varredura futura).

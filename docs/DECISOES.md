@@ -14256,3 +14256,25 @@ contraída — a F67C não tocou nenhuma delas.
   Merge do PR #99 (`16031e9c`), deploy, `/api/saude` 1.75.0, T0 da janela às 19:03:45.
 - **A janela de 12 h** (decisão 12): a Skew Protection medida LIGADA e o teto não legível (padrão Pro, 12 h) — a
   contração em produção espera T1 ≥ 07:04 de 17/11, depois do deploy de 19:03 (ver o relatório).
+
+**A contração em produção (17/11, depois da janela).**
+- **O T1** (07:05:27, o mesmo instrumento e o mesmo `stats_reset`): as 18 linhas (tabela, papel do app) iguais ao T0 —
+  Δ `c_sem` = 0 em todas → condição satisfeita. **Escolha:** contrair já, sem esperar tráfego. **Motivo:** a condição da
+  decisão 12 é "nenhuma chamada NOVA sem a empresa", e ela vale; a noite não teve NENHUM INSERT do app (nem COM), o que
+  enfraquece a janela como prova de que o app novo escreve — mas essa parte nunca foi dela (é do tipo, das varreduras,
+  do CI do SHA no ar e da prova viva), e esperar tráfego não muda o risco de um cliente velho, que já passou do teto da
+  Skew Protection. Declarado no §16 do relatório.
+- **Os três lotes** às 07:06 (`0205`), 07:12 (`0206`) e 07:17 (`0207`), cada um com o md5 das statements no ledger IGUAL
+  ao do ensaio (o mesmo texto) e a vigília entre eles (0 `23502`; nenhum log de runtime do app). Depois: 0 default nas 22
+  colunas, o catálogo inteiro de funções com o mesmo md5 nos dois bancos, as 62 policies como antes, as 13 checagens na
+  linha travada, smoke 0 falha, conferidor 0 recusadas, advisors com os 39 de antes.
+- **A Parte B do `saude.yml`** rodada à mão depois da contração (não esperei o dia seguinte): deriva 0 pendente (a mais
+  nova no ledger é a `0207`); vermelha pelos mesmos dois achados do #84 da execução agendada de antes do apply — nada
+  novo. **Por que à mão:** fechar o PR de documentação com a deriva conferida, em vez de deixá-la para a agendada.
+- **O varredor de evidências** (`scripts/formas/varrer-evidencias.mts`, a F58) sobre `f67c-evidencias/` e o relatório
+  acusou dois arquivos de saída de teste da mesa (`B-travas/*-vermelhos.txt`, do PR de código): UUIDs e um patrimônio
+  das fixtures (todos presentes no código de teste) e a palavra genérica do nome de filial fictício de
+  `leitores-por-empresa.test.ts` — o mesmo falso positivo do nome do documento das regras. **Escolha:** não editar a
+  evidência (é a saída real) nem o teste neste PR de documentação; registrar e pôr a troca do nome da fixture no
+  backlog. **Motivo:** não é dado real; mexer em `src/` aqui misturaria código no PR de docs. O relatório tinha uma
+  ocorrência minha (o nome do documento das regras no §14) — reescrita.

@@ -1253,8 +1253,9 @@ nenhuma linha nasce "da WAP por omissão".
 - **A janela por FORMA** em `pg_stat_statements` (só número; o PostgREST põe na lista só as chaves do payload), a **Skew
   Protection medida ligada** e a **vigília** dos `23502` depois de cada drop — o que a ficha de origem não tinha.
 
-**Pronto quando — o estado.** Ver o topo de [`RELATORIO-F67C.md`](RELATORIO-F67C.md) (o apply, a janela, a contração e a
-vigília em produção, ou o que ficou pendente com o comando).
+**Pronto quando — o estado.** **No ar desde 17/11/2026** (a expansão antes do merge `16031e9c`, a contração `0205`–`0207`
+às 07:06–07:17 depois da janela de 12 h da Skew Protection, com a vigília limpa — 0 `23502`): nenhuma das 22 colunas
+`empresa_id` de `public` tem default nos dois bancos. Detalhe no topo de [`RELATORIO-F67C.md`](RELATORIO-F67C.md).
 
 **Trava.** 15b/15c/15e (invertidas), 15l e 15m de `catalogo_policies.sql`; `escrita-com-empresa.test.ts`;
 `empresa-obrigatoria-no-insert.test.ts`; `escrita_por_empresa.sql`; `f67c_rollback.sql` + `rollback-f67c.test.ts`.
