@@ -1,0 +1,35 @@
+# F67C — a EXPANSÃO em PRODUÇÃO (pbtjcalbmepmrqzprusb), 16/11/2026 ~18:50–19:01 BRT, ANTES do merge (dentro de 24 h do
+# commit das migrations), pelo MCP apply_migration (o texto de cada arquivo inteiro). SÓ a expansão: a contração
+# (0205–0207) espera o deploy e a janela por forma. SHA de código: 1ea59f33 (CI verde: verificar + banco-sem-docker).
+
+O "antes" refeito logo antes (só catálogo e contagem):
+  funções 117, 13db2199895b9a79f91b012822b322a5 | policies 62, cee318f577345f75dc06b99874b8a867 | gatilhos 53
+  ledger 183, última 20261116134338 contracao_backups_por_empresa | defaults dependentes de empresa_legada(): 20
+  fora da legada nas 20: 0 | as 13 checagens = a linha travada (arquivo_termo_orfao 3, backup_orfao 12,
+  conflito_entre_filiais 59, detentor_em_estado_sem_dono 1, as outras 0)
+
+apply e prova por lote (a mesma consulta do ensaio):
+  0200 escrita_empresa_anotacoes      → 20261116185118 (ledger 184): exatidão  5/5  | as outras 112 = 3d2c7224… | policies cee318f5…
+  0201 escrita_empresa_movimentacoes  → 20261116185310 (ledger 185): exatidão 10/10 | as outras 107 = d984c7a7… | policies cee318f5…
+  0202 escrita_empresa_itens          → 20261116185456 (ledger 186): exatidão 14/14 | as outras 103 = 8413b6ee… | policies cee318f5…
+  0203 escrita_empresa_import         → (ledger 187)
+  0204 escrita_empresa_registros      → 20261116185618 (ledger 188): exatidão 18/18 | as outras 100 = f277adba… (esperado)
+    as 17 recriadas: definer/invoker e EXECUTE = 589183f797832a947ad54aa021e59fd2 (= o "antes": a ACL ficou)
+    a nova registrar_limpeza_termos_sem_linha(uuid, text, text, text): definer; anon 0, authenticated 1, service_role 0,
+      PUBLIC 0; comentário 553e0387adde69bd031098c3a0cbc42c (= o arquivo)
+    funções 118 (+ a nova; a antiga fica até a 0206) | policies 62, cee318f5… | defaults dependentes de empresa_legada(): 20
+
+Depois do último lote:
+  smoke (node scripts/smoke/smoke-prod.mjs, da branch): 109 OK · 1 aviso · 0 n/a · 0 falha — o aviso é o de sempre
+    (kits_modelos sem kit cadastrado: a RLS do anon não se prova); /api/saude: banco ok · versão 1.74.0 · commit bdf3e23
+    (o app NO AR ainda é o de antes — e funciona: o default ainda está nas 20); smoke-producao-pos-expansao.txt
+  conferidor (--alvo=producao, a conta do smoke, só contagens): 272 pontos · 112592 linhas · 0 recusadas · 0 reprovados;
+    conferidor-producao-pos-expansao.json
+  advisors SECURITY: rls_enabled_no_policy 6 · authenticated_security_definer_function_executable 40 (= os 39 do "antes"
+    + a assinatura NOVA da ferramenta de órfão, ao lado da antiga até a 0206 — o delta declarado) · leaked password 1 · ERROR 0
+  as 13 checagens: IGUAIS à linha travada | fora da legada nas 20: 0
+  PARIDADE ensaio × produção (o ensaio já contraído):
+    as 99 funções que nenhuma migration da F67C toca: 673464c134b4884bb89693cced10b469 nos DOIS
+    as 18 da F67C (corpo, functiondef, definer e EXECUTE): 3dd5c91a2173776eed92058854013f13 nos DOIS
+    delta declarado (só a contração, que só o ensaio tem): em produção os 20 defaults e a assinatura antiga da ferramenta
+    de órfão ainda existem

@@ -1,0 +1,106 @@
+
+######## Sabotagem C (2/3) — o `?` de volta no Insert de motivos (database.ts)
+(trocado em src/lib/types/database.ts; restaurado e conferido por sha256 ao fim)
+$ npx vitest run src/lib/validators/empresa-obrigatoria-no-insert.test.ts
+     × nenhuma das 20 aceita Insert sem empresa_id: a coluna é string e obrigatória (sem `?`) 28ms
+      Tests  1 failed | 6 passed (7)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/empresa-obrigatoria-no-insert.test.ts > o tipo como trava: empresa_id OBRIGATÓRIO no Insert das 20 (F67C, decisão 4) > nenhuma das 20 aceita Insert sem empresa_id: a coluna é string e obrigatória (sem `?`)
+AssertionError: expected [ Array(1) ] to deeply equal []
++   "motivos (Insert com empresa_id?: opcional)",
+(saída: código 1)
+
+######## Sabotagem C (3/3) — um `.insert(variavel)` não tipado sem a coluna, num script novo (.mjs, fora do tsc)
+(arquivo novo temporário: scripts/sabotagem-f67c-c3.mjs)
+$ npx vitest run src/lib/validators/escrita-com-empresa.test.ts
+     × toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no 1º argumento (ou na declaração do identificador) 7ms
+      Tests  1 failed | 47 passed (48)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/escrita-com-empresa.test.ts > toda escrita escreve a empresa — TS e scripts (decisão 5) > toda chamada `.from(<das 20>)…insert|upsert(` tem empresa_id no 1º argumento (ou na declaração do identificador)
+AssertionError: expected [ Array(1) ] to deeply equal []
++   "scripts/sabotagem-f67c-c3.mjs:4 (itens, insert)",
+(saída: código 1)
+
+######## Sabotagem D (TS) — criarColaboradorInline com a empresa da OPERAÇÃO onde devia ser a da filial
+(trocado em src/lib/actions/colaboradores.ts; restaurado e conferido por sha256 ao fim)
+$ npx vitest run src/lib/actions/leitores-por-empresa.test.ts
+     × com filial da empresa B: o homônimo da A não vale, e a pessoa nasce na B 64ms
+     × filial que não resolve empresa: recusa com frase, nunca grava sem empresa 2ms
+      Tests  2 failed | 8 passed (10)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarColaboradorInline — o nome_chave é único POR EMPRESA, e a empresa é a da FILIAL > com filial da empresa B: o homônimo da A não vale, e a pessoa nasce na B
+AssertionError: expected { ok: true, id: 'a-maria', …(1) } to match object { ok: true, id: 99 }
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > criarColaboradorInline — o nome_chave é único POR EMPRESA, e a empresa é a da FILIAL > filial que não resolve empresa: recusa com frase, nunca grava sem empresa
+AssertionError: expected true to be false // Object.is equality
+(saída: código 1)
+
+######## Sabotagem E — o `update motivos` sem a empresa (atualizarMotivo sem o `.eq('empresa_id', …)`)
+(trocado em src/lib/actions/admin.ts; restaurado e conferido por sha256 ao fim)
+$ npx vitest run src/lib/actions/leitores-por-empresa.test.ts
+     × grava SÓ na linha da empresa de quem escreve 167ms
+     × 0 linhas alcançadas: "Motivo não encontrado." 3ms
+      Tests  2 failed | 8 passed (10)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > atualizarMotivo — o código é único POR EMPRESA; o update só alcança a minha > grava SÓ na linha da empresa de quem escreve
+AssertionError: expected [ 1, 2 ] to deeply equal [ 1 ]
+ FAIL  |puro| src/lib/actions/leitores-por-empresa.test.ts > atualizarMotivo — o código é único POR EMPRESA; o update só alcança a minha > 0 linhas alcançadas: "Motivo não encontrado."
+AssertionError: expected { ok: true } to deeply equal { ok: false, …(1) }
+(saída: código 1)
+
+######## Sabotagem F — restaurar.mjs sem o preenchimento da empresa (a lista sem empresa_id)
+(trocado em scripts/db/restaurar.mjs; restaurado e conferido por sha256 ao fim)
+$ npx vitest run scripts/db/restaurar-guarda.test.mts
+     × backup SEM a chave (REESCRITO): a coluna ENTRA e vale a empresa da FILIAL da linha no destino — nunca o default 8ms
+     × ativos (tem filial_id): o subselect exato da filial 6ms
+     × movimentacoes (tem filial_id): o subselect exato da filial 2ms
+     × pendencias_item (tem filial_id): o subselect exato da filial 2ms
+     × lancamentos_item (tem filial_id): o subselect exato da filial 1ms
+     × anotacoes (só ativo_id): a empresa do ATIVO — que entra antes na ordem 1ms
+     × termos_gerados: a do 1º ativo de `ativo_ids` 2ms
+     × termos_gerados SEM ativo: a da 1ª movimentação de `movimentacao_ids` 1ms
+     × backup COM a chave: a coluna ENTRA, com a empresa que o backup traz (literal) 1ms
+     × lote MISTO (REESCRITO): nenhuma linha vai com null — a antiga recebe a da filial, a nova mantém a dela 1ms
+     × `empresa_id: null` na linha conta como ausente (resolve pela filial) 1ms
+     × SEM pai de onde tirar a empresa: RECUSA com frase clara, nada é montado 1ms
+      Tests  12 failed | 47 passed (59)
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > backup SEM a chave (REESCRITO): a coluna ENTRA e vale a empresa da FILIAL da linha no destino — nunca o default
+AssertionError: expected 'insert into public.ativos (id, patrim…' to match /^insert into public\.ativos \(id, pat…/
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > ativos (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.ativos (id, filial…' to contain '(select f.empresa_id from public.fili…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > movimentacoes (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.movimentacoes (id,…' to contain '(select f.empresa_id from public.fili…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > pendencias_item (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.pendencias_item (i…' to contain '(select f.empresa_id from public.fili…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > lancamentos_item (tem filial_id): o subselect exato da filial
+AssertionError: expected 'insert into public.lancamentos_item (…' to contain '(select f.empresa_id from public.fili…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > anotacoes (só ativo_id): a empresa do ATIVO — que entra antes na ordem
+AssertionError: expected 'insert into public.anotacoes (id, ati…' to contain '(select a.empresa_id from public.ativ…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > termos_gerados: a do 1º ativo de `ativo_ids`
+AssertionError: expected 'insert into public.termos_gerados (id…' to contain '(select a.empresa_id from public.ativ…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > termos_gerados SEM ativo: a da 1ª movimentação de `movimentacao_ids`
+AssertionError: expected 'insert into public.termos_gerados (id…' to contain '(select m.empresa_id from public.movi…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > backup COM a chave: a coluna ENTRA, com a empresa que o backup traz (literal)
+AssertionError: expected 'insert into public.ativos (id, patrim…' to match /^insert into public\.ativos \(id, pat…/
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > lote MISTO (REESCRITO): nenhuma linha vai com null — a antiga recebe a da filial, a nova mantém a dela
+AssertionError: expected 'insert into public.ativos (id, patrim…' to match /^insert into public\.ativos \(id, pat…/
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > `empresa_id: null` na linha conta como ausente (resolve pela filial)
+AssertionError: expected 'insert into public.ativos (id, filial…' to contain '(select f.empresa_id from public.fili…'
+ FAIL  |puro| scripts/db/restaurar-guarda.test.mts > F67C · `empresa_id` no backup — o default saiu: toda linha restaurada diz a empresa (decisão 11) > SEM pai de onde tirar a empresa: RECUSA com frase clara, nada é montado
+AssertionError: expected [Function] to throw an error
+(saída: código 1)
+
+######## Sabotagem G — uma leitura nova `.eq('empresa_id', …)` em ativos, fora da lista nominal
+(trocado em src/lib/queries/ativos.ts; restaurado e conferido por sha256 ao fim)
+$ npx vitest run src/lib/validators/empresa-acervo-sem-leitura.test.ts
+     × nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id — fora das duas exceções nominais da F65 9ms
+     × o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar 526ms
+      Tests  2 failed | 76 passed (78)
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — TS (decisão 7) > nenhuma consulta às oito (`.from` ou descritor de forma) cita empresa_id — fora das duas exceções nominais da F65
+AssertionError: expected [ Array(1) ] to deeply equal []
++   "src/lib/queries/ativos.ts:187 (ativos)",
+ FAIL  |puro| src/lib/validators/empresa-acervo-sem-leitura.test.ts > ninguém lê empresa_id do acervo antes da F66 — a catraca do literal em src/** > o literal empresa_id aparece EXATAMENTE onde a F62 o pôs, trecho a trecho, e em nenhum outro lugar
+AssertionError: empresa_id apareceu, sumiu ou mudou de consulta num arquivo de src/** — é leitura nova da coluna? O recorte do acervo é da F66: expected { …(15) } to deeply equal { …(14) }
++   "src/lib/queries/ativos.ts": [
+(saída: código 1)

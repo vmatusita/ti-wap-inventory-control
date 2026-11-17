@@ -1,0 +1,24 @@
+######## Sabotagem A — extra A, roteiros catalogo_policies
+206 migrations aplicadas + 1 extra(s)
+WARNING:  ✗ 1a toda tabela de public está CLASSIFICADA negócio × infra — não classificada(s): f67c_sabotagem_a: 1 de 30 fora da regra
+WARNING:  ✗ 3 nenhuma tabela de public fica sem SELECT por CATEGORIA — sem SELECT e fora da lista nominal: f67c_sabotagem_a: 1 de 30 fora da regra
+WARNING:  ✗ 15b as oito do lote 1 têm empresa_id uuid not null, FK validada para empresas e SEM default (sem force) — F67C — fora da forma: ativos (tem default (empresa_legada()) — desde a F67C a escrita diz a empresa): 1 de 8 fora da regra
+WARNING:  ✗ 15c toda tabela de negócio que TEM empresa_id (lida do catálogo) está na mesma forma (sem default, F67C) — fora da forma: motivos (tem default (empresa_legada()) — desde a F67C a escrita diz a empresa): 1 de 12 fora da regra
+WARNING:  ✗ 15e as onze do lote 2 têm empresa_id uuid not null, FK validada para empresas e SEM default (sem force) — F67C — fora da forma: motivos (tem default (empresa_legada()) — desde a F67C a escrita diz a empresa): 1 de 11 fora da regra
+WARNING:  ✗ 15l nenhuma coluna empresa_id de tabela de public tem default (a escrita diz a empresa; derivada do catálogo, inclusive tabela futura) — com default: ativos (default empresa_legada()); f67c_sabotagem_a (default empresa_legada()); motivos (default empresa_legada()): 3 de 23 fora da regra
+FALHOU   catalogo_policies                  ✓  42  ✗ 6  FIM 48/6  1.5 s  <- o contador declara 6 falha(s); marcou 6 ✗
+1 roteiro(s); 48 asserções declaradas (FIM); 42 ✓ contados; 6 ✗; 0 roteiro(s) só com ✗ de ambiente (esperado na mesa); 1 roteiro(s) com problema REAL; 4 s
+######## Sabotagem B — extra B, roteiros catalogo_policies,itens_quantidade,escrita_por_empresa
+206 migrations aplicadas + 1 extra(s)
+WARNING:  ✗ 15m todo INSERT numa das 20 de negócio no corpo de uma função de public tem lista de colunas e empresa_id nela — sem a empresa: lancar_itens_lote(jsonb,uuid): o INSERT em lancamentos_item sem empresa_id: 1 de 39 fora da regra
+FALHOU   catalogo_policies                  ✓  47  ✗ 1  FIM 48/1  1.5 s  <- o contador declara 1 falha(s); marcou 1 ✗
+OK       itens_quantidade                   ✓  14  ✗ 0  FIM 14/0  0.1 s
+OK       escrita_por_empresa                ✓  55  ✗ 0  FIM 55/0  0.9 s
+3 roteiro(s); 117 asserções declaradas (FIM); 116 ✓ contados; 1 ✗; 0 roteiro(s) só com ✗ de ambiente (esperado na mesa); 1 roteiro(s) com problema REAL; 5 s
+######## Sabotagem D — extra D, roteiros escrita_por_empresa
+206 migrations aplicadas + 1 extra(s)
+WARNING:  ✗ E11 lancar_itens_lote (membro da B): os lançamentos de item nascem da B: 2 de 2 fora da regra
+WARNING:  ✗ E12 reabrir_pendencias_item_com_estornos (membro da B): o inverso nasce da B: 1 de 2 fora da regra
+WARNING:  ✗ E13 resolver_pendencias_item_com_lancamentos (membro da B): os lançamentos nascem da B: 2 de 2 fora da regra
+FALHOU   escrita_por_empresa                ✓  52  ✗ 3  FIM 55/3  1.0 s  <- o contador declara 3 falha(s); marcou 3 ✗
+1 roteiro(s); 55 asserções declaradas (FIM); 52 ✓ contados; 3 ✗; 0 roteiro(s) só com ✗ de ambiente (esperado na mesa); 1 roteiro(s) com problema REAL; 4 s

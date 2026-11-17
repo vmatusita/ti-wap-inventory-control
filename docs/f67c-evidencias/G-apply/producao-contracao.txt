@@ -1,0 +1,60 @@
+# F67C — a CONTRAÇÃO em PRODUÇÃO (pbtjcalbmepmrqzprusb), 17/11/2026 07:06–07:17 -03, DEPOIS do deploy (16/11 19:03) e da
+# janela de 12 h (T1 07:05:27 com Δ c_sem = 0 — H-janela/T1.txt). MCP apply_migration, o texto de cada arquivo inteiro,
+# um lote por vez, com a vigília entre eles. Só catálogo, contagem e hash; nenhum valor de linha, nenhum DETAIL.
+
+O "antes" imediato (07:06:09): colunas empresa_id de public 22 · com default 20 · defaults dependentes de
+  empresa_legada() 20 · funções de public 118 · ledger 188, última 20261116185618 escrita_empresa_registros.
+
+apply, prova e vigília por lote:
+  0205 contracao_default_acervo     → 20261117070623 (ledger 189)
+       com default depois: as 12 de lote 2 e 3, nenhuma do acervo · dependentes de empresa_legada() 12 · not null 22/22
+       md5 das statements no ledger 28eeda1c391cefe1f7139340849434b0 = o MESMO do ensaio (o mesmo texto, byte a byte)
+       vigília 07:06 → 07:11 (≥ 5 min): 23502 nos logs do Postgres = 0 · registros de runtime do app na Vercel = 0
+         (nenhum tráfego) · auditoria.registro-evento = 0
+  0206 contracao_default_registros  → 20261117071211 (ledger 190)
+       com default depois: só filiais · dependentes de empresa_legada() 1
+       registrar_limpeza_termos_sem_linha(text,text,text): AUSENTE · (uuid,text,text,text): de pé · funções 117
+       md5 das statements no ledger f22bf9e8a442d0a0c829565e4670be94 = o do ensaio
+       vigília 07:12 → 07:17 (≥ 5 min): 23502 = 0 (contado desde 07:06) · runtime do app = 0 registros
+  0207 contracao_default_filiais    → 20261117071748 (ledger 191)
+       md5 das statements no ledger c8d60c7e62d4c65d8c11c1e5064d85d3 = o do ensaio
+       vigília final 07:17 → 07:49 (31 min): 23502 nos logs do Postgres = 0 (de 07:06 a 07:49, o período inteiro da
+         contração; os logs do Postgres do período: 11 linhas, todas 00000) · auditoria.registro-evento na Vercel = 0 ·
+         runtime do app: 8 registros, TODOS do smoke desta run às 07:20 — 6 avisos de largura de gráfico no SSR de
+         /relatorios/geral e o erro de guarda de /dev para a conta que não é dev ("restrita ao cargo Desenvolvedor") —, a
+         MESMA assinatura do smoke pós-deploy de 16/11 (22–23Z: os mesmos 6 + 2); nenhum de empresa, nenhum de usuário
+
+depois (07:18:28, execute_sql, só catálogo):
+  colunas empresa_id de public: 22 | not null: 22 | com default: 0
+  defaults dependentes de public.empresa_legada() no pg_depend: 0   (antes: 20)
+  registrar_limpeza_termos_sem_linha(text,text,text): AUSENTE
+  funções de public: 117 (70 definer) | o conjunto INTEIRO (nome, args, definer, md5 do prosrc, md5 do functiondef,
+    EXECUTE anon/authenticated/service_role/PUBLIC) = 7b461b5b6978bb9c788e14c75c164b3f — IGUAL ao do ensaio
+    (as 98 fora da fase: 12bfba3840dc7bb2f8864707e7514e9a nos dois; as 19 da fase — as 18 e a ponte empresa_da_filial:
+    7a193e0745c6223dbe9e30b29dbfff1d nos dois)
+  policies public+storage: 62, cee318f577345f75dc06b99874b8a867 (= o "antes" das 17:03 de 16/11: nenhuma policy mudou)
+  gatilhos não internos em public: 53
+  PARIDADE ensaio × produção: FECHADA — sem delta declarado (os dois bancos contraídos, o mesmo catálogo de funções e
+    policies)
+
+as 13 checagens (public.checagens_integridade_nucleo(), só chave e total): arquivo_termo_orfao 3 · ativo_filial_inativa
+  0 · backup_orfao 12 · conflito_entre_filiais 59 · conta_sem_perfil 0 · detentor_em_estado_sem_dono 1 ·
+  kit_motivo_orfao 0 · operador_sem_filial 0 · patrimonio_duplicado 0 · pendencia_de_estornada 0 · perfil_sem_conta 0 ·
+  reserva_aberta 0 · termo_sem_arquivo 0 — IGUAIS à linha travada
+linhas fora da legada, somadas nas 20: 0
+
+smoke (node scripts/smoke/smoke-prod.mjs): 109 OK · 1 aviso · 0 n/a · 0 falha — o aviso de sempre (kits_modelos sem kit
+  cadastrado: a RLS do anon não se prova); H-janela/smoke-pos-contracao.txt
+conferidor (scripts/formas/conferir.mts --alvo=producao, a conta do smoke, só contagens; árvore limpa em src/scripts, SHA
+  a9b8b638 = o código de 1ea59f33): 272 pontos · 112592 linhas · 0 recusadas · 0 com erro · 0 reprovados;
+  H-janela/conferidor-producao-pos-contracao.json
+advisors SECURITY: rls_enabled_no_policy 6 (INFO) · authenticated_security_definer_function_executable 39 (WARN — os 39
+  do "antes"; a ferramenta de órfão agora só na assinatura nova: o +1 declarado da expansão saiu com a 0206) ·
+  auth_leaked_password_protection 1 (WARN) · ERROR 0
+Parte B do saude.yml (workflow_dispatch, alvo=producao, partes=b), run 44064419716, 17/11 ~07:25:
+  deriva de migrations: 0 pendente(s) · a mais nova no ledger é 0207_contracao_default_filiais.sql
+  [FALHA] backup_orfao: passou da linha de base (10 → 12) · [FALHA] detentor_em_estado_sem_dono (0 → 1)
+  [AVISO] conflito_entre_filiais: hoje 59, base 69 · releitura 2 → 2 · VEREDITO: VERMELHO (2 achado(s))
+  = a execução agendada de ANTES do apply (run 43943355365, 16/11 19:49Z): os MESMOS dois achados do #84, o mesmo aviso;
+  a única diferença é a migration mais nova do ledger (0199 → 0207). O alarme do par (producao, integridade) foi
+  "atualizar" — o mesmo efeito da execução agendada no #84.

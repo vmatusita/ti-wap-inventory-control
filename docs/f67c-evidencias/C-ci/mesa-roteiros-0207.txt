@@ -1,0 +1,95 @@
+# F67C — os 65 roteiros na mesa PGlite (PG 17.5), cadeia 0001–0207 (o SHA 76676211), 16/11/2026.
+# node rodar.mjs --carregar=cadeia-0207.dump --roteiros=todos. AMBIENTE = ✗ que só a mesa produz (colação C, ICU, fuso,
+# pg_locks, constantes medidas no CI). O runner da mesa passou a repor o search_path do psql depois do discard all.
+
+dump carregado: cadeia-0207.dump (0.8 s)
+OK       asof_desempate                     ✓  21  ✗ 0  FIM 21/0  0.3 s
+OK       asserts_ferramenta                 ✓   8  ✗ 0  FIM 7/0  0.0 s
+OK       cargo_dev                          ✓  71  ✗ 0  FIM 71/0  0.2 s
+OK       cargo_em_membros                   ✓   5  ✗ 0  FIM 5/0  0.1 s
+OK       cargo_equivalencia                 ✓   7  ✗ 0  FIM 7/0  0.2 s
+OK       cargo_por_empresa                  ✓  15  ✗ 0  FIM 15/0  1.1 s
+OK       catalogo_policies                  ✓  48  ✗ 0  FIM 48/0  1.4 s
+OK       catalogo_secdef                    ✓  16  ✗ 0  FIM 16/0  0.0 s
+OK       colaborador_estorno                ✓  19  ✗ 0  FIM 19/0  0.1 s
+OK       colaborador_uso_efetivo            ✓  11  ✗ 0  FIM 11/0  0.1 s
+OK       comprimento_comportamento          ✓  28  ✗ 0  FIM 28/0  0.5 s
+OK       comprimento_por_coluna             ✓  17  ✗ 0  FIM 17/0  0.6 s
+OK       conflito_entre_empresas            ✓   8  ✗ 0  FIM 8/0  0.1 s
+OK       conflito_filiais                   ✓  51  ✗ 0  FIM 51/0  0.2 s
+OK       definer_sem_tenant                 ✓   9  ✗ 0  FIM 9/0  17.9 s
+OK       dev_destrutivo                     ✓ 109  ✗ 0  FIM 109/0  0.3 s
+OK       dominios_login                     ✓  16  ✗ 0  FIM 16/0  0.0 s
+OK       empresa_no_acervo                  ✓  22  ✗ 0  FIM 22/0  0.1 s
+OK       empresa_no_vocabulario             ✓  15  ✗ 0  FIM 15/0  0.3 s
+OK       escrita_atomica_ativos_anotacao    ✓  16  ✗ 0  FIM 16/0  0.1 s
+OK       escrita_por_empresa                ✓  55  ✗ 0  FIM 55/0  0.7 s
+OK       f34_triagem_reserva                ✓  21  ✗ 0  FIM 21/0  0.1 s
+OK       f36_detentor                       ✓  18  ✗ 0  FIM 18/0  0.1 s
+OK       f37_colaboradores_tipos            ✓  26  ✗ 0  FIM 26/0  0.1 s
+==== f38_itens_com_ativo ====
+WARNING:  ✗ 3d esperava ao menos 2 travas advisory dos itens, obtido 0
+WARNING:  ✗ TOTAL f38_itens_com_ativo: 1 falha(s) — 3d; 
+NOTICE:  FIM f38_itens_com_ativo: 51 asserções, 1 falhas
+AMBIENTE f38_itens_com_ativo                ✓  50  ✗ 2  FIM 51/1  0.1 s  <- o contador declara 1 falha(s); marcou 2 ✗
+OK       f41_regularizacao                  ✓  26  ✗ 0  FIM 26/0  0.1 s
+OK       f60_recorte                        ✓  17  ✗ 0  FIM 17/0  0.1 s
+OK       f62_rollback                       ✓   4  ✗ 0  FIM 4/0  0.6 s
+OK       f63_rollback                       ✓   5  ✗ 0  FIM 5/0  0.6 s
+OK       f64_rollback                       ✓   5  ✗ 0  FIM 5/0  0.9 s
+OK       f65_rollback                       ✓   5  ✗ 0  FIM 5/0  1.2 s
+OK       f66_rollback                       ✓   6  ✗ 0  FIM 6/0  0.5 s
+OK       f66b_rollback                      ✓   5  ✗ 0  FIM 5/0  0.1 s
+==== f67_rollback ====
+WARNING:  ✗ rb2 as policies de public e de storage depois do rollback são as do CI antes da 0185 — policies:48cba67f59b48cfd39c1c88f614b1bfc:62, esperado policies:df2385787c2c4137c144786d21a7ca86:62: 1 de 1 fora da regra
+WARNING:  ✗ rb6 o só-expansão (0185–0192 reaplicadas, sem a contração): o rollback devolve o esquema do CI antes da 0185 — funcoes:e5a982611889d7d2a1059069e4b701bc:106|gatilhos:faabdedeccadc5ee111e827b75da9976:52|policies:48cba67f59b48cfd39c1c88f614b1bfc:62|views:eb6a8509379eb9b77bfb59d4e7e5eb2f:9: 1 de 1 fora da regra
+NOTICE:  FIM f67_rollback: 7 asserções, 2 falhas
+AMBIENTE f67_rollback                       ✓   5  ✗ 2  FIM 7/2  0.3 s  <- o contador declara 2 falha(s); marcou 2 ✗
+==== f67b_rollback ====
+WARNING:  ✗ rb4 as policies de public e de storage depois do rollback são as do CI na cadeia até a 0193 — policies:b8d14dfa7cc1fbebefac8af378c638e4:62, esperado policies:23f75895fe22ee72d63cbdc5966036d4:62: 1 de 1 fora da regra
+WARNING:  ✗ rb7 o só-expansão (0194–0197 reaplicadas, sem a contração): o rollback devolve o esquema do CI na cadeia até a 0193: 1 de 1 fora da regra
+NOTICE:  FIM f67b_rollback: 9 asserções, 2 falhas
+AMBIENTE f67b_rollback                      ✓   7  ✗ 2  FIM 9/2  0.2 s  <- o contador declara 2 falha(s); marcou 2 ✗
+OK       f67c_rollback                      ✓  11  ✗ 0  FIM 11/0  0.2 s
+OK       forma_multiempresa                 ✓   8  ✗ 0  FIM 8/0  0.0 s
+==== fuso_do_negocio ====
+WARNING:  ✗ 1. a sessão roda em GMT — esperado America/Sao_Paulo. A migration 0124 foi revertida ou este banco nasceu depois dela sem reaplicá-la.
+WARNING:  ✗ 4. date → timestamptz ancorou em 2026-11-16 00:00:00+00 — deveria ser 00:00 -03
+NOTICE:  FIM fuso_do_negocio: 5 asserções, 2 falhas
+AMBIENTE fuso_do_negocio                    ✓   3  ✗ 2  FIM 5/2  0.0 s  <- o contador declara 2 falha(s); marcou 2 ✗
+OK       import_fora_da_unidade             ✓  14  ✗ 0  FIM 14/0  0.0 s
+OK       import_substituir                  ✓  32  ✗ 0  FIM 32/0  0.1 s
+OK       imutabilidade_tenant               ✓   9  ✗ 0  FIM 9/0  0.1 s
+OK       integridade_alarme                 ✓  40  ✗ 0  FIM 40/0  0.1 s
+==== integridade_tenant ====
+WARNING:  ✗ L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI) — a2955cb144fffa3c8d9fb94e86fdc6de, esperado 1b1de60c9eb6db1d797d93a8934bc79e: 1 de 1 fora da regra
+NOTICE:  FIM integridade_tenant: 24 asserções, 1 falhas
+AMBIENTE integridade_tenant                 ✓  23  ✗ 1  FIM 24/1  0.2 s  <- o contador declara 1 falha(s); marcou 1 ✗
+OK       isolamento_tenant                  ✓  48  ✗ 0  FIM 48/0  0.4 s
+OK       itens_extra                        ✓   4  ✗ 0  FIM 4/0  0.0 s
+OK       itens_quantidade                   ✓  14  ✗ 0  FIM 14/0  0.0 s
+OK       kit_motivo_da_empresa              ✓  14  ✗ 0  FIM 14/0  0.1 s
+OK       ledger_de_migracoes                ✓   6  ✗ 0  FIM 6/0  0.0 s
+OK       manutencao_fornecedor              ✓  19  ✗ 0  FIM 19/0  0.0 s
+OK       maquina_estados                    ✓  14  ✗ 0  FIM 14/0  0.1 s
+OK       movimentacao_grade                 ✓  45  ✗ 0  FIM 45/0  0.8 s
+OK       papeis_rls                         ✓  77  ✗ 0  FIM 77/0  0.2 s
+OK       pendencias_import_termo            ✓   5  ✗ 0  FIM 5/0  0.0 s
+OK       pendencias_item                    ✓  15  ✗ 0  FIM 15/0  0.0 s
+OK       reabrir_pendencia_item             ✓   4  ✗ 0  FIM 4/0  0.0 s
+OK       restauracao                        ✓  20  ✗ 0  FIM 20/0  0.0 s
+OK       seguranca_catalogo                 ✓   8  ✗ 0  FIM 8/0  0.0 s
+OK       storage_por_empresa                ✓  36  ✗ 0  FIM 36/0  0.3 s
+OK       storage_termo                      ✓  15  ✗ 0  FIM 15/0  0.0 s
+OK       termo_bloqueado                    ✓   7  ✗ 0  FIM 7/0  0.0 s
+==== transferencia_item ====
+WARNING:  ✗ 3a esperava 4 travas advisory, obtido 0
+WARNING:  ✗ TOTAL transferencia_item: 1 falha(s) — 3a; 
+NOTICE:  FIM transferencia_item: 18 asserções, 1 falhas
+AMBIENTE transferencia_item                 ✓  17  ✗ 2  FIM 18/1  0.1 s  <- o contador declara 1 falha(s); marcou 2 ✗
+OK       transicoes_extra                   ✓  13  ✗ 0  FIM 13/0  0.0 s
+OK       troca                              ✓  13  ✗ 0  FIM 13/0  0.1 s
+OK       unicidade_por_empresa              ✓   3  ✗ 0  FIM 3/0  0.0 s
+OK       vocabulario_import                 ✓  56  ✗ 0  FIM 56/0  0.0 s
+==== RESUMO ====
+65 roteiro(s); 1368 asserções declaradas (FIM); 1360 ✓ contados; 11 ✗; 6 roteiro(s) só com ✗ de ambiente (esperado na mesa); 0 roteiro(s) com problema REAL; 34 s

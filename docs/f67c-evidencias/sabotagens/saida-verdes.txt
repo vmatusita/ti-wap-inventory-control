@@ -1,0 +1,4 @@
+ ✓ |puro| src/lib/auditoria-registro-empresa.test.ts > registrarEventoAdmin — o INSERT leva empresa_id > manda a empresa do evento 21ms
+ ✓ |puro| src/lib/auditoria-registro-empresa.test.ts > registrarEventoAdmin — o INSERT leva empresa_id > 23502 em empresa_id: não propaga, nomeia a causa e NÃO leva o details ao log 2ms
+ ✓ |puro| src/lib/auditoria-registro-empresa.test.ts > registrarEventoAdmin — o INSERT leva empresa_id > outro erro (não 23502) segue o caminho de antes, sem causa nomeada 1ms
+      Tests  67 passed (67)

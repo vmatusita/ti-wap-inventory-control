@@ -1,0 +1,34 @@
+# F67C — a JANELA POR FORMA (decisão 12), T0, em PRODUÇÃO, 16/11/2026 19:03:45 -03, logo depois do deploy.
+# O instrumento: docs/f67c-evidencias/antes/formas-insert.sql (só número; a forma é classificada por regex DENTRO do SQL;
+# nenhum texto de query sai do banco), restrito aos papéis do app (authenticated, service_role).
+# pg_stat_statements: track=top, max=5000, save=on, stats_reset=2026-07-09 12:30:38 -03.
+
+O deploy: PR #99 mergeado em 2026-11-16T22:02:38Z (merge 16031e9c); /api/saude às 22:03:32Z: ok · versão 1.75.0 ·
+commit 16031e9 · banco ok. A árvore no ar = a do SHA de código congelado: `git diff 1ea59f33 16031e9c` vazio (a main não
+andou desde bdf3e231) — a prova estática (as varreduras de escrita SQL, TS e scripts, a trava do tipo e o CI inteiro)
+vale para o que está no ar: CI do 1ea59f33 verde (verificar + banco-sem-docker, run 43960598691).
+
+# tabela                papel           f_com c_com | f_sem  c_sem | f_sem_lista c_sem_lista
+anotacoes               authenticated       0     0 |     1     34 | 0 0
+anotacoes               service_role        0     0 |     1     12 | 0 0
+ativos                  service_role        0     0 |     2     20 | 0 0
+colaboradores           authenticated       0     0 |     2    134 | 0 0
+eventos_admin           service_role        0     0 |     1     37 | 0 0
+filiais                 authenticated       0     0 |     1      1 | 0 0
+itens                   authenticated       0     0 |     2     27 | 0 0
+itens                   service_role        0     0 |     1      1 | 0 0
+lancamentos_item        authenticated       0     0 |     3     67 | 0 0
+lancamentos_item        service_role        0     0 |     1    312 | 0 0
+motivos                 authenticated       0     0 |     1      1 | 0 0
+movimentacoes           authenticated       0     0 |     3    395 | 0 0
+movimentacoes           service_role        0     0 |     2  12755 | 0 0
+relatorios_gerados      authenticated       0     0 |     2     23 | 0 0
+relatorios_gerados      service_role        0     0 |     2      3 | 0 0
+senhas_acesso           service_role        0     0 |     2      7 | 0 0
+termos_gerados          authenticated       0     0 |     1    314 | 0 0
+tipos_item              authenticated       0     0 |     1      3 | 0 0
+(as outras tabelas das 20: nenhuma forma de INSERT de topo nos papéis do app)
+
+A condição da contração (decisão 12): nenhuma chamada NOVA numa forma SEM empresa_id, nos papéis do app, entre o fim do
+deploy e o T1. Com a Skew Protection LIGADA (teto 12 h, padrão Pro, não legível pela ferramenta — PLAN §0), a janela
+cobre 12 h depois do deploy: T1 ≥ 2026-11-17 07:04 -03.

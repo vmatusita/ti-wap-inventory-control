@@ -6,8 +6,13 @@
 -- default; como o dono, porque como `authenticated` a policy de INSERT recusa a empresa NULA antes (42501) — e (ii) o
 -- MESMO INSERT COM a empresa certa é aceito, como `authenticated` com as claims de um admin ativo da empresa legada do
 -- ensaio nas tabelas que têm policy de INSERT para `authenticated`; nas que não têm (só o service role ou as funções
--- escrevem: eventos_admin, senhas_acesso, import_prefixos_patrimonio, import_termos_categoria, import_termos_estado),
--- como o dono. Cada tentativa numa subtransação.
+-- escrevem: eventos_admin, senhas_acesso, import_prefixos_patrimonio, import_termos_categoria, import_termos_estado,
+-- pendencias_item — esta só nasce pelo gatilho da devolução), como o dono. Cada tentativa numa subtransação.
+-- Revisão de 16/11 (a 1ª rodada no ensaio deu 19/20 e 17/20 por defeito do ROTEIRO, não da escrita — ver a evidência):
+-- a movimentação usa uma transição válida a partir de em_estoque (marcar_defasado; `ajuste` sem status_resultante é
+-- recusado pela máquina de estados com P0001 nas duas formas); o termo COM a empresa leva o ativo e a movimentação que a
+-- policy de INSERT exige (array_length(ativo_ids) > 0, pode_escrever_termo, termo_ancora_coerente) — o SEM continua com
+-- as listas vazias (com ids, o gatilho do termo dá 23503 antes do 23502 — fato 8 do PLAN-F67C).
 do $$
 declare
   v_emp  uuid := public.empresa_legada();
@@ -24,7 +29,7 @@ declare
   v_fora    text := '';
   v_sufixo  text := 'f67c-pv-' || to_char(clock_timestamp(), 'HH24MISSMS');
   k_sem_policy constant text[] := array['eventos_admin', 'senhas_acesso', 'import_prefixos_patrimonio',
-                                         'import_termos_categoria', 'import_termos_estado'];
+                                         'import_termos_categoria', 'import_termos_estado', 'pendencias_item'];
   k_vinte constant text[] := array['anotacoes', 'ativos', 'colaboradores', 'itens', 'lancamentos_item', 'movimentacoes',
     'pendencias_item', 'termos_gerados', 'eventos_admin', 'import_logs', 'import_prefixos_patrimonio',
     'import_termos_categoria', 'import_termos_estado', 'kits_modelos', 'motivos', 'relatorios_gerados', 'senhas_acesso',
@@ -49,7 +54,7 @@ begin
       when 'colaboradores' then format('insert into public.colaboradores (nome, criado_por) values (%L, %L)', 'Fulano ' || v_sufixo, v_uid)
       when 'itens' then format('insert into public.itens (nome, grupo) values (%L, %L)', 'Item X ' || v_sufixo, 'acessorio')
       when 'lancamentos_item' then format('insert into public.lancamentos_item (item_id, filial_id, tipo, quantidade, data, criado_por) values (%s, %s, %L, 1, current_date, %L)', v_i, v_f, 'entrada', v_uid)
-      when 'movimentacoes' then format('insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, observacao) values (%L, %L, current_date, %s, %L, %L)', v_a, 'ajuste', v_f, v_uid, 'prova viva')
+      when 'movimentacoes' then format('insert into public.movimentacoes (ativo_id, tipo, data, filial_id, criado_por, observacao) values (%L, %L, current_date, %s, %L, %L)', v_a, 'marcar_defasado', v_f, v_uid, 'prova viva')
       when 'pendencias_item' then format('insert into public.pendencias_item (ativo_id, movimentacao_id, item, filial_id, colaborador) values (%L, %L, %L, %s, %L)', v_a, v_m, 'item ' || v_sufixo, v_f, 'Fulano')
       when 'termos_gerados' then format('insert into public.termos_gerados (tipo, movimentacao_ids, ativo_ids, colaborador, dados, gerado_por) values (%L, %L::uuid[], %L::uuid[], %L, %L::jsonb, %L)', 'responsabilidade_notebook', '{}', '{}', 'Fulano', '{}', v_uid)
       when 'eventos_admin' then format('insert into public.eventos_admin (acao, autor, alvo, detalhe) values (%L, %L, %L, %L::jsonb)', 'papel_alterado', v_uid, v_sufixo, '{}')
@@ -68,6 +73,11 @@ begin
     -- a forma COM: a coluna primeiro na lista e a empresa primeiro no valor
     v_com := regexp_replace(v_sem, '^insert into public\.([a-z_]+) \(', 'insert into public.\1 (empresa_id, ');
     v_com := regexp_replace(v_com, ' values \(', format(' values (%L::uuid, ', v_emp));
+    if v_t = 'termos_gerados' then
+      -- a policy também exige arquivo_path = id || '.docx' (o app grava os dois juntos — persistirTermo)
+      v_com := format('insert into public.termos_gerados (empresa_id, id, arquivo_path, tipo, movimentacao_ids, ativo_ids, colaborador, dados, gerado_por) select %L::uuid, g.id, g.id::text || %L, %L, %L::uuid[], %L::uuid[], %L, %L::jsonb, %L from (select gen_random_uuid() as id) g',
+                      v_emp, '.docx', 'responsabilidade_notebook', array[v_m], array[v_a], 'Fulano', '{}', v_uid);
+    end if;
     -- (i) sem a coluna: 23502 — como o DONO: como `authenticated`, a policy de INSERT (empresa_id = any(…)) recusa a
     --     linha com empresa NULA antes do NOT NULL (42501); o 23502 puro é o do motor, sem default (medido na mesa)
     begin

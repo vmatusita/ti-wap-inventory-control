@@ -1,0 +1,21 @@
+# F67C — o "antes" REFEITO no ENSAIO (sgmvldiizsrjbxzzpmhh), 16/11/2026 ~18:40 BRT, logo antes do apply da expansão,
+# pelo MCP execute_sql (só leitura). Só contagem, nome de objeto de esquema e hash. A consulta da foto é a mesma que
+# reproduziu, em PRODUÇÃO, os md5 do "antes" (funcoes.tsv 13db2199…, policies.tsv cee318f5…): o formato está validado.
+
+ledger: 196 entradas; última 20261116124123 contracao_backups_por_empresa (= a 0199)
+funções de public: 117 (70 security definer); md5 do TSV 13db2199895b9a79f91b012822b322a5 (= o "antes" das 17:03)
+policies public+storage: 62; md5 do TSV cee318f577345f75dc06b99874b8a867 (= o "antes")
+gatilhos não internos em public: 53
+colunas empresa_id em tabelas de public: 22, todas not null; defaults em empresa_id: 20; dependentes de
+  public.empresa_legada() no pg_depend: 20
+linhas fora da legada, somadas nas 20: 0
+as 13 checagens (checagens_integridade_nucleo(), só chave/total): operador_sem_filial 1; as outras doze 0 (= o "antes")
+
+# A janela e a sabotagem H (decisão 12): pg_stat_statements.track = top no ensaio. Doc oficial (PG 17, pgstatstatements):
+# "Specify top to track top-level statements (those issued directly by clients), all to also track nested statements
+# (such as statements invoked within functions)" — um INSERT dentro de DO/função NÃO é contado com track=top; e as
+# estatísticas de execução são atualizadas "only for successful operations" — um INSERT que leva 23502 NÃO aparece.
+# Consequência de desenho: (1) a sabotagem H é um INSERT de TOPO (não dentro de DO), numa transação desfeita por
+# rollback, como service_role (o papel do client administrativo; tem INSERT e bypassrls no ensaio); (2) a vigília dos
+# 23502 depois do drop NÃO pode ser por pg_stat_statements (a recusa não é contada): é pelos logs do Postgres
+# (query_logs, sql_state_code 23502). A doc não diz se a estatística é transacional: a sabotagem H mede.

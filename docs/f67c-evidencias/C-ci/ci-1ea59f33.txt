@@ -1,0 +1,86 @@
+# F67C — o CI do PR #99 sobre o SHA de código congelado 1ea59f33 (run 43960598691, 16/11/2026): verificar SUCCESS,
+# banco-sem-docker SUCCESS. Extrato do log do job banco-sem-docker (só as linhas de resumo; o log inteiro fica no GitHub).
+# O run anterior (76676211, 43959941283) caiu SÓ no rc5/rc8 de f67c_rollback (a impressão das policies com oids) — corrigido em 1ea59f33.
+
+> estoque-ti-wap@1.75.0 db:types:diff
+> node scripts/db/diff-tipos.mjs
+
+---- gate de deriva de tipos ----
+banco ....... 38 relações · 360 colunas · 105 funções
+database.ts . 38 relações · 360 colunas · 105 funções
+
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+psql:supabase/tests/vocabulario_import.sql:473: NOTICE:  === vocabulario_import: 56 asserções OK, 0 falhas ===
+psql:supabase/tests/vocabulario_import.sql:473: NOTICE:  FIM vocabulario_import: 56 asserções, 0 falhas
+  ✓ asof_desempate — 21 asserções
+  ✓ asserts_ferramenta — 7 asserções
+  ✓ cargo_dev — 71 asserções
+  ✓ cargo_em_membros — 5 asserções
+  ✓ cargo_equivalencia — 7 asserções
+  ✓ cargo_por_empresa — 15 asserções
+  ✓ catalogo_policies — 48 asserções
+  ✓ catalogo_secdef — 16 asserções
+  ✓ colaborador_estorno — 19 asserções
+  ✓ colaborador_uso_efetivo — 11 asserções
+  ✓ comprimento_comportamento — 28 asserções
+  ✓ comprimento_por_coluna — 17 asserções
+  ✓ conflito_entre_empresas — 8 asserções
+  ✓ conflito_filiais — 51 asserções
+  ✓ definer_sem_tenant — 9 asserções
+  ✓ dev_destrutivo — 109 asserções
+  ✓ dominios_login — 16 asserções
+  ✓ empresa_no_acervo — 22 asserções
+  ✓ empresa_no_vocabulario — 15 asserções
+  ✓ escrita_atomica_ativos_anotacao — 16 asserções
+  ✓ escrita_por_empresa — 55 asserções
+  ✓ f34_triagem_reserva — 21 asserções
+  ✓ f36_detentor — 18 asserções
+  ✓ f37_colaboradores_tipos — 26 asserções
+  ✓ f38_itens_com_ativo — 51 asserções
+  ✓ f41_regularizacao — 26 asserções
+  ✓ f60_recorte — 17 asserções
+  ✓ f62_rollback — 4 asserções
+  ✓ f63_rollback — 5 asserções
+  ✓ f64_rollback — 5 asserções
+  ✓ f65_rollback — 5 asserções
+  ✓ f66_rollback — 6 asserções
+  ✓ f66b_rollback — 5 asserções
+  ✓ f67_rollback — 7 asserções
+  ✓ f67b_rollback — 9 asserções
+  ✓ f67c_rollback — 11 asserções
+  ✓ forma_multiempresa — 8 asserções
+  ✓ fuso_do_negocio — 5 asserções
+  ✓ import_fora_da_unidade — 14 asserções
+  ✓ import_substituir — 32 asserções
+  ✓ imutabilidade_tenant — 9 asserções
+  ✓ integridade_alarme — 40 asserções
+  ✓ integridade_tenant — 24 asserções
+  ✓ isolamento_tenant — 48 asserções
+  ✓ itens_extra — 4 asserções
+  ✓ itens_quantidade — 14 asserções
+  ✓ kit_motivo_da_empresa — 14 asserções
+  ✓ ledger_de_migracoes — 6 asserções
+  ✓ manutencao_fornecedor — 19 asserções
+  ✓ maquina_estados — 14 asserções
+  ✓ movimentacao_grade — 45 asserções
+  ✓ papeis_rls — 77 asserções
+  ✓ pendencias_import_termo — 5 asserções
+  ✓ pendencias_item — 15 asserções
+  ✓ reabrir_pendencia_item — 4 asserções
+  ✓ restauracao — 20 asserções
+  ✓ seguranca_catalogo — 8 asserções
+  ✓ storage_por_empresa — 36 asserções
+  ✓ storage_termo — 15 asserções
+  ✓ termo_bloqueado — 7 asserções
+  ✓ transferencia_item — 18 asserções
+  ✓ transicoes_extra — 13 asserções
+  ✓ troca — 13 asserções
+  ✓ unicidade_por_empresa — 3 asserções
+  ✓ vocabulario_import — 56 asserções
+  65 roteiro(s), 1368 asserções no total
+  65 roteiro(s), 1368 asserções no total
+
+mutações ativas ..... 188
+controle verde: 33 roteiro(s), nenhum ✗.
+188/188 detectadas pelo cenário nomeado · 117788 ms no total
