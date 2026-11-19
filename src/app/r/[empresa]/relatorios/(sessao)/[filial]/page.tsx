@@ -1,6 +1,8 @@
 import { Info } from 'lucide-react'
-import { sessaoDaPorta } from '@/lib/relatorios/porta-sessao'
-import { caminhoDaPorta } from '@/lib/auth/porta-rotas'
+import { notFound } from 'next/navigation'
+import { pedirPorta } from '@/lib/supabase/publico'
+import { sessaoDaPorta, tratarRecusa } from '@/lib/relatorios/porta-sessao'
+import { caminhoDaPorta, filialForaDaPorta } from '@/lib/auth/porta-rotas'
 import { CabecalhoDaPagina, Pagina } from '@/components/layout/pagina'
 import { EstadoVazio } from '@/components/layout/estado-vazio'
 
@@ -12,10 +14,19 @@ export const maxDuration = 60
 
 // O ENDEREÇO DO AO VIVO NA PORTA PÚBLICA (F68 · decisão 19/11-1 do Johnny): até a F68B, o relatório AO VIVO não é servido
 // pela porta — só os gerados. Este endereço (para onde também levam, pelo 308, os links antigos `/relatorios/<filial>`)
-// mostra o aviso com o link para os gerados da MESMA empresa. A página não lê a filial da URL: nada aqui depende dela.
-export default async function AoVivoDaPortaPage({ params }: { params: Promise<{ empresa: string }> }) {
-  const { empresa } = await params
+// mostra o aviso com o link para os gerados da MESMA empresa. A filial da URL só é CONFERIDA: o Consolidado (`geral`) ou
+// uma filial da empresa da sessão — a lista vem da própria porta (pedido `gerados`, o mesmo par `filialForaDaPorta` da
+// página dos gerados); qualquer outro segmento é 404, não o aviso.
+export default async function AoVivoDaPortaPage({
+  params,
+}: {
+  params: Promise<{ empresa: string; filial: string }>
+}) {
+  const { empresa, filial } = await params
   const sessao = await sessaoDaPorta(empresa)
+  const r = await pedirPorta('gerados', sessao.empresa.slug, sessao.token, { pagina: 1, filiais: null })
+  if (!r.ok) tratarRecusa(sessao.empresa.slug, r.recusa)
+  if (filialForaDaPorta([filial], r.filiais)) notFound()
   return (
     <Pagina>
       <CabecalhoDaPagina titulo="Relatório ao vivo" descricao={sessao.empresa.nome} />

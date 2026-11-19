@@ -49,8 +49,24 @@ export function entradaDaPorta(slug: string, destino?: string | null): string {
   return destino ? `${base}?next=${encodeURIComponent(destino)}` : base
 }
 
+// A travessia, literal OU codificada: o navegador resolve `%2e%2e` como `..` (o segmento de ponto-ponto da URL aceita a
+// forma codificada), e `%2f`/`%5c`/`%25` (a barra, a invertida, o `%` de uma dupla codificação) e as quebras de linha
+// codificadas não têm uso legítimo num destino daqui — recusar todas é mais simples que decodificar e conferir de novo.
 const destinoInseguro = (s: string) =>
-  s.includes('..') || s.includes('\\') || s.includes('//') || /[\r\n\t]/.test(s)
+  s.includes('..') ||
+  s.includes('\\') ||
+  s.includes('//') ||
+  /[\r\n\t]/.test(s) ||
+  /%(2e|2f|5c|25|0d|0a|09)/i.test(s)
+
+/** O caminho que o NAVEGADOR resolveria (a normalização da URL) — a segunda conferência do prefixo. */
+function caminhoResolvido(s: string): string | null {
+  try {
+    return new URL(s, 'http://porta.invalid').pathname
+  } catch {
+    return null
+  }
+}
 
 /**
  * O destino pós-entrada, validado DENTRO DA MESMA EMPRESA: só `/r/<slug>/relatorios/…` desta empresa, nunca a própria
@@ -64,6 +80,8 @@ export function destinoNaPorta(slug: string, next: unknown): string {
   if (!next.startsWith(prefixo)) return padrao
   if (next.startsWith(caminhoDaPorta(slug, 'acesso'))) return padrao
   if (destinoInseguro(next)) return padrao
+  const resolvido = caminhoResolvido(next)
+  if (!resolvido || !resolvido.startsWith(prefixo) || resolvido.startsWith(caminhoDaPorta(slug, 'acesso'))) return padrao
   return next
 }
 

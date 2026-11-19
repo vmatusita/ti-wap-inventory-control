@@ -26,8 +26,8 @@ export const metadata = {
 // página muda o de todas as actions usadas nela). Cada statement delas já para nos 8 s de
 // `statement_timeout` do banco (fato 18), então o que decide é o LAÇO, e aqui não há laço
 // que cresça com o acervo:
-// `criarSenhaAcesso`/`testarSenhaAcesso` são um scrypt e uma escrita/leitura,
-// `definirStatusSenha` uma escrita.
+// `criarSenhaAcesso`/`testarSenhaAcesso`/`definirStatusSenha` são UMA RPC cada (F68: o bcrypt roda
+// dentro do banco — no máximo 6 crypt() na criação, com o teto de 5 ativas).
 export const maxDuration = 60
 
 export default async function AdminSenhasPage() {

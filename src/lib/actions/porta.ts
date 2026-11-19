@@ -66,7 +66,9 @@ export async function entrarNaPorta(_prev: EntrarPortaState, formData: FormData)
  *  sai do mesmo jeito, e a sessão vence sozinha em 24 h. */
 export async function sairDaPorta(formData: FormData): Promise<void> {
   const slug = formData.get('empresa')
-  if (!slugValido(slug)) redirect('/')
+  // slug fora do formato só chega forjado (o formulário do cabeçalho leva o slug da sessão): não há cookie de empresa a
+  // apagar nem porta para onde voltar, e NUNCA um destino fora de /r/** — nada acontece
+  if (!slugValido(slug)) return
   const cookieStore = await cookies()
   const token = cookieStore.get(PORTA_COOKIE)?.value
   if (token) {

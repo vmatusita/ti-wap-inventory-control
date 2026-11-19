@@ -38,7 +38,6 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspect } from 'node:util'
-import { createHmac } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
@@ -124,8 +123,6 @@ const chaveAnon =
   ''
 const email = process.env.PERF_EMAIL || process.env.SMOKE_EMAIL || ''
 const senha = process.env.PERF_SENHA || process.env.SMOKE_SENHA || ''
-const segredoView = process.env.VIEW_SESSION_SECRET || ''
-const chaveServico = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 const REPETICOES = numeroOuPadrao(opcao('repeticoes', process.env.PERF_REPETICOES), 11)
 const AQUECIMENTO = numeroOuPadrao(opcao('aquecimento', process.env.PERF_AQUECIMENTO), 2)
@@ -138,7 +135,7 @@ const SEM_SESSAO = temFlag('sem-sessao')
 // 2. Máscara de segredos — envolve TODO o console (padrão do smoke)
 // ---------------------------------------------------------------------------
 
-const SEGREDOS = [senha, email, chaveAnon, segredoView, chaveServico].filter(
+const SEGREDOS = [senha, email, chaveAnon].filter(
   (v) => typeof v === 'string' && v.length >= 8,
 )
 
@@ -177,24 +174,17 @@ function cookieDaSessao(sessao) {
   return `sb-${ref}-auth-token=${valor}`
 }
 
-// Cookie da sessão de VISUALIZAÇÃO por senha. Espelha `assinarSessaoView` de
-// src/lib/auth/senha-sessao.ts (fonte da verdade: aquele arquivo; aqui é a
-// mesma conta HMAC-SHA256 sobre {sid, exp}, porque um .mjs não importa TS
-// marcado com `server-only`). Se a assinatura divergir, o app recusa o cookie e
-// a medição do visualizador vira redirect — o que este script REPORTA (status
-// 307), em vez de fingir que mediu.
-function cookieViewer(senhaId) {
-  const exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60
-  const body = Buffer.from(JSON.stringify({ sid: senhaId, exp })).toString('base64url')
-  const assinatura = createHmac('sha256', segredoView).update(body).digest('base64url')
-  return `wap_view=${body}.${assinatura}`
-}
+// F68 (v1.76.0): a medição do VISUALIZADOR por senha saiu. Ela forjava o cookie `wap_view` (HMAC com
+// VIEW_SESSION_SECRET) — e desde a F68 o visualizador vive na porta pública (`/r/<slug>/relatorios/**`), com a sessão
+// numa LINHA do banco (`sessoes_visualizador`, token opaco aberto por `relatorio_publico_abrir` com uma senha bcrypt):
+// não há mais o que forjar. Medir a porta com sessão exige uma senha de acesso bcrypt de medição — a mesma pendência do
+// smoke positivo (F73). A ENTRADA da porta (pública) continua medida abaixo.
 
 // Ids das rotas dinâmicas: descobertos a cada execução, em ordem
 // DETERMINÍSTICA (menor id), para que "antes" e "depois" meçam a mesma página.
 // Nenhum deles vai para o arquivo de saída.
 async function descobrirContexto() {
-  const ctx = { ativoId: null, filialSlug: null, geradoId: null, senhaId: null, sessao: null }
+  const ctx = { ativoId: null, filialSlug: null, geradoId: null, sessao: null }
   if (SEM_SESSAO) return ctx
 
   const faltando = []
@@ -236,30 +226,6 @@ async function descobrirContexto() {
     .limit(1)
   ctx.geradoId = gerados?.[0]?.id ?? null
 
-  // Senha de acesso ATIVA para a sessão de visualizador. A tabela é
-  // administrativa: tenta com a sessão do operador e, se a RLS recusar, cai
-  // para a service role (script LOCAL — permitido pelo CLAUDE.md §4).
-  if (segredoView) {
-    let { data: senhas } = await db
-      .from('senhas_acesso')
-      .select('id')
-      .eq('ativa', true)
-      .order('id')
-      .limit(1)
-    if (!senhas?.length && chaveServico) {
-      const admin = createClient(urlSupabase, chaveServico, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      })
-      const r = await admin
-        .from('senhas_acesso')
-        .select('id')
-        .eq('ativa', true)
-        .order('id')
-        .limit(1)
-      senhas = r.data
-    }
-    ctx.senhaId = senhas?.[0]?.id ?? null
-  }
   return ctx
 }
 
@@ -269,8 +235,6 @@ async function descobrirContexto() {
 
 function montarRotas(ctx) {
   const cookieOperador = ctx.sessao ? cookieDaSessao(ctx.sessao) : null
-  const cookieVis =
-    ctx.senhaId && segredoView ? cookieViewer(ctx.senhaId) : null
 
   const rotas = []
   // `estatico: true` marca rota PÚBLICA e pré-renderizada, que a borda serve de
@@ -287,7 +251,8 @@ function montarRotas(ctx) {
 
   // Públicas: passam pelo proxy mas não tocam o banco de negócio.
   add('/login', '/login', 'publico', null)
-  add('/relatorios/acesso', '/relatorios/acesso', 'publico', null)
+  // A entrada da porta pública da WAP (F68). O endereço antigo `/relatorios/acesso` agora é um 308 para ela.
+  add('/r/wap/relatorios/acesso', '/r/wap/relatorios/acesso', 'publico', null)
 
   if (cookieOperador) {
     // SONDA DO CUSTO DO PROXY — a medição mais importante da Frente B.
@@ -335,20 +300,6 @@ function montarRotas(ctx) {
         `/relatorios/gerados/${ctx.geradoId}`,
         'operador',
         cookieOperador,
-      )
-  }
-
-  if (cookieVis) {
-    add('/relatorios/geral', '/relatorios/geral', 'visualizador', cookieVis)
-    if (ctx.filialSlug)
-      add('/relatorios/[filial]', `/relatorios/${ctx.filialSlug}`, 'visualizador', cookieVis)
-    add('/relatorios/gerados', '/relatorios/gerados', 'visualizador', cookieVis)
-    if (ctx.geradoId)
-      add(
-        '/relatorios/gerados/[id]',
-        `/relatorios/gerados/${ctx.geradoId}`,
-        'visualizador',
-        cookieVis,
       )
   }
 

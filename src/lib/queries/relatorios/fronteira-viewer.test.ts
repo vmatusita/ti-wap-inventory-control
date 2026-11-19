@@ -138,6 +138,20 @@ describe('a fronteira da porta pública (mesa TS): a árvore /r/** só fala pela
     expect(chamadasAoBanco(readFileSync(join(RAIZ, PUBLICO), 'utf8')).rpcs.sort()).toEqual([...PORTAS])
   })
 
+  it('o fecho é ESTÁTICO (nenhum import dinâmico) e todo chamarRpc tem o nome LITERAL — sem eles a varredura fica cega', () => {
+    const cegos: string[] = []
+    for (const a of SUPERFICIE) {
+      const f = readFileSync(a, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+      // `import(…)`, `require(…)`, `next/dynamic`, `React.lazy`: o alvo não está no grafo que esta trava lê
+      if (/\bimport\s*\(|\brequire\s*\(|next\/dynamic|\blazy\s*\(/.test(f)) cegos.push(`${posix(a)}: import dinâmico`)
+      // um chamarRpc com o nome numa variável não é visto pelo detector de rpcs acima
+      const chamadas = [...f.matchAll(/\bchamarRpc\s*\(/g)].length
+      const literais = [...f.matchAll(/\bchamarRpc\s*\(\s*[^,]+,\s*'[^']+'/g)].length
+      if (posix(a) !== 'src/lib/supabase/rpc.ts' && chamadas !== literais) cegos.push(`${posix(a)}: chamarRpc sem nome literal`)
+    }
+    expect(cegos).toEqual([])
+  })
+
   it('publico.ts é o client SEM sessão: supabase-js puro, chave anon, nada de cookie', () => {
     const f = readFileSync(join(RAIZ, PUBLICO), 'utf8').replace(/\/\/[^\n]*/g, ' ')
     expect(f).toContain("from '@supabase/supabase-js'")
@@ -179,7 +193,7 @@ describe('a fronteira da porta pública (mesa SQL): o corpo das duas funções s
     it(`${porta}: só tabelas da lista branca, e nunca pessoas`, () => {
       const { sql } = corpoVigente(assinatura)
       const codigo = sql.replace(/--[^\n]*/g, ' ')
-      const citadas = [...new Set([...codigo.matchAll(/\b(?:from|join|update|into)\s+((?:public|auth)\.\w+)/gi)].map((m) => m[1]!.toLowerCase()))]
+      const citadas = [...new Set([...codigo.matchAll(/\b(?:from|join|update|into|using)\s+((?:public|auth)\.\w+)/gi)].map((m) => m[1]!.toLowerCase()))]
       expect(citadas.length).toBeGreaterThan(0)
       expect(citadas.filter((t) => !Object.hasOwn(TABELAS_DA_PORTA, t)), porta).toEqual([])
       for (const t of NUNCA) expect(codigo.toLowerCase(), `${porta} cita ${t}`).not.toContain(t)
@@ -196,5 +210,25 @@ describe('a fronteira da porta pública (mesa SQL): o corpo das duas funções s
     const teto = /k_max_ativas constant int := (\d+);/.exec(criar)?.[1]
     const laco = /k_max_candidatas constant int := (\d+);/.exec(abrir)?.[1]
     expect(laco).toBe(teto)
+  })
+
+  it('o laço da senha faz SEMPRE k_max_candidatas crypt(): sem saída antecipada, o resultado guardado antes de comparar', () => {
+    // A medição de tempo do ensaio (n = 30 por caminho) prova a forma UMA vez; esta trava a segura no CI: um `exit`, um
+    // `return` ou um `continue` dentro do laço, ou um crypt() só dentro do `if`, fariam a senha certa custar menos que a
+    // errada — o oráculo de tempo que as cinco recusas iguais fecham.
+    const abrir = corpoVigente('public.relatorio_publico_abrir(text, text, text)').sql.replace(/--[^\n]*/g, ' ')
+    const lacos = [...abrir.matchAll(/\bfor\s+(\w+)\s+in\s+1\s*\.\.\s*k_max_candidatas\s+loop\b([\s\S]*?)\bend\s+loop\b/gi)]
+    expect(lacos).toHaveLength(1)
+    const corpo = lacos[0]![2]!
+    expect(corpo, 'saída antecipada dentro do laço').not.toMatch(/\b(exit|return|continue|raise)\b/i)
+    // o hash do passo: a candidata OU o sal fictício (nunca "pular" a que falta)
+    expect(corpo).toMatch(/v_h\s*:=\s*coalesce\(\s*v_hashes\[\s*\w+\s*\]\s*,\s*k_sal_ficticio\s*\)\s*;/i)
+    // o crypt() incondicional, ANTES do primeiro `if`
+    const crypt = corpo.search(/\bv_r\s*:=\s*extensions\.crypt\(/i)
+    const primeiroIf = corpo.search(/\bif\b/i)
+    expect(crypt).toBeGreaterThanOrEqual(0)
+    expect(primeiroIf).toBeGreaterThan(crypt)
+    // e nenhum OUTRO crypt() fora do laço (o trabalho por chamada é o do laço, nem mais, nem menos)
+    expect([...abrir.matchAll(/\bextensions\.crypt\(/gi)]).toHaveLength(1)
   })
 })

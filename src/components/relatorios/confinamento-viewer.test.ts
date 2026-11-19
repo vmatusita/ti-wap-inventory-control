@@ -53,7 +53,8 @@ const RAIZ = join(process.cwd(), 'src')
 // (lib/auth/porta-rotas.ts, função pura testada abaixo com entradas hostis), nunca de literal solto.
 function arvoreDaPorta(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? arvoreDaPorta(join(dir, e.name)) : e.name.endsWith('.tsx') ? [join(dir, e.name)] : [],
+    // `.ts` também: um `route.ts` ou `loading.ts` na árvore é superfície da porta tanto quanto uma página
+    e.isDirectory() ? arvoreDaPorta(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
   )
 }
 const RAIZES = [
@@ -235,7 +236,18 @@ function hrefsLiterais(fonte: string): string[] {
 function ehInterno(href: string): boolean {
   // Fragmento da própria página (`#resumo`) ou a PORTA (F68: `/r/…`). Os endereços antigos `/relatorios/**` são do
   // operador (sem operador, o proxy os manda em 308 para a porta da legada).
-  return href.startsWith('#') || href.startsWith('/r/')
+  // Sem travessia: `/r/../ativos` começa com `/r/` e não é da porta.
+  return (href.startsWith('#') || href.startsWith('/r/')) && !href.includes('..')
+}
+
+// Os destinos de NAVEGAÇÃO por código — `redirect(…)`, `permanentRedirect(…)`, `router.push/replace(…)` e
+// `window.location` —, que o varredor de `href` não vê. Só o PREFIXO literal (até o primeiro `${`) é conferível: um destino
+// que começa por expressão (`redirect(entradaDaPorta(…))`, um template que abre com `${pathname}`) sai de função testada
+// ou da própria URL, e passa.
+const RE_NAVEGACAO =
+  /\b(?:redirect|permanentRedirect|router\.push|router\.replace|location\.assign|location\.replace)\(\s*(['"`])([^'"`$]*)|\blocation(?:\.href)?\s*=\s*(['"`])([^'"`$]*)/g
+function destinosDeNavegacao(fonte: string): string[] {
+  return [...fonte.matchAll(RE_NAVEGACAO)].map((m) => m[2] ?? m[4] ?? '').filter((d) => d.length > 0)
 }
 
 // F68 — os componentes da pasta `components/relatorios/` que só o AO VIVO usa, e que por isso saíram da superfície da
@@ -408,6 +420,23 @@ describe('confinamento do visualizador: nenhum link da superfície da PORTA sai 
       vazamentos,
       'o visualizador por senha não tem sessão do Supabase: link fora da porta (/r/**) o tira da porta',
     ).toEqual([])
+  })
+
+  it('todo destino LITERAL de navegação por código (redirect, router.push, location) é interno (F68)', () => {
+    const fora: string[] = []
+    for (const caminho of arquivos) {
+      const nome = caminho.split(/[\\/]/).pop()!
+      // `?…` só troca a busca da MESMA página (o `router.replace(\`?${nova}\`)` das barras): não sai de onde está
+      for (const d of destinosDeNavegacao(readFileSync(caminho, 'utf8')))
+        if (!ehInterno(d) && !d.startsWith('?')) fora.push(`${nome}: "${d}"`)
+    }
+    expect(fora, 'um redirect/push literal para fora da porta tira o visualizador dela').toEqual([])
+    // a guarda do próprio detector
+    expect(destinosDeNavegacao("redirect('/ativos')")).toEqual(['/ativos'])
+    expect(destinosDeNavegacao('router.push(`/login?x=${y}`)')).toEqual(['/login?x='])
+    expect(destinosDeNavegacao("window.location.href = '/login'")).toEqual(['/login'])
+    expect(destinosDeNavegacao('redirect(entradaDaPorta(slug))')).toEqual([])
+    expect(ehInterno('/r/../ativos')).toBe(false)
   })
 
   // O detector precisa de guarda própria: um regex que pare de casar transformaria

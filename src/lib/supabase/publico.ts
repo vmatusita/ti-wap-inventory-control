@@ -48,7 +48,8 @@ export async function abrirPorta(slug: string, senha: string, origem: string): P
     p_senha: senha,
     p_origem: origem,
   })
-  if (error) return { tipo: 'falha', erro: error }
+  // só o código e a mensagem do PostgREST (o molde de `auditoria-registro.ts`): o `details`/`hint` podem trazer valores
+  if (error) return { tipo: 'falha', erro: { code: error.code, message: error.message } }
   const lido = RESPOSTA_ABRIR.safeParse(data)
   if (!lido.success) return { tipo: 'falha', erro: new Error('relatorio_publico_abrir: resposta fora da forma') }
   if (lido.data.ok) return { tipo: 'aberta', sessao: lido.data.sessao }

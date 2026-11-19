@@ -131,6 +131,14 @@ describe('sairDaPorta — a sessão morre no BANCO e o cookie sai', () => {
     expect(h.cookies).toEqual([[PORTA_COOKIE, '', { path: '/r/wap', maxAge: 0 }]])
     expect(h.redirecionou).toBe('/r/wap/relatorios/acesso')
   })
+
+  it('slug forjado: nada acontece — nem banco, nem cookie, nem um destino fora da porta', async () => {
+    const f = new FormData()
+    f.set('empresa', '../admin')
+    await expect(sairDaPorta(f)).resolves.toBeUndefined()
+    expect(pedirPorta).not.toHaveBeenCalledWith('encerrar', '../admin', expect.anything())
+    expect(h.cookies).toEqual([])
+  })
 })
 
 describe('actions/porta.ts — a fonte', () => {

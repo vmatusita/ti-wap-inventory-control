@@ -64,6 +64,14 @@ describe('destinoNaPorta — só a MESMA empresa, nunca a entrada, nunca fora', 
     'https://evil.com/r/wap/relatorios/gerados',
     '//evil.com',
     '/r/wap/relatorios/../../admin',
+    // a travessia CODIFICADA (o navegador resolve %2e%2e como ..), a barra e a invertida codificadas, a dupla codificação
+    '/r/wap/relatorios/%2e%2e/%2e%2e/admin',
+    '/r/wap/relatorios/%2E%2E/%2e./x',
+    '/r/wap/relatorios/.%2e/x',
+    '/r/wap/relatorios/x%2f..%2fy',
+    '/r/wap/relatorios/x%5cy',
+    '/r/wap/relatorios/%252e%252e/x',
+    '/r/wap/relatorios/x%0d%0aSet-Cookie:a=b',
     '/r/wap/relatorios/x\\y',
     '/r/wap/relatorios/x//y',
     '/r/wap/relatorios/x\r\nSet-Cookie: a=b',
@@ -91,6 +99,9 @@ describe('traduzirDestinoLegado / portaDaLegada — o next do 308', () => {
     ['/relatorios/acesso', '?next=https%3A%2F%2Fevil.com'],
     ['/relatorios/acesso', '?next=%2Frelatorios%2Facesso'],
     ['/relatorios/../admin', ''],
+    // a travessia codificada dentro do next (o searchParams decodifica uma vez: %252e → %2e)
+    ['/relatorios/acesso', '?next=%2Frelatorios%2F%252e%252e%2F%252e%252e%2Fadmin'],
+    ['/relatorios/acesso', '?next=%2Frelatorios%2Fx%255cy'],
     ['/ativos', ''],
   ])('%s%s → sem destino', (p, s) => expect(traduzirDestinoLegado(p, s)).toBeNull())
 

@@ -168,7 +168,7 @@ const FUNIL = [
 /**
  * As EXCEÇÕES NOMINAIS de Client Component, com o motivo de cada uma.
  *
- * As dez logam no NAVEGADOR de quem opera: `server-only` não pode ser importado
+ * As onze logam no NAVEGADOR de quem opera: `server-only` não pode ser importado
  * de um módulo `'use client'`, e o log delas nunca chega ao servidor. O lado
  * SERVIDOR desses mesmos erros é apanhado por `src/instrumentation.ts`
  * (`onRequestError`), que é a outra metade da Frente A.
@@ -178,7 +178,7 @@ const FUNIL = [
  * em silêncio é a trava se desfazendo.
  */
 const EXCECOES_DE_CLIENTE = [
-  // Os oito `error.tsx` — a fronteira de erro do React, que o Next exige que
+  // Os nove `error.tsx` — a fronteira de erro do React, que o Next exige que
   // seja Client Component.
   'src/app/error.tsx',
   'src/app/(app)/error.tsx',
@@ -188,6 +188,8 @@ const EXCECOES_DE_CLIENTE = [
   'src/app/(app)/itens/historico/error.tsx',
   'src/app/(app)/movimentacoes/error.tsx',
   'src/app/(app)/pendencias/error.tsx',
+  // F68: o da porta pública (`/r/<slug>/**`), cujos links de volta são os da empresa da URL, não os do operador.
+  'src/app/r/[empresa]/error.tsx',
   // O `global-error.tsx`, que substitui o layout inteiro e por isso também é
   // cliente.
   'src/app/global-error.tsx',
@@ -250,10 +252,10 @@ describe('(a) nenhum `console.*` em código de servidor fora do funil', () => {
     ).toEqual([])
   })
 
-  it('a lista nominal tem DEZ entradas (medido em 10/09/2026)', () => {
+  it('a lista nominal tem ONZE entradas (medido em 10/09/2026; +1 na F68, o error.tsx da porta)', () => {
     // Se este número mudar, alguém acrescentou (ou tirou) uma exceção — e isso
     // é uma decisão, não um detalhe.
-    expect(EXCECOES_DE_CLIENTE).toHaveLength(10)
+    expect(EXCECOES_DE_CLIENTE).toHaveLength(11)
   })
 })
 
