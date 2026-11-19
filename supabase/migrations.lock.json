@@ -210,6 +210,7 @@
     "0205_contracao_default_acervo.sql": "b1038654de20b82343281041b2b90bfcd4f261136395714d804158f953683905",
     "0206_contracao_default_registros.sql": "cd2866bb2459cc82ecf9321f082855e194de500a416b0827a126029e6d515b21",
     "0207_contracao_default_filiais.sql": "8906929ea801b059c88be5ebbb5a5cec69cf350f30ee0e0195b70fc1c1bcb357",
-    "0208_porta_base.sql": "f269459df48f37de8d4ff5bcdd15aa009d1df66ac652ef0872fe780c354cb634"
+    "0208_porta_base.sql": "f269459df48f37de8d4ff5bcdd15aa009d1df66ac652ef0872fe780c354cb634",
+    "0209_porta_sessoes.sql": "7233cc32fcd70f809e260ac0494a7d388d1825e93b946b9af52120938bb39f47"
   }
 }
