@@ -14357,7 +14357,8 @@ relatório [`RELATORIO-F68.md`](RELATORIO-F68.md).
 15. **A prova viva no ensaio** — no relatório.
 16. **`isolamento_viewer.sql`**: 21 asserções (V1–V12), com o cabeçalho dizendo por que só agora é testável. V6a revoga
     pelo caminho que NÃO encerra sessões (o update direto do app anterior, vivo sob a Skew Protection) — quem mata a sessão
-    ali é a conferência da senha ativa em `dados`; V6c prova o encerramento pela função; V12 serve um snapshot do tamanho
+    ali é a conferência da senha ativa em `dados`; V6c prova o encerramento pela função — e SÓ das sessões daquela senha
+    (o controle: a sessão de outra senha da A e toda sessão aberta de qualquer empresa seguem abertas); V12 serve um snapshot do tamanho
     do maior de produção (258 KB na mesa, 404 ms) bem dentro dos 3 s do `anon`.
 17. **O `pgcrypto` no CI**: em `bootstrap-roles.sql` (o primeiro dos dois loops do workflow — que não se toca), com o
     `rolconfig` do `anon` só documental; a `0208` confere por `to_regprocedure` (o classificador aceita) e não cria extensão.
@@ -14410,3 +14411,10 @@ descreve o visualizador com o client administrativo e o scrypt — a ordem proí
 no mesmo meio segundo — a terceira espera mais que isso atrás das duas primeiras (cada uma segura a linha do contador
 durante os 5 crypt, ~0,46 s) e vê "Não foi possível conferir a senha agora"; raro para o uso desta porta, e é o que impede
 a fila sem fim durante uma rajada.
+
+**A re-revisão** (um revisor novo, só os dois commits de correção, no SHA `291d4bca`): nenhum achado alto nem médio; nenhum
+achado antigo aberto. Dos três baixos: o V6c passava a seco se a reativação falhasse e não tinha controle negativo →
+corrigido (o estado das duas chamadas conferido; o controle acima), provado por uma mutação AD HOC na mesa (o
+encerramento sem os filtros de senha e de empresa: V6c ✗, 2 de 9) — que também mostrou o V12 ABORTANDO em vez de reprovar
+(contagem nula), corrigido com `coalesce`; a varredura de import dinâmico tirava comentários por regex, que morde dentro
+de string → passou a ler o fonte cru (o falso positivo é o lado seguro); o `lock_timeout` é o (v) acima.
