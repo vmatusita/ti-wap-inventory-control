@@ -1385,8 +1385,11 @@ descartado — ADR §20); o teto por EMPRESA, porque a chave `anon` é pública 
 gestão por empresa no banco; a lista branca com trava; o `pgcrypto` e o teto de 3 s no bootstrap do CI; a contração
 (`registrar_tentativa_senha`/`senha_tentativas`) adiada para a F68B.
 
-**Pronto quando — o estado.** (o estado do apply no ensaio e em produção, do merge e do deploy: preenchido no fechamento —
-ver o topo de [`RELATORIO-F68.md`](RELATORIO-F68.md))
+**Pronto quando — o estado.** **No ar desde 19/11/2026**: as `0208`–`0212` aplicadas no ensaio (11:49–11:53) e em produção
+(11:59–12:02), com o `md5` de cada `prosrc` e comentário = o arquivo e a paridade do catálogo (`0d347254…` nos dois); a
+prova viva no ensaio 10/10 e as cinco recusas a ±0,3%; o app pelo merge `8c40fb47` (deploy às 12:21), o smoke com o mapa
+novo 114 OK · 0 falha. Falta só o passo do Johnny: criar as senhas novas e revogar as 5 antigas (as antigas não abrem a
+porta). Detalhe no topo de [`RELATORIO-F68.md`](RELATORIO-F68.md).
 
 **Trava.** `supabase/tests/isolamento_viewer.sql` (21 asserções; o cabeçalho diz por que só passou a ser testável agora,
 com o service role fora da porta); o par 4a/4b de `catalogo_secdef.sql` (`k_secdef_anon`); a asserção 5 de

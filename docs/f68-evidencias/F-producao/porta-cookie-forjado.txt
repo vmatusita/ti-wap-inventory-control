@@ -1,0 +1,6 @@
+# F68 — a porta pelo app NO AR (v1.76.0, commit 8c40fb4) com um cookie de sessão FORJADO (64 hex inventados):
+# a mesma resposta da sessão inexistente — o redirect para a entrada da MESMA empresa, guardando o destino. (O id do gerado pedido foi o UUID nulo, aqui escrito <o-uuid-nulo>.) 2026-11-19T15:25:16.533Z
+/r/wap/relatorios/gerados com cookie forjado -> HTTP 307 -> /r/wap/relatorios/acesso?next=%2Fr%2Fwap%2Frelatorios%2Fgerados
+/r/wap/relatorios/geral com cookie forjado -> HTTP 307 -> /r/wap/relatorios/acesso?next=%2Fr%2Fwap%2Frelatorios%2Fgeral
+/r/wap/relatorios/gerados/<o-uuid-nulo> com cookie forjado -> HTTP 307 -> /r/wap/relatorios/acesso?next=%2Fr%2Fwap%2Frelatorios%2Fgerados%2F<o-uuid-nulo>
+/r/wap/relatorios/gerados SEM cookie -> HTTP 307 -> /r/wap/relatorios/acesso?next=%2Fr%2Fwap%2Frelatorios%2Fgerados
