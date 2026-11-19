@@ -73,6 +73,7 @@ export function TabelaEntradas({
   ehOperador,
   corte,
   aoVivo,
+  semPessoas = false,
 }: {
   rows: LinhaEntrada[]
   ehGeral: boolean
@@ -82,6 +83,8 @@ export function TabelaEntradas({
   // usa o client RESOLVIDO, senão o relatório impresso sairia com o slug cru.
   rotulosTipo: MapaRotulosTipo
   ehOperador?: boolean
+  /** F68 — a porta pública: a coluna de PESSOA some (o dado já não vem pela porta). */
+  semPessoas?: boolean
   /** F60 — presente só quando a leitura cortou a tabela no teto (`snapshot.tabelasTruncadas`). */
   corte?: CorteDeTabela
   aoVivo?: boolean
@@ -156,8 +159,8 @@ export function TabelaEntradas({
                 <TableHead>Patrimônio</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Motivo</TableHead>
-                <TableHead className="hidden lg:table-cell print:table-cell">Colaborador</TableHead>
-                <TableHead className="hidden xl:table-cell print:table-cell">Setor</TableHead>
+                {!semPessoas && <TableHead className="hidden lg:table-cell print:table-cell">Colaborador</TableHead>}
+                {!semPessoas && <TableHead className="hidden xl:table-cell print:table-cell">Setor</TableHead>}
                 <TableHead className="hidden md:table-cell print:table-cell">Itens faltantes</TableHead>
                 <TableHead className="hidden xl:table-cell print:table-cell">Obs.</TableHead>
               </TableRow>
@@ -174,8 +177,12 @@ export function TabelaEntradas({
                     : []),
                   { rotulo: 'Categoria', valor: rotuloCategoria(r.categoria), revelar: 'sm:hidden' },
                   { rotulo: 'Marca/Modelo', valor: r.modelo, revelar: 'lg:hidden' },
-                  { rotulo: 'Colaborador', valor: r.colaborador ?? '—', revelar: 'lg:hidden' },
-                  { rotulo: 'Setor', valor: r.setor ?? '—', revelar: 'xl:hidden' },
+                  ...(semPessoas
+                    ? []
+                    : [
+                        { rotulo: 'Colaborador', valor: r.colaborador ?? '—', revelar: 'lg:hidden' },
+                        { rotulo: 'Setor', valor: r.setor ?? '—', revelar: 'xl:hidden' },
+                      ]),
                   { rotulo: 'Itens faltantes', valor: faltantes, revelar: 'md:hidden' },
                   { rotulo: 'Obs.', valor: r.obs ?? '—', revelar: 'xl:hidden' },
                 ]
@@ -206,10 +213,14 @@ export function TabelaEntradas({
                         <PilulaTipo tipo={r.tipo} />
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{r.motivo ?? '—'}</TableCell>
-                      <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">
-                        {r.colaborador ?? '—'}
-                      </TableCell>
-                      <TableCell className="hidden whitespace-nowrap xl:table-cell print:table-cell">{r.setor ?? '—'}</TableCell>
+                      {!semPessoas && (
+                        <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">
+                          {r.colaborador ?? '—'}
+                        </TableCell>
+                      )}
+                      {!semPessoas && (
+                        <TableCell className="hidden whitespace-nowrap xl:table-cell print:table-cell">{r.setor ?? '—'}</TableCell>
+                      )}
                       <TableCell className="hidden md:table-cell print:table-cell">
                         {r.itensFaltantes && r.itensFaltantes.length > 0 ? (
                           <div className="flex flex-wrap gap-1">

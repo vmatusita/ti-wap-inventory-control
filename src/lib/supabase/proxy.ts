@@ -2,17 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { type Database } from '@/lib/types/database'
 import { VIEW_COOKIE_NAME } from '@/lib/auth/view-cookie'
+import { portaDaLegada } from '@/lib/auth/porta-rotas'
 // F42 — a regra do link antigo do histórico de itens. Função PURA e testada; o
 // proxy roda no Edge, então ela não pode tocar em nada de Node — e não toca.
 import { destinoHistoricoLegado } from '@/lib/itens/lista'
 
 // Mantém a sessão do Supabase viva e faz o roteamento de acesso (spec §3):
 //  - Operador logado (domínios de lib/auth/dominios-email): acessa tudo.
-//  - Sem operador: só as rotas de RELATÓRIO (/relatorios/**), e apenas se
-//    portar o cookie de visualização — a verificação REAL (assinatura + senha
-//    ativa) roda no servidor Node (lib/auth/acesso.ts), não aqui (Edge, sem
-//    node:crypto). `/relatorios/acesso` e `/login` /`/auth` são públicas.
-//  - Qualquer outra rota sem operador → /login.
+//  - A PORTA PÚBLICA (F68): `/r/**` passa SEM tocar o Auth — quem entra por senha não tem sessão do Supabase, e a
+//    porta fala só pelas duas funções do banco executáveis por `anon` (lib/supabase/publico.ts); quem decide a sessão
+//    do visualizador é o banco, a cada pedido.
+//  - Sem operador, `/relatorios` e `/relatorios/**` (os endereços ANTIGOS da entrada por senha e dos relatórios) →
+//    **308** para a porta da legada (`/r/wap/relatorios/acesso`), com o `next` traduzido para a árvore nova, e o
+//    cookie velho `wap_view` apagado. Com operador, nada muda.
+//  - `/login` e `/auth` são públicas; qualquer outra rota sem operador → /login.
 // Também injeta `x-wap-pathname` para o layout distinguir o shell (operador ×
 // visualizador × público) sem depender de heurística.
 // Sessão de operador expira 24h após o LOGIN (decisão do Johnny, 16/07/2026 —
@@ -37,6 +40,13 @@ export async function updateSession(request: NextRequest) {
   requestHeaders.set('x-wap-search', request.nextUrl.search)
 
   let response = NextResponse.next({ request: { headers: requestHeaders } })
+
+  // F68 — A PORTA PÚBLICA, antes de qualquer ida ao Auth: `/r/**` não usa a sessão do operador para nada (o client da
+  // porta não lê cookie de sessão), e decidir aqui poupa o `getUser()` de cada batida do gestor. Os headers
+  // `x-wap-pathname`/`x-wap-search` seguem — o layout da porta os usa para guardar o destino na entrada.
+  if (pathname.startsWith('/r/')) {
+    return response
+  }
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -145,30 +155,26 @@ export async function updateSession(request: NextRequest) {
     return response
   }
 
-  const acessoRelatorio = pathname === '/relatorios/acesso'
-  if (rotaAuth || acessoRelatorio) {
+  if (rotaAuth) {
     return response
   }
 
-  // Rotas de relatório: aceitam sessão por senha (cookie de visualização). A
-  // presença basta aqui; a validade é conferida no servidor Node.
-  const rotaRelatorio = pathname.startsWith('/relatorios')
-  if (rotaRelatorio) {
-    if (request.cookies.get(VIEW_COOKIE_NAME)) {
-      return response
-    }
-    // Sem sessão: manda para a entrada por senha guardando o destino em `next`,
-    // para o gestor cair direto no relatório que clicou depois de entrar. Só
-    // caminhos internos de relatório viram `next` (a validação final está na
-    // Server Action de login).
+  // F68 — OS ENDEREÇOS ANTIGOS DA ENTRADA POR SENHA. Sem operador, `/relatorios` e `/relatorios/**` (inclusive a
+  // antiga `/relatorios/acesso`) respondem **308** para a porta da LEGADA — todo link que existe hoje é da WAP —, com o
+  // destino traduzido para a árvore nova em `next` (`portaDaLegada`, função pura testada). 308 e não 307: o endereço
+  // mudou de vez. O cookie velho `wap_view` (o `senha_id` assinado, `path: /relatorios`) não abre mais nada e é apagado
+  // no mesmo passo — com o MESMO `path` com que foi gravado, senão o navegador não o reconhece.
+  if (pathname === '/relatorios' || pathname.startsWith('/relatorios/')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/relatorios/acesso'
-    url.search = ''
-    const destino = pathname + request.nextUrl.search
-    if (destino.startsWith('/relatorios/') && pathname !== '/relatorios/acesso') {
-      url.searchParams.set('next', destino)
+    const destino = portaDaLegada(pathname, request.nextUrl.search)
+    const q = destino.indexOf('?')
+    url.pathname = q < 0 ? destino : destino.slice(0, q)
+    url.search = q < 0 ? '' : destino.slice(q)
+    const redirect = NextResponse.redirect(url, 308)
+    if (request.cookies.get(VIEW_COOKIE_NAME)) {
+      redirect.cookies.set(VIEW_COOKIE_NAME, '', { path: '/relatorios', maxAge: 0 })
     }
-    return NextResponse.redirect(url)
+    return redirect
   }
 
   // Qualquer outra rota exige operador logado. Guarda o destino em `next` (mesmo

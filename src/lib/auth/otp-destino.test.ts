@@ -89,16 +89,19 @@ describe('tipoOtpValido — allowlist de EmailOtpType (R-ACC-20)', () => {
   })
 })
 
-describe('redirectAcessoRelatorios — monta o next da entrada por senha (FLX-01)', () => {
-  it('combina pathname e search no next, codificado', () => {
+// F68 (19/11/2026) — MUDOU DE SENTIDO, declarado no relatório: a entrada por senha é a porta pública DA EMPRESA
+// (`/r/<slug>/relatorios/acesso`), e os endereços antigos (`/relatorios/**`, todos da WAP) levam à porta da LEGADA com
+// o `next` TRADUZIDO para a árvore nova. Antes: `/relatorios/acesso?next=/relatorios/…`.
+describe('redirectAcessoRelatorios — monta o next da entrada por senha (FLX-01, F68: a porta da legada)', () => {
+  it('combina pathname e search no next, traduzido e codificado', () => {
     expect(redirectAcessoRelatorios('/relatorios/matriz', '?preset=mes')).toBe(
-      '/relatorios/acesso?next=%2Frelatorios%2Fmatriz%3Fpreset%3Dmes',
+      '/r/wap/relatorios/acesso?next=%2Fr%2Fwap%2Frelatorios%2Fmatriz%3Fpreset%3Dmes',
     )
   })
 
-  it('sem search, o next é só o pathname', () => {
+  it('sem search, o next é só o pathname traduzido', () => {
     expect(redirectAcessoRelatorios('/relatorios/gerados/abc-123', '')).toBe(
-      '/relatorios/acesso?next=%2Frelatorios%2Fgerados%2Fabc-123',
+      '/r/wap/relatorios/acesso?next=%2Fr%2Fwap%2Frelatorios%2Fgerados%2Fabc-123',
     )
   })
 
@@ -107,6 +110,6 @@ describe('redirectAcessoRelatorios — monta o next da entrada por senha (FLX-01
     const search = '?filial=cd-sul&filial=matriz'
     const url = redirectAcessoRelatorios(pathname, search)
     const next = new URL(`https://x${url}`).searchParams.get('next')
-    expect(next).toBe(pathname + search)
+    expect(next).toBe('/r/wap/relatorios/geral' + search)
   })
 })

@@ -66,10 +66,12 @@ const SEM_GUARDA: Record<string, string> = {
   // --- As duas do visualizador por SENHA. Outra porta, não o cargo "consulta"
   // (CLAUDE.md, modelo de acesso): a sessão dele nasce de uma senha de acesso, não de
   // uma conta, e `papel_atual()` devolve NULL para ela.
-  'src/lib/actions/senhas.ts::entrarComSenha':
-    'É a porta do VISUALIZADOR e é pública por desenho: quem a chama não tem conta nenhuma. A defesa é anterior à autorização — rate-limit persistente por IP antes de qualquer verificação (senhas.ts:52-70) e comparação por `crypto.scrypt`. Exigir cargo aqui fecharia a entrada do relatório por senha.',
-  'src/lib/actions/senhas.ts::sairVisualizacao':
-    'É o LOGOUT do visualizador: apaga o próprio cookie e redireciona. Não lê nem escreve dado nenhum, e exigir cargo prenderia na visualização justamente quem não tem cargo. (Ausente da ficha da F49, que previa cinco isenções — achado da medição, 07/09/2026.)',
+  // F68 (19/11/2026): as duas mudaram de módulo e de nome (`actions/senhas.ts::entrarComSenha`/`::sairVisualizacao` →
+  // `actions/porta.ts::entrarNaPorta`/`::sairDaPorta`) — a entrada é a da PORTA PÚBLICA da empresa. A contagem não muda.
+  'src/lib/actions/porta.ts::entrarNaPorta':
+    'É a porta do VISUALIZADOR e é pública por desenho: quem a chama não tem conta nenhuma. A defesa é do BANCO — `relatorio_publico_abrir` (0212), executável só por anon, confere a senha (bcrypt) DENTRO do Postgres, contra as senhas da empresa do slug, depois do contador por empresa e por (empresa, origem); o erro do contador recusa (R-ACC-95). Exigir cargo aqui fecharia a entrada do relatório por senha.',
+  'src/lib/actions/porta.ts::sairDaPorta':
+    'É o LOGOUT do visualizador: encerra a PRÓPRIA sessão no banco (o pedido encerrar de `relatorio_publico_dados`, que só alcança a sessão do token do cookie) e apaga o cookie. Exigir cargo prenderia na visualização justamente quem não tem cargo.',
 
   // --- F56 (Frente D) — leitura PURA do FormData, sem banco.
   'src/lib/actions/importar.ts::lerPedidoFormData':

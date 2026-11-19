@@ -1,4 +1,5 @@
 import { type EmailOtpType } from '@supabase/supabase-js'
+import { portaDaLegada } from '@/lib/auth/porta-rotas'
 
 // Helpers de OTP e de `next` pós-login, compartilhados entre a pagina
 // /auth/confirm, as Server Actions de auth.ts (confirmarAcesso, signIn) e as
@@ -25,7 +26,7 @@ export function tipoOtpValido(raw: string | null): EmailOtpType | null {
 
 // `next` so pode ser um caminho INTERNO. Bloqueia URL absoluta, protocolo-
 // relativo (//host), backslash, traversal e CRLF — mesma doutrina de
-// destinoRelatorio (lib/actions/senhas.ts). Fora disso cai na home. Fecha o
+// destinoNaPorta (lib/auth/porta-rotas.ts). Fora disso cai na home. Fecha o
 // open redirect.
 export function destinoSeguro(next: string | null): string {
   if (!next || !next.startsWith('/')) return '/'
@@ -35,26 +36,17 @@ export function destinoSeguro(next: string | null): string {
   return next
 }
 
-// FLX-01 — redirect (string) para a entrada por senha dos relatórios,
-// preservando o destino atual em `next`. Usado pelo layout e pelas 3 páginas de
-// /relatorios/** quando a sessão do visualizador está ausente/expirada: sem
-// isto, o ViewerAutoRefresh (60s) — que dispara estes redirects NO MEIO da
-// leitura — mandava o gestor sempre para /relatorios/geral, perdendo filial,
-// período e filtros.
+// FLX-01 — redirect (string) para a entrada por senha dos relatórios, preservando o destino atual em `next`.
 //
-// `pathname`/`search` vêm dos headers `x-wap-pathname`/`x-wap-search` que o
-// proxy grava (lib/supabase/proxy.ts): é o único lugar com o valor CRU da rota
-// atual dentro de um Server Component — o layout do grupo não recebe
-// `searchParams` (só as páginas recebem), e reconstruir a partir do objeto já
-// parseado arriscaria divergir do que o navegador realmente pediu.
+// F68 (19/11/2026): a entrada por senha mudou de endereço — é a porta pública DA EMPRESA, `/r/<slug>/relatorios/acesso`.
+// Os endereços antigos (`/relatorios/**`) são todos da WAP, então o destino é a porta da LEGADA, com o `next` TRADUZIDO
+// para a árvore nova (`/relatorios/gerados…` → `/r/wap/relatorios/gerados…`). É o MESMO destino do 308 do proxy
+// (`portaDaLegada`, lib/auth/porta-rotas.ts), usado aqui quando um request sem operador escapa do proxy e chega ao layout
+// do grupo `(app)`.
 //
-// Sem sanitizar aqui de propósito — mesma disciplina do proxy (que só GRAVA o
-// destino no redirect de /relatorios, sem validar): quem VALIDA é o consumidor
-// (`entrarComSenha` / `destinoRelatorio`, lib/actions/senhas.ts), que já
-// restringe a `/relatorios/**`. `pathname` e `search` aqui são sempre da
-// PRÓPRIA rota atual (o proxy os deriva de `request.nextUrl`), nunca entrada
-// arbitrária de terceiro — não há open redirect para fechar nesta função.
+// `pathname`/`search` vêm dos headers `x-wap-pathname`/`x-wap-search` que o proxy grava (lib/supabase/proxy.ts): é o
+// único lugar com o valor CRU da rota atual dentro de um Server Component. Quem VALIDA o destino é o consumidor
+// (`entrarNaPorta` → `destinoNaPorta`, que só aceita caminho da MESMA empresa).
 export function redirectAcessoRelatorios(pathname: string, search: string): string {
-  const destino = pathname + search
-  return `/relatorios/acesso?next=${encodeURIComponent(destino)}`
+  return portaDaLegada(pathname, search)
 }

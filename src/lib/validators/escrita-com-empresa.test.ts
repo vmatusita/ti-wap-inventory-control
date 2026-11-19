@@ -335,8 +335,11 @@ describe('toda escrita escreve a empresa — TS e scripts (decisão 5)', () => {
   const escritas = todas.flatMap((t) => t.escritas)
   const dinamicas = todas.flatMap((t) => t.dinamicas)
 
-  it('o universo NÃO é vazio: pelo menos 33 chamadas insert/upsert nas 20 (17 em src, 16 em scripts)', () => {
-    expect(escritas.length, 'a varredura não achou as escritas das 20 em src/** e scripts/**').toBeGreaterThanOrEqual(33)
+  // F68 (19/11/2026): 33 -> 32. O `insert` em `senhas_acesso` de `criarSenhaAcesso` (actions/senhas.ts) SAIU: a senha
+  // nasce pela função do banco `senha_acesso_criar(p_empresa, …)` (0211), que grava a empresa informada — a escrita
+  // continua dizendo a empresa, só que no SQL (a 15m de catalogo_policies.sql a confere lá).
+  it('o universo NÃO é vazio: pelo menos 32 chamadas insert/upsert nas 20 (16 em src, 16 em scripts)', () => {
+    expect(escritas.length, 'a varredura não achou as escritas das 20 em src/** e scripts/**').toBeGreaterThanOrEqual(32)
   })
 
   it('nenhuma escrita é de tabela DINÂMICA (`.from(variavel).insert(…)`): não dá para provar a tabela', () => {

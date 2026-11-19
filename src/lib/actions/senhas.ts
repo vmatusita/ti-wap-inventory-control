@@ -1,147 +1,54 @@
 'use server'
 
-import { cookies, headers } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { chamarRpc } from '@/lib/supabase/rpc'
-import { exigirAdmin } from '@/lib/auth/acesso'
+import { exigirAdmin, MSG_SO_ADMIN } from '@/lib/auth/acesso'
 import { registrarEventoAdmin } from '@/lib/auditoria-registro'
 import { empresaDaOperacao } from '@/lib/auth/empresa-legada'
 import { registrarFalha } from '@/lib/observabilidade'
 import { type ActionResult } from '@/lib/actions/erros'
 import { criarSenhaSchema } from '@/lib/validators/senha'
-import {
-  assinarSessaoView,
-  hashSenha,
-  verificarSenha,
-  VIEW_COOKIE_NAME,
-  VIEW_MAX_AGE_SEG,
-} from '@/lib/auth/senha-sessao'
+import { SLUG_EMPRESA_LEGADA, entradaDaPorta } from '@/lib/auth/porta-rotas'
 import { revalidatePath } from 'next/cache'
 
-// Acesso por senha aos relatórios (spec §3 / OS-F3 3.9). Toda a validação roda
-// no servidor com o client administrativo — nunca a anon key, nunca o browser.
-
-// ---- Rate-limit por IP (OS-F3 3.9.1) ----
-// O contador é PERSISTENTE no Postgres (função registrar_tentativa_senha, migration
-// 0025): compartilhado entre instâncias da Vercel e atômico. O Map em memória antigo
-// era por-processo e sumia no cold start — best-effort demais contra brute force.
-function ipCliente(h: Headers): string {
-  const fwd = h.get('x-forwarded-for')
-  if (fwd) return fwd.split(',')[0]!.trim()
-  return h.get('x-real-ip') ?? 'desconhecido'
-}
-
-// Destino pós-login (OS-F3 melhoria): leva o gestor direto ao relatório clicado.
-// Só caminhos INTERNOS de relatório entram — bloqueia URL absoluta, protocolo-
-// relativo, backslash, traversal, o próprio /acesso (loop) e quebra de linha
-// (CRLF em header). Qualquer coisa fora disso cai no consolidado ao vivo.
-function destinoRelatorio(next: FormDataEntryValue | null): string {
-  const padrao = '/relatorios/geral'
-  if (typeof next !== 'string' || next.length === 0) return padrao
-  if (!next.startsWith('/relatorios/')) return padrao
-  if (next.startsWith('/relatorios/acesso')) return padrao
-  if (next.includes('..') || next.includes('\\') || next.includes('//')) return padrao
-  if (next.includes('\n') || next.includes('\r')) return padrao
-  return next
-}
-
-// ---- Entrar por senha (público) ----
-
-export type EntrarState = { erro?: string }
-
-export async function entrarComSenha(
-  _prev: EntrarState,
-  formData: FormData,
-): Promise<EntrarState> {
-  const h = await headers()
-  const admin = createAdminClient()
-
-  // Rate-limit PERSISTENTE (§3.9.1): contador atômico no Postgres, compartilhado
-  // entre instâncias. Falha FECHADO desde a F64 (23/09/2026 — ata da F64 em
-  // docs/DECISOES.md, que reverte a X4): se o contador der erro, a entrada RECUSA antes de
-  // ler ou conferir qualquer senha. Falhar aberto liberava a varredura justamente quando o
-  // banco estava sob pressão. A mensagem é genérica e não depende da senha digitada (nada
-  // aqui revela se ela existe); a falha vai para o log SEM o IP — dado pessoal que o funil
-  // redige por valor e nenhum padrão dele reconhece.
-  const { data: excedeu, error: erroContador } = await chamarRpc(admin, 'registrar_tentativa_senha', {
-    p_ip: ipCliente(h),
-  })
-  if (erroContador) {
-    registrarFalha({ escopo: 'senhas.contador-de-tentativas', erro: erroContador })
-    return { erro: 'Não foi possível conferir a senha agora. Tente de novo em instantes.' }
-  }
-  if (excedeu) {
-    return { erro: 'Muitas tentativas. Aguarde um instante e tente de novo.' }
-  }
-
-  const senha = String(formData.get('senha') ?? '')
-  if (senha.length < 1) {
-    return { erro: 'Senha inválida.' }
-  }
-
-  const { data: ativas } = await admin
-    .from('senhas_acesso')
-    .select('id, hash')
-    .eq('ativa', true)
-
-  let senhaId: string | null = null
-  for (const s of ativas ?? []) {
-    if (await verificarSenha(senha, s.hash)) {
-      senhaId = s.id
-      break
-    }
-  }
-
-  // Erro SEMPRE genérico — nunca revela se a senha existe/foi revogada (3.9.1).
-  if (!senhaId) {
-    return { erro: 'Senha inválida.' }
-  }
-
-  await admin
-    .from('senhas_acesso')
-    .update({ ultimo_uso: new Date().toISOString() })
-    .eq('id', senhaId)
-
-  const { value } = assinarSessaoView(senhaId)
-  const cookieStore = await cookies()
-  cookieStore.set(VIEW_COOKIE_NAME, value, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/relatorios',
-    maxAge: VIEW_MAX_AGE_SEG,
-  })
-
-  redirect(destinoRelatorio(formData.get('next')))
-}
-
-// ---- Sair da visualização (apaga o cookie) ----
-export async function sairVisualizacao() {
-  const cookieStore = await cookies()
-  cookieStore.set(VIEW_COOKIE_NAME, '', { path: '/relatorios', maxAge: 0 })
-  redirect('/relatorios/acesso')
-}
-
-// ---- Gestão das senhas (SÓ ADMIN — F21) ----
+// A GESTÃO das senhas de visualização (spec §3 / OS-F3 3.9) — SÓ ADMIN.
 //
-// Estas duas actions falam com `senhas_acesso` pelo client de SERVICE ROLE, e é a única
-// forma possível: a tabela está em deny-all para `anon`/`authenticated` desde a migration
-// 0012 (zero policies), justamente para a coluna `hash` nunca chegar a um client de
-// sessão — RLS é row-level, não column-level. Ou seja, o service role passa por fora de
-// qualquer policy: sem `exigirAdmin()` aqui, QUALQUER logado (inclusive o cargo consulta)
-// criaria e revogaria senhas de acesso. É a camada de action que é o controle real neste
-// caminho, não o banco (ADR-002 §4.1).
-// F29/ADM-05a — devolve também a URL PÚBLICA de entrada. A tela pós-criação mandava
-// "entregue junto do link do relatório" e não fornecia link nenhum; o admin ia caçar o
-// endereço na barra do navegador. Não existe helper de URL base no repositório (nem
-// NEXT_PUBLIC_APP_URL no ambiente), então vale o mesmo padrão do link de convite:
-// derivar da requisição (`origin`, com `host` de reserva).
+// F68 (19/11/2026): as três passam pelo BANCO, por empresa, com o client de SESSÃO de quem clicou — sem service role.
+// Até a v1.75.0 elas falavam com `senhas_acesso` pelo client administrativo, e a guarda `exigirAdmin` daqui era o
+// controle real (ADR-002 §4.1). Agora quem decide é o Postgres: `senha_acesso_criar` / `_conferir` / `_definir_status`
+// (migration 0211, `security definer`) conferem `e_admin_na(p_empresa)` antes de qualquer efeito e só tocam a linha da
+// empresa informada. `exigirAdmin` continua aqui, como em toda action de gestão: ela dá a MENSAGEM em pt-BR antes de ir
+// ao banco, não a segurança.
+//
+// A senha vira bcrypt DENTRO do banco (decisão 19/11-3). As senhas de antes desta versão (scrypt) não abrem a porta nova:
+// o Johnny as revoga pela tela, e cria as novas. A entrada dos gestores (a porta pública) NÃO mora mais aqui — é
+// `actions/porta.ts`.
+//
+// A EMPRESA: a da OPERAÇÃO (`empresaDaOperacao()`, a legada explícita) — destino F70 (a empresa escolhida por quem cria;
+// na conferência e na revogação, a da linha vinda da lista por empresa da F69). A trilha grava a empresa DA SENHA: a
+// função de status só altera a linha cujo `empresa_id` é a empresa informada, então a empresa da trilha é a da linha.
+
 export type CriarSenhaResult = (ActionResult & { url?: string }) | { ok: false; erro: string }
 
-function urlDeAcesso(h: Headers): string | null {
+// As recusas do banco, pelo SQLSTATE das três funções (0211) — a frase é sempre a daqui, nunca um texto do banco.
+const MENSAGEM_DO_BANCO: Record<string, string> = {
+  '42501': MSG_SO_ADMIN,
+  '22023': 'A senha precisa ter de 8 a 72 bytes (letra com acento conta 2), e o rótulo de 2 a 80 caracteres.',
+  '23505': 'Já existe uma senha de acesso ativa igual a esta. Escolha outra.',
+  '54000': 'A empresa já tem o máximo de 5 senhas de acesso ativas. Revogue uma antes.',
+  P0002: 'Senha não encontrada. Atualize a página e tente de novo.',
+}
+
+function mensagemDoBanco(erro: { code?: string } | null, padrao: string): string {
+  return (erro?.code && MENSAGEM_DO_BANCO[erro.code]) || padrao
+}
+
+// F29/ADM-05a — devolve também a URL PÚBLICA de entrada. Desde a F68 é a porta DA EMPRESA (`/r/<slug>/relatorios/acesso`).
+// Não existe helper de URL base no repositório (nem NEXT_PUBLIC_APP_URL no ambiente), então vale o mesmo padrão do link
+// de convite: derivar da requisição (`origin`, com `host` de reserva).
+function urlDeAcesso(h: Headers, slug: string): string | null {
   const origin = h.get('origin')
   const host = h.get('host')
   const base =
@@ -150,7 +57,7 @@ function urlDeAcesso(h: Headers): string | null {
       ? `${host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https'}://${host}`
       : null)
   if (!base) return null
-  return new URL('/relatorios/acesso', base).toString()
+  return new URL(entradaDaPorta(slug), base).toString()
 }
 
 export async function criarSenhaAcesso(input: {
@@ -166,45 +73,36 @@ export async function criarSenhaAcesso(input: {
     return { ok: false, erro: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   }
 
-  const admin = createAdminClient()
-  const hash = await hashSenha(parsed.data.senha)
-  // F67C: a senha de visualização não tem filial de onde tirar a empresa — é a da OPERAÇÃO (a legada explícita). Destino F68:
-  // a empresa da senha vira escolha de quem a cria, e o visualizador passa a entrar pela empresa dela.
+  // F68: a senha de visualização é da empresa da OPERAÇÃO até a F70 (a escolhida); a porta dela é a da legada.
   const empresa = empresaDaOperacao()
-  const { error } = await admin.from('senhas_acesso').insert({
-    rotulo: parsed.data.rotulo,
-    hash,
-    criado_por: aut.uid,
-    empresa_id: empresa,
+  const { error } = await chamarRpc(supabase, 'senha_acesso_criar', {
+    p_empresa: empresa,
+    p_rotulo: parsed.data.rotulo,
+    p_senha: parsed.data.senha,
   })
-  if (error) return { ok: false, erro: 'Não foi possível criar a senha.' }
+  if (error) {
+    if (!error.code || !MENSAGEM_DO_BANCO[error.code]) registrarFalha({ escopo: 'senhas.criar', erro: error })
+    return { ok: false, erro: mensagemDoBanco(error, 'Não foi possível criar a senha.') }
+  }
 
-  // Trilha de auditoria: só o RÓTULO da senha. O hash (e obviamente a senha em claro)
-  // JAMAIS entram em `detalhe` — `eventos_admin` é legível por todo admin.
+  // Trilha de auditoria: só o RÓTULO. A senha (em claro ou hash) JAMAIS entra em `detalhe` — `eventos_admin` é legível
+  // por todo admin. A empresa é a DA SENHA criada.
   await registrarEventoAdmin({
     acao: 'senha_criada',
-    empresa, // F68: a da senha
+    empresa,
     autor: aut.uid,
     alvo: parsed.data.rotulo,
   })
 
   revalidatePath('/admin/senhas')
-  // URL ausente (cabeçalho estranho) não invalida a criação: a senha FOI criada, e o
-  // diálogo simplesmente mostra a senha sem o link.
-  return { ok: true, url: urlDeAcesso(await headers()) ?? undefined }
+  // URL ausente (cabeçalho estranho) não invalida a criação: a senha FOI criada, e o diálogo mostra a senha sem o link.
+  return { ok: true, url: urlDeAcesso(await headers(), SLUG_EMPRESA_LEGADA) ?? undefined }
 }
 
-// F29/ADM-05b — "essa senha ainda é a que eu passei?".
-//
-// Não havia como conferir: o hash é scrypt salgado (não dá para comparar de fora) e a
-// senha em claro nunca é guardada. A única saída era revogar e recriar — cortando o
-// acesso de quem já usava a senha certa.
-//
-// Esta action responde SÓ `confere`. O texto digitado não é exibido, não volta no
-// retorno, não entra na trilha e não vai para log nenhum; a comparação é a MESMA
-// `verificarSenha` (timing-safe) do login público, sobre o hash daquela senha. Nada do
-// modelo afrouxa: scrypt continua, a leitura segue pelo client administrativo dentro de
-// uma action com `exigirAdmin`, e nenhuma senha em claro passa a persistir.
+// F29/ADM-05b — "essa senha ainda é a que eu passei?". Responde SÓ o veredito: o texto digitado não volta no retorno,
+// não entra na trilha e não vai para log nenhum. A conferência é do banco (`senha_acesso_conferir`, bcrypt); uma senha
+// scrypt (de antes da F68) responde "formato antigo" sem conferir nada — ela não abre mais a porta. SEM trilha (decisão
+// registrada na F29; `senha_testada` segue no backlog).
 export async function testarSenhaAcesso(input: {
   id: string
   senha: string
@@ -220,25 +118,19 @@ export async function testarSenhaAcesso(input: {
     return { ok: false, erro: 'Digite a senha que você quer conferir.' }
   }
 
-  const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('senhas_acesso')
-    .select('rotulo, hash')
-    .eq('id', input.id)
-    .maybeSingle()
-  if (error) return { ok: false, erro: 'Não foi possível conferir a senha agora.' }
-  if (!data) {
-    return { ok: false, erro: 'Senha não encontrada. Atualize a página e tente de novo.' }
+  const { data: veredito, error } = await chamarRpc(supabase, 'senha_acesso_conferir', {
+    p_empresa: empresaDaOperacao(),
+    p_id: input.id,
+    p_senha: input.senha,
+  })
+  if (error) return { ok: false, erro: mensagemDoBanco(error, 'Não foi possível conferir a senha agora.') }
+  if (veredito === 'formato_antigo') {
+    return {
+      ok: false,
+      erro: 'Esta senha é do formato antigo e não abre mais os relatórios. Crie uma nova e revogue esta.',
+    }
   }
-
-  // SEM trilha em `eventos_admin`, e isso é decisão registrada (F29, docs/DECISOES.md).
-  // O vocabulário de ações é FECHADO em `lib/auditoria.ts` e espelhado no `comment` da
-  // coluna pela migration 0075 ("mexeu aqui, mexa lá") — um verbo novo deixaria o banco
-  // desatualizado, e corrigir isso é uma migration que esta ordem proíbe. Como o teste
-  // é SÓ LEITURA (não muda senha, cargo nem acesso) e o admin já podia conferir a mesma
-  // senha pela porta pública, ficar de fora da trilha não esconde efeito nenhum.
-  // Backlog: entrar como `senha_testada` na próxima migration que tocar o vocabulário.
-  const confere = await verificarSenha(input.senha, data.hash)
+  const confere = veredito === 'confere'
   return { ok: true, confere }
 }
 
@@ -254,30 +146,21 @@ export async function definirStatusSenha(
     return { ok: false, erro: 'Senha inválida.' }
   }
 
-  const admin = createAdminClient()
-  // `.select('rotulo')` no próprio update: dá o alvo legível da trilha sem uma segunda
-  // consulta — e sem passar perto da coluna `hash`.
-  const { data, error } = await admin
-    .from('senhas_acesso')
-    .update({ ativa })
-    .eq('id', id)
-    .select('rotulo')
-    .maybeSingle()
-  if (error) return { ok: false, erro: 'Não foi possível atualizar a senha.' }
-  // Nenhuma linha casou: `error` é null (o PostgREST não trata "0 linhas" como erro), então
-  // sem esta guarda a action diria "Senha revogada" sobre uma senha que não existe E gravaria
-  // uma linha `senha_revogada` na trilha apontando um id inexistente. Auditoria com revogação
-  // que nunca aconteceu é pior que auditoria faltando — e o admin ficaria achando que cortou
-  // um acesso que segue ativo sob outro id.
-  if (!data) {
-    return { ok: false, erro: 'Senha não encontrada. Atualize a página e tente de novo.' }
-  }
+  // A função só altera a linha cujo empresa_id é esta empresa (a de outra é "não encontrada", P0002) — por isso a empresa
+  // da trilha, abaixo, é a DA LINHA. O rótulo volta para a trilha sem passar perto do hash.
+  const empresa = empresaDaOperacao()
+  const { data: rotulo, error } = await chamarRpc(supabase, 'senha_acesso_definir_status', {
+    p_empresa: empresa,
+    p_id: id,
+    p_ativa: ativa,
+  })
+  if (error) return { ok: false, erro: mensagemDoBanco(error, 'Não foi possível atualizar a senha.') }
 
   await registrarEventoAdmin({
     acao: ativa ? 'senha_reativada' : 'senha_revogada',
-    empresa: empresaDaOperacao(), // F68: a da senha
+    empresa,
     autor: aut.uid,
-    alvo: data.rotulo,
+    alvo: rotulo,
   })
 
   revalidatePath('/admin/senhas')

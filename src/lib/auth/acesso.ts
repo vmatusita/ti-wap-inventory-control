@@ -1,12 +1,9 @@
 import 'server-only'
 import { cache } from 'react'
-import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { chamarRpc } from '@/lib/supabase/rpc'
 import { registrarFalha } from '@/lib/observabilidade'
-import { lerSessaoView, VIEW_COOKIE_NAME } from '@/lib/auth/senha-sessao'
 import { PAPEL_ROTULO, eAdmin, escopoDeEscrita, papelAtende } from '@/lib/auth/papeis'
 import type { PapelUsuario } from '@/lib/auth/papeis'
 import type { Database } from '@/lib/types/database'
@@ -460,48 +457,17 @@ export async function temSessaoSupabase(): Promise<boolean> {
   return !!user
 }
 
-export type ViewerSession = { senhaId: string; rotulo: string }
-
-// Sessão de VISUALIZAÇÃO por senha. Faz a verificação REAL a cada request:
-// assinatura do cookie (lerSessaoView) + senha ainda ATIVA no banco (client
-// administrativo). Retorna null se o cookie for inválido/expirado OU a senha
-// tiver sido revogada — é o que mata o acesso no request seguinte (OS-F3 3.9.3).
+// Acesso resolvido às rotas de relatório DO OPERADOR (client de sessão, RLS).
 //
-// F21 NÃO toca neste caminho: o visualizador por senha continua idêntico (fora de escopo
-// por determinação da ordem). Ele não tem sessão Supabase, logo não tem cargo — o conceito
-// de papel só existe para quem entra por login.
-export async function getViewerSession(): Promise<ViewerSession | null> {
-  const cookieStore = await cookies()
-  const raw = cookieStore.get(VIEW_COOKIE_NAME)?.value
-  const sess = lerSessaoView(raw)
-  if (!sess) return null
-
-  const admin = createAdminClient()
-  const { data } = await admin
-    .from('senhas_acesso')
-    .select('id, rotulo, ativa')
-    .eq('id', sess.senhaId)
-    .maybeSingle()
-
-  if (!data || !data.ativa) return null
-  return { senhaId: data.id, rotulo: data.rotulo }
-}
-
-// Acesso resolvido às rotas de relatório: operador (client com RLS) ou
-// visualizador por senha (client administrativo — servido pelo servidor). As
-// queries de relatório recebem o `client` e o `modo` decide o chrome/atualização.
-export type AcessoRelatorio =
-  | { modo: 'operador'; client: DbClient; operador: Operador }
-  | { modo: 'viewer'; client: DbClient; rotulo: string }
+// F68 (19/11/2026): o modo `viewer` SAIU. Até a v1.75.0 esta função devolvia, a quem entrava por senha de visualização,
+// o client ADMINISTRATIVO (service role) — e o único muro do visualizador era o código das queries. O visualizador agora
+// entra pela porta pública (`/r/<slug>/relatorios`, `src/app/r/**`) e fala SÓ pelas duas funções do banco executáveis
+// por `anon` (`src/lib/supabase/publico.ts`); nada daqui o alcança. O tipo continua com `modo` para as páginas do
+// operador não mudarem uma linha (o ramo morto delas sai na F68B, com o ao vivo da porta).
+export type AcessoRelatorio = { modo: 'operador'; client: DbClient; operador: Operador }
 
 export async function resolverAcessoRelatorio(): Promise<AcessoRelatorio | null> {
   const operador = await getOperador()
-  if (operador) {
-    return { modo: 'operador', client: await createClient(), operador }
-  }
-  const viewer = await getViewerSession()
-  if (viewer) {
-    return { modo: 'viewer', client: createAdminClient(), rotulo: viewer.rotulo }
-  }
-  return null
+  if (!operador) return null
+  return { modo: 'operador', client: await createClient(), operador }
 }
