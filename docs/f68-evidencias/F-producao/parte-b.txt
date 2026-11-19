@@ -1,0 +1,13 @@
+# F68 — a Parte B do saude.yml disparada à mão depois do deploy (run 44554629814, 19/11 15:25Z, alvo=producao, partes=b).
+# VERMELHA pelos 2 achados de dados do #84 — os MESMOS números da última Parte B antes do apply (run 44368866590, 18/11
+# 18:21Z: backup_orfao 12, detentor_em_estado_sem_dono 1, conflito 59, idênticos linha a linha); a única linha diferente é a
+# da DERIVA, que agora reconhece a 0212 (0 pendente). As 13 checagens nos números travados.
+  [OK   ] sessão aberta com a conta de consulta (conta mascarada)
+  [OK   ] leitura de filiais com sessão (1 linha)
+  [OK   ] leitura de ativos com sessão (1 linha)
+  [OK   ] resumo de integridade: 13 chaves
+  [OK   ] releitura: 2 → 2 achado(s)
+  [FALHA] backup_orfao: passou da linha de base (10 → 12)
+  [FALHA] detentor_em_estado_sem_dono: passou da linha de base (0 → 1)
+  [AVISO] conflito_entre_filiais: hoje 59, base 69 — a linha de base pode DESCER
+  [OK   ] deriva de migrations: 0 pendente(s) · a mais nova no ledger é 0212_porta_publica.sql

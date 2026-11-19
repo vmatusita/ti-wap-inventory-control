@@ -1,9 +1,10 @@
 # Relatório F68 — a porta pública por empresa (o visualizador por senha sem service role)
 
-**v1.76.0** — as migrations `0208`–`0212` (só expansão) aplicadas no ENSAIO e em PRODUÇÃO em 19/11/2026, com a exatidão
+**v1.76.0 no ar** — as migrations `0208`–`0212` (só expansão) aplicadas no ENSAIO e em PRODUÇÃO em 19/11/2026, com a exatidão
 migration a migration (o `md5` de cada `prosrc` e de cada comentário = o do arquivo, nos dois bancos) e a paridade do
 catálogo ensaio × produção fechada (`0d347254…`); a prova viva no ensaio 10/10, as cinco recusas a ±0,3% uma da outra; o
-app novo pelo [PR #101](https://github.com/vmatusita/ti-wap-inventory-control/pull/101) · SHA de código congelado
+app novo pelo merge do [PR #101](https://github.com/vmatusita/ti-wap-inventory-control/pull/101) (merge `8c40fb47`, deploy às
+12:21 de 19/11; o smoke com o mapa novo 114 OK · 0 falha) · SHA de código congelado
 **`fd6d93fe`** · plano [`PLAN-F68.md`](PLAN-F68.md) · ata `DECISOES.md` (2026-11-19 · F68) · evidência em
 [`f68-evidencias/`](f68-evidencias/) · tag `v1.76.0` no merge do PR de documentação.
 
@@ -26,8 +27,9 @@ app novo pelo [PR #101](https://github.com/vmatusita/ti-wap-inventory-control/pu
 - **As senhas novas (§1.2) — é o único passo que só você faz.** Desde o deploy, as 5 senhas de visualização de hoje
   (formato antigo, `scrypt`) **não abrem mais a porta**: os gestores ficam sem acesso por senha até você criar as novas.
   Elas continuam aparecendo como "Ativa" na tela Senhas de acesso (a tela não distingue o formato — ver §16).
-- O banco está inteiro no ar (as cinco migrations nos dois bancos). O merge, o deploy, a conferência pós-deploy, a Parte B
-  e a tag estão no §7.3 e no PR de documentação.
+- **Nada mais está pendente no banco nem no app**: as cinco migrations nos dois bancos, o merge `8c40fb47`, o deploy
+  (`/api/saude` com `1.76.0`), o smoke com o mapa novo (0 falha), a Parte B (só os 2 achados do #84, a deriva limpa) e a
+  tag `v1.76.0`, no merge do PR de documentação (§7.3).
 
 ## 1.1 O rollback — se a porta der problema
 
@@ -68,7 +70,7 @@ tela depois do rollback.
 
 ## 1.3 `/api/saude` e a Parte B
 
-- `/api/saude` com `1.76.0` e o commit do merge (conferido no §7.3).
+- `/api/saude` com `1.76.0` e o commit do merge — conferido (`{"versao":"1.76.0","commit":"8c40fb4","banco":"ok"}`, §7.3).
 - No dia seguinte, a Parte B do `saude.yml` (a execução agendada, ou `gh workflow run saude.yml -f alvo=producao -f
   partes=b`): a deriva sem pendente (as cinco migrations no ledger dos dois bancos) e as 13 checagens nos números
   travados (3 / 12 / 59 / 1 e nove 0). A Parte B segue vermelha pelos 2 achados de dados do #84 — o mesmo de antes; o
@@ -214,8 +216,22 @@ reprovados**; os advisors iguais aos do ensaio; as 13 checagens **na linha trava
 
 ## 7.3 O merge, o deploy e a conferência
 
-(preenchido no PR de documentação: o merge do PR #101 com os dois checks verdes; `/api/saude` com `1.76.0`; o smoke com o
-mapa de rotas novo; a recusa de `dados` pelo app no ar; as páginas do operador iguais; a Parte B.)
+- **O merge**: o PR #101 com os dois checks verdes (run `44552487330` no head `aec5030d` = o código congelado + só
+  documentação), merge normal às 12:20 → `8c40fb47`.
+- **O deploy**: `/api/saude` → `{"ok":true,"versao":"1.76.0","commit":"8c40fb4","banco":"ok"}` às 12:21
+  ([`F-producao/api-saude.json`](f68-evidencias/F-producao/api-saude.json)).
+- **O smoke com o mapa novo**: **114 OK · 1 aviso (o de sempre) · 0 falha**
+  ([`F-producao/smoke-depois-do-deploy.txt`](f68-evidencias/F-producao/smoke-depois-do-deploy.txt)) — `/relatorios/acesso`,
+  `/relatorios/geral` e `/relatorios/gerados` sem operador → **308** para `/r/wap/relatorios/acesso`; a entrada da porta
+  **200** (pública); `/r/wap/relatorios/gerados` e `/geral` sem sessão → **307** para a entrada da MESMA empresa;
+  `/r/<inexistente>/relatorios/acesso` → **404**; `relatorio_publico_dados` com sessão inventada → a recusa da sessão; com
+  a conta do smoke, `/relatorios/geral` e `/relatorios/gerados` do operador **200** (iguais).
+- **A recusa pelo app no ar**: as páginas da porta com um cookie de sessão FORJADO → a MESMA resposta da sessão
+  inexistente (307 para a entrada, guardando o destino) ([`F-producao/porta-cookie-forjado.txt`](f68-evidencias/F-producao/porta-cookie-forjado.txt)).
+- **A Parte B** (disparada à mão, run `44554629814`): VERMELHA pelos 2 achados de dados do #84, os MESMOS números da última
+  Parte B antes do apply (18/11: `backup_orfao` 12, `detentor_em_estado_sem_dono` 1, `conflito_entre_filiais` 59); a
+  **deriva: 0 pendente, a mais nova no ledger `0212_porta_publica.sql`**
+  ([`F-producao/parte-b.txt`](f68-evidencias/F-producao/parte-b.txt)).
 
 ---
 
@@ -225,7 +241,7 @@ mapa de rotas novo; a recusa de `dados` pelo app no ar; as páginas do operador 
 |---|---|---|
 | conferidor | 248 pontos · 88.182 linhas · 0 recusadas (1 "reprovado": `itens.saldo-colaborador` sem célula — o artefato do ensaio desde a F65) | 272 pontos · 113.186 linhas · 0 recusadas · 0 reprovados |
 | smoke (antes do deploy) | — | 110 OK · 1 aviso (`kits_modelos`, o de sempre) · 0 falha |
-| smoke (mapa novo, depois do deploy) | — | §7.3 |
+| smoke (mapa novo, depois do deploy) | — | **114 OK · 1 aviso · 0 falha** (§7.3) |
 
 ---
 
@@ -325,11 +341,13 @@ asserções · 0 falhas**, o injetor **197/197** detectadas pelo cenário nomead
 6. ✅ só bcrypt abre; scrypt nunca; > 72 bytes recusada; a repetida recusada.
 7. ✅ as cinco recusas byte a byte iguais e indistinguíveis no tempo (±0,3%; §5).
 8. ✅ token opaco só como hash; 24 h no banco; morre na revogação; o `senha_id` não sai.
-9. ✅ a diagonal recusada por `dados` (V5, P1); a página responde 404 — a confirmar pelo smoke pós-deploy (§7.3).
+9. ✅ a diagonal recusada por `dados` (V5, P1); a página responde 404 (`notFound()` da sessão "empresa", sem `loading.tsx`:
+   status real — o 404 da empresa inexistente provado no smoke pós-deploy, §7.3).
 10. ✅ o contador por (empresa, origem) com o teto por empresa (V9a–d); o erro recusa antes de qualquer senha.
 11. ✅ nenhuma chave de pessoa (CI com fixture; ensaio por contagem de chaves); fonte única e trava TS↔SQL.
 12. ✅ `senhas.ts` sem `createAdminClient`; as funções por empresa; admin de A não atravessa (V10a); a trilha com a empresa da senha.
-13. ⏳ a rota pelo smoke com o mapa novo — depois do deploy (§7.3); `proxy.test.ts` verde.
+13. ✅ a rota pelo smoke com o mapa novo (308, 200, 307 para a entrada, 404 — §7.3); `proxy.test.ts` verde. A prova positiva
+    da porta COM sessão em produção espera a senha nova do Johnny (§1.2).
 14. ✅ `getViewerSession` não existe; `resolverAcessoRelatorio` sem o modo viewer; a fronteira da árvore pública.
 15. ✅ `isolamento_viewer.sql` 21/0.
 16. ✅ nada mudou para o operador (policies, funções fora da fase, smoke 0 falha, conferidor 0 recusadas, checagens).
@@ -339,7 +357,7 @@ asserções · 0 falhas**, o injetor **197/197** detectadas pelo cenário nomead
 20. ✅ `database.ts` só com o da fase; `db:types:diff` verde.
 21. ✅ os documentos (fichas F68/F68B, o mapa de regras (R-ACC-144–152), ADR §20, RUNBOOK Anexo F68, aninhados, ajuda, inventário, índices, ata).
 22. ✅ nenhuma dependência nova; intocados workflows, `CLAUDE.md` da raiz, policies, páginas do operador, `queries/admin.ts`, as 5 senhas; nenhuma linha de base subiu.
-23. ⏳ `1.76.0`, CHANGELOG e `registry.ts` ✅; a tag no merge do PR de documentação.
+23. ✅ `1.76.0`, CHANGELOG e `registry.ts`; a tag anotada `v1.76.0` no merge deste PR de documentação.
 24. ✅ as sabotagens A–K com saída real (§11) — G com a ressalva do lado SQL.
 25. ✅ nenhum dado real (a varredura de evidências: 0 ocorrência); ninguém abriu o `.env.local` (as credenciais só por `--env-file`).
 26. ✅ este relatório, com o roteiro no topo, o estado de repouso e o "NÃO prova".
