@@ -225,6 +225,10 @@ declare
   -- Desde a F48 a asserção 4 dizia "nenhuma"; a F68 abre EXATAMENTE duas — a porta pública do relatório (R-ACC-144).
   -- -----------------------------------------------------------------------
   k_secdef_anon text[] := array['relatorio_publico_abrir', 'relatorio_publico_dados'];
+  -- …e pela ASSINATURA EXATA (revisão adversarial da F68: comparar só o nome deixaria passar uma sobrecarga nova executável
+  -- por anon — a asserção 2 já recusa sobrecarga, e a 4a não depende dela).
+  k_secdef_anon_assinaturas text[] := array['relatorio_publico_abrir(text, text, text)',
+                                            'relatorio_publico_dados(text, text, text, jsonb)'];
 
   -- -----------------------------------------------------------------------
   -- AS INVOKER ALCANÇÁVEIS POR `anon` — exceção NOMINAL, uma a uma.
@@ -397,7 +401,7 @@ begin
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prokind = 'f' and p.prosecdef
      and has_function_privilege('anon', p.oid, 'execute')
-     and not (p.proname = any (k_secdef_anon));
+     and not ((p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') = any (k_secdef_anon_assinaturas));
   if pg_temp.assert_zero_de(
        '4a nenhuma `security definer` executável por anon fora das duas portas (k_secdef_anon)' ||
        case when v_cnt > 0 then ' — alcançável(is): ' || v_lista else '' end,

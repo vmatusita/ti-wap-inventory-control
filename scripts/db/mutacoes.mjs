@@ -4018,6 +4018,7 @@ const F67C_ESCRITA = [
 // sem o filtro `like '$2%'` a linha scrypt continua sem abrir (o crypt de um sal que não é bcrypt não casa o hash),
 // então não há mutação de um ponto que a derrube.
 // =====================================================================================================================
+/** @type {Mutacao[]} */
 const F68_PORTA_PUBLICA = [
   {
     id: 'f68-porta-executavel-por-authenticated',
@@ -4123,15 +4124,15 @@ const F68_PORTA_PUBLICA = [
     classe: 'forca-bruta-por-origem-forjada',
     derruba: ['V9b'],
     porque:
-      'relatorio_publico_abrir perde o teto por EMPRESA e fica só com o por (empresa, origem). Quem chama a função direto pelo PostgREST forja a origem a cada tentativa — sem o teto, a força bruta só pagaria o bcrypt.',
+      'relatorio_publico_abrir perde o teto por EMPRESA e fica só com o por (empresa, origem). Quem chama a função direto pelo PostgREST forja a origem a cada tentativa — sem o teto, a força bruta só pagaria o bcrypt. A mutação leva a CONSTANTE às alturas: o teto é conferido em dois lugares (a pré-checagem sem trava e a conferência depois do incremento, que segura as chamadas concorrentes), e tirar só um deles é um mutante equivalente num roteiro sequencial.',
     sql: mutarFuncaoSemReplace(
       'public.relatorio_publico_abrir(text, text, text)',
-      `  if v_n > k_teto_empresa then`,
-      `  if false then  ${MARCA}`,
+      `  k_teto_empresa constant int := 20;`,
+      `  k_teto_empresa constant int := 2000000000;  ${MARCA}`,
       'f68-sem-teto-por-empresa',
     ),
     prova: {
-      sql: `select pg_get_functiondef('public.relatorio_publico_abrir(text, text, text)'::regprocedure) not like '%v_n > k_teto_empresa%'`,
+      sql: `select pg_get_functiondef('public.relatorio_publico_abrir(text, text, text)'::regprocedure) not like '%k_teto_empresa constant int := 20;%'`,
       espera: 't',
     },
   },

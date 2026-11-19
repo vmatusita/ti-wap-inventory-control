@@ -17,7 +17,8 @@
 --     (as de antes da F68) responde 'formato_antigo' sem conferir nada.
 --   · senha_acesso_definir_status(p_empresa, p_id, p_ativa) → o rótulo (para a trilha). Só altera a linha cujo
 --     empresa_id = p_empresa — a de outra empresa é "não encontrada"; logo a trilha que o app grava com p_empresa é a da
---     empresa DA LINHA. Reativar respeita o teto.
+--     empresa DA LINHA. Reativar respeita o teto; revogar ENCERRA as sessões abertas com a senha (reativar não as
+--     ressuscita).
 --
 -- As três: `e_admin_na(p_empresa)` ANTES de qualquer efeito (as três exigências do RUNBOOK; a classe k_escopo_ok de
 -- definer_sem_tenant.sql), `security definer` com `search_path = ''`, nomes qualificados, e
@@ -151,6 +152,13 @@ begin
      set ativa = p_ativa
    where s.empresa_id = p_empresa and s.id = p_id
   returning s.rotulo into v_rotulo;
+  -- revogar ENCERRA as sessões abertas com a senha (a porta já as recusa pela senha inativa; encerrá-las faz uma
+  -- reativação posterior NÃO ressuscitar o acesso de quem tinha entrado antes da revogação)
+  if not p_ativa then
+    update public.sessoes_visualizador sv
+       set encerrada_em = now()
+     where sv.empresa_id = p_empresa and sv.senha_id = p_id and sv.encerrada_em is null;
+  end if;
   return v_rotulo;
 end $$;
 
@@ -159,7 +167,7 @@ comment on function public.senha_acesso_criar(uuid, text, text) is
 comment on function public.senha_acesso_conferir(uuid, uuid, text) is
   'F68 (0211): "essa senha ainda é a que eu passei?" — confere | nao_confere | formato_antigo (as scrypt de antes da F68, que a porta não abre). Guarda: e_admin_na(p_empresa); a linha é a da empresa informada.';
 comment on function public.senha_acesso_definir_status(uuid, uuid, boolean) is
-  'F68 (0211): revoga/reativa uma senha de visualização. Guarda: e_admin_na(p_empresa); só altera a linha cujo empresa_id = p_empresa (a trilha, gravada pelo app com p_empresa, é a da empresa DA LINHA). Reativar respeita o teto de 5. Devolve o rótulo.';
+  'F68 (0211): revoga/reativa uma senha de visualização. Guarda: e_admin_na(p_empresa); só altera a linha cujo empresa_id = p_empresa (a trilha, gravada pelo app com p_empresa, é a da empresa DA LINHA). Reativar respeita o teto de 5; revogar encerra as sessões abertas com ela. Devolve o rótulo.';
 
 revoke all on function public.senha_acesso_criar(uuid, text, text) from public, anon, service_role;
 revoke all on function public.senha_acesso_conferir(uuid, uuid, text) from public, anon, service_role;

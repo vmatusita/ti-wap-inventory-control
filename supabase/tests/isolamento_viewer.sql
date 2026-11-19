@@ -21,13 +21,16 @@
 --       EXATAMENTE a mesma resposta;
 --   V4  a sessão: só o sha-256 do token no banco; a resposta de abrir só leva {ok, sessao};
 --   V5  a DIAGONAL: a sessão de A em dados com o slug de B é recusada (recusa "empresa");
---   V6  a senha revogada mata a sessão na chamada seguinte; a vencida e a encerrada são recusadas;
+--   V6  a senha revogada mata a sessão na chamada seguinte (mesmo revogada por fora da função); a vencida e a encerrada
+--       são recusadas; revogar pela função encerra as sessões, e reativar não as ressuscita;
 --   V7  hash scrypt (as senhas de antes da F68) nunca abre;
---   V8  nenhuma chave de pessoa em NENHUMA resposta (o jsonb percorrido), com gerados V2 e V1 que TÊM as chaves;
+--   V8  nenhuma chave de pessoa nem valor de pessoa em NENHUMA resposta (o jsonb percorrido), com gerados V2 e V1 que
+--       TÊM as chaves;
 --   V9  o contador: por (empresa, origem), e o teto por EMPRESA com origens forjadas em laço;
 --   V10 a gestão por empresa: admin de A não cria, não confere, não revoga em B; quem não é admin não faz nada; o teto, os
 --       72 bytes e a repetida na mesma empresa;
---   V11 um pedido fora da lista fechada é recusado.
+--   V11 um pedido fora da lista fechada é recusado;
+--   V12 o pior caso de dados (um snapshot do tamanho do maior de produção) sai pela projeção bem dentro dos 3 s do anon.
 --
 -- Tudo dentro de `begin; … rollback;`. As empresas, as pessoas e as senhas são FICTÍCIAS (regra 2). As senhas de fixture
 -- são criadas pela própria função de gestão (bcrypt custo 10) — o roteiro é lento de propósito: o custo é o da porta.
@@ -143,6 +146,8 @@ declare
   v_g1      uuid;
   v_n       int;
   i         int;
+  v_inicio  timestamptz;
+  v_ms      numeric;
 begin
   select id into v_autor from auth.users where email = 'ci@wap.ind.br';
   select slug into v_slug_a from public.empresas where id = v_a;
@@ -178,9 +183,11 @@ begin
       (pg_temp.f68_estado_como(v_op_a,  format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a)), '42501'),
       (pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_criar(%L, %L, %L)', v_a, 'Repetida', 'senha-igual-nas-duas')), '23505'),
       (pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_criar(%L, %L, %L)', v_a, 'Longa', repeat('é', 37))), '22023'),
-      (pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_criar(%L, %L, %L)', v_a, 'Curta', 'curta7c')), '22023')
+      (pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_criar(%L, %L, %L)', v_a, 'Curta', 'curta7c')), '22023'),
+      -- a borda: 72 bytes EXATOS (36 letras com acento) passa — na B, pelo admin dela
+      (pg_temp.f68_estado_como(v_adm_b, format('select public.senha_acesso_criar(%L, %L, %L)', v_b, 'Borda 72', repeat('é', 36))), '00000')
     ) as t(e, x);
-  if pg_temp.assert_zero_de('V10a admin de A não cria, não confere, não revoga em B; não-admin não faz nada; a repetida na mesma empresa e a de mais de 72 bytes são recusadas',
+  if pg_temp.assert_zero_de('V10a admin de A não cria, não confere, não revoga em B; não-admin não faz nada; a repetida na mesma empresa e a de mais de 72 bytes são recusadas (72 exatos passam)',
        v_cnt, v_univ) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- conferir: confere / não confere / a scrypt é "formato antigo"
@@ -230,6 +237,7 @@ begin
   -- V2 + V3 — as cinco recusas: a mesma resposta
   -- ==========================================================================
   -- a senha revogada: a "Teto 5" da A (revogada acima)
+  select count(*) into v_n from public.sessoes_visualizador s where s.empresa_id = v_b;
   v_rec := array[
     pg_temp.f68_abrir(v_slug_a, '', '10.0.0.2'),                         -- sem senha
     pg_temp.f68_abrir(v_slug_a, 'senha-errada-qualquer', '10.0.0.2'),    -- senha errada
@@ -242,7 +250,7 @@ begin
        v_cnt, 5) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   if pg_temp.assert_zero_de('V2 a senha de A no slug de B é recusada (e não abriu sessão nenhuma na B)',
        (v_rec[5] is distinct from k_recusa)::int
-       + (select count(*) from public.sessoes_visualizador s where s.empresa_id = v_b and s.senha_id <> v_senha_b)::int, 2) then
+       + ((select count(*) from public.sessoes_visualizador s where s.empresa_id = v_b) <> v_n)::int, 2) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
@@ -313,7 +321,11 @@ begin
     from unnest(v_respostas) r, pg_temp.f68_chaves(r) k
    where k = any (k_proibidas);
   select count(*) into v_univ from unnest(v_respostas) r, pg_temp.f68_chaves(r) k;
-  if pg_temp.assert_zero_de('V8a nenhuma chave de pessoa nem id interno em NENHUMA resposta de dados (porta, sessao, gerados, gerado V2 e V1)' ||
+  -- e o VALOR: o nome fictício das fixtures (só sob chaves fora da lista) não aparece em resposta nenhuma — pega também
+  -- uma chave de pessoa NOVA ou renomeada, que a lista de nomes acima não conhece
+  select v_cnt + count(*) into v_cnt from unnest(v_respostas) r
+   where r::text like '%Fulano de Tal%' or r::text like '%intruso%' or r::text like '%Setor X%';
+  if pg_temp.assert_zero_de('V8a nenhuma chave de pessoa nem id interno, e nenhum VALOR de pessoa, em NENHUMA resposta de dados (porta, sessao, gerados, gerado V2 e V1)' ||
        case when v_cnt > 0 then ' — vazou: ' || v_lista else '' end, v_cnt, v_univ) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   -- e o conteúdo que DEVE sair, sai (a projeção não esvaziou tudo)
@@ -350,8 +362,10 @@ begin
   -- ==========================================================================
   v_t_rev := pg_temp.f68_abrir(v_slug_a, 'senha-do-teto-4', '10.0.0.4') ->> 'sessao';
   v_estado := (pg_temp.f68_dados(v_t_rev, v_slug_a, 'sessao', null) ->> 'ok');   -- viva antes
+  -- revogada pelo caminho que NÃO encerra as sessões (o update direto do app anterior, que a Skew Protection mantém no ar
+  -- por até 12 h depois do deploy): quem mata a sessão é a conferência da senha ativa dentro de dados
   select id into v_senha_a2 from public.senhas_acesso where empresa_id = v_a and rotulo = 'Teto 4';
-  perform pg_temp.f68_valor_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a2));
+  update public.senhas_acesso set ativa = false where empresa_id = v_a and id = v_senha_a2;
   if pg_temp.assert_zero_de('V6a a senha revogada mata a sessão na chamada seguinte',
        (v_estado is distinct from 'true')::int
        + (pg_temp.f68_dados(v_t_rev, v_slug_a, 'sessao', null) is distinct from '{"ok": false, "recusa": "sessao"}'::jsonb)::int,
@@ -369,6 +383,18 @@ begin
        + (pg_temp.f68_dados(v_t_b, v_slug_b, 'gerados', '{}'::jsonb) is distinct from '{"ok": false, "recusa": "sessao"}'::jsonb)::int
        + (pg_temp.f68_dados('token-inventado', v_slug_a, 'sessao', null) is distinct from '{"ok": false, "recusa": "sessao"}'::jsonb)::int,
        4) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- V6c — revogar pela função ENCERRA as sessões da senha; reativá-la não ressuscita o acesso de antes
+  v_t := pg_temp.f68_abrir(v_slug_a, 'senha-do-teto-2', '10.0.0.7') ->> 'sessao';
+  select id into v_senha_a2 from public.senhas_acesso where empresa_id = v_a and rotulo = 'Teto 2';
+  perform pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a2));
+  select count(*) into v_n from public.sessoes_visualizador s
+   where s.empresa_id = v_a and s.senha_id = v_senha_a2 and s.encerrada_em is null;
+  perform pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, true)', v_a, v_senha_a2));
+  if pg_temp.assert_zero_de('V6c revogar pela função encerra as sessões da senha, e reativá-la não ressuscita o acesso de antes',
+       (v_t is null)::int + (v_n <> 0)::int
+       + (pg_temp.f68_dados(v_t, v_slug_a, 'sessao', null) is distinct from '{"ok": false, "recusa": "sessao"}'::jsonb)::int,
+       3) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
   -- V7 — scrypt nunca abre (a linha scrypt da fixture "casa" com a senha digitada pelo formato antigo; a porta não a lê)
@@ -410,10 +436,43 @@ begin
        ((pg_temp.f68_abrir(v_slug_a, 'senha-do-teto-3', 'forjada-a') ->> 'ok') is distinct from 'true')::int, 1) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   -- (d) slug inexistente: um balde só
-  select count(*) into v_cnt from public.porta_tentativas
-   where chave like 'empresa:%' and chave not in ('empresa:' || v_a::text, 'empresa:' || v_b::text, 'empresa:inexistente');
+  select count(*) into v_cnt from public.porta_tentativas p
+   where p.chave like 'empresa:%' and p.chave <> 'empresa:inexistente'
+     and not exists (select 1 from public.empresas e where 'empresa:' || e.id::text = p.chave);
   if pg_temp.assert_zero_de('V9d slug inexistente conta num balde único (empresa:inexistente) — a tabela não cresce com slugs inventados',
        v_cnt, (select count(*) from public.porta_tentativas where chave like 'empresa:%')) then
+    v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+
+  -- ==========================================================================
+  -- V12 — o pior caso de dados: um snapshot do tamanho do MAIOR de produção (129.293 bytes; aqui ~400 linhas de saídas
+  -- e 400 de entradas) servido pela projeção da lista branca, como anon, bem dentro dos 3 s do papel. O teto não chega a
+  -- este bloco por set role (o roteiro mede o tempo da chamada).
+  -- ==========================================================================
+  insert into public.relatorios_gerados (empresa_id, filial_id, periodo_de, periodo_ate, versao, gerado_por, dados)
+  values (v_a, null, '2002-01-01', '2002-01-07', 1, v_autor, jsonb_build_object(
+    'meta', jsonb_build_object('filialSlug', 'geral', 'filialNome', 'Consolidado', 'ehGeral', true, 'de', '2002-01-01',
+                               'ate', '2002-01-07', 'periodoRotulo', 'F68 grande', 'schema', 2),
+    'saidas', (select jsonb_agg(jsonb_build_object('id', 'm' || g, 'data', '2002-01-02', 'filial', 'Filial Fictícia',
+                 'categoria', 'notebook', 'modelo', 'Modelo Fictício ' || g, 'patrimonio', 'WAP' || lpad(g::text, 7, '0'),
+                 'tipo', 'entrega', 'motivo', 'Motivo', 'chamado', 'CH-' || g, 'colaboradorSetor', 'Fulano de Tal',
+                 'termo', 'Termo', 'obs', 'observação da linha ' || g, 'ativoId', 'a' || g)) from generate_series(1, 400) g),
+    'entradas', (select jsonb_agg(jsonb_build_object('id', 'n' || g, 'data', '2002-01-03', 'filial', 'Filial Fictícia',
+                 'categoria', 'notebook', 'modelo', 'Modelo Fictício ' || g, 'patrimonio', 'WAP' || lpad((g + 500)::text, 7, '0'),
+                 'tipo', 'devolucao', 'motivo', 'Motivo', 'colaborador', 'Fulano de Tal', 'setor', 'Setor X',
+                 'itensFaltantes', jsonb_build_array('mouse', 'cabo'), 'obs', 'obs ' || g, 'ativoId', 'b' || g))
+                 from generate_series(1, 400) g)
+  )) returning id into v_g2;
+  select octet_length(dados::text) into v_n from public.relatorios_gerados where id = v_g2;
+  v_inicio := clock_timestamp();
+  v_r := pg_temp.f68_dados(v_t_a, v_slug_a, 'gerado', jsonb_build_object('id', v_g2));
+  v_ms := extract(epoch from clock_timestamp() - v_inicio) * 1000;
+  raise notice '(medição) V12: snapshot de % bytes servido pela porta em % ms', v_n, round(v_ms);
+  if pg_temp.assert_zero_de('V12 o pior caso de dados (um snapshot de ~130 KB) sai inteiro pela projeção, sem nomes, bem dentro dos 3 s do anon',
+       (v_n < 120000)::int
+       + ((v_r ->> 'ok') is distinct from 'true')::int
+       + (jsonb_array_length(v_r -> 'gerado' -> 'dados' -> 'saidas') <> 400)::int
+       + (v_r::text like '%Fulano de Tal%')::int
+       + (v_ms >= 3000)::int, 5) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   raise notice 'FIM isolamento_viewer: % asserções, % falhas', v_ok + v_falhas, v_falhas;

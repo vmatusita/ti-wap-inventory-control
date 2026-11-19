@@ -213,7 +213,7 @@
     "0208_porta_base.sql": "f269459df48f37de8d4ff5bcdd15aa009d1df66ac652ef0872fe780c354cb634",
     "0209_porta_sessoes.sql": "7233cc32fcd70f809e260ac0494a7d388d1825e93b946b9af52120938bb39f47",
     "0210_porta_tentativas.sql": "83a74c337b2fe9c736919ec198cce0ef76f734fefee9b3f9a8d644e0e6bb3d07",
-    "0211_porta_gestao_senhas.sql": "15ae0ee2b59d49604b24183253b7d6431501a74afee9093b4fc148d7331d238c",
-    "0212_porta_publica.sql": "64c0692a6b4752dcf3ad02cf153e431f9e9770c51b95a98e96bc44548c877073"
+    "0211_porta_gestao_senhas.sql": "3ac5f4e4fb5946a18bc84c7dda6c0502952bbaa127c2f2022099c94ff5130945",
+    "0212_porta_publica.sql": "4d7bb4fc87236133c2c53f8a19fd6acfe98a321c353115bd42ec0bf16018c3cf"
   }
 }

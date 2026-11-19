@@ -86,6 +86,9 @@ language plpgsql
 volatile
 security definer
 set search_path = ''
+-- a linha do contador fica travada até o fim da chamada (depois dos 5 crypt): uma chamada concorrente da MESMA empresa
+-- espera no máximo 500 ms e então FALHA (o app recusa — R-ACC-95), em vez de segurar uma conexão até os 3 s do anon
+set lock_timeout = '500ms'
 as $$
 declare
   k_sal_ficticio constant text := '$2a$10$F68PortaPublicaFictici';
@@ -108,7 +111,13 @@ begin
   select e.id into v_empresa from public.empresas e where e.slug = coalesce(p_slug, '');
   v_balde := coalesce(v_empresa::text, 'inexistente');
 
-  -- 2) o contador, ANTES de qualquer senha: o teto por EMPRESA (todas as origens) primeiro…
+  -- 2) o contador, ANTES de qualquer senha. Estourado o teto da EMPRESA na janela, recusa SEM travar nada (leitura sem
+  --    lock): quem martela a porta não enfileira atrás da linha travada pelas chamadas que estão conferindo senha.
+  if exists (select 1 from public.porta_tentativas p
+              where p.chave = 'empresa:' || v_balde and p.janela_fim >= now() and p.tentativas >= k_teto_empresa) then
+    return jsonb_build_object('ok', false, 'recusa', 'tentativas');
+  end if;
+  --    O teto por EMPRESA (todas as origens) primeiro…
   insert into public.porta_tentativas as t (chave, tentativas, janela_fim)
   values ('empresa:' || v_balde, 1, now() + k_janela)
   on conflict (chave) do update set
@@ -129,13 +138,16 @@ begin
     return jsonb_build_object('ok', false, 'recusa', 'tentativas');
   end if;
 
-  -- 3) a faxina limitada (o mesmo trabalho em todo caminho que chega aqui)
+  -- 3) a faxina limitada (o mesmo trabalho em todo caminho que chega aqui); em ordem e pulando o que outra chamada já
+  --    travou — duas faxinas simultâneas nunca se esperam nem se travam mutuamente
   delete from public.porta_tentativas
    where chave in (select p.chave from public.porta_tentativas p
-                    where p.janela_fim < now() - interval '1 hour' limit 50);
+                    where p.janela_fim < now() - interval '1 hour'
+                    order by p.chave limit 50 for update skip locked);
   delete from public.sessoes_visualizador
    where id in (select s.id from public.sessoes_visualizador s
-                 where s.vence_em < now() - interval '1 day' or s.encerrada_em < now() - interval '1 day' limit 50);
+                 where s.vence_em < now() - interval '1 day' or s.encerrada_em < now() - interval '1 day'
+                 order by s.id limit 50 for update skip locked);
 
   -- 4) as candidatas: as ATIVAS BCRYPT da empresa do slug (scrypt nunca), no máximo o teto da criação
   select array_agg(c.id order by c.id), array_agg(c.hash order by c.id)
