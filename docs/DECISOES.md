@@ -14418,3 +14418,20 @@ corrigido (o estado das duas chamadas conferido; o controle acima), provado por 
 encerramento sem os filtros de senha e de empresa: V6c ✗, 2 de 9) — que também mostrou o V12 ABORTANDO em vez de reprovar
 (contagem nula), corrigido com `coalesce`; a varredura de import dinâmico tirava comentários por regex, que morde dentro
 de string → passou a ler o fonte cru (o falso positivo é o lado seguro); o `lock_timeout` é o (v) acima.
+
+**O apply (19/11, ~11:49–12:10).** Ensaio primeiro, as cinco uma a uma pelo `apply_migration` com o texto exato; depois de
+cada uma, o `md5` de cada `prosrc` e de cada comentário = o calculado do arquivo, as senhas e as policies intocadas. A prova
+viva no ensaio: P1 10/10; as cinco recusas a ±0,3% da mediana geral (n = 30, a régua escrita antes); as sabotagens D (o
+tempo) e B (a FK composta, `23503`) acusadas; nada ficou. Produção em seguida, com a mesma exatidão e a PARIDADE do
+catálogo (`0d347254…` nos dois); com o app de antes no ar, o smoke 110 OK · 0 falha, o conferidor 0 recusadas, as 13
+checagens na linha travada, as 5 senhas com o mesmo md5. Nenhum `abrir` em produção. Evidência: `f68-evidencias/D-ensaio/`
+e `F-producao/`.
+
+**A divergência dos advisors (decidida e registrada antes do apply de produção).** Depois do apply no ensaio, o WARN
+`authenticated_security_definer_function_executable` foi de 39 a 42 — as três funções de gestão da decisão 8. O plano previa
+só o par de `anon` e os dois INFO das tabelas deny-all; a linha dele esqueceu estas três. **Escolha:** declarar e seguir, sem
+rollback. **Motivo:** é o MESMO lint de antes crescendo pelo desenho (funções `security definer` com a guarda
+`e_admin_na(p_empresa)` antes de qualquer efeito — V10 e `definer_sem_tenant.sql` provam), o precedente exato da F67 (ata
+de 13/11, decisão 18: "nenhum lint novo"); o único lint NOVO é o par de `anon`, declarado. A regra de bloqueio da ordem
+("advisor de segurança novo que cite objeto da fase") mira exposição não prevista — e esta é a exposição prevista, só não
+contada na linha do plano. Igual em produção.

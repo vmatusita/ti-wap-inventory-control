@@ -1,0 +1,90 @@
+# F68 — o CI do PR #101 sobre o código congelado (fd6d93fe; o run é do head 56df7504 = fd6d93fe + só docs)
+# run 44546617832 · verificar: success · banco-sem-docker: success · 19/11/2026
+
+## db:types:diff
+banco ....... 40 relações · 370 colunas · 111 funções
+database.ts . 40 relações · 370 colunas · 111 funções
+VERDE: o database.ts conhece tudo o que o banco tem.
+
+## os roteiros (a linha FIM de cada um)
+FIM asof_desempate: 21 asserções, 0 falhas
+FIM asserts_ferramenta: 7 asserções, 0 falhas
+FIM cargo_dev: 71 asserções, 0 falhas
+FIM cargo_em_membros: 5 asserções, 0 falhas
+FIM cargo_equivalencia: 7 asserções, 0 falhas
+FIM cargo_por_empresa: 15 asserções, 0 falhas
+FIM catalogo_policies: 48 asserções, 0 falhas
+FIM catalogo_secdef: 17 asserções, 0 falhas
+FIM colaborador_estorno: 19 asserções, 0 falhas
+FIM colaborador_uso_efetivo: 11 asserções, 0 falhas
+FIM comprimento_comportamento: 28 asserções, 0 falhas
+FIM comprimento_por_coluna: 17 asserções, 0 falhas
+FIM conflito_entre_empresas: 8 asserções, 0 falhas
+FIM conflito_filiais: 51 asserções, 0 falhas
+FIM definer_sem_tenant: 9 asserções, 0 falhas
+FIM dev_destrutivo: 109 asserções, 0 falhas
+FIM dominios_login: 16 asserções, 0 falhas
+FIM empresa_no_acervo: 22 asserções, 0 falhas
+FIM empresa_no_vocabulario: 15 asserções, 0 falhas
+FIM escrita_atomica_ativos_anotacao: 16 asserções, 0 falhas
+FIM escrita_por_empresa: 55 asserções, 0 falhas
+FIM f34_triagem_reserva: 21 asserções, 0 falhas
+FIM f36_detentor: 18 asserções, 0 falhas
+FIM f37_colaboradores_tipos: 26 asserções, 0 falhas
+FIM f38_itens_com_ativo: 51 asserções, 0 falhas
+FIM f41_regularizacao: 26 asserções, 0 falhas
+FIM f60_recorte: 17 asserções, 0 falhas
+FIM f62_rollback: 4 asserções, 0 falhas
+FIM f63_rollback: 5 asserções, 0 falhas
+FIM f64_rollback: 5 asserções, 0 falhas
+FIM f65_rollback: 5 asserções, 0 falhas
+FIM f66_rollback: 6 asserções, 0 falhas
+FIM f66b_rollback: 5 asserções, 0 falhas
+FIM f67_rollback: 7 asserções, 0 falhas
+FIM f67b_rollback: 9 asserções, 0 falhas
+FIM f67c_rollback: 11 asserções, 0 falhas
+FIM f68_rollback: 7 asserções, 0 falhas
+FIM forma_multiempresa: 8 asserções, 0 falhas
+FIM fuso_do_negocio: 5 asserções, 0 falhas
+FIM import_fora_da_unidade: 14 asserções, 0 falhas
+FIM import_substituir: 32 asserções, 0 falhas
+FIM imutabilidade_tenant: 9 asserções, 0 falhas
+FIM integridade_alarme: 40 asserções, 0 falhas
+FIM integridade_tenant: 24 asserções, 0 falhas
+FIM isolamento_tenant: 48 asserções, 0 falhas
+FIM isolamento_viewer: 21 asserções, 0 falhas
+FIM itens_extra: 4 asserções, 0 falhas
+FIM itens_quantidade: 14 asserções, 0 falhas
+FIM kit_motivo_da_empresa: 14 asserções, 0 falhas
+FIM ledger_de_migracoes: 6 asserções, 0 falhas
+FIM manutencao_fornecedor: 19 asserções, 0 falhas
+FIM maquina_estados: 14 asserções, 0 falhas
+FIM movimentacao_grade: 45 asserções, 0 falhas
+FIM papeis_rls: 77 asserções, 0 falhas
+FIM pendencias_import_termo: 5 asserções, 0 falhas
+FIM pendencias_item: 15 asserções, 0 falhas
+FIM reabrir_pendencia_item: 4 asserções, 0 falhas
+FIM restauracao: 20 asserções, 0 falhas
+FIM seguranca_catalogo: 9 asserções, 0 falhas
+FIM storage_por_empresa: 36 asserções, 0 falhas
+FIM storage_termo: 15 asserções, 0 falhas
+FIM termo_bloqueado: 7 asserções, 0 falhas
+FIM transferencia_item: 18 asserções, 0 falhas
+FIM transicoes_extra: 13 asserções, 0 falhas
+FIM troca: 13 asserções, 0 falhas
+FIM unicidade_por_empresa: 3 asserções, 0 falhas
+FIM vocabulario_import: 56 asserções, 0 falhas
+
+## o injetor
+mutações ativas ..... 197
+catalogo-security-definer-executavel-por-anon              catalogo_secdef.sql                  4a                                detectada            327 ms
+f68-porta-executavel-por-authenticated                     catalogo_secdef.sql                  4b                                detectada            321 ms
+f68-porta-revogada-de-anon                                 catalogo_secdef.sql                  4b                                detectada            322 ms
+f68-dados-sem-a-diagonal                                   isolamento_viewer.sql                V5                                detectada           7381 ms
+f68-lista-branca-com-pessoa                                isolamento_viewer.sql                V8a                               detectada           7376 ms
+f68-sessao-sem-vencimento                                  isolamento_viewer.sql                V6b                               detectada           7376 ms
+f68-senha-revogada-aceita                                  isolamento_viewer.sql                V6a                               detectada           7428 ms
+f68-sem-teto-por-empresa                                   isolamento_viewer.sql                V9b                               detectada           7649 ms
+f68-recusa-com-outra-cara                                  isolamento_viewer.sql                V3                                detectada           7425 ms
+f68-gestao-sem-guarda-da-empresa                           isolamento_viewer.sql                V10a                              detectada           7603 ms
+197/197 detectadas pelo cenário nomeado · 163826 ms no total

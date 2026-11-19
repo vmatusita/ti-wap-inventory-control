@@ -1,0 +1,64 @@
+# F68 — o ENSAIO (sgmvldiizsrjbxzzpmhh, PG 17.11), 19/11/2026 ~11:49–12:00 BRT. Frente G, passo 5. Código congelado
+# fd6d93fe; CI verde (run 44546617832). Tudo pelo MCP: apply_migration (as cinco, uma a uma, com o texto EXATO do arquivo)
+# e execute_sql (só leitura, salvo os quatro blocos que terminam em `raise`). Só contagem, nome de esquema, hash e tempo.
+
+## O apply, migration a migration (a versão do ledger é hora LOCAL, -03)
+20261119114952 porta_base           ledger 205 · constraint u UNIQUE (empresa_id, id) · comentário 4a35dbd3… = arquivo
+20261119115029 porta_sessoes        ledger 206 · 0 linhas, RLS on, 0 policy, nenhum privilégio a anon/authenticated/service_role
+                                    · 6 constraints · comentários ec415600 / 90db6bb0 / f94e16e2 / a4852401 = arquivo
+20261119115055 porta_tentativas     ledger 207 · 0 linhas, RLS on, 0 policy, nenhum privilégio · comentário f7374538 = arquivo
+20261119115137 porta_gestao_senhas  ledger 208 · as três definer, search_path="", EXECUTE só authenticated (anon, service_role e
+                                    PUBLIC sem) · md5(prosrc) = arquivo: criar 7641cd15, conferir ddf19ad9, definir_status 56084f47
+                                    · comentários d96a0c0a / bbcc344a / 8ffa878d = arquivo
+20261119115306 porta_publica        ledger 209 · md5(prosrc) = arquivo: abrir 93407734 (definer, search_path="", lock_timeout=500ms),
+                                    dados c73b57b5 (definer), projetar 89025878 (invoker) · comentários 3e2cc4fd / 640f95b8 /
+                                    86e8e1b7 = arquivo · EXECUTE: abrir e dados SÓ anon; projetar NINGUÉM
+(as cinco versões conferidas no ledger depois da última: 114952, 115029, 115055, 115137, 115306)
+
+Depois de cada uma: md5 das 5→1 linhas de senhas_acesso = d2e030e7… (intocada) e policies = cee318f5… (intocadas).
+
+## O catálogo depois da última
+funções public 123 (75 security definer) · as 117 de ANTES byte a byte: 7b461b5b6978bb9c788e14c75c164b3f (= o "antes")
+executáveis por anon: EXATAMENTE relatorio_publico_abrir, relatorio_publico_dados
+md5 do TSV das 123 (a impressão nova, para a paridade com produção): 0d347254b21687c05fad53879fb70689
+policies 62 · cee318f577345f75dc06b99874b8a867 (= o "antes") · policies que citam anon ou public: 0
+
+## A prova viva (decisão 15) — os blocos estão aqui ao lado (P1–P4.sql); a saída é o texto do raise
+P1  F68 PROVA VIVA (ensaio): 10 de 10 verificações OK; falhas: nenhuma; 17 chamadas como anon; a mais lenta das
+    cronometradas: 307 ms.
+P2  F68 TEMPO DAS RECUSAS (ensaio, n=30 por caminho): mediana geral das recusas 301.1 ms; sem senha 300.8 ms (-0.1%);
+    senha errada 301.8 ms (0.3%); senha revogada 301.2 ms (0.0%); slug inexistente 301.1 ms (0.0%); senha de A no slug
+    de B 302.1 ms (0.3%); abertura (referência) 301.2 ms; fora dos ±10%: nenhum; recusas com resposta diferente de
+    {"ok": false}: 0; aberturas OK: 30 de 30.
+P3  F68 SABOTAGEM D (ensaio, n=15 por caminho, o crypt pulado nas posições vazias): mediana geral 60.1 ms; sem senha
+    60.2 ms (0.1%); senha errada 60.3 ms (0.3%); senha revogada 60.2 ms (0.1%); slug inexistente 0.4 ms (-99.3%); senha
+    de A no slug de B 60.1 ms (0.0%); fora dos ±10%: slug inexistente → ACUSADA pela régua do tempo.
+P4  F68 SABOTAGEM B (ensaio): a mesma senha em claro nas duas — A abre, B abre; a senha só de A no slug de B, porta
+    intacta: a recusa uniforme; com a busca de candidatas SEM a empresa: erro 23503 (ACUSADA: a FK composta da sessão).
+Depois dos quatro: abrir de volta ao md5 do arquivo (93407734), 0 empresas f68-*, 0 sessões, 0 linhas no contador,
+senhas_acesso d2e030e7… — nada ficou.
+
+## A porta pelo PostgREST (P5-http-antes.txt / P5-http-depois.txt; chave anon por --env-file, nunca impressa)
+token inválido → HTTP 200 {"ok":false,"recusa":"sessao"} · senha errada e slug inexistente → HTTP 200 {"ok":false}
+anon → senha_acesso_criar, relatorio_publico_projetar, sessoes_visualizador, porta_tentativas → HTTP 401, 42501
+(as duas chamadas de abrir andaram o contador do ENSAIO — declarado: linhas empresa:<legada>, empresa:inexistente e as
+duas origem:…; a faxina da própria função as apaga depois de 1 hora vencidas)
+
+## Os advisors (get_advisors) depois do apply
+segurança: INFO rls_enabled_no_policy 6 → 8 (+ porta_tentativas, sessoes_visualizador — declarados);
+           WARN anon_security_definer_function_executable 0 → 2 (as duas portas — declarados);
+           WARN authenticated_security_definer_function_executable 39 → 42 (+ as três de gestão, decisão 8 — o mesmo lint
+           de antes, como na F67: ver a ata);
+           WARN auth_leaked_password_protection 1; ERROR 0. Nenhum lint novo além do par de anon.
+desempenho: INFO unindexed_foreign_keys 38 (a unique da 0208 cobre senhas_acesso_empresa_id_fkey); no_primary_key 1;
+            unused_index 44 (o do ensaio; inclui sessoes_visualizador_vence_idx, tabela vazia); WARN
+            multiple_permissive_policies 1; ERROR 0.
+
+## As 13 checagens (chave=total) — iguais ao "antes"
+arquivo_termo_orfao=0, ativo_filial_inativa=0, backup_orfao=0, conflito_entre_filiais=0, conta_sem_perfil=0,
+detentor_em_estado_sem_dono=0, kit_motivo_orfao=0, operador_sem_filial=1, patrimonio_duplicado=0,
+pendencia_de_estornada=0, perfil_sem_conta=0, reserva_aberta=0, termo_sem_arquivo=0
+
+## O conferidor (conferidor.json)
+248 pontos · 88182 linhas · 0 recusadas · 0 com erro · 1 "reprovado" = itens.saldo-colaborador sem célula no ensaio (o
+artefato conhecido desde a F65: não há colaborador com saldo de item ali), sem relação com a fase.

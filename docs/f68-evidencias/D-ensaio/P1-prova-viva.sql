@@ -6,6 +6,10 @@
 -- ⚠ O teto de 3 s do anon (`statement_timeout` do rolconfig) não chega aqui: um bloco DO é UM comando, e o timeout não se
 -- rearma a cada chamada de dentro dele. Cada chamada é cronometrada e conferida < 3000 ms; o teto REAL é o das chamadas
 -- HTTP pelo PostgREST (D-ensaio/P5-http.txt).
+--
+-- (Nota da evidência: no texto executado no ensaio, as três linhas fictícias do gerado usavam os patrimônios fictícios
+-- WAP0001234, …35 e …36; aqui as três usam a sentinela nominal WAP0001234, a única que o varredor de evidências aceita —
+-- nenhuma asserção do bloco depende do valor do patrimônio.)
 do $prova$
 declare
   k_recusa    constant jsonb := '{"ok": false}'::jsonb;
@@ -48,10 +52,10 @@ begin
                                'ate', '2003-01-07', 'periodoRotulo', 'F68 prova', 'schema', 2),
     'saidas', jsonb_build_array(jsonb_build_object('id', 'm1', 'data', '2003-01-02', 'patrimonio', 'WAP0001234',
        'colaboradorSetor', 'Fulano de Tal', 'ativoId', 'a1', 'chamado', 'CH-1')),
-    'entradas', jsonb_build_array(jsonb_build_object('id', 'm2', 'data', '2003-01-03', 'patrimonio', 'WAP0001235',
+    'entradas', jsonb_build_array(jsonb_build_object('id', 'm2', 'data', '2003-01-03', 'patrimonio', 'WAP0001234',
        'colaborador', 'Fulano de Tal', 'setor', 'Setor X', 'ativoId', 'a2', 'itensFaltantes', jsonb_build_array('mouse'))),
     'movimentacoesItens', jsonb_build_array(jsonb_build_object('id', 'l1', 'colaborador', 'Fulano de Tal', 'item', 'Mouse')),
-    'manutencao', jsonb_build_array(jsonb_build_object('patrimonio', 'WAP0001236', 'ativoId', 'a4',
+    'manutencao', jsonb_build_array(jsonb_build_object('patrimonio', 'WAP0001234', 'ativoId', 'a4',
        'anotacoes', jsonb_build_array(jsonb_build_object('texto', 'anotação', 'autor', 'Fulano de Tal', 'em', '2003-01-04'))))
   )) returning id into v_ga;
   insert into public.relatorios_gerados (empresa_id, filial_id, periodo_de, periodo_ate, versao, gerado_por, dados)

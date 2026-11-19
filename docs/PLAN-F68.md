@@ -70,7 +70,7 @@ vez que ele responder, e de novo "logo antes" do apply (Frente G, passo 5). Sem 
 | 19 | 15 / schema 2 / 8 consolidados / 14 com pessoa | igual; o censo por chave está no §0 |
 | 20 | as páginas de gerados usam `listarRelatoriosGerados`, `vizinhosDoRelatorio`, `buscarRelatorioGerado`, `listarFiliais`, `listarTiposItem` | igual |
 | 21 | o ao vivo: ~25 leituras | igual (Frente F escreve a ficha F68B) |
-| 22 | o método; MATRIZ até R-ACC-143; ADR §19; RUNBOOK Anexo F67C | igual |
+| 22 | o método; o mapa de regras até R-ACC-143; ADR §19; RUNBOOK Anexo F67C | igual |
 | 23 | Skew Protection ligada, 12 h | não remedido (a F67C mediu em 16/11; nada aqui depende do número além da decisão 18) |
 | 24 | a ficha ficou para trás em cinco pontos | igual — declarados no §6 e no relatório |
 | 25 | as travas que a rota toca | igual, e mais (§5): `confinamento-viewer.test.ts`, `guardas-de-action.test.ts`, `otp-destino.test.ts`, `sem-literais.test.ts`, `comecar.test.ts`, `registry.test.ts`, `rollback-f6x.test.ts` |
@@ -324,7 +324,11 @@ correções. A mesa PGlite (PG 17.5 + pgcrypto) roda a cadeia, os roteiros e o i
 
 ## 9. O SHA de código congelado
 
-(preenchido na Frente G, passo 3)
+**`fd6d93fe`** (`fix(f68): a re-revisão — o V6c com controle negativo, …`), 19/11/2026 — o último commit da fase que toca
+`src/**`, `scripts/**` ou `supabase/**`. A revisão adversarial (dois revisores, banco e app, no `2b8d72d2`) e a re-revisão (no
+`291d4bca`) vieram ANTES dele; o que veio depois é só `docs/**` e `CHANGELOG.md`. O CI do PR (`verificar` e
+`banco-sem-docker`) sobre ele é o portão do apply no ensaio; as migrations aplicadas no ensaio e em produção são as deste
+SHA (md5 de cada arquivo e de cada `prosrc` no relatório).
 
 ## 10. O que este plano NÃO promete
 

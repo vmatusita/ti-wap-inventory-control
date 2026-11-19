@@ -1,0 +1,11 @@
+alvo: sgmvldiizsrjbxzzpmhh (ensaio) · 2026-11-19T14:43:29.187Z
+dados, token inválido (sessao)	HTTP 404	erro PGRST202	882 ms
+dados, token inválido (gerados)	HTTP 404	erro PGRST202	111 ms
+dados, sem token, pedido fora da lista	HTTP 404	erro PGRST202	56 ms
+abrir, senha errada (slug da legada)	HTTP 404	erro PGRST202	216 ms
+abrir, slug inexistente	HTTP 404	erro PGRST202	56 ms
+anon → senha_acesso_criar (a gestão)	HTTP 404	erro PGRST202	46 ms
+anon → relatorio_publico_projetar	HTTP 404	erro PGRST202	41 ms
+anon → tabela sessoes_visualizador	HTTP 404	erro PGRST205	31 ms
+anon → tabela porta_tentativas	HTTP 404	erro PGRST205	54 ms
+anon → tabela senhas_acesso	HTTP 200	lista de 0	340 ms

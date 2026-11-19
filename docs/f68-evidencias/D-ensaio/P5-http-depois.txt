@@ -1,0 +1,11 @@
+alvo: sgmvldiizsrjbxzzpmhh (ensaio) · 2026-11-19T14:56:13.182Z
+dados, token inválido (sessao)	HTTP 200	{"ok":false,"recusa":"sessao"}	741 ms
+dados, token inválido (gerados)	HTTP 200	{"ok":false,"recusa":"sessao"}	36 ms
+dados, sem token, pedido fora da lista	HTTP 200	{"ok":false,"recusa":"sessao"}	73 ms
+abrir, senha errada (slug da legada)	HTTP 200	{"ok":false}	340 ms
+abrir, slug inexistente	HTTP 200	{"ok":false}	326 ms
+anon → senha_acesso_criar (a gestão)	HTTP 401	erro 42501	54 ms
+anon → relatorio_publico_projetar	HTTP 401	erro 42501	27 ms
+anon → tabela sessoes_visualizador	HTTP 401	erro 42501	30 ms
+anon → tabela porta_tentativas	HTTP 401	erro 42501	23 ms
+anon → tabela senhas_acesso	HTTP 200	lista de 0	44 ms
