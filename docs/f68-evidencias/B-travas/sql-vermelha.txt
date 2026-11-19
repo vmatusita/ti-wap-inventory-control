@@ -1,0 +1,6 @@
+WARNING:  ✗ 1b todo nome classificado existe e continua `security definer` — fantasma(s): relatorio_publico_abrir, relatorio_publico_dados, senha_acesso_conferir, senha_acesso_criar, senha_acesso_definir_status: 5 de 75 fora da regra
+WARNING:  ✗ 4b as duas portas de anon existem, são definer com search_path vazio, e só anon as executa (nem PUBLIC, nem authenticated, nem service_role) — relatorio_publico_abrir (não existe); relatorio_publico_dados (não existe): 2 de 2 fora da regra
+supabase/tests/catalogo_secdef.sql: FIM catalogo_secdef: 17 asserções, 2 falhas · ✗ vistos=2
+supabase/tests/seguranca_catalogo.sql: FIM seguranca_catalogo: 9 asserções, 0 falhas · ✗ vistos=0
+ERRO em supabase/tests/isolamento_viewer.sql: function public.senha_acesso_criar(unknown, unknown, unknown) does not exist
+supabase/tests/isolamento_viewer.sql: (sem FIM) · ✗ vistos=0

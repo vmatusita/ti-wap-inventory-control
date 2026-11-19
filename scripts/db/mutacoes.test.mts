@@ -358,7 +358,13 @@ describe('1. o lote tem a forma e o tamanho que a ficha pede', () => {
     // numa tabela FUTURA (15l), uma das funções do acervo sem a coluna (15m) e a empresa de quem chama no lugar da do pai
     // (E11 de escrita_por_empresa.sql). As duas `*-default-literal` da F63/F64 mudaram de SENTIDO (o default de volta,
     // agora reprovado por 15b/15e e 15l) e não contam. 184 + 4 = 188, sem folga.
-    expect(MUTACOES.length).toBeLessThanOrEqual(188)
+    // ⚠ O TETO SUBIU DE 188 PARA 197 NA F68 (19/11/2026; PLAN-F68, decisão 19), no número EXATO. A porta pública
+    // escreveu uma mutação por classe de trava desta fase que nenhum teste de mesa já derruba, cada uma medida DETECTADA
+    // na mesa PGlite antes do push (docs/f68-evidencias/E-mutacoes/): a porta executável por authenticated e a porta
+    // revogada de anon (4b — o par), a diagonal tirada de dados (V5), uma chave de pessoa na lista branca (V8a), o
+    // vencimento e a revogação ignorados (V6b, V6a), o teto por empresa removido (V9b), uma recusa com outra cara (V3) e a
+    // guarda de admin da empresa removida da gestão (V10a). 188 + 9 = 197, sem folga.
+    expect(MUTACOES.length).toBeLessThanOrEqual(197)
   })
 
   it('os `id` são únicos', () => {

@@ -4007,6 +4007,172 @@ const F67C_ESCRITA = [
   },
 ]
 
+// =====================================================================================================================
+// F68 (19/11/2026) — A PORTA PÚBLICA POR EMPRESA (docs/PLAN-F68.md, decisão 19). Uma mutação por classe de trava desta
+// fase que nenhum teste de mesa já derruba (a mesa lê o DISCO; estas mudam o BANCO): o par nominal de anon
+// (catalogo_secdef 4b, nas duas direções), a diagonal, a lista branca com uma chave de pessoa, o vencimento e a revogação
+// da sessão ignorados, o teto por empresa removido, as cinco recusas com caras diferentes e a guarda de admin da empresa
+// removida da gestão. Cada uma medida DETECTADA na mesa PGlite antes do push (docs/f68-evidencias/E-mutacoes/).
+// Fora, com o motivo na ata: "a busca de candidatas sem a empresa" — o roteiro ABORTA pela FK composta da sessão (a
+// segunda defesa), e o injetor leria "abortou", não "detectou" (a sabotagem B a prova à parte); e "scrypt abrindo" —
+// sem o filtro `like '$2%'` a linha scrypt continua sem abrir (o crypt de um sal que não é bcrypt não casa o hash),
+// então não há mutação de um ponto que a derrube.
+// =====================================================================================================================
+const F68_PORTA_PUBLICA = [
+  {
+    id: 'f68-porta-executavel-por-authenticated',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'porta-de-anon-alargada',
+    derruba: ['4b'],
+    porque:
+      'Uma das duas portas de anon passa a ser executável também por authenticated "só por enquanto". Um operador logado alcançaria a função que serve o relatório por SESSÃO DA PORTA — e o par do catálogo existe para que só anon a execute.',
+    sql: `grant execute on function public.relatorio_publico_dados(text, text, text, jsonb) to authenticated;  ${MARCA}`,
+    prova: {
+      sql: `select has_function_privilege('authenticated', 'public.relatorio_publico_dados(text, text, text, jsonb)'::regprocedure, 'execute')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-porta-revogada-de-anon',
+    roteiro: 'catalogo_secdef.sql',
+    classe: 'porta-de-anon-fechada-em-silencio',
+    derruba: ['4b'],
+    porque:
+      'A porta de entrada deixa de ser executável por anon. A 4a (nenhuma além das duas) ficaria VERDE — é exatamente o caso que a segunda metade do par existe para pegar: sem ela, fechar a porta por engano passaria pelo catálogo.',
+    sql: `revoke execute on function public.relatorio_publico_abrir(text, text, text) from anon;  ${MARCA}`,
+    prova: {
+      sql: `select not has_function_privilege('anon', 'public.relatorio_publico_abrir(text, text, text)'::regprocedure, 'execute')`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-dados-sem-a-diagonal',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'diagonal-aberta',
+    derruba: ['V5'],
+    porque:
+      'relatorio_publico_dados deixa de conferir o slug da rota contra a empresa da sessão. A sessão de A com o slug de B passaria — a página da empresa B mostraria o cabeçalho e os dados de A (a diagonal da ficha F68).',
+    sql: mutarFuncaoSemReplace(
+      'public.relatorio_publico_dados(text, text, text, jsonb)',
+      `  if v_slug <> coalesce(p_slug, '') then`,
+      `  if false then  ${MARCA}`,
+      'f68-dados-sem-a-diagonal',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.relatorio_publico_dados(text, text, text, jsonb)'::regprocedure) like '%if false then  --%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-lista-branca-com-pessoa',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'nome-que-vaza',
+    derruba: ['V8a'],
+    porque:
+      'Uma chave de pessoa (colaboradorSetor) entra na lista branca do SQL. Os gerados antigos que congelaram nomes passariam a devolvê-los pela porta pública — o que a decisão 19/11-2 do Johnny proíbe.',
+    sql: mutarFuncaoSemReplace(
+      'public.relatorio_publico_dados(text, text, text, jsonb)',
+      `"motivo": true, "chamado": true, "termo": true, "obs": true, "estornada": true,`,
+      `"motivo": true, "chamado": true, "termo": true, "obs": true, "colaboradorSetor": true, "estornada": true,`,
+      'f68-lista-branca-com-pessoa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.relatorio_publico_dados(text, text, text, jsonb)'::regprocedure) like '%"colaboradorSetor": true%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-sessao-sem-vencimento',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'sessao-eterna',
+    derruba: ['V6b'],
+    porque:
+      'relatorio_publico_dados deixa de conferir o vencimento da sessão. As 24 h voltariam a existir só no cookie do navegador — um cookie copiado viraria acesso sem prazo, que é o defeito que a sessão no banco existe para fechar.',
+    sql: mutarFuncaoSemReplace(
+      'public.relatorio_publico_dados(text, text, text, jsonb)',
+      `     and s.vence_em > now();`,
+      `     ;  ${MARCA}`,
+      'f68-sessao-sem-vencimento',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.relatorio_publico_dados(text, text, text, jsonb)'::regprocedure) not like '%s.vence_em > now()%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-senha-revogada-aceita',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'sessao-eterna',
+    derruba: ['V6a'],
+    porque:
+      'relatorio_publico_dados deixa de conferir que a senha da sessão continua ativa. Revogar uma senha na tela Senhas não mataria mais as sessões abertas com ela — o gestor desligado continuaria lendo por até 24 h.',
+    sql: mutarFuncaoSemReplace(
+      'public.relatorio_publico_dados(text, text, text, jsonb)',
+      `   where sa.id = v_senha_id and sa.ativa and sa.hash like '${CIFRAO}2%';`,
+      `   where sa.id = v_senha_id and sa.hash like '${CIFRAO}2%';  ${MARCA}`,
+      'f68-senha-revogada-aceita',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.relatorio_publico_dados(text, text, text, jsonb)'::regprocedure) not like '%sa.ativa%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-sem-teto-por-empresa',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'forca-bruta-por-origem-forjada',
+    derruba: ['V9b'],
+    porque:
+      'relatorio_publico_abrir perde o teto por EMPRESA e fica só com o por (empresa, origem). Quem chama a função direto pelo PostgREST forja a origem a cada tentativa — sem o teto, a força bruta só pagaria o bcrypt.',
+    sql: mutarFuncaoSemReplace(
+      'public.relatorio_publico_abrir(text, text, text)',
+      `  if v_n > k_teto_empresa then`,
+      `  if false then  ${MARCA}`,
+      'f68-sem-teto-por-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.relatorio_publico_abrir(text, text, text)'::regprocedure) not like '%v_n > k_teto_empresa%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-recusa-com-outra-cara',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'cinco-caras',
+    derruba: ['V3'],
+    porque:
+      'A recusa por senha que não confere ganha um motivo próprio. As cinco recusas deixariam de ter a mesma resposta — a diferença diz a quem tenta se a senha existe, foi revogada ou é de outra empresa.',
+    sql: mutarFuncaoSemReplace(
+      'public.relatorio_publico_abrir(text, text, text)',
+      `    return jsonb_build_object('ok', false);`,
+      `    return jsonb_build_object('ok', false, 'motivo', 'senha');  ${MARCA}`,
+      'f68-recusa-com-outra-cara',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.relatorio_publico_abrir(text, text, text)'::regprocedure) like '%''motivo'', ''senha''%'`,
+      espera: 't',
+    },
+  },
+  {
+    id: 'f68-gestao-sem-guarda-da-empresa',
+    roteiro: 'isolamento_viewer.sql',
+    classe: 'gestao-atravessando',
+    derruba: ['V10a'],
+    porque:
+      'senha_acesso_criar perde a guarda de administrador DA EMPRESA informada. O admin de A criaria senhas de visualização em B — e quem tivesse essa senha abriria os relatórios de B pela porta.',
+    sql: mutarFuncaoSemReplace(
+      'public.senha_acesso_criar(uuid, text, text)',
+      `  if not public.e_admin_na(p_empresa) then`,
+      `  if false then  ${MARCA}`,
+      'f68-gestao-sem-guarda-da-empresa',
+    ),
+    prova: {
+      sql: `select pg_get_functiondef('public.senha_acesso_criar(uuid, text, text)'::regprocedure) not like '%e_admin_na(p_empresa)%'`,
+      espera: 't',
+    },
+  },
+]
+
 export const MUTACOES = [
 
   ...PAPEIS_RLS,
@@ -4034,6 +4200,7 @@ export const MUTACOES = [
   ...F67_CARGO_POR_EMPRESA,
   ...F67B_STORAGE,
   ...F67C_ESCRITA,
+  ...F68_PORTA_PUBLICA,
 ]
 
 /**

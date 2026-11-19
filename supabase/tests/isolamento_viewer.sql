@@ -197,8 +197,9 @@ begin
        v_cnt, v_univ) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- o teto: a A já tem 1 ativa bcrypt; mais 4 cabem, a 6ª não
+  -- (pelo f68_estado_como: uma mutação que deixe outra senha nascer antes não pode ABORTAR o roteiro — tem de virar ✗)
   for i in 2 .. 5 loop
-    perform pg_temp.f68_valor_como(v_adm_a,
+    perform pg_temp.f68_estado_como(v_adm_a,
       format('select public.senha_acesso_criar(%L, %L, %L)', v_a, 'Teto ' || i, 'senha-do-teto-' || i));
   end loop;
   v_estado := pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_criar(%L, %L, %L)', v_a, 'Sexta', 'senha-do-teto-6'));
@@ -207,7 +208,7 @@ begin
        (v_estado <> '54000')::int + (v_n <> 5)::int, 2) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
   -- abre espaço para a revogação adiante (revoga a "Teto 5" pela própria função)
   select id into v_senha_a2 from public.senhas_acesso where empresa_id = v_a and rotulo = 'Teto 5';
-  perform pg_temp.f68_valor_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a2));
+  perform pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a2));
 
   -- ==========================================================================
   -- V1 — a mesma senha em claro nas duas empresas: cada uma abre só a sua

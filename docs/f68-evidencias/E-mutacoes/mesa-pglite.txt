@@ -1,0 +1,14 @@
+f68-porta-executavel-por-authenticated → catalogo_secdef.sql [4b]: DETECTADA
+f68-porta-revogada-de-anon → catalogo_secdef.sql [4b]: DETECTADA
+f68-dados-sem-a-diagonal → isolamento_viewer.sql [V5]: DETECTADA
+f68-lista-branca-com-pessoa → isolamento_viewer.sql [V8a]: DETECTADA
+f68-sessao-sem-vencimento → isolamento_viewer.sql [V6b]: DETECTADA
+f68-senha-revogada-aceita → isolamento_viewer.sql [V6a]: DETECTADA
+f68-sem-teto-por-empresa → isolamento_viewer.sql [V9b]: DETECTADA
+f68-recusa-com-outra-cara → isolamento_viewer.sql [V3]: DETECTADA
+f68-gestao-sem-guarda-da-empresa → isolamento_viewer.sql [V10a]: DETECTADA
+9 detectadas
+catalogo-security-definer-executavel-por-anon → catalogo_secdef.sql [4a]: DETECTADA
+1 detectadas
+supabase/tests/isolamento_viewer.sql: FIM isolamento_viewer: 19 asserções, 0 falhas · ✗ vistos=0
+supabase/tests/catalogo_secdef.sql: FIM catalogo_secdef: 17 asserções, 0 falhas · ✗ vistos=0

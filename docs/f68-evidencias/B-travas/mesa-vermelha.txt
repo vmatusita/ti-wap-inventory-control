@@ -1,0 +1,23 @@
+     × o módulo tem as três actions de gestão (a varredura não está passando a seco) 23ms
+     × a porta pública NÃO mora mais aqui (entrarComSenha/sairVisualizacao saíram para actions/porta.ts) 4ms
+     × nenhum client administrativo: senhas.ts não importa nem cria o service role 4ms
+     × toda action chama exigirAdmin (a MENSAGEM) e fala com a função do banco por empresa (a SEGURANÇA) 16ms
+     × testarSenhaAcesso devolve só o veredito — nunca o hash nem o texto digitado 4ms
+     × a trilha não recebe hash nem senha, e a de revogar/reativar grava a empresa passada à função (a DA LINHA) 5ms
+     × EMPRESA_LEGADA_ID e empresaDaOperacao() aparecem EXATAMENTE onde a catraca diz, e em nenhum outro arquivo 905ms
+ FAIL  |puro| src/components/relatorios/confinamento-viewer.test.ts [ src/components/relatorios/confinamento-viewer.test.ts ]
+ FAIL  |puro| src/lib/actions/porta.test.ts [ src/lib/actions/porta.test.ts ]
+ FAIL  |puro| src/lib/auth/porta-rotas.test.ts [ src/lib/auth/porta-rotas.test.ts ]
+ FAIL  |puro| src/lib/relatorios/lista-branca-porta.test.ts [ src/lib/relatorios/lista-branca-porta.test.ts ]
+ FAIL  |puro| src/lib/validators/rollback-f68.test.ts [ src/lib/validators/rollback-f68.test.ts ]
+ FAIL  |puro| src/lib/queries/relatorios/fronteira-viewer.test.ts [ src/lib/queries/relatorios/fronteira-viewer.test.ts ]
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte (a gestão pelo banco, F68) > o módulo tem as três actions de gestão (a varredura não está passando a seco)
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte (a gestão pelo banco, F68) > a porta pública NÃO mora mais aqui (entrarComSenha/sairVisualizacao saíram para actions/porta.ts)
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte (a gestão pelo banco, F68) > nenhum client administrativo: senhas.ts não importa nem cria o service role
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte (a gestão pelo banco, F68) > toda action chama exigirAdmin (a MENSAGEM) e fala com a função do banco por empresa (a SEGURANÇA)
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte (a gestão pelo banco, F68) > testarSenhaAcesso devolve só o veredito — nunca o hash nem o texto digitado
+ FAIL  |puro| src/lib/actions/senhas.test.ts > actions/senhas.ts — guardas de fonte (a gestão pelo banco, F68) > a trilha não recebe hash nem senha, e a de revogar/reativar grava a empresa passada à função (a DA LINHA)
+ FAIL  |puro| src/lib/auth/empresa-legada-catraca.test.ts > a catraca da empresa legada no app (F67): cada uso contado, com o destino > EMPRESA_LEGADA_ID e empresaDaOperacao() aparecem EXATAMENTE onde a catraca diz, e em nenhum outro arquivo
+ Test Files  8 failed (8)
+      Tests  7 failed | 19 passed (26)
