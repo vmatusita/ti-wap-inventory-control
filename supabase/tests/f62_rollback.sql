@@ -115,6 +115,8 @@ savepoint s_rollback;
 -- que o rollback da F67 derruba (sem esta linha ele nem roda). O que este roteiro prova não muda.
 -- F67C (16/11/2026): e a F67C antes da F67B — a cadeia inteira tem a F67C por cima (17 funções recriadas, a ferramenta de
 -- órfão nova e os defaults tirados das 20); ela sai PRIMEIRO, e o que este roteiro prova não muda.
+-- F68 (19/11/2026): a cadeia inteira tem a F68 por cima — ela sai ANTES da F67C (rollback-f68.test.ts).
+\ir ../rollback/F68-desfaz.sql
 \ir ../rollback/F67C-desfaz.sql
 \ir ../rollback/F67B-desfaz.sql
 \ir ../rollback/F67-desfaz.sql
@@ -142,6 +144,8 @@ rollback to savepoint s_rollback;
 -- este roteiro prova não muda.
 -- F67B (16/11/2026): e a F67B antes da F67 — as policies do Storage da F67B citam e_admin_na() e empresas_de_admin(),
 -- que o rollback da F67 derruba (sem esta linha ele nem roda). O que este roteiro prova não muda.
+-- F68 (19/11/2026): o segundo caminho também roda sobre a cadeia inteira — a F68 sai primeiro.
+\ir ../rollback/F68-desfaz.sql
 \ir ../rollback/F67B-desfaz.sql
 \ir ../rollback/F67-desfaz.sql
 \ir ../rollback/F66B-desfaz.sql

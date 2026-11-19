@@ -152,7 +152,7 @@ export const acessoESessoes: PaginaAjuda = {
     {
       tipo: 'paragrafo',
       texto:
-        'Quem recebe uma senha de acesso entra por um endereço próprio, sem conta e sem e-mail: digita a "Senha de acesso" e cai direto no relatório. É o caminho do gestor que só quer acompanhar os números.',
+        'Quem recebe uma senha de acesso entra por um endereço próprio, sem conta e sem e-mail: digita a "Senha de acesso" e cai direto no relatório. É o caminho do gestor que só quer acompanhar os números. Desde a versão 1.76.0 ele entra pelo endereço da empresa, que a tela de Senhas devolve ao criar a senha, e vê os relatórios gerados, sem nomes de pessoas; o relatório ao vivo por esse caminho volta numa próxima versão. As senhas criadas antes dessa versão deixaram de abrir: crie novas e revogue as antigas.',
     },
     {
       tipo: 'lista',

@@ -14278,3 +14278,160 @@ contraída — a F67C não tocou nenhuma delas.
   evidência (é a saída real) nem o teste neste PR de documentação; registrar e pôr a troca do nome da fixture no
   backlog. **Motivo:** não é dado real; mexer em `src/` aqui misturaria código no PR de docs. O relatório tinha uma
   ocorrência minha (o nome do documento das regras no §14) — reescrita.
+
+## 2026-11-19 · F68 (v1.76.0) · a porta pública por empresa (o visualizador por senha sem service role)
+
+**Contexto.** A ordem [`prompts/F68-porta-publica-por-empresa-ultracode.md`](prompts/F68-porta-publica-por-empresa-ultracode.md):
+tirar o service role do visualizador por senha — até a v1.75.0, `resolverAcessoRelatorio()` lhe entregava o client
+administrativo e o único muro era o código das queries de relatório —, fazer a senha pertencer a uma empresa no banco e
+no tipo, e servir os relatórios GERADOS por uma porta pública por empresa, sem nome de pessoa. Plano
+[`PLAN-F68.md`](PLAN-F68.md) (os 25 fatos remedidos, as tabelas-verdade da superfície, da gestão e das travas, a lista
+branca campo a campo, as 23 decisões); migrations `0208`–`0212` (só expansão); evidência em `docs/f68-evidencias/`;
+relatório [`RELATORIO-F68.md`](RELATORIO-F68.md).
+
+**As decisões do Johnny, registradas.**
+
+- **(19/11-1) Duas fases.** F68 = a porta, a senha no banco, a rota por empresa e os GERADOS; F68B = o ao vivo pela porta
+  (as ~25 leituras do ao vivo não cabem sem medição nos 3 s do `anon`). Entre as duas, o endereço do ao vivo pela porta
+  mostra um aviso com o link para os gerados.
+- **(19/11-2) Sem nomes, como a ficha.** A porta não monta nem devolve nome de pessoa, nem dos gerados antigos. O operador
+  logado continua vendo tudo.
+- **(19/11-3) O banco confere a senha.** Bcrypt do `pgcrypto` dentro de `relatorio_publico_abrir`. As 5 senhas scrypt de
+  hoje deixam de abrir no corte; o Johnny cria as novas pela tela.
+- Herdadas e aplicadas: 13/11-1 ("dev sou só eu"), 13/11-2 (expandir e contrair, zero janela — aqui só a expansão; as
+  peças velhas saem na F68B), 13/11-3 (as 13 checagens travadas, nada de consertar dado), e da F67 a empresa da OPERAÇÃO
+  quando a operação não tem de onde tirá-la (até a F70) e a trilha com a empresa ALVO — aqui, a DA SENHA.
+
+**As vinte e três decisões da fase** (o texto inteiro no §6 do plano; aqui o que a execução fixou):
+
+1. **A credencial da sessão: um token opaco cru** (32 bytes de `gen_random_bytes`, 64 hex), devolvido uma vez por `abrir`,
+   guardado só como sha-256; o cookie `wap_porta` com `path: /r/<slug>`, httpOnly, `secure` em produção, `lax`, 24 h.
+   **Sem o envelope HMAC**: ele não protege o caminho que importa (quem tem a chave anon chama `dados` direto) e manteria
+   uma credencial a mais no código. `VIEW_SESSION_SECRET` sai do código nesta versão e do ambiente na F68B (o deployment
+   anterior ainda a usa sob a Skew Protection). **Descartado o `senha_id` como portador**: legível no cookie, válido
+   enquanto a senha estiver ativa — um cookie copiado seria acesso sem prazo.
+2. **A sessão em `sessoes_visualizador`** (deny-all, FK composta `(empresa_id, senha_id)` → `senhas_acesso`, sem dado
+   pessoal). **Sem a `guarda_empresa`**: entra em `k_empresa_id_sem_guarda` (o molde de `operador_filiais`; a FK composta a
+   prende à empresa da senha) — com o gatilho, os rollbacks F62–F65 não conseguiam derrubar `guarda_empresa()` (medido na
+   mesa). Faxina das vencidas/encerradas há mais de 1 dia dentro de `abrir`, 50 por chamada, em ordem e com
+   `for update skip locked` (duas faxinas simultâneas nunca se esperam — achado A4 da revisão).
+3. **Bcrypt custo 10, K = 5.** Medido (bloco `do … raise`, só leitura): bf/10 = 91 ms em produção, 60 ms no ensaio; o pior
+   caso de `abrir` ≈ 0,46 s. **72 bytes: recusar** (validador e função), não pré-hashear — a única escolha que prova que
+   duas senhas diferentes nunca valem como iguais. A repetida na MESMA empresa é recusada na criação.
+4. **As cinco recusas: `{"ok": false}`**, sempre 5 `crypt()` (sal fictício de mesmo custo completando as candidatas), o
+   resultado guardado antes da comparação, sem saída antecipada. **O contador estourado tem resposta própria**
+   (`"tentativas"`) — decidido antes de qualquer senha, não depende dela. A régua do tempo, escrita antes de medir: n = 30
+   por caminho no ensaio, cada mediana a ±10% da mediana geral.
+5. **O contador em tabela nova** (`porta_tentativas`, chave `text`): o teto por EMPRESA (20/60 s) primeiro — a chave anon é
+   pública, e quem chama direto forja a origem — e só então por (empresa, origem) (5/60 s); estourado o da empresa, a
+   linha da origem nem é gravada; a origem só como md5; slug inexistente num balde só. **O teto estourado recusa SEM
+   travar** (uma leitura antes do upsert) e a função tem `lock_timeout` de 500 ms: quem martela a porta não enfileira
+   atrás da linha do contador que as chamadas legítimas seguram durante os 5 crypt (achado A2). A conferência depois do
+   incremento continua — é ela que segura as chamadas concorrentes. **`request.headers` não vira
+   chave** (para o app é o IP da Vercel; para quem chama direto, o 1º item do `x-forwarded-for` é forjável).
+6. **`relatorio_publico_dados`**: pedidos `porta` (o único sem sessão: slug → nome), `sessao`, `gerados`, `gerado`,
+   `encerrar`; fora da lista = a recusa da sessão; a diagonal = `"empresa"` (404 na página). A sessão é lida em três
+   comandos separados (a sessão; a senha ativa pelo id; a empresa) — o leitor léxico de `k_leitura_tenant` não prova a
+   origem de `s.empresa_id` num comando que cita uma tabela de lote, e a FK composta já garante a empresa da senha.
+7. **A lista branca**: fonte única `src/lib/relatorios/lista-branca-porta.ts` = `k_lista` de `relatorio_publico_dados`; TUDO
+   que sai de tabela passa por `relatorio_publico_projetar`; trava TS↔SQL e "todo campo do snapshot classificado" (228
+   campos da forma Zod: 213 saem, 15 não). **O texto livre sai** (obs, observações, anotações, chamado) — declarado.
+   A tela recompõe as chaves de pessoa como `null` só para caber nos tipos e as esconde com `semPessoas`.
+8. **A gestão por empresa**: `senha_acesso_criar/_conferir/_definir_status`, `e_admin_na(p_empresa)` antes de qualquer
+   efeito, a linha conferida contra a empresa; `senhas.ts` com o client de sessão. Conferir uma scrypt → "formato antigo".
+   **Revogar ENCERRA as sessões abertas com a senha**; reativá-la não ressuscita o acesso de antes (achado A5 — sem isso,
+   revogar e reativar uma senha vazada em menos de 24 h devolvia a porta a quem tinha o cookie).
+9. **As 5 senhas de hoje intocadas** (md5 das linhas igual antes e depois); a revogação formal é do Johnny.
+10. **A rota e os 308**: `src/app/r/[empresa]/relatorios/**`; sem operador, `/relatorios` e `/relatorios/**` → 308 para a
+    porta da legada com o `next` traduzido, `wap_view` apagado; `/r/**` passa sem o `getUser()`. `SLUG_EMPRESA_LEGADA`
+    espelha o INSERT da `0152` (trava em `porta-rotas.test.ts`).
+11. **O layout público** `(sessao)/layout.tsx` com o `ViewerHeader` reescrito; **sem `loading.tsx`** na árvore (o 404 da
+    diagonal e o redirect para a entrada precisam ser status, não payload de stream).
+12. **`publico.ts`** sem cookie, só as duas funções, por `chamarRpc` + Zod.
+13. **A rota antiga atrás de flag: descartada** (manteria o service role vivo; o "pronto quando" da ficha viraria mentira;
+    dependeria das senhas scrypt aposentadas). A reversão é o revert do PR + o `F68-desfaz.sql`.
+14. **A fronteira reescrita** (mesa TS: o fecho de RUNTIME da árvore `/r/**` — `import type` não conta — sem admin, server,
+    acesso.ts nem queries/**, salvo a forma Zod `queries/formas/relatorios-gerados.ts`, exceção nominal; mesa SQL: o corpo
+    vigente das duas só cita a lista branca de tabelas). **14b**: a asserção 4 de `catalogo_secdef.sql` — que já dizia
+    "nenhuma definer por anon" (o fato 15 a dava por inexistente; existia) — virou o par nominal 4a/4b com `k_secdef_anon`.
+15. **A prova viva no ensaio** — no relatório.
+16. **`isolamento_viewer.sql`**: 21 asserções (V1–V12), com o cabeçalho dizendo por que só agora é testável. V6a revoga
+    pelo caminho que NÃO encerra sessões (o update direto do app anterior, vivo sob a Skew Protection) — quem mata a sessão
+    ali é a conferência da senha ativa em `dados`; V6c prova o encerramento pela função — e SÓ das sessões daquela senha
+    (o controle: a sessão de outra senha da A e toda sessão aberta de qualquer empresa seguem abertas); V12 serve um snapshot do tamanho
+    do maior de produção (258 KB na mesa, 404 ms) bem dentro dos 3 s do `anon`.
+17. **O `pgcrypto` no CI**: em `bootstrap-roles.sql` (o primeiro dos dois loops do workflow — que não se toca), com o
+    `rolconfig` do `anon` só documental; a `0208` confere por `to_regprocedure` (o classificador aceita) e não cria extensão.
+18. **Só expansão.** `registrar_tentativa_senha`/`senha_tentativas` de pé até a F68B (a janela por `pg_stat_statements`,
+    T0 = 16 chamadas do service_role).
+19. **O injetor: nove mutações** (teto 188 → 197), todas DETECTADAS na mesa. A do teto por empresa leva a CONSTANTE às
+    alturas (com a pré-checagem do A2 o teto é conferido em dois lugares, e tirar só um é mutante equivalente num roteiro
+    sequencial). **Fora, com o motivo:** "a busca de candidatas
+    sem a empresa" (o roteiro ABORTA pela FK composta da sessão — a segunda defesa —, e o injetor leria "abortou"; a
+    sabotagem B a prova à parte) e "scrypt abrindo" (sem o filtro, a linha scrypt continua sem abrir pelo formato do crypt).
+20. **O smoke**: o mapa novo + a recusa de `dados` com token inválido; `--mapa-antes-do-deploy` para a rodada entre o apply
+    e o deploy. Sem prova positiva em produção (não há senha bcrypt lá; a do smoke é F73).
+21. **A senha em claro**: nenhum `raise` nem cast sobre `p_senha`; mensagens fixas; o `registrarFalha` recebe só o erro.
+22. **A trilha**: `senha_criada` com a empresa da senha criada; revogar/reativar com a empresa passada à função (a da linha,
+    porque a função só altera a linha daquela empresa). Catraca `senhas.ts`: 3 usos de `empresaDaOperacao()`, destino F70.
+23. **"Nada muda para o operador"**: as páginas `(app)/relatorios/{[filial],gerados,gerados/[id]}` com diff ZERO
+    (`resolverAcessoRelatorio` perdeu o modo viewer; o tipo ficou só `operador`, e o ramo morto delas sai na F68B);
+    `(app)/relatorios/acesso/page.tsx` virou um redirect para a porta.
+
+**Travas que mudaram de SENTIDO (declaradas).** `proxy.test.ts` (`/relatorios/acesso` deixou de ser "a entrada por senha"),
+`otp-destino.test.ts` (o `next` vai para a porta da legada, traduzido), `confinamento-viewer.test.ts` (as raízes são a
+árvore `/r/**`; "interno" é `/r/…`; o piso do fecho 149 → 104, porque o ao vivo saiu da superfície — os seis componentes
+dele nomeados), `fronteira-viewer.test.ts` (a premissa "o único muro é o código" saiu), `superficie-admin.test.ts`
+(`acesso.ts` e `senhas.ts` saíram), `guardas-de-action.test.ts` (as isenções re-key para `porta.ts`), `rotas.test.ts`
+(o par da porta, `filialForaDaPorta`, aceito só em `src/app/r/**`), `escrita-com-empresa.test.ts` (33 → 32: o `insert`
+de `senhas_acesso` saiu do TS), `diff-tipos.test.mts` (40 relações, 111 funções), `mutacoes.test.mts` (teto 197).
+
+**Eventos.** O ensaio recusou a conexão (`ECONNREFUSED` no IPv6 da 5432) das 09:00 às ~10:40 e voltou sozinho (o fato 4
+de novo); o "antes" de produção foi tirado na primeira hora, o do ensaio quando ele voltou. `senha-sessao.ts` (scrypt +
+HMAC) e os testes dele saíram com o ramo do visualizador.
+
+**A revisão adversarial (dois revisores independentes, banco e app, no SHA `2b8d72d2`; nenhum achado alto).** Corrigidos
+antes do SHA congelado: **A1** — a forma "sempre 5 crypt" ganhou trava de mesa (`fronteira-viewer.test.ts`: um laço só,
+sem `exit`/`return`/`continue`, o crypt incondicional antes do `if`, um crypt só na função); **A2**, **A4**, **A5** (acima);
+**A6** — V8a confere também o VALOR (o nome fictício das fixtures não sai em resposta nenhuma — pega chave de pessoa nova),
+V10a prova a borda (72 bytes exatos passam), V2 mede as sessões da B antes e depois, V9d deixou de depender das empresas do
+ambiente; **A7** — a 4a de `catalogo_secdef.sql` compara a ASSINATURA inteira (uma sobrecarga nova de mesmo nome não passa);
+**A8** — V12. Do app: a porta ganhou **404 e boundary de erro próprios** (`src/app/r/[empresa]/not-found.tsx`/`error.tsx`,
+os links de volta da empresa da URL — os da raiz levavam o gestor de outra empresa à porta da WAP); o `next` recusa a
+travessia **codificada** (`%2e%2e`, `%2f`, `%5c`, `%25`) e confere o caminho que o navegador resolveria; o log da falha leva
+só `code`/`message`; o endereço do ao vivo na porta responde 404 para filial que não é da empresa; o "Sair" com slug
+forjado não redireciona para fora da porta; as travas de fronteira e confinamento ganharam o import dinâmico, o
+`chamarRpc` sem nome literal, o `using` no SQL, os `.ts` da árvore, a travessia em `/r/../` e os destinos literais de
+`redirect`/`router.push`/`location`; `scripts/perf/medir.mjs` deixou de forjar o cookie `wap_view` (mede a entrada da porta).
+**Declarados, sem conserto nesta fase:** (i) a tela Administração › Senhas de acesso continua mostrando "Ativa" nas 5 senhas
+scrypt — elas não abrem a porta; marcar o formato exigiria ler o `hash` (OS-F3 3.10 proíbe) ou uma coluna nova — o roteiro
+do Johnny no relatório e a ajuda (`usuarios-e-senhas.ts`) dizem para criar as novas e revogar as antigas; (ii) URL sem rota
+dentro de `/r/**` cai na 404 da raiz; (iii) o texto livre do snapshot sai (decisão 7); (iv) o `CLAUDE.md` da raiz ainda
+descreve o visualizador com o client administrativo e o scrypt — a ordem proíbe editá-lo: pendência para o Johnny. (v) O `lock_timeout` de 500 ms tem preço: três entradas por senha na MESMA empresa
+no mesmo meio segundo — a terceira espera mais que isso atrás das duas primeiras (cada uma segura a linha do contador
+durante os 5 crypt, ~0,46 s) e vê "Não foi possível conferir a senha agora"; raro para o uso desta porta, e é o que impede
+a fila sem fim durante uma rajada.
+
+**A re-revisão** (um revisor novo, só os dois commits de correção, no SHA `291d4bca`): nenhum achado alto nem médio; nenhum
+achado antigo aberto. Dos três baixos: o V6c passava a seco se a reativação falhasse e não tinha controle negativo →
+corrigido (o estado das duas chamadas conferido; o controle acima), provado por uma mutação AD HOC na mesa (o
+encerramento sem os filtros de senha e de empresa: V6c ✗, 2 de 9) — que também mostrou o V12 ABORTANDO em vez de reprovar
+(contagem nula), corrigido com `coalesce`; a varredura de import dinâmico tirava comentários por regex, que morde dentro
+de string → passou a ler o fonte cru (o falso positivo é o lado seguro); o `lock_timeout` é o (v) acima.
+
+**O apply (19/11, ~11:49–12:10).** Ensaio primeiro, as cinco uma a uma pelo `apply_migration` com o texto exato; depois de
+cada uma, o `md5` de cada `prosrc` e de cada comentário = o calculado do arquivo, as senhas e as policies intocadas. A prova
+viva no ensaio: P1 10/10; as cinco recusas a ±0,3% da mediana geral (n = 30, a régua escrita antes); as sabotagens D (o
+tempo) e B (a FK composta, `23503`) acusadas; nada ficou. Produção em seguida, com a mesma exatidão e a PARIDADE do
+catálogo (`0d347254…` nos dois); com o app de antes no ar, o smoke 110 OK · 0 falha, o conferidor 0 recusadas, as 13
+checagens na linha travada, as 5 senhas com o mesmo md5. Nenhum `abrir` em produção. Evidência: `f68-evidencias/D-ensaio/`
+e `F-producao/`.
+
+**A divergência dos advisors (decidida e registrada antes do apply de produção).** Depois do apply no ensaio, o WARN
+`authenticated_security_definer_function_executable` foi de 39 a 42 — as três funções de gestão da decisão 8. O plano previa
+só o par de `anon` e os dois INFO das tabelas deny-all; a linha dele esqueceu estas três. **Escolha:** declarar e seguir, sem
+rollback. **Motivo:** é o MESMO lint de antes crescendo pelo desenho (funções `security definer` com a guarda
+`e_admin_na(p_empresa)` antes de qualquer efeito — V10 e `definer_sem_tenant.sql` provam), o precedente exato da F67 (ata
+de 13/11, decisão 18: "nenhum lint novo"); o único lint NOVO é o par de `anon`, declarado. A regra de bloqueio da ordem
+("advisor de segurança novo que cite objeto da fase") mira exposição não prevista — e esta é a exposição prevista, só não
+contada na linha do plano. Igual em produção.

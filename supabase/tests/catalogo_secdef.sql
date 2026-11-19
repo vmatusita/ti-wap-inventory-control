@@ -208,8 +208,27 @@ declare
     -- fixo, search_path vazio, EXECUTE só de authenticated. A cópia e a remoção são da API do
     -- Storage, na Server Action da Zona destrutiva (o gatilho protect_objects_delete recusa SQL).
     -- `pode_escrever_termo` ganha a forma (uuid, uuid[]) na 0197 — o MESMO nome, já listado acima.
-    'registrar_limpeza_termos_sem_linha'
+    'registrar_limpeza_termos_sem_linha',
+    -- F68 (19/11/2026, 0211) — a GESTÃO DAS SENHAS por empresa, 73 no total. `senhas_acesso` é deny-all (0012): ler o
+    -- hash e gravar a linha só o dono. Guarda `e_admin_na(p_empresa)` antes de qualquer efeito; EXECUTE só de
+    -- authenticated; em definer_sem_tenant.sql (k_escopo_ok).
+    'senha_acesso_criar', 'senha_acesso_conferir', 'senha_acesso_definir_status',
+    -- F68 (0212) — AS DUAS PORTAS DE `anon`, 75 no total: as ÚNICAS de public executáveis por anon (k_secdef_anon,
+    -- asserção 4). Quem entra por senha não tem identidade no banco; a porta é a função, pequena e auditável por inteiro
+    -- (ADR-002 §20). Leem/escrevem `senhas_acesso`, `sessoes_visualizador`, `porta_tentativas` (deny-all) e os gerados
+    -- da empresa da SESSÃO.
+    'relatorio_publico_abrir', 'relatorio_publico_dados'
   ];
+
+  -- -----------------------------------------------------------------------
+  -- F68 (19/11/2026) — AS ÚNICAS `security definer` EXECUTÁVEIS POR `anon`, nominais (a asserção 4, as duas metades).
+  -- Desde a F48 a asserção 4 dizia "nenhuma"; a F68 abre EXATAMENTE duas — a porta pública do relatório (R-ACC-144).
+  -- -----------------------------------------------------------------------
+  k_secdef_anon text[] := array['relatorio_publico_abrir', 'relatorio_publico_dados'];
+  -- …e pela ASSINATURA EXATA (revisão adversarial da F68: comparar só o nome deixaria passar uma sobrecarga nova executável
+  -- por anon — a asserção 2 já recusa sobrecarga, e a 4a não depende dela).
+  k_secdef_anon_assinaturas text[] := array['relatorio_publico_abrir(text, text, text)',
+                                            'relatorio_publico_dados(text, text, text, jsonb)'];
 
   -- -----------------------------------------------------------------------
   -- AS INVOKER ALCANÇÁVEIS POR `anon` — exceção NOMINAL, uma a uma.
@@ -363,7 +382,7 @@ begin
   end if;
 
   -- ---------------------------------------------------------------
-  -- 4 — NENHUMA `security definer` EXECUTÁVEL POR `anon`.
+  -- 4 — NENHUMA `security definer` EXECUTÁVEL POR `anon` FORA DAS DUAS PORTAS (F68: k_secdef_anon).
   --     `anon` é a identidade da chave pública: toda função com EXECUTE para ela é
   --     alcançável por `/rest/v1/rpc/<nome>` sem sessão nenhuma. E o default do
   --     Postgres é EXECUTE para PUBLIC — ou seja, uma função nova nasce aberta e é o
@@ -371,15 +390,49 @@ begin
   --     `revoke … on function`, 101 citando `anon`/`public`. O que faltava não era
   --     revogar; era SER OBRIGADO a revogar. Esta asserção é a obrigação.
   -- ---------------------------------------------------------------
+  --
+  --     F68 (19/11/2026) — O PAR. A primeira metade (4a) é a de sempre, agora com a exceção NOMINAL de duas: o conjunto das
+  --     executáveis por anon é exatamente `k_secdef_anon`. A segunda (4b) é o que impede a primeira de passar POR ENGANO:
+  --     as duas EXISTEM, são definer, têm `search_path = ''` e NÃO são executáveis por PUBLIC, authenticated nem
+  --     service_role. Sem a 4b, bastaria revogar a porta (ou derrubá-la) para a 4a ficar verde.
+  -- ---------------------------------------------------------------
   select count(*), coalesce(string_agg(p.proname, ', ' order by p.proname), '')
     into v_cnt, v_lista
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prokind = 'f' and p.prosecdef
-     and has_function_privilege('anon', p.oid, 'execute');
+     and has_function_privilege('anon', p.oid, 'execute')
+     and not ((p.proname || '(' || pg_catalog.oidvectortypes(p.proargtypes) || ')') = any (k_secdef_anon_assinaturas));
   if pg_temp.assert_zero_de(
-       '4 nenhuma `security definer` executável por anon' ||
+       '4a nenhuma `security definer` executável por anon fora das duas portas (k_secdef_anon)' ||
        case when v_cnt > 0 then ' — alcançável(is): ' || v_lista else '' end,
        v_cnt, v_univ) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
+  end if;
+
+  select count(*), coalesce(string_agg(nome || ' (' || motivo || ')', '; ' order by nome), '')
+    into v_cnt, v_lista
+    from (
+      select nome,
+             case
+               when p.oid is null then 'não existe'
+               when not p.prosecdef then 'não é security definer'
+               when not coalesce(p.proconfig @> array['search_path=""'], false) then 'search_path não é vazio'
+               when not has_function_privilege('anon', p.oid, 'execute') then 'anon não a executa'
+               when has_function_privilege('authenticated', p.oid, 'execute') then 'authenticated a executa'
+               when has_function_privilege('service_role', p.oid, 'execute') then 'service_role a executa'
+               when exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) x
+                             where x.grantee = 0 and x.privilege_type = 'EXECUTE') then 'PUBLIC a executa'
+             end as motivo
+        from unnest(k_secdef_anon) as nome
+        left join pg_proc p on p.proname = nome and p.pronamespace = 'public'::regnamespace and p.prokind = 'f'
+    ) t
+   where motivo is not null;
+  if pg_temp.assert_zero_de(
+       '4b as duas portas de anon existem, são definer com search_path vazio, e só anon as executa (nem PUBLIC, nem authenticated, nem service_role)' ||
+       case when v_cnt > 0 then ' — ' || v_lista else '' end,
+       v_cnt, array_length(k_secdef_anon, 1)::bigint) then
     v_ok := v_ok + 1;
   else
     v_falhas := v_falhas + 1;

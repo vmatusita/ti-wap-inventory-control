@@ -583,7 +583,10 @@ begin
                            'movimentacao_abrir_pendencias_item', 'lancar_itens_lote',
                            'reabrir_pendencias_item_com_estornos', 'resolver_pendencias_item_com_lancamentos',
                            'transferir_item', 'import_criar_ativos', 'import_lancar_movimentacoes',
-                           'import_gravar_trilha');
+                           'import_gravar_trilha',
+                           -- F68 (0211/0212): as seis NOVAS — a gestão das senhas por empresa, as duas portas e a projeção
+                           'senha_acesso_criar', 'senha_acesso_conferir', 'senha_acesso_definir_status',
+                           'relatorio_publico_abrir', 'relatorio_publico_dados', 'relatorio_publico_projetar');
   raise notice '(medição) L4: md5 das funções de public fora das três da F65 e das duas da F66: % (% funções)', v_m0,
     (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
         and p.proname not in ('guarda_empresa', 'termo_da_empresa', 'vocabulario_unidades_guarda',
@@ -612,7 +615,10 @@ begin
                            'movimentacao_abrir_pendencias_item', 'lancar_itens_lote',
                            'reabrir_pendencias_item_com_estornos', 'resolver_pendencias_item_com_lancamentos',
                            'transferir_item', 'import_criar_ativos', 'import_lancar_movimentacoes',
-                           'import_gravar_trilha'));
+                           'import_gravar_trilha',
+                           -- F68 (0211/0212): as seis NOVAS — a gestão das senhas por empresa, as duas portas e a projeção
+                           'senha_acesso_criar', 'senha_acesso_conferir', 'senha_acesso_definir_status',
+                           'relatorio_publico_abrir', 'relatorio_publico_dados', 'relatorio_publico_projetar'));
   if pg_temp.assert_zero_de(
        'L4 o corpo das funções de public que a F65 não cria nem recria (e as fases seguintes não recriam nominalmente) é o de antes da 0165 (md5 contra a constante do CI)' ||
        case when v_m0 is distinct from k_funcoes_pre_0165 then ' — ' || coalesce(v_m0, '∅') || ', esperado ' || k_funcoes_pre_0165 else '' end,

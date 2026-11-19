@@ -1,605 +1,237 @@
-import { describe, it, expect } from 'vitest'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { dirname, join, relative, sep } from 'node:path'
+import { corpoVigente } from '../../../../scripts/db/corpo-vigente.mjs'
 
-// Fronteira do VISUALIZADOR por senha (A5 · Sprint 4 · reescrita na F50).
+// A FRONTEIRA DO VISUALIZADOR POR SENHA — reescrita na F68 (19/11/2026) para a superfície nova.
 //
-// `resolverAcessoRelatorio` (src/lib/auth/acesso.ts) entrega ao visualizador por
-// senha o client ADMINISTRATIVO (service_role, que IGNORA RLS) — porque quem entra
-// por senha não tem identidade no banco. Consequência: para o viewer, o RLS NÃO é a
-// segunda linha; o único muro é o próprio CÓDIGO das queries de relatório, que só
-// podem tocar tabelas de inventário (mais `profiles.nome`, para autoria de anotação/
-// snapshot — decisão aceita e registrada em DECISOES).
+// ATÉ A v1.75.0 a premissa deste arquivo era: "o visualizador roda sob service_role; para ele o RLS NÃO é a segunda linha
+// — o único muro é o próprio CÓDIGO das queries de relatório". Por isso ele enumerava os 11 módulos de query que o client
+// do visualizador alcançava, as 9 tabelas e as 7 RPCs. ESSA PREMISSA SAIU (F68, 19/11/2026): o visualizador não recebe
+// mais client nenhum de banco além da PORTA PÚBLICA — duas funções `security definer` executáveis SÓ por `anon`
+// (`relatorio_publico_abrir`, `relatorio_publico_dados`, migration 0212), chamadas por `src/lib/supabase/publico.ts`, um
+// client sem cookie. O muro agora é o BANCO; esta trava garante que o app não abre outra porta ao lado.
 //
-// Este teste é o TRIPWIRE: se alguém adicionar na superfície do relatório uma query a
-// uma tabela SENSÍVEL, ela passaria a ser exposta ao viewer sob service_role. Falhar
-// aqui é o sinal para revisar a decisão — não para "consertar o teste".
+// DUAS METADES:
+//   (mesa TS)  o fecho de imports de RUNTIME da árvore pública (`src/app/r/**`) não alcança `supabase/admin`,
+//              `supabase/server`, `auth/acesso` nem `queries/**` (salvo a forma Zod do snapshot — pura, sem client); só
+//              `publico.ts` fala com o banco, e ele só chama as duas funções, pela porta única `chamarRpc`; nenhum
+//              `.from(`, nenhum `.rpc(`, nenhum service role, nenhum client de sessão.
+//   (mesa SQL) o corpo VIGENTE das duas funções (o último `create function` delas nas migrations) só cita tabelas de uma
+//              lista branca com motivo — `profiles`, `colaboradores`, `membros` e `auth.users` nunca.
 //
-// ---------------------------------------------------------------------------
-// POR QUE A F50 REESCREVEU ESTE ARQUIVO
-// ---------------------------------------------------------------------------
-// A versão anterior tinha dois defeitos, e o primeiro já havia se materializado:
-//
-//   1. A superfície vinha da PASTA (`readdirSync` de `queries/relatorios/`) mais dois
-//      arquivos declarados à mão. A F39 pôs `queries/tipos-item.ts` na superfície do
-//      viewer — ela aceita client resolvido e as duas páginas de relatório a chamam
-//      com `acesso.client` — e ninguém a declarou. O tripwire ficou cego por três
-//      fases. A pasta MENTE; a ASSINATURA não: quem aceita um client resolvido pode
-//      receber o client do viewer, esteja em que pasta estiver.
-//
-//   2. A lista de tabelas era uma DENY-LIST de três nomes. Deny-list não cobre a
-//      tabela que ainda não nasceu — e o plano multiempresa cria `empresas`. Uma
-//      query nova a uma tabela nova passaria calada. Por isso a lista virou BRANCA:
-//      nome fora dela reprova, e cada nome carrega o motivo de estar lá.
-const RAIZ_QUERIES = join(process.cwd(), 'src', 'lib', 'queries')
+// Sabotagem H (docs/f68-evidencias): `createAdminClient` importado na árvore pública, ou o client de sessão em
+// `publico.ts`, reprovam aqui.
 
-/** Caminho de um módulo de query como este arquivo o nomeia: `queries/<…>.ts`. */
-function rotulo(caminho: string): string {
-  return 'queries/' + caminho.slice(RAIZ_QUERIES.length + 1).split(/[\\/]/).join('/')
-}
+const RAIZ = process.cwd()
+const SRC = join(RAIZ, 'src')
+const posix = (p: string) => relative(RAIZ, p).split(sep).join('/')
 
-function todosOsModulos(dir = RAIZ_QUERIES, acc: string[] = []): string[] {
-  for (const nome of readdirSync(dir)) {
-    const p = join(dir, nome)
-    if (statSync(p).isDirectory()) todosOsModulos(p, acc)
-    else if (nome.endsWith('.ts') && !nome.endsWith('.test.ts')) acc.push(p)
-  }
-  return acc
-}
+const ARVORE_PUBLICA = join(SRC, 'app', 'r')
+const PUBLICO = 'src/lib/supabase/publico.ts'
+const PORTAS = ['relatorio_publico_abrir', 'relatorio_publico_dados'] as const
 
-// ---------------------------------------------------------------------------
-// A DERIVAÇÃO — quem ACEITA um client resolvido
-// ---------------------------------------------------------------------------
-// Três formas, todas medidas no repositório (F50). As duas primeiras a ficha previa;
-// a terceira não, e é estruturalmente idêntica — um `acesso.client` é atribuível a
-// qualquer uma das três, porque TypeScript é estrutural:
-//
-//   · `client?: SupabaseClient<Database>`            (tipos-item.ts)
-//   · o alias `DbClient`                             (11 arquivos; ⚠ o alias é
-//     declarado TRÊS vezes, independentemente: relatorios/comum.ts, lib/auth/acesso.ts
-//     e queries/import-logs.ts — por isso casamos o NOME do alias, não o import)
-//   · `Awaited<ReturnType<typeof createClient>>`     (ativos.ts, colaboradores.ts, itens.ts)
-const TIPO_CLIENT =
-  /(SupabaseClient\s*<\s*Database\s*>|\bDbClient\b|Awaited\s*<\s*ReturnType\s*<\s*typeof\s+createClient\s*>\s*>)/
-
-// ⚠ EXPORTADA é o que forma superfície, e a distinção não é frescura: medido na F50,
-// `pendencias-detalhe.ts` recebe `client: DbClient` em DUAS funções — mas as duas são
-// internas, e as três exportadas criam o próprio client com `createClient()`. Ele não
-// alcança o viewer, e tratá-lo como se alcançasse encheria a lista de exceções com
-// arquivo que nunca esteve em risco. Mesmo caso: `eventos-admin.ts`, `movimentacoes.ts`.
-function nomesExportados(fonte: string): Set<string> {
-  const nomes = new Set<string>()
-  // ⚠ `default` no meio — achado da revisão adversarial da F50. A versão anterior
-  // exigia `function` logo depois de `export`, e `export default function lerAlgo(…)`
-  // não casava: o nome nunca entrava no conjunto, o arquivo inteiro era descartado da
-  // derivação, e um módulo novo com client resolvido passava calado. Para essa forma,
-  // a assinatura mentia tanto quanto a pasta — que é justamente o que este arquivo
-  // existe para não deixar acontecer.
-  for (const m of fonte.matchAll(/export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/g))
-    nomes.add(m[1])
-  for (const m of fonte.matchAll(/export\s+(?:const|let|var)\s+([A-Za-z0-9_]+)/g)) nomes.add(m[1])
-  for (const m of fonte.matchAll(/export\s*\{([^}]*)\}/g)) {
-    for (const parte of m[1].split(',')) {
-      const nome = parte.trim().split(/\s+as\s+/)[0].trim()
-      if (nome) nomes.add(nome)
-    }
-  }
-  return nomes
-}
-
-// Toda função NOMEADA do arquivo com a sua lista de parâmetros — declaração
-// (`function x(`) ou expressão atribuída a nome (`const x = … (`).
-//
-// ⚠ A forma-expressão não é caso raro: `listarFiliais` — justamente o arquivo que a
-// F49 declarou À MÃO nesta superfície — é
-// `export const listarFiliais = cache(async function listarFiliais(client?: …))`.
-// Um detector por `export function` não o enxerga: medido, ele devolve 13 arquivos e
-// perde `filiais.ts`. Um tripwire que perde o arquivo que já estava declarado não é
-// tripwire, é decoração.
-function funcoesComParametros(fonte: string): { nome: string; params: string }[] {
-  const achadas: { nome: string; params: string }[] = []
-  const re =
-    /(?:function\s+([A-Za-z0-9_]+)\s*\(|(?:const|let|var)\s+([A-Za-z0-9_]+)\s*=\s*(?:[A-Za-z0-9_.]+\s*\(\s*)?(?:async\s*)?(?:function\s*[A-Za-z0-9_]*\s*)?\()/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(fonte))) {
-    const nome = m[1] ?? m[2]
-    if (!nome) continue
-    let i = re.lastIndex
-    let profundidade = 1
-    while (i < fonte.length && profundidade > 0) {
-      const c = fonte[i]
-      if (c === '(') profundidade++
-      else if (c === ')') profundidade--
-      i++
-    }
-    achadas.push({ nome, params: fonte.slice(re.lastIndex, i - 1) })
-  }
-  return achadas
-}
-
-/** Os módulos de `queries/**` com pelo menos uma função EXPORTADA que aceita client. */
-function candidatosPorAssinatura(): string[] {
-  const achados: string[] = []
-  for (const caminho of todosOsModulos()) {
-    const fonte = readFileSync(caminho, 'utf8')
-    const exportados = nomesExportados(fonte)
-    const aceita = funcoesComParametros(fonte).some(
-      (f) => TIPO_CLIENT.test(f.params) && exportados.has(f.nome),
-    )
-    if (aceita) achados.push(rotulo(caminho))
-  }
-  return achados.sort()
-}
-
-// ---------------------------------------------------------------------------
-// A SUPERFÍCIE DECLARADA — o que o client do viewer alcança
-// ---------------------------------------------------------------------------
-const SUPERFICIE: Record<string, string> = {
-  'queries/relatorios/comum.ts': 'resolverFilialPorSlug, chamada em [filial]/page.tsx:102',
-  'queries/relatorios/estoque.ts': 'transitiva por getSnapshotRelatorioV2',
-  'queries/relatorios/itens.ts': 'transitiva por getSnapshotRelatorioV2',
-  'queries/relatorios/movimentacoes.ts': 'transitiva por getSnapshotRelatorioV2',
-  'queries/relatorios/pendencias.ts': 'transitiva por getSnapshotRelatorioV2',
-  'queries/relatorios/snapshot.ts': 'getSnapshotRelatorioV2, chamada em [filial]/page.tsx:126',
-  // F60 — `filiaisDoConsolidado(client)` e `recorteDeFiliais(client, filialId)`: a lista de TODAS as
-  // filiais que substitui o recorte nulo. Nasceu DECLARADA na superfície no lote 1 (só o dashboard a
-  // chamava, com o client da sessão) porque o lote 2 a pôs sob `getSnapshotRelatorioV2` — é por ela
-  // que as `rel_*_filiais` de `estoque.ts`, `itens.ts` e `movimentacoes.ts` recebem a lista, com o
-  // client do visualizador inclusive. Lê só `filiais`, que já está na lista branca.
-  'queries/relatorios/recorte-filiais.ts':
-    'recorteDeFiliais/filiaisDoConsolidado — transitiva por getSnapshotRelatorioV2 (estoque.ts, itens.ts, movimentacoes.ts) e queries/dashboard.ts (sessão)',
-  'queries/relatorios/index.ts':
-    're-export da pasta; sem query própria hoje, mas varrido para que uma query nova aqui não escape',
-  'queries/gerados.ts': 'gerados/page.tsx:75 e gerados/[id]/page.tsx:41,63',
-  'queries/filiais.ts': 'gerados/page.tsx:74 e [filial]/page.tsx:124',
-  // A F39 pôs este arquivo na superfície e ninguém o declarou — o defeito que esta
-  // reescrita existe para corrigir. O próprio módulo já explicava por quê: sem o
-  // client resolvido, a leitura devolveria VAZIO para a sessão por senha e o
-  // relatório impresso sairia com o slug cru no lugar do rótulo do item faltante.
-  'queries/tipos-item.ts': 'listarTiposItem em [filial]/page.tsx:131 e gerados/[id]/page.tsx:57',
-}
-
-// ---------------------------------------------------------------------------
-// AS EXCEÇÕES — aceitam client resolvido, mas NENHUMA rota de relatório as alcança
-// ---------------------------------------------------------------------------
-// Cada motivo é MEDIDO (quem chama, de onde), nunca "não é de relatório" como
-// categoria: categoria envelhece sozinha, call-site medido não. A prova estrutural
-// que sustenta as cinco: a superfície inteira importa de `@/lib/queries/` apenas
-// `filiais` e `relatorios` (a RPC vem de `chamarRpc`, `@/lib/supabase/rpc` — fora de
-// `@/lib/queries/` desde a F58 · Frente B, que apagou `rpc-filial.ts`) — nenhum
-// arquivo desta lista.
-//
-// ⚠ Se um destes passar a ser chamado com `acesso.client`, ele muda de lista — não
-// se apaga a entrada. A pergunta que a exceção responde é "quem o chama, e com que
-// client", e a resposta tem de continuar verdadeira.
-const EXCECOES: Record<string, string> = {
-  'queries/conflitos.ts':
-    'contarGruposConflito em pendencias/page.tsx:181 e acervoDosAtivos/ladosDosAtivos em actions/conflitos.ts:172,239,240 — sempre o client de sessão do operador',
-  'queries/import-logs.ts':
-    'as 4 funções saem de actions/importar.ts e de admin/importar/page.tsx:35 — rota de admin, client de sessão',
-  'queries/ativos.ts':
-    'patrimoniosDuplicados é chamada por queries/movimentacoes.ts:285 (interna a listarAtivos) e pela rota /ativos — nunca por rota de relatório',
-  'queries/colaboradores.ts':
-    'resolverColaboradoresPorNome só é chamada por Server Actions (colaboradores.ts:382, itens.ts:105, movimentacoes.ts) com o client da sessão',
-  'queries/itens.ts':
-    'saldosPorColaborador e acessoriosDasMovimentacoes só saem de Server Actions (itens.ts:127, movimentacoes.ts:515, termos.ts:262,360)',
-  // F56 (Frente D) — mesmo padrão de queries/import-logs.ts.
-  'queries/vocabulario-import.ts':
-    'lerVocabularioImport sai de actions/importar.ts:351,476,833 (validarImport/aplicarImport/baixarCsvCorrigido, atrás de exigirAdmin) e de admin/importar/page.tsx:38 — rota de admin, nunca de relatório, sempre client de sessão',
-}
-
-const arquivosDaSuperficie = (): string[] =>
-  Object.keys(SUPERFICIE).map((r) => join(process.cwd(), 'src', 'lib', r))
-
-// ---------------------------------------------------------------------------
-// AS LISTAS BRANCAS
-// ---------------------------------------------------------------------------
-const TABELAS: Record<string, string> = {
-  ativos: 'o inventário — a razão de o relatório existir',
-  movimentacoes: 'os eventos do período',
-  lancamentos_item: 'os itens por quantidade',
-  itens: 'o catálogo de itens (rótulo e mínimo)',
-  filiais: 'nome e slug da filial — cabeçalho e abas',
-  anotacoes: 'observação de manutenção exibida no relatório',
-  relatorios_gerados: 'os snapshots congelados',
-  v_fila_pendencias: 'VIEW da fila de pendências (0052) — só o operador a vê renderizada',
-  // A nona, e ela só existe na lista porque `tipos-item.ts` entrou na superfície:
-  // a de HOJE, sem ele, tem oito. É o vocabulário que traduz o slug do item
-  // faltante no relatório impresso (F39).
-  tipos_item: 'o catálogo de TIPOS de item — rótulo do item faltante (F39)',
-}
-
-// F60 · lote 2 — troca 1:1 pelos nomes novos (as `rel_*_filiais`, 0143): as MESMAS sete leituras, com
-// o recorte como lista obrigatória. A catraca `≤ 7` não se mexe — a RPC dos KPIs
-// (`rel_contagem_status_filiais`) mora em `queries/dashboard.ts`, fora da superfície.
-const RPCS: Record<string, string> = {
-  rel_resumo_filiais: 'os KPIs do período',
-  rel_estoque_asof_filiais: 'o estado do acervo numa data',
-  rel_mov_por_mes_filiais: 'a série mensal de movimentações',
-  rel_por_motivo_filiais: 'a quebra por motivo',
-  rel_saldo_itens_filiais: 'saldo de itens por filial e o total do recorte',
-  rel_mov_itens_filiais: 'lançamentos de item no período',
-  rel_frescor_itens_filiais: 'a data do último lançamento por item',
-}
-
-// `.from('literal')` / `.rpc('literal', …)` — e SÓ o literal INTEIRO.
-//
-// ⚠ O `[,)]` no fim não é enfeite: ele é o que separa um literal de uma EXPRESSÃO que
-// começa com literal. Sem ele, o regex casava `'ativos'` dentro de
-// `.from('ativos' + '_arquivo_oculto')` e devolvia `ativos` — um nome que ESTÁ na
-// lista branca. A tabela realmente lida em runtime (`ativos_arquivo_oculto`) não
-// aparecia em lugar nenhum, e a chamada era registrada como leitura legítima do nome
-// branco. Pior: a varredura de não-literais tinha `(?!')`, que descartava de propósito
-// tudo que começasse com aspa — então as duas travas se cancelavam e nenhuma acusava.
-//
-// Achado da revisão adversarial da F50, provado ao vivo com
-// `client.from('ativos' + '_arquivo_oculto')` em `comum.ts`: 14 testes verdes. É o
-// vetor exato que a inversão para lista branca existe para fechar — uma tabela nova
-// cujo nome comece com um prefixo já branco atravessaria a fronteira do viewer, que
-// roda sob `service_role`, sem RLS.
-//
-// `.rpc()` aceita segundo argumento (os parâmetros), daí `,` valer tanto quanto `)`.
-// UMA varredura, que classifica — em vez de duas peneiras independentes que podiam
-// se cancelar (foi assim que a concatenação passava: literal para uma, "começa com
-// aspa, ignore" para a outra).
-type Chamada = { receptor: string; argumento: string; literal: string | null }
-
-/**
- * Consome UM argumento de uma chamada, a partir do índice `inicio` (logo após `(` ou
- * depois da vírgula de um argumento anterior): até a vírgula ou o parêntese/colchete/
- * chave do NÍVEL de topo, ou uma quebra de linha (a mesma régua de sempre — chamadas
- * de UMA linha só). Devolve o texto (já `trim`ado) e o índice onde parou, para quem
- * chama decidir se o próximo caractere é `,` (há mais um argumento) ou não.
- */
-function umArgumento(fonte: string, inicio: number): { texto: string; fim: number } {
-  let i = inicio
-  let prof = 0
-  let arg = ''
-  while (i < fonte.length) {
-    const c = fonte[i]
-    if (c === '(' || c === '[' || c === '{') prof++
-    else if (c === ')' && prof === 0) break
-    else if (c === ')' || c === ']' || c === '}') prof--
-    else if (c === ',' && prof === 0) break
-    else if (c === '\n') break
-    arg += c
-    i++
-  }
-  return { texto: arg.trim(), fim: i }
-}
-
-/** Literal PURO: a string inteira é uma constante entre aspas. `'ativos' + '_x'`
- *  não é — e é exatamente o caso que passava por literal antes. */
-function literalPuro(argumento: string): string | null {
-  const puro = /^'([^']*)'$/.exec(argumento)
-  return puro ? puro[1] : null
-}
-
-function chamadasDe(fonte: string, metodo: 'from' | 'rpc'): Chamada[] {
-  const re = new RegExp(`([A-Za-z0-9_$]*)\\.${metodo}\\(`, 'g')
-  const achadas: Chamada[] = []
-  let m: RegExpExecArray | null
-  while ((m = re.exec(fonte))) {
-    const { texto: argumento } = umArgumento(fonte, re.lastIndex)
-    achadas.push({ receptor: m[1], argumento, literal: literalPuro(argumento) })
-  }
-
-  // A PORTA ÚNICA de RPC (F58 · Frente B, `src/lib/supabase/rpc.ts`): depois dela
-  // `src/**` não chama mais `client.rpc('nome', …)` — chama `chamarRpc(client, 'nome',
-  // …)`, o CLIENT como 1º argumento e o NOME como 2º. Sem ensinar este detector à
-  // segunda forma, a lista branca de RPCs ficaria CEGA para toda superfície migrada —
-  // exatamente o caminho que `queries/relatorios/estoque.ts`/`itens.ts`/`movimentacoes.ts`
-  // percorreram. `.rpc(` continua reconhecido acima (scripts e a própria porta ainda o
-  // usam) — as duas formas coexistem.
-  if (metodo === 'rpc') {
-    const reChamarRpc = /\bchamarRpc\(/g
-    while (reChamarRpc.exec(fonte)) {
-      // 1º argumento — o CLIENT. Descartado; só para achar onde ele termina. Uma
-      // vírgula de TOPO dentro dele (`chamarRpc(a, b, 'nome')`) não é o caso real —
-      // o client é sempre uma única expressão — mas se acontecer o 2º "argumento"
-      // lido a seguir seria só o resto do primeiro, e como ele não bate um literal
-      // puro de nome de RPC plausível, cai em não-literal (reprova), nunca em
-      // falso-positivo silencioso.
-      const primeiro = umArgumento(fonte, reChamarRpc.lastIndex)
-      if (fonte[primeiro.fim] !== ',') continue // `chamarRpc(x)` sem nome — nada a ler
-      // 2º argumento — o NOME da RPC. Mesma régua de `.rpc('nome', …)`.
-      const segundo = umArgumento(fonte, primeiro.fim + 1)
-      achadas.push({
-        receptor: 'chamarRpc',
-        argumento: segundo.texto,
-        literal: literalPuro(segundo.texto),
-      })
-    }
-  }
-
-  return achadas
-}
-
-function chamadasLiterais(fonte: string, metodo: 'from' | 'rpc'): string[] {
-  return chamadasDe(fonte, metodo)
-    .filter((c) => !RECEPTORES_NAO_POSTGREST.has(c.receptor))
-    .map((c) => c.literal)
-    .filter((n): n is string => n !== null)
-}
-
-// Argumento que NÃO é string literal: variável, template, concatenação. Uma lista
-// branca não enxerga nome montado em runtime — então ele reprova por si.
-//
-// ⚠ `Array.from(…)` NÃO é o `.from(…)` do PostgREST, e a distinção foi paga com uma
-// rodada vermelha: `comum.ts` tem `Array.from({ length: Math.min(limite, …) })` dentro
-// de `mapComLimite`. Um `\.from\(` solto o acusaria como "nome montado em runtime" —
-// falso positivo que ensinaria a próxima pessoa a afrouxar a trava pelo motivo errado.
-// Por isso o receptor é capturado e `Array` é descartado pelo NOME, não por uma
-// isenção genérica: qualquer outro receptor continua sendo examinado.
-const RECEPTORES_NAO_POSTGREST = new Set(['Array'])
-
-// TODA chamada, e depois subtrai as que são literal INTEIRO. É o inverso da versão
-// anterior, que perguntava "começa com aspa?" — pergunta que respondia "sim" para a
-// concatenação e a deixava passar pelas duas peneiras.
-function chamadasNaoLiterais(fonte: string, metodo: 'from' | 'rpc'): string[] {
-  return chamadasDe(fonte, metodo)
-    .filter((c) => !RECEPTORES_NAO_POSTGREST.has(c.receptor))
-    .filter((c) => c.literal === null)
-    .map((c) => `${metodo}(${c.argumento}`)
-}
-
-// O que o viewer JAMAIS pode ler. Redundante com a lista branca de propósito: esta
-// pega a menção em QUALQUER forma (string montada, comentário, import), não só em
-// `.from('…')`. Custa um grep e cobre o que a allow-list, por construção, não vê.
-// As formas de guardar o client numa variável — as TRÊS, não só a com ponto.
-//
-// ⚠ `const { client } = acesso` e `acesso['client']` apagam o rastro exatamente como
-// `const c = acesso.client`, e a versão anterior só pegava a terceira. As duas
-// primeiras são sintaxe corriqueira, não exótica — achado da revisão adversarial da
-// F50, provado ao vivo. A partir daqui quem quiser apelidar o client tem de inventar
-// uma forma nova, e é essa a diferença entre uma trava e um lembrete.
-const APELIDA_CLIENT = [
-  // const c = acesso.client
-  /(?:const|let|var)\s+[A-Za-z0-9_]+\s*=\s*[A-Za-z0-9_]+\.client\b/,
-  // const { client } = acesso   /   const { client: c } = acesso
-  /(?:const|let|var)\s*\{[^}]*\bclient\b[^}]*\}\s*=\s*[A-Za-z0-9_]+/,
-  // const c = acesso['client']  /  acesso["client"]
-  /(?:const|let|var)\s+[A-Za-z0-9_]+\s*=\s*[A-Za-z0-9_]+\[\s*['"]client['"]\s*\]/,
-]
-
+/** Módulos que a árvore pública NUNCA alcança em runtime. */
 const PROIBIDOS = [
-  { termo: 'senhas_acesso', motivo: 'expõe o hash da senha de acesso' },
-  { termo: 'senha_tentativas', motivo: 'infra de rate-limit por IP' },
-  { termo: 'auth.users', motivo: 'internals de autenticação do Supabase' },
+  /^src\/lib\/supabase\/admin\.ts$/,
+  /^src\/lib\/supabase\/server\.ts$/,
+  /^src\/lib\/auth\/acesso\.ts$/,
+  /^src\/lib\/queries\//,
 ]
+/** A exceção nominal, com o motivo: a forma Zod do snapshot congelado — Zod puro, sem client, sem leitura. O detalhe do
+ *  gerado na porta a usa para validar o snapshot JÁ projetado pela lista branca antes de renderizar. */
+const EXCECOES_DE_QUERIES = ['src/lib/queries/formas/relatorios-gerados.ts']
 
-describe('fronteira do viewer (A5): queries de relatório não tocam tabelas sensíveis', () => {
-  const arquivos = arquivosDaSuperficie()
+function arquivosDe(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? arquivosDe(join(dir, e.name)) : /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
+  )
+}
 
-  it('enxerga a superfície de queries (sanidade do caminho)', () => {
-    expect(arquivos.length).toBeGreaterThan(1)
-  })
+function resolver(de: string, spec: string): string | null {
+  let base: string
+  if (spec.startsWith('@/')) base = join(SRC, spec.slice(2))
+  else if (spec.startsWith('.')) base = join(dirname(de), spec)
+  else return null
+  for (const ext of ['', '.ts', '.tsx', '/index.ts', '/index.tsx']) {
+    const t = base + ext
+    if (existsSync(t) && statSync(t).isFile()) return t
+  }
+  return null
+}
 
-  it('o detector de assinatura enxerga o repositório (guarda do próprio teste)', () => {
-    const candidatos = candidatosPorAssinatura()
-    expect(candidatos.length, 'a derivação por assinatura não achou nada').toBeGreaterThan(5)
-    // A forma-expressão (`export const x = cache(function x(client?…))`) tem de entrar:
-    // é `filiais.ts`, e perdê-la foi o defeito que esta reescrita corrige.
-    expect(candidatos).toContain('queries/filiais.ts')
-  })
+/** Os especificadores de import de RUNTIME (`import type …` some na compilação e não conta). */
+export function importsDeRuntime(fonte: string): string[] {
+  const semComentario = fonte.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/[^\n]*$/gm, ' ')
+  const out: string[] = []
+  for (const m of semComentario.matchAll(/(^|\n)\s*(import|export)\s+(type\s+)?[^'"]*?from\s*['"]([^'"]+)['"]/g)) {
+    if (!m[3]) out.push(m[4]!)
+  }
+  for (const m of semComentario.matchAll(/(^|\n)\s*import\s*['"]([^'"]+)['"]/g)) out.push(m[2]!)
+  return out
+}
 
-  // As três formas que a revisão adversarial da F50 provou que ESCAPAVAM. Cada uma
-  // custou uma sabotagem ao vivo com os 14 testes verdes — e por isso viraram
-  // asserção de comportamento, não comentário.
-  it('o leitor de exports pega `export default function` (achado da revisão)', () => {
-    // A regex antiga exigia `function` logo após `export`; com `default` no meio o
-    // nome não entrava, e o módulo inteiro sumia da derivação.
-    expect(nomesExportados('export default async function lerAlgo(c) {}')).toContain('lerAlgo')
-    expect(nomesExportados('export function a(){}\nexport const b = 1')).toEqual(
-      new Set(['a', 'b']),
-    )
-  })
-
-  it('a lista branca não é enganada por CONCATENAÇÃO que começa com nome branco', () => {
-    // O vetor: `'ativos'` está na lista, `'ativos' + '_oculto'` não é `ativos`.
-    const sabotado = "client.from('ativos' + '_arquivo_oculto').select('*')"
-    expect(chamadasLiterais(sabotado, 'from'), 'a concatenação foi lida como literal').toEqual([])
-    expect(chamadasNaoLiterais(sabotado, 'from').length, 'a concatenação não foi acusada').toBe(1)
-    // …e o literal de verdade continua sendo lido como literal.
-    expect(chamadasLiterais("client.from('ativos').select('id')", 'from')).toEqual(['ativos'])
-    // `.rpc()` tem segundo argumento, e isso não pode confundir o detector.
-    expect(chamadasLiterais("client.rpc('rel_resumo', { p: 1 })", 'rpc')).toEqual(['rel_resumo'])
-    expect(chamadasNaoLiterais("client.rpc('rel_resumo', { p: 1 })", 'rpc')).toEqual([])
-    expect(chamadasNaoLiterais("client.rpc('rel' + '_oculto', {})", 'rpc').length).toBe(1)
-  })
-
-  // F58 · Frente B — a PORTA ÚNICA de RPC: `src/**` passou a chamar `chamarRpc(client,
-  // 'nome', …)` em vez de `client.rpc('nome', …)`. O detector precisa reconhecer as
-  // DUAS formas, e continuar recusando a segunda quando o nome não é literal puro —
-  // as mesmas três fugas (variável, template, concatenação) que já valiam para `.rpc(`.
-  it('a lista branca enxerga `chamarRpc(client, \'nome\', …)`, a forma da porta única', () => {
-    expect(
-      chamadasLiterais("chamarRpc(client, 'rel_resumo', { p_filiais: [1] })", 'rpc'),
-    ).toEqual(['rel_resumo'])
-    expect(
-      chamadasNaoLiterais("chamarRpc(client, 'rel_resumo', { p_filiais: [1] })", 'rpc'),
-    ).toEqual([])
-
-    // Variável: o nome não está escrito na fonte — não há como saber qual RPC é sem
-    // rodar o programa, então a lista branca não pode confiar nela.
-    const porVariavel = 'chamarRpc(client, nomeDaRpc, { p_filiais: [1] })'
-    expect(chamadasLiterais(porVariavel, 'rpc'), 'variável foi lida como literal').toEqual([])
-    expect(chamadasNaoLiterais(porVariavel, 'rpc').length, 'variável não foi acusada').toBe(1)
-
-    // Template string: o nome pode variar em runtime, mesmo risco da variável. O texto
-    // é FONTE SINTÉTICA (nunca interpolado/executado) — daí ser uma string comum, não
-    // um template literal de verdade.
-    const porTemplate = 'chamarRpc(client, `rel_${sufixo}`, {})'
-    expect(chamadasLiterais(porTemplate, 'rpc'), 'template foi lido como literal').toEqual([])
-    expect(chamadasNaoLiterais(porTemplate, 'rpc').length, 'template não foi acusado').toBe(1)
-
-    // Concatenação: o mesmo vetor que já valia para `.rpc(` — literal de verdade +
-    // sufixo NÃO é o literal de verdade.
-    const porConcatenacao = "chamarRpc(client, 'rel' + '_oculto', {})"
-    expect(
-      chamadasLiterais(porConcatenacao, 'rpc'),
-      'concatenação foi lida como literal',
-    ).toEqual([])
-    expect(
-      chamadasNaoLiterais(porConcatenacao, 'rpc').length,
-      'concatenação não foi acusada',
-    ).toBe(1)
-
-    // Chamada de UM argumento só (`chamarRpc(client)`) — não é uma chamada de RPC
-    // nomeada, e não pode virar falso-positivo nem quebrar o detector.
-    expect(chamadasLiterais('chamarRpc(client)', 'rpc')).toEqual([])
-    expect(chamadasNaoLiterais('chamarRpc(client)', 'rpc')).toEqual([])
-
-    // `chamarRpc(` não é confundida com `.rpc(` nem some da varredura por `from`.
-    expect(chamadasLiterais("chamarRpc(client, 'rel_resumo', {})", 'from')).toEqual([])
-  })
-
-  it('a trava de apelido pega as TRÊS formas de guardar o client', () => {
-    const casos = [
-      'const c = acesso.client',
-      'const { client } = acesso',
-      'const { client: c } = acesso',
-      "const c = acesso['client']",
-      'let c = acesso.client',
-    ]
-    for (const caso of casos) {
-      expect(
-        APELIDA_CLIENT.some((re) => re.test(caso)),
-        `a trava não pegou: ${caso}`,
-      ).toBe(true)
+function fecho(raizes: string[]): string[] {
+  const vistos = new Set<string>()
+  const fila = [...raizes]
+  while (fila.length) {
+    const a = fila.pop()!
+    if (vistos.has(a)) continue
+    vistos.add(a)
+    for (const spec of importsDeRuntime(readFileSync(a, 'utf8'))) {
+      const alvo = resolver(a, spec)
+      if (alvo && !vistos.has(alvo)) fila.push(alvo)
     }
-    // E não acusa uso direto, que é o padrão CERTO e tem de continuar passando.
-    expect(APELIDA_CLIENT.some((re) => re.test('listarFiliais(acesso.client)'))).toBe(false)
+  }
+  return [...vistos].sort()
+}
+
+/** As chamadas ao banco num fonte: `chamarRpc(x, 'nome'`, `.rpc(`, `.from('tabela')`. */
+export function chamadasAoBanco(fonte: string): { rpcs: string[]; rpcDireta: boolean; tabelas: string[] } {
+  const codigo = fonte.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+  return {
+    rpcs: [...codigo.matchAll(/chamarRpc\(\s*[^,]+,\s*'([^']+)'/g)].map((m) => m[1]!),
+    rpcDireta: /\.rpc\s*\(/.test(codigo),
+    tabelas: [...codigo.matchAll(/\.from\(\s*['"`]([^'"`]+)['"`]/g)].map((m) => m[1]!),
+  }
+}
+
+const RAIZES = arquivosDe(ARVORE_PUBLICA)
+const SUPERFICIE = fecho(RAIZES)
+const REL = SUPERFICIE.map(posix)
+
+describe('a fronteira da porta pública (mesa TS): a árvore /r/** só fala pelas duas funções', () => {
+  it('a árvore pública existe e o fecho segue os imports (sanidade)', () => {
+    expect(RAIZES.length).toBeGreaterThanOrEqual(5)
+    expect(REL).toContain(PUBLICO)
+    expect(REL).toContain('src/lib/actions/porta.ts')
+    expect(REL).toContain('src/components/relatorios/corpo-relatorio.tsx')
   })
 
-  it('todo módulo que ACEITA client resolvido está declarado (superfície ou exceção)', () => {
-    const declarados = new Set([...Object.keys(SUPERFICIE), ...Object.keys(EXCECOES)])
-    const naoDeclarados = candidatosPorAssinatura().filter((c) => !declarados.has(c))
-    expect(
-      naoDeclarados,
-      'quem aceita client resolvido pode receber o client do VIEWER (service_role): ' +
-        'declare cada um na superfície, ou como exceção nominal com o motivo medido',
-    ).toEqual([])
+  it('o fecho de runtime NÃO alcança service role, client de sessão, acesso.ts nem queries/** (salvo a forma Zod, nominal)', () => {
+    const fora = REL.filter((r) => PROIBIDOS.some((p) => p.test(r)) && !EXCECOES_DE_QUERIES.includes(r))
+    expect(fora, 'a árvore pública alcançou um módulo proibido — a porta é só publico.ts').toEqual([])
   })
 
-  it('nenhuma exceção envelheceu — todas ainda aceitam client (a lista não sobrevive ao motivo)', () => {
-    const candidatos = new Set(candidatosPorAssinatura())
-    const obsoletas = Object.keys(EXCECOES).filter((e) => !candidatos.has(e))
-    expect(
-      obsoletas,
-      'exceção que já não aceita client resolvido não descreve mais o repositório — apague a entrada',
-    ).toEqual([])
+  it('nenhum arquivo do fecho cria service role ou client de sessão', () => {
+    const achados = SUPERFICIE.flatMap((a) => {
+      const f = readFileSync(a, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+      return /createAdminClient|createServerClient|SUPABASE_SERVICE_ROLE_KEY|@supabase\/ssr/.test(f) ? [posix(a)] : []
+    })
+    expect(achados).toEqual([])
   })
 
-  it('cada exceção diz QUEM a chama, não a categoria dela', () => {
-    for (const [arquivo, motivo] of Object.entries(EXCECOES)) {
-      // Motivo medido cita call-site: tem nome de arquivo com `.ts`/`.tsx` e um número
-      // de linha. "Não é de relatório" é categoria, e categoria não se confere.
-      expect(motivo, `${arquivo}: motivo sem call-site`).toMatch(/\.tsx?:\d+/)
-      expect(motivo.length, `${arquivo}: motivo curto demais para ser medição`).toBeGreaterThan(60)
-    }
-  })
-
-  // -------------------------------------------------------------------------
-  // AS LISTAS BRANCAS — e a catraca que só encolhe
-  // -------------------------------------------------------------------------
-  it('toda tabela lida pela superfície está na lista BRANCA', () => {
-    const forasteiras = new Set<string>()
-    for (const caminho of arquivos) {
-      for (const t of chamadasLiterais(readFileSync(caminho, 'utf8'), 'from')) {
-        if (!(t in TABELAS)) forasteiras.add(`${rotulo(caminho)} → ${t}`)
+  it('só publico.ts chama o banco, e só as duas portas, pela porta única chamarRpc — nenhum .from(, nenhum .rpc(', () => {
+    const problemas: string[] = []
+    for (const a of SUPERFICIE) {
+      const c = chamadasAoBanco(readFileSync(a, 'utf8'))
+      const r = posix(a)
+      // `rpc.ts` É a porta única (`chamarRpc`): o único `.rpc(` do app mora nele (rpc-unica-porta.test.ts)
+      if (c.rpcDireta && r !== 'src/lib/supabase/rpc.ts') problemas.push(`${r}: .rpc( direto`)
+      for (const t of c.tabelas) problemas.push(`${r}: .from('${t}')`)
+      for (const rpc of c.rpcs) {
+        if (r !== PUBLICO) problemas.push(`${r}: chamarRpc('${rpc}') fora de publico.ts`)
+        else if (!(PORTAS as readonly string[]).includes(rpc)) problemas.push(`${r}: chamarRpc('${rpc}') não é uma das duas portas`)
       }
     }
-    expect(
-      [...forasteiras].sort(),
-      'o viewer roda sob service_role: uma tabela fora da lista branca fica exposta a ele. ' +
-        'Deny-list não cobriria a tabela que ainda não nasceu — por isso a lista é branca.',
-    ).toEqual([])
+    expect(problemas).toEqual([])
+    expect(chamadasAoBanco(readFileSync(join(RAIZ, PUBLICO), 'utf8')).rpcs.sort()).toEqual([...PORTAS])
   })
 
-  it('toda RPC chamada pela superfície está na lista BRANCA', () => {
-    const forasteiras = new Set<string>()
-    for (const caminho of arquivos) {
-      for (const r of chamadasLiterais(readFileSync(caminho, 'utf8'), 'rpc')) {
-        if (!(r in RPCS)) forasteiras.add(`${rotulo(caminho)} → ${r}`)
-      }
+  it('o fecho é ESTÁTICO (nenhum import dinâmico) e todo chamarRpc tem o nome LITERAL — sem eles a varredura fica cega', () => {
+    const cegos: string[] = []
+    for (const a of SUPERFICIE) {
+      // o fonte CRU, sem tirar comentários: tirá-los por regex morde dentro de string (`'https://x'; import('y')`) e
+      // esconderia o caso — aqui um comentário que cite `import(` só deixa o teste vermelho (o lado seguro, a régua
+      // de confinamento-viewer.test.ts)
+      const f = readFileSync(a, 'utf8')
+      // `import(…)`, `require(…)`, `next/dynamic`, `React.lazy`: o alvo não está no grafo que esta trava lê
+      if (/\bimport\s*\(|\brequire\s*\(|next\/dynamic|\blazy\s*\(/.test(f)) cegos.push(`${posix(a)}: import dinâmico`)
+      // um chamarRpc com o nome numa variável não é visto pelo detector de rpcs acima
+      const chamadas = [...f.matchAll(/\bchamarRpc\s*\(/g)].length
+      const literais = [...f.matchAll(/\bchamarRpc\s*\(\s*[^,]+,\s*'[^']+'/g)].length
+      if (posix(a) !== 'src/lib/supabase/rpc.ts' && chamadas !== literais) cegos.push(`${posix(a)}: chamarRpc sem nome literal`)
     }
-    expect([...forasteiras].sort(), 'RPC nova na superfície do viewer precisa de motivo escrito').toEqual(
-      [],
-    )
+    expect(cegos).toEqual([])
   })
 
-  it('nenhum `.from(` ou `.rpc(` com argumento montado em runtime', () => {
-    const montados: string[] = []
-    for (const caminho of arquivos) {
-      const fonte = readFileSync(caminho, 'utf8')
-      for (const metodo of ['from', 'rpc'] as const) {
-        for (const c of chamadasNaoLiterais(fonte, metodo)) montados.push(`${rotulo(caminho)}: ${c}`)
-      }
-    }
-    expect(
-      montados,
-      'lista branca só enxerga nome LITERAL: um nome montado em runtime a atravessa sem ser visto',
-    ).toEqual([])
+  it('publico.ts é o client SEM sessão: supabase-js puro, chave anon, nada de cookie', () => {
+    const f = readFileSync(join(RAIZ, PUBLICO), 'utf8').replace(/\/\/[^\n]*/g, ' ')
+    expect(f).toContain("from '@supabase/supabase-js'")
+    expect(f).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    expect(f).toMatch(/persistSession:\s*false/)
+    expect(f).toMatch(/autoRefreshToken:\s*false/)
+    expect(f).toMatch(/detectSessionInUrl:\s*false/)
+    expect(f).not.toMatch(/next\/headers|cookies\(|@\/lib\/supabase\/server|@supabase\/ssr|SERVICE_ROLE/)
+    expect(f).toMatch(/^import 'server-only'/m)
   })
 
-  // A catraca. Os dois números só descem: a fase que precisar subir um deles mexe
-  // AQUI, de propósito, e explica por quê na ata — que é exatamente a conversa que
-  // uma tabela nova na superfície do viewer merece ter.
-  it('as listas brancas são catraca — só encolhem', () => {
-    expect(Object.keys(TABELAS).length, 'TABELAS cresceu: uma tabela nova alcança o viewer').toBeLessThanOrEqual(9)
-    expect(Object.keys(RPCS).length, 'RPCS cresceu: uma RPC nova alcança o viewer').toBeLessThanOrEqual(7)
+  it('o detector reprova o que deve (guarda do próprio teste — sabotagem H)', () => {
+    expect(importsDeRuntime("import { createAdminClient } from '@/lib/supabase/admin'")).toEqual(['@/lib/supabase/admin'])
+    expect(importsDeRuntime("import type { Filial } from '@/lib/queries/filiais'")).toEqual([])
+    expect(chamadasAoBanco("await supabase.from('senhas_acesso').select('*')").tabelas).toEqual(['senhas_acesso'])
+    expect(chamadasAoBanco("chamarRpc(c, 'papel_atual')").rpcs).toEqual(['papel_atual'])
+    expect(chamadasAoBanco("client.rpc('x')").rpcDireta).toBe(true)
+    expect(chamadasAoBanco('Array.from(x)').tabelas).toEqual([])
   })
+})
 
-  it('as listas brancas descrevem o que a superfície REALMENTE lê (não envelheceram)', () => {
-    const lidas = new Set<string>()
-    const chamadas = new Set<string>()
-    for (const caminho of arquivos) {
-      const fonte = readFileSync(caminho, 'utf8')
-      for (const t of chamadasLiterais(fonte, 'from')) lidas.add(t)
-      for (const r of chamadasLiterais(fonte, 'rpc')) chamadas.add(r)
-    }
-    expect(Object.keys(TABELAS).filter((t) => !lidas.has(t)), 'tabela declarada que ninguém lê').toEqual([])
-    expect(Object.keys(RPCS).filter((r) => !chamadas.has(r)), 'RPC declarada que ninguém chama').toEqual([])
-  })
+describe('a fronteira da porta pública (mesa SQL): o corpo das duas funções só cita tabelas da lista branca', () => {
+  /** As tabelas que as duas portas podem tocar, com o motivo. */
+  const TABELAS_DA_PORTA: Record<string, string> = {
+    'public.empresas': 'o slug da rota → a empresa (abrir) e o nome dela (porta, sessao)',
+    'public.senhas_acesso': 'as candidatas bcrypt da empresa (abrir) e a senha ainda ativa (dados)',
+    'public.sessoes_visualizador': 'a sessão: criada em abrir, conferida e encerrada em dados',
+    'public.porta_tentativas': 'o contador, antes de qualquer senha (abrir)',
+    'public.relatorios_gerados': 'os gerados DA EMPRESA DA SESSÃO (dados)',
+    'public.filiais': 'o nome das filiais da lista e do filtro (dados)',
+    'public.tipos_item': 'o vocabulário dos itens faltantes do snapshot (dados)',
+  }
+  const NUNCA = ['public.profiles', 'public.colaboradores', 'public.membros', 'auth.users']
 
-  // -------------------------------------------------------------------------
-  // A ATRIBUIÇÃO A VARIÁVEL — o que derrota a varredura por call-site
-  // -------------------------------------------------------------------------
-  // `const c = acesso.client` some do grep por `acesso.client` no ponto de USO: a
-  // partir dali quem viaja é `c`, e uma auditoria que procure o nome longo não vê
-  // mais nada. A rota continua entregando o client do viewer — só que sem rastro.
-  it('nenhuma rota guarda `acesso.client` numa variável', () => {
-    const raizApp = join(process.cwd(), 'src', 'app')
-    const infratores: string[] = []
-    const varrer = (dir: string) => {
-      for (const nome of readdirSync(dir)) {
-        const p = join(dir, nome)
-        if (statSync(p).isDirectory()) varrer(p)
-        else if (/\.tsx?$/.test(nome) && !nome.includes('.test.')) {
-          const fonte = readFileSync(p, 'utf8')
-          if (APELIDA_CLIENT.some((re) => re.test(fonte))) {
-            infratores.push(p.slice(raizApp.length + 1).split(/[\\/]/).join('/'))
-          }
-        }
-      }
-    }
-    varrer(raizApp)
-    expect(
-      infratores,
-      'apelidar o client do viewer esconde o call-site de toda auditoria por `acesso.client`',
-    ).toEqual([])
-  })
-
-  for (const { termo, motivo } of PROIBIDOS) {
-    it(`nenhuma query referencia "${termo}" (${motivo})`, () => {
-      const infratores = arquivos
-        .filter((p) => readFileSync(p, 'utf8').includes(termo))
-        .map((p) => p.split(/[\\/]/).slice(-2).join('/'))
-      expect(
-        infratores,
-        `viewer roda sob service_role: uma query a ${termo} vazaria ${motivo}`,
-      ).toEqual([])
+  for (const [porta, assinatura] of [
+    ['relatorio_publico_abrir', 'public.relatorio_publico_abrir(text, text, text)'],
+    ['relatorio_publico_dados', 'public.relatorio_publico_dados(text, text, text, jsonb)'],
+  ] as const) {
+    it(`${porta}: só tabelas da lista branca, e nunca pessoas`, () => {
+      const { sql } = corpoVigente(assinatura)
+      const codigo = sql.replace(/--[^\n]*/g, ' ')
+      const citadas = [...new Set([...codigo.matchAll(/\b(?:from|join|update|into|using)\s+((?:public|auth)\.\w+)/gi)].map((m) => m[1]!.toLowerCase()))]
+      expect(citadas.length).toBeGreaterThan(0)
+      expect(citadas.filter((t) => !Object.hasOwn(TABELAS_DA_PORTA, t)), porta).toEqual([])
+      for (const t of NUNCA) expect(codigo.toLowerCase(), `${porta} cita ${t}`).not.toContain(t)
     })
   }
+
+  it('o mesmo trabalho tem o mesmo custo: o sal fictício de abrir tem o custo da criação, e o laço o teto da criação', () => {
+    const abrir = corpoVigente('public.relatorio_publico_abrir(text, text, text)').sql
+    const criar = corpoVigente('public.senha_acesso_criar(uuid, text, text)').sql
+    const custo = /k_custo constant int := (\d+);/.exec(criar)?.[1]
+    const sal = /k_sal_ficticio constant text := '\$2a\$(\d\d)\$[./A-Za-z0-9]{22}';/.exec(abrir)?.[1]
+    expect(custo).toBeDefined()
+    expect(Number(sal)).toBe(Number(custo))
+    const teto = /k_max_ativas constant int := (\d+);/.exec(criar)?.[1]
+    const laco = /k_max_candidatas constant int := (\d+);/.exec(abrir)?.[1]
+    expect(laco).toBe(teto)
+  })
+
+  it('o laço da senha faz SEMPRE k_max_candidatas crypt(): sem saída antecipada, o resultado guardado antes de comparar', () => {
+    // A medição de tempo do ensaio (n = 30 por caminho) prova a forma UMA vez; esta trava a segura no CI: um `exit`, um
+    // `return` ou um `continue` dentro do laço, ou um crypt() só dentro do `if`, fariam a senha certa custar menos que a
+    // errada — o oráculo de tempo que as cinco recusas iguais fecham.
+    const abrir = corpoVigente('public.relatorio_publico_abrir(text, text, text)').sql.replace(/--[^\n]*/g, ' ')
+    const lacos = [...abrir.matchAll(/\bfor\s+(\w+)\s+in\s+1\s*\.\.\s*k_max_candidatas\s+loop\b([\s\S]*?)\bend\s+loop\b/gi)]
+    expect(lacos).toHaveLength(1)
+    const corpo = lacos[0]![2]!
+    expect(corpo, 'saída antecipada dentro do laço').not.toMatch(/\b(exit|return|continue|raise)\b/i)
+    // o hash do passo: a candidata OU o sal fictício (nunca "pular" a que falta)
+    expect(corpo).toMatch(/v_h\s*:=\s*coalesce\(\s*v_hashes\[\s*\w+\s*\]\s*,\s*k_sal_ficticio\s*\)\s*;/i)
+    // o crypt() incondicional, ANTES do primeiro `if`
+    const crypt = corpo.search(/\bv_r\s*:=\s*extensions\.crypt\(/i)
+    const primeiroIf = corpo.search(/\bif\b/i)
+    expect(crypt).toBeGreaterThanOrEqual(0)
+    expect(primeiroIf).toBeGreaterThan(crypt)
+    // e nenhum OUTRO crypt() fora do laço (o trabalho por chamada é o do laço, nem mais, nem menos)
+    expect([...abrir.matchAll(/\bextensions\.crypt\(/gi)]).toHaveLength(1)
+  })
 })

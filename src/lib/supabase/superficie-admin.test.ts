@@ -51,13 +51,11 @@ type Declaracao = {
  * A ordem é a do risco: primeiro os que NÃO têm guarda de cargo.
  */
 const DECLARADOS: Record<string, Declaracao> = {
-  // --- Os três sem guarda de CARGO. São os que mais precisam do motivo escrito.
-  'src/lib/auth/acesso.ts': {
-    motivo:
-      'É o caminho do VISUALIZADOR POR SENHA. Quem entra por ali não tem conta no Supabase, logo não tem client de sessão nenhum: `papel_atual()` devolve NULL para essa sessão. O client admin não é um atalho aqui — ele É o client que `resolverAcessoRelatorio` entrega às queries de relatório, porque não existe outro.',
-    guarda:
-      'cookie httpOnly ASSINADO, conferido por `getViewerSession` (acesso.ts:429) contra `senhas_acesso.ativa` no banco a cada request — é o que faz a revogação de uma senha valer no request seguinte. O client admin só é criado depois que essa conferência passa, e só serve rotas /relatorios/**.',
-  },
+  // --- Os sem guarda de CARGO. São os que mais precisam do motivo escrito.
+  // F68 (19/11/2026): `src/lib/auth/acesso.ts` (o visualizador por senha) e `src/lib/actions/senhas.ts` (a gestão das
+  // senhas) SAÍRAM desta lista — os dois deixaram de criar client administrativo. O visualizador fala só pelas duas
+  // funções do banco executáveis por `anon` (lib/supabase/publico.ts); a gestão, pelas funções por empresa (0211) com o
+  // client de SESSÃO.
   'src/lib/auditoria-registro.ts': {
     motivo:
       'Grava em `eventos_admin`, que tem RLS ligada com policy de SELECT (admin) e NENHUMA policy de escrita, de propósito. Uma trilha que o próprio auditado pudesse gravar ou reescrever não seria trilha — o único caminho de INSERT é o service role.',
@@ -65,7 +63,7 @@ const DECLARADOS: Record<string, Declaracao> = {
       'NENHUMA guarda de cargo, e é deliberado: quem chama já passou pela guarda da ação que está sendo auditada. A defesa aqui é a ausência de policy de escrita (a trilha é append-only para todo mundo, service role incluído no sentido de que nada a apaga) e o fato de a função só REGISTRAR, nunca ler nem decidir.',
   },
 
-  // --- Os cinco atrás de guarda de cargo.
+  // --- Os atrás de guarda de cargo.
   'src/lib/queries/admin.ts': {
     motivo:
       'Lê PESSOAS, não inventário: `auth.admin.listUsers` e `auth.admin.getUserById` são APIs exclusivas do Auth administrativo, e não existe tabela com RLS que exponha e-mail, último acesso e banimento de `auth.users`. `idsDeAdminsAtivos` e `getEstadoUsuario` precisam enxergar o conjunto REAL de administradores para as travas de autoproteção — se a RLS escondesse o alvo de quem pergunta, a trava "não fique sem administrador" poderia ser burlada apagando quem você não enxerga.',
@@ -81,12 +79,6 @@ const DECLARADOS: Record<string, Declaracao> = {
     motivo:
       'Troca o e-mail de login (`auth.admin.updateUserById`) e remove a conta do Auth (`auth.admin.deleteUser`) depois de a RPC arquivar o perfil. São as duas operações que o CLAUDE.md reserva ao cargo dev, e nenhuma existe fora do client administrativo.',
     guarda: '`exigirDev`, no topo de cada export (linhas 54, 111).',
-  },
-  'src/lib/actions/senhas.ts': {
-    motivo:
-      '`senhas_acesso` está em deny-all (zero policies) desde a migration 0012, justamente para que a coluna `hash` nunca chegue a um client de sessão — RLS é row-level, não column-level. Ler ou gravar ali só é possível pelo service role.',
-    guarda:
-      '`exigirAdmin` em três dos quatro (linhas 150, 197, 234). O quarto é `entrarComSenha`, a porta pública do visualizador, onde não há cargo a exigir: ali a defesa é o rate-limit persistente por IP (RPC `registrar_tentativa_senha`, chamada ANTES da comparação) e o `crypto.scrypt` timing-safe.',
   },
   'src/lib/actions/dev-destrutivo.ts': {
     motivo:

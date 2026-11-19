@@ -181,6 +181,12 @@ declare
   --   · pode_ler_arquivo_termo (0198)      — lê `t.empresa_id` da linha para perguntar o cargo NAQUELA empresa;
   --   · pode_escrever_arquivo_termo (0197) — lê `t.empresa_id` da linha para decidir o degenerado pela empresa dela.
   -- Cada uma só de `termos_gerados`, no comando que acha a linha pelo `arquivo_path`.
+  -- F68 (19/11/2026) — CINCO, a mesma classe da F67 (o recorte da `security definer` pela empresa — docs/PLAN-F68.md):
+  --   · senha_acesso_criar / _conferir / _definir_status (0211) — a gestão das senhas POR EMPRESA: o teto, a repetida e a
+  --                                           linha conferidos na empresa informada (`s.empresa_id = p_empresa`);
+  --   · relatorio_publico_abrir (0212)      — as candidatas da porta: as ativas bcrypt da empresa DO SLUG;
+  --   · relatorio_publico_dados (0212)      — os gerados, as filiais do filtro e o vocabulário da empresa DA SESSÃO
+  --                                           (`= v_empresa`, a empresa que sai da sessão, por dentro).
   k_leitura_tenant text[] := array[
     'guarda_empresa:anotacoes,ativos,colaboradores,eventos_admin,filiais,import_logs,import_prefixos_patrimonio,import_termos_categoria,import_termos_estado,itens,kits_modelos,lancamentos_item,motivos,movimentacoes,pendencias_item,relatorios_gerados,senhas_acesso,termos_gerados,tipos_item,unidades_apelidos',
     'termo_da_empresa:termos_gerados,movimentacoes,ativos',
@@ -201,7 +207,12 @@ declare
     'exigir_ativos_da_empresa:ativos',
     'termo_exige_modelo_da_empresa:termos_gerados',
     'pode_ler_arquivo_termo:termos_gerados',
-    'pode_escrever_arquivo_termo:termos_gerados'
+    'pode_escrever_arquivo_termo:termos_gerados',
+    'senha_acesso_criar:senhas_acesso',
+    'senha_acesso_conferir:senhas_acesso',
+    'senha_acesso_definir_status:senhas_acesso',
+    'relatorio_publico_abrir:senhas_acesso',
+    'relatorio_publico_dados:relatorios_gerados,filiais,tipos_item'
   ];
 
   -- =======================================================================
@@ -296,10 +307,14 @@ declare
   --                                guarda é do MECANISMO de migração (a chave e o valor anterior
   --                                de uma célula), escrito pela migration e lido pelo rollback
   --                                dela; não se recorta por empresa.
+  --   · sessoes_visualizador (0209) — F68: a sessão do visualizador por senha (o sha-256 do token, a empresa e a senha
+  --                                — FK composta —, o vencimento); é do MECANISMO da porta pública, não do acervo.
+  --   · porta_tentativas (0210)     — F68: o contador da porta pública (por empresa e por empresa+origem); o par de
+  --                                `senha_tentativas`, que ele substitui na F68B.
   k_infra text[] := array[
     'profiles', 'operador_filiais', 'senha_tentativas', 'ambiente',
     '_bkp_relatorios_gerados_f6a', 'empresas', 'membros', 'plataforma_admins',
-    'backups_migration'
+    'backups_migration', 'sessoes_visualizador', 'porta_tentativas'
   ];
 
   -- =======================================================================
@@ -334,12 +349,14 @@ declare
   --   · backups_migration — F63 (0159): o par de backup de migração; quem escreve é a migration
   --                         e quem lê é o rollback dela, os dois como o dono. RLS ligada, zero
   --                         policy e revoke all dos três papéis da API — o molde de `ambiente`.
+  --   · sessoes_visualizador — F68 (0209): a sessão da porta pública do relatório; só as duas portas (definer) a leem e a escrevem, e o token nunca chega a um client.
+  --   · porta_tentativas — F68 (0210): o contador da porta pública; só relatorio_publico_abrir (definer) o lê e o escreve, antes de qualquer senha.
   --
   -- ⚠ A asserção 4 confere esta lista no SENTIDO CONTRÁRIO: nome aqui que passe a TER
   -- policy de SELECT também REPROVA. Exceção não sobrevive ao motivo que a criou.
   -- =======================================================================
   k_sem_select text[] := array['senhas_acesso', 'senha_tentativas', 'ambiente', 'empresas', 'plataforma_admins',
-                               'backups_migration'];
+                               'backups_migration', 'sessoes_visualizador', 'porta_tentativas'];
 
   -- =======================================================================
   -- O PISO DE LEITURA CONGELADO (R-ACC-25, migration 0070).

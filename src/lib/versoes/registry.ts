@@ -23,6 +23,19 @@ import type { EntradaVersao } from '@/lib/versoes/tipos'
 
 export const VERSOES: readonly EntradaVersao[] = [
   {
+    versao: '1.76.0',
+    data: '2026-11-19',
+    fase: 'F68',
+    titulo: 'A entrada dos gestores por senha ganhou o endereço próprio da empresa, e os relatórios por senha saem sem nomes de pessoas',
+    mudancas: [
+      'A entrada dos gestores por senha passou a ter o endereço próprio da empresa (o link aparece na tela Senhas, ao criar a senha). Os links antigos de Relatórios levam para lá sozinhos.',
+      'As senhas de acesso criadas antes desta versão deixaram de funcionar: crie as novas em Administração › Senhas, confira numa janela anônima e revogue as antigas. A senha nova pode ter de 8 a 72 caracteres (letra com acento conta como dois), e cada empresa tem no máximo 5 senhas ativas.',
+      'Pela senha, o gestor vê os relatórios gerados sem nomes de pessoas — sem colaborador, setor, autor de anotação nem quem gerou o relatório. O relatório ao vivo pela senha volta numa próxima versão; enquanto isso, o endereço dele mostra um aviso com o link para os gerados.',
+      'Revogar uma senha corta o acesso de quem entrou com ela já na próxima página que a pessoa abrir, e o "Sair" encerra o acesso na hora.',
+      'Para quem entra com a sua conta, nada muda: Relatórios, ao vivo e gerados, continuam iguais, com os nomes.',
+    ],
+  },
+  {
     versao: '1.75.0',
     data: '2026-11-16',
     fase: 'F67C',

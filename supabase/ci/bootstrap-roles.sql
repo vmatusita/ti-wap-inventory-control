@@ -64,3 +64,24 @@ grant anon, authenticated, service_role to postgres;
 -- nem a policy compilaria), mas não criam nada, e não ganham privilégio nenhum de tabela.
 -- Privilégio de TABELA em `public` é assunto das migrations (que dão os poucos explícitos) e dos
 -- roteiros (que plantam os seus). Ver o cabeçalho.
+
+-- =============================================================================
+-- F68 (19/11/2026) — o schema `extensions` com o `pgcrypto`, ESPELHANDO o ambiente gerenciado
+-- =============================================================================
+-- A porta pública da F68 confere a senha DENTRO do banco (bcrypt) e sorteia/guarda a sessão por
+-- `extensions.crypt`, `extensions.gen_salt`, `extensions.gen_random_bytes` e `extensions.digest`.
+-- No Supabase hospedado (produção e ensaio) o `pgcrypto` já vem instalado no schema `extensions`
+-- (medido em 19/11/2026: pgcrypto 1.3 em `extensions`); num `postgres:17` cru, não. Este é o
+-- recorte que falta — NEM MAIS: nenhuma outra extensão, nenhum grant em `public`. A migration
+-- `0208` CONFERE que as quatro funções existem e recusa com mensagem se não; ela não cria
+-- extensão nenhuma (em produção isso seria um efeito sem dono).
+-- A imagem oficial `postgres:17` traz o contrib (o `pgcrypto` incluso).
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+grant usage on schema extensions to anon, authenticated, service_role;
+
+-- O teto de 3 s do `anon` (o `rolconfig` do ambiente gerenciado, medido em 19/11/2026), SÓ PARA
+-- DOCUMENTAR o ambiente: um `set local role anon` dentro de um roteiro NÃO carrega as
+-- configurações do papel (elas só valem num login novo ou quando o PostgREST troca de papel). Os
+-- casos que medem tempo põem `set local statement_timeout = '3s'` à mão.
+alter role anon set statement_timeout = '3s';

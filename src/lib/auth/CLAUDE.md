@@ -18,7 +18,21 @@ importa para quem mexe NESTE código: implementação, não a política.
   checklist ao acrescentar cargo. `FORCA` usa NÚMERO, não a ordem do enum do Postgres — no
   banco `dev` é o PRIMEIRO label (`add value 'dev' before 'admin'`) e portanto o MENOR na
   comparação de enum: inverter esse sinal aqui é bug clássico.
-- `acesso.ts` — as guardas de Server Action e a resolução de sessão. Ver abaixo.
+- `acesso.ts` — as guardas de Server Action e a resolução de sessão. Ver abaixo. **Desde a F68 (v1.76.0)** não há
+  `getViewerSession` nem o modo `viewer`: `resolverAcessoRelatorio` responde só ao OPERADOR (sem operador, o chamador
+  redireciona; quem entra por senha vive na porta pública, não aqui).
+- `porta-rotas.ts` (F68) — módulo-folha **isomórfico** (sem `server-only`, sem Supabase), a fonte única de como se fala da
+  porta pública `/r/<slug>/relatorios/**`: `SLUG_EMPRESA_LEGADA` (espelho do slug da WAP na `0152`; o teste o compara),
+  `PORTA_COOKIE` (`wap_porta`, o token opaco da sessão — guardado no banco, não é envelope assinado) e o tempo de vida,
+  `caminhoDaPorta`/`caminhoDoCookie`/`entradaDaPorta`, `destinoNaPorta` (o `next` pós-senha: só caminho da MESMA empresa,
+  qualquer outro vira a entrada), `traduzirDestinoLegado`/`portaDaLegada` (o `next` do 308 de `/relatorios/**` sem operador
+  para a porta da WAP), `filialForaDaPorta` e as três mensagens das recusas (`MSG_SENHA_INVALIDA`, `MSG_MUITAS_TENTATIVAS`,
+  `MSG_FALHA_AO_CONFERIR_SENHA`). Lido pelo proxy, pelas Server Actions e pelas páginas de `src/app/r/**`.
+- `view-cookie.ts` — o nome do cookie ANTIGO do visualizador (`wap_view`). Só o proxy o usa, para APAGÁ-LO de quem
+  ainda o carrega; sai na F68B.
+- `senha-sessao.ts` — **REMOVIDO na F68** (scrypt + envelope HMAC com `VIEW_SESSION_SECRET`). A senha agora é conferida
+  DENTRO do banco (bcrypt, `relatorio_publico_abrir`) e a sessão é uma linha de `sessoes_visualizador`; não recrie hash
+  nem assinatura no app.
 - `empresa-legada.ts` — `EMPRESA_LEGADA_ID`, o id da WAP (F62): espelho do literal que
   `public.empresa_legada()` devolve (`0152`), e `empresa-legada.test.ts` compara os dois. **Desde a F67** ele também
   exporta `empresaDaOperacao()` — a empresa que o TS passa às RPCs por empresa quando a operação NÃO tem filial de onde
@@ -72,9 +86,11 @@ admin) · `0073` (`profiles_guarda_dev`, arquivamento) · `0074` (as cinco RPCs 
 `encerrar_sessoes_usuario`) · `0152`–`0158` (F62: `empresas`/`empresa_legada()`, `membros` e
 `membros_guarda_dev`, o vínculo por membership, e a troca de todo leitor do cargo) · `0185`–`0193` (F67: o cargo
 POR EMPRESA — `papel_na_empresa`/`e_admin_na`/`e_dev_na`/`pode_escrever_na`/`pode_escrever_unidade` —, o piso pelo cargo
-mais forte, as cinco RPCs de gestão com `p_empresa`, e `e_dev()` fora). Porquê e
+mais forte, as cinco RPCs de gestão com `p_empresa`, e `e_dev()` fora) · `0208`–`0212` (F68: a porta pública por empresa — `sessoes_visualizador`, `porta_tentativas` e as
+duas funções de `anon`, `relatorio_publico_abrir`/`relatorio_publico_dados` — e a gestão das senhas de acesso por empresa,
+por função do banco). Porquê e
 como funciona por baixo: ADR-002 §13 (cargo dev), §14 (zona destrutiva), §15 (o cargo por
-empresa) e §17 (o cargo por empresa nas funções, F67) — não repita aqui, edite lá se o comportamento mudar.
+empresa) §17 (o cargo por empresa nas funções, F67) e §20 (a porta pública, F68) — não repita aqui, edite lá se o comportamento mudar.
 
 ## Página fora daqui que este modelo também rege
 

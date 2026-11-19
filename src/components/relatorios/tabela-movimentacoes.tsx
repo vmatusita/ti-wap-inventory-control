@@ -36,10 +36,13 @@ export function TabelaMovimentacoes({
   rows,
   filtrosInternos = false,
   ehGeral = false,
+  semPessoas = false,
 }: {
   rows: MovimentacaoRelatorio[]
   filtrosInternos?: boolean
   ehGeral?: boolean
+  /** F68 — a porta pública: a coluna de PESSOA some (o dado já não vem pela porta). */
+  semPessoas?: boolean
 }) {
   const { filtradas, temFiltro, filtros, opcoes, camposAtivos, setFiltro, limpar } =
     useFiltrosTabela(rows, {
@@ -76,7 +79,7 @@ export function TabelaMovimentacoes({
                 <TableHead>Tipo</TableHead>
                 <TableHead>Patrimônio</TableHead>
                 <TableHead className="hidden lg:table-cell print:table-cell">Ativo</TableHead>
-                <TableHead>Colaborador / Setor</TableHead>
+                {!semPessoas && <TableHead>Colaborador / Setor</TableHead>}
                 <TableHead className="hidden md:table-cell print:table-cell">Filial</TableHead>
                 <TableHead className="hidden md:table-cell print:table-cell">Chamado</TableHead>
                 <TableHead className="hidden lg:table-cell print:table-cell">Observação</TableHead>
@@ -93,9 +96,11 @@ export function TabelaMovimentacoes({
                     {r.patrimonio}
                   </TableCell>
                   <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">{r.ativo}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {r.colaborador_setor ?? '—'}
-                  </TableCell>
+                  {!semPessoas && (
+                    <TableCell className="whitespace-nowrap">
+                      {r.colaborador_setor ?? '—'}
+                    </TableCell>
+                  )}
                   <TableCell className="hidden whitespace-nowrap md:table-cell print:table-cell">{r.filial}</TableCell>
                   <CelulaChamado chamado={r.chamado} className="hidden md:table-cell print:table-cell" />
                   <CelulaObs texto={r.observacao} comIcone className="hidden lg:table-cell print:table-cell" />

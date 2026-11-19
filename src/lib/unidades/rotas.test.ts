@@ -18,6 +18,11 @@ import { limpar } from '@/lib/use-server-exports'
 
 const RAIZ = process.cwd()
 const HELPER = 'recusarFilialInexistente'
+// F68 (19/11/2026) — A PORTA PÚBLICA (`src/app/r/**`) tem o PAR dela: `filialForaDaPorta` (lib/auth/porta-rotas.ts). O
+// visualizador por senha não tem client que leia `filiais` (só as duas funções da porta), então a lista de filiais vem da
+// própria resposta da porta, e a filial fora dela responde 404 do mesmo jeito. O par vale SÓ dentro da árvore pública.
+const HELPER_DA_PORTA = 'filialForaDaPorta'
+const ARVORE_DA_PORTA = 'src/app/r/'
 const MINIMO_DE_ROTAS = 8
 const posix = (p: string) => relative(RAIZ, p).split(sep).join('/')
 
@@ -60,7 +65,9 @@ function rotasQueLeemFilial(): { arquivo: string; chamaHelper: boolean }[] {
     .filter(({ fonte }) => leFilialDaUrl(fonte))
     .map(({ p, fonte }) => ({
       arquivo: posix(p),
-      chamaHelper: new RegExp(String.raw`\b${HELPER}\s*\(`).test(fonte),
+      chamaHelper:
+        new RegExp(String.raw`\b${HELPER}\s*\(`).test(fonte) ||
+        (posix(p).startsWith(ARVORE_DA_PORTA) && new RegExp(String.raw`\b${HELPER_DA_PORTA}\s*\(`).test(fonte)),
     }))
 }
 

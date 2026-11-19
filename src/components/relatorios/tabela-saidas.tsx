@@ -69,10 +69,13 @@ export function TabelaSaidas({
   ehOperador,
   corte,
   aoVivo,
+  semPessoas = false,
 }: {
   rows: LinhaSaida[]
   ehGeral: boolean
   ehOperador?: boolean
+  /** F68 — a porta pública: a coluna de PESSOA some (o dado já não vem pela porta). */
+  semPessoas?: boolean
   /** F60 — presente só quando a leitura cortou a tabela no teto (`snapshot.tabelasTruncadas`). */
   corte?: CorteDeTabela
   aoVivo?: boolean
@@ -147,7 +150,7 @@ export function TabelaSaidas({
                 <TableHead>Tipo</TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead className="hidden md:table-cell print:table-cell">Chamado</TableHead>
-                <TableHead className="hidden lg:table-cell print:table-cell">Colab./Setor</TableHead>
+                {!semPessoas && <TableHead className="hidden lg:table-cell print:table-cell">Colab./Setor</TableHead>}
                 <TableHead className="hidden xl:table-cell print:table-cell">Termo</TableHead>
                 <TableHead className="hidden xl:table-cell print:table-cell">Obs.</TableHead>
               </TableRow>
@@ -163,7 +166,7 @@ export function TabelaSaidas({
                   { rotulo: 'Categoria', valor: rotuloCategoria(r.categoria), revelar: 'sm:hidden' },
                   { rotulo: 'Marca/Modelo', valor: r.modelo, revelar: 'lg:hidden' },
                   { rotulo: 'Chamado', valor: r.chamado ? `#${r.chamado}` : '—', revelar: 'md:hidden' },
-                  { rotulo: 'Colab./Setor', valor: r.colaboradorSetor ?? '—', revelar: 'lg:hidden' },
+                  ...(semPessoas ? [] : [{ rotulo: 'Colab./Setor', valor: r.colaboradorSetor ?? '—', revelar: 'lg:hidden' }]),
                   { rotulo: 'Termo', valor: r.termo ?? '—', revelar: 'xl:hidden' },
                   { rotulo: 'Obs.', valor: r.obs ?? '—', revelar: 'xl:hidden' },
                 ]
@@ -195,9 +198,11 @@ export function TabelaSaidas({
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{r.motivo ?? '—'}</TableCell>
                       <CelulaChamado chamado={r.chamado} className="hidden md:table-cell print:table-cell" />
-                      <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">
-                        {r.colaboradorSetor ?? '—'}
-                      </TableCell>
+                      {!semPessoas && (
+                        <TableCell className="hidden whitespace-nowrap lg:table-cell print:table-cell">
+                          {r.colaboradorSetor ?? '—'}
+                        </TableCell>
+                      )}
                       <TableCell className="hidden whitespace-nowrap xl:table-cell print:table-cell">{r.termo ?? '—'}</TableCell>
                       <CelulaObs texto={r.obs} className="hidden xl:table-cell print:table-cell" />
                     </TableRow>

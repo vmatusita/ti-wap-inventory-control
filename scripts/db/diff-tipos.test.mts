@@ -309,8 +309,14 @@ describe('3. contra o `database.ts` REAL do repositório', () => {
     // (empresa_do_caminho_backup, caminho_backup_legado — os três prefixo_backup_* novos mantêm o nome das antigas, que a
     // 0199 derruba), e a 0196 UMA (registrar_limpeza_termos_sem_linha). pode_escrever_termo troca de assinatura (0197/0198)
     // e mantém o nome. HAND-FIX datado no `database.ts`; a geração do MCP de produção depois da contração o substitui.
-    expect(real.relacoes.size).toBe(38)
-    expect(real.funcoes.size).toBe(105)
+    //
+    // F68 (19/11/2026): relações 38 -> 40, funções 105 -> 111. A 0209 cria sessoes_visualizador e a 0210 porta_tentativas
+    // (as duas deny-all); a 0211 cria as três de gestão das senhas por empresa (senha_acesso_criar/_conferir/
+    // _definir_status) e a 0212 as duas portas de anon (relatorio_publico_abrir/_dados) e a projeção da lista branca
+    // (relatorio_publico_projetar) — +6. HAND-FIX datado no `database.ts`; a geração do MCP de produção depois do apply o
+    // substitui.
+    expect(real.relacoes.size).toBe(40)
+    expect(real.funcoes.size).toBe(111)
     expect(real.colunas.size).toBeGreaterThanOrEqual(314)
   })
 

@@ -6,6 +6,31 @@ Legenda: ✅ concluída · 🚧 pendente · 🔒 em produção. *(Corrigido pela
 
 ---
 
+## 19/11/2026 — F68 · A porta pública por empresa (o visualizador por senha sem service role) ✅
+
+Fase **F68** (**v1.76.0**) · **com migrations `0208`–`0212` (só expansão)** — duas tabelas novas (a sessão do visualizador
+e o contador da porta), três funções de gestão das senhas por empresa e as duas funções executáveis por `anon`; **nenhum
+dado de negócio muda, nenhuma policy muda e as senhas existentes não são tocadas** · sem dependência nova. Quem entra por
+senha de visualização deixa de receber o acesso administrativo ao banco: entra pela porta pública DA EMPRESA
+(`/r/<slug>/relatorios`), e a senha é conferida pelo próprio banco. Plano em [`docs/PLAN-F68.md`](docs/PLAN-F68.md), ata em
+[`docs/DECISOES.md`](docs/DECISOES.md) (2026-11-19 · F68), relatório em [`docs/RELATORIO-F68.md`](docs/RELATORIO-F68.md).
+
+- 🚪 **A porta é do banco.** Duas funções — as únicas de toda a base que a chave pública alcança — conferem a senha (bcrypt,
+  dentro do banco), abrem uma sessão de 24 h guardada no banco (só o hash do token) e servem os relatórios GERADOS da
+  empresa da sessão. A senha de uma empresa no endereço de outra é recusada, igual a uma senha errada.
+- 🙈 **Sem nomes de pessoas.** Pela porta saem só os campos de uma lista branca — nem colaborador, nem setor, nem autor de
+  anotação, nem quem gerou o relatório, inclusive dos relatórios antigos que guardaram esses nomes.
+- 🔑 **As senhas antigas deixam de abrir.** As senhas criadas antes desta versão eram conferidas fora do banco; o
+  administrador cria as novas em Administração › Senhas (no máximo 5 ativas por empresa, de 8 a 72 bytes) e revoga as
+  antigas. A gestão das senhas passou a funções do banco por empresa.
+- ↪️ **Os endereços antigos levam à porta.** Sem login, `/relatorios/**` responde 308 para a porta da WAP; com login, nada
+  muda. O relatório ao vivo pela senha é da próxima fase (o endereço dele mostra um aviso).
+- 🧪 **As travas.** `isolamento_viewer.sql` (21 asserções — só testável agora, sem o service role na porta), o par de catálogo
+  das duas exceções de `anon`, a fronteira e o confinamento da porta reescritos, a lista branca TS↔SQL, o rollback
+  `F68-desfaz.sql` ensaiado e nove mutações novas no injetor.
+
+---
+
 ## 16/11/2026 — F67C · O fim do default: a escrita informa a empresa ✅
 
 Fase **F67C** (**v1.75.0**) · **com migrations `0200`–`0204` (a expansão) e `0205`–`0207` (a contração)** — funções e os

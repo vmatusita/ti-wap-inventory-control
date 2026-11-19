@@ -38,7 +38,11 @@ describe('as rotas que o proxy TEM de ver', () => {
     ['/ativos/WAP0000000', 'uma ficha'],
     ['/pendencias', 'a mesa'],
     ['/relatorios/matriz', 'o relatório ao vivo'],
-    ['/relatorios/acesso', 'a entrada por senha'],
+    // F68 (19/11/2026) — MUDOU DE SENTIDO, declarado no relatório: `/relatorios/acesso` deixou de ser a entrada por senha
+    // e virou o endereço ANTIGO dela (o proxy responde 308 para a porta da legada); a entrada é a porta DA EMPRESA.
+    ['/relatorios/acesso', 'o endereço antigo da entrada (o 308 para a porta da legada)'],
+    ['/r/wap/relatorios/acesso', 'a entrada por senha (a porta pública da empresa)'],
+    ['/r/wap/relatorios/gerados', 'os gerados pela porta (o proxy a deixa passar sem tocar o Auth)'],
     ['/admin/usuarios', 'a área de administração'],
     ['/dev', 'a área do desenvolvedor'],
     ['/itens', 'a rota do desvio do link legado'],

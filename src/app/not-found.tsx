@@ -19,9 +19,11 @@ import { identidadeDoSistema } from '@/lib/identidade/sistema'
 // haveria header nem sidebar para montar. O que este arquivo pode entregar, e entrega,
 // é português e um caminho de volta.
 //
-// /relatorios/geral vem PRIMEIRO de propósito: o visualizador por senha é quem fica
-// preso numa 404 (o proxy manda tudo fora de /relatorios/** para /login, e ele não tem
-// login). Para o operador os dois destinos servem.
+// /relatorios/geral vem PRIMEIRO de propósito: era o caminho de volta do visualizador
+// por senha. Desde a F68 ele vive na porta pública (`/r/<slug>/relatorios/**`), que tem
+// a 404 e o boundary de erro PRÓPRIOS (`src/app/r/[empresa]/`) com os links da empresa
+// dele; quem chega aqui sem operador e clica em /relatorios/geral recebe o 308 para a
+// porta da WAP. Para o operador os dois destinos servem.
 // F61 — o nome do sistema sai da fonte única. A 404 declara o título INTEIRO: a
 // metadata do `not-found` é aplicada por último, fora da cadeia de segmentos que o
 // `template` do layout raiz alcança (doc do Next 16 + `resolve-metadata.ts`).

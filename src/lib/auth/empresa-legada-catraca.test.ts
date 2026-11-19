@@ -55,8 +55,9 @@ const CATRACA: Record<string, { legada: number; operacao: number; destino: strin
   },
   'src/lib/actions/senhas.ts': {
     legada: 0,
-    operacao: 2,
-    destino: 'F68 — a senha de visualização e a trilha dela são da empresa DA SENHA (o visualizador entra por ela)',
+    operacao: 3,
+    destino:
+      'F70 — a empresa ESCOLHIDA ao criar a senha (e, ao conferir/revogar, a da linha vinda da lista por empresa da F69); a trilha já é a da senha (F68: a função de status só altera a linha da empresa informada)',
   },
   'src/lib/actions/tipos-item.ts': {
     legada: 0,

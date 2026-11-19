@@ -162,8 +162,9 @@ justificadas no próprio teste estrutural.
 | `/ajuda/manual` | `Manual do operador` | — (a mesma documentação agregada, para ler e imprimir) | — |
 | `/relatorios/[filial]` | `Relatório — {filial}` | `relatorio-ao-vivo` | `relatorio-ao-vivo` (**só operador**) |
 | `/relatorios/gerados` | `Relatórios gerados` | `relatorios-gerados` | **novo** → `relatorios-gerados` (**só operador**) |
-| `/relatorios/gerados/[id]` | `Relatório — {filial}` | `relatorios-gerados` | — (rota compartilhada com o visualizador por senha: um `?` o mandaria para `/login`) |
-| `/relatorios/acesso` | — (entrada por senha) | — (**isenta**: porta pública do visualizador; quem chega aqui não é operador) | — (rota pública, **nunca** ganha link) |
+| `/relatorios/gerados/[id]` | `Relatório — {filial}` | `relatorios-gerados` | — (desde a F68 é só do operador; o visualizador por senha tem a sua própria rota na porta pública, `/r/<slug>/relatorios/gerados/[id]`, fora de `(app)`) |
+| `/relatorios/acesso` | — (endereço ANTIGO da entrada por senha) | — (**isenta**: desde a F68 só redireciona para a porta da empresa; continua no grupo `(app)`) | — (**nunca** ganha link) |
+| `/r/<slug>/relatorios/**` | — (porta pública da empresa: entrada por senha e relatórios gerados) | — (**fora de `(app)`**: o visualizador não é operador, esta rota **nunca** ganha link de ajuda) | — |
 | `/admin/usuarios` | `Administração` | `usuarios-e-senhas` | **novo** → `usuarios-e-senhas` |
 | `/admin/senhas` | `Administração` | `usuarios-e-senhas` | **novo** → `usuarios-e-senhas` |
 | `/admin/filiais` | `Administração` | `administracao` | **novo** → `administracao` |

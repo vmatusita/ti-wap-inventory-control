@@ -15,9 +15,12 @@ import type { ManutencaoCaso } from '@/lib/relatorios/tipos'
 export function ManutencaoCasos({
   casos,
   ehOperador,
+  semPessoas = false,
 }: {
   casos: ManutencaoCaso[]
   ehOperador?: boolean
+  /** F68 — a porta pública: a anotação sai sem o AUTOR (o dado já não vem pela porta). */
+  semPessoas?: boolean
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
@@ -126,7 +129,7 @@ export function ManutencaoCasos({
                 <span>
                   {n.texto}
                   <span className="ml-1 text-xs text-muted-foreground">
-                    — {ouTraco(n.autor)}, {formatDateTime(n.em)}
+                    — {semPessoas ? '' : `${ouTraco(n.autor)}, `}{formatDateTime(n.em)}
                   </span>
                 </span>
               </li>

@@ -59,9 +59,12 @@ export function CorpoRelatorioV2({
   recorteFilial,
   rotulosTipo,
   aoVivo = false,
+  semPessoas = false,
 }: {
   snapshot: SnapshotRelatorioV2
   ehOperador?: boolean
+  /** F68 — a porta pública: as colunas de pessoa somem (ver CorpoRelatorio). */
+  semPessoas?: boolean
   links?: LinksKpi
   /** F32/RV-12 — o fragmento `&filial=<id>`/`&filial=todas` que o clique num
    *  segmento das empilhadas usa para montar o destino em `/ativos`. Só a rota ao
@@ -322,7 +325,7 @@ export function CorpoRelatorioV2({
             periodoJanela={periodo}
             vazio={s.manutencao.length === 0}
           >
-            <ManutencaoCasos casos={s.manutencao} ehOperador={ehOperador} />
+            <ManutencaoCasos casos={s.manutencao} ehOperador={ehOperador} semPessoas={semPessoas} />
             <LegendaManutencao casos={s.manutencao} />
           </CardRelatorio>
         </div>
@@ -410,6 +413,7 @@ export function CorpoRelatorioV2({
         rows={s.saidas}
         ehGeral={s.meta.ehGeral}
         ehOperador={ehOperador}
+        semPessoas={semPessoas}
         corte={s.tabelasTruncadas?.saidas}
         aoVivo={aoVivo}
       />
@@ -418,6 +422,7 @@ export function CorpoRelatorioV2({
         ehGeral={s.meta.ehGeral}
         rotulosTipo={rotulosTipo}
         ehOperador={ehOperador}
+        semPessoas={semPessoas}
         corte={s.tabelasTruncadas?.entradas}
         aoVivo={aoVivo}
       />
@@ -430,7 +435,7 @@ export function CorpoRelatorioV2({
       />
 
       {/* 8. Movimentações de itens por quantidade (B5 — seção própria) */}
-      <TabelaMovItens rows={s.movimentacoesItens} ehGeral={s.meta.ehGeral} />
+      <TabelaMovItens rows={s.movimentacoesItens} ehGeral={s.meta.ehGeral} semPessoas={semPessoas} />
 
       {/* 9. Resumo no formato do e-mail. `id` (F29/REL-09a) é o alvo do chip
           "Resumo" — a seção mais procurada não tinha permalink nem atalho na barra

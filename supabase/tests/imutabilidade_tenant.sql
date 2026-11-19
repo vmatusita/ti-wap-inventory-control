@@ -127,7 +127,10 @@ declare
   --                        contas (as RPCs de cargo/status, `membros_guarda_dev`) é quem a governa;
   --   · operador_filiais — o vínculo de escrita de uma membership (F62): a FK composta
   --                        `operador_filiais_membro_fk`/`_filial_da_empresa_fk` já a prende à empresa da membership.
-  k_empresa_id_sem_guarda text[] := array['membros', 'operador_filiais'];
+  --   · sessoes_visualizador — F68 (0209): a sessão do visualizador por senha. A FK composta
+  --                        `sessoes_visualizador_senha_da_empresa_fk` (empresa_id, senha_id) → senhas_acesso já a prende à
+  --                        empresa DA SENHA; só as duas portas (definer) a escrevem, e nenhuma muda a empresa de uma linha.
+  k_empresa_id_sem_guarda text[] := array['membros', 'operador_filiais', 'sessoes_visualizador'];
 begin
   -- ==========================================================================
   -- I1 — toda tabela com empresa_id (fora da infra nominal) tem a guarda; e as 20 de negócio estão no conjunto

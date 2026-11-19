@@ -1229,6 +1229,25 @@ export type Database = {
           },
         ]
       }
+      // F68 hand-fix (19/11/2026): a tabela do contador da porta (0210), escrita à mão antes do apply; a geração do MCP a substitui.
+      porta_tentativas: {
+        Row: {
+          chave: string
+          janela_fim: string
+          tentativas: number
+        }
+        Insert: {
+          chave: string
+          janela_fim: string
+          tentativas?: number
+        }
+        Update: {
+          chave?: string
+          janela_fim?: string
+          tentativas?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ativo: boolean
@@ -1389,6 +1408,52 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      // F68 hand-fix (19/11/2026): a sessão do visualizador (0209), escrita à mão antes do apply; a geração do MCP a substitui.
+      sessoes_visualizador: {
+        Row: {
+          criada_em: string
+          empresa_id: string
+          encerrada_em: string | null
+          id: string
+          senha_id: string
+          token_hash: string
+          vence_em: string
+        }
+        Insert: {
+          criada_em?: string
+          empresa_id: string
+          encerrada_em?: string | null
+          id?: string
+          senha_id: string
+          token_hash: string
+          vence_em: string
+        }
+        Update: {
+          criada_em?: string
+          empresa_id?: string
+          encerrada_em?: string | null
+          id?: string
+          senha_id?: string
+          token_hash?: string
+          vence_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessoes_visualizador_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessoes_visualizador_senha_da_empresa_fk"
+            columns: ["empresa_id", "senha_id"]
+            isOneToOne: false
+            referencedRelation: "senhas_acesso"
+            referencedColumns: ["empresa_id", "id"]
           },
         ]
       }
@@ -2218,6 +2283,19 @@ export type Database = {
           total: number
         }[]
       }
+      // F68 (19/11/2026): as duas portas de anon e a projeção da lista branca (0212), à mão antes do apply.
+      relatorio_publico_abrir: {
+        Args: { p_origem: string; p_senha: string; p_slug: string }
+        Returns: Json
+      }
+      relatorio_publico_dados: {
+        Args: { p_args: Json; p_pedido: string; p_sessao: string; p_slug: string }
+        Returns: Json
+      }
+      relatorio_publico_projetar: {
+        Args: { p_lista: Json; p_valor: Json }
+        Returns: Json
+      }
       resetar_acervo: {
         Args: {
           p_backup_path: string
@@ -2259,6 +2337,19 @@ export type Database = {
         Returns: string
       }
       rotulo_de_ambiente: { Args: never; Returns: string }
+      // F68 (19/11/2026): a gestão das senhas por empresa (0211), à mão antes do apply.
+      senha_acesso_conferir: {
+        Args: { p_empresa: string; p_id: string; p_senha: string }
+        Returns: string
+      }
+      senha_acesso_criar: {
+        Args: { p_empresa: string; p_rotulo: string; p_senha: string }
+        Returns: string
+      }
+      senha_acesso_definir_status: {
+        Args: { p_ativa: boolean; p_empresa: string; p_id: string }
+        Returns: string
+      }
       status_apos_movimentacao: {
         Args: {
           p_status: Database["public"]["Enums"]["status_ativo"]

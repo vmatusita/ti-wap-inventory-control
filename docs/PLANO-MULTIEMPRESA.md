@@ -78,7 +78,7 @@ Oito decisões suas, que este plano assume e não revisita. Estão aqui para o e
 - **F62 é a fase mais pesada da virada**, porque a decisão 6 (cargo por empresa) faz `profiles.papel` migrar para `membros.papel` junto com a criação da raiz.
 - **F65 destrava F66.** FK composta com backfill incompleto falha no `add constraint`; policy sobre coluna nula deixa passar linha invisível.
 - **F66 destrava F72 e a esvazia.** Depois dela o predicado novo já está no ar, provado e medido; F72 só apaga o termo redundante.
-- **F68 destrava o piloto.** Enquanto o viewer rodar sob service role, uma senha válida abre o dado de qualquer empresa, e o único muro é o código das queries.
+- **F68 destrava o piloto** (os relatórios gerados pela porta; o ao vivo é a F68B). Enquanto o viewer rodar sob service role, uma senha válida abre o dado de qualquer empresa, e o único muro é o código das queries.
 
 ---
 
@@ -1341,6 +1341,81 @@ ensaio antes.
 
 ### F68 — A porta pública por empresa
 
+*(Ficha REESCRITA pela F68, 19/11/2026 — executada pela ordem [`prompts/F68-porta-publica-por-empresa-ultracode.md`](prompts/F68-porta-publica-por-empresa-ultracode.md),
+plano [`PLAN-F68.md`](PLAN-F68.md), migrations `0208`–`0212` (só expansão), versão `1.76.0`, relatório
+[`RELATORIO-F68.md`](RELATORIO-F68.md). A ficha original foi escrita pela F67 (13/11/2026) e está preservada abaixo como
+"ficha de origem"; a decisão 19/11-1 do Johnny a DIVIDIU em F68 (a porta e os relatórios gerados) e F68B (o relatório ao
+vivo pela porta, mais a contração), e as decisões 19/11-2 e 19/11-3 fixaram o resto do desenho.)*
+
+**Objetivo.** Tirar o service role da única superfície sem login e fazer a senha de visualização pertencer a uma empresa —
+no banco e no tipo —, entregando a porta por empresa com os relatórios gerados; o ao vivo é a F68B.
+
+**O que entrou (medido — PLAN-F68 §0 a §7).**
+
+- **As duas funções de `anon`** — `relatorio_publico_abrir` e `relatorio_publico_dados` — e a projeção
+  `relatorio_publico_projetar` (sem EXECUTE a ninguém): as ÚNICAS exceções de `anon` da base, nominais, `security definer`,
+  `search_path=''`, sem EXECUTE a `public`/`authenticated`/`service_role`. `dados` tem lista FECHADA de pedidos (`porta`,
+  `sessao`, `gerados`, `gerado`, `encerrar`).
+- **A senha conferida pelo banco**: bcrypt do `pgcrypto`, custo 10 (medido 91 ms em produção e 60 ms no ensaio), K = 5
+  senhas ativas bcrypt por empresa, sempre 5 `crypt()` (as cinco recusas — sem senha, errada, revogada, slug inexistente,
+  senha de A no slug de B — têm UMA cara e o mesmo trabalho); senha acima de 72 bytes é recusada, não pré-hasheada.
+- **A sessão no banco** (`sessoes_visualizador`, deny-all): token de 32 bytes gerado no banco, guardado só como sha-256,
+  24 h, conferida por dentro a cada pedido, e morre com a revogação da senha. O cookie `wap_porta` carrega o token cru,
+  `path: /r/<slug>`.
+- **O contador** (`porta_tentativas`, deny-all): teto por EMPRESA (20 por 60 s) e depois por empresa + origem (5 por 60 s);
+  slug inexistente num balde só; origem guardada só como md5; erro do contador recusa antes de qualquer senha.
+- **A rota** `/r/<slug>/relatorios/{acesso,gerados,gerados/<id>,<filial>}` fora de `(app)` (o ao vivo mostra um aviso até a
+  F68B) e o **308** de `/relatorios/**` sem operador para a porta da legada; com operador, nada muda.
+- **A lista branca com fonte única** (`src/lib/relatorios/lista-branca-porta.ts`) e a trava TS↔SQL: 213 de 228 campos do
+  snapshot saem, sem nome de pessoa nem id interno; o texto livre sai (decisão 7) e vai em "o que o relatório não prova".
+- **A gestão das senhas por empresa**: `senha_acesso_criar`/`_conferir`/`_definir_status` (`authenticated`, `e_admin_na`),
+  `senhas.ts` com o client de SESSÃO e sem `createAdminClient`; `unique (empresa_id, id)` em `senhas_acesso`; a trilha grava
+  a empresa da linha.
+- **O ramo do visualizador saiu de `(app)`** (`resolverAcessoRelatorio` perde o modo `viewer`); as 5 senhas scrypt de hoje
+  deixam de abrir por construção — não foram tocadas (md5 das linhas igual antes e depois).
+- **`publico.ts`**: client `anon` sem cookie, só `abrirPorta`/`pedirPorta`, por `chamarRpc` e Zod.
+
+**As divergências medidas contra a ficha de origem** (fato 24): (1) a numeração é `0208` e a versão `1.76.0`, não
+`0166`–`0168`; (2) `abrir` recebe a SENHA e `dados` a SESSÃO — não o `senha_id` "já verificado pelo servidor"; (3) a rota
+antiga atrás de flag foi descartada (decisão 13: manteria o service role vivo); (4) `p_com_pessoas => false` não existe — a
+minimização é a lista branca; (5) `isolamento_viewer.sql` nasce aqui.
+
+**O que esta fase ACRESCENTOU à ficha**: a divisão F68/F68B; a sessão no banco (o `senha_id` como portador foi
+descartado — ADR §20); o teto por EMPRESA, porque a chave `anon` é pública e quem chama `abrir` direto forja a origem; a
+gestão por empresa no banco; a lista branca com trava; o `pgcrypto` e o teto de 3 s no bootstrap do CI; a contração
+(`registrar_tentativa_senha`/`senha_tentativas`) adiada para a F68B.
+
+**Pronto quando — o estado.** (o estado do apply no ensaio e em produção, do merge e do deploy: preenchido no fechamento —
+ver o topo de [`RELATORIO-F68.md`](RELATORIO-F68.md))
+
+**Trava.** `supabase/tests/isolamento_viewer.sql` (21 asserções; o cabeçalho diz por que só passou a ser testável agora,
+com o service role fora da porta); o par 4a/4b de `catalogo_secdef.sql` (`k_secdef_anon`); a asserção 5 de
+`seguranca_catalogo.sql`; `fronteira-viewer.test.ts` reescrito; `lista-branca-porta.test.ts`; `porta.test.ts`;
+`porta-rotas.test.ts`; o confinamento da porta; `rollback-f68.test.ts` + `f68_rollback.sql`; nove mutações no injetor
+(teto 188 → 197).
+
+**Reversão.** Revert do PR de código + deploy PRIMEIRO; depois `supabase/rollback/F68-desfaz.sql` (`0212` → `0208`). RUNBOOK,
+Anexo F68 — inclusive a trava de emergência: revogar o EXECUTE de `anon` nas duas portas.
+
+**Notas para as fases seguintes.**
+
+- *(Nota F68 → F68B.)* A contração (`registrar_tentativa_senha` e `senha_tentativas` saem; `VIEW_SESSION_SECRET` sai do
+  ambiente; a janela por `pg_stat_statements` a partir do T0 = 16 chamadas do `service_role`), o `ViewerAutoRefresh` e o
+  ramo morto das páginas do operador.
+- *(Nota F68 → F69.)* A lista das senhas por empresa em `queries/admin.ts` (`listarSenhasAcesso`) continua sem recorte; a
+  plataforma na gestão das senhas de outra empresa.
+- *(Nota F68 → F70.)* A empresa ESCOLHIDA ao criar a senha (hoje `empresaDaOperacao()`, catraca `senhas.ts` operação 3); o
+  slug da sessão.
+- *(Nota F68 → F71.)* O `CLAUDE.md` da raiz ficou velho em: "Visualizador = senha (`admin/senhas`, hash `scrypt` **nativo**
+  — proibido lib de hash) → cookie httpOnly, só `/relatorios/**` … As queries dele rodam no servidor com o client
+  administrativo (`resolverAcessoRelatorio`)" e a menção ao scrypt. SÓ listadas: o arquivo NÃO foi editado aqui.
+- *(Nota F68 → F73.)* O smoke positivo da porta com uma senha só do smoke (não há senha bcrypt em produção até alguém criar
+  uma); o WAF para força bruta distribuída.
+
+---
+
+*Ficha de origem (F67, 13/11/2026), preservada:*
+
 **Objetivo.** Tirar o service role da única superfície sem login, e fazer a senha de visualização pertencer a uma empresa — no banco e no tipo.
 
 **Por que é a fase que destrava o piloto.** `resolverAcessoRelatorio()` (`acesso.ts:443-457`) devolve, para o modo viewer, um `createAdminClient()` — service role, `rolbypassrls`. As quatro defesas que a virada monta (RLS por membership, FK composta, roteiro de isolamento, guarda nas RPCs) **são todas irrelevantes nesse caminho**. O tripwire do repositório já diz, textualmente, que *"para o viewer, o RLS NÃO é a segunda linha; o único muro é o CÓDIGO das queries de relatório"*. Numa empresa isso é decisão defensável; com duas, uma senha válida abre o relatório de qualquer empresa trocando o slug na URL.
@@ -1374,6 +1449,60 @@ fase.)*
 **Risco.** É a superfície mais exposta do produto. Mitigação: as duas funções são pequenas e auditáveis por inteiro; mutações no injetor mirando cada uma das cinco recusas; a rota antiga permanece atrás de flag até a nova estar provada, e o corte é entrega avulsa PATCH.
 
 **Reversão.** Reativar a rota antiga (mantida por uma fase) + `alter policy`.
+
+---
+
+### F68B — O relatório ao vivo pela porta pública
+
+**Objetivo.** Devolver o relatório ao vivo (`/r/<slug>/relatorios/<filial>`) ao gestor que entra por senha, SEM service role
+e sem nome de pessoa, e contrair o que a F68 deixou de pé.
+
+**Por quê.** A F68 entregou a porta com os relatórios gerados; o ao vivo mostra só um aviso, porque ele não cabe numa função
+pequena: `getSnapshotRelatorioV2` (`src/lib/queries/relatorios/snapshot.ts`) faz ~25 leituras — 11 em paralelo e 2 depois,
+espalhadas por `estoque.ts` (692 linhas), `movimentacoes.ts` (541), `itens.ts` (442), `comum.ts` e `recorte-filiais.ts`, mais
+as 7 `rel_*_filiais` — e todas hoje rodam sob o client do operador ou do admin.
+
+**Entra.**
+
+- **O censo das ~25 leituras**, uma a uma, com o destino de cada (bloco de pedido fechado, ou "não computado" quando o bloco
+  carrega nome de pessoa).
+- **O teto de tempo, medido.** O `anon` tem `statement_timeout` de 3 s. Máximos medidos em produção como `authenticated`
+  (19/11/2026): `rel_estoque_asof_filiais` **3.206 ms** (média 126 ms), `rel_saldo_itens_filiais` 1.120,
+  `rel_contagem_status_filiais` 1.067, `rel_resumo_filiais` 861, `rel_frescor_itens_filiais` 688, `rel_mov_itens_filiais`
+  608, `rel_por_motivo_filiais` 415, `rel_mov_por_mes_filiais` 258 ms. O máximo da primeira passa do teto. A documentação do
+  PostgREST (*Hoisted Function Settings*, `db-hoisted-tx-settings`, PostgREST ≥ 12) diz que ele aplica o `statement_timeout`
+  posto na FUNÇÃO como configuração da transação, sobrepondo o do papel; ela NÃO diz se isso estende além do teto do papel.
+  **Medir no ensaio, como `anon`, antes de contar com isso** — se não estender, o bloco lento é decomposto ou pré-calculado.
+- **O desenho proposto.** Os blocos do ao vivo viram pedidos FECHADOS novos de `relatorio_publico_dados`; os blocos com nome
+  de pessoa NÃO são computados (não montados e descartados); a lista branca (`lista-branca-porta.ts`) é estendida com a
+  trava TS↔SQL de sempre; tudo passa por `relatorio_publico_projetar`. **A prova de equivalência**: o ao vivo do operador ×
+  o ao vivo da porta, para as mesmas filiais e o mesmo período, iguais menos os campos de pessoa.
+- **A CONTRAÇÃO que a F68 deixou**: `drop` de `registrar_tentativa_senha` e de `senha_tentativas`, com a janela por
+  `pg_stat_statements` (zero chamada do `service_role` depois do deploy da `1.76.0`, a partir do T0 de 16 chamadas;
+  Skew Protection de 12 h); `VIEW_SESSION_SECRET` sai do ambiente; `view-cookie.ts` e o cookie `wap_view` saem.
+- **O `ViewerAutoRefresh`** volta, na árvore `/r/**`, pela porta; e o ramo morto das páginas do operador em
+  `(app)/relatorios/**` (os `ehOperador` que só o operador percorre) é limpo.
+
+**Não entra.** A empresa escolhida na UI (F70); a gestão de senhas de outra empresa (F69); o WAF (F73); qualquer campo de
+pessoa na porta.
+
+**Entregas.** Migration(ões) com os pedidos novos de `dados` (expansão), a lista branca estendida, `publico.ts` e a rota
+`[filial]`, a migration de contração (depois da janela), o roteiro de equivalência, o relatório.
+
+**Pronto quando.** O ao vivo pela porta abre com a senha e iguala o do operador menos os nomes; nenhum bloco passa do teto
+de 3 s como `anon` (medido); `isolamento_viewer.sql` estendido verde (a diagonal e a sessão revogada valem para os pedidos
+novos); a janela da contração fecha com zero chamada do `service_role`; `VIEW_SESSION_SECRET` fora do ambiente.
+
+**Trava.** `lista-branca-porta.test.ts` e `fronteira-viewer.test.ts` estendidos; a equivalência operador × porta; mutações
+no injetor para os pedidos novos; o catálogo de `anon` continua em EXATAMENTE as duas funções.
+
+**Dependências.** F68 (no ar). A contração só depois da janela.
+
+**Risco.** Médio-alto: o ao vivo é a leitura mais cara do produto, agora sob o teto do `anon`, e a lista branca cresce.
+Mitigação: medir o teto antes de desenhar; nenhum bloco com pessoa é computado; expandir e só então contrair.
+
+**Reversão.** Pedidos novos: revert do código e `create or replace` da `dados` anterior (a F68 volta ao aviso). A contração
+é irreversível sem restaurar do backup — só roda depois da janela e com backup.
 
 ---
 
@@ -1739,11 +1868,12 @@ Perguntas que o plano não pode responder sozinho, agrupadas pelo momento em que
 | F67 | O cargo por empresa, as security definer e as destrutivas | virada | funções + RPCs (expandir/contrair) |
 | F67B | Storage e Realtime por empresa | virada | Storage + publication |
 | F67C | O fim do default (a escrita informa a empresa) | virada | 17 funções + 20 defaults (expandir/contrair) + 17 escritores do app + 703 INSERTs de roteiro |
-| F68 | A porta pública por empresa | virada | rotas + RPCs |
+| F68 | A porta pública por empresa (as duas funções de anon, a senha no banco, os gerados) | virada | 5 migrations (só expansão) + 2 funções de anon + rotas /r/** |
+| F68B | O relatório ao vivo pela porta pública | virada | pedidos novos de `dados` + contração |
 | F69 | Identidade e governança de contas por empresa | virada | trigger + admin |
 | F70 | A camada de UI multiempresa | virada | código |
 | F71 | Os documentos alcançam o sistema | virada | docs |
 | F72 | A revogação do piso de leitura | virada | **janela combinada** |
 | F73 | O piloto | virada | segundo cliente |
 
-**Dezessete fases de preparação. Onze de virada. Uma fronteira, no fim da F61, a partir da qual nada do que veio antes foi desperdiçado.**
+**Dezessete fases de preparação. Quinze de virada. Uma fronteira, no fim da F61, a partir da qual nada do que veio antes foi desperdiçado.**

@@ -562,3 +562,85 @@ sozinho já devolve o comportamento de antes; roda ANTES do da F67B.
 - **A senha de visualização por empresa** — aqui `senhas_acesso` só grava a empresa da operação; F68.
 - **O seed com duas empresas** — backlog (decisão 16/11-4).
 - **Recortar a view `v_colaboradores_textos`** (consolidar colaboradores) e os primos dos leitores por slug — F70.
+
+
+## 20. Emenda — A porta pública por empresa (F68 — 19/11/2026)
+
+Status: **Aceita** (execução: `docs/prompts/F68-porta-publica-por-empresa-ultracode.md`; plano `docs/PLAN-F68.md`; regras
+R-ACC-144 a R-ACC-152 da `MATRIZ-REGRAS.md`; decisões 19/11-1, 19/11-2 e 19/11-3 do Johnny).
+
+### 20.1 Contexto
+
+O visualizador por senha (`/relatorios/**`, o cookie `wap_view`) era a "outra porta" do §13: quem entra por senha não tem
+conta, logo não tem identidade no banco. Até a F67C ela era servida por um client com **service role**, que passa por fora
+de toda RLS: o único muro era o código do app, a senha era uma só para a WAP (`scrypt` conferido no app, o app lendo o
+hash), e o cookie era um envelope HMAC com o `senha_id` dentro. Com duas empresas isso não serve: a senha e a sessão
+precisam ser DA empresa, e o service role no caminho de uma tela pública é o pior lugar para ele.
+
+### 20.2 Decisão
+
+1. **A porta são DUAS funções `security definer`, e `anon` as executa** — `relatorio_publico_abrir` (a entrada) e
+   `relatorio_publico_dados` (a leitura, por pedido de uma lista fechada: `porta`, `sessao`, `gerados`, `gerado`,
+   `encerrar`). São as únicas funções de `public` executáveis por `anon` (R-ACC-144), nominais no catálogo
+   (`k_secdef_anon`, asserções 4a/4b de `catalogo_secdef.sql`), com `search_path = ''` e sem EXECUTE a `public`,
+   `authenticated` nem `service_role`. O app fala com elas por `src/lib/supabase/publico.ts` (chave `anon`, sem cookie) e
+   nunca cria client administrativo nem de sessão no visualizador.
+2. **A sessão é uma linha no banco, e o portador é um token opaco.** `abrir` sorteia 32 bytes, devolve o token uma vez e
+   guarda só o `sha-256` (`sessoes_visualizador`); vale 24 h NO BANCO e é conferida por dentro a cada pedido.
+3. **O banco confere a senha** (bcrypt do `pgcrypto`, custo 10, K = 5 ativas por empresa, 72 bytes). O app não lê mais o
+   hash, e nenhum client fora do banco toca `senhas_acesso` (decisão 19/11-3). A gestão (criar, conferir, revogar) vira três
+   funções por empresa, com `e_admin_na(p_empresa)` antes de qualquer efeito.
+4. **O contador mora dentro de `abrir`**, com dois tetos antes de qualquer senha: por empresa (20 / 60 s) e por (empresa,
+   origem) (5 / 60 s). As cinco recusas devolvem a mesma resposta e fazem o mesmo trabalho (sempre 5 `crypt()`).
+5. **A resposta passa por uma lista branca no banco** (`relatorio_publico_projetar`; fonte única TS
+   `lista-branca-porta.ts` = `k_lista`): nenhum nome de pessoa e nenhum id interno sai, nem dos snapshots antigos. O texto
+   livre (observações, anotações, nº de chamado) sai.
+6. **A rota é `/r/<slug>/relatorios/**`**, fora de `(app)`; a antiga `/relatorios/**` sem operador responde 308 para a porta
+   da empresa legada. O ao vivo pela senha some até a F68B.
+
+### 20.3 Como funciona por baixo
+
+`0208` confere que o `pgcrypto` existe e acrescenta `unique (empresa_id, id)` a `senhas_acesso`; `0209` e `0210` criam as
+duas tabelas deny-all (R-ACC-31: RLS ligada, zero policy, nenhum privilégio a `anon`/`authenticated`/`service_role`);
+`0211` as três funções de gestão; `0212` a projeção e as duas portas. A prova: `isolamento_viewer.sql` (o roteiro que só
+passou a ser testável agora), o par 4a/4b do catálogo, a trava TS↔SQL da lista branca, o injetor (nove mutações) e, no
+ensaio, uma prova viva com `set local role anon` e `statement_timeout` de 3 s. Rollback: RUNBOOK, Anexo F68.
+
+### 20.4 Por que assim — as alternativas descartadas
+
+- **RLS para `anon`: descartada.** Quem entra por senha não tem identidade no banco; uma policy para `anon` numa tabela de
+  negócio seria leitura SEM SESSÃO para quem tiver a chave pública (que é pública por desenho). A asserção 5 de
+  `seguranca_catalogo.sql` diz o contrário do que isso exigiria: nenhuma policy cita `anon`/`public`. A função pequena,
+  que confere a senha e a sessão por dentro e projeta a resposta, é auditável por inteiro; uma policy não é.
+- **O `senha_id` no cookie como portador: descartado.** É a senha em outra forma, legível, e vale enquanto a senha estiver
+  ativa: um cookie copiado viraria acesso sem prazo, e as 24 h só existiriam no navegador. O token opaco com o hash no banco
+  expira no banco e morre na revogação, na chamada seguinte.
+- **O app conferir a senha: descartado.** Obrigaria o app a ler o hash (o service role no caminho). Com o banco conferindo,
+  nenhum client fora dele toca `senhas_acesso`.
+- **A rota antiga atrás de flag: descartada** (decisão 13). Manteria o service role vivo no código, tornaria falso o
+  "pronto quando" da ficha e dependeria das senhas `scrypt` que a fase aposenta. A reversão é o revert do PR de código e o
+  deploy, e DEPOIS o `F68-desfaz.sql`.
+- **`request.headers` como chave do contador: descartado.** Para o app, o `x-forwarded-for` é o IP do servidor da Vercel
+  (todos os gestores num balde só); para quem chama direto pelo PostgREST, o primeiro item é forjável.
+- **Pré-hash da senha para passar de 72 bytes: descartado.** Recusar é a única escolha que prova por construção que duas
+  senhas diferentes nunca abrem a mesma linha.
+
+### 20.5 Consequências
+
+- **Positivas:** o service role sai do visualizador; a senha e a sessão são da empresa; a revogação vale na chamada
+  seguinte; o cookie copiado expira; nenhum nome de pessoa sai pela porta.
+- **Negativas / custo:** (a) **o contador tem um custo declarado**: a chave `anon` é pública, então quem chama a função
+  direto forja a origem — o teto por EMPRESA limita isso, mas quem o esgota tranca a porta daquela empresa por até 1 minuto
+  (a janela vence sozinha); força bruta distribuída de verdade é o WAF da F73. (b) **O texto livre sai** pela porta: um
+  operador pode ter digitado um nome numa observação — risco declarado (decisão 7), e vai em "o que este relatório NÃO
+  prova". (c) O advisor `anon_security_definer_function_executable` passa a mostrar **2 WARN declarados**, e 2 INFO
+  `rls_enabled_no_policy` (as tabelas deny-all). (d) As 5 senhas `scrypt` de hoje deixam de abrir: o Johnny cria as novas
+  pela tela. (e) O ao vivo pela senha some até a F68B.
+
+### 20.6 O que **não** foi criado, de propósito
+
+- **O relatório ao vivo pela porta e a contração** (`registrar_tentativa_senha`/`senha_tentativas`) — F68B.
+- **A lista de senhas por empresa e a escolha da empresa na gestão** — F69/F70 (`empresaDaOperacao()` segue como ponto de
+  injeção).
+- **WAF / limite na borda** — F73.
+- **Um console ou um pedido genérico em `dados`**: a lista de pedidos é FECHADA; pedido fora dela é a recusa da sessão.

@@ -1,0 +1,117 @@
+apagar_ativo	p_empresa uuid, p_ativo uuid, p_confirmacao text, p_justificativa text	t	a304f7c2fc172b4ba26fd0de8ec93beb	82c4b0181f	0	1	0	0
+apagar_ativos_conflito_filiais	p_empresa uuid, p_ativos uuid[], p_confirmacao text, p_justificativa text, p_backup_path text	t	22b0ee06475538fc90a5353fd45c5f37	cce8599099	0	1	0	0
+apagar_item	p_empresa uuid, p_item smallint, p_confirmacao text, p_justificativa text	t	5aec271f465640a48255ec5aa07d880a	b302d1ad8a	0	1	0	0
+apagar_movimentacao	p_empresa uuid, p_mov uuid, p_confirmacao text, p_justificativa text	t	d20444cdc0a8f8e662536de212cfdafd	d71353c8e0	0	1	0	0
+apagar_usuario	p_empresa uuid, p_alvo uuid	t	8098feb8b6ede20e9b2fde00ec56d05a	ee38e9ef7b	0	1	0	0
+aplicar_movimentacao		t	aecfe7ccbcd4126a113f23ec243487d9	9aee05ce25	0	0	1	0
+caminho_backup_legado	p_nome text	f	b5243bd6eeb27564df0263ce9fb61760	4a00694454	0	1	0	0
+chave_identidade_ativo	p_patrimonio text, p_service_tag text	f	132210e94ad378e5b3b589d42b8d296e	67503d616e	0	1	1	0
+checagens_integridade_nucleo		t	f11c5846d8ecf1979226b0a0d0d3441e	3eb35a24b3	0	0	0	0
+checagens_integridade_resumo		t	22ead8c7bc55f88b1d59b246e306de4d	7f2bfb5bec	0	1	0	0
+colaborador_chave	p_nome text	f	49effffa794c5b2766b6741425bf31d3	5dda3c60cf	0	1	1	0
+colaboradores_uso_efetivo		f	b406f6cddc5375cafd9badda986ac893	32ba083af1	0	1	1	0
+confirmar_assinatura_lote_com_anotacoes	p_ativo_ids uuid[], p_data date, p_texto_anotacao text	f	c7778f5475a5d29e9aaf0914f0b02d39	261fddf14d	0	1	0	0
+confirmar_assinatura_termo_com_anotacao	p_ativo_id uuid, p_data date, p_texto_anotacao text	f	3472ecfa592f74a47749b926810a116f	4e60b63499	0	1	0	0
+corrigir_patrimonio_com_anotacao	p_ativo_id uuid, p_patrimonio text, p_pendencia text, p_alterar_pendencia boolean, p_texto_anotacao text	f	bcd450fbe922cd7e50d01a6202506308	a3af51dbb3	0	1	0	0
+criar_compra_lote	p_itens jsonb, p_criado_por uuid	f	d060086e22ed42f452972a879ee9fd56	e3f28581ee	0	1	0	0
+criar_movimentacao_com_itens	p_movimentacoes jsonb, p_itens jsonb, p_criado_por uuid	f	89b7009a712e13d0ca6cae4bb7d42036	75714db5cc	0	1	0	0
+definir_papel_usuario	p_empresa uuid, p_alvo uuid, p_papel papel_usuario	t	b741011e397403b5117957a6c877bcde	f4685dd227	0	1	0	0
+definir_service_tag_com_anotacao	p_ativo_id uuid, p_service_tag text, p_pendencia text, p_alterar_pendencia boolean, p_texto_anotacao text	f	f60d357f0414461c0b2c0d14b81b57c1	a4e05caf42	0	1	0	0
+definir_status_usuario	p_empresa uuid, p_alvo uuid, p_ativo boolean	t	dfbe98ed7967113a1cfa00d6645907fc	b806d59bf8	0	1	0	0
+definir_vinculos_usuario	p_empresa uuid, p_alvo uuid, p_filiais smallint[]	t	f074ec8cef6bea5b9d51ad2793931ac1	fc250891cd	0	1	0	0
+desfazer_confirmacao_termo_com_anotacao	p_ativo_id uuid, p_destino termo_status, p_texto_anotacao text	f	c079562bcc2d18a9a7d2327446b32f22	a349d9847a	0	1	0	0
+dev_checagens_integridade		t	bbe8bbb0d156f6a4624e7cfff56abd7b	3bc8210b01	0	1	0	0
+devolver_ao_fornecedor	p_ativo_id uuid, p_mov jsonb, p_substituto jsonb, p_criado_por uuid	f	765cefc57ee1a6931cda79cad8d3d4c7	8011148b0e	0	1	0	0
+digest_selecao_conflito	p_ativos uuid[]	f	654173747fcf290ce2d3f45f5973a79b	3aa171cbb5	0	0	0	0
+e_admin		t	29f6697fe061c10995a9e67cd1bb0cf8	1feb7e4dbf	0	1	1	0
+e_admin_na	p_empresa uuid	t	c7f7e75fe5faf19f9a3288da89985da5	3d6386ec76	0	1	0	0
+e_dev_na	p_empresa uuid	t	eb97d8f0e61f8fb7d24b8c786d87852c	eae947774c	0	1	0	0
+e_plataforma		t	43ff329f39942a130e88c8eb904cf98e	ce7ea0f8d2	0	1	0	0
+empresa_da_filial	p_filial smallint	f	e073cd7652458823efa1d8a52c858ccb	ec51dd99d0	0	1	0	0
+empresa_do_caminho_backup	p_nome text	f	ce2d3c509998811982cc7412a6b3aab1	61e797bf6a	0	1	0	0
+empresa_legada		f	227e56653eda3df22722eb67e28cc320	13f6f851d4	0	1	1	0
+empresas_com_modelo_de_termo		f	07732423129f3c2527d6b3b77bc54b8c	a8e736853a	0	1	1	0
+empresas_de_admin		t	a722d0d70a8aba28a2d50d659411d72f	89e817c8b1	0	1	1	0
+empresas_de_escrita		t	c96f45fb7927fcc1ba8076155d2ffdc3	48d66897d3	0	1	1	0
+empresas_do_membro		t	ed335359d3d4dd97af820b8a3d7c81a9	6b990112d6	0	1	1	0
+encerrar_sessoes_usuario	p_empresa uuid, p_alvo uuid	t	a912e7827535250b08f7f129dff6c1f5	da778c1c69	0	1	0	0
+estornar_movimentacao_com_itens	p_movimentacao_id uuid, p_observacao text, p_estornos jsonb, p_criado_por uuid	f	8f9f10c74d6727cf76cf65cd72982443	01efdd5d29	0	1	0	0
+estorno_item_coerente	p_estorna_id uuid, p_filial smallint, p_item smallint	t	30de109a96d836871328077dd334064e	a184f20d8f	0	1	1	0
+exigir_ativos_da_empresa	p_empresa uuid, p_ids uuid[]	t	129bc2143f37ef9431ee0c2e850c3133	bfece8f425	0	0	0	0
+exigir_dev_para_destruir	p_empresa uuid, p_justificativa text	t	2584116f7b87accd4bcbb6c92b6b33fc	f194dcf2c1	0	0	0	0
+exigir_gestao_de	p_empresa uuid, p_alvo uuid, p_papel_pedido papel_usuario	t	7a2e6a1f0de87255160a944a0d2472c4	e045da2dbf	0	0	0	0
+exigir_identidade_livre_na_filial	p_ativo uuid, p_filial smallint, p_acao text	t	0b4ae48ded09bcc203632a9e057f17e6	18e2f97088	0	0	0	0
+existe_outro_admin_ativo	p_excluindo uuid, p_escopo uuid	t	26c0bef08f2f6f6e0310cb6d6414e376	8f3edcf504	0	0	0	0
+filial_da_empresa	p_empresa uuid, p_filial smallint	f	7b9f18dab8decd8e7da2254112b4e32e	f5a43bec86	0	0	0	0
+forcar_estado_ativo	p_empresa uuid, p_ativo uuid, p_status status_ativo, p_justificativa text	t	7d5c17dd2dfda587ef2d8bdfa6458f5f	84e998125d	0	1	0	0
+forcar_saldo_item	p_empresa uuid, p_item smallint, p_filial smallint, p_saldo_alvo integer, p_justificativa text	t	dcb2ff4992b06446c458e750dbe8a51b	2e2c3f6ffc	0	1	0	0
+guarda_acervo		t	139652d543fa40f8242809f07c3d1c3d	0829c62705	0	0	0	0
+guarda_empresa		f	67f660c84fdf890712fb40d9b7ae1d7e	397fedcd90	0	0	0	0
+handle_new_user		t	6d766504686456ce57926bcbd165dc7c	9485d76478	0	0	1	0
+hoje_brt		f	5e07a408e84061be4d746e1a64430c7e	63ecc62b26	0	1	1	0
+import_apagar_acervo_filial	p_filial smallint	t	043a3a36b7fee12ed6af520cf9d9e71a	4cab3c3360	0	0	0	0
+import_conferir_resultado	p_plano jsonb, p_filial smallint, p_criados integer, p_total integer	t	d2cba12f988c63c8adbf768e30c06302	df5541847f	0	0	0	0
+import_contar_conflitos	p_filial smallint	t	09190f242c4034c6b1d837e4ec0cba1e	8235d35257	0	0	0	0
+import_criar_ativos	p_elemento jsonb, p_filial smallint	t	85f9c68880052b1aaf904189f3ecd553	062a0691b7	0	0	0	0
+import_gravar_trilha	p_plano jsonb, p_filial smallint, p_backup_path text, p_correcoes jsonb, p_uid uuid, p_criados integer, p_movs integer, p_anotacoes integer, p_termos integer, p_conflitos integer	t	2c23d8ae972dd804b2fbb592a20e643b	b79b96bca6	0	0	0	0
+import_lancar_movimentacoes	p_ativo uuid, p_elemento jsonb, p_filial smallint, p_uid uuid, p_data_import date, p_obs_marcador text	t	f97ed9394015ac3265d5fbd96a6d9680	a6268463f7	0	0	0	0
+import_revalidar_contagens	p_contagens jsonb, p_filial smallint	t	19527a03749b1a455731e7b7b736d6b2	9aebea7cbe	0	0	0	0
+import_validar_plano	p_plano jsonb, p_backup_path text, p_correcoes jsonb, p_filial smallint	t	abc556e65e26cb77b0b3fc9c24f0c33a	9bc71e2768	0	0	0	0
+importar_ativos_substituir	p_empresa uuid, p_plano jsonb, p_backup_path text, p_contagens jsonb, p_correcoes jsonb	t	fefb3dc33acb6ab23a4cc44bfdc70a3e	274662b78c	0	1	0	0
+item_chave	p_nome text	f	49effffa794c5b2766b6741425bf31d3	1ddab3401a	0	1	1	0
+kit_motivo_da_empresa		f	6f079b4c53fc090baf5cc1a4b0f7ce10	f35326c007	0	0	1	0
+lancar_itens_lote	p_linhas jsonb, p_criado_por uuid	f	9dd3a58bba9c066f518632e08b85d6af	03c512b9eb	0	1	0	0
+ledger_de_migracoes		t	02d6c303e299e282883983c90c5904c2	647a8f7d95	0	1	0	0
+membros_guarda_dev		t	70c7ac5831ba14c1e43dfe678f970a4d	bf652a6c88	0	0	0	0
+mesmo_escopo_de_gestao	p_empresa uuid, p_alvo uuid	t	2e94c3634e5636a9d79968aa07c0891f	b7b4b8bef8	0	0	0	0
+mov_da_carga_import	p_observacao text	f	d45d927de0495f3c34235d479790289a	620e06455c	0	1	1	0
+movimentacao_abrir_pendencias_item	p_mov movimentacoes, p_ativo ativos	t	8d5e8c64f09faa2c536fe0f8787ea86f	36da481340	0	0	0	0
+movimentacao_desfazer_pendencias_item	p_movimentacao_estornada uuid	t	35a1201617049d19d23e88c0dfe0502a	1498f60333	0	0	0	0
+movimentacao_detentor_sincronizado	p_status status_ativo, p_tipo tipo_movimentacao, p_informado text, p_atual text	t	41213c2b97ee23a95eada1d163cd3320	c6e3284daf	0	0	0	0
+movimentacao_estornar	p_mov movimentacoes, p_ativo ativos	t	baa026695dbe19ee0f3e82c9115d8bca	ae9eb72796	0	0	0	0
+movimentacao_pendencia_de_termo_restaurada	p_snapshot jsonb, p_atual text	t	ff66ea0bc396ec2252a0fa033965dfcd	fdcbd8c38c	0	0	0	0
+movimentacao_transicionar	p_mov movimentacoes, p_ativo ativos	t	bc8bf35008a3495030b175531af98b02	3a3cf85b3e	0	0	0	0
+operador_filiais_deriva_membership		t	3d9a5e61455f40f2410fd3b9bed0e6c9	57a4c8d766	0	0	0	0
+papel_atual		t	c255f91b7ef7690da1f29bbe98912f16	b3ee76d091	0	1	1	0
+papel_na_empresa	p_empresa uuid	t	cc7e9733ca47a0b2f7571cf318eeebbf	277874e65b	0	1	0	0
+pode_escrever		t	16ce537bed3169b8498d157303dfb5fa	ee658cd67a	0	1	1	0
+pode_escrever_arquivo_termo	p_nome text	t	fe9bc6c4ba8bf9d62f1f3a1107b0c290	98f66eea7e	0	1	1	0
+pode_escrever_filial	fid smallint	t	ef51d0a1dfe568f2111487aaad8cdea5	e04b4bae62	0	1	1	0
+pode_escrever_na	p_empresa uuid	t	df7ef55470fbe57b4308a93a9e921523	1bc274e70b	0	1	0	0
+pode_escrever_termo	p_empresa uuid, p_ativo_ids uuid[]	t	d7559a25d5837e25ca19e55e6ddd85cb	fd3ae86dde	0	1	0	0
+pode_escrever_unidade	p_empresa uuid, p_filial smallint	t	5eae1c202850475e8547bc6e9bf4ffe1	9defee8805	0	1	0	0
+pode_ler_arquivo_termo	p_nome text	t	1942754172a75a0ff9b63db4c41f71da	e3671f8d3a	0	1	1	0
+prefixo_backup_conflito	p_empresa uuid	f	d5e75d2471e612b168af636ee3168c0f	a9ed99e52d	0	0	0	0
+prefixo_backup_import	p_empresa uuid, p_filial smallint	f	6edd36798f9f1413c12e16793d91a2af	e0451c5b09	0	0	0	0
+prefixo_backup_reset	p_empresa uuid, p_bloco text, p_filial smallint	f	a5dfb193d434533b7c3da9d32b3ac662	297d45d643	0	0	0	0
+previa_reset	p_empresa uuid, p_bloco text, p_filial smallint	t	39dfc57f42c413acdf34a84eb2cbcd69	60efadaa67	0	1	0	0
+profiles_guarda_dev		t	1360e89fdba28d86ba93d552609c8dac	bcec002737	0	0	0	0
+reabrir_pendencias_item_com_estornos	p_ids uuid[], p_justificativa text, p_estornos jsonb, p_criado_por uuid	f	0a945ff3171c03de39e600630ada0ffb	6a5ba45549	0	1	0	0
+registrar_limpeza_termos_sem_linha	p_empresa uuid, p_raiz text, p_confirmacao text, p_justificativa text	t	2454329e797ef4040ffad036dfd82b7a	487b1003b3	0	1	0	0
+registrar_tentativa_senha	p_ip text, p_max integer, p_janela_seg integer	t	ee0d1c21835858c0dd04eb5a017eabe7	b36f2ecf3f	0	0	1	0
+rel_contagem_status_filiais	p_filiais smallint[]	f	eb01c1241e43f50bf7ee121716e2b157	05fb9e57e7	0	1	1	0
+rel_estoque_asof_filiais	p_filiais smallint[], p_data date	f	16f7673a81ee88519e96962a1ee062c4	02b3b7a584	0	1	1	0
+rel_frescor_itens_filiais	p_filiais smallint[], p_ate date	f	2aebd9556b4c29efc1f67ec9ae0a11fd	b4d6a23bd4	0	1	1	0
+rel_mov_itens_filiais	p_filiais smallint[], p_de date, p_ate date	f	0c35ff02ca55b31c406b4815953a1e4f	ff98f8c9b2	0	1	1	0
+rel_mov_por_mes_filiais	p_filiais smallint[], p_de date, p_ate date	f	edd5bf10760254fbe066b605ab868969	9c0c8cd670	0	1	1	0
+rel_por_motivo_filiais	p_filiais smallint[], p_de date, p_ate date	f	c8ecce6f3ba9b8b5611612fa45b2ab68	f3898d6889	0	1	1	0
+rel_resumo_filiais	p_filiais smallint[], p_de date, p_ate date	f	ae0911e4075ea007960b6de87d80ce57	8d8a38ee1c	0	1	1	0
+rel_saldo_colaborador	p_colaborador uuid	f	843aed2c42a0525a00969ffba13ae65d	c1e0b30eb6	0	1	1	0
+rel_saldo_itens_filiais	p_filiais smallint[], p_ate date	f	c1c9d0e9bc9203afd2b26a681ab3102c	0458ebb584	0	1	1	0
+resetar_acervo	p_empresa uuid, p_filial smallint, p_confirmacao text, p_justificativa text, p_backup_path text, p_contagens jsonb	t	16b4b7d050922a7bfc610086037d2f67	67d3880b25	0	1	0	0
+resetar_dados_ficticios	p_confirmacao text	t	33ee07832e6964acd04cf2202f754748	a006ce5477	0	0	1	0
+resetar_itens	p_empresa uuid, p_filial smallint, p_confirmacao text, p_justificativa text, p_backup_path text, p_contagens jsonb	t	60c9861a44b37e8d8e4bd49a96f7cd4d	05f41854e6	0	1	0	0
+resolver_pendencias_item_com_lancamentos	p_ids uuid[], p_desfecho text, p_observacao text, p_lancamentos jsonb, p_criado_por uuid	f	a310a8a2139435ef33a1385b71f29a32	a31af797e3	0	1	0	0
+rotulo_alcance_reset	p_empresa uuid, p_filial smallint, p_bloco text	t	eafa1b6c0ab590b69895affdb06aefe3	21b5d38372	0	0	0	0
+rotulo_de_ambiente		t	b5498cc2d548691c2ae5e73e8a7c6075	840a08a410	0	0	1	0
+status_apos_movimentacao	p_status status_ativo, p_tipo tipo_movimentacao	f	087e5dc518f5e24fcdf7be0d489a76ab	69a73abfcf	0	1	1	0
+status_tem_detentor	p status_ativo	f	46c44aa4553c100237502d14e7b7fad1	551c37d163	0	1	1	0
+termo_ancora_coerente	p_movimentacao_ids uuid[], p_ativo_ids uuid[]	t	62d7d2934a3a01fdf665660afc071909	52a758a524	0	1	1	0
+termo_da_empresa		f	e16755921b6ed42dd85ec60cf50d8ef4	4d070033e6	0	0	0	0
+termo_exige_modelo_da_empresa		f	58a7699276e9106d9b6dde0fd7d33d20	b505721c43	0	0	0	0
+transferir_item	p_origem smallint, p_destino smallint, p_itens jsonb, p_data date, p_chamado text, p_obs_origem text, p_obs_destino text, p_criado_por uuid	f	0cda0e78ceac0aa518552927aa191b68	f001754224	0	1	0	0
+ultima_migracao_aplicada		t	23b4d8f73d3d474abbc325181c1cf008	25b4fcef87	0	1	1	0
+unidades_de_escrita		t	f5e8f227e523ac45cf925421d984bb33	8c9300ce5d	0	1	1	0
+valida_lancamento_item		f	be4be02fe97acfe7aff9a752cd73b58d	77b7b39491	0	1	1	0
+vocabulario_chave	p_texto text	f	1e28507fad011cc2023f8370a67f5151	d2a3a4da69	0	1	1	0
+vocabulario_unidades_guarda		f	cbe9b7a31fc1ab0af56e9eee59542164	1f6740783b	0	0	1	0

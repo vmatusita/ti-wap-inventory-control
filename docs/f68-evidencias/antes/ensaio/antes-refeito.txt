@@ -1,0 +1,20 @@
+# F68 — o "antes" REFEITO no ENSAIO, logo antes do apply (Frente G, passo 5), 19/11/2026 ~11:50 BRT, MCP execute_sql
+# (só leitura). Os instrumentos: docs/f68-evidencias/instrumentos.sql (o das senhas: md5(string_agg(md5(t::text), ''
+# order by id))). Só contagem, nome de objeto de esquema, configuração e hash.
+
+ledger: 204 entradas; última contracao_default_filiais (= a 0207)
+funções public: 117 (70 security definer); executáveis por anon: 0
+  md5 do TSV 7b461b5b6978bb9c788e14c75c164b3f  = o do "antes" das 10:50 e o de produção
+policies public+storage: 62; md5 do TSV cee318f577345f75dc06b99874b8a867  = idem
+senhas_acesso: total=1 | scrypt$=1 | $2=0 | md5 das linhas d2e030e77fccfa3126ecd9fc7b93f0d0  = idem
+objetos da F68 (sessoes_visualizador, porta_tentativas): nenhum
+rolconfig: anon=statement_timeout=3s | authenticated=statement_timeout=8s
+pgcrypto 1.3 em extensions
+
+as 13 checagens (chave=total): arquivo_termo_orfao=0, ativo_filial_inativa=0, backup_orfao=0, conflito_entre_filiais=0,
+conta_sem_perfil=0, detentor_em_estado_sem_dono=0, kit_motivo_orfao=0, operador_sem_filial=1, patrimonio_duplicado=0,
+pendencia_de_estornada=0, perfil_sem_conta=0, reserva_aberta=0, termo_sem_arquivo=0   = idem
+
+a porta pelo PostgREST ANTES do apply (scratchpad porta-http.mjs, chave anon por --env-file, nunca impressa): as RPCs
+relatorio_publico_* e senha_acesso_criar → HTTP 404 PGRST202 (não existem); as tabelas sessoes_visualizador e
+porta_tentativas → HTTP 404 PGRST205; senhas_acesso → HTTP 200, lista de 0 (o grant padrão de SELECT a anon, barrado pela RLS).

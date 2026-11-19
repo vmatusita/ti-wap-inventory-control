@@ -1,0 +1,41 @@
+# F68 — PRODUÇÃO (pbtjcalbmepmrqzprusb, PG 17.6), 19/11/2026 ~11:58–12:10 BRT. Frente G, passo 6 — o app no ar ainda é
+# a v1.75.0 (o deploy vem depois do merge). Pelo MCP: apply_migration (as cinco, uma a uma, o texto EXATO do arquivo,
+# o mesmo do ensaio) e execute_sql só leitura. NENHUMA chamada a relatorio_publico_abrir nem a RPC que escreva.
+
+## O "antes" refeito, logo antes do apply (= o das 09:00)
+funções 117 (70 definer; 0 por anon) · 7b461b5b6978bb9c788e14c75c164b3f · policies 62 · cee318f577345f75dc06b99874b8a867
+ledger 191 (última contracao_default_filiais) · senhas_acesso 5 (5 scrypt$) · md5 das 5 linhas f53ad5075a507d1f6a52c945ed15b060
+objetos da F68: nenhum · as 13 checagens na linha travada (abaixo)
+
+## O apply, migration a migration
+20261119115942 porta_base           ledger 192 · u UNIQUE (empresa_id, id) · comentário 4a35dbd3 = arquivo · senhas f53ad507
+                                    · policies cee318f5 (intocadas)
+20261119120005 porta_sessoes        ledger 193 · 0 linhas, RLS on, 0 policy, nenhum privilégio · 6 constraints · comentários
+                                    ec415600 / 90db6bb0 / f94e16e2 / a4852401 = arquivo · senhas e policies intocadas
+20261119120024 porta_tentativas     ledger 194 · 0 linhas, RLS on, 0 policy, nenhum privilégio · comentário f7374538 = arquivo
+20261119120101 porta_gestao_senhas  ledger 195 · prosrc criar 7641cd15, conferir ddf19ad9, definir_status 56084f47 = arquivo
+                                    · comentários d96a0c0a / bbcc344a / 8ffa878d · EXECUTE só authenticated
+20261119120224 porta_publica        ledger 196 · prosrc abrir 93407734, dados c73b57b5, projetar 89025878 = arquivo ·
+                                    comentários 3e2cc4fd / 640f95b8 / 86e8e1b7 · EXECUTE: abrir e dados SÓ anon; projetar ninguém
+
+## O catálogo depois da última — e a PARIDADE com o ensaio
+funções 123 (75 definer) · as 117 de antes byte a byte 7b461b5b… · executáveis por anon: relatorio_publico_abrir,
+relatorio_publico_dados · o TSV das 123: 0d347254b21687c05fad53879fb70689 = O DO ENSAIO (paridade de catálogo das funções)
+policies 62 · cee318f5… (= antes, = ensaio) · senhas_acesso f53ad507… (as 5 intocadas — critério 4)
+
+## O smoke com o app de ANTES (smoke-antes-do-deploy.txt, --mapa-antes-do-deploy)
+RESUMO · 110 OK · 1 aviso · 0 n/a · 0 falha (o aviso: kits_modelos sem kit cadastrado — o de sempre)
+rpc/relatorio_publico_dados com sessão inventada → HTTP 200 {"ok": false, "recusa": "sessao"} (nada escrito)
+
+## O conferidor (conferidor.json, a conta do smoke, só contagens)
+272 pontos · 113186 linhas · 0 recusadas · 0 reprovados
+
+## Os advisors de segurança depois do apply (iguais aos do ensaio)
+INFO rls_enabled_no_policy 6 → 8 (+ porta_tentativas, sessoes_visualizador) · WARN anon_security_definer_function_executable
+0 → 2 (as duas portas) · WARN authenticated_security_definer_function_executable 39 → 42 (as três de gestão, decisão 8 —
+o mesmo lint, como na F67) · WARN auth_leaked_password_protection 1 · ERROR 0
+
+## As 13 checagens (chave=total) — IGUAIS à linha travada
+arquivo_termo_orfao=3, ativo_filial_inativa=0, backup_orfao=12, conflito_entre_filiais=59, conta_sem_perfil=0,
+detentor_em_estado_sem_dono=1, kit_motivo_orfao=0, operador_sem_filial=0, patrimonio_duplicado=0,
+pendencia_de_estornada=0, perfil_sem_conta=0, reserva_aberta=0, termo_sem_arquivo=0

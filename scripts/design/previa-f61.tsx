@@ -406,11 +406,11 @@ function VitrineCromo() {
       </Quadro>
 
       <Quadro id="viewer-header" titulo="ViewerHeader (sessão por senha)">
-        <ViewerHeader rotulo={`Filial ${FILIAL_CERRADO_ALTO.nome}`} />
+        <ViewerHeader rotulo={`Filial ${FILIAL_CERRADO_ALTO.nome}`} slug="ficticia" empresaNome="Empresa Fictícia" />
       </Quadro>
 
       <Quadro id="acesso-form" titulo="src/components/relatorios/acesso-form.tsx">
-        <AcessoForm next="" />
+        <AcessoForm slug="ficticia" empresaNome="Empresa Fictícia" next="" />
       </Quadro>
 
       <Quadro id="rodape-sidebar" titulo="RodapeSidebar (expandido)">

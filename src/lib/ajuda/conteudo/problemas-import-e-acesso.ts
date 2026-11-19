@@ -142,7 +142,7 @@ export const problemasImportEAcesso: PaginaAjuda = {
           causa:
             'A senha aparece UMA única vez, no momento em que é criada ("Esta é a única vez que a senha aparece."). Depois disso o sistema guarda só a forma cifrada — ninguém, nem o administrador, consegue lê-la de volta.',
           saida: [
-            'Crie outra em Administração › Senhas de acesso, com "Nova senha": dê um "Rótulo" que identifique quem vai usar e copie a senha na hora.',
+            'Crie outra em Administração › Senhas de acesso, com "Nova senha": dê um "Rótulo" que identifique quem vai usar e copie o link e a senha na hora. É também o caminho para quem tinha uma senha criada antes da versão 1.76.0: aquelas deixaram de abrir.',
             'Revogue a antiga pelo botão "Revogar" da linha. Quem usava aquela senha perde o acesso no carregamento seguinte.',
             'Revogou por engano? "Reativar" devolve a mesma senha ao ar, sem precisar redistribuir nada.',
             'A coluna "Último uso" ajuda a descobrir quais senhas ainda circulam antes de revogar.',

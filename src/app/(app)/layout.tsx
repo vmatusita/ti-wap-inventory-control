@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { getOperador, getViewerSession, temSessaoSupabase } from '@/lib/auth/acesso'
+import { getOperador, temSessaoSupabase } from '@/lib/auth/acesso'
 import { redirectAcessoRelatorios } from '@/lib/auth/otp'
 import { contarPendenciasAbertas } from '@/lib/queries/pendencias-detalhe'
 import { contarConflitosAbertos } from '@/lib/queries/conflitos'
@@ -12,7 +12,6 @@ import { rotaRelatorioPadrao } from '@/lib/relatorios/rota-padrao'
 import { selecaoDeUnidadesPorSlug } from '@/lib/filtros/filial'
 import { efetivar, recorteDe } from '@/lib/auth/recorte-leitura'
 import { listarFiliais } from '@/lib/queries/filiais'
-import { ViewerHeader } from '@/components/layout/viewer-header'
 import {
   BarraProgressoNavegacao,
   ProgressoNavegacaoProvider,
@@ -32,20 +31,19 @@ import { registrarFalha } from '@/lib/observabilidade'
 // tambem o que impede o Client Component de importar o registry inteiro.
 const VERSAO_ATUAL = versaoAtual().versao
 
-// Shell do grupo (app). Três modos (spec §3 / OS-F3 3.9.4):
-//  - Público: /relatorios/acesso (entrada por senha) — sem shell.
+// Shell do grupo (app) (spec §3 / OS-F3 3.9.4):
+//  - /relatorios/acesso: o endereço ANTIGO da entrada por senha — o operador logado volta ao relatório dele; quem não
+//    é operador o proxy já mandou (308) para a porta da legada (F68).
 //  - Operador logado: header + sidebar completos.
-//  - Visualizador por senha: shell REDUZIDO (só relatórios), sem sidebar de
-//    operação. A validade da sessão por senha é conferida aqui a cada request
-//    (getViewerSession consulta o banco) — revogar mata no request seguinte.
+//  - F68: o visualizador por senha NÃO entra mais por aqui — a porta pública mora em src/app/r/** (fora do grupo).
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const h = await headers()
   const pathname = h.get('x-wap-pathname') ?? ''
   // FLX-01 — search da rota atual (o proxy grava, ver lib/supabase/proxy.ts):
-  // usado para reconstruir `next` no redirect de sessão de visualizador
-  // ausente/expirada, mais abaixo.
+  // usado para reconstruir `next` no redirect para a porta da legada, mais abaixo
+  // (F68: com o destino traduzido para /r/<slug>/relatorios/…).
   const search = h.get('x-wap-search') ?? ''
 
   if (pathname === '/relatorios/acesso') {
@@ -191,41 +189,13 @@ export default async function AppLayout({
     )
   }
 
-  // Sem operador: o proxy só deixa chegar aqui em /relatorios/** com cookie de
-  // visualização. Confere assinatura + senha ativa (consulta ao banco).
-  const viewer = await getViewerSession()
-
-  // F21 — separar os dois "sem operador", mas SÓ depois de descartar o visualizador.
-  //
-  // `getOperador()` devolve null tanto para "não há sessão" quanto para "sessão VÁLIDA, mas
-  // perfil DESATIVADO" — o segundo caso não existia antes desta fase. Mandar o desligado para
-  // a porta pública da senha de relatório não explica nada; ele vai para o login com o motivo.
-  //
-  // A ORDEM importa e a primeira versão desta correção errou: o teste vinha antes do
-  // `getViewerSession()`, e o cookie de visualização tem `path: '/relatorios'` — ou seja, é
-  // entregue exatamente nas rotas que o ramo barrava. Quem foi desligado como operador MAS é
-  // visualizador legítimo por senha entrava em `/relatorios/acesso`, acertava a senha, recebia
-  // o cookie, era redirecionado para `/relatorios/geral` e caía no login: senha certa na mão e
-  // nenhum relatório na tela. Com o teste aqui, o cookie válido ganha — a senha de acesso é
-  // uma porta INDEPENDENTE do cargo (spec §3), e perder o login de operador não pode revogar
-  // um acesso que nunca dependeu dele.
-  if (!viewer) {
-    if (await temSessaoSupabase()) redirect('/login?erro=acesso-desativado')
-    // FLX-01 — guarda o destino atual: sem isto o ViewerAutoRefresh (60s), que
-    // dispara este redirect NO MEIO da leitura de um relatório, mandava o
-    // gestor sempre para /relatorios/geral, perdendo filial, período e filtros.
-    redirect(redirectAcessoRelatorios(pathname, search))
-  }
-
-  return (
-    <TooltipProvider delayDuration={300}>
-      <ProgressoNavegacaoProvider>
-        <BarraProgressoNavegacao />
-        <div className="flex min-h-svh flex-col">
-          <ViewerHeader rotulo={viewer.rotulo} />
-          <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
-        </div>
-      </ProgressoNavegacaoProvider>
-    </TooltipProvider>
-  )
+  // Sem operador. F68 (19/11/2026): o ramo do VISUALIZADOR POR SENHA saiu deste grupo — a porta pública é
+  // `/r/<slug>/relatorios` (src/app/r/**), fora de `(app)`, e fala só pelas duas funções do banco executáveis por `anon`.
+  // O proxy já responde 308 a `/relatorios/**` sem operador; chegar aqui sem operador é:
+  //   (a) uma sessão VÁLIDA com o perfil DESATIVADO (F21 — `getOperador()` devolve null também nesse caso): vai para o
+  //       login com o motivo, nunca para uma porta que não explica nada;
+  //   (b) um request que escapou do proxy: a entrada da porta da legada, com o destino traduzido (FLX-01).
+  if (await temSessaoSupabase()) redirect('/login?erro=acesso-desativado')
+  redirect(redirectAcessoRelatorios(pathname, search))
 }
+

@@ -71,9 +71,13 @@ export function CorpoRelatorio({
   recorteFilial,
   rotulosTipo,
   aoVivo = false,
+  semPessoas = false,
 }: {
   snapshot: AnySnapshot
   ehOperador?: boolean
+  /** F68 — a PORTA PÚBLICA (o gestor por senha): as colunas de PESSOA (colaborador, setor, autor da anotação) SOMEM da
+   *  tela — não ficam vazias. A porta já não devolve esses campos (lista branca, decisão 19/11-2); aqui é a tela. */
+  semPessoas?: boolean
   links?: LinksKpi
   recorteFilial?: string
   /** F39 — o vocabulário dos itens faltantes (`tipos_item`), lido no servidor
@@ -94,19 +98,22 @@ export function CorpoRelatorio({
         recorteFilial={recorteFilial}
         rotulosTipo={rotulosTipo}
         aoVivo={aoVivo}
+        semPessoas={semPessoas}
       />
     )
   }
-  return <CorpoRelatorioV1 snapshot={snapshot} ehOperador={ehOperador} />
+  return <CorpoRelatorioV1 snapshot={snapshot} ehOperador={ehOperador} semPessoas={semPessoas} />
 }
 
 // Grade da F3 (v1) — usada só para reabrir snapshots gerados antes do F3B.
 function CorpoRelatorioV1({
   snapshot,
   ehOperador,
+  semPessoas,
 }: {
   snapshot: SnapshotRelatorio
   ehOperador: boolean
+  semPessoas: boolean
 }) {
   const s = snapshot
   const serieMov = serieDoSnapshot(s)
@@ -190,7 +197,7 @@ function CorpoRelatorioV1({
         </CardRelatorio>
 
         <CardRelatorio wide titulo="Últimas movimentações">
-          <TabelaMovimentacoes rows={s.ultimasMovimentacoes} filtrosInternos ehGeral={s.meta.ehGeral} />
+          <TabelaMovimentacoes rows={s.ultimasMovimentacoes} filtrosInternos ehGeral={s.meta.ehGeral} semPessoas={semPessoas} />
         </CardRelatorio>
 
         <CardRelatorio

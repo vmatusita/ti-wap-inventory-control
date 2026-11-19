@@ -79,6 +79,8 @@ select pg_temp.f67_ledger() as ledger_antes
 -- que este roteiro prova não muda: a F67 desfeita a partir do estado da 0193.
 -- F67C (16/11/2026): e a F67C antes da F67B — a cadeia inteira tem a F67C por cima (17 funções recriadas, a ferramenta de
 -- órfão nova e os defaults tirados das 20); ela sai PRIMEIRO, e o que este roteiro prova não muda.
+-- F68 (19/11/2026): a cadeia inteira tem a F68 por cima — ela sai ANTES da F67C (rollback-f68.test.ts).
+\ir ../rollback/F68-desfaz.sql
 \ir ../rollback/F67C-desfaz.sql
 \ir ../rollback/F67B-desfaz.sql
 \ir ../rollback/F67-desfaz.sql
