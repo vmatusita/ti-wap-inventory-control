@@ -308,6 +308,14 @@ const DA_F38 = [
   '0205',
   '0206',
   '0207',
+  // F68 (19/11/2026) — a porta pública por empresa: a base (o conferidor do pgcrypto + a unique (empresa_id, id) de
+  // senhas_acesso), as duas tabelas deny-all (a sessão do visualizador e o contador), as três funções de gestão das senhas
+  // por empresa e as duas portas de anon + a projeção. Nenhuma recria função existente; nenhuma escreve no acervo.
+  '0208',
+  '0209',
+  '0210',
+  '0211',
+  '0212',
 ]
 
 /**

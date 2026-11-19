@@ -1287,7 +1287,7 @@ revoke all on function public.sabotagem_f48_definer() from public, anon;`,
     id: 'catalogo-security-definer-executavel-por-anon',
     roteiro: 'catalogo_secdef.sql',
     classe: 'grant-devolvido',
-    derruba: ['4'],
+    derruba: ['4a'],
     porque:
       'Uma `security definer` volta a ser executável pela chave pública, sem sessão nenhuma, por `/rest/v1/rpc/*`. `papel_atual()` é o alvo mais eloquente: ela lê `profiles` como o DONO, então um `anon` com EXECUTE consulta o cargo de quem quiser. O default do Postgres é EXECUTE para PUBLIC — função nova nasce aberta, e é o revoke que a fecha; o que faltava não era revogar, era SER OBRIGADO a revogar.',
     sql: `grant execute on function public.papel_atual() to anon;`,

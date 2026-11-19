@@ -198,7 +198,8 @@ describe('o rollback da F67B (supabase/rollback/F67B-desfaz.sql) é COMPLETO con
     const f67 = readFileSync(join(RAIZ, 'supabase', 'tests', 'f67_rollback.sql'), 'utf8').replace(/\r\n/g, '\n')
     const inclui = [...f67.matchAll(/^\\ir \.\.\/rollback\/(F\d\d[^\s]*)\.sql$/gm)].map((m) => m[1])
     // F67C (16/11/2026): a cadeia inteira tem a F67C por cima — ela sai antes da F67B (rollback-f67c.test.ts)
-    expect(inclui).toEqual(['F67C-desfaz', 'F67B-desfaz', 'F67-desfaz', 'F67-desfaz', 'F67-desfaz'])
+    // F68 (19/11/2026): e a F68 por cima da F67C — ela sai antes de tudo (rollback-f68.test.ts)
+    expect(inclui).toEqual(['F68-desfaz', 'F67C-desfaz', 'F67B-desfaz', 'F67-desfaz', 'F67-desfaz', 'F67-desfaz'])
   })
 
   it('o ensaio f67b_rollback.sql roda o arquivo três vezes (contraído, de novo, só-expansão), reaplica as quatro da expansão e emite UMA linha FIM', () => {

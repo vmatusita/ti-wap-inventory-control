@@ -129,6 +129,8 @@ select pg_temp.f67c_ledger()           as ledger_antes,
 \gset
 
 -- O CONTRAÍDO: a cadeia inteira (o estado do CI)
+-- F68 (19/11/2026): a cadeia inteira tem a F68 por cima — ela sai ANTES da F67C (rollback-f68.test.ts).
+\ir ../rollback/F68-desfaz.sql
 \ir ../rollback/F67C-desfaz.sql
 
 select pg_temp.f67c_impressao_txt()    as depois,

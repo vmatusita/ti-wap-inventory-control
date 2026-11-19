@@ -129,7 +129,11 @@ declare
     'apagar_ativos_conflito_filiais',
     -- Import de startup (0032→0132): chama `e_admin()` (0064) e, desde a 0132, também
     -- `pode_escrever_filial(v_filial)` — em CONJUNÇÃO, antes do advisory lock.
-    'importar_ativos_substituir'
+    'importar_ativos_substituir',
+    -- F68 (0211): a GESTÃO DAS SENHAS DE VISUALIZAÇÃO por empresa — as três chamam `e_admin_na(p_empresa)` ANTES de
+    -- qualquer efeito e só tocam a linha cujo empresa_id é a informada. (As duas PORTAS da 0212 ficam FORA deste universo:
+    -- não são executáveis por authenticated — só por anon —, e o par nominal delas mora em catalogo_secdef.sql, 4a/4b.)
+    'senha_acesso_criar', 'senha_acesso_conferir', 'senha_acesso_definir_status'
   ];
 
   -- -----------------------------------------------------------------------

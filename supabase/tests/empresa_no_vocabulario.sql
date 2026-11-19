@@ -137,7 +137,12 @@ declare
     'exigir_ativos_da_empresa:ativos',
     'termo_exige_modelo_da_empresa:termos_gerados',
     'pode_ler_arquivo_termo:termos_gerados',
-    'pode_escrever_arquivo_termo:termos_gerados'
+    'pode_escrever_arquivo_termo:termos_gerados',
+    'senha_acesso_criar:senhas_acesso',
+    'senha_acesso_conferir:senhas_acesso',
+    'senha_acesso_definir_status:senhas_acesso',
+    'relatorio_publico_abrir:senhas_acesso',
+    'relatorio_publico_dados:relatorios_gerados,filiais,tipos_item'
   ];
   -- Os escritores das onze (fato 8) e o contador da senha: o md5 do `prosrc` VIGENTE, calculado do
   -- arquivo da migration que o define por último (todas ANTES da 0162 até a F67) — o texto que o CI aplica.

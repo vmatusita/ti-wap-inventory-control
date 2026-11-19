@@ -993,7 +993,8 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     // decisão 2 do Johnny: toda tabela de negócio tem a guarda, sem exceção
     expect(/k_sem_guarda_empresa\s+text\[\]\s*:=\s*array\[\]::text\[\]/.test(fonte('imutabilidade_tenant'))).toBe(true)
     const semGuarda = lista(fonte('imutabilidade_tenant'), 'k_empresa_id_sem_guarda')
-    expect(semGuarda).toEqual(['membros', 'operador_filiais'])
+    // F68 (19/11/2026): + sessoes_visualizador — INFRA, presa à empresa da senha pela FK composta (o molde de operador_filiais)
+    expect(semGuarda).toEqual(['membros', 'operador_filiais', 'sessoes_visualizador'])
     expect(semGuarda.filter((t) => negocio.includes(t)), 'uma tabela de NEGÓCIO entrou na lista da infra sem guarda').toEqual([])
   })
 
@@ -1001,7 +1002,7 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     const casos: [string, string[]][] = [
       ['forma_multiempresa', ['operador_filiais_filial_id_fkey', 'movimentacoes→filiais']],
       ['unicidade_por_empresa', lista(fonte('unicidade_por_empresa'), 'k_unicidade_implicita')],
-      ['imutabilidade_tenant', ['membros', 'operador_filiais']],
+      ['imutabilidade_tenant', ['membros', 'operador_filiais', 'sessoes_visualizador']],
     ]
     for (const [nome, entradas] of casos) {
       const comentarios = fonte(nome).split('\n').filter((l) => /^\s*--/.test(l)).join('\n')
@@ -1033,9 +1034,15 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
       'previa_reset',
       'rel_por_motivo_filiais',
       'rel_resumo_filiais',
+      // F68 (19/11/2026): + CINCO da mesma classe — as duas portas e a gestão das senhas por empresa
+      'relatorio_publico_abrir',
+      'relatorio_publico_dados',
       'resetar_acervo',
       'resetar_itens',
       'rotulo_alcance_reset',
+      'senha_acesso_conferir',
+      'senha_acesso_criar',
+      'senha_acesso_definir_status',
       'termo_da_empresa',
       'termo_exige_modelo_da_empresa',
       'vocabulario_unidades_guarda',
@@ -1064,6 +1071,12 @@ describe('14. a integridade estrutural do tenant (F65): as cópias batem com a f
     // F67B: as duas do bucket `termos`, só a linha dona
     expect(tabelas.pode_ler_arquivo_termo).toEqual(['termos_gerados'])
     expect(tabelas.pode_escrever_arquivo_termo).toEqual(['termos_gerados'])
+    // F68: a gestão e a entrada só leem senhas_acesso; os dados, os gerados, as filiais do filtro e o vocabulário
+    expect(tabelas.senha_acesso_criar).toEqual(['senhas_acesso'])
+    expect(tabelas.senha_acesso_conferir).toEqual(['senhas_acesso'])
+    expect(tabelas.senha_acesso_definir_status).toEqual(['senhas_acesso'])
+    expect(tabelas.relatorio_publico_abrir).toEqual(['senhas_acesso'])
+    expect(tabelas.relatorio_publico_dados).toEqual(['filiais', 'relatorios_gerados', 'tipos_item'])
     expect(lista(fonte('empresa_no_vocabulario'), 'k_leitura_tenant'), 'empresa_no_vocabulario.sql: a cópia divergiu').toEqual(tenant)
     expect(lista(fonte('empresa_no_acervo'), 'k_leitura_tenant_nomes'), 'empresa_no_acervo.sql: a cópia dos nomes divergiu').toEqual(
       tenant.map((e) => e.split(':')[0]),

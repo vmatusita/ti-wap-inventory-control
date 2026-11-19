@@ -41,6 +41,9 @@ language sql stable as $f$
        ' [^{}]*\}\) [^{}]*\} \{CONST :consttype 23 [^{}]*:constisnull false [^{}]*\}\) [^{}]*\}$')
 $f$;
 
+-- F68 (19/11/2026): a cadeia inteira tem a F68 por cima, e ela acrescenta três CHECK em public (sessoes_visualizador e
+-- porta_tentativas) — ela sai ANTES da medição (rollback-f68.test.ts).
+\ir ../rollback/F68-desfaz.sql
 select pg_temp.f66b_impressao_checks() as checks_antes,
        pg_temp.f66b_canonicos()        as canonicos_antes
 \gset
