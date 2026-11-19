@@ -141,7 +141,10 @@ describe('a fronteira da porta pública (mesa TS): a árvore /r/** só fala pela
   it('o fecho é ESTÁTICO (nenhum import dinâmico) e todo chamarRpc tem o nome LITERAL — sem eles a varredura fica cega', () => {
     const cegos: string[] = []
     for (const a of SUPERFICIE) {
-      const f = readFileSync(a, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+      // o fonte CRU, sem tirar comentários: tirá-los por regex morde dentro de string (`'https://x'; import('y')`) e
+      // esconderia o caso — aqui um comentário que cite `import(` só deixa o teste vermelho (o lado seguro, a régua
+      // de confinamento-viewer.test.ts)
+      const f = readFileSync(a, 'utf8')
       // `import(…)`, `require(…)`, `next/dynamic`, `React.lazy`: o alvo não está no grafo que esta trava lê
       if (/\bimport\s*\(|\brequire\s*\(|next\/dynamic|\blazy\s*\(/.test(f)) cegos.push(`${posix(a)}: import dinâmico`)
       // um chamarRpc com o nome numa variável não é visto pelo detector de rpcs acima

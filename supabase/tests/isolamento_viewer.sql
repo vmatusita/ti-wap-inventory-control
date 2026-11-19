@@ -140,6 +140,8 @@ declare
   v_t_rev   text;
   v_t       text;
   v_estado  text;
+  v_estado2 text;
+  v_t_ctrl  text;
   v_rec     jsonb[] := '{}';
   v_respostas jsonb[] := '{}';
   v_g2      uuid;
@@ -385,16 +387,25 @@ begin
        4) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- V6c — revogar pela função ENCERRA as sessões da senha; reativá-la não ressuscita o acesso de antes
+  --       …e SÓ as dela: o controle é uma sessão de OUTRA senha da A, e toda sessão aberta que não é da Teto 2 (de qualquer
+  --       empresa) segue aberta — um encerramento sem o filtro de senha ou de empresa vira ✗ aqui
   v_t := pg_temp.f68_abrir(v_slug_a, 'senha-do-teto-2', '10.0.0.7') ->> 'sessao';
+  v_t_ctrl := pg_temp.f68_abrir(v_slug_a, 'senha-do-teto-3', '10.0.0.8') ->> 'sessao';
   select id into v_senha_a2 from public.senhas_acesso where empresa_id = v_a and rotulo = 'Teto 2';
-  perform pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a2));
+  select count(*) into v_cnt from public.sessoes_visualizador s
+   where s.encerrada_em is null and s.senha_id <> v_senha_a2;
+  v_estado := pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, false)', v_a, v_senha_a2));
   select count(*) into v_n from public.sessoes_visualizador s
    where s.empresa_id = v_a and s.senha_id = v_senha_a2 and s.encerrada_em is null;
-  perform pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, true)', v_a, v_senha_a2));
-  if pg_temp.assert_zero_de('V6c revogar pela função encerra as sessões da senha, e reativá-la não ressuscita o acesso de antes',
-       (v_t is null)::int + (v_n <> 0)::int
-       + (pg_temp.f68_dados(v_t, v_slug_a, 'sessao', null) is distinct from '{"ok": false, "recusa": "sessao"}'::jsonb)::int,
-       3) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
+  v_estado2 := pg_temp.f68_estado_como(v_adm_a, format('select public.senha_acesso_definir_status(%L, %L, true)', v_a, v_senha_a2));
+  if pg_temp.assert_zero_de('V6c revogar pela função encerra as sessões da senha (só as dela), e reativá-la não ressuscita o acesso de antes',
+       (v_t is null)::int + (v_t_ctrl is null)::int + (v_cnt = 0)::int
+       + (v_estado <> '00000')::int + (v_estado2 <> '00000')::int + (v_n <> 0)::int
+       + ((select count(*) from public.sessoes_visualizador s
+            where s.encerrada_em is null and s.senha_id <> v_senha_a2) <> v_cnt)::int
+       + (pg_temp.f68_dados(v_t, v_slug_a, 'sessao', null) is distinct from '{"ok": false, "recusa": "sessao"}'::jsonb)::int
+       + ((pg_temp.f68_dados(v_t_ctrl, v_slug_a, 'sessao', null) ->> 'ok') is distinct from 'true')::int,
+       9) then v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
 
   -- ==========================================================================
   -- V7 — scrypt nunca abre (a linha scrypt da fixture "casa" com a senha digitada pelo formato antigo; a porta não a lê)
@@ -470,7 +481,8 @@ begin
   if pg_temp.assert_zero_de('V12 o pior caso de dados (um snapshot de ~130 KB) sai inteiro pela projeção, sem nomes, bem dentro dos 3 s do anon',
        (v_n < 120000)::int
        + ((v_r ->> 'ok') is distinct from 'true')::int
-       + (jsonb_array_length(v_r -> 'gerado' -> 'dados' -> 'saidas') <> 400)::int
+       -- (coalesce: uma recusa aqui é ✗, nunca a contagem NULA que aborta o roteiro e cega o injetor)
+       + (coalesce(jsonb_array_length(v_r -> 'gerado' -> 'dados' -> 'saidas'), -1) <> 400)::int
        + (v_r::text like '%Fulano de Tal%')::int
        + (v_ms >= 3000)::int, 5) then
     v_ok := v_ok + 1; else v_falhas := v_falhas + 1; end if;
