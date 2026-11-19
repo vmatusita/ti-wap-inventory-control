@@ -81,6 +81,9 @@ declare
   v_cnt    int;
   v_lista  text;
   v_secdef boolean;
+  v_cnt5   bigint;   -- F68: a asserção 5
+  v_univ5  bigint;
+  v_lista5 text;
 begin
   -- ---------------------------------------------------------------
   -- 1 — GRANTS das 3 RPCs de ESCRITA: authenticated-only (R-ACC-11 + fix 0055).
@@ -197,6 +200,30 @@ begin
     v_ok := v_ok + 1; raise notice '✓ 4c valida_lancamento_item é SECURITY INVOKER (não é vetor; 0038 revoga só as DEFINER)';
   else
     v_falhas := v_falhas + 1; raise warning '✗ 4c valida_lancamento_item virou SECURITY DEFINER sem revoke de EXECUTE — revise R-ACC-12/0038';
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- 5 — F68 (19/11/2026): NENHUMA POLICY CITA `anon` NEM `public`.
+  --     A porta pública do relatório abriu as duas ÚNICAS funções executáveis por `anon`
+  --     (catalogo_secdef.sql, 4a/4b) e NÃO abriu leitura por RLS para `anon`: quem entra por
+  --     senha não tem identidade no banco, e uma policy para `anon` numa tabela de negócio seria
+  --     leitura sem sessão de quem tiver a chave pública (ADR-002 §20). Esta asserção diz isso no
+  --     catálogo: toda policy de `public` e de `storage` é para papéis com identidade.
+  -- ---------------------------------------------------------------
+  select count(*) filter (where 'anon' = any (pol.roles) or 'public' = any (pol.roles)),
+         count(*),
+         coalesce(string_agg(pol.schemaname || '.' || pol.tablename || ' / ' || pol.policyname, ', ')
+                    filter (where 'anon' = any (pol.roles) or 'public' = any (pol.roles)), '')
+    into v_cnt5, v_univ5, v_lista5
+    from pg_policies pol
+   where pol.schemaname in ('public', 'storage');
+  if pg_temp.assert_zero_de(
+       '5 nenhuma policy de public ou storage cita anon nem public (a porta pública é das duas funções, não da RLS)' ||
+       case when v_cnt5 > 0 then ' — citam: ' || v_lista5 else '' end,
+       v_cnt5, v_univ5) then
+    v_ok := v_ok + 1;
+  else
+    v_falhas := v_falhas + 1;
   end if;
 
   raise notice 'FIM seguranca_catalogo: % asserções, % falhas', v_ok + v_falhas, v_falhas;

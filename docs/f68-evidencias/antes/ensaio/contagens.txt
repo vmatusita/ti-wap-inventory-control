@@ -1,0 +1,23 @@
+# F68 — o "antes" no ENSAIO (sgmvldiizsrjbxzzpmhh, PG 17.11), 19/11/2026 ~10:50 BRT, pelo MCP execute_sql (so leitura),
+# ANTES de qualquer apply. O ensaio recusou a conexao (ECONNREFUSED) das 09:00 as ~10:40 e voltou sozinho (fato 4).
+# So contagem, nome de objeto de esquema, configuracao e hash.
+
+ledger: 204 entradas; ultima contracao_default_filiais (= a 0207)
+empresas=1 | filiais=6 | relatorios_gerados=1
+
+funcoes public: 117 (70 security definer); md5 do TSV (o MESMO instrumento de producao/funcoes.tsv)
+  7b461b5b6978bb9c788e14c75c164b3f  = IGUAL a producao (paridade de catalogo das funcoes, byte a byte)
+  executaveis por anon: 0
+policies public+storage: 62; md5 do TSV cee318f577345f75dc06b99874b8a867 = IGUAL a producao
+  policies que citam anon ou public: 0
+
+rolconfig: anon=statement_timeout=3s | authenticated=statement_timeout=8s |
+           authenticator=session_preload_libraries=supautils, safeupdate;statement_timeout=8s;lock_timeout=8s | service_role=(nada)
+pgcrypto 1.3 em extensions
+
+senhas_acesso: total=1 | scrypt$=1 | $2=0 | md5 das linhas d2e030e77fccfa3126ecd9fc7b93f0d0
+
+# As 13 checagens no ensaio (so chave, total)
+arquivo_termo_orfao=0, ativo_filial_inativa=0, backup_orfao=0, conflito_entre_filiais=0, conta_sem_perfil=0,
+detentor_em_estado_sem_dono=0, kit_motivo_orfao=0, operador_sem_filial=1, patrimonio_duplicado=0,
+pendencia_de_estornada=0, perfil_sem_conta=0, reserva_aberta=0, termo_sem_arquivo=0

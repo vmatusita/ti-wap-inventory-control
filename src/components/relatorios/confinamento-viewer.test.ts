@@ -44,13 +44,23 @@ const RAIZ = join(process.cwd(), 'src')
 // ele serve TAMBÉM o shell do operador (sidebar, paleta, menu), e arrastaria para cá
 // dezenas de `href` para `/ativos`, `/admin`, `/movimentacoes` — todos legítimos, e
 // todos falsos positivos aqui. A raiz certa é o ramo que o VIEWER renderiza.
+//
+// F68 (19/11/2026) — A SUPERFÍCIE MUDOU DE LUGAR. O visualizador por senha não entra mais pelas rotas do grupo `(app)`:
+// ele entra pela PORTA PÚBLICA DA EMPRESA, `/r/<slug>/relatorios/**` (`src/app/r/**`), com o cabeçalho próprio
+// (`viewer-header.tsx` + `viewer-nav.tsx`). As raízes passam a ser TODA a árvore pública — derivada do disco, não
+// redigitada — e "interno" passa a ser `/r/…` (a porta). As páginas do OPERADOR em `(app)/relatorios/**` saíram da
+// superfície: quem as abre é operador logado, com o shell inteiro. Os destinos da porta saem de `caminhoDaPorta`
+// (lib/auth/porta-rotas.ts, função pura testada abaixo com entradas hostis), nunca de literal solto.
+function arvoreDaPorta(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? arvoreDaPorta(join(dir, e.name)) : e.name.endsWith('.tsx') ? [join(dir, e.name)] : [],
+  )
+}
 const RAIZES = [
-  join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
-  join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', 'page.tsx'),
-  join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', '[id]', 'page.tsx'),
+  // a ENTRADA (`/r/<slug>/relatorios/acesso`) fica fora: é anterior à sessão — ver o motivo no fim de arquivosDaSuperficie
+  ...arvoreDaPorta(join(RAIZ, 'app', 'r')).filter((a) => !a.includes(join('relatorios', 'acesso'))),
   join(RAIZ, 'components', 'layout', 'viewer-header.tsx'),
   join(RAIZ, 'components', 'layout', 'viewer-nav.tsx'),
-  join(RAIZ, 'components', 'layout', 'nav-rolavel.tsx'),
 ]
 
 // A superfície nunca pode ENCOLHER sem que alguém mexa neste número. Uma refatoração
@@ -87,7 +97,12 @@ const RAIZES = [
 // `lib/identidade/sistema.ts` (a `Marca`, que já estava no fecho, passou a ler a
 // sigla e o nome da fonte única). Nenhum deles escreve `href`, que é o que esta
 // trava mede — a varredura abaixo continua valendo arquivo por arquivo.
-const SUPERFICIE_MINIMA = 149
+//
+// F68 (19/11/2026): o fecho é **113**, e o piso passa a **104** (a mesma folga de nove). Ele CAIU porque a superfície
+// mudou de natureza: a porta só serve os relatórios GERADOS até a F68B — o ao vivo (a página `[filial]` do operador, com
+// o realtime, o seletor de período, as abas de filial e o "Gerar relatório") não é mais do visualizador. Os seis
+// componentes da pasta que saíram do fecho estão NOMEADOS em `SO_O_AO_VIVO`, abaixo, com o motivo.
+const SUPERFICIE_MINIMA = 104
 
 const EXTENSOES = ['.ts', '.tsx', '/index.ts', '/index.tsx']
 
@@ -129,8 +144,8 @@ function arquivosDaSuperficie(): string[] {
   // `acesso-form.tsx` é a porta PÚBLICA (a tela de digitar a senha), anterior à sessão
   // de visualização: o "/login" dela é para o operador que caiu ali por engano, e não
   // um link oferecido a quem já está lendo relatório. Antes ele era excluído À MÃO de
-  // um `readdirSync`; agora ele simplesmente não é alcançado, porque a rota
-  // `/relatorios/acesso` não é raiz. O motivo continua escrito porque continua sendo o
+  // um `readdirSync`; agora ele simplesmente não é alcançado, porque a rota da entrada
+  // (F68: `/r/<slug>/relatorios/acesso`) não é raiz. O motivo continua escrito porque continua sendo o
   // motivo — e porque é ele que explica por que a rota pública ficou fora das raízes.
   return [...vistos].sort()
 }
@@ -218,9 +233,21 @@ function hrefsLiterais(fonte: string): string[] {
 }
 
 function ehInterno(href: string): boolean {
-  // Fragmento da própria página (`#resumo`) ou rota de relatório.
-  return href.startsWith('#') || href.startsWith('/relatorios')
+  // Fragmento da própria página (`#resumo`) ou a PORTA (F68: `/r/…`). Os endereços antigos `/relatorios/**` são do
+  // operador (sem operador, o proxy os manda em 308 para a porta da legada).
+  return href.startsWith('#') || href.startsWith('/r/')
 }
+
+// F68 — os componentes da pasta `components/relatorios/` que só o AO VIVO usa, e que por isso saíram da superfície da
+// porta até a F68B (o ao vivo pela porta). Lista FECHADA: um componente a mais fora do fecho reprova o teste da pasta.
+const SO_O_AO_VIVO = [
+  'filial-tabs.tsx', // as abas de filial do ao vivo
+  'gerar-relatorio-dialog.tsx', // "Gerar relatório" — escrita do operador
+  'lembrar-relatorio-visitado.tsx', // a memória da última filial vista (RV-17), só do ao vivo
+  'periodo-filtro.tsx', // o seletor de período do ao vivo
+  'realtime-refresh.tsx', // o canal do operador no ao vivo
+  'viewer-auto-refresh.tsx', // o refresh de 60 s do visualizador no ao vivo — volta com a F68B
+]
 
 // Destinos FORA de /relatorios que existem nesta superfície — cada um atrás de uma
 // guarda de cargo. O teste confere que a guarda continua no arquivo: apagá-la é o
@@ -238,6 +265,7 @@ const EXCECOES: {
   guarda: string
   porque: string
   guardaEm?: { arquivo: string; guarda: string }[]
+  ausenteNaPorta?: string[]
 }[] = [
   {
     arquivo: 'celulas.tsx',
@@ -264,20 +292,9 @@ const EXCECOES: {
     guarda: 'o gate de cada página que monta <LinkAjuda>',
     porque:
       'o botão de ajuda é genérico e não tem cargo por dentro; quem o esconde do viewer é a página que o monta (F50)',
-    // ⚠ As duas páginas escrevem a MESMA pergunta de formas diferentes — uma usa a
-    // variável `ehOperador`, a outra compara `acesso.modo` na hora. Por isso cada
-    // chamador traz o seu literal: uma guarda única aqui só passaria por acidente,
-    // e passar por acidente é o que faz uma trava envelhecer sem ninguém notar.
-    guardaEm: [
-      {
-        arquivo: 'app/(app)/relatorios/[filial]/page.tsx',
-        guarda: '{ehOperador && ( <LinkAjuda',
-      },
-      {
-        arquivo: 'app/(app)/relatorios/gerados/page.tsx',
-        guarda: "{acesso.modo === 'operador' && ( <LinkAjuda",
-      },
-    ],
+    // F68: na PORTA, a guarda é a AUSÊNCIA — nenhum arquivo da árvore `src/app/r/**` monta `<LinkAjuda` nem passa
+    // `ajuda=` ao `CabecalhoDaPagina` (que é por onde o `pagina.tsx` traz o `LinkAjuda` para o fecho).
+    ausenteNaPorta: ['<LinkAjuda', 'ajuda='],
   },
 ]
 
@@ -289,9 +306,16 @@ const EXCECOES: {
  * montar o componente sem o gate para o link vazar naquela tela.
  */
 function guardaIntacta(
-  excecao: { guarda: string; guardaEm?: { arquivo: string; guarda: string }[] },
+  excecao: { guarda: string; guardaEm?: { arquivo: string; guarda: string }[]; ausenteNaPorta?: string[] },
   fonteDoArquivo: string,
 ): boolean {
+  // F68: a guarda pela AUSÊNCIA em toda a árvore da porta
+  if (excecao.ausenteNaPorta) {
+    return arvoreDaPorta(join(RAIZ, 'app', 'r')).every((a) => {
+      const f = readFileSync(a, 'utf8')
+      return excecao.ausenteNaPorta!.every((proibido) => !f.includes(proibido))
+    })
+  }
   if (!excecao.guardaEm) return fonteDoArquivo.includes(excecao.guarda)
   // Espaços normalizados: o gate e a montagem ficam em linhas diferentes, e um
   // reflow do Prettier não pode derrubar a trava (mesma disciplina do teste dos
@@ -303,7 +327,7 @@ function guardaIntacta(
   )
 }
 
-describe('confinamento do visualizador: nenhum link da superfície de relatório sai de /relatorios/**', () => {
+describe('confinamento do visualizador: nenhum link da superfície da PORTA sai de /r/** (F68)', () => {
   const arquivos = arquivosDaSuperficie()
 
   it('enxerga a superfície (sanidade do caminho)', () => {
@@ -337,7 +361,10 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
         .filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx') && f !== 'acesso-form.tsx')
         .map((f) => join(dirRel, f)),
     ]
+    // F68: menos os componentes que só o AO VIVO usa (SO_O_AO_VIVO, nominal) — e eles estão de fato fora do fecho
+    for (const n of SO_O_AO_VIVO) expect(arquivos.some((a) => a.endsWith(n)), `${n} voltou ao fecho — tire-o de SO_O_AO_VIVO`).toBe(false)
     const perdidos = antiga
+      .filter((a) => !SO_O_AO_VIVO.includes(a.split(/[\\/]/).pop()!))
       .filter((a) => !arquivos.includes(a))
       .map((a) => a.slice(RAIZ.length + 1).split(/[\\/]/).join('/'))
     expect(
@@ -379,7 +406,7 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
     }
     expect(
       vazamentos,
-      'o visualizador por senha não tem sessão do Supabase: link fora de /relatorios/** o DESLOGA',
+      'o visualizador por senha não tem sessão do Supabase: link fora da porta (/r/**) o tira da porta',
     ).toEqual([])
   })
 
@@ -407,119 +434,47 @@ describe('confinamento do visualizador: nenhum link da superfície de relatório
     }
   })
 
-  // Os KPI tiles são o quarto caminho para fora, e o mais sutil: o href vem por PROP
-  // (`links`), não por literal, então o varredor acima não o vê. Quem decide é a
-  // PÁGINA — e as duas decisões precisam continuar como estão.
-  it('os KPI tiles só recebem `links` no ao vivo E para o operador', () => {
-    const aoVivo = readFileSync(
-      join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
-      'utf8',
-    )
-    expect(aoVivo).toContain('const links = ehOperador ? linksKpiAtivos(filialId) : undefined')
-
-    // O snapshot congelado NUNCA passa `links` — nem para o operador: aqueles tiles
-    // descrevem o inventário de um período, e levariam para a lista de hoje.
-    const snapshot = readFileSync(
-      join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', '[id]', 'page.tsx'),
-      'utf8',
-    )
-    expect(snapshot).not.toContain('links=')
-    expect(snapshot).not.toContain('linksKpiAtivos')
-  })
-
-  // ===========================================================================
-  // F32 — as duas CATEGORIAS NOVAS de saída que o varredor de href não enxerga.
-  // ===========================================================================
-
-  // RV-12b abriu a primeira: clicar num segmento das barras empilhadas navega
-  // para `/ativos?…` por `router.push()`, uma chamada de FUNÇÃO. Não existe
-  // `href` nenhum para o regex achar — é uma classe de vazamento que o tripwire
-  // original não cobria, e por isso ela ganha prova própria, no molde dos tiles.
-  it('o clique nos segmentos (RV-12) só é habilitado no ao vivo E para o operador', async () => {
-    const aoVivo = readFileSync(
-      join(RAIZ, 'app', '(app)', 'relatorios', '[filial]', 'page.tsx'),
-      'utf8',
-    )
-    expect(aoVivo).toContain(
-      'const recorteFilial = ehOperador ? recorteFilialAtivos(filialId) : undefined',
-    )
-
-    const snapshot = readFileSync(
-      join(RAIZ, 'app', '(app)', 'relatorios', 'gerados', '[id]', 'page.tsx'),
-      'utf8',
-    )
-    expect(snapshot).not.toContain('recorteFilial')
-    expect(snapshot).not.toContain('recorteFilialAtivos')
-
-    // Segunda trava, no consumidor: o corpo só repassa o recorte se `links`
-    // existir. A prova era um literal (`recorteFilial={links ? recorteFilial
-    // : undefined}`) preso à formatação exata do fonte: um reflow do
-    // Prettier que quebrasse essa linha em >100 colunas deixaria o teste
-    // vermelho sem defeito nenhum, e a "correção" mais fácil (afrouxar para
-    // `toContain('recorteFilial')`) apagaria a guarda de verdade. Por isso a
-    // prova virou COMPORTAMENTO da função pura `recorteParaSegmento` (mesmo
-    // molde do teste de `hrefDoRelatorioVisitado` logo abaixo): exercita a
-    // guarda com o caso perigoso (sem `links`, com recorte) e confirma que
-    // ela barra. A asserção de fiação continua abaixo, mas normalizando os
-    // espaços do fonte — imune a quebra de linha, sensível a apagar a guarda.
+  // Os KPI tiles são o quarto caminho para fora, e o mais sutil: o href vem por PROP (`links`), não por literal, então o
+  // varredor acima não o vê. Quem decide é a PÁGINA. F68: a porta só tem o snapshot congelado, e ele NUNCA passa
+  // `links` — nem o recorte dos segmentos (RV-12): aqueles destinos levam para `/ativos`, que não é da porta.
+  it('a porta nunca passa `links` nem o recorte dos segmentos ao corpo do relatório (F68)', async () => {
+    for (const a of arvoreDaPorta(join(RAIZ, 'app', 'r'))) {
+      const f = readFileSync(a, 'utf8')
+      expect(f, a).not.toContain('links=')
+      expect(f, a).not.toContain('linksKpiAtivos')
+      expect(f, a).not.toContain('recorteFilial')
+    }
+    // a segunda trava, no consumidor (a mesma de antes): o corpo só repassa o recorte se `links` existir
     const { recorteParaSegmento } = await import('@/lib/relatorios/cliques-grafico')
     expect(recorteParaSegmento(true, '&filial=7')).toBe('&filial=7')
     expect(recorteParaSegmento(false, '&filial=7')).toBeUndefined()
+    const corpo = readFileSync(join(RAIZ, 'components', 'relatorios', 'corpo-relatorio-v2.tsx'), 'utf8')
+    expect(corpo.replace(/\s+/g, ' ')).toContain('recorteFilial={recorteParaSegmento(Boolean(links), recorteFilial)}')
+  })
 
-    const corpo = readFileSync(
-      join(RAIZ, 'components', 'relatorios', 'corpo-relatorio-v2.tsx'),
+  it('o snapshot da porta renderiza SEM as colunas de pessoa e sem os links do operador', () => {
+    const detalhe = readFileSync(
+      join(RAIZ, 'app', 'r', '[empresa]', 'relatorios', '(sessao)', 'gerados', '[id]', 'page.tsx'),
       'utf8',
-    )
-    const corpoNormalizado = corpo.replace(/\s+/g, ' ')
-    expect(corpoNormalizado).toContain(
-      'recorteFilial={recorteParaSegmento(Boolean(links), recorteFilial)}',
-    )
+    ).replace(/\s+/g, ' ')
+    expect(detalhe).toContain('<CorpoRelatorio snapshot={snapshot} ehOperador={false} semPessoas')
   })
 
-  // RV-17 abriu a segunda: o "Ao vivo" do header do viewer deixou de ser um
-  // literal e passou a sair de `sessionStorage` — que é editável pelo devtools.
-  // O varredor, que só lê literais, ficaria cego justamente onde o valor deixou
-  // de ser constante. A prova real é a função pura: ela não PODE devolver nada
-  // fora de /relatorios/**, e é isso que se exercita aqui, com entrada hostil.
-  it('o href memorizado do "Ao vivo" (RV-17) nunca sai de /relatorios/**', async () => {
-    const { hrefDoRelatorioVisitado } = await import(
-      '@/components/relatorios/relatorio-visitado'
-    )
-    const hostis: unknown[] = [
-      '../admin',
-      '../../login',
-      '//evil.com',
-      'https://evil.com',
-      'javascript:alert(1)',
-      '/ativos',
-      'geral?x=1',
-      'geral#frag',
-      'gerados',
-      'acesso',
-      'a'.repeat(500),
-      '',
-      123,
-      null,
-      undefined,
-      {},
-      [],
-    ]
-    for (const bruto of hostis) {
-      const href = hrefDoRelatorioVisitado(bruto)
-      expect(href.startsWith('/relatorios/'), `entrada ${String(bruto)} escapou: ${href}`).toBe(
-        true,
-      )
-      expect(/[:?#%\\]/.test(href), `entrada ${String(bruto)} passou caractere de escape`).toBe(
-        false,
-      )
+  // Os destinos do cabeçalho e das páginas da porta saem de `caminhoDaPorta` — nunca de um literal, nunca de valor
+  // que o navegador possa editar. A prova é a função pura, com entrada hostil no resto do caminho: o prefixo da porta
+  // DA EMPRESA nunca se perde.
+  it('caminhoDaPorta nunca sai da porta da empresa (entrada hostil no resto do caminho)', async () => {
+    const { caminhoDaPorta } = await import('@/lib/auth/porta-rotas')
+    for (const resto of ['gerados', 'gerados/abc', '/gerados', '//gerados', '', 'geral?x=1']) {
+      expect(caminhoDaPorta('wap', resto).startsWith('/r/wap/relatorios')).toBe(true)
     }
-    // E o caminho feliz continua funcionando (a guarda não pode ser "recuse tudo").
-    expect(hrefDoRelatorioVisitado('matriz')).toBe('/relatorios/matriz')
   })
 
-  it('o header do viewer continua tirando o href da função validada, não de um literal solto', () => {
-    const nav = readFileSync(join(RAIZ, 'components', 'layout', 'viewer-nav.tsx'), 'utf8')
-    expect(nav).toContain('@/components/relatorios/relatorio-visitado')
-    expect(nav).toContain('lerHrefAoVivo')
+  it('o cabeçalho e a navegação da porta tiram os destinos de caminhoDaPorta, sem href literal', () => {
+    for (const nome of ['viewer-header.tsx', 'viewer-nav.tsx']) {
+      const f = readFileSync(join(RAIZ, 'components', 'layout', nome), 'utf8')
+      expect(f, nome).toContain('caminhoDaPorta')
+      expect(hrefsLiterais(f), nome).toEqual([])
+    }
   })
 })
