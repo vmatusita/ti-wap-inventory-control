@@ -1,0 +1,16 @@
+# As 13 checagens de integridade em PRODUCAO, 19/11/2026 ~09:00 BRT, primeira hora da run da F68 — a LINHA TRAVADA
+# (decisao 13/11-3). Medidas por public.checagens_integridade_nucleo() (o MESMO nucleo da Parte B), so (chave, total); a
+# amostra NAO foi lida. Iguais as da F67C (16/11) — fato 3 confirmado.
+arquivo_termo_orfao 3
+ativo_filial_inativa 0
+backup_orfao 12                (#84)
+conflito_entre_filiais 59
+conta_sem_perfil 0
+detentor_em_estado_sem_dono 1  (#84)
+kit_motivo_orfao 0
+operador_sem_filial 0
+patrimonio_duplicado 0
+pendencia_de_estornada 0
+perfil_sem_conta 0
+reserva_aberta 0
+termo_sem_arquivo 0
