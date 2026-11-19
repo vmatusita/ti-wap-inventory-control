@@ -34,7 +34,8 @@ mesmo commit — já está na raiz. Aqui, o detalhe de cada subpasta.
   <não-volátil>`, sem `update`, com `lock_timeout` por `set`/`reset`.
 - **`supabase/rollback/`** guarda os rollbacks de fase (fora do ledger e da trava de hash), cada um ensaiado no CI por um
   roteiro `f<N>_rollback.sql`. O de uma fase pressupõe o das fases posteriores (o da F62 roda o da F64 e o da F63
-  antes; o da F63, o da F64). Desde a F67C, o `F67C-desfaz.sql` roda antes do primeiro `F67B-desfaz.sql` de cada roteiro
+  antes; o da F63, o da F64). Desde a F68, o `F68-desfaz.sql` roda ANTES do `F67C-desfaz.sql` em todos os roteiros de rollback (a porta pública e a
+  gestão das senhas por empresa saem primeiro; o ensaio é `tests/f68_rollback.sql`). Desde a F67C, o `F67C-desfaz.sql` roda antes do primeiro `F67B-desfaz.sql` de cada roteiro
   de rollback (o `set default` das 20 primeiro). Desde a F67B, o `F67B-desfaz.sql` roda IMEDIATAMENTE antes de todo `F67-desfaz.sql` dos roteiros (as policies do Storage
   da F67B citam `e_admin_na()`/`empresas_de_admin()`, que o da F67 derruba). Desde a F67, o `F67-desfaz.sql` roda antes dos da F66 para trás, e é idempotente nos DOIS
   estados de produção (só a expansão; expansão + contração) — ele é GERADO das migrations, nunca transcrito
@@ -49,6 +50,21 @@ mesmo commit — já está na raiz. Aqui, o detalhe de cada subpasta.
   nova), a 15m reprova INSERT numa das 20 sem a coluna no corpo de qualquer função. Função nova que grava no acervo tira a
   empresa do PAI pela ponte `public.empresa_da_filial(<a filial da linha>)` — sem parâmetro novo, sem ler `empresa_id`
   no corpo. Escrever a coluna não conta como lê-la (`pg_temp.sem_lista_de_escrita`, `tests/_asserts.sql`).
+
+## A porta pública (F68, `0208`–`0212`)
+
+- **Duas únicas funções executáveis por `anon`** em todo o `public`: `relatorio_publico_abrir` (confere a senha — bcrypt,
+  dentro do banco — e abre a sessão) e `relatorio_publico_dados` (serve os relatórios GERADOS da empresa da sessão, por
+  lista branca, sem nome de pessoa). A lista fechada é `k_secdef_anon` em `tests/catalogo_secdef.sql`; qualquer outra
+  `security definer` com `execute` para `anon` reprova. A asserção 5 de `tests/seguranca_catalogo.sql` reprova policy que
+  cite `anon` ou `public`: a porta NÃO passa por RLS, e sim por função.
+- **Duas tabelas deny-all novas:** `sessoes_visualizador` (infraestrutura — sem a `guarda_empresa`; a FK composta à empresa
+  da senha a prende àquela empresa) e `porta_tentativas` (o limite de tentativas). Nenhuma policy, nenhum grant: só as
+  funções as tocam.
+- **`pgcrypto` no bootstrap do CI:** `ci/bootstrap-roles.sql` cria o esquema `extensions` e a extensão, espelhando o
+  ambiente gerenciado; a `0208` só CONFERE que ela existe (não a cria).
+- Roteiros: `tests/isolamento_viewer.sql` (o visualizador só alcança a empresa da senha e só o gerado) e
+  `tests/f68_rollback.sql` (o `F68-desfaz.sql`). O ao vivo pela porta é da F68B.
 
 ## `ci/` — o bootstrap do job `banco-sem-docker`
 

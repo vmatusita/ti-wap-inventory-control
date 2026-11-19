@@ -31,9 +31,9 @@ fase apontava para PRODUÇÃO, com `SEED_CONFIRM=sim`.
 | nome | aponta para | quem lê | observação |
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | **ensaio** | app, scripts, smoke | trocado na F55 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **ensaio** | app (navegador), scripts | trocado na F55 |
-| `SUPABASE_SERVICE_ROLE_KEY` | **ensaio** | `lib/supabase/admin.ts`, seed, reset, restaurador, carga | trocado na F55; **jamais** a de produção aqui |
-| `VIEW_SESSION_SECRET` | — | `lib/auth/senha-sessao.ts` | valor **local novo** na F55. Se o anterior era o mesmo da Vercel, **girar o de lá é passo do Johnny** |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **ensaio** | app (navegador), scripts | trocado na F55. **Desde a F68 também no SERVIDOR**, pela porta pública (`lib/supabase/publico.ts`), sem cookie — pública por desenho |
+| `SUPABASE_SERVICE_ROLE_KEY` | **ensaio** | `lib/supabase/admin.ts`, seed, reset, restaurador, carga | trocado na F55; **desde a F68 não serve mais ao visualizador nem à gestão das senhas** (os usos que restam estão declarados em `lib/supabase/superficie-admin.test.ts`); **jamais** a de produção aqui |
+| `VIEW_SESSION_SECRET` | — | **nenhum código** desde a v1.76.0 (F68) | deixou de ser usado: a sessão da porta é um token opaco guardado no banco, não mais o envelope HMAC de `lib/auth/senha-sessao.ts` (removido). Continua no ambiente da Vercel até a contração da F68B (o deployment anterior, sob a Skew Protection, ainda a usa por até 12 h); depois sai. O valor local da F55 é o que restou |
 | `SEED_CONFIRM` | — | `scripts/env-guard.ts` | **VAZIA de propósito**. Confirmação é por SESSÃO: `SEED_CONFIRM=sim npm run db:reset`, na hora |
 | `SEED_PROJECT_REF` | **ensaio** | `scripts/env-guard.ts` | trocado na F55 |
 | `SMOKE_SUPABASE_URL` | **produção** | `scripts/smoke/smoke-prod.mjs` | gravada na F55 **antes** da troca acima: a cascata do smoke é `SMOKE_*` → `NEXT_PUBLIC_*`, e sem ela o smoke pós-deploy passaria a sondar o ensaio sem ninguém notar |
@@ -103,8 +103,8 @@ pessoa digita no navegador.
 ## 4. Vercel — o que a aplicação em produção lê
 
 Fora do alcance desta run (o painel é do Johnny). Por nome, o que `src/` lê em runtime:
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
-`VIEW_SESSION_SECRET` — mais as de sistema que a própria Vercel injeta (`VERCEL_ENV`,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+(`VIEW_SESSION_SECRET` deixou de ser lida na v1.76.0 e segue na Vercel só até a F68B) — mais as de sistema que a própria Vercel injeta (`VERCEL_ENV`,
 `VERCEL_GIT_COMMIT_SHA`, `VERCEL_GIT_COMMIT_REF`, `VERCEL_GIT_COMMIT_MESSAGE`).
 
 ⚠ **Pendência para o Johnny:** o `VIEW_SESSION_SECRET` do `.env.local` foi trocado por um valor local
@@ -193,7 +193,7 @@ transcrição da sessão dele, em texto claro:
 
 | nome | o que é | onde mais ele vive |
 |---|---|---|
-| `VIEW_SESSION_SECRET` | assina o cookie de visualização por senha dos relatórios | Vercel (§4) |
+| `VIEW_SESSION_SECRET` | assinava o cookie de visualização por senha dos relatórios (sem uso no código desde a v1.76.0; sai da Vercel na F68B) | Vercel (§4) |
 | `MS_CLIENT_SECRET` | *client secret* do app do SharePoint | Azure (§6) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chave **publicável** do ENSAIO | painel da Supabase |
 | `SMOKE_EMAIL` / `SMOKE_SENHA` | conta administrativa de **PRODUÇÃO** do ritual pós-deploy | Supabase Auth de produção |

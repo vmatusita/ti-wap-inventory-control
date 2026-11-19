@@ -283,6 +283,11 @@ export const usuariosESenhas: PaginaAjuda = {
     {
       tipo: 'nota',
       texto:
+        'O endereço de entrada agora é próprio da empresa — a tela devolve o link pronto ao criar a senha, e é esse link que você entrega. As senhas criadas antes da versão 1.76.0 deixaram de funcionar: crie novas em Administração › Senhas de acesso, entregue o link novo e revogue as antigas. Pela senha, o gestor vê os relatórios gerados, sem nomes de pessoas; o relatório ao vivo pela senha volta numa próxima versão.',
+    },
+    {
+      tipo: 'nota',
+      texto:
         'O que a senha de acesso abre: só os relatórios. Quem entra por ela não vê ativos, movimentações, itens, pendências, a administração nem esta documentação, e não tem como exportar as listas de operação. A coluna "Último uso" mostra quando aquela senha foi usada pela última vez (ou "nunca", se ninguém a usou ainda) — é o jeito de saber se uma senha antiga ainda está em uso antes de revogá-la.',
     },
 

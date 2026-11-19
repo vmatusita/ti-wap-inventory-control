@@ -2151,3 +2151,75 @@ default` é metadado, como o `drop`).
   `transferir_item` volta ao texto do ARQUIVO `0104` (o vivo de antes diferia dele só nos comentários — medido na F67C).
 - **Entre fases:** o da F67C vem ANTES do da F67B (e, por ele, dos de antes): os roteiros de rollback das fases
   anteriores rodam a cadeia inteira e medem a impressão contra a de antes deles.
+
+## Anexo F68 — abrir uma exceção de `anon` (19/11/2026)
+
+A F68 abriu as DUAS únicas exceções de `anon` do banco: `relatorio_publico_abrir(text, text, text)` e
+`relatorio_publico_dados(text, text, text, jsonb)` (a porta pública por empresa do visualizador por senha). As regras são
+R-ACC-144 a R-ACC-152 da MATRIZ; o porquê, o ADR-002 §20. Cinco migrations ADITIVAS (`0208`–`0212`), sem contração nesta
+fase (a contração é a F68B).
+
+### Abrir uma exceção de `anon` — as três exigências, com a inversão
+
+Qualquer função NOVA executável por `anon` é decisão de arquitetura, não de migration: ela precisa de ADR e de regra na
+MATRIZ, porque `anon` é a chave PÚBLICA. Se houver mesmo de existir, valem as três exigências da seção "`security
+definer` — três exigências" acima, com o privilégio INVERTIDO:
+
+1. **Autorização por dentro, antes de qualquer efeito.** Sem sessão no banco, a "autorização" é a senha ou a sessão
+   conferida no corpo (as duas portas conferem antes de ler ou escrever o que o chamador influencia).
+2. **Privilégio explícito e mínimo, invertido.** `revoke all on function … from public, authenticated, service_role;` e
+   `grant execute on function … to anon;` — SÓ `anon` a executa. O `public` no `revoke` continua obrigatório (sem ele o
+   revoke é no-op). `search_path = ''` e tudo com o schema escrito (`public.`, `extensions.`).
+3. **Escopo conferido antes de qualquer efeito**: o id/slug vem do cliente, então a empresa é resolvida pelo slug e toda
+   leitura é recortada por ela; a diagonal (sessão de A, slug de B) é recusada.
+
+E o catálogo precisa saber, nas DUAS metades: o nome entra em **`k_secdef_anon`** de `supabase/tests/catalogo_secdef.sql`
+(4a — "nenhuma `security definer` executável por `anon` fora da lista"; 4b — "as da lista existem, são definer,
+`search_path = ''` e sem EXECUTE a `public`/`authenticated`/`service_role`") e o comentário de catálogo da função
+(`comment on function`) diz POR QUE ela é exceção. Sem o par, ou a 4a reprova (função de fora) ou a 4b (lista sem função).
+
+**O advisor esperado:** `anon_security_definer_function_executable` — **2 WARN, declarados** (as duas portas); qualquer
+número diferente de 2 é achado novo. Mais 2 INFO `rls_enabled_no_policy` (`sessoes_visualizador` e `porta_tentativas`,
+deny-all por desenho).
+
+### O que fazer se a porta precisar fechar — a TRAVA DE EMERGÊNCIA
+
+Fecha a porta na hora, sem tocar o resto (nem tabela, nem gestão das senhas, nem o app do operador). Pelo `execute_sql`:
+
+```sql
+revoke execute on function public.relatorio_publico_abrir(text, text, text) from anon;
+revoke execute on function public.relatorio_publico_dados(text, text, text, jsonb) from anon;
+```
+
+- O visualizador recebe a mensagem genérica de falha ao conferir a senha; o operador não percebe nada.
+- **O par 4b do catálogo vai reprovar enquanto ela estiver fechada, e isso é o esperado** (a função existe, mas deixou de
+  ser executável por `anon`): é o roteiro avisando que a porta está fechada, não um defeito.
+- **Reabrir** = `grant execute on function public.relatorio_publico_abrir(text, text, text) to anon;` e o mesmo para
+  `relatorio_publico_dados(text, text, text, jsonb)`. Depois, o catálogo volta a passar.
+- A trava de emergência não desfaz nada: as sessões vivas continuam no banco e voltam a valer ao reabrir (vencem em 24 h).
+  Para derrubar TODAS ao fechar, revogue as senhas pela tela Senhas (a sessão morre na chamada seguinte).
+
+### O rollback da F68
+
+- **Quando:** o smoke ou o conferidor reprovaram; um advisor novo que cite objeto da fase; a porta abre para quem não
+  devia (diagonal, nome de pessoa na resposta). Em produção, feche a porta primeiro (a trava de emergência acima) e depois
+  decida.
+- **O arquivo:** `supabase/rollback/F68-desfaz.sql`, `0212` → `0211` → `0210` → `0209` → `0208`: as seis funções, as duas
+  tabelas (só sessão e contador, que morrem com elas) e a `unique` da `0208`; idempotente (`if exists`). **A ORDEM ENTRE
+  APP E BANCO é o que importa:** o app da v1.76.0 fala SÓ pelas funções que o arquivo derruba. Por isso **PRIMEIRO o revert
+  do PR de código e o deploy** (o app volta à v1.75.0, que usa o service role e `registrar_tentativa_senha`, que a F68
+  deixou de pé), e **DEPOIS** o `F68-desfaz.sql`, inteiro, pelo `execute_sql`. O ledger fica.
+- **Ensaio:** `supabase/tests/f68_rollback.sql` no CI, e a inclusão do `\ir ../rollback/F68-desfaz.sql` IMEDIATAMENTE
+  antes do `F67C-desfaz.sql` em cada roteiro de rollback F62–F67C (as travas de ordem em `rollback-f6x.test.ts`;
+  completude em `rollback-f68.test.ts`).
+- **Depois do rollback:** o app novo NÃO funciona na porta nem na tela Senhas (as funções saíram). As senhas bcrypt criadas
+  depois do deploy ficam na tabela e **não abrem a porta antiga** (que confere `scrypt`): o Johnny as revoga pela tela e,
+  se for o caso, cria senhas pelo app antigo. Nenhuma linha de negócio é tocada; as 5 senhas `scrypt` de antes não mudam.
+
+### A contração que fica para a F68B
+
+A F68 só EXPANDE: `registrar_tentativa_senha` e `senha_tentativas` (`0025`) ficam de pé, sem chamador novo, porque o
+deployment velho (Skew Protection, até 12 h) ainda os usa. Eles caem na abertura da F68B, depois de uma janela por
+`pg_stat_statements` (o molde do Anexo F67C): **T0 = 16 chamadas do `service_role`** a `registrar_tentativa_senha`
+(medido em 19/11/2026, antes do apply); o critério é Δ = 0 depois do deploy e do teto da Skew Protection. Número só, nunca
+conteúdo. A mesma F68B traz o ao vivo pela porta e a limpeza do ramo `ehOperador` morto.
