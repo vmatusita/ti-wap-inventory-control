@@ -89,6 +89,12 @@ const senha = process.env.SMOKE_SENHA || ''
 
 const argv = process.argv.slice(2)
 const somenteParteA = argv.includes('--sem-sessao')
+// F68 (19/11/2026) — o mapa de rotas da porta pública mudou com o app da v1.76.0. Entre o apply das migrations em
+// produção e o deploy do app, o app no ar ainda é o ANTERIOR: `--mapa-antes-do-deploy` confere as três rotas de
+// relatório com o contrato de antes (a entrada por senha em /relatorios/acesso) e pula as da porta nova. Depois do
+// deploy, o padrão (sem a flag) é o mapa novo. A recusa de `relatorio_publico_dados` com token inválido roda nos dois:
+// ela depende só do BANCO (as migrations da F68), não do app.
+const mapaAntesDoDeploy = argv.includes('--mapa-antes-do-deploy')
 
 // Resolvido por `await import('@supabase/supabase-js')` dentro de parteB() — a
 // Parte A não toca nisso. Os checks de PARTE B que precisam montar um client
@@ -168,9 +174,15 @@ function registrar(parte, nome, area, status, detalhe) {
 // 4. PARTE A — sem sessão (sempre roda)
 // ---------------------------------------------------------------------------
 // Contrato do proxy (src/lib/supabase/proxy.ts):
-//   /login e /relatorios/acesso  → públicas (200)
+//   /login                       → pública (200)
 //   rotas de operador            → redirect para /login
-//   /relatorios/**               → redirect para /relatorios/acesso (senha)
+//   F68 (v1.76.0) — A PORTA PÚBLICA:
+//   /relatorios e /relatorios/** → 308 para /r/wap/relatorios/acesso (a porta da legada; inclusive a antiga
+//                                  /relatorios/acesso, que deixou de ser a entrada)
+//   /r/wap/relatorios/acesso     → pública (200, o formulário da senha)
+//   /r/wap/relatorios/gerados    → sem a sessão da porta, redirect para a entrada da MESMA empresa
+//   /r/<inexistente>/relatorios/acesso → 404
+//   (antes da v1.76.0: /relatorios/acesso pública e /relatorios/** → /relatorios/acesso — o --mapa-antes-do-deploy)
 //
 // Como distinguimos "redirecionou" de "vazou a página":
 //  1. 3xx com header `location` cuja rota resolvida é a esperada → OK. É o que a
@@ -188,7 +200,6 @@ const MARCADORES_SHELL = ['Nova movimentação', 'href="/pendencias"', 'href="/m
 
 const ROTAS = [
   { rota: '/login', esperado: 'publica', area: 'login', marcadores: MARCADORES_LOGIN },
-  { rota: '/relatorios/acesso', esperado: 'publica', area: 'relatórios · entrada por senha' },
   { rota: '/', esperado: 'login', area: 'dashboard' },
   { rota: '/ativos', esperado: 'login', area: 'ativos · lista' },
   { rota: '/ativos/novo', esperado: 'login', area: 'ativos · cadastro de compra' },
@@ -206,8 +217,23 @@ const ROTAS = [
   { rota: '/admin/motivos', esperado: 'login', area: 'admin · motivos' },
   { rota: '/admin/usuarios', esperado: 'login', area: 'admin · usuários' },
   { rota: '/admin/importar', esperado: 'login', area: 'admin · import de startup' },
-  { rota: '/relatorios/geral', esperado: 'acesso-relatorio', area: 'relatório ao vivo (T10)' },
-  { rota: '/relatorios/gerados', esperado: 'acesso-relatorio', area: 'relatórios gerados' },
+  ...(mapaAntesDoDeploy
+    ? [
+        { rota: '/relatorios/acesso', esperado: 'publica', area: 'relatórios · entrada por senha (antes da v1.76.0)' },
+        { rota: '/relatorios/geral', esperado: 'acesso-relatorio', area: 'relatório ao vivo (antes da v1.76.0)' },
+        { rota: '/relatorios/gerados', esperado: 'acesso-relatorio', area: 'relatórios gerados (antes da v1.76.0)' },
+      ]
+    : [
+        // F68 — os endereços antigos: 308 (permanente) para a porta da legada
+        { rota: '/relatorios/acesso', esperado: 'porta-legada', status: 308, area: 'relatórios · o endereço antigo da entrada (F68)' },
+        { rota: '/relatorios/geral', esperado: 'porta-legada', status: 308, area: 'relatório ao vivo · o endereço antigo (F68)' },
+        { rota: '/relatorios/gerados', esperado: 'porta-legada', status: 308, area: 'relatórios gerados · o endereço antigo (F68)' },
+        // a porta nova
+        { rota: '/r/wap/relatorios/acesso', esperado: 'publica', area: 'porta pública · a entrada por senha (F68)', marcadores: MARCADORES_LOGIN },
+        { rota: '/r/wap/relatorios/gerados', esperado: 'porta-entrada', area: 'porta pública · gerados sem sessão (F68)' },
+        { rota: '/r/wap/relatorios/geral', esperado: 'porta-entrada', area: 'porta pública · ao vivo sem sessão (F68)' },
+        { rota: '/r/f68-smoke-inexistente/relatorios/acesso', esperado: 'nao-encontrada', area: 'porta pública · empresa inexistente (F68)' },
+      ]),
   // F55 — a sonda sem sessão. NÃO usa `checarRota`: não é HTML com marcador,
   // é JSON cujo formato muda com o resultado (200 × 503). `propria` desvia
   // para `checarSaude` (definida logo abaixo) em vez de forçar o formato
@@ -223,6 +249,9 @@ const ROTAS = [
 const DESTINO_ESPERADO = {
   login: '/login',
   'acesso-relatorio': '/relatorios/acesso',
+  // F68 — a porta da legada (o 308 dos endereços antigos) e a entrada da MESMA empresa (sem a sessão da porta)
+  'porta-legada': '/r/wap/relatorios/acesso',
+  'porta-entrada': '/r/wap/relatorios/acesso',
 }
 
 async function baixar(url) {
@@ -259,6 +288,14 @@ async function checarRota(entrada) {
     return { status: FALHA, detalhe: `HTTP ${codigo} — resposta 5xx` }
   }
 
+  // F68 — a empresa que não existe: 404 (a porta confere o slug no banco)
+  if (entrada.esperado === 'nao-encontrada') {
+    descartarCorpo()
+    return codigo === 404
+      ? { status: OK, detalhe: 'HTTP 404 (empresa inexistente)' }
+      : { status: FALHA, detalhe: `HTTP ${codigo} — esperado 404` }
+  }
+
   if (entrada.esperado === 'publica') {
     if (codigo !== 200) {
       descartarCorpo()
@@ -283,6 +320,10 @@ async function checarRota(entrada) {
       caminho = new URL(location, alvo).pathname
     } catch {
       /* location relativo esquisito: compara como veio */
+    }
+    // F68 — o 308 dos endereços antigos é PERMANENTE de propósito (o endereço mudou de vez); 307 aqui é regressão
+    if (entrada.status && codigo !== entrada.status) {
+      return { status: FALHA, detalhe: `HTTP ${codigo} → ${caminho} (esperado HTTP ${entrada.status})` }
     }
     if (caminho.startsWith(destino)) {
       return { status: OK, detalhe: `HTTP ${codigo} → ${destino}` }
@@ -379,11 +420,45 @@ async function checarSaude(entrada) {
 
 async function parteA() {
   log('')
-  log(`PARTE A — sem sessão · ${urlApp}`)
+  log(`PARTE A — sem sessão · ${urlApp}${mapaAntesDoDeploy ? ' · mapa de rotas de ANTES do deploy da v1.76.0' : ''}`)
   for (const entrada of ROTAS) {
     const { status, detalhe } = entrada.propria ? await checarSaude(entrada) : await checarRota(entrada)
     registrar('A', entrada.rota, entrada.area, status, detalhe)
   }
+  const porta = await checarPortaComTokenInvalido()
+  registrar('A', 'rpc/relatorio_publico_dados', 'porta pública · token inválido pela chave anon (F68)', porta.status, porta.detalhe)
+}
+
+// F68 — A PORTA DO BANCO, PELA CHAVE PÚBLICA, COM UM TOKEN QUE NÃO EXISTE. `relatorio_publico_dados` é uma das duas
+// funções de public executáveis por `anon`; com um token inventado ela TEM de responder a recusa da sessão — e nada
+// mais. Leitura pura (o pedido `sessao` não escreve; `relatorio_publico_abrir`, que escreve o contador e a sessão, NUNCA
+// é chamada pelo smoke). Não há prova positiva da porta em produção: não existe senha de visualização bcrypt lá até o
+// Johnny criar, e a senha só do smoke é da F73.
+async function checarPortaComTokenInvalido() {
+  if (!urlSupabase || !chaveAnon) {
+    return { status: FALHA, detalhe: 'sem SMOKE_SUPABASE_URL/SMOKE_SUPABASE_ANON_KEY — a recusa da porta não foi conferida' }
+  }
+  let resposta
+  try {
+    resposta = await fetch(`${urlSupabase.replace(/\/+$/, '')}/rest/v1/rpc/relatorio_publico_dados`, {
+      method: 'POST',
+      headers: { apikey: chaveAnon, authorization: `Bearer ${chaveAnon}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ p_sessao: 'smoke-f68-token-que-nao-existe', p_slug: 'wap', p_pedido: 'sessao', p_args: {} }),
+      signal: AbortSignal.timeout(TIMEOUT_HTTP_MS),
+    })
+  } catch (erro) {
+    return { status: FALHA, detalhe: `sem resposta (${descreverErro(erro)})` }
+  }
+  let corpo = null
+  try {
+    corpo = await resposta.json()
+  } catch {
+    /* corpo que não é JSON: reprova abaixo */
+  }
+  const recusa = corpo && corpo.ok === false && corpo.recusa === 'sessao' && Object.keys(corpo).length === 2
+  return resposta.status === 200 && recusa
+    ? { status: OK, detalhe: 'HTTP 200 · {"ok": false, "recusa": "sessao"} (a sessão inventada é recusada; nada escrito)' }
+    : { status: FALHA, detalhe: `HTTP ${resposta.status} · resposta fora do esperado (a recusa da sessão)` }
 }
 
 // ---------------------------------------------------------------------------
